@@ -59,20 +59,20 @@ pub fn border(
         }
 
         #[UiNode]
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             self.final_widths = self.widths.get_local().to_layout(available_size, ctx);
             self.final_radius = self.radius.get_local().to_layout(available_size, ctx);
 
             let size_inc = self.size_increment();
-            self.child.measure(available_size - size_inc, ctx) + size_inc
+            self.child.measure(ctx, available_size - size_inc) + size_inc
         }
 
         #[UiNode]
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.child_rect.origin = LayoutPoint::new(self.final_widths.left, self.final_widths.top);
             self.child_rect.size = final_size - self.size_increment();
             self.final_size = final_size;
-            self.child.arrange(self.child_rect.size, ctx);
+            self.child.arrange(ctx, self.child_rect.size);
         }
 
         fn size_increment(&self) -> LayoutSize {
@@ -81,14 +81,14 @@ pub fn border(
         }
 
         #[UiNode]
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.push_border(
                 LayoutRect::from_size(self.final_size),
                 self.final_widths,
                 *self.sides.get_local(),
                 self.final_radius,
             );
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(frame));
+            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
         }
     }
 

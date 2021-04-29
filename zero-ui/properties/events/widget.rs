@@ -3,6 +3,8 @@
 //! These events map very close to the [`UiNode`] methods. The event handler have non-standard signatures
 //! and the event does not respects widget [`enabled`](crate::core::widget_base::IsEnabled) status.
 
+use zero_ui_core::context::RenderContext;
+
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;
 use crate::core::*;
@@ -66,23 +68,39 @@ widget_context_handler_events! {
     Init, Deinit, Update, UpdateHp
 }
 
+/// Arguments of the [`on_measure`](fn@on_measure) event.
+#[derive(Debug, Clone, Copy)]
+pub struct OnMeasureArgs {
+    /// The maximum size available to the widget.
+    pub available_size: LayoutSize,
+
+    /// The [outer](crate::core::property#outer) size calculated by the widget.
+    pub desired_size: LayoutSize,
+}
+
 /// Event fired during the widget [`measure`](UiNode::measure) layout.
 ///
 /// The `handler` is called after the [preview event](on_pre_arrange) and after the widget children.
-/// The inputs are the available size, layout context and the desired size calculated by the widget.
+/// The inputs are layout context and the [`OnMeasureArgs`].
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
-pub fn on_measure(child: impl UiNode, handler: impl FnMut(LayoutSize, &mut LayoutContext, LayoutSize) + 'static) -> impl UiNode {
+pub fn on_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnMeasureArgs) + 'static) -> impl UiNode {
     struct OnMeasureNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(LayoutSize, &mut LayoutContext, LayoutSize) + 'static> UiNode for OnMeasureNode<C, F> {
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-            let desired_size = self.child.measure(available_size, ctx);
-            (self.handler)(available_size, ctx, desired_size);
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, OnMeasureArgs) + 'static> UiNode for OnMeasureNode<C, F> {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let desired_size = self.child.measure(ctx, available_size);
+            (self.handler)(
+                ctx,
+                OnMeasureArgs {
+                    available_size,
+                    desired_size,
+                },
+            );
             desired_size
         }
     }
@@ -91,20 +109,21 @@ pub fn on_measure(child: impl UiNode, handler: impl FnMut(LayoutSize, &mut Layou
 
 /// Preview [`on_measure`] event.
 ///
-/// The `handler` is called before the main event and before the widget children.
+/// The `handler` is called before the main event and before the widget children. The inputs are the layout context
+/// and the available size.
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
-pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(LayoutSize, &mut LayoutContext) + 'static) -> impl UiNode {
+pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, LayoutSize) + 'static) -> impl UiNode {
     struct OnPreviewMeasureNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(LayoutSize, &mut LayoutContext) + 'static> UiNode for OnPreviewMeasureNode<C, F> {
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-            (self.handler)(available_size, ctx);
-            self.child.measure(available_size, ctx)
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, LayoutSize) + 'static> UiNode for OnPreviewMeasureNode<C, F> {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            (self.handler)(ctx, available_size);
+            self.child.measure(ctx, available_size)
         }
     }
     OnPreviewMeasureNode { child, handler }
@@ -116,16 +135,16 @@ pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(LayoutSize, &mut L
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
-pub fn on_arrange(child: impl UiNode, handler: impl FnMut(LayoutSize, &mut LayoutContext) + 'static) -> impl UiNode {
+pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, LayoutSize) + 'static) -> impl UiNode {
     struct OnArrangeNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(LayoutSize, &mut LayoutContext) + 'static> UiNode for OnArrangeNode<C, F> {
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-            self.child.arrange(final_size, ctx);
-            (self.handler)(final_size, ctx);
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, LayoutSize) + 'static> UiNode for OnArrangeNode<C, F> {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            self.child.arrange(ctx, final_size);
+            (self.handler)(ctx, final_size);
         }
     }
     OnArrangeNode { child, handler }
@@ -137,16 +156,16 @@ pub fn on_arrange(child: impl UiNode, handler: impl FnMut(LayoutSize, &mut Layou
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
-pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(LayoutSize, &mut LayoutContext) + 'static) -> impl UiNode {
+pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, LayoutSize) + 'static) -> impl UiNode {
     struct OnPreviewArrangeNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(LayoutSize, &mut LayoutContext) + 'static> UiNode for OnPreviewArrangeNode<C, F> {
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-            (self.handler)(final_size, ctx);
-            self.child.arrange(final_size, ctx);
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, LayoutSize) + 'static> UiNode for OnPreviewArrangeNode<C, F> {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            (self.handler)(ctx, final_size);
+            self.child.arrange(ctx, final_size);
         }
     }
     OnPreviewArrangeNode { child, handler }
@@ -159,16 +178,16 @@ pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(LayoutSize, &mut L
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
-pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'static) -> impl UiNode {
+pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
     struct OnRenderNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnRenderNode<C, F> {
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.child.render(frame);
-            (self.handler)(frame);
+    impl<C: UiNode, F: Fn(&mut RenderContext, &mut FrameBuilder) + 'static> UiNode for OnRenderNode<C, F> {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.child.render(ctx, frame);
+            (self.handler)(ctx, frame);
         }
     }
     OnRenderNode { child, handler }
@@ -180,16 +199,16 @@ pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'stat
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
-pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'static) -> impl UiNode {
-    struct OnPreviewRenderNode<C: UiNode, F: Fn(&mut FrameBuilder)> {
+pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
+    struct OnPreviewRenderNode<C: UiNode, F: Fn(&mut RenderContext, &mut FrameBuilder)> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnPreviewRenderNode<C, F> {
-        fn render(&self, frame: &mut FrameBuilder) {
-            (self.handler)(frame);
-            self.child.render(frame);
+    impl<C: UiNode, F: Fn(&mut RenderContext, &mut FrameBuilder) + 'static> UiNode for OnPreviewRenderNode<C, F> {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            (self.handler)(ctx, frame);
+            self.child.render(ctx, frame);
         }
     }
     OnPreviewRenderNode { child, handler }
@@ -201,16 +220,16 @@ pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + '
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
-pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut FrameUpdate) + 'static) -> impl UiNode {
+pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static) -> impl UiNode {
     struct OnRenderUpdateNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut FrameUpdate) + 'static> UiNode for OnRenderUpdateNode<C, F> {
-        fn render_update(&self, update: &mut FrameUpdate) {
-            self.child.render_update(update);
-            (self.handler)(update);
+    impl<C: UiNode, F: Fn(&mut RenderContext, &mut FrameUpdate) + 'static> UiNode for OnRenderUpdateNode<C, F> {
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            self.child.render_update(ctx, update);
+            (self.handler)(ctx, update);
         }
     }
     OnRenderUpdateNode { child, handler }
@@ -221,16 +240,16 @@ pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut FrameUpdate) +
 ///
 /// The `handler` is called event when widget is [disabled](IsEnabled).
 #[property(event)]
-pub fn on_pre_render_update(child: impl UiNode, handler: impl Fn(&mut FrameUpdate) + 'static) -> impl UiNode {
+pub fn on_pre_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static) -> impl UiNode {
     struct OnPreviewRenderUpdateNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut FrameUpdate) + 'static> UiNode for OnPreviewRenderUpdateNode<C, F> {
-        fn render_update(&self, update: &mut FrameUpdate) {
-            (self.handler)(update);
-            self.child.render_update(update);
+    impl<C: UiNode, F: Fn(&mut RenderContext, &mut FrameUpdate) + 'static> UiNode for OnPreviewRenderUpdateNode<C, F> {
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            (self.handler)(ctx, update);
+            self.child.render_update(ctx, update);
         }
     }
 

@@ -55,21 +55,21 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let margin = self.margin.get_local().to_layout(available_size, ctx);
             self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
             self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
-            self.child.measure(available_size - self.size_increment, ctx) + self.size_increment
+            self.child.measure(ctx, available_size - self.size_increment) + self.size_increment
         }
 
-        fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             final_size -= self.size_increment;
             self.child_rect.size = final_size;
-            self.child.arrange(final_size, ctx);
+            self.child.arrange(ctx, final_size);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(frame));
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
         }
     }
     MarginNode {
@@ -120,14 +120,14 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-            self.child_rect.size = self.child.measure(available_size, ctx);
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            self.child_rect.size = self.child.measure(ctx, available_size);
             self.child_rect.size
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.child_rect.size = final_size.min(self.child_rect.size);
-            self.child.arrange(self.child_rect.size, ctx);
+            self.child.arrange(ctx, self.child_rect.size);
 
             let alignment = self.alignment.get_local();
 
@@ -138,8 +138,8 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
             .snap_to(*ctx.pixel_grid);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(frame));
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
         }
     }
 
@@ -193,13 +193,13 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-            self.child.arrange(final_size, ctx);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            self.child.arrange(ctx, final_size);
             self.final_position = self.position.get_local().to_layout(final_size, ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.final_position, |frame| self.child.render(frame));
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_reference_frame(self.final_position, |frame| self.child.render(ctx, frame));
         }
     }
     PositionNode {
@@ -251,13 +251,13 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-            self.child.arrange(final_size, ctx);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            self.child.arrange(ctx, final_size);
             self.final_x = self.x.get_local().to_layout(LayoutLength::new(final_size.width), ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(LayoutPoint::new(self.final_x.0, 0.0), |frame| self.child.render(frame));
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_reference_frame(LayoutPoint::new(self.final_x.0, 0.0), |frame| self.child.render(ctx, frame));
         }
     }
     XNode {
@@ -309,13 +309,13 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-            self.child.arrange(final_size, ctx);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            self.child.arrange(ctx, final_size);
             self.final_y = self.y.get_local().to_layout(LayoutLength::new(final_size.height), ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(LayoutPoint::new(0.0, self.final_y.0), |frame| self.child.render(frame));
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_reference_frame(LayoutPoint::new(0.0, self.final_y.0), |frame| self.child.render(ctx, frame));
         }
     }
     YNode {
@@ -370,17 +370,17 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let min_size = self.min_size.get_local().to_layout(available_size, ctx);
             let desired_size = self
                 .child
-                .measure(replace_layout_any_size(min_size, available_size).max(available_size), ctx);
+                .measure(ctx, replace_layout_any_size(min_size, available_size).max(available_size));
             desired_size.max(replace_layout_any_size(min_size, desired_size))
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             let min_size = replace_layout_any_size(self.min_size.get_local().to_layout(final_size, ctx), final_size);
-            self.child.arrange(min_size.max(final_size), ctx);
+            self.child.arrange(ctx, min_size.max(final_size));
         }
     }
     MinSizeNode {
@@ -433,7 +433,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let min_width = self
                 .min_width
                 .get_local()
@@ -442,20 +442,20 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 
             if !is_layout_any_size(min_width) {
                 available_size.width = min_width.max(available_size.width);
-                let mut desired_size = self.child.measure(available_size, ctx);
+                let mut desired_size = self.child.measure(ctx, available_size);
                 desired_size.width = desired_size.width.max(min_width);
                 desired_size
             } else {
-                self.child.measure(available_size, ctx)
+                self.child.measure(ctx, available_size)
             }
         }
 
-        fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             let min_width = self.min_width.get_local().to_layout(LayoutLength::new(final_size.width), ctx).get();
             if !is_layout_any_size(min_width) {
                 final_size.width = min_width.max(final_size.width);
             }
-            self.child.arrange(final_size, ctx);
+            self.child.arrange(ctx, final_size);
         }
     }
     MinWidthNode {
@@ -508,7 +508,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let min_height = self
                 .min_height
                 .get_local()
@@ -516,15 +516,15 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
                 .get();
             if !is_layout_any_size(min_height) {
                 available_size.height = min_height.max(available_size.height);
-                let mut desired_size = self.child.measure(available_size, ctx);
+                let mut desired_size = self.child.measure(ctx, available_size);
                 desired_size.height = desired_size.height.max(min_height);
                 desired_size
             } else {
-                self.child.measure(available_size, ctx)
+                self.child.measure(ctx, available_size)
             }
         }
 
-        fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             let min_height = self
                 .min_height
                 .get_local()
@@ -533,7 +533,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
             if !is_layout_any_size(min_height) {
                 final_size.height = min_height.max(final_size.height);
             }
-            self.child.arrange(final_size, ctx);
+            self.child.arrange(ctx, final_size);
         }
     }
     MinHeightNode {
@@ -587,14 +587,14 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let max_size = self.max_size.get_local().to_layout(available_size, ctx);
-            self.child.measure(max_size.min(available_size), ctx).min(max_size)
+            self.child.measure(ctx, max_size.min(available_size)).min(max_size)
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.child
-                .arrange(self.max_size.get_local().to_layout(final_size, ctx).min(final_size), ctx);
+                .arrange(ctx, self.max_size.get_local().to_layout(final_size, ctx).min(final_size));
         }
     }
     MaxSizeNode {
@@ -647,7 +647,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let max_width = self
                 .max_width
                 .get_local()
@@ -658,19 +658,19 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
             // is smaller the positive infinity.
             available_size.width = available_size.width.min(max_width);
 
-            let mut desired_size = self.child.measure(available_size, ctx);
+            let mut desired_size = self.child.measure(ctx, available_size);
             desired_size.width = desired_size.width.min(max_width);
             desired_size
         }
 
-        fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             final_size.width = self
                 .max_width
                 .get_local()
                 .to_layout(LayoutLength::new(final_size.width), ctx)
                 .get()
                 .min(final_size.width);
-            self.child.arrange(final_size, ctx);
+            self.child.arrange(ctx, final_size);
         }
     }
     MaxWidthNode {
@@ -723,7 +723,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let max_height = self
                 .max_height
                 .get_local()
@@ -734,19 +734,19 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
             // is smaller the positive infinity.
             available_size.height = available_size.height.min(max_height);
 
-            let mut desired_size = self.child.measure(available_size, ctx);
+            let mut desired_size = self.child.measure(ctx, available_size);
             desired_size.height = desired_size.height.min(max_height);
             desired_size
         }
 
-        fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             final_size.height = self
                 .max_height
                 .get_local()
                 .to_layout(LayoutLength::new(final_size.height), ctx)
                 .get()
                 .min(final_size.height);
-            self.child.arrange(final_size, ctx);
+            self.child.arrange(ctx, final_size);
         }
     }
     MaxHeightNode {
@@ -799,15 +799,15 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let size = self.size.get_local().to_layout(available_size, ctx);
-            let desired_size = self.child.measure(replace_layout_any_size(size, available_size), ctx);
+            let desired_size = self.child.measure(ctx, replace_layout_any_size(size, available_size));
             replace_layout_any_size(size, desired_size)
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             let size = replace_layout_any_size(self.size.get_local().to_layout(final_size, ctx), final_size);
-            self.child.arrange(size, ctx);
+            self.child.arrange(ctx, size);
         }
     }
     SizeNode {
@@ -856,24 +856,24 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let width = self.width.get_local().to_layout(LayoutLength::new(available_size.width), ctx).get();
             if !is_layout_any_size(width) {
                 available_size.width = width;
-                let mut desired_size = self.child.measure(available_size, ctx);
+                let mut desired_size = self.child.measure(ctx, available_size);
                 desired_size.width = width;
                 desired_size
             } else {
-                self.child.measure(available_size, ctx)
+                self.child.measure(ctx, available_size)
             }
         }
 
-        fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             let width = self.width.get_local().to_layout(LayoutLength::new(final_size.width), ctx).get();
             if !is_layout_any_size(width) {
                 final_size.width = width;
             }
-            self.child.arrange(final_size, ctx)
+            self.child.arrange(ctx, final_size)
         }
     }
     WidthNode {
@@ -922,7 +922,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let height = self
                 .height
                 .get_local()
@@ -930,20 +930,20 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
                 .get();
             if !is_layout_any_size(height) {
                 available_size.height = height;
-                let mut desired_size = self.child.measure(available_size, ctx);
+                let mut desired_size = self.child.measure(ctx, available_size);
                 desired_size.height = height;
                 desired_size
             } else {
-                self.child.measure(available_size, ctx)
+                self.child.measure(ctx, available_size)
             }
         }
 
-        fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             let height = self.height.get_local().to_layout(LayoutLength::new(final_size.height), ctx).get();
             if !is_layout_any_size(height) {
                 final_size.height = height;
             }
-            self.child.arrange(final_size, ctx)
+            self.child.arrange(ctx, final_size)
         }
     }
     HeightNode {

@@ -80,7 +80,7 @@ pub mod line_w {
             }
         }
 
-        fn measure(&mut self, available_space: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_space: LayoutSize) -> LayoutSize {
             let (width, height) = match *self.orientation.get_local() {
                 LineOrientation::Horizontal => (self.length.get_local(), self.width.get_local()),
                 LineOrientation::Vertical => (self.width.get_local(), self.length.get_local()),
@@ -92,11 +92,11 @@ pub mod line_w {
             LayoutSize::new(width.0, height.0)
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-            self.bounds = self.measure(final_size, ctx);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            self.bounds = self.measure(ctx, final_size);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
             let bounds = LayoutRect::from_size(self.bounds);
             let orientation = *self.orientation.get_local();
             let color = *self.color.get_local();

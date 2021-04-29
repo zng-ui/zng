@@ -1,11 +1,14 @@
 //! Frame render and metadata API.
 
 use super::color::{RenderColor, RenderFilter};
-use crate::gradient::{RenderExtendMode, RenderGradientStop};
 use crate::units::*;
 use crate::{
     border::{BorderSides, LayoutBorderRadius},
     context::LazyStateMap,
+};
+use crate::{
+    context::RenderContext,
+    gradient::{RenderExtendMode, RenderGradientStop},
 };
 use crate::{
     window::{CursorIcon, WindowId},
@@ -298,7 +301,12 @@ impl FrameBuilder {
     ///
     /// In case of error the `child` render is still called just without the transform.
     #[inline]
-    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode) -> Result<(), WidgetStartedError> {
+    pub fn with_widget_transform(
+        &mut self,
+        transform: &LayoutTransform,
+        child: &impl UiNode,
+        ctx: &mut RenderContext,
+    ) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
@@ -306,10 +314,10 @@ impl FrameBuilder {
             // we don't use post_transform here fore the same reason `Self::open_widget_display`
             // reverses filters, there is a detailed comment there.
             *t = t.pre_transform(transform);
-            child.render(self);
+            child.render(ctx, self);
             Ok(())
         } else {
-            child.render(self);
+            child.render(ctx, self);
             Err(WidgetStartedError)
         }
     }
@@ -320,16 +328,21 @@ impl FrameBuilder {
     ///
     /// In case of error the `child` render is still called just without the filter.
     #[inline]
-    pub fn with_widget_filter(&mut self, filter: RenderFilter, child: &impl UiNode) -> Result<(), WidgetStartedError> {
+    pub fn with_widget_filter(
+        &mut self,
+        filter: RenderFilter,
+        child: &impl UiNode,
+        ctx: &mut RenderContext,
+    ) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
         if let Some((_, f)) = self.widget_stack_ctx_data.as_mut() {
             f.extend(filter.into_iter().rev()); // see `Self::open_widget_display` for why it is reversed.
-            child.render(self);
+            child.render(ctx, self);
             Ok(())
         } else {
-            child.render(self);
+            child.render(ctx, self);
             Err(WidgetStartedError)
         }
     }
@@ -340,7 +353,12 @@ impl FrameBuilder {
     ///
     /// In case of error the `child` render is still called just without the filter.
     #[inline]
-    pub fn with_widget_opacity(&mut self, bind: FrameBinding<f32>, child: &impl UiNode) -> Result<(), WidgetStartedError> {
+    pub fn with_widget_opacity(
+        &mut self,
+        bind: FrameBinding<f32>,
+        child: &impl UiNode,
+        ctx: &mut RenderContext,
+    ) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
@@ -350,10 +368,10 @@ impl FrameBuilder {
                 PropertyBinding::Binding(_, v) => *v,
             };
             f.push(FilterOp::Opacity(bind, value));
-            child.render(self);
+            child.render(ctx, self);
             Ok(())
         } else {
-            child.render(self);
+            child.render(ctx, self);
             Err(WidgetStartedError)
         }
     }
@@ -433,7 +451,14 @@ impl FrameBuilder {
     }
 
     /// Calls [`render`](UiNode::render) for `child` inside a new widget context.
-    pub fn push_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, area: LayoutSize, child: &impl UiNode) {
+    pub fn push_widget(
+        &mut self,
+        id: WidgetId,
+        transform_key: WidgetTransformKey,
+        area: LayoutSize,
+        child: &impl UiNode,
+        ctx: &mut RenderContext,
+    ) {
         if self.cancel_widget {
             return;
         }
@@ -459,7 +484,7 @@ impl FrameBuilder {
         let node = self.info.push(self.info_id, id, bounds);
         let parent_node = mem::replace(&mut self.info_id, node);
 
-        child.render(self);
+        child.render(ctx, self);
 
         if self.cancel_widget {
             self.cancel_widget = false;
@@ -876,9 +901,9 @@ impl FrameUpdate {
 
     /// Includes the widget transform.
     #[inline]
-    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode) {
+    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode, ctx: &mut RenderContext) {
         self.widget_transform = self.widget_transform.post_transform(transform);
-        child.render_update(self);
+        child.render_update(ctx, self);
     }
 
     /// Update a layout transform value.
@@ -895,7 +920,7 @@ impl FrameUpdate {
 
     /// Calls [`render_update`](UiNode::render_update) for `child` inside a new widget context.
     #[inline]
-    pub fn update_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, child: &impl UiNode) {
+    pub fn update_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, child: &impl UiNode, ctx: &mut RenderContext) {
         if self.cancel_widget {
             return;
         }
@@ -909,7 +934,7 @@ impl FrameUpdate {
         let transforms_len = self.bindings.transforms.len();
         let floats_len = self.bindings.floats.len();
 
-        child.render_update(self);
+        child.render_update(ctx, self);
 
         self.widget_id = parent_id;
         self.widget_transform_key = parent_transform_key;

@@ -2,9 +2,12 @@
 
 use std::ops;
 
-use crate::render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey};
 use crate::units::LayoutSize;
 use crate::var::{context_var, IntoVar, VarLocal, Vars};
+use crate::{
+    context::RenderContext,
+    render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey},
+};
 use crate::{
     context::{state_key, LayoutContext, LazyStateMap, WidgetContext},
     units::LayoutPoint,
@@ -19,6 +22,8 @@ use crate::units::PixelGridExt;
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
+    use crate::context::RenderContext;
+
     use super::*;
 
     properties! {
@@ -82,7 +87,7 @@ pub mod implicit_base {
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
             }
-            fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+            fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
                 #[cfg(debug_assertions)]
                 {
                     fn valid_measure(f: f32) -> bool {
@@ -99,7 +104,7 @@ pub mod implicit_base {
                 }
 
                 let child = &mut self.child;
-                let child_size = ctx.with_widget(self.id, &mut self.state, |ctx| child.measure(available_size, ctx));
+                let child_size = ctx.with_widget(self.id, &mut self.state, |ctx| child.measure(ctx, available_size));
 
                 #[cfg(debug_assertions)]
                 {
@@ -119,7 +124,7 @@ pub mod implicit_base {
 
                 child_size
             }
-            fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
                 self.size = final_size;
 
                 #[cfg(debug_assertions)]
@@ -144,14 +149,18 @@ pub mod implicit_base {
                 let final_size = self.size;
                 let child = &mut self.child;
                 ctx.with_widget(self.id, &mut self.state, |ctx| {
-                    child.arrange(final_size, ctx);
+                    child.arrange(ctx, final_size);
                 });
             }
-            fn render(&self, frame: &mut FrameBuilder) {
-                frame.push_widget(self.id, self.transform_key, self.size, &self.child);
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                ctx.with_widget(self.id, &self.state, |ctx| {
+                    frame.push_widget(self.id, self.transform_key, self.size, &self.child, ctx);
+                });
             }
-            fn render_update(&self, update: &mut FrameUpdate) {
-                update.update_widget(self.id, self.transform_key, &self.child);
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                ctx.with_widget(self.id, &self.state, |ctx| {
+                    update.update_widget(self.id, self.transform_key, &self.child, ctx);
+                });
             }
         }
         impl<T: UiNode> Widget for WidgetNode<T> {
@@ -296,11 +305,11 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.with_context(ctx.vars, |c| c.update_hp(ctx));
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if !*self.enabled.get_local() {
                 frame.meta().set(EnabledState, false);
             }
-            self.child.render(frame);
+            self.child.render(ctx, frame);
         }
     }
     EnabledNode {
@@ -371,22 +380,22 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.with_context(ctx.vars, |c| c.update_hp(ctx));
         }
 
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             match *self.visibility.get_local() {
-                Visibility::Visible | Visibility::Hidden => self.child.measure(available_size, ctx),
+                Visibility::Visible | Visibility::Hidden => self.child.measure(ctx, available_size),
                 Visibility::Collapsed => LayoutSize::zero(),
             }
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             if let Visibility::Visible = self.visibility.get_local() {
-                self.child.arrange(final_size, ctx)
+                self.child.arrange(ctx, final_size)
             }
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if let Visibility::Visible = self.visibility.get_local() {
-                self.child.render(frame);
+                self.child.render(ctx, frame);
             } else {
                 frame
                     .cancel_widget()
@@ -394,9 +403,9 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             }
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Visibility::Visible = self.visibility.get_local() {
-                self.child.render_update(update);
+                self.child.render_update(ctx, update);
             } else {
                 update.cancel_widget();
             }
@@ -501,7 +510,7 @@ pub trait WidgetListVisibilityExt: WidgetList {
     fn count_not_collapsed(&self) -> usize;
 
     /// Render widgets, calls `origin` only for widgets that are not collapsed.
-    fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, origin: O, frame: &mut FrameBuilder);
+    fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder);
 }
 
 impl<U: WidgetList> WidgetListVisibilityExt for U {
@@ -509,7 +518,7 @@ impl<U: WidgetList> WidgetListVisibilityExt for U {
         self.count(|_, s| s.visibility() != Visibility::Collapsed)
     }
 
-    fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, mut origin: O, frame: &mut FrameBuilder) {
+    fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         self.render_filtered(
             |i, s| {
                 if s.visibility() != Visibility::Collapsed {
@@ -518,6 +527,7 @@ impl<U: WidgetList> WidgetListVisibilityExt for U {
                     None
                 }
             },
+            ctx,
             frame,
         )
     }
@@ -593,11 +603,11 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
             self.with_context(ctx.vars, |c| c.update_hp(ctx));
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if !self.hit_testable.get_local() {
-                frame.push_not_hit_testable(|frame| self.child.render(frame));
+                frame.push_not_hit_testable(|frame| self.child.render(ctx, frame));
             } else {
-                self.child.render(frame);
+                self.child.render(ctx, frame);
             }
         }
     }

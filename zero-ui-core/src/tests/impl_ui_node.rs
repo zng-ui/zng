@@ -101,20 +101,20 @@ fn test_trace(node: impl UiNode) {
 
     let l_size = LayoutSize::new(1000.0, 800.0);
 
-    wgt.test_measure(l_size, &mut ctx);
+    wgt.test_measure(&mut ctx, l_size);
     assert_only_traced!(wgt.state(), "measure");
 
-    wgt.test_arrange(l_size, &mut ctx);
+    wgt.test_arrange(&mut ctx, l_size);
     assert_only_traced!(wgt.state(), "arrange");
 
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
     let mut frame = FrameBuilder::new_renderless(FrameId::invalid(), window_id, wgt.id(), root_transform_key, l_size, 1.0);
-    wgt.render(&mut frame);
+    wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
     let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::invalid());
-    wgt.render_update(&mut update);
+    wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
 
     wgt.test_deinit(&mut ctx);
@@ -187,21 +187,21 @@ pub fn default_no_child() {
     let available_size = LayoutSize::new(1000.0, 800.0);
 
     // we expect default to fill available space and collapse in infinite spaces.
-    let desired_size = wgt.test_measure(available_size, &mut ctx);
+    let desired_size = wgt.test_measure(&mut ctx, available_size);
     assert_eq!(desired_size, available_size);
 
     let available_size = LayoutSize::new(LAYOUT_ANY_SIZE, LAYOUT_ANY_SIZE);
-    let desired_size = wgt.test_measure(available_size, &mut ctx);
+    let desired_size = wgt.test_measure(&mut ctx, available_size);
     assert_eq!(desired_size, LayoutSize::zero());
 
     // arrange does nothing, not really anything to test.
-    wgt.test_arrange(desired_size, &mut ctx);
+    wgt.test_arrange(&mut ctx, desired_size);
 
     // we expect default to not render anything.
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
     let mut frame = FrameBuilder::new_renderless(FrameId::invalid(), window_id, wgt.id(), root_transform_key, desired_size, 1.0);
-    wgt.render(&mut frame);
+    wgt.test_render(&mut ctx, &mut frame);
     let (_, frame_info) = frame.finalize();
     let wgt_info = frame_info.find(wgt.id()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
@@ -209,7 +209,7 @@ pub fn default_no_child() {
 
     // and not update render..
     let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::invalid());
-    wgt.render_update(&mut update);
+    wgt.test_render_update(&mut ctx, &mut update);
     let update = update.finalize();
     assert!(update.transforms.is_empty());
     assert!(update.floats.is_empty());
@@ -219,7 +219,8 @@ mod util {
     use std::{cell::RefCell, rc::Rc};
 
     use crate::{
-        context::{LayoutContext, WidgetContext},
+        context::{LayoutContext, RenderContext, WidgetContext},
+        render::{FrameBuilder, FrameUpdate},
         state_key,
         units::LayoutSize,
         UiNode,
@@ -303,20 +304,20 @@ mod util {
             self.trace("update_hp");
         }
 
-        fn measure(&mut self, _: LayoutSize, _: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, _: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
             self.trace("measure");
             LayoutSize::zero()
         }
 
-        fn arrange(&mut self, _: LayoutSize, _: &mut crate::context::LayoutContext) {
+        fn arrange(&mut self, _: &mut LayoutContext, _: LayoutSize) {
             self.trace("arrange");
         }
 
-        fn render(&self, _: &mut crate::render::FrameBuilder) {
+        fn render(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
             self.trace("render");
         }
 
-        fn render_update(&self, _: &mut crate::render::FrameUpdate) {
+        fn render_update(&self, _: &mut RenderContext, _: &mut FrameUpdate) {
             self.trace("render_update");
         }
     }

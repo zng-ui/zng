@@ -33,8 +33,8 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNo
             self.child.update(ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            frame.push_cursor(*self.cursor.get_local(), |frame| self.child.render(frame));
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_cursor(*self.cursor.get_local(), |frame| self.child.render(ctx, frame));
         }
     }
     CursorNode {

@@ -32,13 +32,13 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
             self.child.update(ctx)
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.render_filter = self.filter.get_local().to_render(final_size, ctx);
-            self.child.arrange(final_size, ctx);
+            self.child.arrange(ctx, final_size);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            frame.with_widget_filter(self.render_filter.clone(), &self.child).unwrap();
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.with_widget_filter(self.render_filter.clone(), &self.child, ctx).unwrap();
         }
     }
     FilterNode {
@@ -131,21 +131,21 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl Ui
             self.child.update(ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let opacity = self.alpha_value.get_local().0;
             let opacity = if let Some(frame_key) = self.frame_key {
                 frame_key.bind(opacity)
             } else {
                 FrameBinding::Value(opacity)
             };
-            frame.with_widget_opacity(opacity, &self.child).unwrap();
+            frame.with_widget_opacity(opacity, &self.child, ctx).unwrap();
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Some(frame_key) = self.frame_key {
                 update.update_f32(frame_key.update(self.alpha_value.get_local().0));
             }
-            self.child.render_update(update);
+            self.child.render_update(ctx, update);
         }
     }
 

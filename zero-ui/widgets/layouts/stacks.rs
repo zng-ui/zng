@@ -47,7 +47,7 @@ where
     }
 
     #[UiNode]
-    fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+    fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
         *D::lengths_mut(&mut available_size).0 = LAYOUT_ANY_SIZE;
 
         let mut total_size = LayoutSize::zero();
@@ -60,6 +60,7 @@ where
         let mut first = true;
         let rectangles = &mut self.rectangles;
         self.children.measure_all(
+            ctx,
             |_, _| available_size,
             |i, s, _| {
                 let r = &mut rectangles[i];
@@ -78,29 +79,25 @@ where
 
                 *max_ort_len = max_ort_len.max(D::ort_length(r.size));
             },
-            ctx,
         );
 
         total_size
     }
 
     #[UiNode]
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
         let max_ort_len = D::ort_length(final_size);
         let rectangles = &mut self.rectangles;
-        self.children.arrange_all(
-            |i, _| {
-                let mut size = rectangles[i].size;
-                *D::lengths_mut(&mut size).1 = max_ort_len;
-                size
-            },
-            ctx,
-        );
+        self.children.arrange_all(ctx, |i, _| {
+            let mut size = rectangles[i].size;
+            *D::lengths_mut(&mut size).1 = max_ort_len;
+            size
+        });
     }
 
     #[UiNode]
-    fn render(&self, frame: &mut FrameBuilder) {
-        self.children.render_all(|i| self.rectangles[i].origin, frame);
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.children.render_all(|i| self.rectangles[i].origin, ctx, frame);
     }
 }
 

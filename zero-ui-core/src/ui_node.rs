@@ -128,16 +128,32 @@ pub trait Widget: UiNode {
     /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
     /// Run [`UiNode::measure`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "pub_test"))]
-    fn test_measure(&mut self, available_size: LayoutSize, ctx: &mut TestWidgetContext) -> LayoutSize {
+    fn test_measure(&mut self, ctx: &mut TestWidgetContext, available_size: LayoutSize) -> LayoutSize {
         ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| {
-            self.measure(available_size, ctx)
+            self.measure(ctx, available_size)
         })
     }
     /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
     /// Run [`UiNode::arrange`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "pub_test"))]
-    fn test_arrange(&mut self, final_size: LayoutSize, ctx: &mut TestWidgetContext) {
-        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| self.arrange(final_size, ctx))
+    fn test_arrange(&mut self, ctx: &mut TestWidgetContext, final_size: LayoutSize) {
+        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| self.arrange(ctx, final_size))
+    }
+
+    // TODO don't require user to init frame?
+
+    /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
+    /// Run [`UiNode::render`] using the [`TestWidgetContext`].
+    #[cfg(any(test, doc, feature = "pub_test"))]
+    fn test_render(&self, ctx: &mut TestWidgetContext, frame: &mut FrameBuilder) {
+        ctx.render_context(|ctx| self.render(ctx, frame));
+    }
+
+    /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
+    /// Run [`UiNode::render_update`] using the [`TestWidgetContext`].
+    #[cfg(any(test, doc, feature = "pub_test"))]
+    fn test_render_update(&self, ctx: &mut TestWidgetContext, update: &mut FrameUpdate) {
+        ctx.render_context(|ctx| self.render_update(ctx, update));
     }
 }
 
@@ -170,7 +186,7 @@ impl Widget for Box<dyn Widget> {
 pub struct NilUiNode;
 #[impl_ui_node(none)]
 impl UiNode for NilUiNode {
-    fn measure(&mut self, _: LayoutSize, _: &mut LayoutContext) -> LayoutSize {
+    fn measure(&mut self, _: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
         LayoutSize::zero()
     }
 }
@@ -184,7 +200,7 @@ impl UiNode for FillUiNode {}
 #[doc(hidden)]
 pub mod impl_ui_node_util {
     use crate::{
-        context::{LayoutContext, WidgetContext},
+        context::{LayoutContext, RenderContext, WidgetContext},
         render::{FrameBuilder, FrameUpdate},
         units::LayoutSize,
         UiNode, UiNodeList,
@@ -222,12 +238,12 @@ pub mod impl_ui_node_util {
         fn deinit_all(self, ctx: &mut WidgetContext);
         fn update_all(self, ctx: &mut WidgetContext);
         fn update_hp_all(self, ctx: &mut WidgetContext);
-        fn measure_all(self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize;
-        fn arrange_all(self, final_size: LayoutSize, ctx: &mut LayoutContext);
+        fn measure_all(self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
+        fn arrange_all(self, ctx: &mut LayoutContext, final_size: LayoutSize);
     }
     pub trait IterImpl {
-        fn render_all(self, frame: &mut FrameBuilder);
-        fn render_update_all(self, update: &mut FrameUpdate);
+        fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+        fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate);
     }
 
     impl<'u, U: UiNode, I: IntoIterator<Item = &'u mut U>> IterMutImpl for I {
@@ -255,31 +271,31 @@ pub mod impl_ui_node_util {
             }
         }
 
-        fn measure_all(self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure_all(self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let mut size = LayoutSize::zero();
             for child in self {
-                size = child.measure(available_size, ctx).max(size);
+                size = child.measure(ctx, available_size).max(size);
             }
             size
         }
 
-        fn arrange_all(self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange_all(self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             for child in self {
-                child.arrange(final_size, ctx);
+                child.arrange(ctx, final_size);
             }
         }
     }
 
     impl<'u, U: UiNode, I: IntoIterator<Item = &'u U>> IterImpl for I {
-        fn render_all(self, frame: &mut FrameBuilder) {
+        fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             for child in self {
-                child.render(frame);
+                child.render(ctx, frame);
             }
         }
 
-        fn render_update_all(self, update: &mut FrameUpdate) {
+        fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             for child in self {
-                child.render_update(update);
+                child.render_update(ctx, update);
             }
         }
     }

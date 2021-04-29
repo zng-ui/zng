@@ -91,7 +91,7 @@ where
         }
     }
     #[UiNode]
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
         self.final_size = final_size;
         self.render_line = self.axis.get_local().layout(final_size, ctx);
 
@@ -106,7 +106,7 @@ where
         );
     }
     #[UiNode]
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
             LayoutRect::from_size(self.final_size),
             self.render_line,
@@ -154,14 +154,14 @@ where
         }
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
         self.render_tile_size = self.tile_size.get_local().to_layout(final_size, ctx);
         self.render_tile_spacing = self.tile_spacing.get_local().to_layout(final_size, ctx);
-        self.g.arrange(self.render_tile_size, ctx);
+        self.g.arrange(ctx, self.render_tile_size);
         self.g.final_size = final_size;
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
             LayoutRect::from_size(self.g.final_size),
             self.g.render_line,

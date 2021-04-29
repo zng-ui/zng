@@ -41,6 +41,7 @@ macro_rules! source_location {
         }
     };
 }
+use crate::context::RenderContext;
 #[doc(inline)]
 pub use crate::source_location;
 
@@ -449,9 +450,9 @@ impl UiNode for WidgetInstanceInfoNode {
         }
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
-        self.child.render(frame);
+        self.child.render(ctx, frame);
     }
 }
 
@@ -562,27 +563,27 @@ impl UiNode for PropertyInfoNode {
         ctx_mtd!(self.update_hp, ctx, mut info);
     }
 
-    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
         let t = Instant::now();
-        let r = self.child.measure(available_size, ctx);
+        let r = self.child.measure(ctx, available_size);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.measure = d;
         info.count.measure += 1;
         r
     }
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
         let t = Instant::now();
-        self.child.arrange(final_size, ctx);
+        self.child.arrange(ctx, final_size);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.arrange = d;
         info.count.arrange += 1;
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         let t = Instant::now();
-        self.child.render(frame);
+        self.child.render(ctx, frame);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.render = d;
@@ -591,9 +592,9 @@ impl UiNode for PropertyInfoNode {
         frame.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
     }
 
-    fn render_update(&self, update: &mut FrameUpdate) {
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         let t = Instant::now();
-        self.child.render_update(update);
+        self.child.render_update(ctx, update);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.render_update = d;

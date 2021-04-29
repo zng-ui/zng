@@ -26,9 +26,9 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().focusable = Some(*self.is_focusable.get_local());
-            self.child.render(frame);
+            self.child.render(ctx, frame);
         }
     }
     FocusableNode {
@@ -62,9 +62,9 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
             self.child.update(ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().tab_index = Some(*self.tab_index.get_local());
-            self.child.render(frame);
+            self.child.render(ctx, frame);
         }
     }
     TabIndexNode {
@@ -112,7 +112,7 @@ impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusScopeNode<C, E> {
         self.child.update(ctx);
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         let info = frame.meta().entry(FocusInfoKey).or_default();
         info.scope = Some(*self.is_focus_scope.get_local());
         if self.is_alt {
@@ -131,7 +131,7 @@ impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusScopeNode<C, E> {
                 info.skip_directional = Some(true);
             }
         }
-        self.child.render(frame);
+        self.child.render(ctx, frame);
     }
 }
 
@@ -156,13 +156,13 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
             self.child.update(ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let info = frame.meta().entry(FocusInfoKey).or_default();
             info.on_focus = *self.behavior.get_local();
             if info.scope.is_none() {
                 info.scope = Some(true);
             }
-            self.child.render(frame);
+            self.child.render(ctx, frame);
         }
     }
     FocusScopeBehaviorNode {
@@ -192,9 +192,9 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
             self.child.update(ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().tab_nav = Some(*self.tab_nav.get_local());
-            self.child.render(frame);
+            self.child.render(ctx, frame);
         }
     }
     TabNavNode {
@@ -224,9 +224,9 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
             self.child.update(ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(*self.directional_nav.get_local());
-            self.child.render(frame);
+            self.child.render(ctx, frame);
         }
     }
     DirectionalNavNode {
@@ -268,8 +268,8 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
             }
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.child.render(frame);
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.child.render(ctx, frame);
 
             let focus = frame.meta().entry(FocusInfoKey).or_default();
             if focus.focusable.is_none() {
@@ -311,9 +311,9 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
             self.child.update(ctx);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().skip_directional = Some(*self.enabled.get_local());
-            self.child.render(frame);
+            self.child.render(ctx, frame);
         }
     }
     SkipDirectionalNode {

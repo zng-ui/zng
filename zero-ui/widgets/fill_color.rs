@@ -16,11 +16,11 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
                 ctx.updates.render();
             }
         }
-        fn arrange(&mut self, final_size: LayoutSize, _: &mut LayoutContext) {
+        fn arrange(&mut self, _: &mut LayoutContext, final_size: LayoutSize) {
             self.final_size = final_size;
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.push_color(LayoutRect::from_size(self.final_size), (*self.color.get_local()).into());
         }
     }

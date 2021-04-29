@@ -28,17 +28,17 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             }
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.layout_transform = self.transform.get_local().to_layout(final_size, ctx);
-            self.child.arrange(final_size, ctx);
+            self.child.arrange(ctx, final_size);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            frame.with_widget_transform(&self.layout_transform, &self.child).unwrap();
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.with_widget_transform(&self.layout_transform, &self.child, ctx).unwrap();
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
-            update.with_widget_transform(&self.layout_transform, &self.child);
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            update.with_widget_transform(&self.layout_transform, &self.child, ctx);
         }
     }
     TransformNode {
@@ -183,19 +183,19 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.layout_origin = self.origin.get_local().to_layout(final_size, ctx);
-            self.child.arrange(final_size, ctx);
+            self.child.arrange(ctx, final_size);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.child.render(frame);
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.child.render(ctx, frame);
             //TODO
             eprintln!("TODO TransformOriginNode::layout_origin {:?}", self.layout_origin);
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
-            self.child.render_update(update);
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            self.child.render_update(ctx, update);
             // TODO
         }
     }

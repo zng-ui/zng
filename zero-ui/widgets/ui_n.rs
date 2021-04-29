@@ -1,5 +1,5 @@
 use crate::core::{
-    context::{LayoutContext, WidgetContext},
+    context::{LayoutContext, RenderContext, WidgetContext},
     render::{FrameBuilder, FrameUpdate},
     units::LayoutSize,
     UiNode,
@@ -37,27 +37,27 @@ macro_rules! ui_n {
                 }
             }
 
-            fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+            fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.measure(available_size, ctx),)+
+                    $($UiEnum::$UiNode(ui) => ui.measure(ctx, available_size),)+
                 }
             }
 
-            fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.arrange(final_size, ctx),)+
+                    $($UiEnum::$UiNode(ui) => ui.arrange(ctx, final_size),)+
                 }
             }
 
-            fn render(&self, f: &mut FrameBuilder) {
+            fn render(&self, ctx: &mut RenderContext, f: &mut FrameBuilder) {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.render(f),)+
+                    $($UiEnum::$UiNode(ui) => ui.render(ctx, f),)+
                 }
             }
 
-            fn render_update(&self, u: &mut FrameUpdate) {
+            fn render_update(&self, ctx: &mut RenderContext, u: &mut FrameUpdate) {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.render_update(u),)+
+                    $($UiEnum::$UiNode(ui) => ui.render_update(ctx, u),)+
                 }
             }
         }

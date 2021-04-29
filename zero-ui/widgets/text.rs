@@ -306,7 +306,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
     }
 
-    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
         if self.font.is_none() {
             let size = self.font_size.to_layout(LayoutLength::new(available_size.width), ctx);
             self.font = Some(self.font_face.as_ref().expect("font not inited in measure").sized(size));
@@ -326,12 +326,12 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         self.size
     }
 
-    fn arrange(&mut self, _final_size: LayoutSize, _ctx: &mut LayoutContext) {
+    fn arrange(&mut self, _ctx: &mut LayoutContext, _final_size: LayoutSize) {
         // TODO use final size for wrapping?
         // http://www.unicode.org/reports/tr14/tr14-45.html
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_text(
             LayoutRect::from_size(self.size),
             self.shaped_text.glyphs(),

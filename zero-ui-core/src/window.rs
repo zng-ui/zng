@@ -485,8 +485,8 @@ impl AppExtension for WindowManager {
         let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
         for (_, window) in windows.iter_mut() {
             window.layout(ctx);
-            window.render();
-            window.render_update();
+            window.render(ctx);
+            window.render_update(ctx);
         }
         ctx.services.req::<Windows>().windows = windows;
     }
@@ -1522,7 +1522,7 @@ impl OpenWindow {
         let scale_factor = self.scale_factor();
 
         w_ctx.root_layout(ctx, self.size(), scale_factor, |root, layout_ctx| {
-            size = root.measure(*layout_ctx.viewport_size, layout_ctx);
+            size = root.measure(layout_ctx, *layout_ctx.viewport_size);
 
             if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
                 size.width = layout_ctx.viewport_size.get().width;
@@ -1531,7 +1531,7 @@ impl OpenWindow {
                 size.height = layout_ctx.viewport_size.get().height;
             }
 
-            root.arrange(size, layout_ctx);
+            root.arrange(layout_ctx, size);
         });
 
         if auto_size != AutoSize::DISABLED {
@@ -1560,7 +1560,7 @@ impl OpenWindow {
     }
 
     /// Render a frame if one was required.
-    fn render(&mut self) {
+    fn render(&mut self, app_ctx: &mut AppContext) {
         let mut ctx = self.context.borrow_mut();
 
         if ctx.update != UpdateDisplayRequest::Render {
@@ -1598,7 +1598,9 @@ impl OpenWindow {
             self.scale_factor(),
         );
 
-        ctx.root.child.render(&mut frame);
+        ctx.root_render(app_ctx, |child, ctx| {
+            child.render(ctx, &mut frame);
+        });
 
         let (display_list_data, frame_info) = frame.finalize();
 
@@ -1616,7 +1618,7 @@ impl OpenWindow {
     }
 
     /// Render a frame update if one was required.
-    fn render_update(&mut self) {
+    fn render_update(&mut self, app_ctx: &mut AppContext) {
         let mut ctx = self.context.borrow_mut();
 
         if ctx.update != UpdateDisplayRequest::RenderUpdate {
@@ -1627,7 +1629,9 @@ impl OpenWindow {
 
         let mut update = FrameUpdate::new(ctx.window_id, ctx.root.id, ctx.root_transform_key, self.frame_info.frame_id());
 
-        ctx.root.child.render_update(&mut update);
+        ctx.root_render(app_ctx, |child, ctx| {
+            child.render_update(ctx, &mut update);
+        });
 
         let update = update.finalize();
 
@@ -1875,6 +1879,14 @@ impl OwnedWindowContext {
         });
     }
 
+    fn root_render(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut RenderContext)) {
+        let root = &mut self.root;
+        ctx.window_context(self.window_id, self.mode, &mut self.state, &mut self.services, &self.api, |ctx| {
+            let child = &mut root.child;
+            ctx.render_context(root.id, &root.state, |ctx| f(child, ctx))
+        });
+    }
+
     /// Call [`UiNode::init`](UiNode::init) in all nodes.
     pub fn init(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::init");
@@ -2000,7 +2012,7 @@ mod headless_tests {
     struct SetFooMetaNode;
     #[impl_ui_node(none)]
     impl UiNode for SetFooMetaNode {
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.meta().set(FooMetaKey, true);
         }
     }

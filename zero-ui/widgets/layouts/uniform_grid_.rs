@@ -165,7 +165,7 @@ pub mod uniform_grid {
             }
         }
         #[UiNode]
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let (columns, rows) = self.grid_len();
 
             let layout_spacing = self.spacing.get_local().to_layout(available_size, ctx);
@@ -179,7 +179,7 @@ pub mod uniform_grid {
             let mut cell_size = LayoutSize::zero();
 
             self.children
-                .measure_all(|_, _| available_size, |_, s, _| cell_size = cell_size.max(s), ctx);
+                .measure_all(ctx, |_, _| available_size, |_, s, _| cell_size = cell_size.max(s));
 
             LayoutSize::new(
                 cell_size.width * columns + layout_spacing.column * (columns - 1.0),
@@ -188,7 +188,7 @@ pub mod uniform_grid {
             .snap_to(*ctx.pixel_grid)
         }
         #[UiNode]
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             let (columns, rows) = self.grid_len();
 
             let layout_spacing = self.spacing.get_local().to_layout(final_size, ctx);
@@ -199,7 +199,7 @@ pub mod uniform_grid {
             )
             .snap_to(*ctx.pixel_grid);
 
-            self.children.arrange_all(|_, _| cell_size, ctx);
+            self.children.arrange_all(ctx, |_, _| cell_size);
 
             let mut first_column = *self.first_column.get_local() as f32;
             if first_column >= columns {
@@ -209,11 +209,11 @@ pub mod uniform_grid {
             self.cells_iter = CellsIter::new(cell_size, columns, first_column, layout_spacing);
         }
         #[UiNode]
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let mut cells = self.cells_iter.clone();
             let grid = frame.pixel_grid();
             self.children
-                .render_not_collapsed(move |_| cells.next().unwrap().snap_to(grid), frame);
+                .render_not_collapsed(move |_| cells.next().unwrap().snap_to(grid), ctx, frame);
         }
     }
     #[derive(Clone, Default)]

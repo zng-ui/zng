@@ -59,7 +59,7 @@ pub trait UiNodeList: 'static {
     /// The `desired_size` parameter is a function is called with the widget index, the widget measured size and the `ctx`.
     ///
     /// This is how you get the widget desired size.
-    fn measure_all<A, D>(&mut self, available_size: A, desired_size: D, ctx: &mut LayoutContext)
+    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
     where
         A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
         D: FnMut(usize, LayoutSize, &mut LayoutContext);
@@ -70,7 +70,7 @@ pub trait UiNodeList: 'static {
     ///
     /// The `final size` parameter is a function that takes a widget index and the `ctx` and returns the
     /// final size the widget must use.
-    fn arrange_all<F>(&mut self, final_size: F, ctx: &mut LayoutContext)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize;
 
@@ -81,12 +81,12 @@ pub trait UiNodeList: 'static {
     ///
     /// The `origin` parameter is a function that takes a widget index and returns the offset that must
     /// be used to render it.
-    fn render_all<O>(&self, origin: O, frame: &mut FrameBuilder)
+    fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> LayoutPoint;
 
     /// Calls [`UiNode::render_update`] in all widgets in the list, sequentially.
-    fn render_update_all(&self, update: &mut FrameUpdate);
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
 
 /// A generic view over a list of [`Widget`] UI nodes.
@@ -140,7 +140,7 @@ pub trait WidgetList: UiNodeList {
     ///
     /// The `origin` parameter is a function that takes a widget index and state and returns the offset that must
     /// be used to render it, if it must be rendered.
-    fn render_filtered<O>(&self, origin: O, frame: &mut FrameBuilder)
+    fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>;
 }
@@ -265,41 +265,41 @@ impl<U: UiNode> UiNodeList for Vec<U> {
         }
     }
 
-    fn measure_all<A, D>(&mut self, mut available_size: A, mut desired_size: D, ctx: &mut LayoutContext)
+    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
     where
         A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
         D: FnMut(usize, LayoutSize, &mut LayoutContext),
     {
         for (i, w) in self.iter_mut().enumerate() {
             let available_size = available_size(i, ctx);
-            let r = w.measure(available_size, ctx);
+            let r = w.measure(ctx, available_size);
             desired_size(i, r, ctx);
         }
     }
 
-    fn arrange_all<F>(&mut self, mut final_size: F, ctx: &mut LayoutContext)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
     {
         for (i, w) in self.iter_mut().enumerate() {
             let final_size = final_size(i, ctx);
-            w.arrange(final_size, ctx);
+            w.arrange(ctx, final_size);
         }
     }
 
-    fn render_all<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> LayoutPoint,
     {
         for (i, w) in self.iter().enumerate() {
             let origin = origin(i);
-            frame.push_reference_frame(origin, |frame| w.render(frame));
+            frame.push_reference_frame(origin, |frame| w.render(ctx, frame));
         }
     }
 
-    fn render_update_all(&self, update: &mut FrameUpdate) {
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         for w in self {
-            w.render_update(update);
+            w.render_update(ctx, update);
         }
     }
 }
@@ -328,13 +328,13 @@ impl<W: Widget> WidgetList for Vec<W> {
         self[index].size()
     }
 
-    fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+    fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
     {
         for (i, w) in self.iter().enumerate() {
             if let Some(origin) = origin(i, w.state()) {
-                frame.push_reference_frame(origin, |frame| w.render(frame));
+                frame.push_reference_frame(origin, |frame| w.render(ctx, frame));
             }
         }
     }
@@ -368,30 +368,30 @@ impl UiNodeList for WidgetVec {
         self.0.update_hp_all(ctx)
     }
 
-    fn measure_all<A, D>(&mut self, available_size: A, desired_size: D, ctx: &mut LayoutContext)
+    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
     where
         A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
         D: FnMut(usize, LayoutSize, &mut LayoutContext),
     {
-        self.0.measure_all(available_size, desired_size, ctx)
+        self.0.measure_all(ctx, available_size, desired_size)
     }
 
-    fn arrange_all<F>(&mut self, final_size: F, ctx: &mut LayoutContext)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
     {
-        self.0.arrange_all(final_size, ctx)
+        self.0.arrange_all(ctx, final_size)
     }
 
-    fn render_all<O>(&self, origin: O, frame: &mut FrameBuilder)
+    fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> LayoutPoint,
     {
-        self.0.render_all(origin, frame)
+        self.0.render_all(origin, ctx, frame)
     }
 
-    fn render_update_all(&self, update: &mut FrameUpdate) {
-        self.0.render_update_all(update)
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.0.render_update_all(ctx, update)
     }
 }
 impl WidgetList for WidgetVec {
@@ -415,11 +415,11 @@ impl WidgetList for WidgetVec {
         self.0.widget_size(index)
     }
 
-    fn render_filtered<O>(&self, origin: O, frame: &mut FrameBuilder)
+    fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
     {
-        self.0.render_filtered(origin, frame)
+        self.0.render_filtered(origin, ctx, frame)
     }
 }
 
@@ -521,29 +521,29 @@ impl UiNodeList for UiNodeVec {
         self.0.update_hp_all(ctx)
     }
 
-    fn measure_all<A, D>(&mut self, available_size: A, desired_size: D, ctx: &mut LayoutContext)
+    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
     where
         A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
         D: FnMut(usize, LayoutSize, &mut LayoutContext),
     {
-        self.0.measure_all(available_size, desired_size, ctx)
+        self.0.measure_all(ctx, available_size, desired_size)
     }
 
-    fn arrange_all<F>(&mut self, final_size: F, ctx: &mut LayoutContext)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
     {
-        self.0.arrange_all(final_size, ctx)
+        self.0.arrange_all(ctx, final_size)
     }
 
-    fn render_all<O>(&self, origin: O, frame: &mut FrameBuilder)
+    fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> LayoutPoint,
     {
-        self.0.render_all(origin, frame)
+        self.0.render_all(origin, ctx, frame)
     }
-    fn render_update_all(&self, update: &mut FrameUpdate) {
-        self.0.render_update_all(update)
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.0.render_update_all(ctx, update)
     }
 }
 
@@ -573,6 +573,7 @@ macro_rules! widget_vec {
         ])
     };
 }
+use crate::context::RenderContext;
 #[doc(inline)]
 pub use crate::widget_vec;
 
@@ -813,39 +814,39 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.update_hp_all(ctx);
     }
 
-    fn measure_all<AS, D>(&mut self, mut available_size: AS, mut desired_size: D, ctx: &mut LayoutContext)
+    fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
     where
         AS: FnMut(usize, &mut LayoutContext) -> LayoutSize,
         D: FnMut(usize, LayoutSize, &mut LayoutContext),
     {
         self.0
-            .measure_all(|i, c| available_size(i, c), |i, l, c| desired_size(i, l, c), ctx);
+            .measure_all(ctx, |i, c| available_size(i, c), |i, l, c| desired_size(i, l, c));
         let offset = self.0.len();
         self.1
-            .measure_all(|i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c), ctx);
+            .measure_all(ctx, |i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c));
     }
 
-    fn arrange_all<F>(&mut self, mut final_size: F, ctx: &mut LayoutContext)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
     {
-        self.0.arrange_all(|i, c| final_size(i, c), ctx);
+        self.0.arrange_all(ctx, |i, c| final_size(i, c));
         let offset = self.0.len();
-        self.1.arrange_all(|i, c| final_size(i + offset, c), ctx);
+        self.1.arrange_all(ctx, |i, c| final_size(i + offset, c));
     }
 
-    fn render_all<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> LayoutPoint,
     {
-        self.0.render_all(|i| origin(i), frame);
+        self.0.render_all(|i| origin(i), ctx, frame);
         let offset = self.0.len();
-        self.1.render_all(|i| origin(i + offset), frame);
+        self.1.render_all(|i| origin(i + offset), ctx, frame);
     }
 
-    fn render_update_all(&self, update: &mut FrameUpdate) {
-        self.0.render_update_all(update);
-        self.1.render_update_all(update);
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.0.render_update_all(ctx, update);
+        self.1.render_update_all(ctx, update);
     }
 }
 
@@ -856,13 +857,13 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         a
     }
 
-    fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+    fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
     {
-        self.0.render_filtered(|i, s| origin(i, s), frame);
+        self.0.render_filtered(|i, s| origin(i, s), ctx, frame);
         let offset = self.0.len();
-        self.1.render_filtered(|i, s| origin(i + offset, s), frame);
+        self.1.render_filtered(|i, s| origin(i + offset, s), ctx, frame);
     }
 
     fn widget_id(&self, index: usize) -> WidgetId {
@@ -942,39 +943,39 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.update_hp_all(ctx);
     }
 
-    fn measure_all<AS, D>(&mut self, mut available_size: AS, mut desired_size: D, ctx: &mut LayoutContext)
+    fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
     where
         AS: FnMut(usize, &mut LayoutContext) -> LayoutSize,
         D: FnMut(usize, LayoutSize, &mut LayoutContext),
     {
         self.0
-            .measure_all(|i, c| available_size(i, c), |i, l, c| desired_size(i, l, c), ctx);
+            .measure_all(ctx, |i, c| available_size(i, c), |i, l, c| desired_size(i, l, c));
         let offset = self.0.len();
         self.1
-            .measure_all(|i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c), ctx);
+            .measure_all(ctx, |i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c));
     }
 
-    fn arrange_all<F>(&mut self, mut final_size: F, ctx: &mut LayoutContext)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
     {
-        self.0.arrange_all(|i, c| final_size(i, c), ctx);
+        self.0.arrange_all(ctx, |i, c| final_size(i, c));
         let offset = self.0.len();
-        self.1.arrange_all(|i, c| final_size(i + offset, c), ctx);
+        self.1.arrange_all(ctx, |i, c| final_size(i + offset, c));
     }
 
-    fn render_all<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> LayoutPoint,
     {
-        self.0.render_all(|i| origin(i), frame);
+        self.0.render_all(|i| origin(i), ctx, frame);
         let offset = self.0.len();
-        self.1.render_all(|i| origin(i + offset), frame);
+        self.1.render_all(|i| origin(i + offset), ctx, frame);
     }
 
-    fn render_update_all(&self, update: &mut FrameUpdate) {
-        self.0.render_update_all(update);
-        self.1.render_update_all(update);
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.0.render_update_all(ctx, update);
+        self.1.render_update_all(ctx, update);
     }
 }
 
@@ -994,13 +995,13 @@ macro_rules! impl_tuples {
                 widget_vec![$(self.$n),+]
             }
 
-            fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+            fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
                 O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
             {
                 $(
                 if let Some(o) = origin($n, self.$n.state()) {
-                    frame.push_reference_frame(o, |frame| self.$n.render(frame));
+                    frame.push_reference_frame(o, |frame| self.$n.render(ctx, frame));
                 }
                 )+
             }
@@ -1077,41 +1078,41 @@ macro_rules! impl_tuples {
                 $(self.$n.update_hp(ctx);)+
             }
 
-            fn measure_all<A, D>(&mut self, mut available_size: A, mut desired_size: D, ctx: &mut LayoutContext)
+            fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
             where
                 A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
                 D: FnMut(usize, LayoutSize, &mut LayoutContext),
             {
                 $(
                 let av_sz = available_size($n, ctx);
-                let r = self.$n.measure(av_sz, ctx);
+                let r = self.$n.measure(ctx, av_sz);
                 desired_size($n, r, ctx);
                 )+
             }
 
-            fn arrange_all<F>(&mut self, mut final_size: F, ctx: &mut LayoutContext)
+            fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
             where
                 F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
             {
                 $(
                 let fi_sz = final_size($n, ctx);
-                self.$n.arrange(fi_sz, ctx);
+                self.$n.arrange(ctx, fi_sz);
                 )+
             }
 
-            fn render_all<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+            fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
                 O: FnMut(usize) -> LayoutPoint,
             {
                 $(
                 let o = origin($n);
-                frame.push_reference_frame(o, |frame| self.$n.render(frame));
+                frame.push_reference_frame(o, |frame| self.$n.render(ctx, frame));
                 )+
             }
 
             #[inline]
-            fn render_update_all(&self, update: &mut FrameUpdate) {
-                $(self.$n.render_update(update);)+
+            fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                $(self.$n.render_update(ctx, update);)+
             }
         }
     };
@@ -1159,27 +1160,27 @@ macro_rules! empty_node_list {
             #[inline]
             fn update_hp_all(&mut self, _: &mut WidgetContext) {}
 
-            fn measure_all<A, D>(&mut self, _: A, _: D, _: &mut LayoutContext)
+            fn measure_all<A, D>(&mut self, _: &mut LayoutContext, _: A, _: D)
             where
                 A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
                 D: FnMut(usize, LayoutSize, &mut LayoutContext),
             {
             }
 
-            fn arrange_all<F>(&mut self, _: F, _: &mut LayoutContext)
+            fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: F)
             where
                 F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
             {
             }
 
-            fn render_all<O>(&self, _: O, _: &mut FrameBuilder)
+            fn render_all<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
             where
                 O: FnMut(usize) -> LayoutPoint,
             {
             }
 
             #[inline]
-            fn render_update_all(&self, _: &mut FrameUpdate) {}
+            fn render_update_all(&self, _: &mut RenderContext, _: &mut FrameUpdate) {}
         }
     )+}
 }
@@ -1193,7 +1194,7 @@ impl WidgetList for WidgetList0 {
         widget_vec![]
     }
 
-    fn render_filtered<O>(&self, _: O, _: &mut FrameBuilder)
+    fn render_filtered<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
     {

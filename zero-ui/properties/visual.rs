@@ -57,20 +57,20 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             self.child.update_hp(ctx);
         }
 
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-            let available_size = self.child.measure(available_size, ctx);
-            self.background.measure(available_size, ctx);
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let available_size = self.child.measure(ctx, available_size);
+            self.background.measure(ctx, available_size);
             available_size
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-            self.background.arrange(final_size, ctx);
-            self.child.arrange(final_size, ctx);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            self.background.arrange(ctx, final_size);
+            self.child.arrange(ctx, final_size);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.background.render(frame); // TODO, disable events and focus for this?
-            self.child.render(frame);
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.background.render(ctx, frame); // TODO, disable events and focus for this?
+            self.child.render(ctx, frame);
         }
     }
     BackgroundNode { child, background }
@@ -173,20 +173,20 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
             self.foreground.update_hp(ctx);
         }
 
-        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-            let available_size = self.child.measure(available_size, ctx);
-            self.foreground.measure(available_size, ctx);
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let available_size = self.child.measure(ctx, available_size);
+            self.foreground.measure(ctx, available_size);
             available_size
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-            self.foreground.arrange(final_size, ctx);
-            self.child.arrange(final_size, ctx);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            self.foreground.arrange(ctx, final_size);
+            self.child.arrange(ctx, final_size);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.child.render(frame);
-            self.foreground.render(frame); // TODO, disable events and focus for this?
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.child.render(ctx, frame);
+            self.foreground.render(ctx, frame); // TODO, disable events and focus for this?
         }
     }
     ForegroundNode { child, foreground }
@@ -321,16 +321,16 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.bounds = final_size;
-            self.child.arrange(final_size, ctx)
+            self.child.arrange(ctx, final_size)
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if *self.clip.get_local() {
-                frame.push_simple_clip(self.bounds, |frame| self.child.render(frame));
+                frame.push_simple_clip(self.bounds, |frame| self.child.render(ctx, frame));
             } else {
-                self.child.render(frame);
+                self.child.render(ctx, frame);
             }
         }
     }

@@ -13,7 +13,7 @@ singleton_assert!(SingletonVars);
 ///
 /// # Examples
 ///
-/// You can [`get`](VarsObj::get) a value using a [`VarsRead`] reference.
+/// You can [`get`](VarObj::get) a value using a [`VarsRead`] reference.
 ///
 /// ```
 /// # use zero_ui_core::var::{VarObj, VarsRead};
