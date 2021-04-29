@@ -935,7 +935,7 @@ impl<T> std::ops::Deref for ReadOnly<T> {
 }
 
 impl<'a> WindowContext<'a> {
-    /// Runs a function `f` within the context of a widget.
+    /// Runs a function `f` in the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
         f(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
@@ -956,7 +956,7 @@ impl<'a> WindowContext<'a> {
         });
     }
 
-    /// Runs a function `f` within the layout context of a widget.
+    /// Runs a function `f` in the layout context of a widget.
     pub fn layout_context(
         &mut self,
         font_size: f32,
@@ -981,6 +981,18 @@ impl<'a> WindowContext<'a> {
             widget_state,
             update_state: self.update_state,
 
+            vars: &self.vars,
+        })
+    }
+
+    /// Runs a function `f` in the render context of a widget.
+    pub fn render_context(&mut self, widget_id: WidgetId, widget_state: &LazyStateMap, f: impl FnOnce(&mut RenderContext)) {
+        f(&mut RenderContext {
+            path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state,
+            update_state: self.update_state,
             vars: &self.vars,
         })
     }
@@ -1105,7 +1117,7 @@ impl TestWidgetContext {
         }
     }
 
-    /// Calls `action` within a fake widget context.
+    /// Calls `action` in a fake widget context.
     pub fn widget_context<R>(&mut self, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
@@ -1122,7 +1134,7 @@ impl TestWidgetContext {
         })
     }
 
-    /// Calls `action` within a fake layout context.
+    /// Calls `action` in a fake layout context.
     pub fn layout_context<R>(
         &mut self,
         root_font_size: f32,
@@ -1142,7 +1154,19 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             app_state: &mut self.app_state,
             window_state: &mut self.window_state,
-            widget_state: &mut LazyStateMap::new(),
+            widget_state: &mut self.widget_state,
+            update_state: &mut self.update_state,
+            vars: &self.vars,
+        })
+    }
+
+    /// Calls `action` in a fake render context.
+    pub fn render_context<R>(&mut self, action: impl FnOnce(&mut RenderContext) -> R) -> R {
+        action(&mut RenderContext {
+            path: &mut WidgetContextPath::new(self.window_id, self.root_id),
+            app_state: &self.app_state,
+            window_state: &self.window_state,
+            widget_state: &self.widget_state,
             update_state: &mut self.update_state,
             vars: &self.vars,
         })
@@ -1206,7 +1230,7 @@ pub struct WidgetContext<'a> {
     pub updates: &'a mut Updates,
 }
 impl<'a> WidgetContext<'a> {
-    /// Runs a function `f` within the context of a widget.
+    /// Runs a function `f` in the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
         self.path.push(widget_id);
 
@@ -1338,7 +1362,7 @@ pub struct LayoutContext<'a> {
     pub vars: &'a VarsRead,
 }
 impl<'a> LayoutContext<'a> {
-    /// Runs a function `f` within a context that has the new computed font size.
+    /// Runs a function `f` in a layout context that has the new computed font size.
     pub fn with_font_size<R>(&mut self, new_font_size: f32, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         let old_font_size = mem::replace(&mut self.font_size, ReadOnly(new_font_size));
         let r = f(self);
@@ -1346,7 +1370,7 @@ impl<'a> LayoutContext<'a> {
         r
     }
 
-    /// Runs a function `f` within the context of a widget.
+    /// Runs a function `f` in the layout context of a widget.
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         self.path.push(widget_id);
 
@@ -1372,6 +1396,47 @@ impl<'a> LayoutContext<'a> {
 
         self.path.pop();
 
+        r
+    }
+}
+
+/// A widget render context.
+pub struct RenderContext<'a> {
+    /// Current widget path.
+    pub path: &'a mut WidgetContextPath,
+
+    /// Read-only access to the state that lives for the duration of the application.
+    pub app_state: &'a StateMap,
+
+    /// Read-only access to the state that lives for the duration of the window.
+    pub window_state: &'a StateMap,
+
+    /// Read-only access to the state that lives for the duration of the widget.
+    pub widget_state: &'a LazyStateMap,
+
+    /// State that lives for the duration of the node tree render or render update call in the window.
+    ///
+    /// This state lives only for the call to [`UiNode::render`](crate::UiNode::render) or
+    /// [`UiNode::render_update`](crate::UiNode::render_update) method call in all nodes of the window.
+    /// You can use this to signal nodes that have not rendered yet.
+    pub update_state: &'a mut StateMap,
+
+    /// Read-only access to variables.
+    pub vars: &'a VarsRead,
+}
+impl<'a> RenderContext<'a> {
+    /// Runs a function `f` in the render context of a widget.
+    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &LazyStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
+        self.path.push(widget_id);
+        let r = f(&mut RenderContext {
+            path: self.path,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state,
+            update_state: self.update_state,
+            vars: self.vars,
+        });
+        self.path.pop();
         r
     }
 }

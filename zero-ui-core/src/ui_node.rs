@@ -46,7 +46,7 @@ pub trait UiNode: 'static {
     ///
     /// # Return
     /// Return the nodes desired size. Must not contain infinity or NaN. Must be pixel aligned.
-    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize;
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
 
     /// Called every time a layout update is needed, after [`measure`](UiNode::measure).
     ///
@@ -54,19 +54,19 @@ pub trait UiNode: 'static {
     /// * `final_size`: The size the parent node reserved for the node. Must reposition its contents
     /// to fit this size. The value does not contain infinity or NaNs and is pixel aligned.
     /// TODO args docs.
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext);
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize);
 
     /// Called every time a new frame must be rendered.
     ///
     /// # Arguments
     /// * `frame`: Contains the next frame draw instructions.
-    fn render(&self, frame: &mut FrameBuilder);
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
 
     /// Called every time a frame can be updated without fully rebuilding.
     ///
     /// # Arguments
     /// * `update`: Contains the frame value updates.
-    fn render_update(&self, update: &mut FrameUpdate);
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 
     /// Box this node, unless it is already `Box<dyn UiNode>`.
     fn boxed(self) -> Box<dyn UiNode>
