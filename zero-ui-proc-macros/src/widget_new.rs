@@ -209,7 +209,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // for each property assigned in the widget instantiation call (excluding when blocks and `special!` values).
-    for up in &user_properties {
+    for (i, up) in user_properties.iter().enumerate() {
         let p_name = util::display_path(&up.path);
 
         let p_mod = match up.path.get_ident() {
@@ -219,7 +219,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
             _ => up.path.to_token_stream(),
         };
-        let p_var_ident = ident!("__u_{}", p_name.replace("::", "_"));
+        let p_var_ident = ident!("__u{}_{}", i, p_name.replace("::", "_"));
         let attrs = Attributes::new(up.attrs.clone());
         let cfg = attrs.cfg;
         let lints = attrs.lints;
@@ -351,8 +351,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
 
-    // map of [property_without_value => combined_cfg_for_default_init]
-    let mut user_when_properties: HashMap<Path, Option<TokenStream>> = HashMap::new();
+    // map of [property_without_value => (combined_cfg_for_default_init, unique_id)]
+    let mut user_when_properties: HashMap<Path, (Option<TokenStream>, usize)> = HashMap::new();
 
     for (i, w) in user_input.whens.into_iter().enumerate() {
         // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
@@ -409,13 +409,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         if !validate_but_skip {
                             let p_cfg = Attributes::new(p_attrs.to_vec()).cfg;
                             let cfg = util::cfg_attr_or(cfg.clone(), p_cfg);
+                            let i = user_when_properties.len();
                             match user_when_properties.entry(property.clone()) {
                                 std::collections::hash_map::Entry::Occupied(mut e) => {
-                                    let prev = e.get().clone().map(|tt| util::parse_attr(tt).unwrap());
-                                    *e.get_mut() = util::cfg_attr_or(prev, cfg.map(|tt| util::parse_attr(tt).unwrap()));
+                                    let prev = e.get().0.clone().map(|tt| util::parse_attr(tt).unwrap());
+                                    e.get_mut().0 = util::cfg_attr_or(prev, cfg.map(|tt| util::parse_attr(tt).unwrap()));
                                 }
                                 std::collections::hash_map::Entry::Vacant(e) => {
-                                    e.insert(cfg);
+                                    e.insert((cfg, i));
                                 }
                             }
                         }
@@ -453,11 +454,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let args_ident = wgt_properties.get(&property).map(|(id, _)| id.clone()).unwrap_or_else(|| {
                 // if is not in `wgt_properties` it must be in `user_when_properties`
                 // that will generate a __u_ variable before this binding in the final code.
-                #[cfg(debug_assertions)]
-                if !user_when_properties.contains_key(&property) {
-                    non_user_error!("");
-                }
-                ident!("__u_{}", util::path_to_ident_str(&property))
+                let (_, i) = user_when_properties.get(&property).unwrap_or_else(|| non_user_error!(""));
+                ident!("__ud{}_{}", i, util::path_to_ident_str(&property))
             });
 
             member_vars.extend(quote! {
@@ -517,7 +515,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         // init assign variables
         let mut assigns = HashSet::new();
-        for assign in w.assigns {
+        for (ai, assign) in w.assigns.into_iter().enumerate() {
             let attrs = Attributes::new(assign.attrs);
             for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
                 errors.push("only `cfg` and lint attributes are allowed in property assign", invalid_attr.span());
@@ -552,7 +550,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
 
-            let assign_val_id = ident!("__uwv_{}", util::display_path(&assign.path).replace("::", "_"));
+            let assign_val_id = ident!("__uwv{}a{}_{}", i, ai, util::display_path(&assign.path).replace("::", "_"));
             let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
             let a_lints = attrs.lints;
 
@@ -589,8 +587,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
     // properties that are only introduced in user when conditions.
-    for (p, cfg) in user_when_properties {
-        let args_ident = ident!("__u_{}", util::path_to_ident_str(&p));
+    for (p, (cfg, i)) in user_when_properties {
+        let args_ident = ident!("__ud{}_{}", i, util::path_to_ident_str(&p));
 
         property_inits.extend(quote! {
             #cfg

@@ -3,7 +3,7 @@
 //! Note: Compile error tests are in the integration tests folder: `tests/build/widget` and `tests/build/widget_new`
 
 use self::util::Position;
-use crate::{context::TestWidgetContext, widget, widget_mixin, Widget, WidgetId};
+use crate::{context::TestWidgetContext, var::Var, widget, widget_mixin, Widget, WidgetId};
 use serial_test::serial;
 
 // Used in multiple tests.
@@ -1277,16 +1277,98 @@ pub fn allowed_in_when_without_wgt_assign() {
 */
 #[crate::property(context)]
 pub fn util_live_trace(child: impl crate::UiNode, not_str: impl crate::var::IntoVar<bool>) -> impl crate::UiNode {
-    let _ = not_str;
-    child
+    let var = not_str.into_var().map(|&b| if b { "true" } else { "false" });
+    util::live_trace(child, var)
 }
 
 #[test]
 pub fn generated_name_collision() {
-    let _ = empty_wgt! {
+    let mut wgt = empty_wgt! {
         util::live_trace = "!";
         util_live_trace = false;
     };
+    let mut ctx = TestWidgetContext::wait_new();
+
+    wgt.test_init(&mut ctx);
+
+    assert!(util::traced(&wgt, "!"));
+    assert!(util::traced(&wgt, "false"));
+}
+
+#[test]
+pub fn generated_name_collision_in_when() {
+    let mut wgt = empty_wgt! {
+        util::live_trace = "1";
+        when self.util::is_state {
+            util::live_trace = "2";
+        }
+        when self.util::is_state {
+            util::live_trace = "3";
+        }
+    };
+    let mut ctx = TestWidgetContext::wait_new();
+
+    wgt.test_init(&mut ctx);
+    util::set_state(&mut wgt, true);
+    wgt.test_update(&mut ctx);
+    ctx.apply_updates();
+    wgt.test_update(&mut ctx);
+
+    assert!(util::traced(&wgt, "3"));
+    assert!(!util::traced(&wgt, "2"));
+}
+
+#[test]
+pub fn generated_name_collision_in_when_assign() {
+    let mut wgt = empty_wgt! {
+        util::live_trace = "0";
+        util_live_trace = false;
+
+        when self.util::is_state {
+            util::live_trace = "1";
+            util_live_trace = true;
+        }
+    };
+    let mut ctx = TestWidgetContext::wait_new();
+
+    wgt.test_init(&mut ctx);
+    util::set_state(&mut wgt, true);
+    wgt.test_update(&mut ctx);
+    ctx.apply_updates();
+    wgt.test_update(&mut ctx);
+
+    assert!(util::traced(&wgt, "1"));
+    assert!(util::traced(&wgt, "true"));
+}
+
+#[widget($crate::tests::widget::name_collision_wgt_when)]
+pub mod name_collision_wgt_when {
+    use super::util::{is_state, live_trace};
+
+    properties! {
+        live_trace = "1";
+
+        when self.is_state {
+            live_trace = "2";
+        }
+        when self.is_state {
+            live_trace = "3";
+        }
+    }
+}
+#[test]
+pub fn name_collision_wgt_when() {
+    let mut wgt = name_collision_wgt_when!();
+    let mut ctx = TestWidgetContext::wait_new();
+
+    wgt.test_init(&mut ctx);
+    util::set_state(&mut wgt, true);
+    wgt.test_update(&mut ctx);
+    ctx.apply_updates();
+    wgt.test_update(&mut ctx);
+
+    assert!(util::traced(&wgt, "3"));
+    assert!(!util::traced(&wgt, "2"));
 }
 
 mod util {
