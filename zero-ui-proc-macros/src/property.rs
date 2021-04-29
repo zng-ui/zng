@@ -598,25 +598,27 @@ mod analysis {
             },
         };
 
-        let default_value = if let Some((_, _, _, default_)) = args.default_ {
-            let property_name = &fn_.sig.ident;
+        let default_value = if let Some((_, _, paren, default_)) = args.default_ {
+            let mut property_name = fn_.sig.ident.clone();
+            property_name.set_span(paren.span);
             match default_ {
                 input::ArgsDefault::Unamed(args) => {
-                    quote! {
+                    quote_spanned! {paren.span=>
                         #property_name::ArgsImpl::new(#args)
                     }
                 }
                 input::ArgsDefault::Named(fields) => {
-                    quote! {
+                    quote_spanned! {paren.span=>
                         #property_name::code_gen! { named_new #property_name, __ArgsImpl { #fields } }
                     }
                 }
             }
         } else if matches!(prefix, Prefix::State) {
+            let property_name = &fn_.sig.ident;
             if arg_idents.len() == 1 {
                 let crate_core = util::crate_core();
                 quote! {
-                    Self::new(
+                    #property_name::ArgsImpl::new(
                         #crate_core::var::state_var()
                     )
                 }
@@ -666,6 +668,7 @@ mod analysis {
                 macro_ident: macro_ident.clone(),
                 args_ident: ident!("{}_Args", fn_.sig.ident),
                 args_impl_ident: ident!("{}_ArgsImpl", fn_.sig.ident),
+                has_default_value,
             },
             macro_: output::OutputMacro {
                 cfg: attrs.cfg,
@@ -878,12 +881,12 @@ mod output {
                 default_value,
                 ..
             } = self;
-            let args_impl_ident = ident!("{}_ArgsImpl", self.ident);
-            let args_ident = ident!("{}_Args", self.ident);
+            let args_impl_ident = ident!("{}_ArgsImpl", ident);
+            let args_ident = ident!("{}_Args", ident);
             let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{}_{}", i, id)).collect();
             let crate_core = crate_core();
 
-            let (phantom_decl, phantom_init) = if self.phantom_idents.is_empty() {
+            let (phantom_decl, phantom_init) = if phantom.is_empty() {
                 (TokenStream::new(), TokenStream::new())
             } else {
                 (
@@ -942,7 +945,7 @@ mod output {
             let mut child_ty_span = proc_macro2::Span::call_site();
             let child_assert = if let Some((child_ty, ty_params)) = &self.child_assert {
                 child_ty_span = child_ty.span();
-                let assert_ident = ident!("__{}_arg0_assert", self.ident);
+                let assert_ident = ident!("__{}_arg0_assert", ident);
                 quote_spanned! {child_ty.span()=>
                     fn #assert_ident<#(#ty_params),*>(child: #child_ty) -> impl #crate_core::UiNode {
                         child
@@ -1092,12 +1095,15 @@ mod output {
             let named_arg_mtds: Vec<_> = arg_idents.iter().map(|a| ident!("__{}", a)).collect();
             let numbered_arg_mtds: Vec<_> = (0..arg_idents.len()).map(|a| ident!("__{}", a)).collect();
 
-            let default_mtd = if default_value.is_empty() {
+            let default_fn = if default_value.is_empty() {
                 TokenStream::default()
             } else {
+                let default_fn_ident = ident!("__{}_default_args", ident);
                 quote! {
                     #[inline]
-                    pub fn default() -> impl #args_ident {
+                    #[doc(hidden)]
+                    #[allow(non_snake_case)]
+                    pub fn #default_fn_ident() -> impl #args_ident {
                         #default_value
                     }
                 }
@@ -1175,13 +1181,13 @@ mod output {
                         }
                     }
 
-                    #default_mtd
-
                     #[inline]
                     pub fn args(self) -> impl #args_ident {
                         self
                     }
                 }
+
+                #default_fn
 
                 #cfg
                 #[allow(missing_docs)]
@@ -1437,6 +1443,7 @@ mod output {
         pub cfg: Option<Attribute>,
         pub vis: Visibility,
         pub is_capture_only: bool,
+        pub has_default_value: bool,
         pub ident: Ident,
         pub macro_ident: Ident,
         pub args_ident: Ident,
@@ -1455,6 +1462,15 @@ mod output {
             } = self;
 
             let crate_core = crate_core();
+
+            let default_export = if self.has_default_value {
+                let default_fn_ident = ident!("__{}_default_args", ident);
+                quote! {
+                    #default_fn_ident as default_args,
+                }
+            } else {
+                TokenStream::new()
+            };
 
             let set_export = if self.is_capture_only {
                 TokenStream::new()
@@ -1497,6 +1513,7 @@ mod output {
                     pub use super::{
                         #args_impl_ident as ArgsImpl,
                         #args_ident as Args,
+                        #default_export
                         #set_export
                         #cap_export
                     };

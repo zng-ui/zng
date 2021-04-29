@@ -30,8 +30,8 @@ fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
 }
 #[test]
 fn default_value() {
-    use is_state::{code_gen, Args, ArgsImpl};
-    let _ = ArgsImpl::default().unwrap();
+    use is_state::{code_gen, Args};
+    let _ = is_state::default_args().unwrap();
     let is_default;
     let is_not_default = false;
     code_gen! {
@@ -352,7 +352,7 @@ fn named_default() {
     use defaults::*;
 
     let _ = named(NilUiNode, false, 0);
-    let args = named::ArgsImpl::default();
+    let args = named::default_args();
 
     assert_eq!(&true, args.__a());
     assert_eq!(&2567, args.__b());
@@ -363,7 +363,7 @@ fn unnamed_default() {
     use defaults::*;
 
     let _ = unnamed(NilUiNode, false, 0);
-    let args = unnamed::ArgsImpl::default();
+    let args = unnamed::default_args();
 
     assert_eq!(&true, args.__a());
     assert_eq!(&2567, args.__b());
