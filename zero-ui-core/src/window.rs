@@ -11,7 +11,7 @@ use crate::{
     service::{AppService, WindowServices},
     text::Text,
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
-    var::{BoxedLocalVar, BoxedVar, IntoVar, VarLocal, VarObj, Vars},
+    var::{BoxedLocalVar, BoxedVar, IntoVar, VarLocal, VarObj},
     UiNode, WidgetId,
 };
 
@@ -476,13 +476,19 @@ impl AppExtension for WindowManager {
 
     fn update_display(&mut self, _: UpdateDisplayRequest, ctx: &mut AppContext) {
         // Pump layout and render in all windows.
-        // The windows don't do an update unless they recorded
+        // The windows don't do a layout update unless they recorded
         // an update request for layout or render.
-        for (_, window) in ctx.services.req::<Windows>().windows.iter_mut() {
-            window.layout();
+
+        // we need to detach the windows from the ctx, because the window needs it
+        // to create a layout context. Services are not visible in the layout context
+        // so this is fine.
+        let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
+        for (_, window) in windows.iter_mut() {
+            window.layout(ctx);
             window.render();
             window.render_update();
         }
+        ctx.services.req::<Windows>().windows = windows;
     }
 
     fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
@@ -585,9 +591,11 @@ impl WindowManager {
 
             // do window vars update.
             if update.update {
-                for (_, window) in ctx.services.req::<Windows>().windows.iter_mut() {
-                    window.update_window_vars(ctx.vars, ctx.updates);
+                let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
+                for (_, window) in windows.iter_mut() {
+                    window.update_window_vars(ctx);
                 }
+                ctx.services.req::<Windows>().windows = windows;
             }
         }
     }
@@ -810,7 +818,7 @@ impl std::error::Error for WindowNotFound {}
 
 /// Window configuration.
 pub struct Window {
-    meta: LazyStateMap,
+    state: LazyStateMap,
     id: WidgetId,
     title: BoxedLocalVar<Text>,
     start_position: StartPosition,
@@ -849,7 +857,7 @@ impl Window {
         child: impl UiNode,
     ) -> Self {
         Window {
-            meta: LazyStateMap::default(),
+            state: LazyStateMap::new(),
             id: root_id,
             title: title.into_local().boxed_local(),
             start_position: start_position.into(),
@@ -1074,10 +1082,13 @@ impl OpenWindow {
                         // No Monitor
                         LayoutSize::new(800.0, 600.0)
                     });
-                let size_ctx = LayoutContext::new(14.0, available_size, PixelGrid::new(pixel_factor));
 
-                let mut position = root.position.get(ctx.vars).to_layout(available_size, &size_ctx);
-                let mut size = root.size.get(ctx.vars).to_layout(available_size, &size_ctx);
+                let mut position = LayoutPoint::zero();
+                let mut size = LayoutSize::zero();
+                ctx.outer_layout_context(available_size, pixel_factor, id, root.id, |size_ctx| {
+                    position = root.position.get(size_ctx.vars).to_layout(available_size, &size_ctx);
+                    size = root.size.get(size_ctx.vars).to_layout(available_size, &size_ctx);
+                });
 
                 let fallback_pos = window_.outer_position().map(|p| (p.x, p.y)).unwrap_or_default();
                 let fallback_size = window_.inner_size();
@@ -1119,9 +1130,13 @@ impl OpenWindow {
                 let pixel_factor = headless_config.scale_factor;
                 let available_size = headless_config.screen_size;
 
-                let size_ctx = LayoutContext::new(14.0, available_size, PixelGrid::new(pixel_factor));
+                let mut position = LayoutPoint::zero();
+                let mut size = LayoutSize::zero();
+                ctx.outer_layout_context(available_size, pixel_factor, id, root.id, |size_ctx| {
+                    position = root.position.get(size_ctx.vars).to_layout(available_size, &size_ctx);
+                    size = root.size.get(size_ctx.vars).to_layout(available_size, &size_ctx);
+                });
 
-                let mut position = root.position.get(ctx.vars).to_layout(available_size, &size_ctx);
                 let mut used_fallback = false;
                 if !position.x.is_finite() {
                     position.x = 0.0;
@@ -1136,7 +1151,6 @@ impl OpenWindow {
                 }
                 headless_position = position;
 
-                let mut size = root.size.get(ctx.vars).to_layout(available_size, &size_ctx);
                 used_fallback = false;
                 if !size.width.is_finite() {
                     size.width = available_size.width;
@@ -1343,114 +1357,123 @@ impl OpenWindow {
     }
 
     /// Update from/to variables that affect the window.
-    fn update_window_vars(&mut self, vars: &Vars, updates: &mut Updates) {
+    fn update_window_vars(&mut self, app_ctx: &mut AppContext) {
         let mut ctx = self.context.borrow_mut();
         if let Some(window) = &self.window {
             // title
-            if let Some(title) = ctx.root.title.update_local(vars) {
+            if let Some(title) = ctx.root.title.update_local(app_ctx.vars) {
                 window.set_title(title);
             }
 
-            // position
-            if let Some(&new_pos) = ctx.root.position.get_new(vars) {
-                let (curr_x, curr_y) = window.outer_position().map(|p| (p.x, p.y)).unwrap_or_default();
-                let layout_ctx = self.outer_layout_context();
-
-                let mut new_pos = new_pos.to_layout(layout_ctx.viewport_size(), &layout_ctx);
-                let factor = layout_ctx.pixel_grid().scale_factor;
-
-                if !new_pos.x.is_finite() {
-                    new_pos.x = curr_x as f32 / factor;
-                }
-                if !new_pos.y.is_finite() {
-                    new_pos.y = curr_y as f32 / factor;
-                }
-
-                let new_x = (new_pos.x * factor) as i32;
-                let new_y = (new_pos.y * factor) as i32;
-
-                if new_x != curr_x || new_y != curr_y {
-                    window.set_outer_position(glutin::dpi::PhysicalPosition::new(new_x, new_y));
-                }
-            }
-
             // auto-size
-            if let Some(&auto_size) = ctx.root.auto_size.update_local(vars) {
-                updates.layout();
+            if let Some(&auto_size) = ctx.root.auto_size.update_local(app_ctx.vars) {
+                app_ctx.updates.layout();
 
                 if auto_size == AutoSize::CONTENT {
                     window.set_resizable(false);
                 } else {
                     // TODO is there a way to disable resize in only one dimension?
-                    window.set_resizable(*ctx.root.resizable.get(vars));
+                    window.set_resizable(*ctx.root.resizable.get(app_ctx.vars));
                 }
             }
 
-            // size
-            if let Some(&new_size) = ctx.root.size.get_new(vars) {
-                let curr_size = window.inner_size();
+            if ctx.root.position.is_new(app_ctx.vars) || ctx.root.size.is_new(app_ctx.vars) {
+                let vars = app_ctx.vars;
+                self.outer_layout_context(ctx.root.id, app_ctx, |layout_ctx| {
+                    // position
+                    if let Some(&new_pos) = ctx.root.position.get_new(vars) {
+                        let (curr_x, curr_y) = window.outer_position().map(|p| (p.x, p.y)).unwrap_or_default();
 
-                let layout_ctx = self.outer_layout_context();
+                        let mut new_pos = new_pos.to_layout(*layout_ctx.viewport_size, &layout_ctx);
+                        let factor = layout_ctx.pixel_grid.get().scale_factor;
 
-                let mut new_size = new_size.to_layout(layout_ctx.viewport_size(), &layout_ctx);
-                let factor = layout_ctx.pixel_grid().scale_factor;
+                        if !new_pos.x.is_finite() {
+                            new_pos.x = curr_x as f32 / factor;
+                        }
+                        if !new_pos.y.is_finite() {
+                            new_pos.y = curr_y as f32 / factor;
+                        }
 
-                let auto_size = *ctx.root.auto_size.get_local();
+                        let new_x = (new_pos.x * factor) as i32;
+                        let new_y = (new_pos.y * factor) as i32;
 
-                if auto_size.contains(AutoSize::CONTENT_WIDTH) || !new_size.width.is_finite() {
-                    new_size.width = curr_size.width as f32 / factor;
-                }
-                if auto_size.contains(AutoSize::CONTENT_HEIGHT) || !new_size.height.is_finite() {
-                    new_size.height = curr_size.height as f32 / factor;
-                }
+                        if new_x != curr_x || new_y != curr_y {
+                            window.set_outer_position(glutin::dpi::PhysicalPosition::new(new_x, new_y));
+                        }
+                    }
 
-                let new_size = glutin::dpi::PhysicalSize::new((new_size.width * factor) as u32, (new_size.height * factor) as u32);
+                    // size
+                    if let Some(&new_size) = ctx.root.size.get_new(vars) {
+                        let curr_size = window.inner_size();
 
-                if new_size != curr_size {
-                    window.set_inner_size(new_size);
-                }
+                        let mut new_size = new_size.to_layout(*layout_ctx.viewport_size, &layout_ctx);
+                        let factor = layout_ctx.pixel_grid.get().scale_factor;
+
+                        let auto_size = *ctx.root.auto_size.get_local();
+
+                        if auto_size.contains(AutoSize::CONTENT_WIDTH) || !new_size.width.is_finite() {
+                            new_size.width = curr_size.width as f32 / factor;
+                        }
+                        if auto_size.contains(AutoSize::CONTENT_HEIGHT) || !new_size.height.is_finite() {
+                            new_size.height = curr_size.height as f32 / factor;
+                        }
+
+                        let new_size = glutin::dpi::PhysicalSize::new((new_size.width * factor) as u32, (new_size.height * factor) as u32);
+
+                        if new_size != curr_size {
+                            window.set_inner_size(new_size);
+                        }
+                    }
+                });
             }
 
             // resizable
-            if let Some(&resizable) = ctx.root.resizable.get_new(vars) {
+            if let Some(&resizable) = ctx.root.resizable.get_new(app_ctx.vars) {
                 let auto_size = *ctx.root.auto_size.get_local();
                 window.set_resizable(resizable && auto_size != AutoSize::CONTENT);
             }
 
             // visibility
-            if let Some(&vis) = ctx.root.visible.update_local(vars) {
+            if let Some(&vis) = ctx.root.visible.update_local(app_ctx.vars) {
                 if !self.first_draw {
                     window.set_visible(vis);
                     if vis {
-                        updates.layout();
+                        app_ctx.updates.layout();
                     }
                 }
             }
         } else {
-            ctx.root.title.update_local(vars);
+            ctx.root.title.update_local(app_ctx.vars);
             // TODO do we need to update size for this?
-            ctx.root.auto_size.update_local(vars);
+            ctx.root.auto_size.update_local(app_ctx.vars);
 
-            if let Some(position) = ctx.root.position.get_new(vars) {
-                let layout_ctx = self.outer_layout_context();
-                self.headless_position = position.to_layout(layout_ctx.viewport_size(), &layout_ctx);
+            if ctx.root.position.is_new(app_ctx.vars) || ctx.root.size.is_new(app_ctx.vars) {
+                let mut h_pos = self.headless_position;
+                let mut h_size = self.headless_size;
+                let vars = app_ctx.vars;
+                self.outer_layout_context(ctx.root.id, app_ctx, |layout_ctx| {
+                    if let Some(position) = ctx.root.position.get_new(vars) {
+                        h_pos = position.to_layout(*layout_ctx.viewport_size, &layout_ctx);
+                    }
+
+                    if let Some(size) = ctx.root.size.get_new(vars) {
+                        h_size = size.to_layout(*layout_ctx.viewport_size, &layout_ctx);
+                    }
+                });
+                self.headless_position = h_pos;
+                self.headless_size = h_size;
             }
 
-            if let Some(size) = ctx.root.size.get_new(vars) {
-                let layout_ctx = self.outer_layout_context();
-                self.headless_size = size.to_layout(layout_ctx.viewport_size(), &layout_ctx);
-            }
-
-            if let Some(&vis) = ctx.root.visible.update_local(vars) {
+            if let Some(&vis) = ctx.root.visible.update_local(app_ctx.vars) {
                 if !self.first_draw && vis {
-                    updates.layout();
+                    app_ctx.updates.layout();
                 }
             }
         }
     }
 
     /// [`LayoutContext`] for the window size and position relative values.
-    fn outer_layout_context(&self) -> LayoutContext {
+    fn outer_layout_context(&self, root_id: WidgetId, ctx: &mut AppContext, f: impl FnOnce(&mut LayoutContext)) {
         if let Some(window) = &self.window {
             let pixel_factor = window.scale_factor() as f32;
             let screen_size = window
@@ -1470,52 +1493,58 @@ impl OpenWindow {
                     LayoutSize::new(800.0, 600.0)
                 });
 
-            LayoutContext::new(14.0, screen_size, PixelGrid::new(pixel_factor))
+            ctx.outer_layout_context(screen_size, pixel_factor, self.id, root_id, f);
         } else {
-            LayoutContext::new(
-                14.0,
+            ctx.outer_layout_context(
                 self.headless_config.screen_size,
-                PixelGrid::new(self.headless_config.scale_factor),
-            )
+                self.headless_config.scale_factor,
+                self.id,
+                root_id,
+                f,
+            );
         }
     }
 
     /// Re-flow layout if a layout pass was required. If yes will
     /// flag a render required.
-    fn layout(&mut self) {
-        let mut ctx = self.context.borrow_mut();
+    fn layout(&mut self, ctx: &mut AppContext) {
+        let mut w_ctx = self.context.borrow_mut();
 
-        if ctx.update != UpdateDisplayRequest::Layout {
+        if w_ctx.update != UpdateDisplayRequest::Layout {
             return;
         }
 
         profile_scope!("window::layout");
 
-        ctx.update = UpdateDisplayRequest::Render;
+        let auto_size = *w_ctx.root.auto_size.get_local();
 
-        let mut layout_ctx = LayoutContext::new(14.0, self.size(), PixelGrid::new(self.scale_factor()));
+        let mut size = LayoutSize::zero();
+        let scale_factor = self.scale_factor();
 
-        let mut size = ctx.root.child.measure(layout_ctx.viewport_size(), &mut layout_ctx);
+        w_ctx.root_layout(ctx, self.size(), scale_factor, |root, layout_ctx| {
+            size = root.measure(*layout_ctx.viewport_size, layout_ctx);
 
-        let auto_size = *ctx.root.auto_size.get_local();
-        if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
-            size.width = layout_ctx.viewport_size().width;
-        }
-        if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-            size.height = layout_ctx.viewport_size().height;
-        }
+            if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                size.width = layout_ctx.viewport_size.get().width;
+            }
+            if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                size.height = layout_ctx.viewport_size.get().height;
+            }
 
-        ctx.root.child.arrange(size, &mut layout_ctx);
+            root.arrange(size, layout_ctx);
+        });
 
         if auto_size != AutoSize::DISABLED {
             if let Some(window) = &self.window {
-                let factor = layout_ctx.pixel_grid().scale_factor;
+                let factor = scale_factor;
                 let size = glutin::dpi::PhysicalSize::new((size.width * factor) as u32, (size.height * factor) as u32);
                 window.set_inner_size(size);
             } else {
                 self.headless_size = size;
             }
         }
+
+        w_ctx.update = UpdateDisplayRequest::Render;
     }
 
     /// Resize the renderer surface.
@@ -1824,10 +1853,26 @@ impl OwnedWindowContext {
 
         ctx.window_context(self.window_id, self.mode, &mut self.state, &mut self.services, &self.api, |ctx| {
             let child = &mut root.child;
-            ctx.widget_context(root.id, &mut root.meta, |ctx| {
+            ctx.widget_context(root.id, &mut root.state, |ctx| {
                 f(child, ctx);
             });
         })
+    }
+
+    fn root_layout(
+        &mut self,
+        ctx: &mut AppContext,
+        window_size: LayoutSize,
+        scale_factor: f32,
+        f: impl FnOnce(&mut Box<dyn UiNode>, &mut LayoutContext),
+    ) {
+        let root = &mut self.root;
+        ctx.window_context(self.window_id, self.mode, &mut self.state, &mut self.services, &self.api, |ctx| {
+            let child = &mut root.child;
+            ctx.layout_context(14.0, PixelGrid::new(scale_factor), window_size, root.id, &mut root.state, |ctx| {
+                f(child, ctx);
+            })
+        });
     }
 
     /// Call [`UiNode::init`](UiNode::init) in all nodes.

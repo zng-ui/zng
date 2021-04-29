@@ -198,15 +198,24 @@ macro_rules! state_key {
 
 #[doc(inline)]
 pub use crate::state_key;
-use crate::window::WindowMode;
+use crate::{var::VarsRead, window::WindowMode};
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for
 /// a stage of the application.
-#[derive(Debug, Default)]
+///
+/// # No Remove
+///
+/// Note that there is no way to clear the map, remove a key or replace the map with a new empty one.
+/// This is by design, if you want to make a key *removable* make its value `Option<T>`.
+#[derive(Debug)]
 pub struct StateMap {
     map: AnyMap,
 }
 impl StateMap {
+    fn new() -> Self {
+        StateMap { map: AnyMap::default() }
+    }
+
     /// Set the `key` `value`.
     ///
     /// # Key
@@ -320,14 +329,18 @@ where
 }
 
 /// A [`StateMap`] that only takes one `usize` of memory if not used.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct LazyStateMap {
     m: Option<Box<StateMap>>,
 }
-
 impl LazyStateMap {
+    /// New not initialized.
+    pub(crate) fn new() -> Self {
+        LazyStateMap { m: None }
+    }
+
     fn borrow_mut(&mut self) -> &mut StateMap {
-        self.m.get_or_insert_with(|| Box::new(StateMap::default()))
+        self.m.get_or_insert_with(|| Box::new(StateMap::new()))
     }
 
     /// Gets if the `key` is set in this map.
@@ -556,12 +569,8 @@ impl OwnedAppContext {
     pub fn instance(event_loop: EventLoopProxy) -> Self {
         let updates = OwnedUpdates::new(event_loop.clone());
         OwnedAppContext {
-            app_state: StateMap::default(),
-            headless_state: if event_loop.is_headless() {
-                Some(StateMap::default())
-            } else {
-                None
-            },
+            app_state: StateMap::new(),
+            headless_state: if event_loop.is_headless() { Some(StateMap::new()) } else { None },
             vars: Vars::instance(),
             events: Events::instance(),
             services: AppServicesInit::default(),
@@ -739,7 +748,7 @@ pub struct AppContext<'a> {
     /// Information about this context if it is running in headless mode.
     pub headless: HeadlessInfo<'a>,
 
-    /// Access to application variables.
+    /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
     pub events: &'a Events,
@@ -761,7 +770,7 @@ pub struct AppContext<'a> {
 
 /// App context view for tasks synchronization.
 pub(super) struct AppSyncContext<'a> {
-    /// Access to application variables.
+    /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
     pub events: &'a Events,
@@ -781,8 +790,8 @@ impl<'a> AppContext<'a> {
         mode: WindowMode,
         render_api: &Option<Arc<RenderApi>>,
     ) -> (WindowState, WindowServices) {
-        let mut window_state = StateMap::default();
-        let mut event_state = StateMap::default();
+        let mut window_state = StateMap::new();
+        let mut update_state = StateMap::new();
 
         let mut window_services = WindowServices::new();
         let ctx = WindowContext {
@@ -791,7 +800,7 @@ impl<'a> AppContext<'a> {
             render_api,
             app_state: self.app_state,
             window_state: &mut window_state,
-            event_state: &mut event_state,
+            update_state: &mut update_state,
             window_services: &mut window_services,
             vars: self.vars,
             events: self.events,
@@ -805,7 +814,7 @@ impl<'a> AppContext<'a> {
         (window_state, window_services)
     }
 
-    /// Runs a function `f` within the context of a window.
+    /// Runs a function `f` in the context of a window.
     pub fn window_context(
         &mut self,
         window_id: WindowId,
@@ -817,7 +826,7 @@ impl<'a> AppContext<'a> {
     ) -> UpdateDisplayRequest {
         self.updates.win_display_update = UpdateDisplayRequest::None;
 
-        let mut event_state = StateMap::default();
+        let mut update_state = StateMap::new();
         let unloader = window_services.load();
 
         f(&mut WindowContext {
@@ -827,7 +836,7 @@ impl<'a> AppContext<'a> {
             app_state: self.app_state,
             window_state,
             window_services: unloader.window_services,
-            event_state: &mut event_state,
+            update_state: &mut update_state,
             vars: self.vars,
             events: self.events,
             services: self.services,
@@ -836,6 +845,31 @@ impl<'a> AppContext<'a> {
         });
 
         mem::take(&mut self.updates.win_display_update)
+    }
+
+    /// Run a function `f` in the layout context of the monitor that contains a window.
+    pub fn outer_layout_context(
+        &mut self,
+        screen_size: LayoutSize,
+        scale_factor: f32,
+        window_id: WindowId,
+        root_id: WidgetId,
+        f: impl FnOnce(&mut LayoutContext),
+    ) {
+        f(&mut LayoutContext {
+            font_size: ReadOnly(14.0),
+            root_font_size: ReadOnly(14.0),
+            pixel_grid: ReadOnly(PixelGrid::new(scale_factor)),
+            viewport_size: ReadOnly(screen_size),
+            viewport_min: ReadOnly(screen_size.width.min(screen_size.height)),
+            viewport_max: ReadOnly(screen_size.width.max(screen_size.height)),
+            path: &mut WidgetContextPath::new(window_id, root_id),
+            app_state: &mut self.app_state,
+            window_state: &mut StateMap::new(),
+            widget_state: &mut LazyStateMap::new(),
+            update_state: &mut StateMap::new(),
+            vars: &self.vars,
+        })
     }
 }
 
@@ -858,10 +892,15 @@ pub struct WindowContext<'a> {
     /// State that lives for the duration of the window.
     pub window_state: &'a mut StateMap,
 
-    /// State that lives for the duration of the event.
-    pub event_state: &'a mut StateMap,
+    /// State that lives for the duration of the node tree method call in the window.
+    ///
+    /// This state lives only for the duration of the function `f` call in [`AppContext::window_context`].
+    /// Usually `f` calls one of the [`UiNode`](crate::UiNode) methods and [`WidgetContext`] shares this
+    /// state so properties and event handlers can use this state to communicate to further nodes along the
+    /// update sequence.
+    pub update_state: &'a mut StateMap,
 
-    /// Access to application variables.
+    /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
     pub events: &'a Events,
@@ -878,7 +917,7 @@ pub struct WindowContext<'a> {
 }
 
 /// Read-only value in a public context struct field.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ReadOnly<T>(T);
 impl<T: Copy> ReadOnly<T> {
     /// Gets a copy of the read-only value.
@@ -898,14 +937,13 @@ impl<T> std::ops::Deref for ReadOnly<T> {
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
-        let mut path = WidgetContextPath::new(self.window_id.0, widget_id);
         f(&mut WidgetContext {
-            path: &mut path,
+            path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
 
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state,
-            event_state: self.event_state,
+            update_state: self.update_state,
 
             vars: self.vars,
             events: self.events,
@@ -916,6 +954,35 @@ impl<'a> WindowContext<'a> {
 
             updates: self.updates,
         });
+    }
+
+    /// Runs a function `f` within the layout context of a widget.
+    pub fn layout_context(
+        &mut self,
+        font_size: f32,
+        pixel_grid: PixelGrid,
+        viewport_size: LayoutSize,
+        widget_id: WidgetId,
+        widget_state: &mut LazyStateMap,
+        f: impl FnOnce(&mut LayoutContext),
+    ) {
+        f(&mut LayoutContext {
+            font_size: ReadOnly(font_size),
+            root_font_size: ReadOnly(font_size),
+            pixel_grid: ReadOnly(pixel_grid),
+            viewport_size: ReadOnly(viewport_size),
+            viewport_min: ReadOnly(viewport_size.width.min(viewport_size.height)),
+            viewport_max: ReadOnly(viewport_size.width.max(viewport_size.height)),
+
+            path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
+
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state,
+            update_state: self.update_state,
+
+            vars: &self.vars,
+        })
     }
 }
 
@@ -957,10 +1024,14 @@ pub struct TestWidgetContext {
     /// The [`window_state`](WidgetContext::window_state) value. Empty by default.
     pub window_state: StateMap,
 
-    /// The [`event_state`](WidgetContext::event_state) value. Empty by default.
+    /// The [`widget_state`](WidgetContext::widget_state) value. Empty by default.
+    pub widget_state: LazyStateMap,
+
+    /// The [`update_state`](WidgetContext::update_state) value. Empty by default.
     ///
-    /// WARNING: In a real context this is reset for each update, in this test context the same map is reused.
-    pub event_state: StateMap,
+    /// WARNING: In a real context this is reset after each update, in this test context the same map is reused
+    /// unless you call [`clear_update_state`](Self::clear_update_state).
+    pub update_state: StateMap,
 
     /// The [`services`](WidgetContext::services) repository. Empty by default.
     ///
@@ -1019,9 +1090,10 @@ impl TestWidgetContext {
         Self {
             window_id: WindowId::new_unique(),
             root_id: WidgetId::new_unique(),
-            app_state: StateMap::default(),
-            window_state: StateMap::default(),
-            event_state: StateMap::default(),
+            app_state: StateMap::new(),
+            window_state: StateMap::new(),
+            widget_state: LazyStateMap::new(),
+            update_state: StateMap::new(),
             services: AppServicesInit::default(),
             event_loop,
             updates,
@@ -1034,19 +1106,45 @@ impl TestWidgetContext {
     }
 
     /// Calls `action` within a fake widget context.
-    pub fn widget_context<R>(&mut self, widget_state: &mut LazyStateMap, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
+    pub fn widget_context<R>(&mut self, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             app_state: &mut self.app_state,
             window_state: &mut self.window_state,
-            widget_state,
-            event_state: &mut self.event_state,
+            widget_state: &mut self.widget_state,
+            update_state: &mut self.update_state,
             vars: &mut self.vars,
             events: &self.events,
             services: self.services.services(),
             window_services: &mut self.window_services,
             sync: &mut self.sync,
             updates: self.updates.updates(),
+        })
+    }
+
+    /// Calls `action` within a fake layout context.
+    pub fn layout_context<R>(
+        &mut self,
+        root_font_size: f32,
+        font_size: f32,
+        viewport_size: LayoutSize,
+        pixel_grid: PixelGrid,
+        action: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
+        action(&mut LayoutContext {
+            font_size: ReadOnly(font_size),
+            root_font_size: ReadOnly(root_font_size),
+            pixel_grid: ReadOnly(pixel_grid),
+            viewport_size: ReadOnly(viewport_size),
+            viewport_min: ReadOnly(viewport_size.width.min(viewport_size.height)),
+            viewport_max: ReadOnly(viewport_size.width.max(viewport_size.height)),
+
+            path: &mut WidgetContextPath::new(self.window_id, self.root_id),
+            app_state: &mut self.app_state,
+            window_state: &mut self.window_state,
+            widget_state: &mut LazyStateMap::new(),
+            update_state: &mut self.update_state,
+            vars: &self.vars,
         })
     }
 
@@ -1064,6 +1162,11 @@ impl TestWidgetContext {
         self.events.apply(&mut self.updates.0);
         (self.updates.take_updates(), wake)
     }
+
+    /// Resets the [`update_state`](Self::update_state).
+    pub fn clear_update_state(&mut self) {
+        self.update_state = StateMap::new()
+    }
 }
 
 /// A widget context.
@@ -1080,10 +1183,14 @@ pub struct WidgetContext<'a> {
     /// State that lives for the duration of the widget.
     pub widget_state: &'a mut LazyStateMap,
 
-    /// State that lives for the duration of the event.
-    pub event_state: &'a mut StateMap,
+    /// State that lives for the duration of the node tree method call in the window.
+    ///
+    /// This state lives only for the current [`UiNode`](crate::UiNode) method call in all nodes
+    /// of the window. You can use this to signal properties and event handlers from nodes that
+    /// will be updated further then the current one.
+    pub update_state: &'a mut StateMap,
 
-    /// Access to application variables.
+    /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
     pub events: &'a Events,
@@ -1110,7 +1217,7 @@ impl<'a> WidgetContext<'a> {
                 app_state: self.app_state,
                 window_state: self.window_state,
                 widget_state,
-                event_state: self.event_state,
+                update_state: self.update_state,
 
                 vars: self.vars,
                 events: self.events,
@@ -1191,72 +1298,80 @@ impl WidgetContextPath {
 
 /// A widget layout context.
 #[derive(Debug)]
-pub struct LayoutContext {
-    font_size: f32,
-    root_font_size: f32,
-    pixel_grid: PixelGrid,
-    viewport_size: LayoutSize,
-}
-
-impl LayoutContext {
-    /// New layout context.
-    ///
-    /// # Arguments
-    ///
-    /// * `root_font_size` - The layout font size in the root widget.
-    /// * `viewport_size` - The root widget layout size.
-    /// * `pixel_grid` - The grid for pixel alignment, derived by the scale factor of surface that is rendering the root widget.
-    #[inline]
-    pub fn new(root_font_size: f32, viewport_size: LayoutSize, pixel_grid: PixelGrid) -> Self {
-        LayoutContext {
-            font_size: root_font_size,
-            root_font_size,
-            viewport_size,
-            pixel_grid,
-        }
-    }
-
+pub struct LayoutContext<'a> {
     /// Current computed font size.
-    #[inline]
-    pub fn font_size(&self) -> f32 {
-        self.font_size
-    }
+    pub font_size: ReadOnly<f32>,
 
     /// Computed font size at the root widget.
-    #[inline]
-    pub fn root_font_size(&self) -> f32 {
-        self.root_font_size
-    }
+    pub root_font_size: ReadOnly<f32>,
 
     /// Pixel grid of the surface that is rendering the root widget.
-    #[inline]
-    pub fn pixel_grid(&self) -> PixelGrid {
-        self.pixel_grid
-    }
+    pub pixel_grid: ReadOnly<PixelGrid>,
 
-    /// Size of the root widget.
-    #[inline]
-    pub fn viewport_size(&self) -> LayoutSize {
-        self.viewport_size
-    }
-
+    /// Size of the window content.
+    pub viewport_size: ReadOnly<LayoutSize>,
     /// Smallest dimension of the [`viewport_size`](Self::viewport_size).
-    #[inline]
-    pub fn viewport_min(&self) -> f32 {
-        self.viewport_size.width.min(self.viewport_size.height)
-    }
-
+    pub viewport_min: ReadOnly<f32>,
     /// Largest dimension of the [`viewport_size`](Self::viewport_size).
-    #[inline]
-    pub fn viewport_max(&self) -> f32 {
-        self.viewport_size.width.max(self.viewport_size.height)
-    }
+    pub viewport_max: ReadOnly<f32>,
 
+    /// Current widget path.
+    pub path: &'a mut WidgetContextPath,
+
+    /// State that lives for the duration of the application.
+    pub app_state: &'a mut StateMap,
+
+    /// State that lives for the duration of the window.
+    pub window_state: &'a mut StateMap,
+
+    /// State that lives for the duration of the widget.
+    pub widget_state: &'a mut LazyStateMap,
+
+    /// State that lives for the duration of the node tree layout update call in the window.
+    ///
+    /// This state lives only for the sequence of two [`UiNode::measure`](crate::UiNode::measure) and [`UiNode::arrange`](crate::UiNode::arrange)
+    /// method calls in all nodes of the window. You can use this to signal nodes that have not participated in the current
+    /// layout update yet, or from `measure` signal `arrange`.
+    pub update_state: &'a mut StateMap,
+
+    /// Read-only access to variables.
+    pub vars: &'a VarsRead,
+}
+impl<'a> LayoutContext<'a> {
     /// Runs a function `f` within a context that has the new computed font size.
     pub fn with_font_size<R>(&mut self, new_font_size: f32, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let old_font_size = mem::replace(&mut self.font_size, new_font_size);
+        let old_font_size = mem::replace(&mut self.font_size, ReadOnly(new_font_size));
         let r = f(self);
         self.font_size = old_font_size;
+        r
+    }
+
+    /// Runs a function `f` within the context of a widget.
+    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        self.path.push(widget_id);
+
+        let r = self.vars.with_widget_clear(|| {
+            f(&mut LayoutContext {
+                font_size: self.font_size,
+                root_font_size: self.root_font_size,
+                pixel_grid: self.pixel_grid,
+                viewport_size: self.viewport_size,
+                viewport_min: self.viewport_min,
+                viewport_max: self.viewport_max,
+
+                path: self.path,
+
+                app_state: self.app_state,
+                window_state: self.window_state,
+                widget_state,
+                update_state: self.update_state,
+
+                vars: self.vars,
+            })
+        });
+
+        self.path.pop();
+
         r
     }
 }

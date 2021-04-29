@@ -174,7 +174,7 @@ pub mod uniform_grid {
                 (available_size.width - layout_spacing.column / 2.0) / columns,
                 (available_size.height - layout_spacing.row / 2.0) / rows,
             )
-            .snap_to(ctx.pixel_grid());
+            .snap_to(*ctx.pixel_grid);
 
             let mut cell_size = LayoutSize::zero();
 
@@ -185,7 +185,7 @@ pub mod uniform_grid {
                 cell_size.width * columns + layout_spacing.column * (columns - 1.0),
                 cell_size.height * rows + layout_spacing.row * (rows - 1.0),
             )
-            .snap_to(ctx.pixel_grid())
+            .snap_to(*ctx.pixel_grid)
         }
         #[UiNode]
         fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -197,7 +197,7 @@ pub mod uniform_grid {
                 (final_size.width - layout_spacing.column * (columns - 1.0)) / columns,
                 (final_size.height - layout_spacing.row * (rows - 1.0)) / rows,
             )
-            .snap_to(ctx.pixel_grid());
+            .snap_to(*ctx.pixel_grid);
 
             self.children.arrange_all(|_, _| cell_size, ctx);
 

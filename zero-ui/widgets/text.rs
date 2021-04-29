@@ -316,7 +316,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             // TODO
             let font = self.font.as_ref().unwrap();
             self.shaped_text = font.shape_text(&self.text, &self.line_shaping_args);
-            self.size = self.shaped_text.size().snap_to(ctx.pixel_grid());
+            self.size = self.shaped_text.size().snap_to(*ctx.pixel_grid);
         }
 
         if !is_layout_any_size(available_size.width) && available_size.width < self.size.width {

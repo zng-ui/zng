@@ -93,7 +93,7 @@ macro_rules! declare_widget_test_calls {
         fn [<test_ $method>](&mut self, ctx: &mut TestWidgetContext) {
             // `self` already creates an `widget_context`, we assume, so this
             // call is for a dummy parent of `self`.
-            ctx.widget_context(&mut LazyStateMap::default(), |ctx| {
+            ctx.widget_context(|ctx| {
                 self.$method(ctx);
             });
         }
@@ -123,6 +123,21 @@ pub trait Widget: UiNode {
 
     declare_widget_test_calls! {
         init, deinit, update, update_hp
+    }
+
+    /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
+    /// Run [`UiNode::measure`] using the [`TestWidgetContext`].
+    #[cfg(any(test, doc, feature = "pub_test"))]
+    fn test_measure(&mut self, available_size: LayoutSize, ctx: &mut TestWidgetContext) -> LayoutSize {
+        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| {
+            self.measure(available_size, ctx)
+        })
+    }
+    /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
+    /// Run [`UiNode::arrange`] using the [`TestWidgetContext`].
+    #[cfg(any(test, doc, feature = "pub_test"))]
+    fn test_arrange(&mut self, final_size: LayoutSize, ctx: &mut TestWidgetContext) {
+        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| self.arrange(final_size, ctx))
     }
 }
 

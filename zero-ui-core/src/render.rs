@@ -121,7 +121,7 @@ impl FrameBuilder {
             widget_stack_ctx_data: None,
             cancel_widget: false,
             widget_display_mode: WidgetDisplayMode::empty(),
-            meta: LazyStateMap::default(),
+            meta: LazyStateMap::new(),
             cursor: CursorIcon::default(),
             hit_testable: true,
             clip_id: ClipId::root(pipeline_id),
@@ -451,7 +451,7 @@ impl FrameBuilder {
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
         let parent_display_mode = mem::replace(&mut self.widget_display_mode, WidgetDisplayMode::empty());
 
-        let parent_meta = mem::take(&mut self.meta);
+        let parent_meta = mem::replace(&mut self.meta, LazyStateMap::new());
 
         let mut bounds = LayoutRect::from_size(area);
         bounds.origin = self.offset;
@@ -1179,7 +1179,7 @@ impl FrameInfoBuilder {
         let tree = Tree::new(WidgetInfoInner {
             widget_id: root_id,
             bounds: LayoutRect::from_size(size),
-            meta: LazyStateMap::default(),
+            meta: LazyStateMap::new(),
         });
 
         FrameInfoBuilder { window_id, frame_id, tree }
@@ -1202,7 +1202,7 @@ impl FrameInfoBuilder {
     /// Takes the widget metadata already set for `id`.
     #[inline]
     pub fn take_meta(&mut self, id: WidgetInfoId) -> LazyStateMap {
-        mem::take(&mut self.node(id).value().meta)
+        mem::replace(&mut self.node(id).value().meta, LazyStateMap::new())
     }
 
     /// Sets the widget metadata for `id`.
@@ -1219,7 +1219,7 @@ impl FrameInfoBuilder {
                 .append(WidgetInfoInner {
                     widget_id,
                     bounds,
-                    meta: LazyStateMap::default(),
+                    meta: LazyStateMap::new(),
                 })
                 .id(),
         )

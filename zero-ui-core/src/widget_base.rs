@@ -98,14 +98,15 @@ pub mod implicit_base {
                     }
                 }
 
-                let child_size = self.child.measure(available_size, ctx);
+                let child = &mut self.child;
+                let child_size = ctx.with_widget(self.id, &mut self.state, |ctx| child.measure(available_size, ctx));
 
                 #[cfg(debug_assertions)]
                 {
                     if !child_size.width.is_finite() || !child_size.height.is_finite() {
                         error_println!("{:?} `UiNode::measure` result is not finite: `{:?}`", self.id, child_size);
-                    } else if !child_size.is_aligned_to(ctx.pixel_grid()) {
-                        let snapped = child_size.snap_to(ctx.pixel_grid());
+                    } else if !child_size.is_aligned_to(*ctx.pixel_grid) {
+                        let snapped = child_size.snap_to(*ctx.pixel_grid);
                         error_println!(
                             "{:?} `UiNode::measure` result not aligned, was: `{:?}`, expected: `{:?}`",
                             self.id,
@@ -115,6 +116,7 @@ pub mod implicit_base {
                         return snapped;
                     }
                 }
+
                 child_size
             }
             fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -128,8 +130,8 @@ pub mod implicit_base {
                             self.id,
                             final_size
                         );
-                    } else if !final_size.is_aligned_to(ctx.pixel_grid()) {
-                        self.size = final_size.snap_to(ctx.pixel_grid());
+                    } else if !final_size.is_aligned_to(*ctx.pixel_grid) {
+                        self.size = final_size.snap_to(*ctx.pixel_grid);
                         error_println!(
                             "{:?} `UiNode::arrange` called with not aligned value, was: `{:?}`, expected: `{:?}`",
                             self.id,
@@ -139,7 +141,11 @@ pub mod implicit_base {
                     }
                 }
 
-                self.child.arrange(self.size, ctx);
+                let final_size = self.size;
+                let child = &mut self.child;
+                ctx.with_widget(self.id, &mut self.state, |ctx| {
+                    child.arrange(final_size, ctx);
+                });
             }
             fn render(&self, frame: &mut FrameBuilder) {
                 frame.push_widget(self.id, self.transform_key, self.size, &self.child);
@@ -170,7 +176,7 @@ pub mod implicit_base {
         WidgetNode {
             id,
             transform_key: WidgetTransformKey::new_unique(),
-            state: LazyStateMap::default(),
+            state: LazyStateMap::new(),
             child,
             size: LayoutSize::zero(),
         }

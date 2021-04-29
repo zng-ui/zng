@@ -16,7 +16,7 @@ singleton_assert!(SingletonVars);
 /// You can [`get`](VarsObj::get) a value using a [`VarsRead`] reference.
 ///
 /// ```
-/// # use crate::var::{VarObj, VarsRead};
+/// # use zero_ui_core::var::{VarObj, VarsRead};
 /// fn read_only(var: &impl VarObj<bool>, vars: &VarsRead) -> bool {
 ///     *var.get(vars)
 /// }
@@ -25,7 +25,7 @@ singleton_assert!(SingletonVars);
 /// And because of auto-dereference you can can the same method using a full [`Vars`] reference.
 ///
 /// ```
-/// # use crate::var::{VarObj, Vars};
+/// # use zero_ui_core::var::{VarObj, Vars};
 /// fn read_write(var: &impl VarObj<bool>, vars: &Vars) -> bool {
 ///     *var.get(vars)
 /// }
@@ -137,7 +137,7 @@ impl VarsRead {
     }
 
     /// Clears widget only context var values, calls `f` and restores widget only context var values.
-    pub(crate) fn with_widget_clear<F: FnOnce()>(&self, f: F) {
+    pub(crate) fn with_widget_clear<R, F: FnOnce() -> R>(&self, f: F) -> R {
         let wgt_clear = std::mem::take(&mut *self.widget_clear.borrow_mut());
         for clear in &wgt_clear {
             clear(true);
@@ -150,7 +150,7 @@ impl VarsRead {
             *self.widget_clear.borrow_mut() = wgt_clear;
         });
 
-        f();
+        f()
     }
 }
 

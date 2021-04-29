@@ -135,7 +135,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
                 (final_size.width - self.child_rect.size.width) * alignment.x.0,
                 (final_size.height - self.child_rect.size.height) * alignment.y.0,
             )
-            .snap_to(ctx.pixel_grid());
+            .snap_to(*ctx.pixel_grid);
         }
 
         fn render(&self, frame: &mut FrameBuilder) {

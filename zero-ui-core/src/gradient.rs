@@ -78,7 +78,7 @@ impl LinearGradientAxis {
 
                 let line = LayoutLine::new(center - delta, center + delta);
 
-                line.snap_to(ctx.pixel_grid())
+                line.snap_to(*ctx.pixel_grid)
             }
             LinearGradientAxis::Line(line) => line.to_layout(available_size, ctx),
         }
@@ -154,11 +154,17 @@ impl ColorStop {
     /// Use [`ColorStop::is_layout_positional`] is you already have the layout offset, it is faster then calling
     /// this method and then converting to layout.
     pub fn is_positional(&self) -> bool {
-        let l = self.offset.to_layout(
-            LayoutLength::new(100.0),
-            &LayoutContext::new(20.0, LayoutSize::new(100.0, 100.0), PixelGrid::new(1.0)),
-        );
-        Self::is_layout_positional(l.get())
+        let f = match self.offset {
+            Length::Exact(f) => f,
+            Length::Relative(f) => f.0,
+            Length::Em(f) => f.0,
+            Length::RootEm(f) => f.0,
+            Length::ViewportWidth(f) => f,
+            Length::ViewportHeight(f) => f,
+            Length::ViewportMin(f) => f,
+            Length::ViewportMax(f) => f,
+        };
+        Self::is_layout_positional(f)
     }
 
     /// If a calculated layout offset is [positional](Self::is_positional).
@@ -897,13 +903,17 @@ mod tests {
 
     fn test_layout_stops(stops: GradientStops) -> Vec<RenderGradientStop> {
         let mut render_stops = vec![];
-        stops.layout_linear(
-            LayoutLength::new(100.0),
-            &LayoutContext::new(20.0, LayoutSize::new(100.0, 100.0), PixelGrid::new(1.0)),
-            ExtendMode::Clamp,
-            &mut LayoutLine::new(LayoutPoint::zero(), LayoutPoint::new(100.0, 100.0)),
-            &mut render_stops,
-        );
+        let mut ctx = TestWidgetContext::wait_new();
+        ctx.layout_context(20.0, 20.0, LayoutSize::new(100.0, 100.0), PixelGrid::new(1.0), |ctx| {
+            stops.layout_linear(
+                LayoutLength::new(100.0),
+                ctx,
+                ExtendMode::Clamp,
+                &mut LayoutLine::new(LayoutPoint::zero(), LayoutPoint::new(100.0, 100.0)),
+                &mut render_stops,
+            );
+        });
+
         render_stops
     }
 

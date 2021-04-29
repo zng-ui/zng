@@ -5,10 +5,10 @@
 use util::{assert_did_not_trace, assert_only_traced, TraceNode};
 
 use crate::{
-    context::{LayoutContext, TestWidgetContext, UpdateDisplayRequest, UpdateRequest, WidgetContext},
+    context::{TestWidgetContext, UpdateDisplayRequest, UpdateRequest, WidgetContext},
     impl_ui_node, node_vec, nodes,
     render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
-    units::{LayoutSize, PixelGrid},
+    units::LayoutSize,
     widget_base::implicit_base,
     window::WindowId,
     UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, LAYOUT_ANY_SIZE,
@@ -100,12 +100,11 @@ fn test_trace(node: impl UiNode) {
     assert_only_traced!(wgt.state(), "update_hp");
 
     let l_size = LayoutSize::new(1000.0, 800.0);
-    let mut l_ctx = LayoutContext::new(14.0, l_size, PixelGrid::default());
 
-    wgt.measure(l_size, &mut l_ctx);
+    wgt.test_measure(l_size, &mut ctx);
     assert_only_traced!(wgt.state(), "measure");
 
-    wgt.arrange(l_size, &mut l_ctx);
+    wgt.test_arrange(l_size, &mut ctx);
     assert_only_traced!(wgt.state(), "arrange");
 
     let window_id = WindowId::new_unique();
@@ -186,18 +185,17 @@ pub fn default_no_child() {
     wgt.test_init(&mut ctx);
 
     let available_size = LayoutSize::new(1000.0, 800.0);
-    let mut l_ctx = LayoutContext::new(14.0, LayoutSize::zero(), PixelGrid::default());
 
     // we expect default to fill available space and collapse in infinite spaces.
-    let desired_size = wgt.measure(available_size, &mut l_ctx);
+    let desired_size = wgt.test_measure(available_size, &mut ctx);
     assert_eq!(desired_size, available_size);
 
     let available_size = LayoutSize::new(LAYOUT_ANY_SIZE, LAYOUT_ANY_SIZE);
-    let desired_size = wgt.measure(available_size, &mut l_ctx);
+    let desired_size = wgt.test_measure(available_size, &mut ctx);
     assert_eq!(desired_size, LayoutSize::zero());
 
-    // arrange does nothing, but not really anything to test.
-    wgt.arrange(desired_size, &mut l_ctx);
+    // arrange does nothing, not really anything to test.
+    wgt.test_arrange(desired_size, &mut ctx);
 
     // we expect default to not render anything.
     let window_id = WindowId::new_unique();
