@@ -598,7 +598,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if default=>
 
                 #cfg
-                let #args_ident = #p::ArgsImpl::default();
+                #[allow(non_snake_case)]
+                let #args_ident = #p::default_args();
             }
             #cfg
             #p::code_gen!{
@@ -739,6 +740,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         when_inits.extend(quote! {
             #property_path::code_gen! { if allowed_in_when=>
                 #cfg
+                #[allow(non_snake_case)]
                 let #default = {
                     #init_members
                     #property_path::code_gen! {

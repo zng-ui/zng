@@ -798,7 +798,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                 #[doc(hidden)]
                 pub fn #d_ident() -> impl self::#p_ident::Args {
-                    self::#p_ident::ArgsImpl::default()
+                    self::#p_ident::default_args()
                 }
             }
         });

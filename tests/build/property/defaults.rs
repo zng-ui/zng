@@ -1,4 +1,4 @@
-use zero_ui::core::{property, UiNode, var::IntoVar};
+use zero_ui::core::{property, var::IntoVar, UiNode};
 
 #[property(context, default)]
 pub fn missing_default_parethesis(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
@@ -24,13 +24,13 @@ pub fn incorrect_default_args_count_n_1(child: impl UiNode, a: impl IntoVar<bool
     child
 }
 
-#[property(context, default(true, 2555, "abc"))]
+#[property(context, default(true, 2555, "ABC"))]
 pub fn incorrect_default_args_count_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
     let _ = (a, b);
     child
 }
 
-#[property(context, default(a: true, b: 2555, c: "abc"))]
+#[property(context, default(a: true, b: 2555, c: "ABC"))]
 pub fn incorrect_default_args_count_n_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
     let _ = (a, b);
     child

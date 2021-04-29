@@ -1247,6 +1247,48 @@ pub fn inherit_override() {
     assert!(util::traced(&wgt, "base_a::property"));
 }
 
+/*
+* Property Default Value
+*/
+
+#[test]
+pub fn allowed_in_when_without_wgt_assign() {
+    let mut wgt = empty_wgt! {
+        // util::live_trace_default = "default-trace";
+        when self.util::is_state {
+            util::live_trace_default = "when-trace";
+        }
+    };
+
+    let mut ctx = TestWidgetContext::wait_new();
+    wgt.test_init(&mut ctx);
+    assert!(util::traced(&wgt, "default-trace"));
+    assert!(!util::traced(&wgt, "when-trace"));
+
+    util::set_state(&mut wgt, true);
+    wgt.test_update(&mut ctx);
+    ctx.apply_updates();
+    wgt.test_update(&mut ctx);
+    assert!(util::traced(&wgt, "when-trace"));
+}
+
+/*
+* Generated Names Don't Shadow Each Other
+*/
+#[crate::property(context)]
+pub fn util_live_trace(child: impl crate::UiNode, not_str: impl crate::var::IntoVar<bool>) -> impl crate::UiNode {
+    let _ = not_str;
+    child
+}
+
+#[test]
+pub fn generated_name_collision() {
+    let _ = empty_wgt! {
+        util::live_trace = "!";
+        util_live_trace = false;
+    };
+}
+
 mod util {
     use std::{
         collections::{HashMap, HashSet},
@@ -1437,6 +1479,14 @@ mod util {
     /// A [trace] that can update.
     #[property(context)]
     pub fn live_trace(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
+        LiveTraceNode {
+            child,
+            trace: trace.into_var(),
+        }
+    }
+    /// A [trace] that can update and has a default value of `"default-trace"`.
+    #[property(context, default("default-trace"))]
+    pub fn live_trace_default(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
         LiveTraceNode {
             child,
             trace: trace.into_var(),
