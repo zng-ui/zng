@@ -220,6 +220,10 @@ macro_rules! impl_rc_merge_var {
 
             type AsLocal = CloningLocalVar<O, Self>;
 
+            fn into_local(self) -> Self::AsLocal {
+                CloningLocalVar::new(self)
+            }
+
             fn modify<F2: FnOnce(&mut O) + 'static>(&self, _: &Vars, _: F2) -> Result<(), VarIsReadOnly> {
                 Err(VarIsReadOnly)
             }
@@ -228,9 +232,6 @@ macro_rules! impl_rc_merge_var {
                 ForceReadOnlyVar::new(self)
             }
 
-            fn into_local(self) -> Self::AsLocal {
-                CloningLocalVar::new(self)
-            }
 
             fn map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {
                 self.clone().into_map(map)
@@ -327,65 +328,3 @@ impl_rc_merge_var! {
     31 => 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30;
     32 => 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31;
 }
-
-/* TODO
-fn merge_20_test<V: Var<u8>>(
-    v0: V,
-    v1: V,
-    v2: V,
-    v3: V,
-    v4: V,
-    v5: V,
-    v6: V,
-    v7: V,
-    v8: V,
-    v9: V,
-
-    v10: V,
-    v11: V,
-    v12: V,
-    v13: V,
-    v14: V,
-    v15: V,
-    v16: V,
-    v17: V,
-    v18: V,
-    v19: V,
-) -> impl Var<usize> {
-    let a = RcMerge16Var::new(
-        (v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15),
-        |v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15| {
-            (
-                v0.clone(),
-                v1.clone(),
-                v2.clone(),
-                v3.clone(),
-                v4.clone(),
-                v5.clone(),
-                v6.clone(),
-                v7.clone(),
-                v8.clone(),
-                v9.clone(),
-                v10.clone(),
-                v11.clone(),
-                v12.clone(),
-                v13.clone(),
-                v14.clone(),
-                v15.clone(),
-            )
-        },
-    );
-
-    RcMerge5Var::new(
-        (a, v16, v17, v18, v19),
-        |(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15), v16, v17, v18, v19| {
-            [
-                v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19,
-            ]
-            .iter()
-            .map(|u| u as usize)
-            .sum()
-        },
-    )
-}
-*/

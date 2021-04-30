@@ -185,7 +185,12 @@ where
     G: FnMut(O) -> I + 'static,
 {
     type AsReadOnly = ForceReadOnlyVar<O, Self>;
+
     type AsLocal = CloningLocalVar<O, Self>;
+
+    fn into_local(self) -> Self::AsLocal {
+        CloningLocalVar::new(self)
+    }
 
     fn modify<H>(&self, vars: &Vars, change: H) -> Result<(), VarIsReadOnly>
     where
@@ -198,10 +203,6 @@ where
 
     fn into_read_only(self) -> Self::AsReadOnly {
         ForceReadOnlyVar::new(self)
-    }
-
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
     }
 
     fn map<O2: VarValue, F2: FnMut(&O) -> O2>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {

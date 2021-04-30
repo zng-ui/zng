@@ -300,21 +300,16 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// ```
 #[property(inner)]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
-    struct ClipToBoundsNode<T: UiNode, S: VarLocal<bool>> {
+    struct ClipToBoundsNode<T, S> {
         child: T,
         clip: S,
         bounds: LayoutSize,
     }
 
     #[impl_ui_node(child)]
-    impl<T: UiNode, S: VarLocal<bool>> UiNode for ClipToBoundsNode<T, S> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.clip.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, S: Var<bool>> UiNode for ClipToBoundsNode<T, S> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.clip.update_local(ctx.vars).is_some() {
+            if self.clip.is_new(ctx.vars) {
                 ctx.updates.render();
             }
 
@@ -327,7 +322,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if *self.clip.get_local() {
+            if *self.clip.get(ctx.vars) {
                 frame.push_simple_clip(self.bounds, |frame| self.child.render(ctx, frame));
             } else {
                 self.child.render(ctx, frame);
@@ -336,7 +331,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     }
     ClipToBoundsNode {
         child,
-        clip: clip.into_local(),
+        clip: clip.into_var(),
         bounds: LayoutSize::zero(),
     }
 }

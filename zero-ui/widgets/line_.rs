@@ -31,11 +31,11 @@ pub mod line_w {
     ) -> impl UiNode {
         LineNode {
             bounds: LayoutSize::zero(),
-            orientation: orientation.into_local(),
-            length: length.into_local(),
-            width: width.into_local(),
-            color: color.into_local(),
-            style: style.into_local(),
+            orientation: orientation.into_var(),
+            length: length.into_var(),
+            width: width.into_var(),
+            color: color.into_var(),
+            style: style.into_var(),
         }
     }
 
@@ -51,39 +51,25 @@ pub mod line_w {
     #[impl_ui_node(none)]
     impl<W, L, O, C, S> UiNode for LineNode<W, L, O, C, S>
     where
-        W: VarLocal<Length>,
-        L: VarLocal<Length>,
-        O: VarLocal<LineOrientation>,
-        C: VarLocal<Rgba>,
-        S: VarLocal<LineStyle>,
+        W: Var<Length>,
+        L: Var<Length>,
+        O: Var<LineOrientation>,
+        C: Var<Rgba>,
+        S: Var<LineStyle>,
     {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.width.init_local(ctx.vars);
-            self.length.init_local(ctx.vars);
-            self.color.init_local(ctx.vars);
-            self.orientation.init_local(ctx.vars);
-            self.style.init_local(ctx.vars);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.width.update_local(ctx.vars).is_some()
-                | self.length.update_local(ctx.vars).is_some()
-                | self.orientation.update_local(ctx.vars).is_some()
-            {
+            if self.width.is_new(ctx.vars) || self.length.is_new(ctx.vars) || self.orientation.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
-            if self.color.update_local(ctx.vars).is_some() {
-                ctx.updates.render();
-            }
-            if self.style.update_local(ctx.vars).is_some() {
+            if self.color.is_new(ctx.vars) || self.style.is_new(ctx.vars) {
                 ctx.updates.render();
             }
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_space: LayoutSize) -> LayoutSize {
-            let (width, height) = match *self.orientation.get_local() {
-                LineOrientation::Horizontal => (self.length.get_local(), self.width.get_local()),
-                LineOrientation::Vertical => (self.width.get_local(), self.length.get_local()),
+            let (width, height) = match *self.orientation.get(ctx.vars) {
+                LineOrientation::Horizontal => (self.length.get(ctx.vars), self.width.get(ctx.vars)),
+                LineOrientation::Vertical => (self.width.get(ctx.vars), self.length.get(ctx.vars)),
             };
 
             let width = width.to_layout(LayoutLength::new(available_space.width), ctx);
@@ -96,11 +82,11 @@ pub mod line_w {
             self.bounds = self.measure(ctx, final_size);
         }
 
-        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let bounds = LayoutRect::from_size(self.bounds);
-            let orientation = *self.orientation.get_local();
-            let color = *self.color.get_local();
-            let style = *self.style.get_local();
+            let orientation = *self.orientation.get(ctx.vars);
+            let color = *self.color.get(ctx.vars);
+            let style = *self.style.get(ctx.vars);
             frame.push_line(bounds, orientation, color.into(), style);
         }
     }

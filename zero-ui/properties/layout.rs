@@ -35,28 +35,23 @@ use zero_ui::prelude::new_property::*;
 /// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
 #[property(outer)]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
-    struct MarginNode<T: UiNode, M: VarLocal<SideOffsets>> {
+    struct MarginNode<T, M> {
         child: T,
         margin: M,
         size_increment: LayoutSize,
         child_rect: LayoutRect,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, M: VarLocal<SideOffsets>> UiNode for MarginNode<T, M> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.margin.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, M: Var<SideOffsets>> UiNode for MarginNode<T, M> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.margin.update_local(ctx.vars).is_some() {
+            if self.margin.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
             self.child.update(ctx);
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let margin = self.margin.get_local().to_layout(available_size, ctx);
+            let margin = self.margin.get(ctx.vars).to_layout(available_size, ctx);
             self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
             self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
             self.child.measure(ctx, available_size - self.size_increment) + self.size_increment
@@ -74,7 +69,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
     }
     MarginNode {
         child,
-        margin: margin.into_local(),
+        margin: margin.into_var(),
         size_increment: LayoutSize::zero(),
         child_rect: LayoutRect::zero(),
     }
@@ -106,14 +101,9 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
         child_rect: LayoutRect,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, A: VarLocal<Alignment>> UiNode for AlignNode<T, A> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.alignment.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, A: Var<Alignment>> UiNode for AlignNode<T, A> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.alignment.update_local(ctx.vars).is_some() {
+            if self.alignment.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -129,7 +119,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
             self.child_rect.size = final_size.min(self.child_rect.size);
             self.child.arrange(ctx, self.child_rect.size);
 
-            let alignment = self.alignment.get_local();
+            let alignment = self.alignment.get(ctx.vars);
 
             self.child_rect.origin = LayoutPoint::new(
                 (final_size.width - self.child_rect.size.width) * alignment.x.0,
@@ -145,7 +135,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
 
     AlignNode {
         child,
-        alignment: alignment.into_local(),
+        alignment: alignment.into_var(),
         child_rect: LayoutRect::zero(),
     }
 }
@@ -174,20 +164,15 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
 #[property(outer)]
 pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNode {
-    struct PositionNode<T: UiNode, P: VarLocal<Point>> {
+    struct PositionNode<T: UiNode, P: Var<Point>> {
         child: T,
         position: P,
         final_position: LayoutPoint,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, P: VarLocal<Point>> UiNode for PositionNode<T, P> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.position.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, P: Var<Point>> UiNode for PositionNode<T, P> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.position.update_local(ctx.vars).is_some() {
+            if self.position.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
             self.child.update(ctx);
@@ -195,7 +180,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.child.arrange(ctx, final_size);
-            self.final_position = self.position.get_local().to_layout(final_size, ctx);
+            self.final_position = self.position.get(ctx.vars).to_layout(final_size, ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -204,7 +189,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
     }
     PositionNode {
         child,
-        position: position.into_local(),
+        position: position.into_var(),
         final_position: LayoutPoint::zero(),
     }
 }
@@ -232,20 +217,15 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 /// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
 #[property(outer)]
 pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
-    struct XNode<T: UiNode, X: VarLocal<Length>> {
+    struct XNode<T: UiNode, X: Var<Length>> {
         child: T,
         x: X,
         final_x: LayoutLength,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, X: VarLocal<Length>> UiNode for XNode<T, X> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.x.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, X: Var<Length>> UiNode for XNode<T, X> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.x.update_local(ctx.vars).is_some() {
+            if self.x.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
             self.child.update(ctx);
@@ -253,7 +233,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.child.arrange(ctx, final_size);
-            self.final_x = self.x.get_local().to_layout(LayoutLength::new(final_size.width), ctx);
+            self.final_x = self.x.get(ctx.vars).to_layout(LayoutLength::new(final_size.width), ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -262,7 +242,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     }
     XNode {
         child,
-        x: x.into_local(),
+        x: x.into_var(),
         final_x: LayoutLength::new(0.0),
     }
 }
@@ -290,20 +270,15 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
 #[property(outer)]
 pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
-    struct YNode<T: UiNode, Y: VarLocal<Length>> {
+    struct YNode<T: UiNode, Y: Var<Length>> {
         child: T,
         y: Y,
         final_y: LayoutLength,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, Y: VarLocal<Length>> UiNode for YNode<T, Y> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.y.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, Y: Var<Length>> UiNode for YNode<T, Y> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.y.update_local(ctx.vars).is_some() {
+            if self.y.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
             self.child.update(ctx);
@@ -311,7 +286,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.child.arrange(ctx, final_size);
-            self.final_y = self.y.get_local().to_layout(LayoutLength::new(final_size.height), ctx);
+            self.final_y = self.y.get(ctx.vars).to_layout(LayoutLength::new(final_size.height), ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -320,7 +295,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     }
     YNode {
         child,
-        y: y.into_local(),
+        y: y.into_var(),
         final_y: LayoutLength::new(0.0),
     }
 }
@@ -351,19 +326,14 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// set the minimum size of one dimension.
 #[property(size)]
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
-    struct MinSizeNode<T: UiNode, S: VarLocal<Size>> {
+    struct MinSizeNode<T: UiNode, S: Var<Size>> {
         child: T,
         min_size: S,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, S: VarLocal<Size>> UiNode for MinSizeNode<T, S> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.min_size.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, S: Var<Size>> UiNode for MinSizeNode<T, S> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.min_size.update_local(ctx.vars).is_some() {
+            if self.min_size.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -371,7 +341,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let min_size = self.min_size.get_local().to_layout(available_size, ctx);
+            let min_size = self.min_size.get(ctx.vars).to_layout(available_size, ctx);
             let desired_size = self
                 .child
                 .measure(ctx, replace_layout_any_size(min_size, available_size).max(available_size));
@@ -379,13 +349,13 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            let min_size = replace_layout_any_size(self.min_size.get_local().to_layout(final_size, ctx), final_size);
+            let min_size = replace_layout_any_size(self.min_size.get(ctx.vars).to_layout(final_size, ctx), final_size);
             self.child.arrange(ctx, min_size.max(final_size));
         }
     }
     MinSizeNode {
         child,
-        min_size: min_size.into_local(),
+        min_size: min_size.into_var(),
     }
 }
 
@@ -414,19 +384,14 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
 #[property(size)]
 pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
-    struct MinWidthNode<T: UiNode, W: VarLocal<Length>> {
+    struct MinWidthNode<T: UiNode, W: Var<Length>> {
         child: T,
         min_width: W,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, W: VarLocal<Length>> UiNode for MinWidthNode<T, W> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.min_width.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, W: Var<Length>> UiNode for MinWidthNode<T, W> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.min_width.update_local(ctx.vars).is_some() {
+            if self.min_width.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -436,7 +401,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let min_width = self
                 .min_width
-                .get_local()
+                .get(ctx.vars)
                 .to_layout(LayoutLength::new(available_size.width), ctx)
                 .get();
 
@@ -451,7 +416,11 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
-            let min_width = self.min_width.get_local().to_layout(LayoutLength::new(final_size.width), ctx).get();
+            let min_width = self
+                .min_width
+                .get(ctx.vars)
+                .to_layout(LayoutLength::new(final_size.width), ctx)
+                .get();
             if !is_layout_any_size(min_width) {
                 final_size.width = min_width.max(final_size.width);
             }
@@ -460,7 +429,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
     }
     MinWidthNode {
         child,
-        min_width: min_width.into_local(),
+        min_width: min_width.into_var(),
     }
 }
 
@@ -489,19 +458,14 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
 #[property(size)]
 pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
-    struct MinHeightNode<T: UiNode, H: VarLocal<Length>> {
+    struct MinHeightNode<T: UiNode, H: Var<Length>> {
         child: T,
         min_height: H,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, H: VarLocal<Length>> UiNode for MinHeightNode<T, H> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.min_height.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, H: Var<Length>> UiNode for MinHeightNode<T, H> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.min_height.update_local(ctx.vars).is_some() {
+            if self.min_height.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -511,7 +475,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let min_height = self
                 .min_height
-                .get_local()
+                .get(ctx.vars)
                 .to_layout(LayoutLength::new(available_size.height), ctx)
                 .get();
             if !is_layout_any_size(min_height) {
@@ -527,7 +491,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             let min_height = self
                 .min_height
-                .get_local()
+                .get(ctx.vars)
                 .to_layout(LayoutLength::new(final_size.height), ctx)
                 .get();
             if !is_layout_any_size(min_height) {
@@ -538,7 +502,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
     }
     MinHeightNode {
         child,
-        min_height: min_height.into_local(),
+        min_height: min_height.into_var(),
     }
 }
 
@@ -568,19 +532,14 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 /// set the maximum size of one dimension.
 #[property(size)]
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
-    struct MaxSizeNode<T: UiNode, S: VarLocal<Size>> {
+    struct MaxSizeNode<T: UiNode, S: Var<Size>> {
         child: T,
         max_size: S,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, S: VarLocal<Size>> UiNode for MaxSizeNode<T, S> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.max_size.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, S: Var<Size>> UiNode for MaxSizeNode<T, S> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.max_size.update_local(ctx.vars).is_some() {
+            if self.max_size.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -588,18 +547,18 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let max_size = self.max_size.get_local().to_layout(available_size, ctx);
+            let max_size = self.max_size.get(ctx.vars).to_layout(available_size, ctx);
             self.child.measure(ctx, max_size.min(available_size)).min(max_size)
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.child
-                .arrange(ctx, self.max_size.get_local().to_layout(final_size, ctx).min(final_size));
+                .arrange(ctx, self.max_size.get(ctx.vars).to_layout(final_size, ctx).min(final_size));
         }
     }
     MaxSizeNode {
         child,
-        max_size: max_size.into_local(),
+        max_size: max_size.into_var(),
     }
 }
 
@@ -628,19 +587,14 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
 #[property(size)]
 pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
-    struct MaxWidthNode<T: UiNode, W: VarLocal<Length>> {
+    struct MaxWidthNode<T: UiNode, W: Var<Length>> {
         child: T,
         max_width: W,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, W: VarLocal<Length>> UiNode for MaxWidthNode<T, W> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.max_width.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, W: Var<Length>> UiNode for MaxWidthNode<T, W> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.max_width.update_local(ctx.vars).is_some() {
+            if self.max_width.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -650,7 +604,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let max_width = self
                 .max_width
-                .get_local()
+                .get(ctx.vars)
                 .to_layout(LayoutLength::new(available_size.width), ctx)
                 .get();
 
@@ -666,7 +620,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             final_size.width = self
                 .max_width
-                .get_local()
+                .get(ctx.vars)
                 .to_layout(LayoutLength::new(final_size.width), ctx)
                 .get()
                 .min(final_size.width);
@@ -675,7 +629,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
     }
     MaxWidthNode {
         child,
-        max_width: max_width.into_local(),
+        max_width: max_width.into_var(),
     }
 }
 
@@ -704,19 +658,14 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
 #[property(size)]
 pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
-    struct MaxHeightNode<T: UiNode, H: VarLocal<Length>> {
+    struct MaxHeightNode<T: UiNode, H: Var<Length>> {
         child: T,
         max_height: H,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, H: VarLocal<Length>> UiNode for MaxHeightNode<T, H> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.max_height.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, H: Var<Length>> UiNode for MaxHeightNode<T, H> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.max_height.update_local(ctx.vars).is_some() {
+            if self.max_height.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -726,7 +675,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let max_height = self
                 .max_height
-                .get_local()
+                .get(ctx.vars)
                 .to_layout(LayoutLength::new(available_size.height), ctx)
                 .get();
 
@@ -742,7 +691,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             final_size.height = self
                 .max_height
-                .get_local()
+                .get(ctx.vars)
                 .to_layout(LayoutLength::new(final_size.height), ctx)
                 .get()
                 .min(final_size.height);
@@ -751,7 +700,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
     }
     MaxHeightNode {
         child,
-        max_height: max_height.into_local(),
+        max_height: max_height.into_var(),
     }
 }
 
@@ -780,19 +729,14 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// You can use the [`width`](fn@width) and [`height`](fn@height) properties to only set the size of one dimension.
 #[property(size)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
-    struct SizeNode<T: UiNode, S: VarLocal<Size>> {
+    struct SizeNode<T: UiNode, S: Var<Size>> {
         child: T,
         size: S,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, S: VarLocal<Size>> UiNode for SizeNode<T, S> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.size.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, S: Var<Size>> UiNode for SizeNode<T, S> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.size.update_local(ctx.vars).is_some() {
+            if self.size.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -800,19 +744,19 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let size = self.size.get_local().to_layout(available_size, ctx);
+            let size = self.size.get(ctx.vars).to_layout(available_size, ctx);
             let desired_size = self.child.measure(ctx, replace_layout_any_size(size, available_size));
             replace_layout_any_size(size, desired_size)
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            let size = replace_layout_any_size(self.size.get_local().to_layout(final_size, ctx), final_size);
+            let size = replace_layout_any_size(self.size.get(ctx.vars).to_layout(final_size, ctx), final_size);
             self.child.arrange(ctx, size);
         }
     }
     SizeNode {
         child,
-        size: size.into_local(),
+        size: size.into_var(),
     }
 }
 
@@ -837,19 +781,14 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// You can set both `width` and `height` at the same time using the [`size`](fn@size) property.
 #[property(size)]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
-    struct WidthNode<T: UiNode, W: VarLocal<Length>> {
+    struct WidthNode<T: UiNode, W: Var<Length>> {
         child: T,
         width: W,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, W: VarLocal<Length>> UiNode for WidthNode<T, W> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.width.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, W: Var<Length>> UiNode for WidthNode<T, W> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.width.update_local(ctx.vars).is_some() {
+            if self.width.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -857,7 +796,11 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
-            let width = self.width.get_local().to_layout(LayoutLength::new(available_size.width), ctx).get();
+            let width = self
+                .width
+                .get(ctx.vars)
+                .to_layout(LayoutLength::new(available_size.width), ctx)
+                .get();
             if !is_layout_any_size(width) {
                 available_size.width = width;
                 let mut desired_size = self.child.measure(ctx, available_size);
@@ -869,7 +812,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
-            let width = self.width.get_local().to_layout(LayoutLength::new(final_size.width), ctx).get();
+            let width = self.width.get(ctx.vars).to_layout(LayoutLength::new(final_size.width), ctx).get();
             if !is_layout_any_size(width) {
                 final_size.width = width;
             }
@@ -878,7 +821,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     }
     WidthNode {
         child,
-        width: width.into_local(),
+        width: width.into_var(),
     }
 }
 
@@ -903,19 +846,14 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// You can set both `width` and `height` at the same time using the [`size`](fn@size) property.
 #[property(size)]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
-    struct HeightNode<T: UiNode, H: VarLocal<Length>> {
+    struct HeightNode<T: UiNode, H: Var<Length>> {
         child: T,
         height: H,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, H: VarLocal<Length>> UiNode for HeightNode<T, H> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.height.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, H: Var<Length>> UiNode for HeightNode<T, H> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.height.update_local(ctx.vars).is_some() {
+            if self.height.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
 
@@ -925,7 +863,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
             let height = self
                 .height
-                .get_local()
+                .get(ctx.vars)
                 .to_layout(LayoutLength::new(available_size.height), ctx)
                 .get();
             if !is_layout_any_size(height) {
@@ -939,7 +877,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
-            let height = self.height.get_local().to_layout(LayoutLength::new(final_size.height), ctx).get();
+            let height = self.height.get(ctx.vars).to_layout(LayoutLength::new(final_size.height), ctx).get();
             if !is_layout_any_size(height) {
                 final_size.height = height;
             }
@@ -948,7 +886,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     }
     HeightNode {
         child,
-        height: height.into_local(),
+        height: height.into_var(),
     }
 }
 

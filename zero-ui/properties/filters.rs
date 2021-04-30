@@ -13,27 +13,22 @@ use crate::prelude::new_property::*;
 /// with is optimized for animation.
 #[property(context)]
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    struct FilterNode<C: UiNode, F: VarLocal<Filter>> {
+    struct FilterNode<C, F> {
         child: C,
         filter: F,
         render_filter: RenderFilter,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: VarLocal<Filter>> UiNode for FilterNode<C, F> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.filter.init_local(ctx.vars);
-            self.child.init(ctx)
-        }
-
+    impl<C: UiNode, F: Var<Filter>> UiNode for FilterNode<C, F> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.filter.update_local(ctx.vars).is_some() {
+            if self.filter.is_new(ctx.vars) {
                 ctx.updates.layout() //TODO don't use layout when not needed.
             }
             self.child.update(ctx)
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.render_filter = self.filter.get_local().to_render(final_size, ctx);
+            self.render_filter = self.filter.get(ctx.vars).to_render(final_size, ctx);
             self.child.arrange(ctx, final_size);
         }
 
@@ -43,7 +38,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     }
     FilterNode {
         child,
-        filter: filter.into_local(),
+        filter: filter.into_var(),
         render_filter: RenderFilter::default(),
     }
 }
@@ -112,27 +107,22 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 /// **but** updating the opacity is faster in this property.
 #[property(context)]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl UiNode {
-    struct OpacityNode<C: UiNode, A: VarLocal<FactorNormal>> {
+    struct OpacityNode<C, A> {
         child: C,
         alpha_value: A,
         frame_key: Option<FrameBindingKey<f32>>,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, A: VarLocal<FactorNormal>> UiNode for OpacityNode<C, A> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.alpha_value.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<C: UiNode, A: Var<FactorNormal>> UiNode for OpacityNode<C, A> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.alpha_value.update_local(ctx.vars).is_some() {
+            if self.alpha_value.is_new(ctx.vars) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.alpha_value.get_local().0;
+            let opacity = self.alpha_value.get(ctx.vars).0;
             let opacity = if let Some(frame_key) = self.frame_key {
                 frame_key.bind(opacity)
             } else {
@@ -143,13 +133,13 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl Ui
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Some(frame_key) = self.frame_key {
-                update.update_f32(frame_key.update(self.alpha_value.get_local().0));
+                update.update_f32(frame_key.update(self.alpha_value.get(ctx.vars).0));
             }
             self.child.render_update(ctx, update);
         }
     }
 
-    let alpha_value = alpha.into_local();
+    let alpha_value = alpha.into_var();
     let frame_key = if alpha_value.can_update() {
         Some(FrameBindingKey::new_unique())
     } else {

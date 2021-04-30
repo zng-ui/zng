@@ -9,27 +9,22 @@ use crate::prelude::new_property::*;
 /// This property does not affect layout, the widget is transformed only during rendering.
 #[property(context)]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
-    struct TransformNode<C: UiNode, T: VarLocal<Transform>> {
+    struct TransformNode<C: UiNode, T: Var<Transform>> {
         child: C,
         transform: T,
         layout_transform: LayoutTransform,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, T: VarLocal<Transform>> UiNode for TransformNode<C, T> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-            self.transform.init_local(ctx.vars);
-        }
-
+    impl<C: UiNode, T: Var<Transform>> UiNode for TransformNode<C, T> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if self.transform.update_local(ctx.vars).is_some() {
+            if self.transform.is_new(ctx.vars) {
                 ctx.updates.render_update();
             }
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.layout_transform = self.transform.get_local().to_layout(final_size, ctx);
+            self.layout_transform = self.transform.get(ctx.vars).to_layout(final_size, ctx);
             self.child.arrange(ctx, final_size);
         }
 
@@ -43,7 +38,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
     }
     TransformNode {
         child,
-        transform: transform.into_local(),
+        transform: transform.into_var(),
         layout_transform: LayoutTransform::identity(),
     }
 }
@@ -163,28 +158,22 @@ pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// When unset the default origin is the center (50%, 50%).
 #[property(context)]
 pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
-    struct TransformOriginNode<C: UiNode, O: VarLocal<Point>> {
+    struct TransformOriginNode<C, O> {
         child: C,
         origin: O,
         layout_origin: LayoutPoint,
     }
-
     #[impl_ui_node(child)]
-    impl<C: UiNode, O: VarLocal<Point>> UiNode for TransformOriginNode<C, O> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.origin.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<C: UiNode, O: Var<Point>> UiNode for TransformOriginNode<C, O> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.origin.update_local(ctx.vars).is_some() {
+            if self.origin.is_new(ctx.vars) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx);
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.layout_origin = self.origin.get_local().to_layout(final_size, ctx);
+            self.layout_origin = self.origin.get(ctx.vars).to_layout(final_size, ctx);
             self.child.arrange(ctx, final_size);
         }
 
@@ -201,7 +190,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     }
     TransformOriginNode {
         child,
-        origin: origin.into_local(),
+        origin: origin.into_var(),
         layout_origin: LayoutPoint::zero(),
     }
 }

@@ -2,8 +2,7 @@
 
 use std::ops;
 
-use crate::units::LayoutSize;
-use crate::var::{context_var, IntoVar, VarLocal, Vars};
+use crate::var::{context_var, IntoVar, Vars};
 use crate::{
     context::RenderContext,
     render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey},
@@ -14,6 +13,10 @@ use crate::{
     WidgetList,
 };
 use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
+use crate::{
+    units::LayoutSize,
+    var::{Var, VarsRead},
+};
 
 #[cfg(debug_assertions)]
 use crate::units::PixelGridExt;
@@ -234,7 +237,7 @@ impl<'a> WidgetEnabledExt for WidgetInfo<'a> {
 pub struct IsEnabled;
 impl IsEnabled {
     /// Gets the enabled state in the current `vars` context.
-    pub fn get(vars: &Vars) -> bool {
+    pub fn get(vars: &VarsRead) -> bool {
         *IsEnabledVar::var().get(vars)
     }
 }
@@ -259,12 +262,12 @@ impl IsEnabled {
 /// Disabled widgets are not focusable. The focus manager skips disabled widgets.
 #[property(context)]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct EnabledNode<C: UiNode, E: VarLocal<bool>> {
+    struct EnabledNode<C, E> {
         child: C,
         enabled: E,
     }
-    impl<C: UiNode, E: VarLocal<bool>> EnabledNode<C, E> {
-        fn with_context(&mut self, vars: &Vars, f: impl FnOnce(&mut C)) {
+    impl<C: UiNode, E: Var<bool>> EnabledNode<C, E> {
+        fn with_context(&mut self, vars: &VarsRead, f: impl FnOnce(&mut C)) {
             if IsEnabled::get(vars) {
                 if *self.enabled.get(vars) {
                     // context already enabled
@@ -281,9 +284,9 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, E: VarLocal<bool>> UiNode for EnabledNode<C, E> {
+    impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if !*self.enabled.init_local(ctx.vars) {
+            if !*self.enabled.get(ctx.vars) {
                 ctx.widget_state.set(EnabledState, false);
             }
             self.with_context(ctx.vars, |c| c.init(ctx));
@@ -294,7 +297,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(&state) = self.enabled.update_local(ctx.vars) {
+            if let Some(&state) = self.enabled.get_new(ctx.vars) {
                 ctx.widget_state.set(EnabledState, state);
                 ctx.updates.render(); // TODO meta updates without a new frame?
             }
@@ -306,7 +309,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if !*self.enabled.get_local() {
+            if !*self.enabled.get(ctx.vars) {
                 frame.meta().set(EnabledState, false);
             }
             self.child.render(ctx, frame);
@@ -314,19 +317,19 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     }
     EnabledNode {
         child,
-        enabled: enabled.into_local(),
+        enabled: enabled.into_var(),
     }
 }
 
 /// Sets the widget visibility.
 #[property(context)]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
-    struct VisibilityNode<C: UiNode, V: VarLocal<Visibility>> {
+    struct VisibilityNode<C, V> {
         child: C,
         visibility: V,
     }
-    impl<C: UiNode, V: VarLocal<Visibility>> VisibilityNode<C, V> {
-        fn with_context(&mut self, vars: &Vars, f: impl FnOnce(&mut C)) {
+    impl<C: UiNode, V: Var<Visibility>> VisibilityNode<C, V> {
+        fn with_context(&mut self, vars: &VarsRead, f: impl FnOnce(&mut C)) {
             match *VisibilityVar::var().get(vars) {
                 // parent collapsed => all descendants collapsed
                 Visibility::Collapsed => f(&mut self.child),
@@ -356,9 +359,9 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             }
         }
     }
-    impl<C: UiNode, V: VarLocal<Visibility>> UiNode for VisibilityNode<C, V> {
+    impl<C: UiNode, V: Var<Visibility>> UiNode for VisibilityNode<C, V> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let vis = *self.visibility.init_local(ctx.vars);
+            let vis = *self.visibility.get(ctx.vars);
             ctx.widget_state.set(VisibilityState, vis);
 
             self.with_context(ctx.vars, |c| c.init(ctx));
@@ -369,7 +372,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(&vis) = self.visibility.update_local(ctx.vars) {
+            if let Some(&vis) = self.visibility.get_new(ctx.vars) {
                 ctx.widget_state.set(VisibilityState, vis);
                 ctx.updates.layout();
             }
@@ -381,20 +384,20 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            match *self.visibility.get_local() {
+            match *self.visibility.get(ctx.vars) {
                 Visibility::Visible | Visibility::Hidden => self.child.measure(ctx, available_size),
                 Visibility::Collapsed => LayoutSize::zero(),
             }
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            if let Visibility::Visible = self.visibility.get_local() {
+            if let Visibility::Visible = self.visibility.get(ctx.vars) {
                 self.child.arrange(ctx, final_size)
             }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if let Visibility::Visible = self.visibility.get_local() {
+            if let Visibility::Visible = self.visibility.get(ctx.vars) {
                 self.child.render(ctx, frame);
             } else {
                 frame
@@ -404,7 +407,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            if let Visibility::Visible = self.visibility.get_local() {
+            if let Visibility::Visible = self.visibility.get(ctx.vars) {
                 self.child.render_update(ctx, update);
             } else {
                 update.cancel_widget();
@@ -413,7 +416,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     }
     VisibilityNode {
         child,
-        visibility: visibility.into_local(),
+        visibility: visibility.into_var(),
     }
 }
 
@@ -557,12 +560,12 @@ impl VisibilityContext {
 /// all mouse and touch events.
 #[property(context)]
 pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> impl UiNode {
-    struct HitTestableNode<U: UiNode, H: VarLocal<bool>> {
+    struct HitTestableNode<U, H> {
         child: U,
         hit_testable: H,
     }
-    impl<U: UiNode, H: VarLocal<bool>> HitTestableNode<U, H> {
-        fn with_context(&mut self, vars: &Vars, f: impl FnOnce(&mut U)) {
+    impl<U: UiNode, H: Var<bool>> HitTestableNode<U, H> {
+        fn with_context(&mut self, vars: &VarsRead, f: impl FnOnce(&mut U)) {
             if IsHitTestable::get(vars) {
                 if *self.hit_testable.get(vars) {
                     // context already hit-testable
@@ -579,9 +582,9 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
         }
     }
     #[impl_ui_node(child)]
-    impl<U: UiNode, H: VarLocal<bool>> UiNode for HitTestableNode<U, H> {
+    impl<U: UiNode, H: Var<bool>> UiNode for HitTestableNode<U, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if !*self.hit_testable.init_local(ctx.vars) {
+            if !*self.hit_testable.get(ctx.vars) {
                 ctx.widget_state.set(HitTestableState, false);
             }
             self.with_context(ctx.vars, |c| c.init(ctx));
@@ -592,7 +595,7 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(&state) = self.hit_testable.update_local(ctx.vars) {
+            if let Some(&state) = self.hit_testable.get_new(ctx.vars) {
                 ctx.widget_state.set(HitTestableState, state);
                 ctx.updates.render();
             }
@@ -604,7 +607,7 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if !self.hit_testable.get_local() {
+            if !self.hit_testable.get(ctx.vars) {
                 frame.push_not_hit_testable(|frame| self.child.render(ctx, frame));
             } else {
                 self.child.render(ctx, frame);
@@ -613,7 +616,7 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
     }
     HitTestableNode {
         child,
-        hit_testable: hit_testable.into_local(),
+        hit_testable: hit_testable.into_var(),
     }
 }
 
@@ -625,7 +628,7 @@ context_var! {
 pub struct IsHitTestable;
 impl IsHitTestable {
     /// Gets the hit-testable state in the current `vars` context.
-    pub fn get(vars: &Vars) -> bool {
+    pub fn get(vars: &VarsRead) -> bool {
         *IsHitTestableVar::var().get(vars)
     }
 }

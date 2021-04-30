@@ -20,7 +20,7 @@ struct StackNode<C, S, D> {
 impl<C, S, D> StackNode<C, S, D>
 where
     C: WidgetList,
-    S: VarLocal<Length>,
+    S: Var<Length>,
     D: StackDimension,
 {
     fn new(children: C, spacing: S, _dimension: D) -> Self {
@@ -33,14 +33,8 @@ where
     }
 
     #[UiNode]
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.spacing.init_local(ctx.vars);
-        self.children.init_all(ctx);
-    }
-
-    #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.spacing.update_local(ctx.vars).is_some() {
+        if self.spacing.is_new(ctx.vars) {
             ctx.updates.layout();
         }
         self.children.update_all(ctx);
@@ -54,7 +48,7 @@ where
         let (total_len, max_ort_len) = D::lengths_mut(&mut total_size);
         let spacing = self
             .spacing
-            .get_local()
+            .get(ctx.vars)
             .to_layout(LayoutLength::new(D::length(available_size)), ctx)
             .get();
         let mut first = true;
@@ -137,7 +131,7 @@ pub mod h_stack {
 
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>) -> impl UiNode {
-        StackNode::new(items, spacing.into_local(), HorizontalD)
+        StackNode::new(items, spacing.into_var(), HorizontalD)
     }
 
     struct HorizontalD;
@@ -192,7 +186,7 @@ pub mod v_stack {
 
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>) -> impl UiNode {
-        StackNode::new(items, spacing.into_local(), VerticalD)
+        StackNode::new(items, spacing.into_var(), VerticalD)
     }
 
     struct VerticalD;

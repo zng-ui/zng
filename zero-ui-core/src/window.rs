@@ -11,7 +11,7 @@ use crate::{
     service::{AppService, WindowServices},
     text::Text,
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
-    var::{BoxedLocalVar, BoxedVar, IntoVar, VarLocal, VarObj},
+    var::{BoxedVar, IntoVar, VarObj, VarsRead},
     UiNode, WidgetId,
 };
 
@@ -493,7 +493,7 @@ impl AppExtension for WindowManager {
 
     fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
         if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
-            window.request_redraw();
+            window.request_redraw(ctx.vars);
         }
     }
 
@@ -521,7 +521,7 @@ impl AppExtension for WindowManager {
         for (id, window) in windows {
             {
                 let mut w_ctx = window.context.borrow_mut();
-                error_println!("dropping `{:?} ({})` without closing events", id, w_ctx.root.title.get_local());
+                error_println!("dropping `{:?} ({})` without closing events", id, w_ctx.root.title.get(ctx.vars));
                 w_ctx.deinit(ctx);
             }
         }
@@ -820,13 +820,13 @@ impl std::error::Error for WindowNotFound {}
 pub struct Window {
     state: LazyStateMap,
     id: WidgetId,
-    title: BoxedLocalVar<Text>,
+    title: BoxedVar<Text>,
     start_position: StartPosition,
     position: BoxedVar<Point>,
     size: BoxedVar<Size>,
-    auto_size: BoxedLocalVar<AutoSize>,
+    auto_size: BoxedVar<AutoSize>,
     resizable: BoxedVar<bool>,
-    visible: BoxedLocalVar<bool>,
+    visible: BoxedVar<bool>,
     headless_config: WindowHeadlessConfig,
     child: Box<dyn UiNode>,
 }
@@ -859,13 +859,13 @@ impl Window {
         Window {
             state: LazyStateMap::new(),
             id: root_id,
-            title: title.into_local().boxed_local(),
+            title: title.into_var().boxed(),
             start_position: start_position.into(),
             position: position.into_var().boxed(),
             size: size.into_var().boxed(),
-            auto_size: auto_size.into_local().boxed_local(),
+            auto_size: auto_size.into_var().boxed(),
             resizable: resizable.into_var().boxed(),
-            visible: visible.into_local().boxed_local(),
+            visible: visible.into_var().boxed(),
             headless_config,
             child: child.boxed(),
         }
@@ -1358,15 +1358,15 @@ impl OpenWindow {
 
     /// Update from/to variables that affect the window.
     fn update_window_vars(&mut self, app_ctx: &mut AppContext) {
-        let mut ctx = self.context.borrow_mut();
+        let ctx = self.context.borrow();
         if let Some(window) = &self.window {
             // title
-            if let Some(title) = ctx.root.title.update_local(app_ctx.vars) {
+            if let Some(title) = ctx.root.title.get_new(app_ctx.vars) {
                 window.set_title(title);
             }
 
             // auto-size
-            if let Some(&auto_size) = ctx.root.auto_size.update_local(app_ctx.vars) {
+            if let Some(&auto_size) = ctx.root.auto_size.get_new(app_ctx.vars) {
                 app_ctx.updates.layout();
 
                 if auto_size == AutoSize::CONTENT {
@@ -1409,7 +1409,7 @@ impl OpenWindow {
                         let mut new_size = new_size.to_layout(*layout_ctx.viewport_size, &layout_ctx);
                         let factor = layout_ctx.pixel_grid.get().scale_factor;
 
-                        let auto_size = *ctx.root.auto_size.get_local();
+                        let auto_size = *ctx.root.auto_size.get(layout_ctx.vars);
 
                         if auto_size.contains(AutoSize::CONTENT_WIDTH) || !new_size.width.is_finite() {
                             new_size.width = curr_size.width as f32 / factor;
@@ -1429,12 +1429,12 @@ impl OpenWindow {
 
             // resizable
             if let Some(&resizable) = ctx.root.resizable.get_new(app_ctx.vars) {
-                let auto_size = *ctx.root.auto_size.get_local();
+                let auto_size = *ctx.root.auto_size.get(app_ctx.vars);
                 window.set_resizable(resizable && auto_size != AutoSize::CONTENT);
             }
 
             // visibility
-            if let Some(&vis) = ctx.root.visible.update_local(app_ctx.vars) {
+            if let Some(&vis) = ctx.root.visible.get_new(app_ctx.vars) {
                 if !self.first_draw {
                     window.set_visible(vis);
                     if vis {
@@ -1443,10 +1443,6 @@ impl OpenWindow {
                 }
             }
         } else {
-            ctx.root.title.update_local(app_ctx.vars);
-            // TODO do we need to update size for this?
-            ctx.root.auto_size.update_local(app_ctx.vars);
-
             if ctx.root.position.is_new(app_ctx.vars) || ctx.root.size.is_new(app_ctx.vars) {
                 let mut h_pos = self.headless_position;
                 let mut h_size = self.headless_size;
@@ -1464,7 +1460,7 @@ impl OpenWindow {
                 self.headless_size = h_size;
             }
 
-            if let Some(&vis) = ctx.root.visible.update_local(app_ctx.vars) {
+            if let Some(&vis) = ctx.root.visible.get_new(app_ctx.vars) {
                 if !self.first_draw && vis {
                     app_ctx.updates.layout();
                 }
@@ -1516,7 +1512,7 @@ impl OpenWindow {
 
         profile_scope!("window::layout");
 
-        let auto_size = *w_ctx.root.auto_size.get_local();
+        let auto_size = *w_ctx.root.auto_size.get(ctx.vars);
 
         let mut size = LayoutSize::zero();
         let scale_factor = self.scale_factor();
@@ -1650,7 +1646,7 @@ impl OpenWindow {
 
     /// Notifies the OS to redraw the window, will receive WindowEvent::RedrawRequested
     /// from the OS after calling this.
-    fn request_redraw(&mut self) {
+    fn request_redraw(&mut self, vars: &VarsRead) {
         if let Some(window) = &self.window {
             if self.first_draw {
                 self.first_draw = false;
@@ -1688,7 +1684,7 @@ impl OpenWindow {
                 self.redraw();
 
                 // apply initial visibility.
-                if *self.context.borrow().root.visible.get_local() {
+                if *self.context.borrow().root.visible.get(vars) {
                     self.window.as_ref().unwrap().set_visible(true);
                 }
             } else {
@@ -1890,10 +1886,6 @@ impl OwnedWindowContext {
     /// Call [`UiNode::init`](UiNode::init) in all nodes.
     pub fn init(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::init");
-
-        self.root.title.init_local(ctx.vars);
-        self.root.visible.init_local(ctx.vars);
-        self.root.auto_size.init_local(ctx.vars);
 
         let update = self.root_context(ctx, |root, ctx| {
             ctx.updates.layout();

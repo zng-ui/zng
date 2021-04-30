@@ -206,7 +206,12 @@ macro_rules! impl_rc_switch_var {
         impl<O: VarValue, $($V: Var<O>,)+ VI: VarObj<usize>>
         Var<O> for $RcSwitchVar<O, $($V,)+ VI> {
             type AsReadOnly = ForceReadOnlyVar<O, Self>;
+
             type AsLocal = CloningLocalVar<O, Self>;
+
+                        fn into_local(self) -> Self::AsLocal {
+                            CloningLocalVar::new(self)
+                        }
 
             fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
                 match *self.0.index.get(vars) {
@@ -217,10 +222,6 @@ macro_rules! impl_rc_switch_var {
 
             fn into_read_only(self) -> Self::AsReadOnly {
                 ForceReadOnlyVar::new(self)
-            }
-
-            fn into_local(self) -> Self::AsLocal {
-                CloningLocalVar::new(self)
             }
 
             fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {
@@ -435,7 +436,12 @@ impl<O: VarValue, VI: VarObj<usize>> VarObj<O> for RcSwitchVar<O, VI> {
 
 impl<O: VarValue, VI: VarObj<usize>> Var<O> for RcSwitchVar<O, VI> {
     type AsReadOnly = ForceReadOnlyVar<O, Self>;
+
     type AsLocal = CloningLocalVar<O, Self>;
+
+    fn into_local(self) -> Self::AsLocal {
+        CloningLocalVar::new(self)
+    }
 
     fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
         self.0.vars[*self.0.index.get(vars)].modify_boxed(vars, Box::new(change))
@@ -443,10 +449,6 @@ impl<O: VarValue, VI: VarObj<usize>> Var<O> for RcSwitchVar<O, VI> {
 
     fn into_read_only(self) -> Self::AsReadOnly {
         ForceReadOnlyVar::new(self)
-    }
-
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
     }
 
     fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {

@@ -30,38 +30,26 @@ pub fn border(
     impl<T, L, S, R> BorderNode<T, L, S, R>
     where
         T: UiNode,
-        L: VarLocal<SideOffsets>,
-        S: VarLocal<BorderSides>,
-        R: VarLocal<BorderRadius>,
+        L: Var<SideOffsets>,
+        S: Var<BorderSides>,
+        R: Var<BorderRadius>,
     {
-        #[UiNode]
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-
-            self.widths.init_local(ctx.vars);
-            self.sides.init_local(ctx.vars);
-            self.radius.init_local(ctx.vars);
-        }
-
         #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
-            if self.widths.update_local(ctx.vars).is_some() {
+            if self.widths.is_new(ctx.vars) || self.radius.is_new(ctx.vars) {
                 ctx.updates.layout()
             }
-            if self.sides.update_local(ctx.vars).is_some() {
+            if self.sides.is_new(ctx.vars) {
                 ctx.updates.render()
-            }
-            if self.radius.update_local(ctx.vars).is_some() {
-                ctx.updates.layout();
             }
         }
 
         #[UiNode]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            self.final_widths = self.widths.get_local().to_layout(available_size, ctx);
-            self.final_radius = self.radius.get_local().to_layout(available_size, ctx);
+            self.final_widths = self.widths.get(ctx.vars).to_layout(available_size, ctx);
+            self.final_radius = self.radius.get(ctx.vars).to_layout(available_size, ctx);
 
             let size_inc = self.size_increment();
             self.child.measure(ctx, available_size - size_inc) + size_inc
@@ -85,7 +73,7 @@ pub fn border(
             frame.push_border(
                 LayoutRect::from_size(self.final_size),
                 self.final_widths,
-                *self.sides.get_local(),
+                *self.sides.get(ctx.vars),
                 self.final_radius,
             );
             frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
@@ -95,9 +83,9 @@ pub fn border(
     BorderNode {
         child,
 
-        widths: widths.into_local(),
-        sides: sides.into_local(),
-        radius: radius.into_local(),
+        widths: widths.into_var(),
+        sides: sides.into_var(),
+        radius: radius.into_var(),
 
         child_rect: LayoutRect::zero(),
         final_size: LayoutSize::zero(),

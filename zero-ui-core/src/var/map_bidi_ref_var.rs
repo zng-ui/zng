@@ -115,6 +115,9 @@ where
     type AsReadOnly = MapRefVar<I, O, V, F>;
 
     type AsLocal = CloningLocalVar<O, Self>;
+    fn into_local(self) -> Self::AsLocal {
+        CloningLocalVar::new(self)
+    }
 
     fn modify<F2: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F2) -> Result<(), VarIsReadOnly> {
         let mut_ = self.map_mut.clone();
@@ -123,10 +126,6 @@ where
 
     fn into_read_only(self) -> Self::AsReadOnly {
         MapRefVar::new(self.var, self.map)
-    }
-
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
     }
 
     fn map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {

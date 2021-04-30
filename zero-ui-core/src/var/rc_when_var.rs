@@ -246,7 +246,12 @@ macro_rules! impl_rc_when_var {
         }
         impl<O: VarValue, D: Var<O>, $($C: VarObj<bool>),+ , $($V: Var<O>),+> Var<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
             type AsReadOnly = ForceReadOnlyVar<O, Self>;
+
             type AsLocal = CloningLocalVar<O, Self>;
+
+                        fn into_local(self) -> Self::AsLocal {
+                            CloningLocalVar::new(self)
+                        }
 
             fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
                 $(
@@ -261,10 +266,6 @@ macro_rules! impl_rc_when_var {
 
             fn into_read_only(self) -> Self::AsReadOnly {
                ForceReadOnlyVar::new(self)
-            }
-
-            fn into_local(self) -> Self::AsLocal {
-                CloningLocalVar::new(self)
             }
 
             fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {
@@ -501,16 +502,16 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     type AsReadOnly = ForceReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
+    fn into_local(self) -> Self::AsLocal {
+        CloningLocalVar::new(self)
+    }
+
     fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
         self.modify_boxed(vars, Box::new(change))
     }
 
     fn into_read_only(self) -> Self::AsReadOnly {
         ForceReadOnlyVar::new(self)
-    }
-
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
     }
 
     fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {

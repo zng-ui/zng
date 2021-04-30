@@ -14,31 +14,25 @@ use crate::prelude::new_property::*;
 /// ```
 #[property(context)]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
-    struct CursorNode<T: UiNode, C: VarLocal<CursorIcon>> {
+    struct CursorNode<T, C> {
         cursor: C,
         child: T,
     }
-
     #[impl_ui_node(child)]
-    impl<T: UiNode, C: VarLocal<CursorIcon>> UiNode for CursorNode<T, C> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.cursor.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<T: UiNode, C: Var<CursorIcon>> UiNode for CursorNode<T, C> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.cursor.update_local(&ctx.vars).is_some() {
+            if self.cursor.is_new(&ctx.vars) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_cursor(*self.cursor.get_local(), |frame| self.child.render(ctx, frame));
+            frame.push_cursor(*self.cursor.get(ctx.vars), |frame| self.child.render(ctx, frame));
         }
     }
     CursorNode {
-        cursor: cursor.into_local(),
+        cursor: cursor.into_var(),
         child,
     }
 }

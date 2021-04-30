@@ -85,10 +85,10 @@ pub mod uniform_grid {
         UniformGridNode {
             children: items,
 
-            columns: columns.into_local(),
-            rows: rows.into_local(),
-            first_column: first_column.into_local(),
-            spacing: spacing.into_local(),
+            columns: columns.into_var(),
+            rows: rows.into_var(),
+            first_column: first_column.into_var(),
+            spacing: spacing.into_var(),
 
             cells_iter: CellsIter::default(),
         }
@@ -106,10 +106,10 @@ pub mod uniform_grid {
     impl<U, C, R, FC, S> UniformGridNode<U, C, R, FC, S>
     where
         U: WidgetList,
-        C: VarLocal<usize>,
-        R: VarLocal<usize>,
-        FC: VarLocal<usize>,
-        S: VarLocal<GridSpacing>,
+        C: Var<usize>,
+        R: Var<usize>,
+        FC: Var<usize>,
+        S: Var<GridSpacing>,
     {
         /// cells count for `grid_len`.
         fn cells_count(&self) -> f32 {
@@ -120,9 +120,9 @@ pub mod uniform_grid {
         }
 
         /// (columns, rows)
-        fn grid_len(&self) -> (f32, f32) {
-            let mut columns = *self.columns.get_local() as f32;
-            let mut rows = *self.rows.get_local() as f32;
+        fn grid_len(&self, vars: &VarsRead) -> (f32, f32) {
+            let mut columns = *self.columns.get(vars) as f32;
+            let mut rows = *self.rows.get(vars) as f32;
 
             if columns < 1.0 {
                 if rows < 1.0 {
@@ -144,31 +144,22 @@ pub mod uniform_grid {
         }
 
         #[UiNode]
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.children.init_all(ctx);
-
-            self.columns.init_local(ctx.vars);
-            self.rows.init_local(ctx.vars);
-            self.first_column.init_local(ctx.vars);
-            self.spacing.init_local(ctx.vars);
-        }
-        #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.children.update_all(ctx);
 
-            if self.columns.update_local(ctx.vars).is_some()
-                | self.rows.update_local(ctx.vars).is_some()
-                | self.first_column.update_local(ctx.vars).is_some()
-                | self.spacing.update_local(ctx.vars).is_some()
+            if self.columns.is_new(ctx.vars)
+                || self.rows.is_new(ctx.vars)
+                || self.first_column.is_new(ctx.vars)
+                || self.spacing.is_new(ctx.vars)
             {
                 ctx.updates.layout();
             }
         }
         #[UiNode]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let (columns, rows) = self.grid_len();
+            let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get_local().to_layout(available_size, ctx);
+            let layout_spacing = self.spacing.get(ctx.vars).to_layout(available_size, ctx);
 
             let available_size = LayoutSize::new(
                 (available_size.width - layout_spacing.column / 2.0) / columns,
@@ -189,9 +180,9 @@ pub mod uniform_grid {
         }
         #[UiNode]
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            let (columns, rows) = self.grid_len();
+            let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get_local().to_layout(final_size, ctx);
+            let layout_spacing = self.spacing.get(ctx.vars).to_layout(final_size, ctx);
 
             let cell_size = LayoutSize::new(
                 (final_size.width - layout_spacing.column * (columns - 1.0)) / columns,
@@ -201,7 +192,7 @@ pub mod uniform_grid {
 
             self.children.arrange_all(ctx, |_, _| cell_size);
 
-            let mut first_column = *self.first_column.get_local() as f32;
+            let mut first_column = *self.first_column.get(ctx.vars) as f32;
             if first_column >= columns {
                 first_column = 0.0;
             }

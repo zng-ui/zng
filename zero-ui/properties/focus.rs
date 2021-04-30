@@ -8,39 +8,34 @@ use crate::prelude::new_property::*;
 /// Enables a widget to receive focus.
 #[property(context)]
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
-    struct FocusableNode<C: UiNode, E: VarLocal<bool>> {
+    struct FocusableNode<C, E> {
         child: C,
         is_focusable: E,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusableNode<C, E> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.is_focusable.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<C: UiNode, E: Var<bool>> UiNode for FocusableNode<C, E> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.is_focusable.update_local(ctx.vars).is_some() {
+            if self.is_focusable.is_new(ctx.vars) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry(FocusInfoKey).or_default().focusable = Some(*self.is_focusable.get_local());
+            frame.meta().entry(FocusInfoKey).or_default().focusable = Some(*self.is_focusable.get(ctx.vars));
             self.child.render(ctx, frame);
         }
     }
     FocusableNode {
         child,
-        is_focusable: focusable.into_local(),
+        is_focusable: focusable.into_var(),
     }
 }
 
 /// Customizes the widget order during TAB navigation.
 #[property(context)]
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
-    struct TabIndexNode<C: UiNode, T: VarLocal<TabIndex>> {
+    struct TabIndexNode<C: UiNode, T: Var<TabIndex>> {
         child: C,
         tab_index: T,
     }
@@ -48,28 +43,23 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
     impl<C, T> UiNode for TabIndexNode<C, T>
     where
         C: UiNode,
-        T: VarLocal<TabIndex>,
+        T: Var<TabIndex>,
     {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.tab_index.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.tab_index.update_local(ctx.vars).is_some() {
+            if self.tab_index.is_new(ctx.vars) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry(FocusInfoKey).or_default().tab_index = Some(*self.tab_index.get_local());
+            frame.meta().entry(FocusInfoKey).or_default().tab_index = Some(*self.tab_index.get(ctx.vars));
             self.child.render(ctx, frame);
         }
     }
     TabIndexNode {
         child,
-        tab_index: tab_index.into_local(),
+        tab_index: tab_index.into_var(),
     }
 }
 
@@ -78,7 +68,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
-        is_focus_scope: is_scope.into_local(),
+        is_focus_scope: is_scope.into_var(),
         is_alt: false,
     }
 }
@@ -89,24 +79,19 @@ pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiN
 pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
-        is_focus_scope: is_scope.into_local(),
+        is_focus_scope: is_scope.into_var(),
         is_alt: true,
     }
 }
-struct FocusScopeNode<C: UiNode, E: VarLocal<bool>> {
+struct FocusScopeNode<C: UiNode, E: Var<bool>> {
     child: C,
     is_focus_scope: E,
     is_alt: bool,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusScopeNode<C, E> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.is_focus_scope.init_local(ctx.vars);
-        self.child.init(ctx);
-    }
-
+impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.is_focus_scope.update_local(ctx.vars).is_some() {
+        if self.is_focus_scope.is_new(ctx.vars) {
             ctx.updates.render();
         }
         self.child.update(ctx);
@@ -114,7 +99,7 @@ impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusScopeNode<C, E> {
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         let info = frame.meta().entry(FocusInfoKey).or_default();
-        info.scope = Some(*self.is_focus_scope.get_local());
+        info.scope = Some(*self.is_focus_scope.get(ctx.vars));
         if self.is_alt {
             info.alt_scope = true;
 
@@ -138,19 +123,14 @@ impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusScopeNode<C, E> {
 /// Behavior of a focus scope when it receives direct focus.
 #[property(context)]
 pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScopeOnFocus>) -> impl UiNode {
-    struct FocusScopeBehaviorNode<C: UiNode, B: VarLocal<FocusScopeOnFocus>> {
+    struct FocusScopeBehaviorNode<C: UiNode, B: Var<FocusScopeOnFocus>> {
         child: C,
         behavior: B,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, B: VarLocal<FocusScopeOnFocus>> UiNode for FocusScopeBehaviorNode<C, B> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.behavior.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<C: UiNode, B: Var<FocusScopeOnFocus>> UiNode for FocusScopeBehaviorNode<C, B> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.behavior.update_local(ctx.vars).is_some() {
+            if self.behavior.is_new(ctx.vars) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
@@ -158,7 +138,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let info = frame.meta().entry(FocusInfoKey).or_default();
-            info.on_focus = *self.behavior.get_local();
+            info.on_focus = *self.behavior.get(ctx.vars);
             if info.scope.is_none() {
                 info.scope = Some(true);
             }
@@ -167,71 +147,61 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
     }
     FocusScopeBehaviorNode {
         child,
-        behavior: behavior.into_local(),
+        behavior: behavior.into_var(),
     }
 }
 
 /// Tab navigation within this focus scope.
 #[property(context)]
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
-    struct TabNavNode<C: UiNode, E: VarLocal<TabNav>> {
+    struct TabNavNode<C, E> {
         child: C,
         tab_nav: E,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, E: VarLocal<TabNav>> UiNode for TabNavNode<C, E> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.tab_nav.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<C: UiNode, E: Var<TabNav>> UiNode for TabNavNode<C, E> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.tab_nav.update_local(ctx.vars).is_some() {
+            if self.tab_nav.is_new(ctx.vars) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry(FocusInfoKey).or_default().tab_nav = Some(*self.tab_nav.get_local());
+            frame.meta().entry(FocusInfoKey).or_default().tab_nav = Some(*self.tab_nav.get(ctx.vars));
             self.child.render(ctx, frame);
         }
     }
     TabNavNode {
         child,
-        tab_nav: tab_nav.into_local(),
+        tab_nav: tab_nav.into_var(),
     }
 }
 
 /// Arrows navigation within this focus scope.
 #[property(context)]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
-    struct DirectionalNavNode<C: UiNode, E: VarLocal<DirectionalNav>> {
+    struct DirectionalNavNode<C, E> {
         child: C,
         directional_nav: E,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, E: VarLocal<DirectionalNav>> UiNode for DirectionalNavNode<C, E> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.directional_nav.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
+    impl<C: UiNode, E: Var<DirectionalNav>> UiNode for DirectionalNavNode<C, E> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.directional_nav.update_local(ctx.vars).is_some() {
+            if self.directional_nav.is_new(ctx.vars) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(*self.directional_nav.get_local());
+            frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(*self.directional_nav.get(ctx.vars));
             self.child.render(ctx, frame);
         }
     }
     DirectionalNavNode {
         child,
-        directional_nav: directional_nav.into_local(),
+        directional_nav: directional_nav.into_var(),
     }
 }
 
@@ -289,7 +259,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 /// Setting this to `true` is the directional navigation equivalent of setting `tab_index` to `SKIP`.
 #[property(context)]
 pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct SkipDirectionalNode<C: UiNode, E: VarLocal<bool>> {
+    struct SkipDirectionalNode<C: UiNode, E: Var<bool>> {
         child: C,
         enabled: E,
     }
@@ -297,28 +267,23 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
     impl<C, E> UiNode for SkipDirectionalNode<C, E>
     where
         C: UiNode,
-        E: VarLocal<bool>,
+        E: Var<bool>,
     {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.enabled.init_local(ctx.vars);
-            self.child.init(ctx);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.enabled.update_local(ctx.vars).is_some() {
+            if self.enabled.is_new(ctx.vars) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry(FocusInfoKey).or_default().skip_directional = Some(*self.enabled.get_local());
+            frame.meta().entry(FocusInfoKey).or_default().skip_directional = Some(*self.enabled.get(ctx.vars));
             self.child.render(ctx, frame);
         }
     }
     SkipDirectionalNode {
         child,
-        enabled: enabled.into_local(),
+        enabled: enabled.into_var(),
     }
 }
 

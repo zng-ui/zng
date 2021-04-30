@@ -199,6 +199,7 @@ pub trait VarLocal<T: VarValue>: VarObj<T> {
 pub trait Var<T: VarValue>: VarObj<T> + Clone + IntoVar<T> {
     /// Return type of [`into_read_only`](Var::into_read_only).
     type AsReadOnly: Var<T>;
+
     /// Return type of [`into_local`](Var::into_local).
     type AsLocal: VarLocal<T>;
 

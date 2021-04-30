@@ -231,14 +231,15 @@ impl<T: VarValue> VarObj<T> for RcVar<T> {
 }
 impl<T: VarValue> Var<T> for RcVar<T> {
     type AsReadOnly = ForceReadOnlyVar<T, Self>;
-    type AsLocal = CloningLocalVar<T, Self>;
 
-    fn into_read_only(self) -> Self::AsReadOnly {
-        ForceReadOnlyVar::new(self)
-    }
+    type AsLocal = CloningLocalVar<T, Self>;
 
     fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
+    }
+
+    fn into_read_only(self) -> Self::AsReadOnly {
+        ForceReadOnlyVar::new(self)
     }
 
     fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {

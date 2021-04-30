@@ -24,7 +24,7 @@ pub fn linear_gradient_ext(
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
-    LinearGradientNode::new(axis.into_local(), stops.into_local(), extend_mode.into_local())
+    LinearGradientNode::new(axis.into_var(), stops.into_var(), extend_mode.into_var())
 }
 
 /// Linear gradient with all features configurable.
@@ -36,9 +36,9 @@ pub fn linear_gradient_full(
     tile_spacing: impl IntoVar<Size>,
 ) -> impl UiNode {
     LinearGradientFullNode {
-        g: LinearGradientNode::new(axis.into_local(), stops.into_local(), extend_mode.into_local()),
-        tile_size: tile_size.into_local(),
-        tile_spacing: tile_spacing.into_local(),
+        g: LinearGradientNode::new(axis.into_var(), stops.into_var(), extend_mode.into_var()),
+        tile_size: tile_size.into_var(),
+        tile_spacing: tile_spacing.into_var(),
         render_tile_size: LayoutSize::zero(),
         render_tile_spacing: LayoutSize::zero(),
     }
@@ -57,9 +57,9 @@ struct LinearGradientNode<A, S, E> {
 #[impl_ui_node(none)]
 impl<A, S, E> LinearGradientNode<A, S, E>
 where
-    A: VarLocal<LinearGradientAxis>,
-    S: VarLocal<GradientStops>,
-    E: VarLocal<ExtendMode>,
+    A: Var<LinearGradientAxis>,
+    S: Var<GradientStops>,
+    E: Var<ExtendMode>,
 {
     fn new(axis: A, stops: S, extend_mode: E) -> Self {
         Self {
@@ -73,45 +73,33 @@ where
     }
 
     #[UiNode]
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.axis.init_local(ctx.vars);
-        self.extend_mode.init_local(ctx.vars);
-        self.stops.init_local(ctx.vars);
-    }
-    #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.axis.update_local(ctx.vars).is_some() {
-            ctx.updates.layout();
-        }
-        if self.stops.update_local(ctx.vars).is_some() {
-            ctx.updates.layout();
-        }
-        if self.extend_mode.update_local(ctx.vars).is_some() {
+        if self.axis.is_new(ctx.vars) || self.stops.is_new(ctx.vars) || self.extend_mode.is_new(ctx.vars) {
             ctx.updates.layout();
         }
     }
     #[UiNode]
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
         self.final_size = final_size;
-        self.render_line = self.axis.get_local().layout(final_size, ctx);
+        self.render_line = self.axis.get(ctx.vars).layout(final_size, ctx);
 
         let length = self.render_line.length();
 
-        self.stops.get_local().layout_linear(
+        self.stops.get(ctx.vars).layout_linear(
             length,
             ctx,
-            *self.extend_mode.get_local(),
+            *self.extend_mode.get(ctx.vars),
             &mut self.render_line,
             &mut self.render_stops,
         );
     }
     #[UiNode]
-    fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
             LayoutRect::from_size(self.final_size),
             self.render_line,
             &self.render_stops,
-            (*self.extend_mode.get_local()).into(),
+            (*self.extend_mode.get(ctx.vars)).into(),
             self.final_size,
             LayoutSize::zero(),
         );
@@ -131,42 +119,33 @@ struct LinearGradientFullNode<A, S, E, T, TS> {
 #[impl_ui_node(none)]
 impl<A, S, E, T, TS> UiNode for LinearGradientFullNode<A, S, E, T, TS>
 where
-    A: VarLocal<LinearGradientAxis>,
-    S: VarLocal<GradientStops>,
-    E: VarLocal<ExtendMode>,
-    T: VarLocal<Size>,
-    TS: VarLocal<Size>,
+    A: Var<LinearGradientAxis>,
+    S: Var<GradientStops>,
+    E: Var<ExtendMode>,
+    T: Var<Size>,
+    TS: Var<Size>,
 {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.g.init(ctx);
-        self.tile_size.init_local(ctx.vars);
-        self.tile_spacing.init_local(ctx.vars);
-    }
-
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.g.update(ctx);
 
-        if self.tile_size.update_local(ctx.vars).is_some() {
-            ctx.updates.layout();
-        }
-        if self.tile_spacing.update_local(ctx.vars).is_some() {
+        if self.tile_size.is_new(ctx.vars) || self.tile_spacing.is_new(ctx.vars) {
             ctx.updates.layout();
         }
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-        self.render_tile_size = self.tile_size.get_local().to_layout(final_size, ctx);
-        self.render_tile_spacing = self.tile_spacing.get_local().to_layout(final_size, ctx);
+        self.render_tile_size = self.tile_size.get(ctx.vars).to_layout(final_size, ctx);
+        self.render_tile_spacing = self.tile_spacing.get(ctx.vars).to_layout(final_size, ctx);
         self.g.arrange(ctx, self.render_tile_size);
         self.g.final_size = final_size;
     }
 
-    fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
             LayoutRect::from_size(self.g.final_size),
             self.g.render_line,
             &self.g.render_stops,
-            (*self.g.extend_mode.get_local()).into(),
+            (*self.g.extend_mode.get(ctx.vars)).into(),
             self.render_tile_size,
             self.render_tile_spacing,
         );

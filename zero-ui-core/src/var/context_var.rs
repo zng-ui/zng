@@ -8,7 +8,7 @@ use super::*;
 pub struct ContextVarProxy<C: ContextVar>(pub PhantomData<C>);
 impl<C: ContextVar> ContextVarProxy<C> {
     /// References the value in the current `vars` context.
-    pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a C::Type {
+    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a C::Type {
         <Self as VarObj<C::Type>>::get(self, vars)
     }
 
@@ -23,7 +23,7 @@ impl<C: ContextVar> ContextVarProxy<C> {
     }
 
     /// Gets the version of the value in the current `vars` context.
-    pub fn version(&self, vars: &Vars) -> u32 {
+    pub fn version(&self, vars: &VarsRead) -> u32 {
         <Self as VarObj<C::Type>>::version(self, vars)
     }
 }
@@ -80,12 +80,12 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     type AsLocal = CloningLocalVar<C::Type, Self>;
 
-    fn into_read_only(self) -> Self::AsReadOnly {
-        self
-    }
-
     fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
+    }
+
+    fn into_read_only(self) -> Self::AsReadOnly {
+        self
     }
 
     fn modify<F: FnOnce(&mut C::Type) + 'static>(&self, _: &Vars, _: F) -> Result<(), VarIsReadOnly> {
