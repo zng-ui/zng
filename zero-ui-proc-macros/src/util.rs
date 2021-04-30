@@ -333,7 +333,8 @@ pub fn display_path(path: &syn::Path) -> String {
 /// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`TokenStream`].
 pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     let tokens = tokens.to_string();
-    let tokens = tokens
+    let max = tokens.len().min(40);
+    let tokens = tokens[(tokens.len() - max)..]
         .replace(".", " ")
         .replace(":", " ")
         .replace("!", "not")

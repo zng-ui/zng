@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::ToTokens;
+use quote::{ToTokens, quote};
 use syn::{
     braced,
     parse::{discouraged::Speculative, Parse, ParseStream},
@@ -1037,7 +1037,6 @@ impl Parse for PropertyAssign {
         let path = input.parse::<Path>()?;
         let path_is_ident = path.get_ident().is_some();
 
-        // TODO don't allow shorthand in widget declaration.
         if path_is_ident && (input.is_empty() || input.peek(Token![;])) {
             // shorthand assign
             let semi = input.parse().unwrap_or_default();
@@ -1077,26 +1076,31 @@ impl Parse for PropertyAssign {
             }
         })?;
 
-        let value_stream = util::parse_soft_group(
-            input,
-            // terminates in the first `;` in the current level.
-            |input| input.parse::<Option<Token![;]>>().unwrap_or_default(),
-            // next item is found after optional outer attributes.
-            // then is an `ident =` OR a `when` OR a `property::path =`
-            peek_next_assign,
-            false,
-        );
+        let fork = input.fork();
+        match fork.parse::<PropertyValue>() {
+            Ok(value) => {
+                let value_span = input.span();
+                input.advance_to(&fork);
+                let semi = if input.is_empty() { None } else { Some(input.parse().map_err(|e| e.set_recoverable())?) };
 
-        let (value, value_span, semi) = PropertyValue::parse_soft_group(value_stream, eq.span)?;
-
-        Ok(PropertyAssign {
-            attrs: vec![],
-            path,
-            eq,
-            value_span,
-            value,
-            semi,
-        })
+                Ok(PropertyAssign {
+                    attrs: vec![],
+                    path,
+                    eq,
+                    value_span,
+                    value,
+                    semi,
+                })
+            }
+            Err(e) => {
+                if peek_next_assign(&fork) {
+                    input.advance_to(&fork);
+                    Err(e.set_recoverable())
+                } else {
+                    Err(e)
+                }
+            }
+        }
     }
 }
 
