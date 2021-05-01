@@ -72,13 +72,16 @@ impl From<LogicalWindowId> for WindowId {
 pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
+    /// The `new_window` argument is the [`WindowContext`] of the new window.
+    ///
     /// # Example
     ///
     /// ```no_run
     /// # use zero_ui_core::app::App;
     /// # use zero_ui_core::window::AppRunWindowExt;
     /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
-    /// App::default().run_window(|_| {
+    /// App::default().run_window(|ctx| {
+    ///     println!("starting app with window {:?}", ctx.window_id);
     ///     window! {
     ///         title = "Window 1";
     ///         content = text("Window 1");
@@ -92,7 +95,8 @@ pub trait AppRunWindowExt {
     /// # use zero_ui_core::window::Windows;
     /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
     /// App::default().run(|ctx| {
-    ///     ctx.services.req::<Windows>().open(|_| {
+    ///     ctx.services.req::<Windows>().open(|ctx| {
+    ///         println!("starting app with window {:?}", ctx.window_id);
     ///         window! {
     ///             title = "Window 1";
     ///             content = text("Window 1");
@@ -100,10 +104,10 @@ pub trait AppRunWindowExt {
     ///     });
     /// })   
     /// ```
-    fn run_window(self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static);
+    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static);
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
-    fn run_window(self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) {
+    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) {
         self.run(|ctx| {
             ctx.services.req::<Windows>().open(new_window);
         })
@@ -113,7 +117,11 @@ impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
 /// Extension trait, adds [`open_window`](HeadlessAppOpenWindowExt::open_window) to [`HeadlessApp`](app::HeadlessApp).
 pub trait HeadlessAppOpenWindowExt {
     /// Open a new headless window and returns the new window ID.
-    fn open_window(&mut self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) -> WindowId;
+    ///
+    /// The `new_window` argument is the [`WindowContext`] of the new window.
+    ///
+    /// Returns the [`WindowId`] of the new window.
+    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId;
 
     /// Cause the headless window to think it is focused in the screen.
     fn activate_window(&mut self, window_id: WindowId);
@@ -124,7 +132,7 @@ pub trait HeadlessAppOpenWindowExt {
     fn close_window(&mut self, window_id: WindowId) -> bool;
 }
 impl HeadlessAppOpenWindowExt for app::HeadlessApp {
-    fn open_window(&mut self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) -> WindowId {
+    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
         let listener = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window));
         let mut window_id = None;
         self.update_observed(|_, ctx| {
@@ -184,6 +192,9 @@ event_args! {
     pub struct WindowEventArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
+
+        /// `true` if the window opened, `false` if it closed.
+        pub opened: bool,
 
         ..
 
@@ -543,7 +554,7 @@ impl WindowManager {
                 Arc::clone(&self.ui_threads),
             );
 
-            let args = WindowEventArgs::now(w.id());
+            let args = WindowEventArgs::now(w.id(), true);
 
             let wn_ctx = w.context.clone();
             let mut wn_ctx = wn_ctx.borrow_mut();
@@ -627,7 +638,7 @@ impl WindowManager {
                 // not canceled and we can close the window.
                 // notify close, the window will be deinit on
                 // the next update.
-                self.window_close.notify(ctx.events, WindowEventArgs::now(closing.window_id));
+                self.window_close.notify(ctx.events, WindowEventArgs::now(closing.window_id, false));
 
                 for listener in service.close_listeners.remove(&closing.window_id).unwrap_or_default() {
                     listener.notify(ctx.events, CloseWindowResult::Close);
@@ -705,8 +716,14 @@ impl Windows {
         }
     }
 
-    /// Requests a new window. Returns a listener that will update once when the window is opened.
-    pub fn open(&mut self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) -> EventListener<WindowEventArgs> {
+    /// Requests a new window.
+    ///
+    /// The `new_window` argument is the [`WindowContext`] of the new window.
+    ///
+    /// Returns a listener that will update once when the window is opened, note that while the `window_id` is
+    /// available in the `new_window` argument already, the window is only available in this service after
+    /// the returned listener updates.
+    pub fn open(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> EventListener<WindowEventArgs> {
         let request = OpenWindowRequest {
             new: Box::new(new_window),
             notifier: EventEmitter::response(),
@@ -792,7 +809,7 @@ impl Windows {
 }
 
 struct OpenWindowRequest {
-    new: Box<dyn FnOnce(&mut AppContext) -> Window>,
+    new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     notifier: EventEmitter<WindowEventArgs>,
 }
 
@@ -1006,15 +1023,13 @@ impl WindowMode {
 
 impl OpenWindow {
     fn new(
-        new_window: Box<dyn FnOnce(&mut AppContext) -> Window>,
+        new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>,
         ctx: &mut AppContext,
         event_loop: EventLoopWindowTarget,
         event_loop_proxy: EventLoopProxy,
         ui_threads: Arc<ThreadPool>,
     ) -> Self {
-        let root = new_window(ctx);
-
-        // figure-out mode.
+        // get mode.
         let mode = if let Some(headless) = ctx.headless.state() {
             if headless.get(app::HeadlessRendererEnabledKey).copied().unwrap_or_default() {
                 WindowMode::HeadlessWithRenderer
@@ -1029,8 +1044,12 @@ impl OpenWindow {
 
         let window;
         let renderer;
+        let root;
+        let win_state;
+        let win_services;
+        let api;
 
-        let headless_config = root.headless_config.clone();
+        let headless_config;
         let headless_position;
         let headless_size;
         let renderless_event_sender;
@@ -1045,11 +1064,7 @@ impl OpenWindow {
                 headless_size = LayoutSize::zero();
                 renderless_event_sender = None;
 
-                let window_ = WindowBuilder::new()
-                    .with_visible(false) // not visible until first render, to avoid flickering
-                    .with_resizable(*root.resizable.get(ctx.vars))
-                    .with_title(root.title.get(ctx.vars).to_owned())
-                    .with_resizable(*root.auto_size.get(ctx.vars) != AutoSize::CONTENT);
+                let window_ = WindowBuilder::new().with_visible(false); // not visible until first render, to avoid flickering
 
                 let event_loop = event_loop.headed_target().expect("AppContext is not headless but event_loop is");
 
@@ -1058,10 +1073,21 @@ impl OpenWindow {
                 })
                 .expect("failed to create a window renderer");
 
+                api = Some(Arc::clone(&r.0.api()));
                 renderer = Some(RefCell::new(r.0));
 
                 let window_ = r.1;
                 id = WindowId::System(window_.id());
+
+                // init window state and services.
+                let (mut state, mut services) = ctx.new_window(id, mode, &api);
+                root = ctx.window_context(id, mode, &mut state, &mut services, &api, new_window).0;
+                win_state = state;
+                win_services = services;
+
+                window_.set_resizable(*root.auto_size.get(ctx.vars) != AutoSize::CONTENT && *root.resizable.get(ctx.vars));
+                window_.set_title(root.title.get(ctx.vars));
+                headless_config = root.headless_config.clone();
 
                 let pixel_factor = window_.scale_factor() as f32;
 
@@ -1127,6 +1153,25 @@ impl OpenWindow {
 
                 id = WindowId::new_unique();
 
+                if headless == WindowMode::HeadlessWithRenderer {
+                    let rend = Renderer::new(RenderSize::zero(), 1.0, renderer_config, move |_| {
+                        event_loop_proxy.send_event(AppEvent::NewFrameReady(id))
+                    })
+                    .expect("failed to create a headless renderer");
+
+                    api = Some(Arc::clone(rend.api()));
+                    renderer = Some(RefCell::new(rend));
+                } else {
+                    renderer = None;
+                    api = None;
+                };
+
+                let (mut state, mut services) = ctx.new_window(id, mode, &api);
+                root = ctx.window_context(id, mode, &mut state, &mut services, &api, new_window).0;
+                win_state = state;
+                win_services = services;
+
+                headless_config = root.headless_config.clone();
                 let pixel_factor = headless_config.scale_factor;
                 let available_size = headless_config.screen_size;
 
@@ -1164,25 +1209,8 @@ impl OpenWindow {
                     let _ = root.size.set(ctx.vars, size.to_tuple().into());
                 }
                 headless_size = size;
-
-                renderer = if headless == WindowMode::HeadlessWithRenderer {
-                    let size = RenderSize::new((size.width * pixel_factor) as i32, (size.height * pixel_factor) as i32);
-                    Some(RefCell::new(
-                        Renderer::new(size, pixel_factor, renderer_config, move |_| {
-                            event_loop_proxy.send_event(AppEvent::NewFrameReady(id))
-                        })
-                        .expect("failed to create a headless renderer"),
-                    ))
-                } else {
-                    None
-                };
             }
         }
-
-        let api = renderer.as_ref().map(|r| r.borrow().api().clone());
-
-        // init window state and services.
-        let (state, services) = ctx.new_window(id, mode, &api);
 
         let frame_info = FrameInfo::blank(id, root.id);
 
@@ -1191,8 +1219,8 @@ impl OpenWindow {
                 window_id: id,
                 mode,
                 root_transform_key: WidgetTransformKey::new_unique(),
-                state,
-                services,
+                state: win_state,
+                services: win_services,
                 root,
                 api,
                 update: UpdateDisplayRequest::Layout,
@@ -1857,6 +1885,7 @@ impl OwnedWindowContext {
                 f(child, ctx);
             });
         })
+        .1
     }
 
     fn root_layout(

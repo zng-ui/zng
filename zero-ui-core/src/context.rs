@@ -815,21 +815,21 @@ impl<'a> AppContext<'a> {
     }
 
     /// Runs a function `f` in the context of a window.
-    pub fn window_context(
+    pub fn window_context<R>(
         &mut self,
         window_id: WindowId,
         mode: WindowMode,
         window_state: &mut WindowState,
         window_services: &mut WindowServices,
         render_api: &Option<Arc<RenderApi>>,
-        f: impl FnOnce(&mut WindowContext),
-    ) -> UpdateDisplayRequest {
+        f: impl FnOnce(&mut WindowContext) -> R,
+    ) -> (R, UpdateDisplayRequest) {
         self.updates.win_display_update = UpdateDisplayRequest::None;
 
         let mut update_state = StateMap::new();
         let unloader = window_services.load();
 
-        f(&mut WindowContext {
+        let r = f(&mut WindowContext {
             window_id: ReadOnly(window_id),
             mode: ReadOnly(mode),
             render_api,
@@ -844,18 +844,18 @@ impl<'a> AppContext<'a> {
             updates: self.updates,
         });
 
-        mem::take(&mut self.updates.win_display_update)
+        (r, mem::take(&mut self.updates.win_display_update))
     }
 
     /// Run a function `f` in the layout context of the monitor that contains a window.
-    pub fn outer_layout_context(
+    pub fn outer_layout_context<R>(
         &mut self,
         screen_size: LayoutSize,
         scale_factor: f32,
         window_id: WindowId,
         root_id: WidgetId,
-        f: impl FnOnce(&mut LayoutContext),
-    ) {
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
         f(&mut LayoutContext {
             font_size: ReadOnly(14.0),
             root_font_size: ReadOnly(14.0),
@@ -917,7 +917,7 @@ pub struct WindowContext<'a> {
 }
 
 /// Read-only value in a public context struct field.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct ReadOnly<T>(T);
 impl<T: Copy> ReadOnly<T> {
     /// Gets a copy of the read-only value.
@@ -933,10 +933,25 @@ impl<T> std::ops::Deref for ReadOnly<T> {
         &self.0
     }
 }
+impl<T: fmt::Debug> fmt::Debug for ReadOnly<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+impl<T: fmt::Display> fmt::Display for ReadOnly<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
 
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` in the context of a widget.
-    pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
+    pub fn widget_context<R>(
+        &mut self,
+        widget_id: WidgetId,
+        widget_state: &mut LazyStateMap,
+        f: impl FnOnce(&mut WidgetContext) -> R,
+    ) -> R {
         f(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
 
@@ -953,19 +968,19 @@ impl<'a> WindowContext<'a> {
             sync: self.sync,
 
             updates: self.updates,
-        });
+        })
     }
 
     /// Runs a function `f` in the layout context of a widget.
-    pub fn layout_context(
+    pub fn layout_context<R>(
         &mut self,
         font_size: f32,
         pixel_grid: PixelGrid,
         viewport_size: LayoutSize,
         widget_id: WidgetId,
         widget_state: &mut LazyStateMap,
-        f: impl FnOnce(&mut LayoutContext),
-    ) {
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
         f(&mut LayoutContext {
             font_size: ReadOnly(font_size),
             root_font_size: ReadOnly(font_size),
@@ -986,7 +1001,7 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the render context of a widget.
-    pub fn render_context(&mut self, widget_id: WidgetId, widget_state: &LazyStateMap, f: impl FnOnce(&mut RenderContext)) {
+    pub fn render_context<R>(&mut self, widget_id: WidgetId, widget_state: &LazyStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         f(&mut RenderContext {
             path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
             app_state: self.app_state,
@@ -1231,10 +1246,15 @@ pub struct WidgetContext<'a> {
 }
 impl<'a> WidgetContext<'a> {
     /// Runs a function `f` in the context of a widget.
-    pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
+    pub fn widget_context<R>(
+        &mut self,
+        widget_id: WidgetId,
+        widget_state: &mut LazyStateMap,
+        f: impl FnOnce(&mut WidgetContext) -> R,
+    ) -> R {
         self.path.push(widget_id);
 
-        self.vars.with_widget_clear(|| {
+        let r = self.vars.with_widget_clear(|| {
             f(&mut WidgetContext {
                 path: self.path,
 
@@ -1251,10 +1271,12 @@ impl<'a> WidgetContext<'a> {
                 sync: self.sync,
 
                 updates: self.updates,
-            });
+            })
         });
 
         self.path.pop();
+
+        r
     }
 }
 
