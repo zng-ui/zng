@@ -6,7 +6,6 @@ use std::{
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
-    ext::IdentExt,
     parenthesized,
     parse::{Parse, ParseStream},
     parse2, parse_macro_input, parse_quote,
@@ -1128,6 +1127,19 @@ impl Parse for Properties {
                     match input.parse::<ItemProperty>() {
                         Ok(mut p) => {
                             p.attrs = attrs;
+                            if !input.is_empty() && p.semi.is_none() {
+                                errors.push("expected `;`", input.span());
+                                while !(input.is_empty()
+                                    || input.peek(Ident)
+                                    || input.peek(Token![crate])
+                                    || input.peek(Token![super])
+                                    || input.peek(Token![self])
+                                    || input.peek(Token![#]) && input.peek(token::Bracket))
+                                {
+                                    // skip to next property start.
+                                    let _ = input.parse::<TokenTree>();
+                                }
+                            }
                             child_properties.push(p);
                         }
                         Err(e) => {
@@ -1143,7 +1155,9 @@ impl Parse for Properties {
             } else if input.peek(keyword::remove) && input.peek2(syn::token::Brace) {
                 let input = non_user_braced!(input, "remove");
                 while !input.is_empty() {
-                    if input.peek2(Token![::]) && input.peek(Ident::peek_any) {
+                    if input.peek2(Token![::])
+                        && (input.peek(Ident) || input.peek(Token![crate]) || input.peek(Token![super]) || input.peek(Token![self]))
+                    {
                         if let Ok(p) = input.parse::<Path>() {
                             errors.push("expected inherited property ident, found path", p.span());
                             let _ = input.parse::<Token![;]>();
@@ -1174,11 +1188,24 @@ impl Parse for Properties {
                         input.parse::<TokenTree>().unwrap();
                     }
                 }
-            } else if input.peek(Ident::peek_any) {
+            } else if input.peek(Ident) || input.peek(Token![crate]) || input.peek(Token![super]) || input.peek(Token![self]) {
                 // peek ident or path (including keywords because of super:: and self::).
                 match input.parse::<ItemProperty>() {
                     Ok(mut p) => {
                         p.attrs = attrs;
+                        if !input.is_empty() && p.semi.is_none() {
+                            errors.push("expected `;`", input.span());
+                            while !(input.is_empty()
+                                || input.peek(Ident)
+                                || input.peek(Token![crate])
+                                || input.peek(Token![super])
+                                || input.peek(Token![self])
+                                || input.peek(Token![#]) && input.peek(token::Bracket))
+                            {
+                                // skip to next value item.
+                                let _ = input.parse::<TokenTree>();
+                            }
+                        }
                         properties.push(p);
                     }
                     Err(e) => {
@@ -1191,7 +1218,7 @@ impl Parse for Properties {
                     }
                 }
             } else {
-                errors.push("expected `when`, `child` or a property declaration", input.span());
+                errors.push("expected `when`, `child`, `remove` or a property declaration", input.span());
 
                 // suppress the "unexpected token" error from syn parse.
                 let _ = input.parse::<TokenStream>();
@@ -1221,7 +1248,7 @@ struct ItemProperty {
 }
 impl Parse for ItemProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let path = input.parse()?;
+        let path = input.parse::<Path>()?;
 
         // as ident
         let alias = if input.peek(Token![as]) {
@@ -1242,7 +1269,10 @@ impl Parse for ItemProperty {
                 Ok(t) => {
                     type_ = Some((paren, t));
                 }
-                Err(e) => {
+                Err(mut e) => {
+                    if e.to_string() == "expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime" {
+                        e = syn::Error::new(e.span(), "expected a property type");
+                    }
                     // we don't return the error right now
                     // so that we can try to parse to the end of the property
                     // to make the error recoverable.
@@ -1251,75 +1281,37 @@ impl Parse for ItemProperty {
             }
         }
 
-        // = expr [;]
-        let mut value_start_eq: Option<Token![=]> = None;
+        // = PropertyValue
+        let mut value_error = None;
         let mut value = None;
         let mut value_span = Span::call_site();
-        let mut semi = None;
+
         if input.peek(Token![=]) {
-            // if there was no property type are we at the start of a value `=`?
-            value_start_eq = Some(input.parse().unwrap());
-        } else if input.peek(Token![;]) {
-            semi = Some(input.parse::<Token![;]>().unwrap());
-        } else if !input.is_empty() {
-            // if we didn't have a type nor value but are also not at the
-            // end of the stream a `;` was expected.
-
-            let e = util::recoverable_err(input.span(), "expected `;`");
-            return Err(if let Some(mut ty_err) = type_error.take() {
-                ty_err.extend(e);
-                ty_err
-            } else {
-                e
-            });
-        }
-        if let Some(eq) = value_start_eq {
-            // if we are after a value start `=`
-
-            let value_stream = util::parse_soft_group(
-                input,
-                // terminates in the first `;` in the current level.
-                |input| input.parse::<Option<Token![;]>>().unwrap_or_default(),
-                |input| {
-                    // checks if the next tokens in the stream look like the start
-                    // of another ItemProperty.
-                    let fork = input.fork();
-                    let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
-                    if fork.peek2(Token![=]) {
-                        fork.peek(Ident)
-                    } else if fork.peek2(Token![::]) {
-                        fork.parse::<Path>().is_ok() && fork.peek(Token![=])
-                    } else {
-                        fork.peek(keyword::when)
-                            || (fork.peek(keyword::child) || fork.peek(keyword::remove)) && fork.peek2(syn::token::Brace)
-                        //TODO find the next capture-only declarations only if the parse failed.
-                    }
-                },
-                false,
-            );
-
-            let r = PropertyValue::parse_soft_group(value_stream, eq.span).map_err(|e| {
-                if let Some(mut ty_err) = type_error.take() {
-                    // we had a type error and now a value error.
-                    ty_err.extend(e);
-                    ty_err
-                } else {
-                    // we have just a value error.
-                    e
-                }
-            })?;
-
-            value = Some((eq, r.0));
-            value_span = r.1;
-            semi = r.2;
+            let eq = input.parse::<Token![=]>().unwrap();
+            value_span = input.span();
+            match input.parse::<PropertyValue>() {
+                Ok(v) => value = Some((eq, v)),
+                Err(e) => value_error = Some(e),
+            }
         }
 
-        if let Some(e) = type_error {
-            // we had a type error and no value or no value error.
-            return Err(e);
+        // ;
+        let semi = if input.peek(Token![;]) {
+            Some(input.parse().unwrap())
+        } else {
+            None
+        };
+
+        match (type_error, value_error) {
+            (Some(mut t), Some(v)) => {
+                t.extend(v);
+                return Err(t);
+            }
+            (Some(t), None) | (None, Some(t)) => return Err(t),
+            _ => {}
         }
 
-        let item_property = ItemProperty {
+        Ok(Self {
             attrs: vec![],
             path,
             alias,
@@ -1327,9 +1319,7 @@ impl Parse for ItemProperty {
             value,
             value_span,
             semi,
-        };
-
-        Ok(item_property)
+        })
     }
 }
 impl ItemProperty {

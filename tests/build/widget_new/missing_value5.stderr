@@ -1,8 +1,8 @@
 error: expected property value
- --> $DIR/missing_value5.rs:6:16
+ --> $DIR/missing_value5.rs:7:9
   |
-6 |         cursor =
-  |                ^
+7 |         #[allow(unused_imports)]
+  |         ^
 
 warning: unused import: `cursor`
  --> $DIR/missing_value5.rs:1:27
@@ -11,3 +11,9 @@ warning: unused import: `cursor`
   |                           ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `zero_ui::core::units::LayoutPoint`
+ --> $DIR/missing_value5.rs:9:17
+  |
+9 |             use zero_ui::core::units::LayoutPoint;
+  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

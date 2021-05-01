@@ -6,6 +6,7 @@ use regex::Regex;
 use syn::{
     self,
     parse::{discouraged::Speculative, Parse, ParseStream},
+    punctuated::Punctuated,
     spanned::Spanned,
     Attribute, Token,
 };
@@ -695,45 +696,6 @@ pub fn parse_outer_attrs(input: ParseStream, errors: &mut Errors) -> Vec<Attribu
     attrs
 }
 
-/// Take token-trees until a terminator if found or an invalid next item is peeked.
-///
-/// Returns `Ok(group, Some(terminator))` if `correct_terminator` returns `Some(terminator)`.
-/// Returns `Ok(group, None)` if `input` reaches its end.
-/// Returns `Err(partial_group)` if `peek_next_item` returns `true`.
-pub fn parse_soft_group<T>(
-    input: ParseStream,
-    mut correct_terminator: impl FnMut(ParseStream) -> Option<T>,
-    mut peek_next_item: impl FnMut(ParseStream) -> bool,
-    generics_group_enabled: bool,
-) -> Result<(TokenStream, Option<T>), TokenStream> {
-    let mut g = TokenStream::new();
-    while !input.is_empty() {
-        if let Some(terminator) = correct_terminator(input) {
-            return Ok((g, Some(terminator)));
-        }
-        if peek_next_item(input) {
-            return Err(g);
-        }
-
-        if generics_group_enabled && input.peek(Token![<]) {
-            while !input.is_empty() && !input.peek(Token![>]) {
-                let tt: TokenTree = input.parse().unwrap();
-                tt.to_tokens(&mut g);
-            }
-            if input.peek(Token![>]) {
-                let tt: TokenTree = input.parse().unwrap();
-                tt.to_tokens(&mut g);
-            } else {
-                return Err(g);
-            }
-        } else {
-            let tt: TokenTree = input.parse().unwrap();
-            tt.to_tokens(&mut g);
-        }
-    }
-    Ok((g, None))
-}
-
 /// New [`syn::Error`] marked [recoverable](ErrorRecoverable).
 pub fn recoverable_err(span: Span, msg: impl std::fmt::Display) -> syn::Error {
     syn::Error::new(span, msg).set_recoverable()
@@ -858,4 +820,17 @@ macro_rules! trace {
     ($fmt:tt, $($args:tt)+) => {
         $crate::util::debug_trace::display(format_args!($fmt, $($args)+));
     };
+}
+
+/// `Punctuated::parse_terminated` from a `TokenStream`.
+pub fn parse_punct_terminated2<T: Parse, P: syn::token::Token + Parse>(input: TokenStream) -> syn::Result<Punctuated<T, P>> {
+    struct PunctTerm<T: Parse, P: syn::token::Token + Parse>(Punctuated<T, P>);
+
+    impl<T: Parse, P: syn::token::Token + Parse> Parse for PunctTerm<T, P> {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            Ok(Self(Punctuated::parse_terminated(input)?))
+        }
+    }
+
+    syn::parse2::<PunctTerm<T, P>>(input).map(|p| p.0)
 }

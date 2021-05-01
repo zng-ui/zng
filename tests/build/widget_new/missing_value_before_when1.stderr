@@ -1,11 +1,20 @@
-error: expected property value
- --> $DIR/missing_value_before_when1.rs:6:16
+error: expected `;`
+ --> $DIR/missing_value_before_when1.rs:7:9
   |
-6 |         margin = // missing 0; here
-  |                ^
+7 |         when self.is_pressed {
+  |         ^^^^
 
-error: property `margin` is not assigned and has no default value
- --> $DIR/missing_value_before_when1.rs:8:13
-  |
-8 |             margin = 20;
-  |             ^^^^^^
+error[E0061]: this function takes 1 argument but 0 arguments were supplied
+  --> $DIR/missing_value_before_when1.rs:7:9
+   |
+7  |         when self.is_pressed {
+   |         ^^^^- supplied 0 arguments
+   |         |
+   |         expected 1 argument
+   |
+note: associated function defined here
+  --> $DIR/layout.rs:36:1
+   |
+36 | #[property(outer)]
+   | ^^^^^^^^^^^^^^^^^^
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

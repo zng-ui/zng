@@ -1,4 +1,4 @@
-error: expected `when`, `child` or a property declaration
+error: expected `when`, `child`, `remove` or a property declaration
  --> $DIR/invalid_properties_item.rs:6:9
   |
 6 |         {}

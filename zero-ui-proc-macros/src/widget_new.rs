@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{ToTokens, quote};
+use quote::{quote, ToTokens};
 use syn::{
     braced,
     parse::{discouraged::Speculative, Parse, ParseStream},
@@ -11,7 +11,7 @@ use syn::{
     token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{self, parse_all, parse_outer_attrs, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors};
+use crate::util::{self, parse_all, parse_outer_attrs, parse_punct_terminated2, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors};
 
 #[allow(unused_macros)]
 macro_rules! quote {
@@ -984,11 +984,18 @@ impl Parse for UserInput {
                     when.attrs = attrs;
                     whens.push(when);
                 }
-            } else if input.peek(Ident) || input.peek(Token![super]) || input.peek(Token![self]) {
+            } else if input.peek(Ident) || input.peek(Token![crate]) || input.peek(Token![super]) || input.peek(Token![self]) {
                 // peek ident or path.
                 match input.parse::<PropertyAssign>() {
                     Ok(mut assign) => {
                         assign.attrs = attrs;
+                        if !input.is_empty() && assign.semi.is_none() {
+                            errors.push("expected `;`", input.span());
+                            while !(input.is_empty() || input.peek(Ident) || input.peek(Token![#]) && input.peek2(token::Bracket)) {
+                                // skip to next property start or when
+                                let _ = input.parse::<TokenTree>();
+                            }
+                        }
                         properties.push(assign);
                     }
                     Err(e) => {
@@ -1076,31 +1083,36 @@ impl Parse for PropertyAssign {
             }
         })?;
 
-        let fork = input.fork();
-        match fork.parse::<PropertyValue>() {
-            Ok(value) => {
-                let value_span = input.span();
-                input.advance_to(&fork);
-                let semi = if input.is_empty() { None } else { Some(input.parse().map_err(|e| e.set_recoverable())?) };
+        let value_span = if input.is_empty() { eq.span() } else { input.span() };
+        let value = input.parse::<PropertyValue>();
+        let semi = if input.peek(Token![;]) {
+            Some(input.parse().unwrap())
+        } else {
+            None
+        };
+        let value = value.map_err(|e| {
+            let (recoverable, mut e) = e.recoverable();
+            let mut msg = e.to_string();
+            if msg.starts_with("unexpected end of input") {
+                msg = "expected property value".to_owned();
+            }
+            if util::span_is_call_site(e.span()) {
+                e = syn::Error::new(value_span, msg);
+            }
+            if recoverable {
+                e = e.set_recoverable();
+            }
+            e
+        })?;
 
-                Ok(PropertyAssign {
-                    attrs: vec![],
-                    path,
-                    eq,
-                    value_span,
-                    value,
-                    semi,
-                })
-            }
-            Err(e) => {
-                if peek_next_assign(&fork) {
-                    input.advance_to(&fork);
-                    Err(e.set_recoverable())
-                } else {
-                    Err(e)
-                }
-            }
-        }
+        Ok(Self {
+            attrs: vec![],
+            path,
+            eq,
+            value,
+            value_span,
+            semi,
+        })
     }
 }
 
@@ -1140,66 +1152,20 @@ impl PropertyValue {
             PropertyValue::Special(_, _) => Err("cannot expand special"),
         }
     }
-
-    pub fn parse_soft_group(
-        value_stream: Result<(TokenStream, Option<Token![;]>), TokenStream>,
-        group_start_span: Span,
-    ) -> syn::Result<(Self, Span, Option<Token![;]>)> {
-        match value_stream {
-            Ok((value_stream, semi)) => {
-                if value_stream.is_empty() {
-                    // no value tokens
-                    let span = semi.as_ref().map(|s| s.span()).unwrap_or(group_start_span);
-                    return Err(util::recoverable_err(span, "expected property value"));
-                }
-                let value_span = value_stream.span();
-
-                syn::parse2::<PropertyValue>(value_stream)
-                    .map(|value| (value, value_span, semi))
-                    .map_err(|e| e.set_recoverable())
-            }
-            Err(partial_value) => {
-                if partial_value.is_empty() {
-                    // no value tokens
-                    Err(util::recoverable_err(group_start_span, "expected property value"))
-                } else {
-                    // maybe missing next argument (`,`) or terminator (`;`)
-                    let last_tt = partial_value.into_iter().last().unwrap();
-                    let last_span = last_tt.span();
-                    let mut msg = "expected `,` or `;`";
-                    if let proc_macro2::TokenTree::Punct(p) = last_tt {
-                        if p.as_char() == ',' {
-                            msg = "expected another property arg";
-                        }
-                    }
-                    Err(util::recoverable_err(last_span, msg))
-                }
-            }
-        }
-    }
 }
 impl Parse for PropertyValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(Ident) && input.peek2(Token![!]) {
-            // input stream can be `unset!` with no third token.
-            let unset = input.fork();
-            let r = PropertyValue::Special(unset.parse().unwrap(), unset.parse().unwrap());
-            if unset.is_empty() {
-                input.advance_to(&unset);
-                return Ok(r);
-            }
+        if input.peek(Ident)
+            && input.peek2(Token![!])
+            && !input.peek3(token::Paren)
+            && !input.peek3(token::Brace)
+            && !input.peek3(token::Bracket)
+        {
+            let r = PropertyValue::Special(input.parse().unwrap(), input.parse().unwrap());
+            return Ok(r);
         }
 
-        fn map_unnamed_err(e: syn::Error) -> syn::Error {
-            if e.to_string() == "expected `,`" {
-                // We expect a `;` in here also, if there was one `input` would have terminated.
-                syn::Error::new(e.span(), "expected `,` or `;`")
-            } else {
-                e
-            }
-        }
-
-        if input.peek(syn::token::Brace) {
+        if input.peek(token::Brace) && !input.peek2(Token![,]) {
             // Differentiating between a fields declaration and a single unnamed arg declaration gets tricky.
             //
             // This is a normal fields decl.: `{ field0: "value" }`
@@ -1214,29 +1180,66 @@ impl Parse for PropertyValue {
             let fields_input;
             let fields_brace = braced!(fields_input in maybe_fields);
 
-            if maybe_fields.is_empty() {
-                // is only block in assign, still can be a block expression.
-                if fields_input.peek(Ident) && (fields_input.peek2(Token![:]) || fields_input.peek2(Token![,])) {
-                    // is named fields, { field: .. } or { field, .. }.
-                    input.advance_to(&maybe_fields);
-                    Ok(PropertyValue::Named(fields_brace, Punctuated::parse_terminated(&fields_input)?))
-                } else {
-                    // is an unnamed block expression or { field } that works as an expression.
-                    Ok(PropertyValue::Unnamed(
-                        Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
-                    ))
-                }
-            } else {
-                // first arg is a block expression but has other arg expression e.g: `{ <expr> }, ..`
-                Ok(PropertyValue::Unnamed(
-                    Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
-                ))
+            if fields_input.peek(Ident)
+                && (
+                    // ident:
+                    (fields_input.peek2(Token![:]) && !fields_input.peek2(Token![::]))
+                    // OR ident,
+                    || fields_input.peek2(Token![,])
+                )
+            {
+                // it is fields
+                input.advance_to(&maybe_fields);
+
+                // disconnect syn internal errors
+                let fields_input = fields_input.parse::<TokenStream>().unwrap();
+                let r = parse_punct_terminated2(fields_input).map_err(|e| {
+                    if util::span_is_call_site(e.span()) {
+                        util::recoverable_err(fields_brace.span, e)
+                    } else {
+                        e.set_recoverable()
+                    }
+                })?;
+                return Ok(PropertyValue::Named(fields_brace, r));
             }
-        } else {
-            Ok(PropertyValue::Unnamed(
-                Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
-            ))
         }
+
+        // only valid option left is a sequence of "{expr},", we want to parse
+        // in a recoverable way, so first we take raw token trees until we find the
+        // end "`;` | EOF" or we find the start of a new property "(#[meta])* ident = " or we find
+        // the start of a when "when".
+        let mut args_input = TokenStream::new();
+        while !input.is_empty() && !input.peek(Token![;]) {
+            let lookahead = input.fork();
+            let has_attr = lookahead.peek(Token![#]) && lookahead.peek(token::Bracket);
+            if has_attr {
+                let _ = parse_outer_attrs(&lookahead, &mut Errors::default());
+            }
+            if lookahead.peek(keyword::when) {
+                break; // found `when` keyword.
+            }
+            if lookahead.peek2(Token![=]) {
+                break; // found next property "ident = ".
+            }
+            let is_path = lookahead.peek2(Token![::]) && lookahead.parse::<Path>().is_ok();
+            if is_path && lookahead.peek(Token![=]) {
+                break; // found next property "a::path = "
+            }
+            if lookahead.peek(Ident) && lookahead.peek(token::Brace) {
+                let ident = lookahead.parse::<Ident>().unwrap();
+                if ident == "child" || ident == "remove" {
+                    break; // child { }, remove { }
+                }
+            }
+            if !has_attr && is_path {
+                input.parse::<Path>().unwrap().to_tokens(&mut args_input);
+            } else {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut args_input);
+            }
+        }
+
+        let r = util::parse_punct_terminated2(args_input).map_err(|e| e.set_recoverable())?;
+        Ok(PropertyValue::Unnamed(r))
     }
 }
 
@@ -1261,25 +1264,60 @@ impl When {
 
         let (brace_token, assigns) = if input.peek(syn::token::Brace) {
             let brace = syn::group::parse_braces(input).unwrap();
+            let inner = brace.content;
+            let brace = brace.token;
             let mut assigns = vec![];
-            while !brace.content.is_empty() {
-                let attrs = parse_outer_attrs(&brace.content, errors);
+            while !inner.is_empty() {
+                let attrs = parse_outer_attrs(&inner, errors);
 
-                match brace.content.parse::<PropertyAssign>() {
+                if !(inner.peek(Ident) || inner.peek(Token![super]) || inner.peek(Token![self])) {
+                    errors.push("expected property path", if inner.is_empty() { brace.span } else { inner.span() });
+                    while !(inner.is_empty()
+                        || inner.peek(Ident)
+                        || inner.peek(Token![super])
+                        || inner.peek(Token![self])
+                        || inner.peek(Token![#]) && inner.peek(token::Bracket))
+                    {
+                        // skip to next property.
+                        let _ = inner.parse::<TokenTree>();
+                    }
+                }
+                if inner.is_empty() {
+                    break;
+                }
+
+                match inner.parse::<PropertyAssign>() {
                     Ok(mut p) => {
                         p.attrs = attrs;
+                        if !inner.is_empty() && p.semi.is_none() {
+                            errors.push("expected `,`", inner.span());
+                            while !(inner.is_empty()
+                                || input.peek(Ident)
+                                || input.peek(Token![crate])
+                                || input.peek(Token![super])
+                                || input.peek(Token![self])
+                                || inner.peek(Token![#]) && inner.peek(token::Bracket))
+                            {
+                                // skip to next property.
+                                let _ = inner.parse::<TokenTree>();
+                            }
+                        }
                         assigns.push(p);
                     }
                     Err(e) => {
                         let (recoverable, e) = e.recoverable();
-                        errors.push_syn(e);
+                        if util::span_is_call_site(e.span()) {
+                            errors.push(e, brace.span);
+                        } else {
+                            errors.push_syn(e);
+                        }
                         if !recoverable {
                             break;
                         }
                     }
                 }
             }
-            (brace.token, assigns)
+            (brace, assigns)
         } else {
             errors.push("expected a block of property assigns", util::last_span(condition_expr));
             return None;

@@ -1,13 +1,14 @@
-error: expected property value
- --> $DIR/missing_value3.rs:7:18
-  |
-7 |         cursor = ;
-  |                  ^
-
-warning: unused import: `cursor`
- --> $DIR/missing_value3.rs:1:27
-  |
-1 | use zero_ui::properties::{cursor, margin};
-  |                           ^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
+error[E0061]: this function takes 1 argument but 0 arguments were supplied
+  --> $DIR/missing_value3.rs:7:18
+   |
+7  |         cursor = ;
+   |                  ^- supplied 0 arguments
+   |                  |
+   |                  expected 1 argument
+   |
+note: associated function defined here
+  --> $DIR/cursor_.rs:15:1
+   |
+15 | #[property(context)]
+   | ^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

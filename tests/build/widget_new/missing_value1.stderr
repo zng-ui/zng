@@ -1,13 +1,14 @@
-error: expected property value
- --> $DIR/missing_value1.rs:6:18
-  |
-6 |         margin = ;
-  |                  ^
-
-warning: unused import: `zero_ui::properties::margin`
- --> $DIR/missing_value1.rs:1:5
-  |
-1 | use zero_ui::properties::margin;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
+error[E0061]: this function takes 1 argument but 0 arguments were supplied
+  --> $DIR/missing_value1.rs:6:18
+   |
+6  |         margin = ;
+   |                  ^- supplied 0 arguments
+   |                  |
+   |                  expected 1 argument
+   |
+note: associated function defined here
+  --> $DIR/layout.rs:36:1
+   |
+36 | #[property(outer)]
+   | ^^^^^^^^^^^^^^^^^^
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

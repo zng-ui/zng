@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use syn::{ext::IdentExt, parse::Parse, Ident, Path, Token};
+use syn::{parse::Parse, Ident, Path, Token};
 
 use crate::util;
 
@@ -58,8 +58,9 @@ struct Inherit {
 }
 impl Parse for Inherit {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        // peek an attribute #[cfg(..)] or the first ident of a path or the first keyword of a path (super, self).
-        if input.peek(Token![#]) || input.peek(Ident::peek_any) {
+        // peek an attribute #[cfg(..)] or the first ident of a path or the first keyword of a path (crate, super, self).
+        if input.peek(Token![#]) || input.peek(Ident) || input.peek(Token![crate]) || input.peek(Token![super]) || input.peek(Token![self])
+        {
             // peeked an inherit item.
             Ok(Inherit {
                 next_inherit: Some(input.parse().unwrap_or_else(|e| non_user_error!(e))),

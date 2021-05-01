@@ -1,17 +1,5 @@
 error: expected `;`
- --> $DIR/malformed_property_type4.rs:7:18
+ --> $DIR/malformed_property_type4.rs:7:32
   |
-7 |         foo(bool),
-  |                  ^
-
-error: expected `when`, `child` or a property declaration
- --> $DIR/malformed_property_type4.rs:7:18
-  |
-7 |         foo(bool),
-  |                  ^
-
-error: property `foo` is not inherited nor declared by the widget
-  --> $DIR/malformed_property_type4.rs:11:18
-   |
-11 |     fn new_child(foo: (bool, bool)) -> NilUiNode {
-   |                  ^^^
+7 |         foo(impl IntoVar<bool>),
+  |                                ^

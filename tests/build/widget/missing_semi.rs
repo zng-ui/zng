@@ -10,4 +10,9 @@ pub mod test_widget {
     }
 }
 
-fn main() {}
+fn main() {
+    let _ = test_widget! {
+        cursor = zero_ui::core::window::CursorIcon::Hand;
+        margin = 5;
+    };
+}
