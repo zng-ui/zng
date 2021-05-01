@@ -7,11 +7,10 @@ use crate::{
     render::{
         FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, NewFrameArgs, RenderSize, Renderer, RendererConfig, WidgetTransformKey,
     },
-    service::WindowServicesVisitors,
-    service::{AppService, WindowServices},
-    text::Text,
+    service::{AppService, WindowService, WindowServices, WindowServicesVisitors},
+    text::{Text, ToText},
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
-    var::{BoxedVar, IntoVar, VarObj, VarsRead},
+    var::{var, BoxedVar, IntoVar, RcVar, VarObj, VarsRead},
     UiNode, WidgetId,
 };
 
@@ -338,6 +337,7 @@ event! {
 /// Services this extension provides:
 ///
 /// * [Windows]
+/// * [WindowController]
 pub struct WindowManager {
     event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
@@ -385,6 +385,11 @@ impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.updates.notifier().clone()));
+
+        r.window_services.register(|ctx| {
+            todo!()
+        });
+
         r.events.register::<WindowOpenEvent>(self.window_open.listener());
         r.events
             .register::<WindowIsActiveChangedEvent>(self.window_is_active_changed.listener());
@@ -833,7 +838,148 @@ impl std::fmt::Display for WindowNotFound {
 }
 impl std::error::Error for WindowNotFound {}
 
-/// Window configuration.
+/// Window icon.
+#[derive(Clone, Debug)]
+pub enum WindowIcon {
+    /// Operating system default icon.
+    Default,
+    /// A bitmap TODO
+    Icon,
+    /// An [`UiNode`] that draws the icon. TODO
+    Render,
+}
+
+/// Window frame.
+#[derive(Clone, Debug)]
+pub enum WindowFrame {
+    /// Operating system frame.
+    Default,
+    /// No window frame.
+    Frameless,
+    /// An [`UiNode`] that provides the window frame.
+    Custom,
+}
+
+/// Window state.
+#[derive(Clone, Debug)]
+pub enum WindowScreenState {
+    /// A visible window, at the `position` and `size` configured.
+    Normal,
+    /// Window not visible, but maybe visible in the taskbar.
+    Minimized,
+    /// Window fills the screen, but window frame and taskbar are visible.
+    Maximized,
+    /// Window fully fills the screen, rendered using a frameless top-most window.
+    Fullscreen,
+    /// Exclusive video access to the monitor, only the window content is visible. TODO video config
+    FullscreenExclusive,
+}
+
+struct WindowVars {
+    title: RcVar<Text>,
+    position: RcVar<Point>,
+    size: RcVar<Size>,
+    auto_size: RcVar<AutoSize>,
+    resisable: RcVar<bool>,
+    visible: RcVar<bool>,
+}
+
+/// Controls properties of an open window using variables.
+///
+/// You can get the controller for any window using [`OpenWindow::controller`].
+///
+/// You can get the controller for the current context window by getting `WindowController` from the `window_services`
+/// in [`WindowContext`](WindowContext::window_services) and [`WidgetContext`](WidgetContext::window_services).
+#[derive(WindowService)]
+pub struct WindowController {
+    vars: Rc<WindowVars>,
+}
+impl WindowController {
+    fn new() -> Self {
+        let vars = Rc::new(WindowVars {
+            title: var("".to_text()),
+            position: var(Point::new(f32::NAN, f32::NAN)),
+            size: var(Size::new(f32::NAN, f32::NAN)),
+            auto_size: var(AutoSize::empty()),
+            resisable: var(true),
+            visible: var(true),
+        });
+        Self { vars }
+    }
+
+    fn clone(&self) -> Self {
+        Self { vars: Rc::clone(&self.vars) }
+    }
+
+    /// Window title text.
+    ///
+    /// The initial value is `""`.
+    #[inline]
+    pub fn title(&self) -> &RcVar<Text> {
+        &self.vars.title
+    }
+
+    /// Window top-left offset on the screen.
+    ///
+    /// When a dimension is not a finite number the position is computed from other variables.
+    /// Relative values are computed in relation to the full-screen size.
+    ///
+    /// When the the window is moved this variable is updated back.
+    ///
+    /// The initial value is `(f32::NAN, f32::NAN)`.
+    #[inline]
+    pub fn position(&self) -> &RcVar<Point> {
+        &self.vars.position
+    }
+
+    /// Window width and height on the screen.
+    ///
+    /// When a dimension is not a finite number the size is computed from other variables.
+    /// Relative values are computed in relation to the full-screen size.
+    ///
+    /// When the window is resized this variable is updated back.
+    ///
+    /// The initial value is `(f32::NAN, f32::NAN)`.
+    #[inline]
+    pub fn size(&self) -> &RcVar<Size> {
+        &self.vars.size
+    }
+
+    /// If the user can resize the window using the window frame.
+    ///
+    /// Note that even if disabled the window can still be resized from other sources.
+    ///
+    /// The initial value is `true`.
+    #[inline]
+    pub fn resisable(&self) -> &RcVar<bool> {
+        &self.vars.resisable
+    }
+
+    /// Configure window size-to-content.
+    ///
+    /// When enabled overwrites sizes set from other sources.
+    ///
+    /// The initial value is [`AutoSize::DISABLED`].
+    #[inline]
+    pub fn auto_size(&self) -> &RcVar<AutoSize> {
+        &self.vars.auto_size
+    }
+
+    /// If the window is visible on the screen and in the task-bar.
+    ///
+    /// This variable is observed only after the first frame render, before that the window
+    /// is always not visible to a void flickering.
+    ///
+    /// The initial value is `true`.
+    #[inline]
+    pub fn visible(&self) -> &RcVar<bool> {
+        &self.vars.visible
+    }
+}
+
+/// Window startup configuration.
+///
+/// More window configuration is accessible using the [`WindowController`] type.
 pub struct Window {
     state: LazyStateMap,
     id: WidgetId,
@@ -851,13 +997,7 @@ impl Window {
     /// New window configuration.
     ///
     /// * `root_id` - Widget ID of `child`.
-    /// * `title` - Window title, in the title-bar.
     /// * `start_position` - Position of the window when it first opens.
-    /// * `position` - Position of the window, can be updated back by the window.
-    /// * `size` - Size of the window, can be updated back by the window.
-    /// * `auto_size` - If the window will auto-size to fit the `child`.
-    /// * `resizable` - If the user can resize the window.
-    /// * `visible` - If the window is visible, TODO diff. minimized.
     /// * `headless_config` - Extra config for the window when run in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
     #[allow(clippy::clippy::too_many_arguments)]
@@ -954,31 +1094,6 @@ impl Default for StartPosition {
     }
 }
 
-/// An open window.
-pub struct OpenWindow {
-    context: Rc<RefCell<OwnedWindowContext>>,
-
-    window: Option<glutin::window::Window>,
-    renderer: Option<RefCell<Renderer>>,
-
-    mode: WindowMode,
-    id: WindowId,
-
-    first_draw: bool,
-    frame_info: FrameInfo,
-
-    is_active: bool,
-
-    #[cfg(windows)]
-    subclass_id: std::cell::Cell<usize>,
-
-    headless_config: WindowHeadlessConfig,
-    headless_position: LayoutPoint,
-    headless_size: LayoutSize,
-
-    renderless_event_sender: Option<EventLoopProxy>,
-}
-
 /// Mode of an [`OpenWindow`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowMode {
@@ -1021,6 +1136,32 @@ impl WindowMode {
     }
 }
 
+/// An open window.
+pub struct OpenWindow {
+    context: Rc<RefCell<OwnedWindowContext>>,
+
+    window: Option<glutin::window::Window>,
+    renderer: Option<RefCell<Renderer>>,
+
+    controller: WindowController,
+
+    mode: WindowMode,
+    id: WindowId,
+
+    first_draw: bool,
+    frame_info: FrameInfo,
+
+    is_active: bool,
+
+    #[cfg(windows)]
+    subclass_id: std::cell::Cell<usize>,
+
+    headless_config: WindowHeadlessConfig,
+    headless_position: LayoutPoint,
+    headless_size: LayoutSize,
+
+    renderless_event_sender: Option<EventLoopProxy>,
+}
 impl OpenWindow {
     fn new(
         new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>,
@@ -1227,6 +1368,7 @@ impl OpenWindow {
             })),
             window,
             renderer,
+            controller: WindowController::new(),
             id,
             headless_position,
             headless_size,
@@ -1251,6 +1393,10 @@ impl OpenWindow {
     #[inline]
     pub fn id(&self) -> WindowId {
         self.id
+    }
+
+    pub fn controller(&self) -> &WindowController {
+        todo!()
     }
 
     /// If the window is the foreground window.
