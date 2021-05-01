@@ -368,3 +368,28 @@ fn unnamed_default() {
     assert_eq!(&true, args.__a());
     assert_eq!(&2567, args.__b());
 }
+
+mod macro_rules_generated {
+    use crate::{property, var::IntoVar, UiNode};
+
+    macro_rules! test {
+        ($name:ident) => {
+            #[property(context)]
+            pub fn $name(child: impl UiNode, value: impl IntoVar<$crate::units::SideOffsets>) -> impl UiNode {
+                let _ = value;
+                child
+            }
+        };
+    }
+
+    test! {
+        bar
+    }
+}
+
+#[test]
+fn macro_rules_generated() {
+    use macro_rules_generated::*;
+    let _ = bar(NilUiNode, 0);
+    let _ = bar::ArgsImpl::new(0);
+}

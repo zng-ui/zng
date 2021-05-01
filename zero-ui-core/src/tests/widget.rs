@@ -1371,6 +1371,49 @@ pub fn name_collision_wgt_when() {
     assert!(!util::traced(&wgt, "2"));
 }
 
+/*
+* macro_rules! generated widget
+*/
+
+mod macro_rules_generated {
+    use crate::widget;
+
+    macro_rules! test {
+        ($name:ident) => {
+           test! {
+               [$] $name
+           }
+        };
+        ([$dollar:tt] $name:ident) => {
+            #[widget($dollar crate::tests::widget::macro_rules_generated::$name)]
+            pub mod $name {
+                use crate::var::IntoVar;
+                use crate::NilUiNode;
+
+                properties! {
+                    margin(impl IntoVar<$crate::units::SideOffsets>);
+                }
+
+                fn new_child(margin: impl IntoVar<$crate::units::SideOffsets>) -> NilUiNode {
+                    let _ = margin;
+                    NilUiNode
+                }
+            }
+        }
+    }
+
+    test! {
+        bar
+    }
+}
+
+#[test]
+fn macro_rules_generated() {
+    let _ = macro_rules_generated::bar! {
+        margin = 10;
+    };
+}
+
 mod util {
     use std::{
         collections::{HashMap, HashSet},
