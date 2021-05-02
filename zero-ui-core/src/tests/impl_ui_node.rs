@@ -238,7 +238,7 @@ mod util {
         ($state:expr, $method:expr) => {{
             let state = $state;
             let method = $method;
-            if let Some(db) = state.get(util::TraceKey) {
+            if let Some(db) = state.get::<util::TraceKey>() {
                 for (i, trace_ref) in db.iter().enumerate() {
                     let mut any = false;
                     for trace_entry in trace_ref.borrow_mut().drain(..) {
@@ -259,7 +259,7 @@ mod util {
     macro_rules! __impl_ui_node_util_assert_did_not_trace {
         ($state:expr) => {{
             let state = $state;
-            if let Some(db) = state.get(util::TraceKey) {
+            if let Some(db) = state.get::<util::TraceKey>() {
                 for (i, trace_ref) in db.iter().enumerate() {
                     let mut any = false;
                     for trace_entry in trace_ref.borrow().iter() {
@@ -285,7 +285,7 @@ mod util {
     }
     impl UiNode for TraceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let db = ctx.widget_state.entry(TraceKey).or_default();
+            let db = ctx.widget_state.entry::<TraceKey>().or_default();
             assert!(db.iter().all(|t| !Rc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
             db.push(Rc::clone(&self.trace));
 

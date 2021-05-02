@@ -140,12 +140,12 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
 ///
 /// /// Get the value from outside the widget.
 /// fn get_foo_outer(widget: &impl Widget) -> u32 {
-///     widget.state().get(FooKey).copied().unwrap_or_default()
+///     widget.state().get::<FooKey>().copied().unwrap_or_default()
 /// }
 ///
 /// /// Get the value from inside the widget.
 /// fn get_foo_inner(ctx: &WidgetContext) -> u32 {
-///     ctx.widget_state.get(FooKey).copied().unwrap_or_default()
+///     ctx.widget_state.get::<FooKey>().copied().unwrap_or_default()
 /// }
 /// ```
 pub fn set_widget_state<U, K, V>(child: U, key: K, value: V) -> impl UiNode
@@ -157,7 +157,7 @@ where
 {
     struct SetWidgetStateNode<U, K, V> {
         child: U,
-        key: K,
+        _key: K,
         var: V,
     }
     #[impl_ui_node(child)]
@@ -169,20 +169,20 @@ where
         V: Var<K::Type>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.widget_state.set(self.key, self.var.get(ctx.vars).clone());
+            ctx.widget_state.set::<K>(self.var.get(ctx.vars).clone());
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(new) = self.var.get_new(ctx.vars) {
-                ctx.widget_state.set(self.key, new.clone());
+                ctx.widget_state.set::<K>(new.clone());
             }
             self.child.update(ctx);
         }
     }
     SetWidgetStateNode {
         child,
-        key,
+        _key: key,
         var: value.into_var(),
     }
 }
@@ -214,15 +214,15 @@ mod tests {
         };
         let mut ctx = TestWidgetContext::wait_new();
 
-        assert_eq!(None, wgt.state().get(TestKey));
+        assert_eq!(None, wgt.state().get::<TestKey>());
 
         wgt.test_init(&mut ctx);
-        assert_eq!(Some(&2), wgt.state().get(TestKey));
+        assert_eq!(Some(&2), wgt.state().get::<TestKey>());
 
         value.set(&ctx.vars, 4);
         ctx.apply_updates();
         wgt.test_update(&mut ctx);
-        assert_eq!(Some(&4), wgt.state().get(TestKey));
+        assert_eq!(Some(&4), wgt.state().get::<TestKey>());
     }
 
     context_var! {

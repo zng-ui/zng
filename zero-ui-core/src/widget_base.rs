@@ -219,7 +219,7 @@ pub trait WidgetEnabledExt {
 }
 impl WidgetEnabledExt for LazyStateMap {
     fn enabled(&self) -> bool {
-        self.get(EnabledState).copied().unwrap_or(true)
+        self.get::<EnabledState>().copied().unwrap_or(true)
     }
 }
 impl<W: Widget> WidgetEnabledExt for W {
@@ -287,7 +287,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             if !*self.enabled.get(ctx.vars) {
-                ctx.widget_state.set(EnabledState, false);
+                ctx.widget_state.set::<EnabledState>(false);
             }
             self.with_context(ctx.vars, |c| c.init(ctx));
         }
@@ -298,7 +298,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(&state) = self.enabled.get_new(ctx.vars) {
-                ctx.widget_state.set(EnabledState, state);
+                ctx.widget_state.set::<EnabledState>(state);
                 ctx.updates.render(); // TODO meta updates without a new frame?
             }
             self.with_context(ctx.vars, |c| c.update(ctx));
@@ -310,7 +310,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if !*self.enabled.get(ctx.vars) {
-                frame.meta().set(EnabledState, false);
+                frame.meta().set::<EnabledState>(false);
             }
             self.child.render(ctx, frame);
         }
@@ -362,7 +362,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     impl<C: UiNode, V: Var<Visibility>> UiNode for VisibilityNode<C, V> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let vis = *self.visibility.get(ctx.vars);
-            ctx.widget_state.set(VisibilityState, vis);
+            ctx.widget_state.set::<VisibilityState>(vis);
 
             self.with_context(ctx.vars, |c| c.init(ctx));
         }
@@ -373,7 +373,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(&vis) = self.visibility.get_new(ctx.vars) {
-                ctx.widget_state.set(VisibilityState, vis);
+                ctx.widget_state.set::<VisibilityState>(vis);
                 ctx.updates.layout();
             }
             self.with_context(ctx.vars, |c| c.update(ctx));
@@ -503,7 +503,7 @@ pub trait WidgetVisibilityExt {
 }
 impl WidgetVisibilityExt for LazyStateMap {
     fn visibility(&self) -> Visibility {
-        self.get(VisibilityState).copied().unwrap_or_default()
+        self.get::<VisibilityState>().copied().unwrap_or_default()
     }
 }
 
@@ -585,7 +585,7 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
     impl<U: UiNode, H: Var<bool>> UiNode for HitTestableNode<U, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             if !*self.hit_testable.get(ctx.vars) {
-                ctx.widget_state.set(HitTestableState, false);
+                ctx.widget_state.set::<HitTestableState>(false);
             }
             self.with_context(ctx.vars, |c| c.init(ctx));
         }
@@ -596,7 +596,7 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(&state) = self.hit_testable.get_new(ctx.vars) {
-                ctx.widget_state.set(HitTestableState, state);
+                ctx.widget_state.set::<HitTestableState>(state);
                 ctx.updates.render();
             }
             self.with_context(ctx.vars, |c| c.update(ctx));
@@ -650,7 +650,7 @@ pub trait WidgetHitTestableExt {
 }
 impl WidgetHitTestableExt for LazyStateMap {
     fn hit_testable(&self) -> bool {
-        self.get(HitTestableState).copied().unwrap_or(true)
+        self.get::<HitTestableState>().copied().unwrap_or(true)
     }
 }
 impl<'a> WidgetHitTestableExt for WidgetInfo<'a> {

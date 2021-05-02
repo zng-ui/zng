@@ -1412,7 +1412,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn focus_info(self) -> FocusInfo {
         if !self.info.enabled() {
             FocusInfo::NotFocusable
-        } else if let Some(builder) = self.info.meta().get(FocusInfoKey) {
+        } else if let Some(builder) = self.info.meta().get::<FocusInfoKey>() {
             builder.build()
         } else {
             FocusInfo::NotFocusable

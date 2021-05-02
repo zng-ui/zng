@@ -1435,7 +1435,7 @@ mod util {
 
     /// Probe for a [`trace`] in the widget state.
     pub fn traced(wgt: &impl Widget, trace: &'static str) -> bool {
-        wgt.state().get(TraceKey).map(|t| t.contains(trace)).unwrap_or_default()
+        wgt.state().get::<TraceKey>().map(|t| t.contains(trace)).unwrap_or_default()
     }
 
     state_key! {
@@ -1449,7 +1449,7 @@ mod util {
     impl<C: UiNode> UiNode for TraceNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            ctx.widget_state.entry(TraceKey).or_default().insert(self.trace);
+            ctx.widget_state.entry::<TraceKey>().or_default().insert(self.trace);
         }
     }
 
@@ -1514,7 +1514,7 @@ mod util {
     /// Gets the [`Position`] tags sorted by call to [`Position::next`].
     pub fn sorted_value_init(wgt: &impl Widget) -> Vec<&'static str> {
         wgt.state()
-            .get(ValuePositionKey)
+            .get::<ValuePositionKey>()
             .map(|m| {
                 let mut vec: Vec<_> = m.iter().collect();
                 vec.sort_by_key(|(_, i)| *i);
@@ -1526,7 +1526,7 @@ mod util {
     /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
     pub fn sorted_node_init(wgt: &impl Widget) -> Vec<&'static str> {
         wgt.state()
-            .get(NodePositionKey)
+            .get::<NodePositionKey>()
             .map(|m| {
                 let mut vec: Vec<_> = m.iter().collect();
                 vec.sort_by_key(|(_, i)| *i);
@@ -1548,12 +1548,12 @@ mod util {
     impl<C: UiNode> UiNode for CountNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.widget_state
-                .entry(ValuePositionKey)
+                .entry::<ValuePositionKey>()
                 .or_default()
                 .insert(self.value_pos.tag, self.value_pos.pos);
 
             ctx.widget_state
-                .entry(NodePositionKey)
+                .entry::<NodePositionKey>()
                 .or_default()
                 .insert(self.value_pos.tag, Position::next_init());
 
@@ -1570,7 +1570,7 @@ mod util {
     ///
     /// Note only applies after update.
     pub fn set_state(wgt: &mut impl Widget, state: bool) {
-        *wgt.state_mut().entry(IsStateKey).or_default() = state;
+        *wgt.state_mut().entry::<IsStateKey>().or_default() = state;
     }
     struct IsStateNode<C: UiNode> {
         child: C,
@@ -1578,7 +1578,7 @@ mod util {
     }
     impl<C: UiNode> IsStateNode<C> {
         fn update_state(&mut self, ctx: &mut WidgetContext) {
-            let wgt_state = ctx.widget_state.get(IsStateKey).copied().unwrap_or_default();
+            let wgt_state = ctx.widget_state.get::<IsStateKey>().copied().unwrap_or_default();
             if wgt_state != *self.state.get(ctx.vars) {
                 self.state.set(ctx.vars, wgt_state);
             }
@@ -1625,13 +1625,13 @@ mod util {
     impl<C: UiNode, T: Var<&'static str>> UiNode for LiveTraceNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            ctx.widget_state.entry(TraceKey).or_default().insert(self.trace.get(ctx.vars));
+            ctx.widget_state.entry::<TraceKey>().or_default().insert(self.trace.get(ctx.vars));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             if let Some(trace) = self.trace.get_new(ctx.vars) {
-                ctx.widget_state.entry(TraceKey).or_default().insert(trace);
+                ctx.widget_state.entry::<TraceKey>().or_default().insert(trace);
             }
         }
     }

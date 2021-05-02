@@ -7,7 +7,7 @@ use crate::{
     render::{
         FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, NewFrameArgs, RenderSize, Renderer, RendererConfig, WidgetTransformKey,
     },
-    service::{AppService, WindowService, WindowServices, WindowServicesVisitors},
+    service::{AppService, WindowServices, WindowServicesVisitors},
     text::{Text, ToText},
     units::{FactorUnits, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{var, BoxedVar, IntoVar, RcVar, VarObj, VarsRead},
@@ -337,7 +337,6 @@ event! {
 /// Services this extension provides:
 ///
 /// * [Windows]
-/// * [WindowController]
 pub struct WindowManager {
     event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
@@ -385,11 +384,6 @@ impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.updates.notifier().clone()));
-
-        // TODO
-        //r.window_services.register(|ctx| {
-        //    todo!()
-        //});
 
         r.events.register::<WindowOpenEvent>(self.window_open.listener());
         r.events
@@ -850,14 +844,14 @@ pub enum WindowIcon {
     Render,
 }
 
-/// Window frame.
+/// Window chrome, the non-client area of the window.
 #[derive(Clone, Debug)]
-pub enum WindowFrame {
-    /// Operating system frame.
+pub enum WindowChrome {
+    /// Operating system chrome.
     Default,
-    /// No window frame.
-    Frameless,
-    /// An [`UiNode`] that provides the window frame.
+    /// Chromeless.
+    None,
+    /// An [`UiNode`] that provides the window chrome.
     Custom,
 }
 
@@ -890,8 +884,8 @@ bitflags! {
     }
 }
 
-struct WindowVars {
-    frame: RcVar<WindowFrame>,
+struct WindowVarsData {
+    chrome: RcVar<WindowChrome>,
     icon: RcVar<WindowIcon>,
     title: RcVar<Text>,
 
@@ -916,23 +910,21 @@ struct WindowVars {
     modal: RcVar<bool>,
 
     transparent: RcVar<bool>,
-
 }
 
 /// Controls properties of an open window using variables.
 ///
-/// You can get the controller for any window using [`OpenWindow::controller`].
+/// You can get the controller for any window using [`OpenWindow::vars`].
 ///
-/// You can get the controller for the current context window by getting `WindowController` from the `window_services`
-/// in [`WindowContext`](WindowContext::window_services) and [`WidgetContext`](WidgetContext::window_services).
-#[derive(WindowService)]
-pub struct WindowController {
-    vars: Rc<WindowVars>,
+/// You can get the controller for the current context window by getting `WindowVars` from the `window_state`
+/// in [`WindowContext`](WindowContext::window_state) and [`WidgetContext`](WidgetContext::window_state).
+pub struct WindowVars {
+    vars: Rc<WindowVarsData>,
 }
-impl WindowController {
+impl WindowVars {
     fn new() -> Self {
-        let vars = Rc::new(WindowVars {
-            frame: var(WindowFrame::Default),
+        let vars = Rc::new(WindowVarsData {
+            chrome: var(WindowChrome::Default),
             icon: var(WindowIcon::Default),
             title: var("".to_text()),
 
@@ -967,14 +959,14 @@ impl WindowController {
         }
     }
 
-    /// Window frame.
+    /// Window chrome, the non-client area of the window.
     ///
-    /// See [`WindowFrame`] for details.
+    /// See [`WindowChrome`] for details.
     ///
-    /// The default value is [`WindowFrame::Default`].
+    /// The default value is [`WindowChrome::Default`].
     #[inline]
-    pub fn frame(&self) -> &RcVar<WindowFrame> {
-        &self.vars.frame
+    pub fn chrome(&self) -> &RcVar<WindowChrome> {
+        &self.vars.chrome
     }
 
     /// If the window is see-through.
@@ -1151,6 +1143,9 @@ impl WindowController {
         &self.vars.modal
     }
 }
+impl StateKey for WindowVars {
+    type Type = Self;
+}
 
 /// Window startup configuration.
 ///
@@ -1320,7 +1315,7 @@ pub struct OpenWindow {
     window: Option<glutin::window::Window>,
     renderer: Option<RefCell<Renderer>>,
 
-    controller: WindowController,
+    vars: WindowVars,
 
     mode: WindowMode,
     id: WindowId,
@@ -1349,7 +1344,7 @@ impl OpenWindow {
     ) -> Self {
         // get mode.
         let mode = if let Some(headless) = ctx.headless.state() {
-            if headless.get(app::HeadlessRendererEnabledKey).copied().unwrap_or_default() {
+            if headless.get::<app::HeadlessRendererEnabledKey>().copied().unwrap_or_default() {
                 WindowMode::HeadlessWithRenderer
             } else {
                 WindowMode::Headless
@@ -1371,6 +1366,8 @@ impl OpenWindow {
         let headless_position;
         let headless_size;
         let renderless_event_sender;
+
+        let vars = WindowVars::new();
 
         let renderer_config = RendererConfig {
             clear_color: None,
@@ -1399,6 +1396,7 @@ impl OpenWindow {
 
                 // init window state and services.
                 let (mut state, mut services) = ctx.new_window(id, mode, &api);
+                state.set_single(vars.clone());
                 root = ctx.window_context(id, mode, &mut state, &mut services, &api, new_window).0;
                 win_state = state;
                 win_services = services;
@@ -1485,6 +1483,7 @@ impl OpenWindow {
                 };
 
                 let (mut state, mut services) = ctx.new_window(id, mode, &api);
+                state.set_single(vars.clone());
                 root = ctx.window_context(id, mode, &mut state, &mut services, &api, new_window).0;
                 win_state = state;
                 win_services = services;
@@ -1545,14 +1544,14 @@ impl OpenWindow {
             })),
             window,
             renderer,
-            controller: WindowController::new(),
+            vars,
             id,
             headless_position,
             headless_size,
             headless_config,
             mode,
             first_draw: true,
-            is_active: true, // just opened? TODO
+            is_active: true,
             frame_info,
             renderless_event_sender,
 
@@ -1572,9 +1571,11 @@ impl OpenWindow {
         self.id
     }
 
+    /// Variables that control this window.
     ///
-    pub fn controller(&self) -> &WindowController {
-        todo!()
+    /// Also available in the [`window_state`](WindowContext::window_state).
+    pub fn vars(&self) -> &WindowVars {
+        &self.vars
     }
 
     /// If the window is the foreground window.
@@ -2326,7 +2327,7 @@ mod headless_tests {
             let root = wn.frame_info().root();
 
             let expected = Some(true);
-            let actual = root.meta().get(FooMetaKey).copied();
+            let actual = root.meta().get::<FooMetaKey>().copied();
             assert_eq!(expected, actual);
 
             let expected = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(20.0, 10.0));
@@ -2358,7 +2359,7 @@ mod headless_tests {
     #[impl_ui_node(none)]
     impl UiNode for SetFooMetaNode {
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().set(FooMetaKey, true);
+            frame.meta().set::<FooMetaKey>(true);
         }
     }
 }

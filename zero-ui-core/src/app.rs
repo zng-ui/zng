@@ -677,7 +677,10 @@ impl HeadlessApp {
     ///
     /// See [`enable_renderer`](Self::enable_renderer) for more details.
     pub fn renderer_enabled(&self) -> bool {
-        self.headless_state().get(HeadlessRendererEnabledKey).copied().unwrap_or_default()
+        self.headless_state()
+            .get::<HeadlessRendererEnabledKey>()
+            .copied()
+            .unwrap_or_default()
     }
 
     /// Enable or disable headless rendering.
@@ -695,7 +698,7 @@ impl HeadlessApp {
     ///
     /// This sets the [`HeadlessRendererEnabledKey`] state in the [headless state](Self::headless_state).
     pub fn enable_renderer(&mut self, enabled: bool) {
-        self.headliess_state_mut().set(HeadlessRendererEnabledKey, enabled);
+        self.headliess_state_mut().set::<HeadlessRendererEnabledKey>(enabled);
     }
 
     /// Notifies extensions of a [device event](DeviceEvent).
@@ -1081,7 +1084,7 @@ mod headless_tests {
             let render_enabled = ctx
                 .headless
                 .state()
-                .and_then(|s| s.get(HeadlessRendererEnabledKey).copied())
+                .and_then(|s| s.get::<HeadlessRendererEnabledKey>().copied())
                 .unwrap_or_default();
 
             assert!(!render_enabled);
@@ -1100,7 +1103,7 @@ mod headless_tests {
             let render_enabled = ctx
                 .headless
                 .state()
-                .and_then(|s| s.get(HeadlessRendererEnabledKey).copied())
+                .and_then(|s| s.get::<HeadlessRendererEnabledKey>().copied())
                 .unwrap_or_default();
 
             assert!(render_enabled);

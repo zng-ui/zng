@@ -162,7 +162,7 @@ impl UpdateNotifier {
 ///
 /// The type that implements this trait is the key. You
 /// can use the [`state_key!`](crate::context::state_key) macro.
-pub trait StateKey: Clone + Copy + 'static {
+pub trait StateKey: 'static {
     /// The value type.
     type Type: 'static;
 }
@@ -180,7 +180,7 @@ pub trait StateKey: Clone + Copy + 'static {
 /// ```
 /// # Naming Convention
 ///
-/// It is recommended that the type name ends with the `Key` suffix.
+/// It is recommended that the type name ends with the key suffix.
 #[macro_export]
 macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
@@ -216,14 +216,13 @@ impl StateMap {
         StateMap { map: AnyMap::default() }
     }
 
-    /// Set the `key` `value`.
+    /// Set the key `value`.
     ///
     /// # Key
     ///
-    /// Use [`state_key!`](crate::context::state_key) to generate a key, it is expected to be a unit type
-    /// we take a key value here for convenience, the actual map key is the [type id](TypeId).
-    pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
-        let _ = key;
+    /// Use [`state_key!`](crate::context::state_key) to generate a key, any static type can be a key,
+    /// the [type id](TypeId) is the actual key.
+    pub fn set<S: StateKey>(&mut self, value: S::Type) -> Option<S::Type> {
         self.map
             .insert(TypeId::of::<S>(), Box::new(value))
             .map(|any| *any.downcast::<S::Type>().unwrap())
@@ -236,15 +235,13 @@ impl StateMap {
             .map(|any| *any.downcast::<S>().unwrap())
     }
 
-    /// Gets if the `key` is set in this map.
-    pub fn contains<S: StateKey>(&self, key: S) -> bool {
-        let _ = key;
+    /// Gets if the key is set in this map.
+    pub fn contains<S: StateKey>(&self) -> bool {
         self.map.contains_key(&TypeId::of::<S>())
     }
 
-    /// Reference the `key` value set in this map.
-    pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {
-        let _ = key;
+    /// Reference the key value set in this map.
+    pub fn get<S: StateKey>(&self) -> Option<&S::Type> {
         if let Some(any) = self.map.get(&TypeId::of::<S>()) {
             Some(any.downcast_ref::<S::Type>().unwrap())
         } else {
@@ -252,9 +249,8 @@ impl StateMap {
         }
     }
 
-    /// Mutable borrow the `key` value set in this map.
-    pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
-        let _ = key;
+    /// Mutable borrow the key value set in this map.
+    pub fn get_mut<S: StateKey>(&mut self) -> Option<&mut S::Type> {
         if let Some(any) = self.map.get_mut(&TypeId::of::<S>()) {
             Some(any.downcast_mut::<S::Type>().unwrap())
         } else {
@@ -263,8 +259,7 @@ impl StateMap {
     }
 
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
-    pub fn entry<S: StateKey>(&mut self, key: S) -> StateMapEntry<S> {
-        let _ = key;
+    pub fn entry<S: StateKey>(&mut self) -> StateMapEntry<S> {
         StateMapEntry {
             _key: PhantomData,
             entry: self.map.entry(TypeId::of::<S>()),
@@ -274,13 +269,12 @@ impl StateMap {
     /// Sets a state key without value.
     ///
     /// Returns if the state key was already flagged.
-    pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
-        self.set(key, ()).is_some()
+    pub fn flag<S: StateKey<Type = ()>>(&mut self) -> bool {
+        self.set::<S>(()).is_some()
     }
 
     /// Gets if a state key without value is set.
-    pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
-        let _ = key;
+    pub fn flagged<S: StateKey<Type = ()>>(&self) -> bool {
         self.map.contains_key(&TypeId::of::<S>())
     }
 
@@ -343,22 +337,22 @@ impl LazyStateMap {
         self.m.get_or_insert_with(|| Box::new(StateMap::new()))
     }
 
-    /// Gets if the `key` is set in this map.
+    /// Gets if the key is set in this map.
     ///
     /// This method does not initializes the map.
-    pub fn contains<S: StateKey>(&self, key: S) -> bool {
+    pub fn contains<S: StateKey>(&self) -> bool {
         if let Some(m) = self.m.as_ref() {
-            m.contains(key)
+            m.contains::<S>()
         } else {
             false
         }
     }
 
-    /// Set the `key` `value`.
+    /// Set the key `value`.
     ///
     /// This method initializes the map.
-    pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
-        self.borrow_mut().set(key, value)
+    pub fn set<S: StateKey>(&mut self, value: S::Type) -> Option<S::Type> {
+        self.borrow_mut().set::<S>(value)
     }
 
     /// Sets a value that is its own [`StateKey`].
@@ -368,39 +362,39 @@ impl LazyStateMap {
         self.borrow_mut().set_single(value)
     }
 
-    /// Reference the `key` value set in this map.
+    /// Reference the key value set in this map.
     ///
     /// This method does not initializes the map.
-    pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {
-        self.m.as_ref().and_then(|m| m.get(key))
+    pub fn get<S: StateKey>(&self) -> Option<&S::Type> {
+        self.m.as_ref().and_then(|m| m.get::<S>())
     }
 
-    // Mutable borrow the `key` value set in this map.
+    // Mutable borrow the key value set in this map.
     ///
     /// This method does not initializes the map.
-    pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
-        self.m.as_mut().and_then(|m| m.get_mut(key))
+    pub fn get_mut<S: StateKey>(&mut self) -> Option<&mut S::Type> {
+        self.m.as_mut().and_then(|m| m.get_mut::<S>())
     }
 
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
     ///
     /// This method initializes the map, even if you don't insert a value using the entry.
-    pub fn entry<S: StateKey>(&mut self, key: S) -> StateMapEntry<S> {
-        self.borrow_mut().entry(key)
+    pub fn entry<S: StateKey>(&mut self) -> StateMapEntry<S> {
+        self.borrow_mut().entry::<S>()
     }
 
     /// Sets a state key without value.
     ///
     /// This method does not initializes the map.
-    pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
-        self.borrow_mut().flag(key)
+    pub fn flag<S: StateKey<Type = ()>>(&mut self) -> bool {
+        self.borrow_mut().flag::<S>()
     }
 
     /// Gets if a state key without value is set.
     ///
     /// This method does not initializes the map.
-    pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
-        self.get(key).is_some()
+    pub fn flagged<S: StateKey<Type = ()>>(&self) -> bool {
+        self.get::<S>().is_some()
     }
 
     /// If no state is set.
