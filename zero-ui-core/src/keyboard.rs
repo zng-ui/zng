@@ -157,7 +157,7 @@ event! {
 #[derive(Default)]
 pub struct KeyboardManager;
 impl KeyboardManager {
-    fn target(window_id: WindowId, services: &mut AppServices) -> WidgetPath {
+    fn target(window_id: WindowId, services: &mut Services) -> WidgetPath {
         let focused = services.get::<Focus>().and_then(|f| f.focused().cloned());
         if let Some(focused) = focused {
             focused
@@ -211,7 +211,7 @@ impl AppExtension for KeyboardManager {
 /// # Provider
 ///
 /// This service is provided by the [`KeyboardManager`] extension.
-#[derive(AppService)]
+#[derive(Service)]
 pub struct Keyboard {
     modifiers: ModifiersState,
     last_key_down: Option<(Option<DeviceId>, ScanCode)>,

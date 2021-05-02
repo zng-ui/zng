@@ -855,7 +855,7 @@ fn multi_click_time_ms() -> Duration {
 /// # Provider
 ///
 /// This service is provided by the [`MouseManager`] extension.
-#[derive(AppService)]
+#[derive(Service)]
 pub struct Mouse {
     capture_event: EventEmitter<MouseCaptureArgs>,
     current_capture: Option<(WidgetPath, CaptureMode)>,

@@ -59,15 +59,9 @@ pub fn hex_color(input: TokenStream) -> TokenStream {
 }
 
 #[doc(hidden)]
-#[proc_macro_derive(AppService)]
-pub fn derive_app_service(item: TokenStream) -> TokenStream {
-    derive_service::derive(item, ident!("AppService"))
-}
-
-#[doc(hidden)]
-#[proc_macro_derive(WindowService)]
-pub fn derive_window_service(item: TokenStream) -> TokenStream {
-    derive_service::derive(item, ident!("WindowService"))
+#[proc_macro_derive(Service)]
+pub fn derive_service(item: TokenStream) -> TokenStream {
+    derive_service::derive(item)
 }
 
 /// Expands a module to a widget module and macro.

@@ -45,12 +45,12 @@
 //! +----------------------------------------------------------------------+
 //! | # Level 0 - App                                                      |
 //! |                                                                      |
-//! |  App, AppExtension, AppContext, AppServices, Events                  |
+//! |  App, AppExtension, AppContext, Services, Events                  |
 //! |                                                                      |
 //! | +------------------------------------------------------------------+ |
 //! | | # Level 1 - Window                                               | |
 //! | |                                                                  | |
-//! | |   Window, WindowContext, WindowServices, WindowId                | |
+//! | |   Window, WindowContext, WindowId                                | |
 //! | |                                                                  | |
 //! | | +--------------------------------------------------------------+ | |
 //! | | | # Level 2 - Widget                                           | | |
@@ -76,8 +76,8 @@
 //! ### Services
 //!
 //! Services are utilities that can be accessed by every component in every level, this includes [opening windows](crate::core::window::Windows)
-//! and [shutting down](crate::core::app::AppProcess) the app it-self. All services implement [`AppService`](crate::core::service::AppService)
-//! and can be requested from a [`AppServices`](crate::core::service::AppServices) that is provided by every context.
+//! and [shutting down](crate::core::app::AppProcess) the app it-self. All services implement [`Service`](crate::core::service::Service)
+//! and can be requested from a [`Services`](crate::core::service::Services) that is provided by every context.
 //!
 //! ### Events
 //!
@@ -96,15 +96,6 @@
 //! By default the [`WindowManager`](crate::core::window::WindowManager) extension sets-up the window contexts,
 //! but that is not a requirement, you can implement your own *windows*.
 //!
-//! ### Window Services
-//!
-//! Services that require a [`WindowContext`](crate::core::context::WindowContext) to be instantiated. They live for the
-//! duration of the window instance and every window has the same services. Window service builders must be registered only at
-//! [Level 0](level-0-app) during the app initialization, the builders then are called during the window initialization to instantiate
-//! the window services.
-//!
-//! These services can be requested from a [`WindowServices`](crate::core::service::WindowServices) that is provided by the window
-//! and widget contexts.
 //!
 //! ## Level 2 - Widget
 //!
@@ -1142,7 +1133,7 @@ pub mod prelude {
         mouse::MouseButton,
         node_vec, nodes,
         render::WidgetPath,
-        service::{AppServices, WindowServices},
+        service::Services,
         sync::Sync,
         text::{
             font_features::{

@@ -1,6 +1,6 @@
 //! Aggregate events.
 
-use super::{service::AppService, units::LayoutPoint, WidgetId};
+use super::{service::Service, units::LayoutPoint, WidgetId};
 use crate::app::*;
 use crate::context::*;
 use crate::event::*;
@@ -787,7 +787,7 @@ impl AppExtension for GestureManager {
 }
 
 /// Gesture events configuration.
-#[derive(AppService)]
+#[derive(Service)]
 pub struct Gestures {
     /// Shortcuts that generate a primary [`ClickEvent`] for the focused widget.
     /// The shortcut only works if no widget handles the [`ShortcutEvent`].

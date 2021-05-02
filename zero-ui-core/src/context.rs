@@ -2,7 +2,7 @@
 
 use super::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use super::event::Events;
-use super::service::{AppServices, AppServicesInit, WindowServices, WindowServicesInit};
+use super::service::{Services, ServicesInit};
 use super::sync::Sync;
 use super::units::{LayoutSize, PixelGrid};
 use super::var::Vars;
@@ -405,6 +405,30 @@ impl LazyStateMap {
     }
 }
 
+/// Private [`StateMap`].
+///
+/// The state map can only be accessed by inside a context. This is done because states
+/// are exposed as mutable references but we don't want the context clients to be able to replace
+/// the full map, using this type, only the context creator can set the map.
+pub struct OwnedStateMap(StateMap);
+impl Default for OwnedStateMap {
+    fn default() -> Self {
+        OwnedStateMap(StateMap::new())
+    }
+}
+
+/// Private [`LazyStateMap`].
+///
+/// The state map can only be accessed by inside a context. This is done because states
+/// are exposed as mutable references but we don't want the context clients to be able to replace
+/// the full map, using this type, only the context creator can set the map.
+pub struct OwnedLazyStateMap(pub(crate) LazyStateMap); // TODO rethink privacy access.
+impl Default for OwnedLazyStateMap {
+    fn default() -> Self {
+        OwnedLazyStateMap(LazyStateMap::new())
+    }
+}
+
 /// Executor access to [`Updates`].
 pub struct OwnedUpdates(Updates);
 
@@ -552,8 +576,7 @@ pub struct OwnedAppContext {
     headless_state: Option<StateMap>,
     vars: Vars,
     events: Events,
-    services: AppServicesInit,
-    window_services: WindowServicesInit,
+    services: ServicesInit,
     sync: Sync,
     updates: OwnedUpdates,
 }
@@ -567,8 +590,7 @@ impl OwnedAppContext {
             headless_state: if event_loop.is_headless() { Some(StateMap::new()) } else { None },
             vars: Vars::instance(),
             events: Events::instance(),
-            services: AppServicesInit::default(),
-            window_services: WindowServicesInit::default(),
+            services: ServicesInit::default(),
             sync: Sync::new(updates.0.notifier.clone()),
             updates,
             event_loop,
@@ -609,7 +631,6 @@ impl OwnedAppContext {
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
-            window_services: &mut self.window_services,
             sync: &mut self.sync,
             updates: &mut self.updates.0,
         }
@@ -623,7 +644,6 @@ impl OwnedAppContext {
             vars: &self.vars,
             events: &self.events,
             services: self.services.services(),
-            window_services: &self.window_services,
             sync: &mut self.sync,
             updates: &mut self.updates.0,
             event_loop,
@@ -633,11 +653,6 @@ impl OwnedAppContext {
     /// Takes the request that generated an [`AppEvent::Update`](AppEvent::Update).
     pub fn take_request(&mut self) -> UpdateRequest {
         self.updates.take_request()
-    }
-
-    /// Takes the window service visitor requests, of there is any.
-    pub fn take_window_service_visitors(&mut self) -> Option<super::service::WindowServicesVisitors> {
-        self.window_services.take_visitors()
     }
 
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
@@ -711,15 +726,7 @@ pub struct AppInitContext<'a> {
     /// Services are registered in the order the extensions appear in [`App`](crate::app::App), if an
     /// extension needs a service from another extension this dependency
     /// must be mentioned in documentation.
-    pub services: &'a mut AppServicesInit,
-
-    /// Window services registration.
-    ///
-    /// ### Note
-    /// Window services are services that require a window to exist so none
-    /// can be accessed during the application initialization, they can only
-    /// be registered here.
-    pub window_services: &'a mut WindowServicesInit,
+    pub services: &'a mut ServicesInit,
 
     /// Async tasks.
     ///
@@ -747,10 +754,7 @@ pub struct AppContext<'a> {
     /// Access to application events.
     pub events: &'a Events,
     /// Access to application services.
-    pub services: &'a mut AppServices,
-
-    /// Window services registration.
-    pub window_services: &'a WindowServicesInit,
+    pub services: &'a mut Services,
 
     /// Async tasks.
     pub sync: &'a mut Sync,
@@ -773,63 +777,26 @@ pub(super) struct AppSyncContext<'a> {
     pub updates: &'a mut Updates,
 }
 
-/// Custom state associated with a window.
-pub type WindowStateMap = StateMap;
-
 impl<'a> AppContext<'a> {
-    /// Initializes state and services for a new window.
-    pub fn new_window(
-        &mut self,
-        window_id: WindowId,
-        mode: WindowMode,
-        render_api: &Option<Arc<RenderApi>>,
-    ) -> (WindowStateMap, WindowServices) {
-        let mut window_state = StateMap::new();
-        let mut update_state = StateMap::new();
-
-        let mut window_services = WindowServices::new();
-        let ctx = WindowContext {
-            window_id: ReadOnly(window_id),
-            mode: ReadOnly(mode),
-            render_api,
-            app_state: self.app_state,
-            window_state: &mut window_state,
-            update_state: &mut update_state,
-            window_services: &mut window_services,
-            vars: self.vars,
-            events: self.events,
-            services: self.services,
-            sync: self.sync,
-            updates: self.updates,
-        };
-
-        window_services = self.window_services.init(&ctx);
-
-        (window_state, window_services)
-    }
-
     /// Runs a function `f` in the context of a window.
     pub fn window_context<R>(
         &mut self,
         window_id: WindowId,
         mode: WindowMode,
-        window_state: &mut WindowStateMap,
-        window_services: &mut WindowServices,
+        window_state: &mut OwnedStateMap,
         render_api: &Option<Arc<RenderApi>>,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, UpdateDisplayRequest) {
         self.updates.win_display_update = UpdateDisplayRequest::None;
 
         let mut update_state = StateMap::new();
-        let unloader = window_services.load();
 
         let r = f(&mut WindowContext {
             window_id: ReadOnly(window_id),
             mode: ReadOnly(mode),
             render_api,
             app_state: self.app_state,
-            window_state,
-            window_services: unloader.window_services,
+            window_state: &mut window_state.0,
             update_state: &mut update_state,
             vars: self.vars,
             events: self.events,
@@ -899,9 +866,7 @@ pub struct WindowContext<'a> {
     /// Access to application events.
     pub events: &'a Events,
     /// Access to application services.
-    pub services: &'a mut AppServices,
-    /// Access to window services.
-    pub window_services: &'a mut WindowServices,
+    pub services: &'a mut Services,
 
     /// Async tasks.
     pub sync: &'a mut Sync,
@@ -943,7 +908,7 @@ impl<'a> WindowContext<'a> {
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
-        widget_state: &mut LazyStateMap,
+        widget_state: &mut OwnedLazyStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         f(&mut WidgetContext {
@@ -951,13 +916,12 @@ impl<'a> WindowContext<'a> {
 
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state,
+            widget_state: &mut widget_state.0,
             update_state: self.update_state,
 
             vars: self.vars,
             events: self.events,
             services: self.services,
-            window_services: self.window_services,
 
             sync: self.sync,
 
@@ -972,7 +936,7 @@ impl<'a> WindowContext<'a> {
         pixel_grid: PixelGrid,
         viewport_size: LayoutSize,
         widget_id: WidgetId,
-        widget_state: &mut LazyStateMap,
+        widget_state: &mut OwnedLazyStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
@@ -987,7 +951,7 @@ impl<'a> WindowContext<'a> {
 
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state,
+            widget_state: &mut widget_state.0,
             update_state: self.update_state,
 
             vars: &self.vars,
@@ -995,12 +959,17 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the render context of a widget.
-    pub fn render_context<R>(&mut self, widget_id: WidgetId, widget_state: &LazyStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
+    pub fn render_context<R>(
+        &mut self,
+        widget_id: WidgetId,
+        widget_state: &OwnedLazyStateMap,
+        f: impl FnOnce(&mut RenderContext) -> R,
+    ) -> R {
         f(&mut RenderContext {
             path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state,
+            widget_state: &widget_state.0,
             update_state: self.update_state,
             vars: &self.vars,
         })
@@ -1059,7 +1028,7 @@ pub struct TestWidgetContext {
     /// WARNING: In a real app services can only be registered at the start of the application.
     /// In this context you can always register a service, you should probably not reuse a test widget
     /// instance after registering a service.
-    pub services: AppServicesInit,
+    pub services: ServicesInit,
 
     /// A headless event loop.
     ///
@@ -1084,11 +1053,6 @@ pub struct TestWidgetContext {
     /// In this context you can always register a service, you should probably not reuse a test widget
     /// instance after registering an event.
     pub events: Events,
-
-    /// The [`window_services`](WidgetContext::window_services) instance.
-    ///
-    /// TODO: This is always empty for now, not implemented.
-    pub window_services: WindowServices,
 
     /// The [`sync`](WidgetContext::sync) instance.
     ///
@@ -1115,12 +1079,11 @@ impl TestWidgetContext {
             window_state: StateMap::new(),
             widget_state: LazyStateMap::new(),
             update_state: StateMap::new(),
-            services: AppServicesInit::default(),
+            services: ServicesInit::default(),
             event_loop,
             updates,
             vars: Vars::instance(),
             events: Events::instance(),
-            window_services: WindowServices::new(),
             sync: Sync::new(update_notifier),
             _lock: lock,
         }
@@ -1137,7 +1100,6 @@ impl TestWidgetContext {
             vars: &mut self.vars,
             events: &self.events,
             services: self.services.services(),
-            window_services: &mut self.window_services,
             sync: &mut self.sync,
             updates: self.updates.updates(),
         })
@@ -1228,9 +1190,7 @@ pub struct WidgetContext<'a> {
     /// Access to application events.
     pub events: &'a Events,
     /// Access to application services.
-    pub services: &'a mut AppServices,
-    /// Access to window services.
-    pub window_services: &'a mut WindowServices,
+    pub services: &'a mut Services,
 
     /// Async tasks.
     pub sync: &'a mut Sync,
@@ -1243,7 +1203,7 @@ impl<'a> WidgetContext<'a> {
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
-        widget_state: &mut LazyStateMap,
+        widget_state: &mut OwnedLazyStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         self.path.push(widget_id);
@@ -1254,13 +1214,12 @@ impl<'a> WidgetContext<'a> {
 
                 app_state: self.app_state,
                 window_state: self.window_state,
-                widget_state,
+                widget_state: &mut widget_state.0,
                 update_state: self.update_state,
 
                 vars: self.vars,
                 events: self.events,
                 services: self.services,
-                window_services: self.window_services,
 
                 sync: self.sync,
 
@@ -1387,7 +1346,12 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
-    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_widget<R>(
+        &mut self,
+        widget_id: WidgetId,
+        widget_state: &mut OwnedLazyStateMap,
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
         self.path.push(widget_id);
 
         let r = self.vars.with_widget_clear(|| {
@@ -1403,7 +1367,7 @@ impl<'a> LayoutContext<'a> {
 
                 app_state: self.app_state,
                 window_state: self.window_state,
-                widget_state,
+                widget_state: &mut widget_state.0,
                 update_state: self.update_state,
 
                 vars: self.vars,
@@ -1442,13 +1406,13 @@ pub struct RenderContext<'a> {
 }
 impl<'a> RenderContext<'a> {
     /// Runs a function `f` in the render context of a widget.
-    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &LazyStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
+    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedLazyStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         self.path.push(widget_id);
         let r = f(&mut RenderContext {
             path: self.path,
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state,
+            widget_state: &widget_state.0,
             update_state: self.update_state,
             vars: self.vars,
         });

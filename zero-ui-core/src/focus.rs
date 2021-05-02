@@ -83,7 +83,7 @@ use crate::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
 use crate::mouse::{MouseDownEvent, MouseInputArgs};
 use crate::render::DescendantFilter;
 use crate::render::{FrameInfo, WidgetInfo, WidgetPath};
-use crate::service::AppService;
+use crate::service::Service;
 use crate::units::LayoutPoint;
 use crate::widget_base::WidgetEnabledExt;
 use crate::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
@@ -560,7 +560,7 @@ impl FocusManager {
 /// # Provider
 ///
 /// This service is provided by the [`FocusManager`] extension.
-#[derive(AppService)]
+#[derive(Service)]
 pub struct Focus {
     request: Option<FocusRequest>,
     update_notifier: UpdateNotifier,

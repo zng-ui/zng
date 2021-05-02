@@ -25,7 +25,7 @@ use crate::units::PixelGridExt;
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
-    use crate::context::RenderContext;
+    use crate::context::{OwnedLazyStateMap, RenderContext};
 
     use super::*;
 
@@ -68,7 +68,7 @@ pub mod implicit_base {
         struct WidgetNode<T: UiNode> {
             id: WidgetId,
             transform_key: WidgetTransformKey,
-            state: LazyStateMap,
+            state: OwnedLazyStateMap,
             child: T,
             size: LayoutSize,
         }
@@ -173,11 +173,11 @@ pub mod implicit_base {
             }
             #[inline]
             fn state(&self) -> &LazyStateMap {
-                &self.state
+                &self.state.0
             }
             #[inline]
             fn state_mut(&mut self) -> &mut LazyStateMap {
-                &mut self.state
+                &mut self.state.0
             }
             #[inline]
             fn size(&self) -> LayoutSize {
@@ -188,7 +188,7 @@ pub mod implicit_base {
         WidgetNode {
             id,
             transform_key: WidgetTransformKey::new_unique(),
-            state: LazyStateMap::new(),
+            state: OwnedLazyStateMap::default(),
             child,
             size: LayoutSize::zero(),
         }

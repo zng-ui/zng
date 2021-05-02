@@ -7,7 +7,7 @@ use crate::{
     render::{
         FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, NewFrameArgs, RenderSize, Renderer, RendererConfig, WidgetTransformKey,
     },
-    service::{AppService, WindowServices, WindowServicesVisitors},
+    service::Service,
     text::{Text, ToText},
     units::{FactorUnits, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{var, BoxedVar, IntoVar, RcVar, VarObj, VarsRead},
@@ -471,13 +471,6 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
-        for window in ctx.services.req::<Windows>().windows() {
-            let mut ctx = window.context.borrow_mut();
-            visitors.visit(ctx.window_id, &mut ctx.services);
-        }
-    }
-
     fn update_ui(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         self.update_open_close(ctx);
         self.update_pump(update, ctx);
@@ -689,7 +682,7 @@ impl WindowManager {
 }
 
 /// Windows service.
-#[derive(AppService)]
+#[derive(Service)]
 pub struct Windows {
     /// If shutdown is requested when there are no more windows open, `true` by default.
     pub shutdown_on_last_close: bool,
@@ -1151,7 +1144,7 @@ impl StateKey for WindowVars {
 ///
 /// More window configuration is accessible using the [`WindowController`] type.
 pub struct Window {
-    state: LazyStateMap,
+    state: OwnedLazyStateMap,
     id: WidgetId,
     title: BoxedVar<Text>,
     start_position: StartPosition,
@@ -1186,7 +1179,7 @@ impl Window {
         child: impl UiNode,
     ) -> Self {
         Window {
-            state: LazyStateMap::new(),
+            state: OwnedLazyStateMap::default(),
             id: root_id,
             title: title.into_var().boxed(),
             start_position: start_position.into(),
@@ -1359,7 +1352,6 @@ impl OpenWindow {
         let renderer;
         let root;
         let win_state;
-        let win_services;
         let api;
 
         let headless_config;
@@ -1395,11 +1387,14 @@ impl OpenWindow {
                 id = WindowId::System(window_.id());
 
                 // init window state and services.
-                let (mut state, mut services) = ctx.new_window(id, mode, &api);
-                state.set_single(vars.clone());
-                root = ctx.window_context(id, mode, &mut state, &mut services, &api, new_window).0;
-                win_state = state;
-                win_services = services;
+                let mut wn_state = OwnedStateMap::default();
+                root = ctx
+                    .window_context(id, mode, &mut wn_state, &api, |ctx| {
+                        ctx.window_state.set_single(vars.clone());
+                        new_window(ctx)
+                    })
+                    .0;
+                win_state = wn_state;
 
                 window_.set_resizable(*root.auto_size.get(ctx.vars) != AutoSize::CONTENT && *root.resizable.get(ctx.vars));
                 window_.set_title(root.title.get(ctx.vars));
@@ -1482,11 +1477,14 @@ impl OpenWindow {
                     api = None;
                 };
 
-                let (mut state, mut services) = ctx.new_window(id, mode, &api);
-                state.set_single(vars.clone());
-                root = ctx.window_context(id, mode, &mut state, &mut services, &api, new_window).0;
-                win_state = state;
-                win_services = services;
+                let mut wn_state = OwnedStateMap::default();
+                root = ctx
+                    .window_context(id, mode, &mut wn_state, &api, |ctx| {
+                        ctx.window_state.set_single(vars.clone());
+                        new_window(ctx)
+                    })
+                    .0;
+                win_state = wn_state;
 
                 headless_config = root.headless_config.clone();
                 let pixel_factor = headless_config.scale_factor;
@@ -1537,7 +1535,6 @@ impl OpenWindow {
                 mode,
                 root_transform_key: WidgetTransformKey::new_unique(),
                 state: win_state,
-                services: win_services,
                 root,
                 api,
                 update: UpdateDisplayRequest::Layout,
@@ -2194,8 +2191,7 @@ struct OwnedWindowContext {
     window_id: WindowId,
     mode: WindowMode,
     root_transform_key: WidgetTransformKey,
-    state: WindowStateMap,
-    services: WindowServices,
+    state: OwnedStateMap,
     root: Window,
     api: Option<Arc<RenderApi>>,
     update: UpdateDisplayRequest,
@@ -2204,7 +2200,7 @@ impl OwnedWindowContext {
     fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext)) -> UpdateDisplayRequest {
         let root = &mut self.root;
 
-        ctx.window_context(self.window_id, self.mode, &mut self.state, &mut self.services, &self.api, |ctx| {
+        ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
             let child = &mut root.child;
             ctx.widget_context(root.id, &mut root.state, |ctx| {
                 f(child, ctx);
@@ -2221,7 +2217,7 @@ impl OwnedWindowContext {
         f: impl FnOnce(&mut Box<dyn UiNode>, &mut LayoutContext),
     ) {
         let root = &mut self.root;
-        ctx.window_context(self.window_id, self.mode, &mut self.state, &mut self.services, &self.api, |ctx| {
+        ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
             let child = &mut root.child;
             ctx.layout_context(14.0, PixelGrid::new(scale_factor), window_size, root.id, &mut root.state, |ctx| {
                 f(child, ctx);
@@ -2231,7 +2227,7 @@ impl OwnedWindowContext {
 
     fn root_render(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut RenderContext)) {
         let root = &mut self.root;
-        ctx.window_context(self.window_id, self.mode, &mut self.state, &mut self.services, &self.api, |ctx| {
+        ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
             let child = &mut root.child;
             ctx.render_context(root.id, &root.state, |ctx| f(child, ctx))
         });

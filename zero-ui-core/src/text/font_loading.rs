@@ -15,7 +15,7 @@ use super::{FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, Font
 use crate::app::AppExtension;
 use crate::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
 use crate::event::{event, event_args, EventEmitter};
-use crate::service::AppService;
+use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
 
 #[cfg(windows)]
@@ -167,7 +167,7 @@ impl AppExtension for FontManager {
 }
 
 /// Font loading, custom fonts and app font configuration.
-#[derive(AppService)]
+#[derive(Service)]
 pub struct Fonts {
     loader: FontFaceLoader,
     generics: GenericFonts,

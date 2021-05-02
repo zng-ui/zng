@@ -1,14 +1,14 @@
 //! App startup and app extension API.
 
+use crate::context::*;
 use crate::event::{cancelable_event_args, EventEmitter, EventListener};
 use crate::profiler::*;
-use crate::{context::*, service::WindowServicesVisitors};
 use crate::{
     focus::FocusManager,
     gesture::GestureManager,
     keyboard::KeyboardManager,
     mouse::MouseManager,
-    service::AppService,
+    service::Service,
     text::FontManager,
     window::{WindowEvent, WindowId, WindowManager},
 };
@@ -87,16 +87,6 @@ pub trait AppExtension: 'static {
     #[inline]
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         let _ = (update, ctx);
-    }
-
-    /// Called when a [`WindowServicesInit::visit`](crate::service::WindowServicesInit::visit) request was made.
-    ///
-    /// Only extensions that generate windows must handle this method. They must iterate
-    /// through every window and call [`visit`](WindowServicesVisitors::visit) for each
-    /// window context.
-    #[inline]
-    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
-        let _ = (visitors, ctx);
     }
 
     /// Called after every sequence of updates if display update was requested.
@@ -224,7 +214,7 @@ pub struct ShutDownCancelled;
 /// Service for managing the application process.
 ///
 /// This is the only service that is registered without an application extension.
-#[derive(AppService)]
+#[derive(Service)]
 pub struct AppProcess {
     shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>,
     update_notifier: UpdateNotifier,
@@ -558,12 +548,6 @@ impl<E: AppExtension> AppExtended<E> {
                         extensions.update_ui(update, &mut ctx);
                         extensions.update(update, &mut ctx);
                     }
-
-                    if let Some(mut visitors) = owned_ctx.take_window_service_visitors() {
-                        profile_scope!("app::visit_window_services");
-                        let mut ctx = owned_ctx.borrow(event_loop);
-                        extensions.visit_window_services(&mut visitors, &mut ctx);
-                    }
                 } else {
                     break;
                 }
@@ -796,12 +780,6 @@ impl HeadlessApp {
                     self.extensions.update(update, &mut ctx);
                     on_update(update, &mut ctx);
                 }
-
-                if let Some(mut visitors) = self.owned_ctx.take_window_service_visitors() {
-                    profile_scope!("headless_app::visit_window_services");
-                    let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
-                    self.extensions.visit_window_services(&mut visitors, &mut ctx);
-                }
             } else {
                 break;
             }
@@ -887,12 +865,6 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
-        self.0.visit_window_services(visitors, ctx);
-        self.1.visit_window_services(visitors, ctx);
-    }
-
-    #[inline]
     fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
         self.0.update_display(update, ctx);
         self.1.update_display(update, ctx);
@@ -970,12 +942,6 @@ impl AppExtension for Vec<Box<dyn AppExtension>> {
         }
     }
 
-    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
-        for ext in self {
-            ext.visit_window_services(visitors, ctx);
-        }
-    }
-
     fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
         for ext in self {
             ext.update_display(update, ctx);
@@ -1032,10 +998,6 @@ impl AppExtension for Box<dyn AppExtension> {
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         self.as_mut().update(update, ctx);
-    }
-
-    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
-        self.as_mut().visit_window_services(visitors, ctx);
     }
 
     fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
