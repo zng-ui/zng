@@ -766,8 +766,8 @@ impl<'a> AppContext<'a> {
         let mut update_state = StateMap::new();
 
         let r = f(&mut WindowContext {
-            window_id: ReadOnly(window_id),
-            mode: ReadOnly(mode),
+            window_id: &window_id,
+            mode: &mode,
             render_api,
             app_state: self.app_state,
             window_state: &mut window_state.0,
@@ -792,12 +792,12 @@ impl<'a> AppContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            font_size: ReadOnly(14.0),
-            root_font_size: ReadOnly(14.0),
-            pixel_grid: ReadOnly(PixelGrid::new(scale_factor)),
-            viewport_size: ReadOnly(screen_size),
-            viewport_min: ReadOnly(screen_size.width.min(screen_size.height)),
-            viewport_max: ReadOnly(screen_size.width.max(screen_size.height)),
+            font_size: &14.0,
+            root_font_size: &14.0,
+            pixel_grid: &PixelGrid::new(scale_factor),
+            viewport_size: &screen_size,
+            viewport_min: &screen_size.width.min(screen_size.height),
+            viewport_max: &screen_size.width.max(screen_size.height),
             path: &mut WidgetContextPath::new(window_id, root_id),
             app_state: &mut self.app_state,
             window_state: &mut StateMap::new(),
@@ -811,10 +811,10 @@ impl<'a> AppContext<'a> {
 /// A window context.
 pub struct WindowContext<'a> {
     /// Id of the context window.
-    pub window_id: ReadOnly<WindowId>,
+    pub window_id: &'a WindowId,
 
     /// Window mode, headed or not, renderer or not.
-    pub mode: ReadOnly<WindowMode>,
+    pub mode: &'a WindowMode,
 
     /// Reference to the render API of the window.
     ///
@@ -848,35 +848,6 @@ pub struct WindowContext<'a> {
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
-
-/// Read-only value in a public context struct field.
-#[derive(Clone, Copy)]
-pub struct ReadOnly<T>(T);
-impl<T: Copy> ReadOnly<T> {
-    /// Gets a copy of the read-only value.
-    #[inline]
-    pub fn get(self) -> T {
-        self.0
-    }
-}
-impl<T> std::ops::Deref for ReadOnly<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<T: fmt::Debug> fmt::Debug for ReadOnly<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
-impl<T: fmt::Display> fmt::Display for ReadOnly<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` in the context of a widget.
     pub fn widget_context<R>(
@@ -886,7 +857,7 @@ impl<'a> WindowContext<'a> {
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         f(&mut WidgetContext {
-            path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
+            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
             app_state: self.app_state,
             window_state: self.window_state,
@@ -914,14 +885,14 @@ impl<'a> WindowContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            font_size: ReadOnly(font_size),
-            root_font_size: ReadOnly(font_size),
-            pixel_grid: ReadOnly(pixel_grid),
-            viewport_size: ReadOnly(viewport_size),
-            viewport_min: ReadOnly(viewport_size.width.min(viewport_size.height)),
-            viewport_max: ReadOnly(viewport_size.width.max(viewport_size.height)),
+            font_size: &font_size,
+            root_font_size: &font_size,
+            pixel_grid: &pixel_grid,
+            viewport_size: &viewport_size,
+            viewport_min: &viewport_size.width.min(viewport_size.height),
+            viewport_max: &viewport_size.width.max(viewport_size.height),
 
-            path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
+            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
             app_state: self.app_state,
             window_state: self.window_state,
@@ -935,7 +906,7 @@ impl<'a> WindowContext<'a> {
     /// Runs a function `f` in the render context of a widget.
     pub fn render_context<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         f(&mut RenderContext {
-            path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
+            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &widget_state.0,
@@ -1084,12 +1055,12 @@ impl TestWidgetContext {
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         action(&mut LayoutContext {
-            font_size: ReadOnly(font_size),
-            root_font_size: ReadOnly(root_font_size),
-            pixel_grid: ReadOnly(pixel_grid),
-            viewport_size: ReadOnly(viewport_size),
-            viewport_min: ReadOnly(viewport_size.width.min(viewport_size.height)),
-            viewport_max: ReadOnly(viewport_size.width.max(viewport_size.height)),
+            font_size: &font_size,
+            root_font_size: &root_font_size,
+            pixel_grid: &pixel_grid,
+            viewport_size: &viewport_size,
+            viewport_min: &viewport_size.width.min(viewport_size.height),
+            viewport_max: &viewport_size.width.max(viewport_size.height),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             app_state: &mut self.app_state,
@@ -1268,20 +1239,20 @@ impl WidgetContextPath {
 #[derive(Debug)]
 pub struct LayoutContext<'a> {
     /// Current computed font size.
-    pub font_size: ReadOnly<f32>,
+    pub font_size: &'a f32,
 
     /// Computed font size at the root widget.
-    pub root_font_size: ReadOnly<f32>,
+    pub root_font_size: &'a f32,
 
     /// Pixel grid of the surface that is rendering the root widget.
-    pub pixel_grid: ReadOnly<PixelGrid>,
+    pub pixel_grid: &'a PixelGrid,
 
     /// Size of the window content.
-    pub viewport_size: ReadOnly<LayoutSize>,
+    pub viewport_size: &'a LayoutSize,
     /// Smallest dimension of the [`viewport_size`](Self::viewport_size).
-    pub viewport_min: ReadOnly<f32>,
+    pub viewport_min: &'a f32,
     /// Largest dimension of the [`viewport_size`](Self::viewport_size).
-    pub viewport_max: ReadOnly<f32>,
+    pub viewport_max: &'a f32,
 
     /// Current widget path.
     pub path: &'a mut WidgetContextPath,
@@ -1308,10 +1279,23 @@ pub struct LayoutContext<'a> {
 impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.
     pub fn with_font_size<R>(&mut self, new_font_size: f32, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let old_font_size = mem::replace(&mut self.font_size, ReadOnly(new_font_size));
-        let r = f(self);
-        self.font_size = old_font_size;
-        r
+        f(&mut LayoutContext {
+            font_size: &new_font_size,
+            root_font_size: self.root_font_size,
+            pixel_grid: self.pixel_grid,
+            viewport_size: self.viewport_size,
+            viewport_min: self.viewport_min,
+            viewport_max: self.viewport_max,
+
+            path: self.path,
+
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+
+            vars: self.vars,
+        })
     }
 
     /// Runs a function `f` in the layout context of a widget.

@@ -1723,7 +1723,7 @@ impl OpenWindow {
                         let (curr_x, curr_y) = window.outer_position().map(|p| (p.x, p.y)).unwrap_or_default();
 
                         let mut new_pos = new_pos.to_layout(*layout_ctx.viewport_size, &layout_ctx);
-                        let factor = layout_ctx.pixel_grid.get().scale_factor;
+                        let factor = layout_ctx.pixel_grid.scale_factor;
 
                         if !new_pos.x.is_finite() {
                             new_pos.x = curr_x as f32 / factor;
@@ -1745,7 +1745,7 @@ impl OpenWindow {
                         let curr_size = window.inner_size();
 
                         let mut new_size = new_size.to_layout(*layout_ctx.viewport_size, &layout_ctx);
-                        let factor = layout_ctx.pixel_grid.get().scale_factor;
+                        let factor = layout_ctx.pixel_grid.scale_factor;
 
                         let auto_size = *ctx.root.auto_size.get(layout_ctx.vars);
 
@@ -1859,10 +1859,10 @@ impl OpenWindow {
             size = root.measure(layout_ctx, *layout_ctx.viewport_size);
 
             if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                size.width = layout_ctx.viewport_size.get().width;
+                size.width = layout_ctx.viewport_size.width;
             }
             if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                size.height = layout_ctx.viewport_size.get().height;
+                size.height = layout_ctx.viewport_size.height;
             }
 
             root.arrange(layout_ctx, size);

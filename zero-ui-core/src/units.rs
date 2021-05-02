@@ -441,12 +441,12 @@ impl Length {
             Length::Relative(s) => available_size.get() * s.0,
             Length::Em(s) => *ctx.font_size * s.0,
             Length::RootEm(s) => *ctx.root_font_size * s.0,
-            Length::ViewportWidth(p) => p * ctx.viewport_size.get().width / 100.0,
-            Length::ViewportHeight(p) => p * ctx.viewport_size.get().height / 100.0,
+            Length::ViewportWidth(p) => p * ctx.viewport_size.width / 100.0,
+            Length::ViewportHeight(p) => p * ctx.viewport_size.height / 100.0,
             Length::ViewportMin(p) => p * *ctx.viewport_min / 100.0,
             Length::ViewportMax(p) => p * *ctx.viewport_max / 100.0,
         };
-        LayoutLength::new(ctx.pixel_grid.get().snap(l))
+        LayoutLength::new(ctx.pixel_grid.snap(l))
     }
 }
 
