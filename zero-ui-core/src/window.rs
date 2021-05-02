@@ -9,7 +9,7 @@ use crate::{
     },
     service::{AppService, WindowService, WindowServices, WindowServicesVisitors},
     text::{Text, ToText},
-    units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
+    units::{FactorUnits, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{var, BoxedVar, IntoVar, RcVar, VarObj, VarsRead},
     UiNode, WidgetId,
 };
@@ -386,9 +386,10 @@ impl AppExtension for WindowManager {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.updates.notifier().clone()));
 
-        r.window_services.register(|ctx| {
-            todo!()
-        });
+        // TODO
+        //r.window_services.register(|ctx| {
+        //    todo!()
+        //});
 
         r.events.register::<WindowOpenEvent>(self.window_open.listener());
         r.events
@@ -876,12 +877,34 @@ pub enum WindowScreenState {
 }
 
 struct WindowVars {
+    frame: RcVar<WindowFrame>,
+    icon: RcVar<WindowIcon>,
     title: RcVar<Text>,
+
     position: RcVar<Point>,
+
     size: RcVar<Size>,
     auto_size: RcVar<AutoSize>,
+    min_size: RcVar<Size>,
+    max_size: RcVar<Size>,
+
     resisable: RcVar<bool>,
+    movable: RcVar<bool>,
+
+    minimizable: RcVar<bool>,
+    maximizable: RcVar<bool>,
+    closable: RcVar<bool>,
+    fullscreenable: RcVar<bool>,
+
+    always_on_top: RcVar<bool>,
+
     visible: RcVar<bool>,
+    taskbar_visible: RcVar<bool>,
+
+    parent: RcVar<Option<WindowId>>,
+    modal: RcVar<bool>,
+
+    transparent: RcVar<bool>,
 }
 
 /// Controls properties of an open window using variables.
@@ -897,23 +920,75 @@ pub struct WindowController {
 impl WindowController {
     fn new() -> Self {
         let vars = Rc::new(WindowVars {
+            frame: var(WindowFrame::Default),
+            icon: var(WindowIcon::Default),
             title: var("".to_text()),
+
             position: var(Point::new(f32::NAN, f32::NAN)),
             size: var(Size::new(f32::NAN, f32::NAN)),
+
+            min_size: var(Size::new(192.0, 48.0)),
+            max_size: var(Size::new(100.pct(), 100.pct())),
             auto_size: var(AutoSize::empty()),
+
             resisable: var(true),
+            movable: var(true),
+
+            minimizable: var(true),
+            maximizable: var(true),
+            closable: var(true),
+            fullscreenable: var(true),
+
+            always_on_top: var(false),
+
             visible: var(true),
+            taskbar_visible: var(true),
+
+            parent: var(None),
+            modal: var(false),
+
+            transparent: var(false),
         });
         Self { vars }
     }
 
     fn clone(&self) -> Self {
-        Self { vars: Rc::clone(&self.vars) }
+        Self {
+            vars: Rc::clone(&self.vars),
+        }
+    }
+
+    /// Window frame.
+    ///
+    /// See [`WindowFrame`] for details.
+    ///
+    /// The default value is [`WindowFrame::Default`].
+    #[inline]
+    pub fn frame(&self) -> &RcVar<WindowFrame> {
+        &self.vars.frame
+    }
+
+    /// If the window is see-through.
+    ///
+    /// The default value is `false`.
+    #[inline]
+    pub fn transparent(&self) -> &RcVar<bool> {
+        &self.vars.transparent
+    }
+
+    /// Window icon.
+    ///
+    /// See [`WindowIcon`] for details.
+    ///
+    /// The default value is [`WindowIcon::Default`].
+    #[inline]
+    pub fn icon(&self) -> &RcVar<WindowIcon> {
+        &self.vars.icon
     }
 
     /// Window title text.
     ///
-    /// The initial value is `""`.
+    /// The default value is `""`.
     #[inline]
     pub fn title(&self) -> &RcVar<Text> {
         &self.vars.title
@@ -921,12 +996,12 @@ impl WindowController {
 
     /// Window top-left offset on the screen.
     ///
-    /// When a dimension is not a finite number the position is computed from other variables.
+    /// When a dimension is not a finite value it is computed from other variables.
     /// Relative values are computed in relation to the full-screen size.
     ///
     /// When the the window is moved this variable is updated back.
     ///
-    /// The initial value is `(f32::NAN, f32::NAN)`.
+    /// The default value is `(f32::NAN, f32::NAN)`.
     #[inline]
     pub fn position(&self) -> &RcVar<Point> {
         &self.vars.position
@@ -934,46 +1009,167 @@ impl WindowController {
 
     /// Window width and height on the screen.
     ///
-    /// When a dimension is not a finite number the size is computed from other variables.
+    /// When a dimension is not a finite value it is computed from other variables.
     /// Relative values are computed in relation to the full-screen size.
     ///
     /// When the window is resized this variable is updated back.
     ///
-    /// The initial value is `(f32::NAN, f32::NAN)`.
+    /// The default value is `(f32::NAN, f32::NAN)`.
     #[inline]
     pub fn size(&self) -> &RcVar<Size> {
         &self.vars.size
+    }
+    
+    /// Configure window size-to-content.
+    ///
+    /// When enabled overwrites [`size`](Self::size), but is still coerced by [`min_size`](Self::min_size) 
+    /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
+    ///
+    /// The default value is [`AutoSize::DISABLED`].
+    #[inline]
+    pub fn auto_size(&self) -> &RcVar<AutoSize> {
+        &self.vars.auto_size
+    }
+
+    /// Minimal window width and height.
+    ///
+    /// When a dimension is not a finite value it fallback to the previous valid value.
+    /// Relative values are computed in relation to the full-screen size.
+    ///
+    /// Note that the operation systems can have their own minimal size that supersedes this variable.
+    ///
+    /// The default value is `(192, 48)`.
+    #[inline]
+    pub fn min_size(&self) -> &RcVar<Size> {
+        &self.vars.min_size
+    }
+
+    /// Maximal window width and height.
+    ///
+    /// When a dimension is not a finite value it fallback to the previous valid value.
+    /// Relative values are computed in relation to the full-screen size.
+    ///
+    /// Note that the operation systems can have their own maximal size that supersedes this variable.
+    ///
+    /// The default value is `(100.pct(), 100.pct())`
+    #[inline]
+    pub fn max_size(&self) -> &RcVar<Size> {
+        &self.vars.max_size
     }
 
     /// If the user can resize the window using the window frame.
     ///
     /// Note that even if disabled the window can still be resized from other sources.
     ///
-    /// The initial value is `true`.
+    /// The default value is `true`.
     #[inline]
     pub fn resisable(&self) -> &RcVar<bool> {
         &self.vars.resisable
     }
 
-    /// Configure window size-to-content.
+    /// If the user can move the window using the window frame.
     ///
-    /// When enabled overwrites sizes set from other sources.
+    /// Note that even if disabled the window can still be moved from other sources.
     ///
-    /// The initial value is [`AutoSize::DISABLED`].
+    /// The default value is `true`.
     #[inline]
-    pub fn auto_size(&self) -> &RcVar<AutoSize> {
-        &self.vars.auto_size
+    pub fn movable(&self) -> &RcVar<bool> {
+        &self.vars.movable
+    }
+
+    /// If the user can minimize the window using the window frame.
+    ///
+    /// Note that even if disabled the window can still be maximized from other sources.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn minimizable(&self) -> &RcVar<bool> {
+        &self.vars.minimizable
+    }
+
+    /// If the user can maximize the window using the window frame.
+    ///
+    /// Note that even if disabled the window can still be maximized from other sources.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn maximizable(&self) -> &RcVar<bool> {
+        &self.vars.maximizable
+    }
+
+    /// If the user can close the window using the window frame.
+    ///
+    /// Note that even if disabled the window can still be closed from other sources.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn closable(&self) -> &RcVar<bool> {
+        &self.vars.closable
+    }
+
+    /// If the user can enter full-screen using the window frame.
+    ///
+    /// Note that even if disabled the window can still be set to full-screen from other sources.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn fullscreenable(&self) -> &RcVar<bool> {
+        &self.vars.fullscreenable
+    }
+
+    /// Whether the window should always stay on top of other windows.
+    ///
+    /// Note this only applies to other windows that are not also "always-on-top".
+    ///
+    /// The default value is `false`.
+    #[inline]
+    pub fn always_on_top(&self) -> &RcVar<bool> {
+        &self.vars.always_on_top
     }
 
     /// If the window is visible on the screen and in the task-bar.
     ///
     /// This variable is observed only after the first frame render, before that the window
-    /// is always not visible to a void flickering.
+    /// is always not visible.
     ///
-    /// The initial value is `true`.
+    /// The default value is `true`.
     #[inline]
     pub fn visible(&self) -> &RcVar<bool> {
         &self.vars.visible
+    }
+
+    /// If the window is visible in the task-bar.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn taskbar_visible(&self) -> &RcVar<bool> {
+        &self.vars.taskbar_visible
+    }
+
+    /// The window parent.
+    ///
+    /// If a parent is set this behavior applies:
+    ///
+    /// * If the parent is minimized, this window is also minimized.
+    /// * If the parent window is maximized, this window is restored.
+    /// * This window is always-on-top of the parent window.
+    /// * If the parent window is closed, this window is also closed.
+    /// * If [`modal`](Self::modal) is set, the parent window cannot be focused while this window is open.
+    ///
+    /// The default value is `None`.
+    #[inline]
+    pub fn parent(&self) -> &RcVar<Option<WindowId>> {
+        &self.vars.parent
+    }
+
+    /// Configure the [`parent`](Self::parent) connection.
+    ///
+    /// Value is ignored is `parent` is not set.
+    ///
+    /// The default value is `false`.
+    #[inline]
+    pub fn modal(&self) -> &RcVar<bool> {
+        &self.vars.modal
     }
 }
 
@@ -998,6 +1194,8 @@ impl Window {
     ///
     /// * `root_id` - Widget ID of `child`.
     /// * `start_position` - Position of the window when it first opens.
+    /// * `kiosk` - Only allow full-screen mode. Note this does not configure the operating system, only blocks the app itself 
+    ///             from accidentally exiting full-screen. TODO
     /// * `headless_config` - Extra config for the window when run in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
     #[allow(clippy::clippy::too_many_arguments)]
@@ -1395,6 +1593,7 @@ impl OpenWindow {
         self.id
     }
 
+    ///
     pub fn controller(&self) -> &WindowController {
         todo!()
     }
