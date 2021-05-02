@@ -861,9 +861,9 @@ pub enum WindowFrame {
     Custom,
 }
 
-/// Window state.
+/// Window screen state.
 #[derive(Clone, Debug)]
-pub enum WindowScreenState {
+pub enum WindowState {
     /// A visible window, at the `position` and `size` configured.
     Normal,
     /// Window not visible, but maybe visible in the taskbar.
@@ -876,10 +876,26 @@ pub enum WindowScreenState {
     FullscreenExclusive,
 }
 
+bitflags! {
+    /// Mask of allowed [`WindowState`] states of a window.
+    pub struct WindowStateAllowed: u8 {
+        /// Enable minimize.
+        const MINIMIZE = 0b0001;
+        /// Enable maximize.
+        const MAXIMIZE = 0b0010;
+        /// Enable full-screen, but only windowed not exclusive video.
+        const FULLSCREEN_WN_ONLY = 0b0100;
+        /// Allow full-screen windowed or exclusive video.
+        const FULLSCREEN = 0b1100;
+    }
+}
+
 struct WindowVars {
     frame: RcVar<WindowFrame>,
     icon: RcVar<WindowIcon>,
     title: RcVar<Text>,
+
+    state: RcVar<WindowState>,
 
     position: RcVar<Point>,
 
@@ -891,11 +907,6 @@ struct WindowVars {
     resisable: RcVar<bool>,
     movable: RcVar<bool>,
 
-    minimizable: RcVar<bool>,
-    maximizable: RcVar<bool>,
-    closable: RcVar<bool>,
-    fullscreenable: RcVar<bool>,
-
     always_on_top: RcVar<bool>,
 
     visible: RcVar<bool>,
@@ -905,6 +916,7 @@ struct WindowVars {
     modal: RcVar<bool>,
 
     transparent: RcVar<bool>,
+
 }
 
 /// Controls properties of an open window using variables.
@@ -924,6 +936,8 @@ impl WindowController {
             icon: var(WindowIcon::Default),
             title: var("".to_text()),
 
+            state: var(WindowState::Normal),
+
             position: var(Point::new(f32::NAN, f32::NAN)),
             size: var(Size::new(f32::NAN, f32::NAN)),
 
@@ -933,11 +947,6 @@ impl WindowController {
 
             resisable: var(true),
             movable: var(true),
-
-            minimizable: var(true),
-            maximizable: var(true),
-            closable: var(true),
-            fullscreenable: var(true),
 
             always_on_top: var(false),
 
@@ -994,6 +1003,16 @@ impl WindowController {
         &self.vars.title
     }
 
+    /// Window screen state.
+    ///
+    /// Minimized, maximized or full-screen. See [`WindowState`] for details.
+    ///
+    /// The default value is [`WindowState::Normal`]
+    #[inline]
+    pub fn state(&self) -> &RcVar<WindowState> {
+        &self.vars.state
+    }
+
     /// Window top-left offset on the screen.
     ///
     /// When a dimension is not a finite value it is computed from other variables.
@@ -1019,10 +1038,10 @@ impl WindowController {
     pub fn size(&self) -> &RcVar<Size> {
         &self.vars.size
     }
-    
+
     /// Configure window size-to-content.
     ///
-    /// When enabled overwrites [`size`](Self::size), but is still coerced by [`min_size`](Self::min_size) 
+    /// When enabled overwrites [`size`](Self::size), but is still coerced by [`min_size`](Self::min_size)
     /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
     ///
     /// The default value is [`AutoSize::DISABLED`].
@@ -1075,46 +1094,6 @@ impl WindowController {
     #[inline]
     pub fn movable(&self) -> &RcVar<bool> {
         &self.vars.movable
-    }
-
-    /// If the user can minimize the window using the window frame.
-    ///
-    /// Note that even if disabled the window can still be maximized from other sources.
-    ///
-    /// The default value is `true`.
-    #[inline]
-    pub fn minimizable(&self) -> &RcVar<bool> {
-        &self.vars.minimizable
-    }
-
-    /// If the user can maximize the window using the window frame.
-    ///
-    /// Note that even if disabled the window can still be maximized from other sources.
-    ///
-    /// The default value is `true`.
-    #[inline]
-    pub fn maximizable(&self) -> &RcVar<bool> {
-        &self.vars.maximizable
-    }
-
-    /// If the user can close the window using the window frame.
-    ///
-    /// Note that even if disabled the window can still be closed from other sources.
-    ///
-    /// The default value is `true`.
-    #[inline]
-    pub fn closable(&self) -> &RcVar<bool> {
-        &self.vars.closable
-    }
-
-    /// If the user can enter full-screen using the window frame.
-    ///
-    /// Note that even if disabled the window can still be set to full-screen from other sources.
-    ///
-    /// The default value is `true`.
-    #[inline]
-    pub fn fullscreenable(&self) -> &RcVar<bool> {
-        &self.vars.fullscreenable
     }
 
     /// Whether the window should always stay on top of other windows.
@@ -1194,7 +1173,7 @@ impl Window {
     ///
     /// * `root_id` - Widget ID of `child`.
     /// * `start_position` - Position of the window when it first opens.
-    /// * `kiosk` - Only allow full-screen mode. Note this does not configure the operating system, only blocks the app itself 
+    /// * `kiosk` - Only allow full-screen mode. Note this does not configure the operating system, only blocks the app itself
     ///             from accidentally exiting full-screen. TODO
     /// * `headless_config` - Extra config for the window when run in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
@@ -2214,7 +2193,7 @@ struct OwnedWindowContext {
     window_id: WindowId,
     mode: WindowMode,
     root_transform_key: WidgetTransformKey,
-    state: WindowState,
+    state: WindowStateMap,
     services: WindowServices,
     root: Window,
     api: Option<Arc<RenderApi>>,

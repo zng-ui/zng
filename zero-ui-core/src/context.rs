@@ -780,7 +780,7 @@ pub(super) struct AppSyncContext<'a> {
 }
 
 /// Custom state associated with a window.
-pub type WindowState = StateMap;
+pub type WindowStateMap = StateMap;
 
 impl<'a> AppContext<'a> {
     /// Initializes state and services for a new window.
@@ -789,7 +789,7 @@ impl<'a> AppContext<'a> {
         window_id: WindowId,
         mode: WindowMode,
         render_api: &Option<Arc<RenderApi>>,
-    ) -> (WindowState, WindowServices) {
+    ) -> (WindowStateMap, WindowServices) {
         let mut window_state = StateMap::new();
         let mut update_state = StateMap::new();
 
@@ -819,7 +819,7 @@ impl<'a> AppContext<'a> {
         &mut self,
         window_id: WindowId,
         mode: WindowMode,
-        window_state: &mut WindowState,
+        window_state: &mut WindowStateMap,
         window_services: &mut WindowServices,
         render_api: &Option<Arc<RenderApi>>,
         f: impl FnOnce(&mut WindowContext) -> R,
