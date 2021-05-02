@@ -891,7 +891,7 @@ struct WindowVarsData {
     min_size: RcVar<Size>,
     max_size: RcVar<Size>,
 
-    resisable: RcVar<bool>,
+    resizable: RcVar<bool>,
     movable: RcVar<bool>,
 
     always_on_top: RcVar<bool>,
@@ -930,7 +930,7 @@ impl WindowVars {
             max_size: var(Size::new(100.pct(), 100.pct())),
             auto_size: var(AutoSize::empty()),
 
-            resisable: var(true),
+            resizable: var(true),
             movable: var(true),
 
             always_on_top: var(false),
@@ -1067,8 +1067,8 @@ impl WindowVars {
     ///
     /// The default value is `true`.
     #[inline]
-    pub fn resisable(&self) -> &RcVar<bool> {
-        &self.vars.resisable
+    pub fn resizable(&self) -> &RcVar<bool> {
+        &self.vars.resizable
     }
 
     /// If the user can move the window using the window frame.
@@ -1142,7 +1142,7 @@ impl StateKey for WindowVars {
 
 /// Window startup configuration.
 ///
-/// More window configuration is accessible using the [`WindowController`] type.
+/// More window configuration is accessible using the [`WindowVars`] type.
 pub struct Window {
     state: OwnedStateMap,
     id: WidgetId,
@@ -1351,7 +1351,6 @@ impl OpenWindow {
         let window;
         let renderer;
         let root;
-        let win_state;
         let api;
 
         let headless_config;
@@ -1360,6 +1359,8 @@ impl OpenWindow {
         let renderless_event_sender;
 
         let vars = WindowVars::new();
+        let mut wn_state = OwnedStateMap::default();
+        wn_state.set_single(vars.clone());
 
         let renderer_config = RendererConfig {
             clear_color: None,
@@ -1388,13 +1389,7 @@ impl OpenWindow {
 
                 // init window state and services.
                 let mut wn_state = OwnedStateMap::default();
-                root = ctx
-                    .window_context(id, mode, &mut wn_state, &api, |ctx| {
-                        ctx.window_state.set_single(vars.clone());
-                        new_window(ctx)
-                    })
-                    .0;
-                win_state = wn_state;
+                root = ctx.window_context(id, mode, &mut wn_state, &api, new_window).0;
 
                 window_.set_resizable(*root.auto_size.get(ctx.vars) != AutoSize::CONTENT && *root.resizable.get(ctx.vars));
                 window_.set_title(root.title.get(ctx.vars));
@@ -1477,14 +1472,7 @@ impl OpenWindow {
                     api = None;
                 };
 
-                let mut wn_state = OwnedStateMap::default();
-                root = ctx
-                    .window_context(id, mode, &mut wn_state, &api, |ctx| {
-                        ctx.window_state.set_single(vars.clone());
-                        new_window(ctx)
-                    })
-                    .0;
-                win_state = wn_state;
+                root = ctx.window_context(id, mode, &mut wn_state, &api, new_window).0;
 
                 headless_config = root.headless_config.clone();
                 let pixel_factor = headless_config.scale_factor;
@@ -1534,7 +1522,7 @@ impl OpenWindow {
                 window_id: id,
                 mode,
                 root_transform_key: WidgetTransformKey::new_unique(),
-                state: win_state,
+                state: wn_state,
                 root,
                 api,
                 update: UpdateDisplayRequest::Layout,

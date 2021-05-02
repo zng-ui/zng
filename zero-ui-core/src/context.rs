@@ -324,9 +324,8 @@ where
 
 /// Private [`StateMap`].
 ///
-/// The state map can only be accessed by inside a context. This is done because states
-/// are exposed as mutable references but we don't want the context clients to be able to replace
-/// the full map, using this type, only the context creator can set the map.
+/// The owner of a state map has full access including to the `remove` and `clear` function that is not
+/// provided in the [`StateMap`] type..
 pub struct OwnedStateMap(pub(crate) StateMap);
 impl Default for OwnedStateMap {
     fn default() -> Self {
@@ -338,6 +337,69 @@ impl OwnedStateMap {
     #[inline]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Remove the key.
+    pub fn remove<S: StateKey>(&mut self) -> Option<S::Type> {
+        self.0.map.remove(&TypeId::of::<S>()).map(|a| *a.downcast::<S::Type>().unwrap())
+    }
+
+    /// Removes all entries.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.0.map.clear()
+    }
+
+    /// Set the key `value`.
+    ///
+    /// # Key
+    ///
+    /// Use [`state_key!`](crate::context::state_key) to generate a key, any static type can be a key,
+    /// the [type id](TypeId) is the actual key.
+    pub fn set<S: StateKey>(&mut self, value: S::Type) -> Option<S::Type> {
+        self.0.set::<S>(value)
+    }
+
+    /// Sets a value that is its own [`StateKey`].
+    pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
+        self.0.set_single::<S>(value)
+    }
+
+    /// Gets if the key is set in this map.
+    pub fn contains<S: StateKey>(&self) -> bool {
+        self.0.contains::<S>()
+    }
+
+    /// Reference the key value set in this map.
+    pub fn get<S: StateKey>(&self) -> Option<&S::Type> {
+        self.0.get::<S>()
+    }
+
+    /// Mutable borrow the key value set in this map.
+    pub fn get_mut<S: StateKey>(&mut self) -> Option<&mut S::Type> {
+        self.0.get_mut::<S>()
+    }
+
+    /// Gets the given key's corresponding entry in the map for in-place manipulation.
+    pub fn entry<S: StateKey>(&mut self) -> StateMapEntry<S> {
+        self.0.entry::<S>()
+    }
+
+    /// Sets a state key without value.
+    ///
+    /// Returns if the state key was already flagged.
+    pub fn flag<S: StateKey<Type = ()>>(&mut self) -> bool {
+        self.0.flag::<S>()
+    }
+
+    /// Gets if a state key without value is set.
+    pub fn flagged<S: StateKey<Type = ()>>(&self) -> bool {
+        self.0.flagged::<S>()
+    }
+
+    /// If no state is set.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
