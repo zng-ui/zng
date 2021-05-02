@@ -1144,7 +1144,7 @@ impl StateKey for WindowVars {
 ///
 /// More window configuration is accessible using the [`WindowController`] type.
 pub struct Window {
-    state: OwnedLazyStateMap,
+    state: OwnedStateMap,
     id: WidgetId,
     title: BoxedVar<Text>,
     start_position: StartPosition,
@@ -1179,7 +1179,7 @@ impl Window {
         child: impl UiNode,
     ) -> Self {
         Window {
-            state: OwnedLazyStateMap::default(),
+            state: OwnedStateMap::default(),
             id: root_id,
             title: title.into_var().boxed(),
             start_position: start_position.into(),

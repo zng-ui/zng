@@ -1,11 +1,11 @@
 //! Frame render and metadata API.
 
 use super::color::{RenderColor, RenderFilter};
-use crate::units::*;
 use crate::{
     border::{BorderSides, LayoutBorderRadius},
-    context::LazyStateMap,
+    context::StateMap,
 };
+use crate::{context::OwnedStateMap, units::*};
 use crate::{
     context::RenderContext,
     gradient::{RenderExtendMode, RenderGradientStop},
@@ -70,7 +70,7 @@ pub struct FrameBuilder {
     cancel_widget: bool,
     widget_display_mode: WidgetDisplayMode,
 
-    meta: LazyStateMap,
+    meta: OwnedStateMap,
     cursor: CursorIcon,
     hit_testable: bool,
 
@@ -124,7 +124,7 @@ impl FrameBuilder {
             widget_stack_ctx_data: None,
             cancel_widget: false,
             widget_display_mode: WidgetDisplayMode::empty(),
-            meta: LazyStateMap::new(),
+            meta: OwnedStateMap::new(),
             cursor: CursorIcon::default(),
             hit_testable: true,
             clip_id: ClipId::root(pipeline_id),
@@ -228,8 +228,8 @@ impl FrameBuilder {
 
     /// Current widget metadata.
     #[inline]
-    pub fn meta(&mut self) -> &mut LazyStateMap {
-        &mut self.meta
+    pub fn meta(&mut self) -> &mut StateMap {
+        &mut self.meta.0
     }
 
     /// Current cursor.
@@ -476,7 +476,7 @@ impl FrameBuilder {
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
         let parent_display_mode = mem::replace(&mut self.widget_display_mode, WidgetDisplayMode::empty());
 
-        let parent_meta = mem::replace(&mut self.meta, LazyStateMap::new());
+        let parent_meta = mem::take(&mut self.meta);
 
         let mut bounds = LayoutRect::from_size(area);
         bounds.origin = self.offset;
@@ -1204,7 +1204,7 @@ impl FrameInfoBuilder {
         let tree = Tree::new(WidgetInfoInner {
             widget_id: root_id,
             bounds: LayoutRect::from_size(size),
-            meta: LazyStateMap::new(),
+            meta: OwnedStateMap::new(),
         });
 
         FrameInfoBuilder { window_id, frame_id, tree }
@@ -1226,13 +1226,13 @@ impl FrameInfoBuilder {
 
     /// Takes the widget metadata already set for `id`.
     #[inline]
-    pub fn take_meta(&mut self, id: WidgetInfoId) -> LazyStateMap {
-        mem::replace(&mut self.node(id).value().meta, LazyStateMap::new())
+    pub fn take_meta(&mut self, id: WidgetInfoId) -> OwnedStateMap {
+        mem::take(&mut self.node(id).value().meta)
     }
 
     /// Sets the widget metadata for `id`.
     #[inline]
-    pub fn set_meta(&mut self, id: WidgetInfoId, meta: LazyStateMap) {
+    pub fn set_meta(&mut self, id: WidgetInfoId, meta: OwnedStateMap) {
         self.node(id).value().meta = meta;
     }
 
@@ -1244,7 +1244,7 @@ impl FrameInfoBuilder {
                 .append(WidgetInfoInner {
                     widget_id,
                     bounds,
-                    meta: LazyStateMap::new(),
+                    meta: OwnedStateMap::new(),
                 })
                 .id(),
         )
@@ -1481,7 +1481,7 @@ impl WidgetPath {
 struct WidgetInfoInner {
     widget_id: WidgetId,
     bounds: LayoutRect,
-    meta: LazyStateMap,
+    meta: OwnedStateMap,
 }
 
 /// Reference to a widget info in a [`FrameInfo`].
@@ -1582,8 +1582,8 @@ impl<'a> WidgetInfo<'a> {
 
     /// Metadata associated with the widget during render.
     #[inline]
-    pub fn meta(self) -> &'a LazyStateMap {
-        &self.info().meta
+    pub fn meta(self) -> &'a StateMap {
+        &self.info().meta.0
     }
 
     /// Reference the [`FrameInfo`] that owns `self`.

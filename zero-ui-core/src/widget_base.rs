@@ -8,7 +8,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey},
 };
 use crate::{
-    context::{state_key, LayoutContext, LazyStateMap, WidgetContext},
+    context::{state_key, LayoutContext, StateMap, WidgetContext},
     units::LayoutPoint,
     WidgetList,
 };
@@ -25,7 +25,7 @@ use crate::units::PixelGridExt;
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
-    use crate::context::{OwnedLazyStateMap, RenderContext};
+    use crate::context::{OwnedStateMap, RenderContext};
 
     use super::*;
 
@@ -68,7 +68,7 @@ pub mod implicit_base {
         struct WidgetNode<T: UiNode> {
             id: WidgetId,
             transform_key: WidgetTransformKey,
-            state: OwnedLazyStateMap,
+            state: OwnedStateMap,
             child: T,
             size: LayoutSize,
         }
@@ -172,11 +172,11 @@ pub mod implicit_base {
                 self.id
             }
             #[inline]
-            fn state(&self) -> &LazyStateMap {
+            fn state(&self) -> &StateMap {
                 &self.state.0
             }
             #[inline]
-            fn state_mut(&mut self) -> &mut LazyStateMap {
+            fn state_mut(&mut self) -> &mut StateMap {
                 &mut self.state.0
             }
             #[inline]
@@ -188,7 +188,7 @@ pub mod implicit_base {
         WidgetNode {
             id,
             transform_key: WidgetTransformKey::new_unique(),
-            state: OwnedLazyStateMap::default(),
+            state: OwnedStateMap::default(),
             child,
             size: LayoutSize::zero(),
         }
@@ -210,14 +210,14 @@ context_var! {
 pub trait WidgetEnabledExt {
     /// Gets the widget enabled state.
     ///
-    /// The implementation for [`LazyStateMap`] and [`Widget`] only get the state configured
+    /// The implementation for [`StateMap`] and [`Widget`] only get the state configured
     /// in the widget, if a parent widget is disabled that does not show here. Use [`IsEnabled`]
     /// to get the inherited state from inside a widget.
     ///
     /// The implementation for [`WidgetInfo`] gets if the widget and all ancestors are enabled.
     fn enabled(&self) -> bool;
 }
-impl WidgetEnabledExt for LazyStateMap {
+impl WidgetEnabledExt for StateMap {
     fn enabled(&self) -> bool {
         self.get::<EnabledState>().copied().unwrap_or(true)
     }
@@ -501,7 +501,7 @@ pub trait WidgetVisibilityExt {
     /// visibility from inside a widget.
     fn visibility(&self) -> Visibility;
 }
-impl WidgetVisibilityExt for LazyStateMap {
+impl WidgetVisibilityExt for StateMap {
     fn visibility(&self) -> Visibility {
         self.get::<VisibilityState>().copied().unwrap_or_default()
     }
@@ -641,14 +641,14 @@ state_key! {
 pub trait WidgetHitTestableExt {
     /// Gets the widget hit-test visibility.
     ///
-    /// The implementation for [`LazyStateMap`] only get the state configured
+    /// The implementation for [`StateMap`] only get the state configured
     /// in `self`, if a parent widget is not hit-testable that does not show here. Use [`IsHitTestable`]
     /// to get the inherited state from inside a widget.
     ///
     /// The implementation for [`WidgetInfo`] gets if the widget and all ancestors are hit-test visible.
     fn hit_testable(&self) -> bool;
 }
-impl WidgetHitTestableExt for LazyStateMap {
+impl WidgetHitTestableExt for StateMap {
     fn hit_testable(&self) -> bool {
         self.get::<HitTestableState>().copied().unwrap_or(true)
     }

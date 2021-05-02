@@ -2,7 +2,7 @@ use super::units::{LayoutPoint, LayoutSize};
 #[allow(unused)] // used in docs.
 use super::UiNode;
 use super::{
-    context::{LayoutContext, LazyStateMap, WidgetContext},
+    context::{LayoutContext, StateMap, WidgetContext},
     render::{FrameBuilder, FrameUpdate},
     Widget, WidgetId,
 };
@@ -96,7 +96,7 @@ pub trait WidgetList: UiNodeList {
     /// Count widgets that pass filter using the widget state.
     fn count<F>(&self, mut filter: F) -> usize
     where
-        F: FnMut(usize, &LazyStateMap) -> bool,
+        F: FnMut(usize, &StateMap) -> bool,
     {
         let mut count = 0;
         for i in 0..self.len() {
@@ -125,10 +125,10 @@ pub trait WidgetList: UiNodeList {
     fn widget_id(&self, index: usize) -> WidgetId;
 
     /// Reference the state of the widget at the `index`.
-    fn widget_state(&self, index: usize) -> &LazyStateMap;
+    fn widget_state(&self, index: usize) -> &StateMap;
 
     /// Exclusive reference the state of the widget at the `index`.
-    fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap;
+    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap;
 
     /// Gets the last arranged size of the widget at the `index`.
     fn widget_size(&self, index: usize) -> LayoutSize;
@@ -142,7 +142,7 @@ pub trait WidgetList: UiNodeList {
     /// be used to render it, if it must be rendered.
     fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>;
+        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>;
 }
 
 /// A vector of boxed [`Widget`] items.
@@ -316,11 +316,11 @@ impl<W: Widget> WidgetList for Vec<W> {
         self[index].id()
     }
 
-    fn widget_state(&self, index: usize) -> &LazyStateMap {
+    fn widget_state(&self, index: usize) -> &StateMap {
         self[index].state()
     }
 
-    fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap {
+    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
         self[index].state_mut()
     }
 
@@ -330,7 +330,7 @@ impl<W: Widget> WidgetList for Vec<W> {
 
     fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
+        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
     {
         for (i, w) in self.iter().enumerate() {
             if let Some(origin) = origin(i, w.state()) {
@@ -403,11 +403,11 @@ impl WidgetList for WidgetVec {
         self.0.widget_id(index)
     }
 
-    fn widget_state(&self, index: usize) -> &LazyStateMap {
+    fn widget_state(&self, index: usize) -> &StateMap {
         self.0.widget_state(index)
     }
 
-    fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap {
+    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
         self.0.widget_state_mut(index)
     }
 
@@ -417,7 +417,7 @@ impl WidgetList for WidgetVec {
 
     fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
+        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
     {
         self.0.render_filtered(origin, ctx, frame)
     }
@@ -859,7 +859,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
 
     fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
+        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
     {
         self.0.render_filtered(|i, s| origin(i, s), ctx, frame);
         let offset = self.0.len();
@@ -875,7 +875,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_state(&self, index: usize) -> &LazyStateMap {
+    fn widget_state(&self, index: usize) -> &StateMap {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_state(index)
@@ -884,7 +884,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap {
+    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_state_mut(index)
@@ -997,7 +997,7 @@ macro_rules! impl_tuples {
 
             fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
-                O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
+                O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
             {
                 $(
                 if let Some(o) = origin($n, self.$n.state()) {
@@ -1013,14 +1013,14 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn widget_state(&self, index: usize) -> &LazyStateMap {
+            fn widget_state(&self, index: usize) -> &StateMap {
                 match index {
                     $($n => self.$n.state(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
 
-            fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap {
+            fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
                 match index {
                     $($n => self.$n.state_mut(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
@@ -1196,7 +1196,7 @@ impl WidgetList for WidgetList0 {
 
     fn render_filtered<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
     where
-        O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
+        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
     {
     }
 
@@ -1204,11 +1204,11 @@ impl WidgetList for WidgetList0 {
         panic!("index {} out of range for length 0", index)
     }
 
-    fn widget_state(&self, index: usize) -> &LazyStateMap {
+    fn widget_state(&self, index: usize) -> &StateMap {
         panic!("index {} out of range for length 0", index)
     }
 
-    fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap {
+    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
         panic!("index {} out of range for length 0", index)
     }
 

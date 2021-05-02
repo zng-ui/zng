@@ -106,9 +106,9 @@ pub trait Widget: UiNode {
     fn id(&self) -> WidgetId;
 
     /// Reference the widget lazy state.
-    fn state(&self) -> &LazyStateMap;
+    fn state(&self) -> &StateMap;
     /// Exclusive borrow the widget lazy state.
-    fn state_mut(&mut self) -> &mut LazyStateMap;
+    fn state_mut(&mut self) -> &mut StateMap;
 
     /// Last arranged size.
     fn size(&self) -> LayoutSize;
@@ -165,11 +165,11 @@ impl Widget for Box<dyn Widget> {
         self.as_ref().id()
     }
     #[inline]
-    fn state(&self) -> &LazyStateMap {
+    fn state(&self) -> &StateMap {
         self.as_ref().state()
     }
     #[inline]
-    fn state_mut(&mut self) -> &mut LazyStateMap {
+    fn state_mut(&mut self) -> &mut StateMap {
         self.as_mut().state_mut()
     }
     #[inline]

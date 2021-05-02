@@ -322,110 +322,22 @@ where
     }
 }
 
-/// A [`StateMap`] that only takes one `usize` of memory if not used.
-#[derive(Debug)]
-pub struct LazyStateMap {
-    m: Option<Box<StateMap>>,
-}
-impl LazyStateMap {
-    /// New not initialized.
-    pub(crate) fn new() -> Self {
-        LazyStateMap { m: None }
-    }
-
-    fn borrow_mut(&mut self) -> &mut StateMap {
-        self.m.get_or_insert_with(|| Box::new(StateMap::new()))
-    }
-
-    /// Gets if the key is set in this map.
-    ///
-    /// This method does not initializes the map.
-    pub fn contains<S: StateKey>(&self) -> bool {
-        if let Some(m) = self.m.as_ref() {
-            m.contains::<S>()
-        } else {
-            false
-        }
-    }
-
-    /// Set the key `value`.
-    ///
-    /// This method initializes the map.
-    pub fn set<S: StateKey>(&mut self, value: S::Type) -> Option<S::Type> {
-        self.borrow_mut().set::<S>(value)
-    }
-
-    /// Sets a value that is its own [`StateKey`].
-    ///
-    /// This method initializes the map.
-    pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
-        self.borrow_mut().set_single(value)
-    }
-
-    /// Reference the key value set in this map.
-    ///
-    /// This method does not initializes the map.
-    pub fn get<S: StateKey>(&self) -> Option<&S::Type> {
-        self.m.as_ref().and_then(|m| m.get::<S>())
-    }
-
-    // Mutable borrow the key value set in this map.
-    ///
-    /// This method does not initializes the map.
-    pub fn get_mut<S: StateKey>(&mut self) -> Option<&mut S::Type> {
-        self.m.as_mut().and_then(|m| m.get_mut::<S>())
-    }
-
-    /// Gets the given key's corresponding entry in the map for in-place manipulation.
-    ///
-    /// This method initializes the map, even if you don't insert a value using the entry.
-    pub fn entry<S: StateKey>(&mut self) -> StateMapEntry<S> {
-        self.borrow_mut().entry::<S>()
-    }
-
-    /// Sets a state key without value.
-    ///
-    /// This method does not initializes the map.
-    pub fn flag<S: StateKey<Type = ()>>(&mut self) -> bool {
-        self.borrow_mut().flag::<S>()
-    }
-
-    /// Gets if a state key without value is set.
-    ///
-    /// This method does not initializes the map.
-    pub fn flagged<S: StateKey<Type = ()>>(&self) -> bool {
-        self.get::<S>().is_some()
-    }
-
-    /// If no state is set.
-    ///
-    /// This method does not initializes the map.
-    pub fn is_empty(&self) -> bool {
-        self.m.as_ref().map(|m| m.is_empty()).unwrap_or(true)
-    }
-}
-
 /// Private [`StateMap`].
 ///
 /// The state map can only be accessed by inside a context. This is done because states
 /// are exposed as mutable references but we don't want the context clients to be able to replace
 /// the full map, using this type, only the context creator can set the map.
-pub struct OwnedStateMap(StateMap);
+pub struct OwnedStateMap(pub(crate) StateMap);
 impl Default for OwnedStateMap {
     fn default() -> Self {
         OwnedStateMap(StateMap::new())
     }
 }
-
-/// Private [`LazyStateMap`].
-///
-/// The state map can only be accessed by inside a context. This is done because states
-/// are exposed as mutable references but we don't want the context clients to be able to replace
-/// the full map, using this type, only the context creator can set the map.
-pub struct OwnedLazyStateMap(pub(crate) LazyStateMap); // TODO rethink privacy access.
-impl Default for OwnedLazyStateMap {
-    fn default() -> Self {
-        OwnedLazyStateMap(LazyStateMap::new())
+impl OwnedStateMap {
+    /// New default, empty.
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -827,7 +739,7 @@ impl<'a> AppContext<'a> {
             path: &mut WidgetContextPath::new(window_id, root_id),
             app_state: &mut self.app_state,
             window_state: &mut StateMap::new(),
-            widget_state: &mut LazyStateMap::new(),
+            widget_state: &mut StateMap::new(),
             update_state: &mut StateMap::new(),
             vars: &self.vars,
         })
@@ -908,7 +820,7 @@ impl<'a> WindowContext<'a> {
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
-        widget_state: &mut OwnedLazyStateMap,
+        widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         f(&mut WidgetContext {
@@ -936,7 +848,7 @@ impl<'a> WindowContext<'a> {
         pixel_grid: PixelGrid,
         viewport_size: LayoutSize,
         widget_id: WidgetId,
-        widget_state: &mut OwnedLazyStateMap,
+        widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
@@ -959,12 +871,7 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the render context of a widget.
-    pub fn render_context<R>(
-        &mut self,
-        widget_id: WidgetId,
-        widget_state: &OwnedLazyStateMap,
-        f: impl FnOnce(&mut RenderContext) -> R,
-    ) -> R {
+    pub fn render_context<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         f(&mut RenderContext {
             path: &mut WidgetContextPath::new(self.window_id.0, widget_id),
             app_state: self.app_state,
@@ -1015,7 +922,7 @@ pub struct TestWidgetContext {
     pub window_state: StateMap,
 
     /// The [`widget_state`](WidgetContext::widget_state) value. Empty by default.
-    pub widget_state: LazyStateMap,
+    pub widget_state: StateMap,
 
     /// The [`update_state`](WidgetContext::update_state) value. Empty by default.
     ///
@@ -1077,7 +984,7 @@ impl TestWidgetContext {
             root_id: WidgetId::new_unique(),
             app_state: StateMap::new(),
             window_state: StateMap::new(),
-            widget_state: LazyStateMap::new(),
+            widget_state: StateMap::new(),
             update_state: StateMap::new(),
             services: ServicesInit::default(),
             event_loop,
@@ -1176,7 +1083,7 @@ pub struct WidgetContext<'a> {
     pub window_state: &'a mut StateMap,
 
     /// State that lives for the duration of the widget.
-    pub widget_state: &'a mut LazyStateMap,
+    pub widget_state: &'a mut StateMap,
 
     /// State that lives for the duration of the node tree method call in the window.
     ///
@@ -1203,7 +1110,7 @@ impl<'a> WidgetContext<'a> {
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
-        widget_state: &mut OwnedLazyStateMap,
+        widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         self.path.push(widget_id);
@@ -1324,7 +1231,7 @@ pub struct LayoutContext<'a> {
     pub window_state: &'a mut StateMap,
 
     /// State that lives for the duration of the widget.
-    pub widget_state: &'a mut LazyStateMap,
+    pub widget_state: &'a mut StateMap,
 
     /// State that lives for the duration of the node tree layout update call in the window.
     ///
@@ -1346,12 +1253,7 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
-    pub fn with_widget<R>(
-        &mut self,
-        widget_id: WidgetId,
-        widget_state: &mut OwnedLazyStateMap,
-        f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> R {
+    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut OwnedStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         self.path.push(widget_id);
 
         let r = self.vars.with_widget_clear(|| {
@@ -1392,7 +1294,7 @@ pub struct RenderContext<'a> {
     pub window_state: &'a StateMap,
 
     /// Read-only access to the state that lives for the duration of the widget.
-    pub widget_state: &'a LazyStateMap,
+    pub widget_state: &'a StateMap,
 
     /// State that lives for the duration of the node tree render or render update call in the window.
     ///
@@ -1406,7 +1308,7 @@ pub struct RenderContext<'a> {
 }
 impl<'a> RenderContext<'a> {
     /// Runs a function `f` in the render context of a widget.
-    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedLazyStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
+    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         self.path.push(widget_id);
         let r = f(&mut RenderContext {
             path: self.path,
