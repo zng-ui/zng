@@ -1150,7 +1150,7 @@ pub mod prelude {
         var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, VarObj, Vars},
         widget_base::Visibility,
         widget_vec, widgets,
-        window::{AppRunWindowExt, CursorIcon, StartPosition, Window, Windows},
+        window::{AppRunWindowExt, AutoSize, CursorIcon, StartPosition, Window, WindowChrome, WindowIcon, WindowState, Windows},
         UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
     };
 

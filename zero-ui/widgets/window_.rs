@@ -147,6 +147,113 @@ pub mod window {
             child,
         )
     }
+
+    /// Window stand-alone properties.
+    ///
+    /// These properties are already included in the [`window!`](mod@crate::widgets::window) definition,
+    /// but you can also use then stand-alone. They configure the window from any widget inside the window.
+    pub mod properties {
+        use crate::core::window::{AutoSize, WindowChrome, WindowIcon, WindowId, WindowVars};
+        use crate::prelude::new_property::*;
+
+        fn set_window_var<T: VarValue + PartialEq>(
+            child: impl UiNode,
+            p_var: impl IntoVar<T>,
+            w_var: impl Fn(&WindowVars) -> &RcVar<T> + 'static,
+        ) -> impl UiNode {
+            struct SetWindowVar<C, P, W> {
+                child: C,
+                p_var: P,
+                w_var: W,
+            }
+
+            #[impl_ui_node(child)]
+            impl<C: UiNode, T: VarValue + PartialEq, P: Var<T>, W: Fn(&WindowVars) -> &RcVar<T> + 'static> SetWindowVar<C, P, W> {
+                fn w_var<'a>(&self, window_state: &'a StateMap) -> &'a RcVar<T> {
+                    let vars = window_state.get::<WindowVars>().expect("no `WindowVars` in `window_state`");
+                    (self.w_var)(vars)
+                }
+
+                fn set(&mut self, ctx: &mut WidgetContext) {
+                    // Set the WindowVars from p_var.
+                    let w_var = self.w_var(ctx.window_state);
+                    let p_val = self.p_var.get(ctx.vars);
+                    if w_var.get(ctx.vars) != p_val {
+                        w_var.set(ctx.vars, p_val.clone());
+                    }
+                }
+
+                #[UiNode]
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    self.set(ctx);
+                    self.child.init(ctx);
+                }
+
+                #[UiNode]
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if self.p_var.is_new(ctx.vars) {
+                        self.set(ctx);
+                    } else if !self.p_var.is_read_only(ctx.vars) {
+                        // reverse update.
+                        let w_var = self.w_var(ctx.window_state);
+                        if let Some(new) = w_var.get_new(ctx.vars) {
+                            if new != self.p_var.get(ctx.vars) {
+                                let _ = self.p_var.set(ctx.vars, new.clone());
+                            }
+                        }
+                    }
+                    self.child.update(ctx);
+                }
+            }
+
+            SetWindowVar {
+                child,
+                p_var: p_var.into_var(),
+                w_var,
+            }
+        }
+
+        macro_rules! declare {
+            ($(
+                $ident:ident: $Type:ty,
+            )+) => {
+                $(paste::paste! {
+                    #[doc = "Sets the [`WindowVars::" $ident "`]."]
+                    ///
+                    #[doc = "Sets `" $ident "` back if the window var updates with a new value."]
+                    #[property(context)]
+                    pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
+                        set_window_var(child, $ident, |v| v.$ident())
+                    }
+                })+
+            }
+        }
+        declare! {
+            chrome: WindowChrome,
+            icon: WindowIcon,
+            title: Text,
+
+            position: Point,
+
+            size: Size,
+            min_size: Size,
+            max_size: Size,
+            auto_size: AutoSize,
+
+            resizable: bool,
+            movable: bool,
+
+            always_on_top: bool,
+
+            visible: bool,
+            taskbar_visible: bool,
+
+            parent: Option<WindowId>,
+            modal: bool,
+
+            transparent: bool,
+        }
+    }
 }
 
 #[cfg(not(debug_assertions))]

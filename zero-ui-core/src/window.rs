@@ -827,7 +827,7 @@ impl std::fmt::Display for WindowNotFound {
 impl std::error::Error for WindowNotFound {}
 
 /// Window icon.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum WindowIcon {
     /// Operating system default icon.
     Default,
@@ -838,7 +838,7 @@ pub enum WindowIcon {
 }
 
 /// Window chrome, the non-client area of the window.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum WindowChrome {
     /// Operating system chrome.
     Default,
@@ -849,7 +849,7 @@ pub enum WindowChrome {
 }
 
 /// Window screen state.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum WindowState {
     /// A visible window, at the `position` and `size` configured.
     Normal,
