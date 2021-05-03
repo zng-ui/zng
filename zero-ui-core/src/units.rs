@@ -407,6 +407,11 @@ impl_from_and_into_var! {
     fn from(i: i32) -> Length {
         Length::Exact(i as f32)
     }
+
+    /// Conversion to [`Length::Exact`]
+    fn from(l: LayoutLength) -> Length {
+        Length::Exact(l.get())
+    }
 }
 impl Length {
     /// Length of exact zero.
@@ -733,6 +738,11 @@ impl_length_comp_conversions! {
         Point::new(x, y)
     }
 }
+impl_from_and_into_var! {
+    fn from(p: LayoutPoint) -> Point {
+        Point::new(p.x, p.y)
+    }
+}
 
 /// Computed [`Point`].
 pub type LayoutPoint = wr::LayoutPoint;
@@ -795,6 +805,11 @@ impl Size {
 impl_length_comp_conversions! {
     fn from(width: W, height: H) -> Size {
         Size::new(width, height)
+    }
+}
+impl_from_and_into_var! {
+    fn from(size: LayoutSize) -> Size {
+        Size::new(size.width, size.height)
     }
 }
 
@@ -901,6 +916,11 @@ impl_from_and_into_var! {
     fn from(i: i32) -> Ellipse {
         Ellipse::new_all(i)
     }
+
+    /// New from [`LayoutEllipse`].
+    fn from(ellipse: LayoutEllipse) -> Ellipse {
+        Ellipse::new(ellipse.width, ellipse.height)
+    }
 }
 
 /// Computed [`Ellipse`].
@@ -965,6 +985,11 @@ impl_from_and_into_var! {
     /// Column and row equal exact length.
     fn from(i: i32) -> GridSpacing {
         GridSpacing::new_all(i)
+    }
+
+    /// Column and row in exact length.
+    fn from(spacing: LayoutGridSpacing) -> GridSpacing {
+        GridSpacing::new(spacing.column, spacing.row)
     }
 }
 
@@ -1060,6 +1085,12 @@ impl<O: Into<Point> + Clone, S: Into<Size> + Clone> IntoVar<Rect> for (O, S) {
 impl_length_comp_conversions! {
     fn from(x: X, y: Y, width: W, height: H) -> Rect {
         Rect::new((x, y), (width, height))
+    }
+}
+impl_from_and_into_var! {
+    /// New in exact length.
+    fn from(rect: LayoutRect) -> Rect {
+        Rect::new(rect.origin, rect.size)
     }
 }
 
@@ -1182,6 +1213,12 @@ impl Line {
             start: self.start.to_layout(available_size, ctx),
             end: self.end.to_layout(available_size, ctx),
         }
+    }
+}
+impl_from_and_into_var! {
+    /// From exact lengths.
+    fn from(line: LayoutLine) -> Line {
+        Line::new(line.start, line.end)
     }
 }
 
@@ -1348,6 +1385,11 @@ impl_from_and_into_var! {
     fn from(i: i32) -> SideOffsets {
         SideOffsets::new_all(i)
     }
+
+    /// From exact lengths.
+    fn from(offsets: LayoutSideOffsets) -> SideOffsets {
+        SideOffsets::new(offsets.top, offsets.right, offsets.bottom, offsets.left)
+    }
 }
 
 impl_length_comp_conversions! {
@@ -1454,21 +1496,14 @@ debug_display_align! {
    BOTTOM,
    BOTTOM_RIGHT,
 }
-impl From<Alignment> for Point {
-    /// To relative length x and y.
-    fn from(a: Alignment) -> Self {
-        Point {
-            x: a.x.into(),
-            y: a.y.into(),
-        }
-    }
-}
-impl IntoVar<Point> for Alignment {
-    type Var = OwnedVar<Point>;
 
-    /// To relative length x and y.
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+impl_from_and_into_var! {
+     /// To relative length x and y.
+    fn from(alignment: Alignment) -> Point {
+        Point {
+            x: alignment.x.into(),
+            y: alignment.y.into(),
+        }
     }
 }
 

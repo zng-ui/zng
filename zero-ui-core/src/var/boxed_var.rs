@@ -38,6 +38,13 @@ impl<T: VarValue> VarObj<T> for BoxedVar<T> {
         self.as_ref().set(vars, new_value)
     }
 
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    where
+        T: PartialEq,
+    {
+        self.as_ref().set_ne(vars, new_value)
+    }
+
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly> {
         self.as_ref().modify_boxed(vars, change)
     }
@@ -86,6 +93,13 @@ impl<T: VarValue> VarObj<T> for BoxedLocalVar<T> {
 
     fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
         self.as_ref().set(vars, new_value)
+    }
+
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    where
+        T: PartialEq,
+    {
+        self.as_ref().set_ne(vars, new_value)
     }
 
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly> {

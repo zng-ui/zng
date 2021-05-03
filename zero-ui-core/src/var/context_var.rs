@@ -71,6 +71,13 @@ impl<C: ContextVar> VarObj<C::Type> for ContextVarProxy<C> {
         Err(VarIsReadOnly)
     }
 
+    fn set_ne(&self, _: &Vars, _: C::Type) -> Result<bool, VarIsReadOnly>
+    where
+        C::Type: PartialEq,
+    {
+        Err(VarIsReadOnly)
+    }
+
     fn modify_boxed(&self, _: &Vars, _: Box<dyn FnOnce(&mut C::Type)>) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }

@@ -10,8 +10,8 @@ use crate::{
     service::Service,
     text::{Text, ToText},
     units::{FactorUnits, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
-    var::{var, BoxedVar, IntoVar, RcVar, VarObj, VarsRead},
-    UiNode, WidgetId,
+    var::{var, RcVar, VarsRead},
+    UiNode, WidgetId, LAYOUT_ANY_SIZE,
 };
 
 use app::AppEvent;
@@ -415,16 +415,11 @@ impl AppExtension for WindowManager {
                     window.expect_layout_update();
                     window.resize_renderer();
 
-                    // set the window size variable if it is not read-only.
-                    let wn_ctx = window.context.borrow();
-                    if !wn_ctx.root.size.is_read_only(ctx.vars) {
-                        let new_size = Size::from((new_size.width, new_size.height));
-                        let current_size = *wn_ctx.root.size.get(ctx.vars);
-                        // the var can already be set if the user modified it to resize the window.
-                        if current_size != new_size {
-                            wn_ctx.root.size.set(ctx.vars, new_size).unwrap();
-                        }
-                    }
+                    // set the window size variable.
+                    window
+                        .vars
+                        .size()
+                        .set_ne(ctx.vars, Size::from((new_size.width, new_size.height)));
 
                     // raise window_resize
                     self.window_resize.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
@@ -435,14 +430,10 @@ impl AppExtension for WindowManager {
                     let new_position = window.position();
 
                     // set the window position variable if it is not read-only.
-                    let wn_ctx = window.context.borrow();
-                    if !wn_ctx.root.position.is_read_only(ctx.vars) {
-                        let new_position = Point::from((new_position.x, new_position.y));
-                        let var = *wn_ctx.root.position.get(ctx.vars);
-                        if new_position != var {
-                            let _ = wn_ctx.root.position.set(ctx.vars, new_position);
-                        }
-                    }
+                    window
+                        .vars
+                        .position()
+                        .set_ne(ctx.vars, Point::from((new_position.x, new_position.y)));
 
                     // raise window_move
                     self.window_move.notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
@@ -524,9 +515,8 @@ impl AppExtension for WindowManager {
         let windows = mem::take(&mut ctx.services.req::<Windows>().windows);
         for (id, window) in windows {
             {
-                let mut w_ctx = window.context.borrow_mut();
-                error_println!("dropping `{:?} ({})` without closing events", id, w_ctx.root.title.get(ctx.vars));
-                w_ctx.deinit(ctx);
+                error_println!("dropping `{:?} ({})` without closing events", id, window.vars.title().get(ctx.vars));
+                window.context.borrow_mut().deinit(ctx);
             }
         }
     }
@@ -597,7 +587,7 @@ impl WindowManager {
             if update.update {
                 let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
                 for (_, window) in windows.iter_mut() {
-                    window.update_window_vars(ctx);
+                    window.update_window(ctx);
                 }
                 ctx.services.req::<Windows>().windows = windows;
             }
@@ -1146,14 +1136,10 @@ impl StateKey for WindowVars {
 pub struct Window {
     state: OwnedStateMap,
     id: WidgetId,
-    title: BoxedVar<Text>,
     start_position: StartPosition,
-    position: BoxedVar<Point>,
-    size: BoxedVar<Size>,
-    auto_size: BoxedVar<AutoSize>,
-    resizable: BoxedVar<bool>,
-    visible: BoxedVar<bool>,
-    headless_config: WindowHeadlessConfig,
+    #[allow(unused)] // TODO
+    kiosk: bool,
+    headless_screen: HeadlessScreen,
     child: Box<dyn UiNode>,
 }
 impl Window {
@@ -1162,41 +1148,31 @@ impl Window {
     /// * `root_id` - Widget ID of `child`.
     /// * `start_position` - Position of the window when it first opens.
     /// * `kiosk` - Only allow full-screen mode. Note this does not configure the operating system, only blocks the app itself
-    ///             from accidentally exiting full-screen. TODO
-    /// * `headless_config` - Extra config for the window when run in [headless mode](WindowMode::is_headless).
+    ///             from accidentally exiting full-screen. Also causes subsequent open windows to be child of this window.
+    /// * `headless_screen` - "Screen" configuration used in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
     #[allow(clippy::clippy::too_many_arguments)]
     pub fn new(
         root_id: WidgetId,
-        title: impl IntoVar<Text>,
         start_position: impl Into<StartPosition>,
-        position: impl IntoVar<Point>,
-        size: impl IntoVar<Size>,
-        auto_size: impl IntoVar<AutoSize>,
-        resizable: impl IntoVar<bool>,
-        visible: impl IntoVar<bool>,
-        headless_config: WindowHeadlessConfig,
+        kiosk: bool,
+        headless_screen: impl Into<HeadlessScreen>,
         child: impl UiNode,
     ) -> Self {
         Window {
             state: OwnedStateMap::default(),
             id: root_id,
-            title: title.into_var().boxed(),
+            kiosk,
             start_position: start_position.into(),
-            position: position.into_var().boxed(),
-            size: size.into_var().boxed(),
-            auto_size: auto_size.into_var().boxed(),
-            resizable: resizable.into_var().boxed(),
-            visible: visible.into_var().boxed(),
-            headless_config,
+            headless_screen: headless_screen.into(),
             child: child.boxed(),
         }
     }
 }
 
-/// Configuration of a window in [headless mode](WindowMode::is_headless).
+/// "Screen" configuration used by windows in [headless mode](WindowMode::is_headless).
 #[derive(Debug, Clone)]
-pub struct WindowHeadlessConfig {
+pub struct HeadlessScreen {
     /// The scale factor used for the headless layout and rendering.
     ///
     /// `1.0` by default.
@@ -1209,12 +1185,35 @@ pub struct WindowHeadlessConfig {
     /// `(1920.0, 1080.0)` by default.
     pub screen_size: LayoutSize,
 }
-impl Default for WindowHeadlessConfig {
+impl HeadlessScreen {
+    /// New at `1.0` scale.
+    #[inline]
+    pub fn new(screen_size: LayoutSize) -> Self {
+        Self::new_scaled(screen_size, 1.0)
+    }
+
+    /// New with custom scale.
+    #[inline]
+    pub fn new_scaled(screen_size: LayoutSize, scale_factor: f32) -> Self {
+        HeadlessScreen { scale_factor, screen_size }
+    }
+}
+impl Default for HeadlessScreen {
+    /// New `1920x1080` at `1.0` scale.
     fn default() -> Self {
-        WindowHeadlessConfig {
-            scale_factor: 1.0,
-            screen_size: LayoutSize::new(1920.0, 1080.0),
-        }
+        Self::new(LayoutSize::new(1920.0, 1080.0))
+    }
+}
+impl From<(f32, f32)> for HeadlessScreen {
+    /// (width, height) at `1.0` scale.
+    fn from((width, height): (f32, f32)) -> Self {
+        Self::new(LayoutSize::new(width, height))
+    }
+}
+impl From<(u32, u32)> for HeadlessScreen {
+    /// (width, height) at `1.0` scale.
+    fn from((width, height): (u32, u32)) -> Self {
+        Self::new(LayoutSize::new(width as f32, height as f32))
     }
 }
 
@@ -1251,7 +1250,7 @@ pub enum StartPosition {
     /// Centralizes the window in relation to the active screen.
     CenterScreen,
     /// Centralizes the window in relation to the parent window.
-    CenterOwner,
+    CenterParent,
 }
 impl Default for StartPosition {
     fn default() -> Self {
@@ -1312,16 +1311,22 @@ pub struct OpenWindow {
 
     mode: WindowMode,
     id: WindowId,
+    root_id: WidgetId,
 
+    kiosk: bool,
+    first_update: bool,
     first_draw: bool,
     frame_info: FrameInfo,
+
+    min_size: LayoutSize,
+    max_size: LayoutSize,
 
     is_active: bool,
 
     #[cfg(windows)]
     subclass_id: std::cell::Cell<usize>,
 
-    headless_config: WindowHeadlessConfig,
+    headless_screen: HeadlessScreen,
     headless_position: LayoutPoint,
     headless_size: LayoutSize,
 
@@ -1352,10 +1357,6 @@ impl OpenWindow {
         let renderer;
         let root;
         let api;
-
-        let headless_config;
-        let headless_position;
-        let headless_size;
         let renderless_event_sender;
 
         let vars = WindowVars::new();
@@ -1368,8 +1369,6 @@ impl OpenWindow {
         };
         match mode {
             WindowMode::Headed => {
-                headless_position = LayoutPoint::zero();
-                headless_size = LayoutSize::zero();
                 renderless_event_sender = None;
 
                 let window_ = WindowBuilder::new().with_visible(false); // not visible until first render, to avoid flickering
@@ -1390,66 +1389,6 @@ impl OpenWindow {
                 // init window state and services.
                 let mut wn_state = OwnedStateMap::default();
                 root = ctx.window_context(id, mode, &mut wn_state, &api, new_window).0;
-
-                window_.set_resizable(*root.auto_size.get(ctx.vars) != AutoSize::CONTENT && *root.resizable.get(ctx.vars));
-                window_.set_title(root.title.get(ctx.vars));
-                headless_config = root.headless_config.clone();
-
-                let pixel_factor = window_.scale_factor() as f32;
-
-                // available size to calculate relative values in the initial position and size.
-                let available_size = window_
-                    .current_monitor()
-                    .map(|m| {
-                        let s = m.size();
-                        if s.width == 0 {
-                            // Web
-                            LayoutSize::new(800.0, 600.0)
-                        } else {
-                            // Monitor
-                            LayoutSize::new(s.width as f32 / pixel_factor, s.height as f32 / pixel_factor)
-                        }
-                    })
-                    .unwrap_or_else(|| {
-                        // No Monitor
-                        LayoutSize::new(800.0, 600.0)
-                    });
-
-                let mut position = LayoutPoint::zero();
-                let mut size = LayoutSize::zero();
-                ctx.outer_layout_context(available_size, pixel_factor, id, root.id, |size_ctx| {
-                    position = root.position.get(size_ctx.vars).to_layout(available_size, &size_ctx);
-                    size = root.size.get(size_ctx.vars).to_layout(available_size, &size_ctx);
-                });
-
-                let fallback_pos = window_.outer_position().map(|p| (p.x, p.y)).unwrap_or_default();
-                let fallback_size = window_.inner_size();
-
-                let mut used_fallback = false;
-                if !position.x.is_finite() {
-                    position.x = fallback_pos.0 as f32 / pixel_factor;
-                    used_fallback = true;
-                }
-                if !position.y.is_finite() {
-                    position.y = fallback_pos.1 as f32 / pixel_factor;
-                    used_fallback = true;
-                }
-                if used_fallback {
-                    let _ = root.position.set(ctx.vars, position.to_tuple().into());
-                }
-
-                used_fallback = false;
-                if !size.width.is_finite() {
-                    size.width = fallback_size.width as f32 / pixel_factor;
-                    used_fallback = true;
-                }
-                if !size.height.is_finite() {
-                    size.height = fallback_size.height as f32 / pixel_factor;
-                    used_fallback = true;
-                }
-                if used_fallback {
-                    let _ = root.size.set(ctx.vars, size.to_tuple().into());
-                }
 
                 window = Some(window_);
             }
@@ -1473,49 +1412,13 @@ impl OpenWindow {
                 };
 
                 root = ctx.window_context(id, mode, &mut wn_state, &api, new_window).0;
-
-                headless_config = root.headless_config.clone();
-                let pixel_factor = headless_config.scale_factor;
-                let available_size = headless_config.screen_size;
-
-                let mut position = LayoutPoint::zero();
-                let mut size = LayoutSize::zero();
-                ctx.outer_layout_context(available_size, pixel_factor, id, root.id, |size_ctx| {
-                    position = root.position.get(size_ctx.vars).to_layout(available_size, &size_ctx);
-                    size = root.size.get(size_ctx.vars).to_layout(available_size, &size_ctx);
-                });
-
-                let mut used_fallback = false;
-                if !position.x.is_finite() {
-                    position.x = 0.0;
-                    used_fallback = true;
-                }
-                if !position.y.is_finite() {
-                    position.y = 0.0;
-                    used_fallback = true;
-                }
-                if used_fallback {
-                    let _ = root.size.set(ctx.vars, position.to_tuple().into());
-                }
-                headless_position = position;
-
-                used_fallback = false;
-                if !size.width.is_finite() {
-                    size.width = available_size.width;
-                    used_fallback = true;
-                }
-                if !size.height.is_finite() {
-                    size.height = available_size.height;
-                    used_fallback = true;
-                }
-                if used_fallback {
-                    let _ = root.size.set(ctx.vars, size.to_tuple().into());
-                }
-                headless_size = size;
             }
         }
 
         let frame_info = FrameInfo::blank(id, root.id);
+        let headless_screen = root.headless_screen.clone();
+        let kiosk = root.kiosk;
+        let root_id = root.id;
 
         OpenWindow {
             context: Rc::new(RefCell::new(OwnedWindowContext {
@@ -1525,16 +1428,22 @@ impl OpenWindow {
                 state: wn_state,
                 root,
                 api,
-                update: UpdateDisplayRequest::Layout,
+                // the first update will do layout, leaving only Render
+                update: UpdateDisplayRequest::Render,
             })),
             window,
             renderer,
             vars,
             id,
-            headless_position,
-            headless_size,
-            headless_config,
+            root_id,
+            kiosk,
+            headless_position: LayoutPoint::zero(),
+            headless_size: LayoutSize::zero(),
+            headless_screen,
             mode,
+            first_update: true,
+            min_size: LayoutSize::new(192.0, 48.0),
+            max_size: LayoutSize::new(f32::INFINITY, f32::INFINITY),
             first_draw: true,
             is_active: true,
             frame_info,
@@ -1599,7 +1508,7 @@ impl OpenWindow {
         if let Some(window) = &self.window {
             window.scale_factor() as f32
         } else {
-            self.headless_config.scale_factor
+            self.headless_screen.scale_factor
         }
     }
 
@@ -1694,123 +1603,293 @@ impl OpenWindow {
         self.context.borrow_mut().update |= UpdateDisplayRequest::Layout;
     }
 
-    /// Update from/to variables that affect the window.
-    fn update_window_vars(&mut self, app_ctx: &mut AppContext) {
-        let ctx = self.context.borrow();
-        if let Some(window) = &self.window {
-            // title
-            if let Some(title) = ctx.root.title.get_new(app_ctx.vars) {
+    /// Update window from vars.
+    fn update_window(&mut self, ctx: &mut AppContext) {
+        if self.first_update {
+            self.first_update = false;
+            self.init_window(ctx);
+            return;
+        }
+
+        if let Some(title) = self.vars.title().get_new(ctx.vars) {
+            if let Some(window) = &self.window {
                 window.set_title(title);
             }
+        }
 
-            // auto-size
-            if let Some(&auto_size) = ctx.root.auto_size.get_new(app_ctx.vars) {
-                app_ctx.updates.layout();
+        if let Some(&auto_size) = self.vars.auto_size().get_new(ctx.vars) {
+            // size will be updated in self.layout(..)
+            ctx.updates.layout();
 
-                if auto_size == AutoSize::CONTENT {
-                    window.set_resizable(false);
+            let resizable = auto_size == AutoSize::DISABLED && *self.vars.resizable().get(ctx.vars);
+            self.vars.resizable().set_ne(ctx.vars, resizable);
+
+            if let Some(window) = &self.window {
+                window.set_resizable(resizable);
+            }
+        }
+
+        if let Some(&min_size) = self.vars.min_size().get_new(ctx.vars) {
+            let factor = self.scale_factor();
+            let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                min_size.to_layout(*ctx.viewport_size, ctx)
+            });
+            if min_size.width.is_finite() {
+                self.min_size.width = min_size.width;
+            }
+            if min_size.height.is_finite() {
+                self.min_size.height = min_size.height;
+            }
+            self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
+            if let Some(window) = &self.window {
+                let size = glutin::dpi::PhysicalSize::new((self.min_size.width * factor) as u32, (self.min_size.height * factor) as u32);
+                window.set_min_inner_size(Some(size));
+            }
+
+            ctx.updates.layout();
+        }
+
+        if let Some(&max_size) = self.vars.max_size().get_new(ctx.vars) {
+            let factor = self.scale_factor();
+            let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                max_size.to_layout(*ctx.viewport_size, ctx)
+            });
+            if max_size.width.is_finite() {
+                self.max_size.width = max_size.width;
+            }
+            if max_size.height.is_finite() {
+                self.max_size.height = max_size.height;
+            }
+            self.vars.max_size().set_ne(ctx.vars, self.max_size.into());
+            if let Some(window) = &self.window {
+                let size = glutin::dpi::PhysicalSize::new((self.max_size.width * factor) as u32, (self.max_size.height * factor) as u32);
+                window.set_max_inner_size(Some(size));
+            }
+
+            ctx.updates.layout();
+        }
+
+        if let Some(&size) = self.vars.size().get_new(ctx.vars) {
+            let current_size = self.size();
+            if AutoSize::DISABLED == *self.vars.auto_size().get(ctx.vars) {
+                let factor = self.scale_factor();
+                let mut size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                    size.to_layout(*ctx.viewport_size, ctx)
+                });
+                if !size.width.is_finite() {
+                    size.width = current_size.width;
+                }
+                if !size.height.is_finite() {
+                    size.height = current_size.height;
+                }
+
+                self.vars.size().set_ne(ctx.vars, size.into());
+                if let Some(window) = &self.window {
+                    let size = glutin::dpi::PhysicalSize::new((size.width * factor) as u32, (size.height * factor) as u32);
+                    window.set_inner_size(size);
                 } else {
-                    // TODO is there a way to disable resize in only one dimension?
-                    window.set_resizable(*ctx.root.resizable.get(app_ctx.vars));
+                    self.headless_size = size;
                 }
+            } else {
+                // cannot change size if auto-sizing.
+                self.vars.size().set_ne(ctx.vars, current_size.into());
+            }
+        }
+
+        if let Some(&pos) = self.vars.position().get_new(ctx.vars) {
+            let factor = self.scale_factor();
+            let current_pos = self.position();
+            let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                pos.to_layout(*ctx.viewport_size, ctx)
+            });
+            if !pos.x.is_finite() {
+                pos.x = current_pos.x;
+            }
+            if !pos.y.is_finite() {
+                pos.y = current_pos.y;
             }
 
-            if ctx.root.position.is_new(app_ctx.vars) || ctx.root.size.is_new(app_ctx.vars) {
-                let vars = app_ctx.vars;
-                self.outer_layout_context(ctx.root.id, app_ctx, |layout_ctx| {
-                    // position
-                    if let Some(&new_pos) = ctx.root.position.get_new(vars) {
-                        let (curr_x, curr_y) = window.outer_position().map(|p| (p.x, p.y)).unwrap_or_default();
+            self.vars.position().set_ne(ctx.vars, pos.into());
 
-                        let mut new_pos = new_pos.to_layout(*layout_ctx.viewport_size, &layout_ctx);
-                        let factor = layout_ctx.pixel_grid.scale_factor;
-
-                        if !new_pos.x.is_finite() {
-                            new_pos.x = curr_x as f32 / factor;
-                        }
-                        if !new_pos.y.is_finite() {
-                            new_pos.y = curr_y as f32 / factor;
-                        }
-
-                        let new_x = (new_pos.x * factor) as i32;
-                        let new_y = (new_pos.y * factor) as i32;
-
-                        if new_x != curr_x || new_y != curr_y {
-                            window.set_outer_position(glutin::dpi::PhysicalPosition::new(new_x, new_y));
-                        }
-                    }
-
-                    // size
-                    if let Some(&new_size) = ctx.root.size.get_new(vars) {
-                        let curr_size = window.inner_size();
-
-                        let mut new_size = new_size.to_layout(*layout_ctx.viewport_size, &layout_ctx);
-                        let factor = layout_ctx.pixel_grid.scale_factor;
-
-                        let auto_size = *ctx.root.auto_size.get(layout_ctx.vars);
-
-                        if auto_size.contains(AutoSize::CONTENT_WIDTH) || !new_size.width.is_finite() {
-                            new_size.width = curr_size.width as f32 / factor;
-                        }
-                        if auto_size.contains(AutoSize::CONTENT_HEIGHT) || !new_size.height.is_finite() {
-                            new_size.height = curr_size.height as f32 / factor;
-                        }
-
-                        let new_size = glutin::dpi::PhysicalSize::new((new_size.width * factor) as u32, (new_size.height * factor) as u32);
-
-                        if new_size != curr_size {
-                            window.set_inner_size(new_size);
-                        }
-                    }
-                });
+            if let Some(window) = &self.window {
+                let pos = glutin::dpi::PhysicalPosition::new((pos.x * factor) as i32, (pos.y * factor) as i32);
+                window.set_outer_position(pos);
+            } else {
+                self.headless_position = pos;
             }
+        }
 
-            // resizable
-            if let Some(&resizable) = ctx.root.resizable.get_new(app_ctx.vars) {
-                let auto_size = *ctx.root.auto_size.get(app_ctx.vars);
-                window.set_resizable(resizable && auto_size != AutoSize::CONTENT);
+        if let Some(&always_on_top) = self.vars.always_on_top().get_new(ctx.vars) {
+            if let Some(window) = &self.window {
+                window.set_always_on_top(always_on_top);
             }
+        }
 
-            // visibility
-            if let Some(&vis) = ctx.root.visible.get_new(app_ctx.vars) {
-                if !self.first_draw {
-                    window.set_visible(vis);
-                    if vis {
-                        app_ctx.updates.layout();
-                    }
-                }
-            }
-        } else {
-            if ctx.root.position.is_new(app_ctx.vars) || ctx.root.size.is_new(app_ctx.vars) {
-                let mut h_pos = self.headless_position;
-                let mut h_size = self.headless_size;
-                let vars = app_ctx.vars;
-                self.outer_layout_context(ctx.root.id, app_ctx, |layout_ctx| {
-                    if let Some(position) = ctx.root.position.get_new(vars) {
-                        h_pos = position.to_layout(*layout_ctx.viewport_size, &layout_ctx);
-                    }
-
-                    if let Some(size) = ctx.root.size.get_new(vars) {
-                        h_size = size.to_layout(*layout_ctx.viewport_size, &layout_ctx);
-                    }
-                });
-                self.headless_position = h_pos;
-                self.headless_size = h_size;
-            }
-
-            if let Some(&vis) = ctx.root.visible.get_new(app_ctx.vars) {
-                if !self.first_draw && vis {
-                    app_ctx.updates.layout();
-                }
+        if let Some(&visible) = self.vars.visible().get_new(ctx.vars) {
+            if let Some(window) = &self.window {
+                window.set_visible(visible && !self.first_draw);
             }
         }
     }
+    /// Update after content UiNode::init.
+    fn init_window(&mut self, ctx: &mut AppContext) {
+        if !self.kiosk {
+            let system_size = self.size();
+            let min_size = *self.vars.min_size().get(ctx.vars);
+            let max_size = *self.vars.max_size().get(ctx.vars);
+            let size = *self.vars.size().get(ctx.vars);
+            let auto_size = *self.vars.auto_size().get(ctx.vars);
 
-    /// [`LayoutContext`] for the window size and position relative values.
-    fn outer_layout_context(&self, root_id: WidgetId, ctx: &mut AppContext, f: impl FnOnce(&mut LayoutContext)) {
+            let position = *self.vars.position().get(ctx.vars);
+            let mut layout_position = LayoutPoint::zero();
+
+            let mut available_size = LayoutSize::zero();
+            let scale_factor = self.scale_factor();
+
+            // compute sizes.
+            ctx.outer_layout_context(self.screen_size(), scale_factor, self.id, self.root_id, |ctx| {
+                // initial max_size is 100%, 100%
+                self.max_size = *ctx.viewport_size;
+
+                layout_position = position.to_layout(*ctx.viewport_size, ctx);
+
+                let mut size = size.to_layout(*ctx.viewport_size, ctx);
+                if !size.width.is_finite() {
+                    size.width = system_size.width;
+                }
+                if !size.height.is_finite() {
+                    size.width = system_size.width;
+                }
+
+                let mut min_size = min_size.to_layout(*ctx.viewport_size, ctx);
+                if !min_size.width.is_finite() {
+                    min_size.width = self.min_size.width;
+                }
+                if !min_size.height.is_finite() {
+                    min_size.height = self.min_size.height;
+                }
+
+                let mut max_size = max_size.to_layout(*ctx.viewport_size, ctx);
+                if !max_size.width.is_finite() {
+                    max_size.width = self.max_size.width;
+                }
+                if !max_size.height.is_finite() {
+                    max_size.height = self.max_size.height;
+                }
+
+                self.min_size = min_size;
+                self.max_size = max_size;
+
+                size = size.max(min_size).min(max_size);
+
+                available_size = size;
+            });
+
+            // do first layout.
+            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                available_size.width = LAYOUT_ANY_SIZE;
+            }
+            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                available_size.height = LAYOUT_ANY_SIZE;
+            }
+            let size = self
+                .context
+                .borrow_mut()
+                .root_layout(ctx, available_size, scale_factor, |root, ctx| {
+                    let desired_size = root.measure(ctx, available_size);
+                    let final_size = desired_size.max(self.min_size).min(self.max_size);
+                    root.arrange(ctx, final_size);
+                    final_size
+                });
+
+            // do start position.
+            let center_space = match self.context.borrow().root.start_position {
+                StartPosition::Default => None,
+                StartPosition::CenterScreen => Some(LayoutRect::from_size(self.screen_size())),
+                StartPosition::CenterParent => {
+                    if let Some(parent_id) = self.vars.parent().get(ctx.vars) {
+                        if let Ok(parent) = ctx.services.req::<Windows>().window(*parent_id) {
+                            Some(LayoutRect::new(parent.position(), parent.size()))
+                        } else {
+                            Some(LayoutRect::from_size(self.screen_size()))
+                        }
+                    } else {
+                        Some(LayoutRect::from_size(self.screen_size()))
+                    }
+                }
+            };
+            if let Some(c) = center_space {
+                layout_position.x = c.origin.x + ((c.size.width - size.width) / 2.0);
+                layout_position.y = c.origin.y + ((c.size.height - size.height) / 2.0);
+            }
+
+            // not resizable if auto-sizing.
+            let resizable = auto_size == AutoSize::DISABLED && *self.vars.resizable().get(ctx.vars);
+
+            // update window.
+            if let Some(window) = &self.window {
+                window.set_title(self.vars.title().get(ctx.vars));
+
+                let factor = window.scale_factor() as f32;
+
+                let size = glutin::dpi::PhysicalSize::new((size.width * factor) as u32, (size.height * factor) as u32);
+                let min_size =
+                    glutin::dpi::PhysicalSize::new((self.min_size.width * factor) as u32, (self.min_size.height * factor) as u32);
+                let max_size =
+                    glutin::dpi::PhysicalSize::new((self.max_size.width * factor) as u32, (self.max_size.height * factor) as u32);
+
+                window.set_min_inner_size(Some(min_size));
+                window.set_max_inner_size(Some(max_size));
+                window.set_inner_size(size);
+
+                window.set_resizable(resizable);
+
+                window.set_always_on_top(*self.vars.always_on_top().get(ctx.vars));
+            } else {
+                self.headless_position = layout_position;
+                self.headless_size = size;
+            }
+
+            // update vars back.
+            self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
+            self.vars.max_size().set_ne(ctx.vars, self.max_size.into());
+            self.vars.size().set_ne(ctx.vars, size.into());
+            self.vars.position().set_ne(ctx.vars, layout_position.into());
+            self.vars.resizable().set_ne(ctx.vars, resizable);
+        } else {
+            // kiosk mode
+            if let Some(window) = &self.window {
+                match *self.vars.state().get(ctx.vars) {
+                    WindowState::Fullscreen => window.set_fullscreen(None),
+                    WindowState::FullscreenExclusive => window.set_fullscreen(None), // TODO,
+                    _ => {
+                        window.set_fullscreen(None);
+                        self.vars.state().set(ctx.vars, WindowState::Fullscreen);
+                    }
+                }
+                window.set_always_on_top(true);
+            } else {
+                self.headless_position = LayoutPoint::zero();
+                self.headless_size = self.headless_screen.screen_size;
+            }
+
+            let size = self.size();
+            self.vars.size().set_ne(ctx.vars, Size::new(size.width, size.height));
+            self.vars.position().set_ne(ctx.vars, Point::zero());
+            self.vars.auto_size().set_ne(ctx.vars, AutoSize::DISABLED);
+            self.vars.min_size().set_ne(ctx.vars, Size::zero());
+            self.vars.max_size().set_ne(ctx.vars, Size::fill());
+            self.vars.resizable().set_ne(ctx.vars, false);
+            self.vars.movable().set_ne(ctx.vars, false);
+            self.vars.always_on_top().set_ne(ctx.vars, true);
+        }
+    }
+
+    /// Size of the current monitor screen.
+    pub fn screen_size(&self) -> LayoutSize {
         if let Some(window) = &self.window {
             let pixel_factor = window.scale_factor() as f32;
-            let screen_size = window
+            window
                 .current_monitor()
                 .map(|m| {
                     let s = m.size();
@@ -1825,17 +1904,9 @@ impl OpenWindow {
                 .unwrap_or_else(|| {
                     // No Monitor
                     LayoutSize::new(800.0, 600.0)
-                });
-
-            ctx.outer_layout_context(screen_size, pixel_factor, self.id, root_id, f);
+                })
         } else {
-            ctx.outer_layout_context(
-                self.headless_config.screen_size,
-                self.headless_config.scale_factor,
-                self.id,
-                root_id,
-                f,
-            );
+            self.headless_screen.screen_size
         }
     }
 
@@ -1850,21 +1921,25 @@ impl OpenWindow {
 
         profile_scope!("window::layout");
 
-        let auto_size = *w_ctx.root.auto_size.get(ctx.vars);
+        let auto_size = *self.vars.auto_size().get(ctx.vars);
+        let mut size = self.size();
+        let mut max_size = self.max_size;
+        if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+            size.width = max_size.width;
+        } else {
+            max_size.width = size.width;
+        }
+        if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+            size.height = max_size.height;
+        } else {
+            max_size.height = size.height;
+        }
 
-        let mut size = LayoutSize::zero();
         let scale_factor = self.scale_factor();
 
         w_ctx.root_layout(ctx, self.size(), scale_factor, |root, layout_ctx| {
             size = root.measure(layout_ctx, *layout_ctx.viewport_size);
-
-            if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                size.width = layout_ctx.viewport_size.width;
-            }
-            if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                size.height = layout_ctx.viewport_size.height;
-            }
-
+            size = size.max(self.min_size).min(self.max_size);
             root.arrange(layout_ctx, size);
         });
 
@@ -1876,6 +1951,7 @@ impl OpenWindow {
             } else {
                 self.headless_size = size;
             }
+            self.vars.size().set(ctx.vars, size.into());
         }
 
         w_ctx.update = UpdateDisplayRequest::Render;
@@ -1989,40 +2065,10 @@ impl OpenWindow {
             if self.first_draw {
                 self.first_draw = false;
 
-                // apply start position.
-                match self.context.borrow().root.start_position {
-                    StartPosition::Default => {}
-                    StartPosition::CenterScreen => {
-                        let size = window.outer_size();
-                        let screen_size = window
-                            .current_monitor()
-                            .map(|m| m.size())
-                            .unwrap_or_else(|| glutin::dpi::PhysicalSize::new(0, 0));
-
-                        let position = glutin::dpi::PhysicalPosition::new(
-                            if size.width < screen_size.width {
-                                (screen_size.width - size.width) / 2
-                            } else {
-                                0
-                            },
-                            if size.height < screen_size.height {
-                                (screen_size.height - size.height) / 2
-                            } else {
-                                0
-                            },
-                        );
-
-                        window.set_outer_position(position);
-                    }
-                    StartPosition::CenterOwner => {
-                        // TODO, after window.owner is implemented.
-                    }
-                }
-
                 self.redraw();
 
                 // apply initial visibility.
-                if *self.context.borrow().root.visible.get(vars) {
+                if *self.vars.visible().get(vars) {
                     self.window.as_ref().unwrap().set_visible(true);
                 }
             } else {
@@ -2038,7 +2084,7 @@ impl OpenWindow {
         if let Some(renderer) = &mut self.renderer {
             profile_scope!("window::redraw");
 
-            renderer.get_mut().present().expect("failed presenting frame");
+            renderer.get_mut().present().expect("failed redraw");
         }
     }
 }
@@ -2197,20 +2243,21 @@ impl OwnedWindowContext {
         .1
     }
 
-    fn root_layout(
+    fn root_layout<R>(
         &mut self,
         ctx: &mut AppContext,
         window_size: LayoutSize,
         scale_factor: f32,
-        f: impl FnOnce(&mut Box<dyn UiNode>, &mut LayoutContext),
-    ) {
+        f: impl FnOnce(&mut Box<dyn UiNode>, &mut LayoutContext) -> R,
+    ) -> R {
         let root = &mut self.root;
         ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
             let child = &mut root.child;
             ctx.layout_context(14.0, PixelGrid::new(scale_factor), window_size, root.id, &mut root.state, |ctx| {
-                f(child, ctx);
+                f(child, ctx)
             })
-        });
+        })
+        .0
     }
 
     fn root_render(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut RenderContext)) {
@@ -2323,14 +2370,9 @@ mod headless_tests {
     fn test_window() -> Window {
         Window::new(
             WidgetId::new_unique(),
-            "",
             StartPosition::Default,
-            (0, 0),
-            (20, 10),
             false,
-            false,
-            true,
-            WindowHeadlessConfig::default(),
+            HeadlessScreen::default(),
             SetFooMetaNode,
         )
     }

@@ -1,6 +1,6 @@
 use crate::core::focus::*;
 use crate::core::gesture::*;
-use crate::core::window::{AutoSize, StartPosition, Window, WindowHeadlessConfig};
+use crate::core::window::{HeadlessScreen, StartPosition, Window};
 use crate::prelude::new_widget::*;
 
 /// A window container.
@@ -29,7 +29,7 @@ pub mod window {
 
     properties! {
         /// Window title.
-        title(impl IntoVar<Text>) = "";
+        properties::title;
 
         /// Window position when it opens.
         #[allowed_in_when = false]
@@ -40,7 +40,7 @@ pub mod window {
         ///  If set to a variable it is kept in sync.
         ///
         /// Set to [`f32::NAN`](f32::NAN) to not give an initial position.
-        position = {
+        properties::position = {
             // use shared var in debug to allow inspecting the value.
             #[cfg(debug_assertions)]
             let r = crate::core::var::var(crate::core::units::Point::new(f32::NAN, f32::NAN));
@@ -56,7 +56,7 @@ pub mod window {
         /// If set to a variable it is kept in sync.
         ///
         /// Does not include the OS window border.
-        size = {
+        properties::size = {
             #[cfg(debug_assertions)]
             let r = crate::core::var::var(crate::core::units::Size::new(800.0, 600.0));
 
@@ -69,7 +69,7 @@ pub mod window {
         /// Window auto size to content.
         ///
         /// If enabled overwrites the other sizes with the content size.
-        auto_size(impl IntoVar<AutoSize>) = false;
+        properties::auto_size;
 
         /// Window background color.
         background_color = rgb(0.1, 0.1, 0.1);
@@ -97,20 +97,31 @@ pub mod window {
         ///
         /// Note that the window can still change size, this only disables
         /// the OS window frame controls that change size.
-        resizable(impl IntoVar<bool>) = true;
+        properties::resizable;
 
         /// If the window is visible.
         ///
         /// When set to `false` the window and its *taskbar* icon are not visible, that is different
         /// from a minimized window where the icon is still visible.
-        visible(impl IntoVar<bool>) = true;
+        properties::visible;
 
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
         /// is taken from the monitor. In headless mode these values can be configured manually.
         #[allowed_in_when = false]
-        headless_config(WindowHeadlessConfig) = Default::default();
+        headless_screen(impl Into<HeadlessScreen>) = HeadlessScreen::default();
+
+        /// Lock-in kiosk mode.
+        ///
+        /// In kiosk mode the only window states allowed are full-screen or full-screen exclusive, and
+        /// all subsequent windows opened are child of the kiosk window.
+        ///
+        /// Note that this does not configure the operating system window manager,
+        /// you still need to setup a kiosk environment, it does not block `ALT+TAB`. This just stops the
+        /// app itself from accidentally exiting kiosk mode.
+        #[allowed_in_when = false]
+        kiosk(bool) = false;
 
         remove {
             // replaced with `root_id` to more clearly indicate that it is not the window ID.
@@ -125,27 +136,11 @@ pub mod window {
     fn new(
         child: impl UiNode,
         root_id: WidgetId,
-        title: impl IntoVar<Text>,
         start_position: impl Into<StartPosition>,
-        position: impl IntoVar<Point>,
-        size: impl IntoVar<Size>,
-        auto_size: impl IntoVar<AutoSize>,
-        resizable: impl IntoVar<bool>,
-        visible: impl IntoVar<bool>,
-        headless_config: WindowHeadlessConfig,
+        kiosk: bool,
+        headless_screen: impl Into<HeadlessScreen>,
     ) -> Window {
-        Window::new(
-            root_id,
-            title,
-            start_position,
-            position,
-            size,
-            auto_size,
-            resizable,
-            visible,
-            headless_config,
-            child,
-        )
+        Window::new(root_id, start_position, kiosk, headless_screen, child)
     }
 
     /// Window stand-alone properties.

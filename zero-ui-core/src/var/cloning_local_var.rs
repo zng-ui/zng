@@ -51,6 +51,13 @@ impl<T: VarValue, V: Var<T>> VarObj<T> for CloningLocalVar<T, V> {
         self.var.set(vars, new_value)
     }
 
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    where
+        T: PartialEq,
+    {
+        self.var.set_ne(vars, new_value)
+    }
+
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly> {
         self.var.modify_boxed(vars, change)
     }

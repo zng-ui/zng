@@ -233,6 +233,16 @@ macro_rules! impl_rc_when_var {
                     self.0.default_value.set(vars, new_value)
                 }
             }
+            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly> where O: PartialEq {
+                $(
+                    if *self.0.conditions.$n.get(vars) {
+                        self.0.values.$n.set_ne(vars, new_value)
+                    }
+                )else+
+                else {
+                    self.0.default_value.set_ne(vars, new_value)
+                }
+            }
             fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
                 $(
                     if *self.0.conditions.$n.get(vars) {
@@ -486,6 +496,18 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
             }
         }
         self.0.default_.set(vars, new_value)
+    }
+
+    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
+    where
+        O: PartialEq,
+    {
+        for (c, v) in self.0.whens.iter() {
+            if *c.get(vars) {
+                return v.set_ne(vars, new_value);
+            }
+        }
+        self.0.default_.set_ne(vars, new_value)
     }
 
     /// Modify the [current value variable](Self::get).

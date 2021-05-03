@@ -31,7 +31,7 @@ impl<T: VarValue> RcVar<T> {
     }
 
     /// References the current value.
-    pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
+    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
         <Self as VarObj<T>>::get(self, vars)
     }
 
@@ -49,7 +49,7 @@ impl<T: VarValue> RcVar<T> {
     ///
     /// The version is incremented every update
     /// that [`set`](Self::set) or [`modify`](Var::modify) are called.
-    pub fn version(&self, vars: &Vars) -> u32 {
+    pub fn version(&self, vars: &VarsRead) -> u32 {
         <Self as VarObj<T>>::version(self, vars)
     }
 
@@ -59,6 +59,18 @@ impl<T: VarValue> RcVar<T> {
     /// after the current UI update, the value is updated.
     pub fn set(&self, vars: &Vars, new_value: T) {
         let _ = <Self as VarObj<T>>::set(self, vars, new_value);
+    }
+
+    /// Does `set` if `new_value` is not equal to the current value.
+    pub fn set_ne(&self, vars: &Vars, new_value: T) -> bool
+    where
+        T: PartialEq,
+    {
+        let ne = self.get(vars) != &new_value;
+        if ne {
+            self.set(vars, new_value);
+        }
+        ne
     }
 
     /// Schedules a closure to modify the value after the current update.
@@ -216,6 +228,17 @@ impl<T: VarValue> VarObj<T> for RcVar<T> {
             self2.0.version.set(self2.0.version.get().wrapping_add(1));
         }));
         Ok(())
+    }
+
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    where
+        T: PartialEq,
+    {
+        let ne = self.get(vars) != &new_value;
+        if ne {
+            self.set(vars, new_value);
+        }
+        Ok(ne)
     }
 
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly> {

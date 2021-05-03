@@ -137,6 +137,13 @@ where
         Err(VarIsReadOnly)
     }
 
+    fn set_ne(&self, _: &Vars, _: O) -> Result<bool, VarIsReadOnly>
+    where
+        O: PartialEq,
+    {
+        Err(VarIsReadOnly)
+    }
+
     fn modify_boxed(&self, _: &Vars, _: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }

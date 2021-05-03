@@ -170,6 +170,21 @@ where
         self.0.var.set(vars, new_value)
     }
 
+    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
+    where
+        O: PartialEq,
+    {
+        if self.0.var.is_read_only(vars) {
+            Err(VarIsReadOnly)
+        } else {
+            let ne = self.get(vars) != &new_value;
+            if ne {
+                let _ = self.set(vars, new_value);
+            }
+            Ok(ne)
+        }
+    }
+
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
         let mut new_value = self.get(vars).clone();
         change(&mut new_value);

@@ -47,6 +47,13 @@ impl<T: VarValue, V: Var<T>> VarObj<T> for ForceReadOnlyVar<T, V> {
         Err(VarIsReadOnly)
     }
 
+    fn set_ne(&self, _: &Vars, _: T) -> Result<bool, VarIsReadOnly>
+    where
+        T: PartialEq,
+    {
+        Err(VarIsReadOnly)
+    }
+
     fn modify_boxed(&self, _: &Vars, _: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }

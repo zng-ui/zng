@@ -144,6 +144,13 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
     /// Returns [`VarIsReadOnly`] if [`is_read_only`](Self::is_read_only) is `true`.
     fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>;
 
+    /// Does [`set`](VarObj::set) if the variable is not read-only and the `new_value` is not equal to the current value.
+    ///
+    /// Returns `true` if the variable was set.
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    where
+        T: PartialEq;
+
     /// Boxed version of the [`modify`](Var::modify) method.
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly>;
 

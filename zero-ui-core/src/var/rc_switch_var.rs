@@ -195,6 +195,13 @@ macro_rules! impl_rc_switch_var {
                 }
             }
 
+            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly> where O : PartialEq {
+                match *self.0.index.get(vars) {
+                    $($n => self.0.vars.$n.set_ne(vars, new_value),)+
+                    _ => panic!("switch_var index out of range")
+                }
+            }
+
             fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.modify_boxed(vars, change),)+
@@ -427,6 +434,13 @@ impl<O: VarValue, VI: VarObj<usize>> VarObj<O> for RcSwitchVar<O, VI> {
 
     fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
         self.0.vars[*self.0.index.get(vars)].set(vars, new_value)
+    }
+
+    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
+    where
+        O: PartialEq,
+    {
+        self.0.vars[*self.0.index.get(vars)].set_ne(vars, new_value)
     }
 
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
