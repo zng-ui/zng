@@ -950,18 +950,18 @@ pub struct TestWidgetContext {
     pub root_id: WidgetId,
 
     /// The [`app_state`](WidgetContext::app_state) value. Empty by default.
-    pub app_state: StateMap,
+    pub app_state: OwnedStateMap,
     /// The [`window_state`](WidgetContext::window_state) value. Empty by default.
-    pub window_state: StateMap,
+    pub window_state: OwnedStateMap,
 
     /// The [`widget_state`](WidgetContext::widget_state) value. Empty by default.
-    pub widget_state: StateMap,
+    pub widget_state: OwnedStateMap,
 
     /// The [`update_state`](WidgetContext::update_state) value. Empty by default.
     ///
     /// WARNING: In a real context this is reset after each update, in this test context the same map is reused
     /// unless you call [`clear_update_state`](Self::clear_update_state).
-    pub update_state: StateMap,
+    pub update_state: OwnedStateMap,
 
     /// The [`services`](WidgetContext::services) repository. Empty by default.
     ///
@@ -1015,10 +1015,10 @@ impl TestWidgetContext {
         Self {
             window_id: WindowId::new_unique(),
             root_id: WidgetId::new_unique(),
-            app_state: StateMap::new(),
-            window_state: StateMap::new(),
-            widget_state: StateMap::new(),
-            update_state: StateMap::new(),
+            app_state: OwnedStateMap::new(),
+            window_state: OwnedStateMap::new(),
+            widget_state: OwnedStateMap::new(),
+            update_state: OwnedStateMap::new(),
             services: ServicesInit::default(),
             event_loop,
             updates,
@@ -1033,10 +1033,10 @@ impl TestWidgetContext {
     pub fn widget_context<R>(&mut self, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
-            app_state: &mut self.app_state,
-            window_state: &mut self.window_state,
-            widget_state: &mut self.widget_state,
-            update_state: &mut self.update_state,
+            app_state: &mut self.app_state.0,
+            window_state: &mut self.window_state.0,
+            widget_state: &mut self.widget_state.0,
+            update_state: &mut self.update_state.0,
             vars: &mut self.vars,
             events: &self.events,
             services: self.services.services(),
@@ -1063,10 +1063,10 @@ impl TestWidgetContext {
             viewport_max: &viewport_size.width.max(viewport_size.height),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
-            app_state: &mut self.app_state,
-            window_state: &mut self.window_state,
-            widget_state: &mut self.widget_state,
-            update_state: &mut self.update_state,
+            app_state: &mut self.app_state.0,
+            window_state: &mut self.window_state.0,
+            widget_state: &mut self.widget_state.0,
+            update_state: &mut self.update_state.0,
             vars: &self.vars,
         })
     }
@@ -1075,10 +1075,10 @@ impl TestWidgetContext {
     pub fn render_context<R>(&mut self, action: impl FnOnce(&mut RenderContext) -> R) -> R {
         action(&mut RenderContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
-            app_state: &self.app_state,
-            window_state: &self.window_state,
-            widget_state: &self.widget_state,
-            update_state: &mut self.update_state,
+            app_state: &self.app_state.0,
+            window_state: &self.window_state.0,
+            widget_state: &self.widget_state.0,
+            update_state: &mut self.update_state.0,
             vars: &self.vars,
         })
     }
@@ -1096,11 +1096,6 @@ impl TestWidgetContext {
         self.vars.apply(&mut self.updates.0);
         self.events.apply(&mut self.updates.0);
         (self.updates.take_updates(), wake)
-    }
-
-    /// Resets the [`update_state`](Self::update_state).
-    pub fn clear_update_state(&mut self) {
-        self.update_state = StateMap::new()
     }
 }
 

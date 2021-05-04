@@ -416,10 +416,7 @@ impl AppExtension for WindowManager {
                     window.resize_renderer();
 
                     // set the window size variable.
-                    window
-                        .vars
-                        .size()
-                        .set_ne(ctx.vars, Size::from((new_size.width, new_size.height)));
+                    window.vars.size().set_ne(ctx.vars, new_size.into());
 
                     // raise window_resize
                     self.window_resize.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
@@ -430,10 +427,7 @@ impl AppExtension for WindowManager {
                     let new_position = window.position();
 
                     // set the window position variable if it is not read-only.
-                    window
-                        .vars
-                        .position()
-                        .set_ne(ctx.vars, Point::from((new_position.x, new_position.y)));
+                    window.vars.position().set_ne(ctx.vars, new_position.into());
 
                     // raise window_move
                     self.window_move.notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
@@ -1634,6 +1628,7 @@ impl OpenWindow {
             let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
                 min_size.to_layout(*ctx.viewport_size, ctx)
             });
+
             if min_size.width.is_finite() {
                 self.min_size.width = min_size.width;
             }
@@ -1654,6 +1649,7 @@ impl OpenWindow {
             let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
                 max_size.to_layout(*ctx.viewport_size, ctx)
             });
+
             if max_size.width.is_finite() {
                 self.max_size.width = max_size.width;
             }
@@ -1676,6 +1672,7 @@ impl OpenWindow {
                 let mut size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
                     size.to_layout(*ctx.viewport_size, ctx)
                 });
+
                 if !size.width.is_finite() {
                     size.width = current_size.width;
                 }
@@ -1702,6 +1699,7 @@ impl OpenWindow {
             let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
                 pos.to_layout(*ctx.viewport_size, ctx)
             });
+
             if !pos.x.is_finite() {
                 pos.x = current_pos.x;
             }
@@ -1752,13 +1750,19 @@ impl OpenWindow {
                 self.max_size = *ctx.viewport_size;
 
                 layout_position = position.to_layout(*ctx.viewport_size, ctx);
+                if !layout_position.x.is_finite() {
+                    layout_position.x = 0.0;
+                }
+                if !layout_position.y.is_finite() {
+                    layout_position.y = 0.0;
+                }
 
                 let mut size = size.to_layout(*ctx.viewport_size, ctx);
                 if !size.width.is_finite() {
                     size.width = system_size.width;
                 }
                 if !size.height.is_finite() {
-                    size.width = system_size.width;
+                    size.height = system_size.height;
                 }
 
                 let mut min_size = min_size.to_layout(*ctx.viewport_size, ctx);
@@ -1838,9 +1842,13 @@ impl OpenWindow {
                 let max_size =
                     glutin::dpi::PhysicalSize::new((self.max_size.width * factor) as u32, (self.max_size.height * factor) as u32);
 
+                let position = glutin::dpi::PhysicalPosition::new((layout_position.x * factor) as i32, (layout_position.y * factor) as i32);
+
                 window.set_min_inner_size(Some(min_size));
                 window.set_max_inner_size(Some(max_size));
                 window.set_inner_size(size);
+
+                window.set_outer_position(position);
 
                 window.set_resizable(resizable);
 

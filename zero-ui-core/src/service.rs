@@ -194,13 +194,13 @@ mod protected {
     }
 }
 macro_rules! impl_multi_tuple {
-    ($Trait:ident, $Tuple:ident => $( ( $($n:tt),+ ) ),+  $(,)?) => {$($crate::paste!{
+    ($( ( $($n:tt),+ ) ),+  $(,)?) => {$($crate::paste!{
         impl_multi_tuple! {
-            impl $Trait, $Tuple $([<_borrowed $n>], [<ptr $n>] = [<S $n>]),+
+            impl $([<_borrowed $n>], [<ptr $n>] = [<S $n>]),+
         }
     })+};
 
-    (impl $Trait:ident, $Tuple:ident $($assert:tt, $ptr:tt = $S:tt),+ ) => {
+    (impl $($assert:tt, $ptr:tt = $S:tt),+ ) => {
 
         impl<'s, $($S: Service),+> protected::ServiceTuple<'s> for ( $($S),+ ) {
             type Borrowed = ( $(&'s mut $S),+ );
@@ -229,7 +229,7 @@ macro_rules! impl_multi_tuple {
             }
         }
 
-        impl<'s, $($S: $Trait),+> $Tuple<'s> for ( $($S),+ ) { }
+        impl<'s, $($S: Service),+> ServiceTuple<'s> for ( $($S),+ ) { }
     }
 }
 
@@ -237,7 +237,6 @@ macro_rules! impl_multi_tuple {
 pub trait ServiceTuple<'s>: protected::ServiceTuple<'s> {}
 
 impl_multi_tuple! {
-    Service, ServiceTuple =>
     (0, 1),
     (0, 1, 2),
     (0, 1, 2, 3),
