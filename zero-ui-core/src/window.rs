@@ -411,12 +411,13 @@ impl AppExtension for WindowManager {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     let new_size = window.size();
 
-                    ctx.updates.layout();
-                    window.expect_layout_update();
-                    window.resize_renderer();
-
                     // set the window size variable.
-                    window.vars.size().set_ne(ctx.vars, new_size.into());
+                    if window.vars.size().set_ne(ctx.vars, new_size.into()) {
+                        // is new size:
+                        ctx.updates.layout();
+                        window.expect_layout_update();
+                        window.resize_renderer();
+                    }
 
                     // raise window_resize
                     self.window_resize.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
@@ -532,11 +533,7 @@ impl WindowManager {
             );
 
             let args = WindowEventArgs::now(w.id(), true);
-
-            let wn_ctx = w.context.clone();
-            let mut wn_ctx = wn_ctx.borrow_mut();
             ctx.services.req::<Windows>().windows.insert(args.window_id, w);
-            wn_ctx.init(ctx);
 
             // notify the window requester
             request.notifier.notify(ctx.events, args.clone());
@@ -1131,7 +1128,6 @@ pub struct Window {
     state: OwnedStateMap,
     id: WidgetId,
     start_position: StartPosition,
-    #[allow(unused)] // TODO
     kiosk: bool,
     headless_screen: HeadlessScreen,
     child: Box<dyn UiNode>,
@@ -1294,6 +1290,21 @@ impl WindowMode {
     }
 }
 
+#[derive(Clone, Copy)]
+enum WindowInitState {
+    /// Window not visible, awaiting first call to `OpenWindow::update_window`.
+    New,
+    /// Content `UiNode::init` called, awaiting next call `OpenWindow::update_window` with the
+    /// `WindowVars` set to their initial values.
+    ContentInited,
+    /// `WindowVars` initialized, first layout done, render requested, awaiting
+    /// first redraw request from renderer.
+    VarsInited,
+    /// First frame rendered and presented, window `visible`synched with var, the window
+    /// is fully launched.
+    Inited,
+}
+
 /// An open window.
 pub struct OpenWindow {
     context: Rc<RefCell<OwnedWindowContext>>,
@@ -1308,8 +1319,9 @@ pub struct OpenWindow {
     root_id: WidgetId,
 
     kiosk: bool,
-    first_update: bool,
-    first_draw: bool,
+
+    init_state: WindowInitState,
+
     frame_info: FrameInfo,
 
     min_size: LayoutSize,
@@ -1423,8 +1435,7 @@ impl OpenWindow {
                 state: wn_state,
                 root,
                 api,
-                // the first update will do layout, leaving only Render
-                update: UpdateDisplayRequest::Render,
+                update: UpdateDisplayRequest::None,
             })),
             window,
             renderer,
@@ -1437,10 +1448,9 @@ impl OpenWindow {
             headless_state: WindowState::Normal,
             headless_screen,
             mode,
-            first_update: true,
+            init_state: WindowInitState::New,
             min_size: LayoutSize::new(192.0, 48.0),
             max_size: LayoutSize::new(f32::INFINITY, f32::INFINITY),
-            first_draw: true,
             is_active: true,
             frame_info,
             renderless_event_sender,
@@ -1642,9 +1652,15 @@ impl OpenWindow {
 
     /// Update window from vars.
     fn update_window(&mut self, ctx: &mut AppContext) {
-        if self.first_update {
-            self.first_update = false;
+        if let WindowInitState::New = self.init_state {
+            self.context.borrow_mut().init(ctx);
+            ctx.updates.update();
+            self.init_state = WindowInitState::ContentInited;
+            return;
+        }
+        if let WindowInitState::ContentInited = self.init_state {
             self.init_window(ctx);
+            self.init_state = WindowInitState::VarsInited;
             return;
         }
 
@@ -1686,6 +1702,7 @@ impl OpenWindow {
                     window.set_min_inner_size(Some(size));
                 }
 
+                self.expect_layout_update();
                 ctx.updates.layout();
             }
 
@@ -1708,6 +1725,7 @@ impl OpenWindow {
                     window.set_max_inner_size(Some(size));
                 }
 
+                self.expect_layout_update();
                 ctx.updates.layout();
             }
 
@@ -1730,6 +1748,7 @@ impl OpenWindow {
                     if let Some(window) = &self.window {
                         let size = glutin::dpi::PhysicalSize::new((size.width * factor) as u32, (size.height * factor) as u32);
                         window.set_inner_size(size);
+                        self.resize_renderer();
                     } else {
                         self.headless_size = size;
                     }
@@ -1771,7 +1790,7 @@ impl OpenWindow {
 
             if let Some(&visible) = self.vars.visible().get_new(ctx.vars) {
                 if let Some(window) = &self.window {
-                    window.set_visible(visible && !self.first_draw);
+                    window.set_visible(visible && matches!(self.init_state, WindowInitState::Inited));
                 }
             }
         } else {
@@ -1956,7 +1975,6 @@ impl OpenWindow {
                 self.headless_position = layout_position;
                 self.headless_size = size;
             }
-            self.resize_renderer();
 
             // update vars back.
             self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
@@ -1999,6 +2017,11 @@ impl OpenWindow {
             self.vars.always_on_top().set_ne(ctx.vars, true);
             self.vars.visible().set_ne(ctx.vars, true);
         }
+
+        // request first frame.
+        self.resize_renderer();
+        self.context.borrow_mut().update = UpdateDisplayRequest::Render;
+        self.render(ctx);
     }
 
     /// Re-flow layout if a layout pass was required. If yes will
@@ -2161,16 +2184,17 @@ impl OpenWindow {
     /// from the OS after calling this.
     fn request_redraw(&mut self, vars: &VarsRead) {
         if let Some(window) = &self.window {
-            if self.first_draw {
-                self.first_draw = false;
-
+            if let WindowInitState::VarsInited = self.init_state {
                 self.redraw();
 
                 // apply initial visibility.
                 if *self.vars.visible().get(vars) {
                     self.window.as_ref().unwrap().set_visible(true);
                 }
+
+                self.init_state = WindowInitState::Inited;
             } else {
+                debug_assert!(matches!(self.init_state, WindowInitState::Inited));
                 window.request_redraw();
             }
         } else if self.renderer.is_some() {
@@ -2372,8 +2396,6 @@ impl OwnedWindowContext {
         profile_scope!("window::init");
 
         let update = self.root_context(ctx, |root, ctx| {
-            ctx.updates.render();
-
             root.init(ctx);
         });
         self.update |= update;
@@ -2415,7 +2437,7 @@ mod headless_tests {
         assert!(!app.renderer_enabled());
 
         app.with_context(|ctx| {
-            ctx.services.req::<Windows>().open(|_| test_window());
+            ctx.services.req::<Windows>().open(test_window);
         });
 
         app.update();
@@ -2429,7 +2451,7 @@ mod headless_tests {
         assert!(app.renderer_enabled());
 
         app.with_context(|ctx| {
-            ctx.services.req::<Windows>().open(|_| test_window());
+            ctx.services.req::<Windows>().open(test_window);
         });
 
         app.update();
@@ -2440,7 +2462,7 @@ mod headless_tests {
         let mut app = App::default().run_headless();
 
         app.with_context(|ctx| {
-            ctx.services.req::<Windows>().open(|_| test_window());
+            ctx.services.req::<Windows>().open(test_window);
         });
 
         app.update();
@@ -2460,13 +2482,14 @@ mod headless_tests {
             let actual = root.meta().get::<FooMetaKey>().copied();
             assert_eq!(expected, actual);
 
-            let expected = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(20.0, 10.0));
+            let expected = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(520.0, 510.0));
             let actual = *root.bounds();
             assert_eq!(expected, actual);
         })
     }
 
-    fn test_window() -> Window {
+    fn test_window(ctx: &mut WindowContext) -> Window {
+        ctx.window_state.req::<WindowVars>().size().set(ctx.vars, (520, 510).into());
         Window::new(
             WidgetId::new_unique(),
             StartPosition::Default,

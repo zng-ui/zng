@@ -7,24 +7,20 @@ use webrender::api::units as wr;
 use crate::context::LayoutContext;
 use crate::var::{IntoVar, OwnedVar};
 
+/// Minimal difference between values in around the 0.0..=1.0 scale.
+const EPISILON: f32 = 0.00001;
+/// Minimal difference between values in around the 1.0..=100.0 scale.
+const EPISILON_100: f32 = 0.001;
+
 /// Angle in radians.
 ///
 /// See [`AngleUnits`] for more details.
+///
+/// # Equality
+///
+/// Two radians are equal if the difference is less then `0.00001` and all `NaN`s are equal.
 #[derive(
-    Debug,
-    dm::Display,
-    Copy,
-    Clone,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
-    dm::Neg,
-    PartialEq,
+    Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
 )]
 #[display(fmt = "{} rad", self.0)]
 pub struct AngleRadian(pub f32);
@@ -40,6 +36,15 @@ impl AngleRadian {
     #[inline]
     pub fn to_layout(self) -> LayoutAngle {
         self.into()
+    }
+}
+impl PartialEq for AngleRadian {
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.is_nan() {
+            other.0.is_nan()
+        } else {
+            (self.0 - other.0).abs() < EPISILON
+        }
     }
 }
 impl_from_and_into_var! {
@@ -59,21 +64,12 @@ impl_from_and_into_var! {
 /// Angle in gradians.
 ///
 /// See [`AngleUnits`] for more details.
+///
+/// # Equality
+///
+/// Two gradians are equal if the difference is less then `0.001` and all `NaN`s are equal.
 #[derive(
-    Debug,
-    dm::Display,
-    Copy,
-    Clone,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
-    dm::Neg,
-    PartialEq,
+    Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
 )]
 #[display(fmt = "{} gon", self.0)]
 pub struct AngleGradian(pub f32);
@@ -82,6 +78,15 @@ impl AngleGradian {
     #[inline]
     pub fn modulo(self) -> Self {
         AngleGradian(self.0.rem_euclid(400.0))
+    }
+}
+impl PartialEq for AngleGradian {
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.is_nan() {
+            other.0.is_nan()
+        } else {
+            (self.0 - other.0).abs() < EPISILON_100
+        }
     }
 }
 impl_from_and_into_var! {
@@ -101,21 +106,12 @@ impl_from_and_into_var! {
 /// Angle in degrees.
 ///
 /// See [`AngleUnits`] for more details.
+///
+/// # Equality
+///
+/// Two degrees are equal if the difference is less then `0.001` and all `NaN`s are equal.
 #[derive(
-    Debug,
-    dm::Display,
-    Copy,
-    Clone,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
-    dm::Neg,
-    PartialEq,
+    Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
 )]
 #[display(fmt = "{}º", self.0)]
 pub struct AngleDegree(pub f32);
@@ -124,6 +120,15 @@ impl AngleDegree {
     #[inline]
     pub fn modulo(self) -> Self {
         AngleDegree(self.0.rem_euclid(360.0))
+    }
+}
+impl PartialEq for AngleDegree {
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.is_nan() {
+            other.0.is_nan()
+        } else {
+            (self.0 - other.0).abs() < EPISILON_100
+        }
     }
 }
 impl_from_and_into_var! {
@@ -143,21 +148,12 @@ impl_from_and_into_var! {
 /// Angle in turns (complete rotations).
 ///
 /// See [`AngleUnits`] for more details.
+///
+/// # Equality
+///
+/// Two turns are equal if the difference is less then `0.00001` and all `NaN`s are equal.
 #[derive(
-    Debug,
-    dm::Display,
-    Copy,
-    Clone,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
-    dm::Neg,
-    PartialEq,
+    Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
 )]
 #[display(fmt = "{} tr", self.0)]
 pub struct AngleTurn(pub f32);
@@ -166,6 +162,15 @@ impl AngleTurn {
     #[inline]
     pub fn modulo(self) -> Self {
         AngleTurn(self.0.rem_euclid(1.0))
+    }
+}
+impl PartialEq for AngleTurn {
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.is_nan() {
+            other.0.is_nan()
+        } else {
+            (self.0 - other.0).abs() < EPISILON
+        }
     }
 }
 impl_from_and_into_var! {
@@ -255,7 +260,11 @@ impl AngleUnits for i32 {
 /// Multiplication factor in percentage (0%-100%).
 ///
 /// See [`FactorUnits`] for more details.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
+///
+/// # Equality
+///
+/// Two percentages are equal if the difference is less then `0.001` and all `NaN`s are equal.
+#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
 #[display(fmt = "{}%", self.0)]
 pub struct FactorPercent(pub f32);
 impl FactorPercent {
@@ -263,6 +272,15 @@ impl FactorPercent {
     #[inline]
     pub fn clamp_range(self) -> Self {
         FactorPercent(self.0.max(0.0).min(100.0))
+    }
+}
+impl PartialEq for FactorPercent {
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.is_nan() {
+            other.0.is_nan()
+        } else {
+            (self.0 - other.0).abs() < EPISILON_100
+        }
     }
 }
 impl_from_and_into_var! {
@@ -274,13 +292,26 @@ impl_from_and_into_var! {
 /// Normalized multiplication factor (0.0-1.0).
 ///
 /// See [`FactorUnits`] for more details.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
+///
+/// # Equality
+///
+/// Two normalized factors are equal if the difference is less then `0.00001` and all `NaN`s are equal.
+#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
 pub struct FactorNormal(pub f32);
 impl FactorNormal {
     /// Clamp factor to [0.0..=1.0] range.
     #[inline]
     pub fn clamp_range(self) -> Self {
         FactorNormal(self.0.max(0.0).min(1.0))
+    }
+}
+impl PartialEq for FactorNormal {
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.is_nan() {
+            other.0.is_nan()
+        } else {
+            (self.0 - other.0).abs() < EPISILON
+        }
     }
 }
 impl_from_and_into_var! {
@@ -348,7 +379,15 @@ impl FactorUnits for i32 {
 /// 1D length units.
 ///
 /// See [`LengthUnits`] for more details.
-#[derive(Copy, Clone, Debug, PartialEq)]
+///
+/// # Equality
+///
+/// Two lengths are equal if they are of the same variant and if:
+///
+/// * `Exact` lengths are equal if they are both `NaN` or if the difference is less then `0.001`.
+/// * `Relative`, `Em`, `RootEm` lengths use the [`FactorNormal`] equality.
+/// * Viewport lengths are equal if they are both `NaN` or if the difference is less then `0.00001`
+#[derive(Copy, Clone, Debug)]
 pub enum Length {
     /// The exact length.
     Exact(f32),
@@ -371,6 +410,33 @@ impl Default for Length {
     /// Exact `0`.
     fn default() -> Self {
         Length::Exact(0.0)
+    }
+}
+impl PartialEq for Length {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Length::Exact(a), Length::Exact(b)) => {
+                if a.is_nan() {
+                    b.is_nan()
+                } else {
+                    (a - b).abs() < EPISILON_100
+                }
+            }
+
+            (Length::Relative(a), Length::Relative(b)) | (Length::Em(a), Length::Em(b)) | (Length::RootEm(a), Length::RootEm(b)) => a == b,
+
+            (Length::ViewportWidth(a), Length::ViewportWidth(b))
+            | (Length::ViewportHeight(a), Length::ViewportHeight(b))
+            | (Length::ViewportMin(a), Length::ViewportMin(b))
+            | (Length::ViewportMax(a), Length::ViewportMax(b)) => {
+                if a.is_nan() {
+                    b.is_nan()
+                } else {
+                    (a - b).abs() < EPISILON
+                }
+            }
+            _ => false,
+        }
     }
 }
 impl fmt::Display for Length {
@@ -927,7 +993,7 @@ impl_from_and_into_var! {
 pub type LayoutEllipse = LayoutSize;
 
 /// Spacing in-between grid cells in [`Length`] units.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GridSpacing {
     /// Spacing in-between columns, in length units.
     pub column: Length,
@@ -1297,7 +1363,7 @@ impl<W: Into<Length>, H: Into<Length>> RectFromTuplesBuilder for (W, H) {
 /// 2D size offsets in [`Length`] units.
 ///
 /// This unit defines spacing around all four sides of a box, a widget margin can be defined using a value of this type.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SideOffsets {
     /// Spacing above, in length units.
     pub top: Length,
@@ -1722,7 +1788,7 @@ impl Default for PixelGrid {
 }
 impl PartialEq for PixelGrid {
     fn eq(&self, other: &Self) -> bool {
-        (self.scale_factor - other.scale_factor).abs() < 0.01
+        (self.scale_factor - other.scale_factor).abs() < EPISILON_100
     }
 }
 

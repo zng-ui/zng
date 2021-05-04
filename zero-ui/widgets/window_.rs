@@ -57,11 +57,12 @@ pub mod window {
         ///
         /// Does not include the OS window border.
         properties::size = {
+            // use shared var in debug to allow inspecting the value.
             #[cfg(debug_assertions)]
-            let r = crate::core::var::var(crate::core::units::Size::new(800.0, 600.0));
+            let r = crate::core::var::var(crate::core::units::Size::new(f32::NAN, f32::NAN));
 
             #[cfg(not(debug_assertions))]
-            let r = (800.0, 600.0);
+            let r = (f32::NAN, f32::NAN);
 
             r
         };
@@ -151,49 +152,50 @@ pub mod window {
         use crate::core::window::{AutoSize, WindowChrome, WindowIcon, WindowId, WindowVars};
         use crate::prelude::new_property::*;
 
-        fn set_window_var<T: VarValue + PartialEq>(
+        fn set_windowin_var<T: VarValue + PartialEq>(
             child: impl UiNode,
-            p_var: impl IntoVar<T>,
-            w_var: impl Fn(&WindowVars) -> &RcVar<T> + 'static,
+            local_var: impl IntoVar<T>,
+            win_var: impl Fn(&WindowVars) -> &RcVar<T> + 'static,
         ) -> impl UiNode {
             struct SetWindowVar<C, P, W> {
                 child: C,
-                p_var: P,
-                w_var: W,
+                local_var: P,
+                win_var: W,
             }
 
             #[impl_ui_node(child)]
             impl<C: UiNode, T: VarValue + PartialEq, P: Var<T>, W: Fn(&WindowVars) -> &RcVar<T> + 'static> SetWindowVar<C, P, W> {
-                fn w_var<'a>(&self, window_state: &'a StateMap) -> &'a RcVar<T> {
+                fn win_var<'a>(&self, window_state: &'a StateMap) -> &'a RcVar<T> {
                     let vars = window_state.get::<WindowVars>().expect("no `WindowVars` in `window_state`");
-                    (self.w_var)(vars)
+                    (self.win_var)(vars)
                 }
 
                 fn set(&mut self, ctx: &mut WidgetContext) {
-                    // Set the WindowVars from p_var.
-                    let w_var = self.w_var(ctx.window_state);
-                    let p_val = self.p_var.get(ctx.vars);
-                    if w_var.get(ctx.vars) != p_val {
-                        w_var.set(ctx.vars, p_val.clone());
+                    let win_var = self.win_var(ctx.window_state);
+                    let local_val = self.local_var.get(ctx.vars);
+                    if win_var.get(ctx.vars) != local_val {
+                        win_var.set(ctx.vars, local_val.clone());
                     }
                 }
 
                 #[UiNode]
                 fn init(&mut self, ctx: &mut WidgetContext) {
+                    // local_var => win_var
                     self.set(ctx);
                     self.child.init(ctx);
                 }
 
                 #[UiNode]
                 fn update(&mut self, ctx: &mut WidgetContext) {
-                    if self.p_var.is_new(ctx.vars) {
+                    if self.local_var.is_new(ctx.vars) {
+                        // local_var ==> win_var
                         self.set(ctx);
-                    } else if !self.p_var.is_read_only(ctx.vars) {
-                        // reverse update.
-                        let w_var = self.w_var(ctx.window_state);
-                        if let Some(new) = w_var.get_new(ctx.vars) {
-                            if new != self.p_var.get(ctx.vars) {
-                                let _ = self.p_var.set(ctx.vars, new.clone());
+                    } else if !self.local_var.is_read_only(ctx.vars) {
+                        let win_var = self.win_var(ctx.window_state);
+                        if let Some(win_val) = win_var.get_new(ctx.vars) {
+                            // local_var <== win_var
+                            if win_val != self.local_var.get(ctx.vars) {
+                                let _ = self.local_var.set(ctx.vars, win_val.clone());
                             }
                         }
                     }
@@ -203,8 +205,8 @@ pub mod window {
 
             SetWindowVar {
                 child,
-                p_var: p_var.into_var(),
-                w_var,
+                local_var: local_var.into_var(),
+                win_var,
             }
         }
 
@@ -218,7 +220,7 @@ pub mod window {
                     #[doc = "Sets `" $ident "` back if the window var updates with a new value."]
                     #[property(context)]
                     pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
-                        set_window_var(child, $ident, |v| v.$ident())
+                        set_windowin_var(child, $ident, |v| v.$ident())
                     }
                 })+
             }

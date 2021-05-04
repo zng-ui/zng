@@ -10,11 +10,11 @@ use super::window::WindowId;
 use super::AnyMap;
 use super::WidgetId;
 use std::sync::atomic::{self, AtomicU8};
+use std::{any::type_name, fmt, mem};
 use std::{
     any::{Any, TypeId},
     time::Instant,
 };
-use std::{fmt, mem};
 use std::{marker::PhantomData, sync::Arc};
 use webrender::api::RenderApi;
 
@@ -258,6 +258,18 @@ impl StateMap {
         }
     }
 
+    /// Reference the key value set in this map or panics if the key is not set.
+    pub fn req<S: StateKey>(&self) -> &S::Type {
+        self.get::<S>()
+            .unwrap_or_else(|| panic!("expected `{}` in state map", type_name::<S>()))
+    }
+
+    /// Mutable borrow the key value set in this map or panics if the key is not set.
+    pub fn req_mut<S: StateKey>(&mut self) -> &mut S::Type {
+        self.get_mut::<S>()
+            .unwrap_or_else(|| panic!("expected `{}` in state map", type_name::<S>()))
+    }
+
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
     pub fn entry<S: StateKey>(&mut self) -> StateMapEntry<S> {
         StateMapEntry {
@@ -378,6 +390,16 @@ impl OwnedStateMap {
     /// Mutable borrow the key value set in this map.
     pub fn get_mut<S: StateKey>(&mut self) -> Option<&mut S::Type> {
         self.0.get_mut::<S>()
+    }
+
+    /// Reference the key value set in this map, or panics if the key is not set.
+    pub fn req<S: StateKey>(&self) -> &S::Type {
+        self.0.req::<S>()
+    }
+
+    /// Mutable borrow the key value set in this map, or panics if the key is not set.
+    pub fn req_mut<S: StateKey>(&mut self) -> &mut S::Type {
+        self.0.req_mut::<S>()
     }
 
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
@@ -960,7 +982,7 @@ pub struct TestWidgetContext {
     /// The [`update_state`](WidgetContext::update_state) value. Empty by default.
     ///
     /// WARNING: In a real context this is reset after each update, in this test context the same map is reused
-    /// unless you call [`clear_update_state`](Self::clear_update_state).
+    /// unless you call [`clear`](OwnedStateMap::clear).
     pub update_state: OwnedStateMap,
 
     /// The [`services`](WidgetContext::services) repository. Empty by default.
