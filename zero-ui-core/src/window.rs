@@ -833,7 +833,7 @@ pub enum WindowChrome {
 }
 
 /// Window screen state.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WindowState {
     /// A visible window, at the `position` and `size` configured.
     Normal,
@@ -1323,6 +1323,7 @@ pub struct OpenWindow {
     headless_screen: HeadlessScreen,
     headless_position: LayoutPoint,
     headless_size: LayoutSize,
+    headless_state: WindowState,
 
     renderless_event_sender: Option<EventLoopProxy>,
 }
@@ -1433,6 +1434,7 @@ impl OpenWindow {
             kiosk,
             headless_position: LayoutPoint::zero(),
             headless_size: LayoutSize::zero(),
+            headless_state: WindowState::Normal,
             headless_screen,
             mode,
             first_update: true,
@@ -1503,6 +1505,47 @@ impl OpenWindow {
             window.scale_factor() as f32
         } else {
             self.headless_screen.scale_factor
+        }
+    }
+
+    /// Size of the current monitor screen.
+    pub fn screen_size(&self) -> LayoutSize {
+        if let Some(window) = &self.window {
+            let pixel_factor = window.scale_factor() as f32;
+            window
+                .current_monitor()
+                .map(|m| {
+                    let s = m.size();
+                    if s.width == 0 {
+                        // Web
+                        LayoutSize::new(800.0, 600.0)
+                    } else {
+                        // Monitor
+                        LayoutSize::new(s.width as f32 / pixel_factor, s.height as f32 / pixel_factor)
+                    }
+                })
+                .unwrap_or_else(|| {
+                    // No Monitor
+                    LayoutSize::new(800.0, 600.0)
+                })
+        } else {
+            self.headless_screen.screen_size
+        }
+    }
+
+    /// Window screen state.
+    pub fn state(&self) -> WindowState {
+        if let Some(window) = &self.window {
+            if let Some(full) = window.fullscreen() {
+                match full {
+                    glutin::window::Fullscreen::Exclusive(_) => WindowState::FullscreenExclusive,
+                    glutin::window::Fullscreen::Borderless(_) => WindowState::Fullscreen,
+                }
+            } else {
+                todo!("other states not available in winit?")
+            }
+        } else {
+            self.headless_state
         }
     }
 
@@ -1611,127 +1654,177 @@ impl OpenWindow {
             }
         }
 
-        if let Some(&auto_size) = self.vars.auto_size().get_new(ctx.vars) {
-            // size will be updated in self.layout(..)
-            ctx.updates.layout();
+        if !self.kiosk {
+            if let Some(&auto_size) = self.vars.auto_size().get_new(ctx.vars) {
+                // size will be updated in self.layout(..)
+                ctx.updates.layout();
 
-            let resizable = auto_size == AutoSize::DISABLED && *self.vars.resizable().get(ctx.vars);
-            self.vars.resizable().set_ne(ctx.vars, resizable);
+                let resizable = auto_size == AutoSize::DISABLED && *self.vars.resizable().get(ctx.vars);
+                self.vars.resizable().set_ne(ctx.vars, resizable);
 
-            if let Some(window) = &self.window {
-                window.set_resizable(resizable);
-            }
-        }
-
-        if let Some(&min_size) = self.vars.min_size().get_new(ctx.vars) {
-            let factor = self.scale_factor();
-            let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
-                min_size.to_layout(*ctx.viewport_size, ctx)
-            });
-
-            if min_size.width.is_finite() {
-                self.min_size.width = min_size.width;
-            }
-            if min_size.height.is_finite() {
-                self.min_size.height = min_size.height;
-            }
-            self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
-            if let Some(window) = &self.window {
-                let size = glutin::dpi::PhysicalSize::new((self.min_size.width * factor) as u32, (self.min_size.height * factor) as u32);
-                window.set_min_inner_size(Some(size));
+                if let Some(window) = &self.window {
+                    window.set_resizable(resizable);
+                }
             }
 
-            ctx.updates.layout();
-        }
-
-        if let Some(&max_size) = self.vars.max_size().get_new(ctx.vars) {
-            let factor = self.scale_factor();
-            let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
-                max_size.to_layout(*ctx.viewport_size, ctx)
-            });
-
-            if max_size.width.is_finite() {
-                self.max_size.width = max_size.width;
-            }
-            if max_size.height.is_finite() {
-                self.max_size.height = max_size.height;
-            }
-            self.vars.max_size().set_ne(ctx.vars, self.max_size.into());
-            if let Some(window) = &self.window {
-                let size = glutin::dpi::PhysicalSize::new((self.max_size.width * factor) as u32, (self.max_size.height * factor) as u32);
-                window.set_max_inner_size(Some(size));
-            }
-
-            ctx.updates.layout();
-        }
-
-        if let Some(&size) = self.vars.size().get_new(ctx.vars) {
-            let current_size = self.size();
-            if AutoSize::DISABLED == *self.vars.auto_size().get(ctx.vars) {
+            if let Some(&min_size) = self.vars.min_size().get_new(ctx.vars) {
                 let factor = self.scale_factor();
-                let mut size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
-                    size.to_layout(*ctx.viewport_size, ctx)
+                let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                    min_size.to_layout(*ctx.viewport_size, ctx)
                 });
 
-                if !size.width.is_finite() {
-                    size.width = current_size.width;
+                if min_size.width.is_finite() {
+                    self.min_size.width = min_size.width;
                 }
-                if !size.height.is_finite() {
-                    size.height = current_size.height;
+                if min_size.height.is_finite() {
+                    self.min_size.height = min_size.height;
                 }
-
-                self.vars.size().set_ne(ctx.vars, size.into());
+                self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
                 if let Some(window) = &self.window {
-                    let size = glutin::dpi::PhysicalSize::new((size.width * factor) as u32, (size.height * factor) as u32);
-                    window.set_inner_size(size);
-                } else {
-                    self.headless_size = size;
+                    let size =
+                        glutin::dpi::PhysicalSize::new((self.min_size.width * factor) as u32, (self.min_size.height * factor) as u32);
+                    window.set_min_inner_size(Some(size));
                 }
-            } else {
-                // cannot change size if auto-sizing.
-                self.vars.size().set_ne(ctx.vars, current_size.into());
-            }
-        }
 
-        if let Some(&pos) = self.vars.position().get_new(ctx.vars) {
-            let factor = self.scale_factor();
-            let current_pos = self.position();
-            let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
-                pos.to_layout(*ctx.viewport_size, ctx)
-            });
-
-            if !pos.x.is_finite() {
-                pos.x = current_pos.x;
-            }
-            if !pos.y.is_finite() {
-                pos.y = current_pos.y;
+                ctx.updates.layout();
             }
 
-            self.vars.position().set_ne(ctx.vars, pos.into());
+            if let Some(&max_size) = self.vars.max_size().get_new(ctx.vars) {
+                let factor = self.scale_factor();
+                let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                    max_size.to_layout(*ctx.viewport_size, ctx)
+                });
 
-            if let Some(window) = &self.window {
-                let pos = glutin::dpi::PhysicalPosition::new((pos.x * factor) as i32, (pos.y * factor) as i32);
-                window.set_outer_position(pos);
-            } else {
-                self.headless_position = pos;
+                if max_size.width.is_finite() {
+                    self.max_size.width = max_size.width;
+                }
+                if max_size.height.is_finite() {
+                    self.max_size.height = max_size.height;
+                }
+                self.vars.max_size().set_ne(ctx.vars, self.max_size.into());
+                if let Some(window) = &self.window {
+                    let size =
+                        glutin::dpi::PhysicalSize::new((self.max_size.width * factor) as u32, (self.max_size.height * factor) as u32);
+                    window.set_max_inner_size(Some(size));
+                }
+
+                ctx.updates.layout();
             }
-        }
 
-        if let Some(&always_on_top) = self.vars.always_on_top().get_new(ctx.vars) {
-            if let Some(window) = &self.window {
-                window.set_always_on_top(always_on_top);
+            if let Some(&size) = self.vars.size().get_new(ctx.vars) {
+                let current_size = self.size();
+                if AutoSize::DISABLED == *self.vars.auto_size().get(ctx.vars) {
+                    let factor = self.scale_factor();
+                    let mut size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                        size.to_layout(*ctx.viewport_size, ctx)
+                    });
+
+                    if !size.width.is_finite() {
+                        size.width = current_size.width;
+                    }
+                    if !size.height.is_finite() {
+                        size.height = current_size.height;
+                    }
+
+                    self.vars.size().set_ne(ctx.vars, size.into());
+                    if let Some(window) = &self.window {
+                        let size = glutin::dpi::PhysicalSize::new((size.width * factor) as u32, (size.height * factor) as u32);
+                        window.set_inner_size(size);
+                    } else {
+                        self.headless_size = size;
+                    }
+                } else {
+                    // cannot change size if auto-sizing.
+                    self.vars.size().set_ne(ctx.vars, current_size.into());
+                }
             }
-        }
 
-        if let Some(&visible) = self.vars.visible().get_new(ctx.vars) {
-            if let Some(window) = &self.window {
-                window.set_visible(visible && !self.first_draw);
+            if let Some(&pos) = self.vars.position().get_new(ctx.vars) {
+                let factor = self.scale_factor();
+                let current_pos = self.position();
+                let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                    pos.to_layout(*ctx.viewport_size, ctx)
+                });
+
+                if !pos.x.is_finite() {
+                    pos.x = current_pos.x;
+                }
+                if !pos.y.is_finite() {
+                    pos.y = current_pos.y;
+                }
+
+                self.vars.position().set_ne(ctx.vars, pos.into());
+
+                if let Some(window) = &self.window {
+                    let pos = glutin::dpi::PhysicalPosition::new((pos.x * factor) as i32, (pos.y * factor) as i32);
+                    window.set_outer_position(pos);
+                } else {
+                    self.headless_position = pos;
+                }
+            }
+
+            if let Some(&always_on_top) = self.vars.always_on_top().get_new(ctx.vars) {
+                if let Some(window) = &self.window {
+                    window.set_always_on_top(always_on_top);
+                }
+            }
+
+            if let Some(&visible) = self.vars.visible().get_new(ctx.vars) {
+                if let Some(window) = &self.window {
+                    window.set_visible(visible && !self.first_draw);
+                }
+            }
+        } else {
+            // kiosk mode
+            if let Some(state) = self.vars.state().get_new(ctx.vars) {
+                match state {
+                    WindowState::Normal | WindowState::Minimized | WindowState::Maximized | WindowState::Fullscreen => {
+                        self.vars.state().set_ne(ctx.vars, WindowState::Fullscreen);
+                        if let Some(window) = &self.window {
+                            window.set_fullscreen(None);
+                        } else {
+                            self.headless_state = WindowState::Fullscreen;
+                        }
+                    }
+                    WindowState::FullscreenExclusive => {
+                        if let Some(window) = &self.window {
+                            window.set_fullscreen(None); // TODO
+                        } else {
+                            self.headless_state = WindowState::FullscreenExclusive;
+                        }
+                    }
+                }
+            }
+            if self.vars.position().is_new(ctx.vars) {
+                self.vars.position().set_ne(ctx.vars, Point::zero());
+            }
+            if self.vars.auto_size().is_new(ctx.vars) {
+                self.vars.auto_size().set_ne(ctx.vars, AutoSize::DISABLED);
+            }
+            if self.vars.min_size().is_new(ctx.vars) {
+                self.vars.min_size().set_ne(ctx.vars, Size::zero());
+            }
+            if self.vars.max_size().is_new(ctx.vars) {
+                self.vars.max_size().set_ne(ctx.vars, Size::fill());
+            }
+            if self.vars.resizable().is_new(ctx.vars) {
+                self.vars.resizable().set_ne(ctx.vars, false);
+            }
+            if self.vars.movable().is_new(ctx.vars) {
+                self.vars.movable().set_ne(ctx.vars, false);
+            }
+            if self.vars.always_on_top().is_new(ctx.vars) {
+                self.vars.always_on_top().set_ne(ctx.vars, true);
+            }
+            if self.vars.visible().is_new(ctx.vars) {
+                self.vars.visible().set_ne(ctx.vars, true);
             }
         }
     }
     /// Update after content UiNode::init.
     fn init_window(&mut self, ctx: &mut AppContext) {
         if !self.kiosk {
+            let system_pos = self.position();
             let system_size = self.size();
             let min_size = *self.vars.min_size().get(ctx.vars);
             let max_size = *self.vars.max_size().get(ctx.vars);
@@ -1751,10 +1844,10 @@ impl OpenWindow {
 
                 layout_position = position.to_layout(*ctx.viewport_size, ctx);
                 if !layout_position.x.is_finite() {
-                    layout_position.x = 0.0;
+                    layout_position.x = system_pos.x;
                 }
                 if !layout_position.y.is_finite() {
-                    layout_position.y = 0.0;
+                    layout_position.y = system_pos.y;
                 }
 
                 let mut size = size.to_layout(*ctx.viewport_size, ctx);
@@ -1800,7 +1893,13 @@ impl OpenWindow {
                 .context
                 .borrow_mut()
                 .root_layout(ctx, available_size, scale_factor, |root, ctx| {
-                    let desired_size = root.measure(ctx, available_size);
+                    let mut desired_size = root.measure(ctx, available_size);
+                    if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                        desired_size.width = available_size.width;
+                    }
+                    if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                        desired_size.height = available_size.height;
+                    }
                     let final_size = desired_size.max(self.min_size).min(self.max_size);
                     root.arrange(ctx, final_size);
                     final_size
@@ -1857,6 +1956,7 @@ impl OpenWindow {
                 self.headless_position = layout_position;
                 self.headless_size = size;
             }
+            self.resize_renderer();
 
             // update vars back.
             self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
@@ -1866,23 +1966,30 @@ impl OpenWindow {
             self.vars.resizable().set_ne(ctx.vars, resizable);
         } else {
             // kiosk mode
+            let state = match *self.vars.state().get(ctx.vars) {
+                state @ WindowState::Fullscreen => state,
+                state @ WindowState::FullscreenExclusive => state,
+                _ => {
+                    self.vars.state().set(ctx.vars, WindowState::Fullscreen);
+                    WindowState::Fullscreen
+                }
+            };
             if let Some(window) = &self.window {
-                match *self.vars.state().get(ctx.vars) {
+                window.set_always_on_top(true);
+                window.set_title(self.vars.title().get(ctx.vars));
+                match state {
                     WindowState::Fullscreen => window.set_fullscreen(None),
                     WindowState::FullscreenExclusive => window.set_fullscreen(None), // TODO,
-                    _ => {
-                        window.set_fullscreen(None);
-                        self.vars.state().set(ctx.vars, WindowState::Fullscreen);
-                    }
+                    _ => unreachable!(),
                 }
-                window.set_always_on_top(true);
             } else {
                 self.headless_position = LayoutPoint::zero();
                 self.headless_size = self.headless_screen.screen_size;
+                self.headless_state = state;
             }
 
             let size = self.size();
-            self.vars.size().set_ne(ctx.vars, Size::new(size.width, size.height));
+            self.vars.size().set_ne(ctx.vars, size.into());
             self.vars.position().set_ne(ctx.vars, Point::zero());
             self.vars.auto_size().set_ne(ctx.vars, AutoSize::DISABLED);
             self.vars.min_size().set_ne(ctx.vars, Size::zero());
@@ -1890,31 +1997,7 @@ impl OpenWindow {
             self.vars.resizable().set_ne(ctx.vars, false);
             self.vars.movable().set_ne(ctx.vars, false);
             self.vars.always_on_top().set_ne(ctx.vars, true);
-        }
-    }
-
-    /// Size of the current monitor screen.
-    pub fn screen_size(&self) -> LayoutSize {
-        if let Some(window) = &self.window {
-            let pixel_factor = window.scale_factor() as f32;
-            window
-                .current_monitor()
-                .map(|m| {
-                    let s = m.size();
-                    if s.width == 0 {
-                        // Web
-                        LayoutSize::new(800.0, 600.0)
-                    } else {
-                        // Monitor
-                        LayoutSize::new(s.width as f32 / pixel_factor, s.height as f32 / pixel_factor)
-                    }
-                })
-                .unwrap_or_else(|| {
-                    // No Monitor
-                    LayoutSize::new(800.0, 600.0)
-                })
-        } else {
-            self.headless_screen.screen_size
+            self.vars.visible().set_ne(ctx.vars, true);
         }
     }
 
@@ -1926,6 +2009,7 @@ impl OpenWindow {
         if w_ctx.update != UpdateDisplayRequest::Layout {
             return;
         }
+        w_ctx.update = UpdateDisplayRequest::Render;
 
         profile_scope!("window::layout");
 
@@ -1946,10 +2030,18 @@ impl OpenWindow {
         let scale_factor = self.scale_factor();
 
         w_ctx.root_layout(ctx, self.size(), scale_factor, |root, layout_ctx| {
-            size = root.measure(layout_ctx, *layout_ctx.viewport_size);
-            size = size.max(self.min_size).min(self.max_size);
+            let mut final_size = root.measure(layout_ctx, *layout_ctx.viewport_size);
+            if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                final_size.width = size.width;
+            }
+            if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                final_size.height = size.height;
+            }
+            size = final_size.max(self.min_size).min(self.max_size);
             root.arrange(layout_ctx, size);
         });
+
+        drop(w_ctx);
 
         if auto_size != AutoSize::DISABLED {
             if let Some(window) = &self.window {
@@ -1960,9 +2052,8 @@ impl OpenWindow {
                 self.headless_size = size;
             }
             self.vars.size().set(ctx.vars, size.into());
+            self.resize_renderer();
         }
-
-        w_ctx.update = UpdateDisplayRequest::Render;
     }
 
     /// Resize the renderer surface.
@@ -2281,7 +2372,7 @@ impl OwnedWindowContext {
         profile_scope!("window::init");
 
         let update = self.root_context(ctx, |root, ctx| {
-            ctx.updates.layout();
+            ctx.updates.render();
 
             root.init(ctx);
         });
