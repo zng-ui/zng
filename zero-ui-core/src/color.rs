@@ -70,21 +70,21 @@ impl Rgba {
         self.red = clamp_normal(red.into().0)
     }
 
-    // Set the [`green`](Rgba::green) component from any type that converts to [`RgbaComponent`].
+    /// Set the [`green`](Rgba::green) component from any type that converts to [`RgbaComponent`].
     ///
     /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_green<G: Into<RgbaComponent>>(&mut self, green: G) {
         self.green = clamp_normal(green.into().0)
     }
 
-    // Set the [`blue`](Rgba::blue) component from any type that converts to [`RgbaComponent`].
+    /// Set the [`blue`](Rgba::blue) component from any type that converts to [`RgbaComponent`].
     ///
     /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_blue<B: Into<RgbaComponent>>(&mut self, blue: B) {
         self.blue = clamp_normal(blue.into().0)
     }
 
-    // Set the [`alpha`](Rgba::alpha) component from any type that converts to [`RgbaComponent`].
+    /// Set the [`alpha`](Rgba::alpha) component from any type that converts to [`RgbaComponent`].
     ///
     /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_alpha<A: Into<RgbaComponent>>(&mut self, alpha: A) {

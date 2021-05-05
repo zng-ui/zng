@@ -315,7 +315,7 @@ impl GradientStops {
     /// The stops look like a sequence of positional only color stops but
     /// the proportional distribution is pre-calculated.
     ///
-    /// If less then 2 colors are given, the missing stops are filled with transparent color.
+    /// If less than 2 colors are given, the missing stops are filled with transparent color.
     pub fn from_colors<C: Into<Rgba> + Copy>(colors: &[C]) -> Self {
         if colors.is_empty() {
             GradientStops {
@@ -443,7 +443,7 @@ impl GradientStops {
 
     /// Gradient stops from color stops.
     ///
-    /// If less then 2 colors are given, the missing stops are filled with transparent color.
+    /// If less than 2 colors are given, the missing stops are filled with transparent color.
     pub fn from_stops<C: Into<ColorStop> + Copy>(stops: &[C]) -> Self {
         if stops.is_empty() {
             GradientStops {

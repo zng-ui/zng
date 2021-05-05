@@ -2378,7 +2378,7 @@ mod renderer {
                     ctx.resize(size);
                 }
                 GlContextCurrent::Headless(_, data) => {
-                   Self::size_headless(&self.gl, &data.rbos, new_size);
+                    Self::size_headless(&self.gl, &data.rbos, new_size);
                 }
             }
 

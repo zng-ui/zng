@@ -80,7 +80,7 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
              <&'static str as IntoVar<FontNames>>
              <&'static str as IntoVar<zero_ui::prelude::Text>>
              <&[(C, L)] as IntoVar<GradientStops>>
-           and 246 others
+           and 254 others
 
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:39:35
@@ -112,7 +112,7 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
              <&'static str as IntoVar<FontNames>>
              <&'static str as IntoVar<zero_ui::prelude::Text>>
              <&[(C, L)] as IntoVar<GradientStops>>
-           and 246 others
+           and 254 others
 
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:45:41

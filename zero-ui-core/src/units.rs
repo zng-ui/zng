@@ -8,9 +8,25 @@ use crate::context::LayoutContext;
 use crate::var::{IntoVar, OwnedVar};
 
 /// Minimal difference between values in around the 0.0..=1.0 scale.
-const EPISILON: f32 = 0.00001;
+const EPSILON: f32 = 0.00001;
 /// Minimal difference between values in around the 1.0..=100.0 scale.
-const EPISILON_100: f32 = 0.001;
+const EPSILON_100: f32 = 0.001;
+
+/// [`f32`] equality used in [`units`](crate::units).
+///
+/// * [`NaN`](f32::is_nan) values are equal.
+/// * [`INFINITY`](f32::INFINITY) values are equal.
+/// * [`NEG_INFINITY`](f32::NEG_INFINITY) values are equal.
+/// * Finite values are equal if the difference is less than `epsilon`.
+pub fn about_eq(a: f32, b: f32, epsilon: f32) -> bool {
+    if a.is_nan() {
+        b.is_nan()
+    } else if a.is_infinite() {
+        b.is_infinite() && a.is_sign_positive() == b.is_sign_positive()
+    } else {
+        (a - b).abs() < epsilon
+    }
+}
 
 /// Angle in radians.
 ///
@@ -18,7 +34,7 @@ const EPISILON_100: f32 = 0.001;
 ///
 /// # Equality
 ///
-/// Two radians are equal if the difference is less then `0.00001` and all `NaN`s are equal.
+/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
 #[derive(
     Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
 )]
@@ -40,11 +56,7 @@ impl AngleRadian {
 }
 impl PartialEq for AngleRadian {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.is_nan() {
-            other.0.is_nan()
-        } else {
-            (self.0 - other.0).abs() < EPISILON
-        }
+        about_eq(self.0, other.0, EPSILON)
     }
 }
 impl_from_and_into_var! {
@@ -67,7 +79,7 @@ impl_from_and_into_var! {
 ///
 /// # Equality
 ///
-/// Two gradians are equal if the difference is less then `0.001` and all `NaN`s are equal.
+/// Equality is determined using [`about_eq`] with `0.001` epsilon.
 #[derive(
     Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
 )]
@@ -82,11 +94,7 @@ impl AngleGradian {
 }
 impl PartialEq for AngleGradian {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.is_nan() {
-            other.0.is_nan()
-        } else {
-            (self.0 - other.0).abs() < EPISILON_100
-        }
+        about_eq(self.0, other.0, EPSILON_100)
     }
 }
 impl_from_and_into_var! {
@@ -109,7 +117,7 @@ impl_from_and_into_var! {
 ///
 /// # Equality
 ///
-/// Two degrees are equal if the difference is less then `0.001` and all `NaN`s are equal.
+/// Equality is determined using [`about_eq`] with `0.001` epsilon.
 #[derive(
     Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
 )]
@@ -124,11 +132,7 @@ impl AngleDegree {
 }
 impl PartialEq for AngleDegree {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.is_nan() {
-            other.0.is_nan()
-        } else {
-            (self.0 - other.0).abs() < EPISILON_100
-        }
+        about_eq(self.0, other.0, EPSILON_100)
     }
 }
 impl_from_and_into_var! {
@@ -151,7 +155,7 @@ impl_from_and_into_var! {
 ///
 /// # Equality
 ///
-/// Two turns are equal if the difference is less then `0.00001` and all `NaN`s are equal.
+/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
 #[derive(
     Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
 )]
@@ -166,11 +170,7 @@ impl AngleTurn {
 }
 impl PartialEq for AngleTurn {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.is_nan() {
-            other.0.is_nan()
-        } else {
-            (self.0 - other.0).abs() < EPISILON
-        }
+        about_eq(self.0, other.0, EPSILON)
     }
 }
 impl_from_and_into_var! {
@@ -263,7 +263,7 @@ impl AngleUnits for i32 {
 ///
 /// # Equality
 ///
-/// Two percentages are equal if the difference is less then `0.001` and all `NaN`s are equal.
+/// Equality is determined using [`about_eq`] with `0.001` epsilon.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
 #[display(fmt = "{}%", self.0)]
 pub struct FactorPercent(pub f32);
@@ -276,11 +276,7 @@ impl FactorPercent {
 }
 impl PartialEq for FactorPercent {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.is_nan() {
-            other.0.is_nan()
-        } else {
-            (self.0 - other.0).abs() < EPISILON_100
-        }
+        about_eq(self.0, other.0, EPSILON_100)
     }
 }
 impl_from_and_into_var! {
@@ -295,7 +291,7 @@ impl_from_and_into_var! {
 ///
 /// # Equality
 ///
-/// Two normalized factors are equal if the difference is less then `0.00001` and all `NaN`s are equal.
+/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
 pub struct FactorNormal(pub f32);
 impl FactorNormal {
@@ -307,11 +303,7 @@ impl FactorNormal {
 }
 impl PartialEq for FactorNormal {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.is_nan() {
-            other.0.is_nan()
-        } else {
-            (self.0 - other.0).abs() < EPISILON
-        }
+        about_eq(self.0, other.0, EPSILON)
     }
 }
 impl_from_and_into_var! {
@@ -384,9 +376,9 @@ impl FactorUnits for i32 {
 ///
 /// Two lengths are equal if they are of the same variant and if:
 ///
-/// * `Exact` lengths are equal if they are both `NaN` or if the difference is less then `0.001`.
+/// * `Exact` lengths uses [`about_eq`] with `0.001` epsilon.
 /// * `Relative`, `Em`, `RootEm` lengths use the [`FactorNormal`] equality.
-/// * Viewport lengths are equal if they are both `NaN` or if the difference is less then `0.00001`
+/// * Viewport lengths uses [`about_eq`] with `0.00001` epsilon.
 #[derive(Copy, Clone, Debug)]
 pub enum Length {
     /// The exact length.
@@ -414,27 +406,15 @@ impl Default for Length {
 }
 impl PartialEq for Length {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Length::Exact(a), Length::Exact(b)) => {
-                if a.is_nan() {
-                    b.is_nan()
-                } else {
-                    (a - b).abs() < EPISILON_100
-                }
-            }
+        match (*self, *other) {
+            (Length::Exact(a), Length::Exact(b)) => about_eq(a, b, EPSILON_100),
 
             (Length::Relative(a), Length::Relative(b)) | (Length::Em(a), Length::Em(b)) | (Length::RootEm(a), Length::RootEm(b)) => a == b,
 
             (Length::ViewportWidth(a), Length::ViewportWidth(b))
             | (Length::ViewportHeight(a), Length::ViewportHeight(b))
             | (Length::ViewportMin(a), Length::ViewportMin(b))
-            | (Length::ViewportMax(a), Length::ViewportMax(b)) => {
-                if a.is_nan() {
-                    b.is_nan()
-                } else {
-                    (a - b).abs() < EPISILON
-                }
-            }
+            | (Length::ViewportMax(a), Length::ViewportMax(b)) => about_eq(a, b, EPSILON),
             _ => false,
         }
     }
@@ -1788,7 +1768,7 @@ impl Default for PixelGrid {
 }
 impl PartialEq for PixelGrid {
     fn eq(&self, other: &Self) -> bool {
-        (self.scale_factor - other.scale_factor).abs() < EPISILON_100
+        (self.scale_factor - other.scale_factor).abs() < EPSILON_100
     }
 }
 

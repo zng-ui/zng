@@ -77,7 +77,7 @@ impl FontFeatures {
     ///
     /// # Panics
     ///
-    /// If `names` has less then 2 names.
+    /// If `names` has less than 2 names.
     #[inline]
     pub fn feature_set(&mut self, names: &'static [FontFeatureName]) -> FontFeatureSet {
         assert!(names.len() >= 2);
@@ -91,7 +91,7 @@ impl FontFeatures {
     ///
     /// # Panics
     ///
-    /// If `S::names()` has less then 2 names.
+    /// If `S::names()` has less than 2 names.
     pub fn feature_exclusive_set<S: FontFeatureExclusiveSetState>(&mut self) -> FontFeatureExclusiveSet<S> {
         assert!(S::names().len() >= 2);
         FontFeatureExclusiveSet {
@@ -105,7 +105,7 @@ impl FontFeatures {
     ///
     /// # Panics
     ///
-    /// If `S::names()` has less then 2 entries.
+    /// If `S::names()` has less than 2 entries.
     pub fn feature_exclusive_sets<S: FontFeatureExclusiveSetsState>(&mut self) -> FontFeatureExclusiveSets<S> {
         assert!(S::names().len() >= 2);
         FontFeatureExclusiveSets {
@@ -170,7 +170,7 @@ impl FontFeaturesBuilder {
     ///
     /// # Panics
     ///
-    /// If `names` has less then 2 names.
+    /// If `names` has less than 2 names.
     #[inline]
     pub fn feature_set(mut self, names: &'static [FontFeatureName], state: impl Into<FontFeatureState>) -> Self {
         self.0.feature_set(names).set(state);
@@ -181,7 +181,7 @@ impl FontFeaturesBuilder {
     ///
     /// # Panics
     ///
-    /// If `S::names()` has less then 2 names.
+    /// If `S::names()` has less than 2 names.
     pub fn feature_exclusive_set<S: FontFeatureExclusiveSetState>(mut self, state: impl Into<S>) -> Self {
         self.0.feature_exclusive_set::<S>().set(state);
         self
@@ -191,7 +191,7 @@ impl FontFeaturesBuilder {
     ///
     /// # Panics
     ///
-    /// If `S::names()` has less then 2 entries.
+    /// If `S::names()` has less than 2 entries.
     pub fn feature_exclusive_sets<S: FontFeatureExclusiveSetsState>(mut self, state: impl Into<S>) -> Self {
         self.0.feature_exclusive_sets::<S>().set(state);
         self
