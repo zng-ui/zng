@@ -2100,15 +2100,15 @@ mod renderer {
 
     struct HeadlessData {
         _el: EventLoop<()>,
-        render_buffer: [u32; 2],
-        frame_buffer: [u32; 1],
+        rbos: [u32; 2],
+        fbo: [u32; 1],
     }
     impl HeadlessData {
         fn partial(el: EventLoop<()>) -> Self {
             HeadlessData {
                 _el: el,
-                render_buffer: [0; 2],
-                frame_buffer: [0; 1],
+                rbos: [0; 2],
+                fbo: [0; 1],
             }
         }
     }
@@ -2281,22 +2281,16 @@ mod renderer {
                 let gl = gleam::gl::ErrorCheckingGl::wrap(gl.clone());
 
                 // manually create a surface for headless.
-                let rb = gl.gen_renderbuffers(2);
-                gl.bind_renderbuffer(gl::RENDERBUFFER, rb[0]);
-                gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, size.width, size.height);
+                let rbos = gl.gen_renderbuffers(2);
+                let fbo = gl.gen_framebuffers(1)[0];
 
-                gl.bind_renderbuffer(gl::RENDERBUFFER, rb[1]);
-                gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, size.width, size.height);
+                data.fbo = [fbo];
+                data.rbos = [rbos[0], rbos[1]];
+                Self::size_headless(&gl, &data.rbos, size);
 
-                let fb = gl.gen_framebuffers(1)[0];
-                gl.bind_framebuffer(gl::FRAMEBUFFER, fb);
-                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rb[0]);
-                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, rb[1]);
-
-                gl.viewport(0, 0, size.width, size.height);
-
-                data.frame_buffer = [fb];
-                data.render_buffer = [rb[0], rb[1]];
+                gl.bind_framebuffer(gl::FRAMEBUFFER, fbo);
+                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rbos[0]);
+                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, rbos[1]);
 
                 true
             } else {
@@ -2340,6 +2334,16 @@ mod renderer {
             })
         }
 
+        fn size_headless(gl: &Rc<dyn gl::Gl>, rbos: &[u32; 2], size: RenderSize) {
+            gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[0]);
+            gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, size.width, size.height);
+
+            gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[1]);
+            gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, size.width, size.height);
+
+            gl.viewport(0, 0, size.width, size.height);
+        }
+
         /// If this renderer is not connected with any window.
         #[inline]
         pub fn headless(&self) -> bool {
@@ -2373,8 +2377,8 @@ mod renderer {
                     let size = glutin::dpi::PhysicalSize::new(new_size.width as u32, new_size.height as u32);
                     ctx.resize(size);
                 }
-                GlContextCurrent::Headless(_, _) => {
-                    self.gl.viewport(0, 0, new_size.width, new_size.height);
+                GlContextCurrent::Headless(_, data) => {
+                   Self::size_headless(&self.gl, &data.rbos, new_size);
                 }
             }
 
@@ -2530,6 +2534,8 @@ mod renderer {
                 panic!("can only `render_ui` with headless renderer");
             }
             let _ = ui;
+
+            todo!()
         }
     }
     impl Drop for Renderer {
@@ -2539,8 +2545,8 @@ mod renderer {
                     renderer.deinit();
 
                     if let GlContextCurrent::Headless(_, data) = &mut ctx {
-                        self.gl.delete_framebuffers(&data.frame_buffer);
-                        self.gl.delete_renderbuffers(&data.render_buffer);
+                        self.gl.delete_framebuffers(&data.fbo);
+                        self.gl.delete_renderbuffers(&data.rbos);
                     }
 
                     let _ = ctx.make_not_current();
