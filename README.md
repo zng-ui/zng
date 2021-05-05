@@ -17,7 +17,7 @@ You just need the latest stable Rust toolchain installed.
 * `cmake`
 * `pkg-config`
 * `libfreetype6-dev`
-* `libexpat1-dev`
+* `libfontconfig1-dev`
 
 Linux support is tested using the Windows Subsystem for Linux (Ubuntu image)
 
