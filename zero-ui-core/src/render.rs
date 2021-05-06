@@ -2534,22 +2534,27 @@ mod renderer {
                 });
             }
 
-            let pixels = self.read_pixels(
+            let mut pixels = self.read_pixels(
                 rect.origin.x,
                 max_rect.size.height - rect.origin.y - rect.size.height,
                 rect.size.width,
                 rect.size.height,
             )?;
 
-            let mut pixels_flipped = Vec::with_capacity(pixels.len());
-            for v in (0..height as _).rev() {
-                let s = 4 * v as usize * width as usize;
-                let o = 4 * width as usize;
-                pixels_flipped.extend_from_slice(&pixels[s..(s + o)]);
+            let line_len = rect.size.width as usize * 4;
+
+            let mut rest = &mut pixels[..];
+            while rest.len() > line_len {
+                let (line_a, temp) = rest.split_at_mut(line_len);
+                let (temp, line_b) = temp.split_at_mut(temp.len()-line_len);
+
+                line_a.swap_with_slice(line_b);
+
+                rest = temp;
             }
 
             Ok(FramePixels {
-                pixels: pixels_flipped.into_boxed_slice(),
+                pixels: pixels.into_boxed_slice(),
                 width: rect.size.width as u32,
                 height: rect.size.height as u32,
                 scale_factor: self.scale_factor,

@@ -35,9 +35,6 @@ fn main() {
             print!("saving ./screenshot.png ... ");
             flush_stdout();
             wn.screenshot().save("screenshot.png").expect("error saving screenshot");
-            wn.screenshot_rect(zero_ui::core::units::LayoutRect::new((0.0, 550.0).into(), (100.0, 100.0).into()))
-                .save("screenshot-empty.png")
-                .expect("error saving screenshot");
             println!("done");
 
             wn.id()
