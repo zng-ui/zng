@@ -242,20 +242,14 @@ impl StateMap {
 
     /// Reference the key value set in this map.
     pub fn get<S: StateKey>(&self) -> Option<&S::Type> {
-        if let Some(any) = self.map.get(&TypeId::of::<S>()) {
-            Some(any.downcast_ref::<S::Type>().unwrap())
-        } else {
-            None
-        }
+        self.map.get(&TypeId::of::<S>()).map(|any| any.downcast_ref::<S::Type>().unwrap())
     }
 
     /// Mutable borrow the key value set in this map.
     pub fn get_mut<S: StateKey>(&mut self) -> Option<&mut S::Type> {
-        if let Some(any) = self.map.get_mut(&TypeId::of::<S>()) {
-            Some(any.downcast_mut::<S::Type>().unwrap())
-        } else {
-            None
-        }
+        self.map
+            .get_mut(&TypeId::of::<S>())
+            .map(|any| any.downcast_mut::<S::Type>().unwrap())
     }
 
     /// Reference the key value set in this map or panics if the key is not set.

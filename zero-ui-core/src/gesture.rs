@@ -223,10 +223,10 @@ impl ClickArgs {
 /// A keyboard combination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyGesture {
-    /// The key.
-    pub key: GestureKey,
     /// The key modifiers.
     pub modifiers: ModifiersState,
+    /// The key.
+    pub key: GestureKey,
 }
 impl KeyGesture {
     #[inline]

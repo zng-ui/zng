@@ -1,5 +1,5 @@
-error[E0433]: failed to resolve: maybe a missing crate `not`?
+error[E0433]: failed to resolve: could not find `not` in the crate root
  --> $DIR/unknown_inherit.rs:5:21
   |
 5 |     inherit!(super::not::a::thing);
-  |                     ^^^ maybe a missing crate `not`?
+  |                     ^^^ could not find `not` in the crate root

@@ -1003,10 +1003,8 @@ impl Focus {
                 if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(new_focus) {
                     let alt_scope = if widget.is_alt_scope() {
                         Some(widget)
-                    } else if let Some(alt_scope) = widget.scopes().find(|s| s.is_alt_scope()) {
-                        Some(alt_scope)
                     } else {
-                        None
+                        widget.scopes().find(|s| s.is_alt_scope())
                     };
                     if let Some(alt_scope) = alt_scope {
                         let scope_id = alt_scope.info.widget_id();

@@ -34,20 +34,6 @@ error[E0277]: the trait bound `OwnedVar<<impl invalid2_Args as invalid2_Args>::T
 12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
    |                                            ^^^^ the trait `UiNode` is not implemented for `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>`
 
-error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
-  --> $DIR/allowed_in_when_validation.rs:11:1
-   |
-11 | #[property(context)] // error because no allowed_in_when = false
-   | ^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
-   |
-  ::: $WORKSPACE/zero-ui-core/src/var/owned_var.rs
-   |
-   | pub struct OwnedVar<T: VarValue>(pub T);
-   |                        -------- required by this bound in `OwnedVar`
-   |
-   = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
-   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement `Debug`
   --> $DIR/allowed_in_when_validation.rs:11:1
    |
@@ -60,5 +46,19 @@ error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement
    |                        -------- required by this bound in `OwnedVar`
    |
    = help: the trait `Debug` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
+  --> $DIR/allowed_in_when_validation.rs:11:1
+   |
+11 | #[property(context)] // error because no allowed_in_when = false
+   | ^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
+   |
+  ::: $WORKSPACE/zero-ui-core/src/var/owned_var.rs
+   |
+   | pub struct OwnedVar<T: VarValue>(pub T);
+   |                        -------- required by this bound in `OwnedVar`
+   |
    = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

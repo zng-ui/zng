@@ -420,13 +420,9 @@ impl Events {
 
     /// Creates an event listener if the event is registered in the application.
     pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
-        if let Some(any) = self.events.get(&TypeId::of::<E>()) {
-            // SAFETY: This is safe because args are always the same type as key in
-            // `AppRegister::register_event` witch is the only place where insertion occurs.
-            Some(any.downcast_ref::<EventListener<E::Args>>().unwrap().clone())
-        } else {
-            None
-        }
+        self.events
+            .get(&TypeId::of::<E>())
+            .map(|any| any.downcast_ref::<EventListener<E::Args>>().unwrap().clone())
     }
 
     /// Creates a buffered event listener if the event is registered in the application.
