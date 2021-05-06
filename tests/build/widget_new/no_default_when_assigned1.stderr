@@ -1,5 +1,5 @@
-error: property `margin` is not assigned and has no default value
- --> $DIR/no_default_when_assigned1.rs:7:13
-  |
-7 |             margin = 20
-  |             ^^^^^^
+error: property `my_property` is not assigned and has no default value
+  --> $DIR/no_default_when_assigned1.rs:15:13
+   |
+15 |             my_property = 20
+   |             ^^^^^^^^^^^
