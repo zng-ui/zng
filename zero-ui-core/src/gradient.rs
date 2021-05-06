@@ -363,8 +363,20 @@ impl GradientStops {
         }
     }
 
-    /// Gradient stops from colors forming hardline stripes of same length.
-    pub fn from_stripes<C: Into<Rgba> + Copy>(colors: &[C]) -> Self {
+    /// Gradient stops from colors forming stripes of same length.
+    ///
+    /// The `transition` parameter controls relative length of the transition between two stripes.
+    /// `1.0` or `100.pct()` is the length of a stripe, set to `0.0` to get hard-lines.
+    pub fn from_stripes<C: Into<Rgba> + Copy, T: Into<FactorNormal>>(colors: &[C], transition: T) -> Self {
+        let tran = transition.into().0;
+        let tran = if tran.is_nan() || tran < 0.0 {
+            0.0
+        } else if tran > 1.0 {
+            1.0
+        } else {
+            tran
+        };
+
         if colors.is_empty() {
             GradientStops {
                 start: Self::start_missing(),
@@ -372,6 +384,8 @@ impl GradientStops {
                 end: Self::end_missing(colors::BLACK),
             }
         } else if colors.len() == 1 {
+            let tran = 0.5 * tran;
+
             let color = colors[0].into();
             let end = Self::end_missing(color);
             GradientStops {
@@ -382,11 +396,11 @@ impl GradientStops {
                 middle: vec![
                     GradientStop::Color(ColorStop {
                         color,
-                        offset: Length::Relative(FactorNormal(0.5)),
+                        offset: Length::Relative(FactorNormal(0.5 - tran)),
                     }),
                     GradientStop::Color(ColorStop {
                         color: end.color,
-                        offset: Length::Relative(FactorNormal(0.5)),
+                        offset: Length::Relative(FactorNormal(0.5 + tran)),
                     }),
                 ],
                 end,
@@ -395,6 +409,7 @@ impl GradientStops {
             let last = colors.len() - 1;
             let mut offset = 1.0 / colors.len() as f32;
             let stripe_width = offset;
+            let tran = stripe_width * tran;
 
             let start = ColorStop {
                 color: colors[0].into(),
@@ -402,7 +417,7 @@ impl GradientStops {
             };
             let mut middle = vec![ColorStop {
                 color: start.color,
-                offset: offset.normal().into(),
+                offset: (offset - tran).normal().into(),
             }
             .into()];
 
@@ -411,7 +426,7 @@ impl GradientStops {
                 middle.push(
                     ColorStop {
                         color,
-                        offset: offset.normal().into(),
+                        offset: (offset + tran).normal().into(),
                     }
                     .into(),
                 );
@@ -419,7 +434,7 @@ impl GradientStops {
                 middle.push(
                     ColorStop {
                         color,
-                        offset: offset.normal().into(),
+                        offset: (offset - tran).normal().into(),
                     }
                     .into(),
                 );
@@ -466,6 +481,18 @@ impl GradientStops {
                 end: stops[last].into(),
             }
         }
+    }
+
+    /// Set the alpha of all colors in the gradient.
+    pub fn set_alpha<A: Into<RgbaComponent>>(&mut self, alpha: A) {
+        let alpha = alpha.into();
+        self.start.color.set_alpha(alpha);
+        for mid in &mut self.middle {
+            if let GradientStop::Color(c) = mid {
+                c.color.set_alpha(alpha);
+            }
+        }
+        self.end.color.set_alpha(alpha);
     }
 
     /// Computes the layout for a linear gradient.

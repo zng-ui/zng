@@ -103,24 +103,20 @@ fn stack_linear() -> impl Widget {
         sample(
             "rainbow",
             z_stack({
-                let rainbow = GradientStops::from_stripes(&[
-                    colors::RED,
-                    colors::ORANGE,
-                    colors::YELLOW,
-                    colors::GREEN,
-                    colors::DODGER_BLUE,
-                    colors::INDIGO,
-                    colors::BLUE_VIOLET,
-                ]);
+                let rainbow = GradientStops::from_stripes(
+                    &[
+                        colors::RED,
+                        colors::ORANGE,
+                        colors::YELLOW,
+                        colors::GREEN,
+                        colors::DODGER_BLUE,
+                        colors::INDIGO,
+                        colors::BLUE_VIOLET,
+                    ],
+                    0.0,
+                );
                 let mut cross_rainbow = rainbow.clone();
-                cross_rainbow.start.color.alpha = 0.5;
-                for stop in &mut cross_rainbow.middle {
-                    if let GradientStop::Color(color_stop) = stop {
-                        color_stop.color.alpha = 0.5;
-                    }
-                }
-                cross_rainbow.end.color.alpha = 0.5;
-
+                cross_rainbow.set_alpha(0.5);
                 nodes![
                     linear_gradient(Line::to_right(), rainbow),
                     linear_gradient(Line::to_bottom(), cross_rainbow),
@@ -132,7 +128,7 @@ fn stack_linear() -> impl Widget {
             z_stack({
                 fn gradient(angle: i32, mut color: Rgba) -> impl UiNode {
                     color.alpha = 0.3;
-                    let stops = GradientStops::from_stripes(&[color, color.transparent()]);
+                    let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
                     linear_gradient(angle.deg(), stops)
                 }
 

@@ -2546,7 +2546,7 @@ mod renderer {
             let mut rest = &mut pixels[..];
             while rest.len() > line_len {
                 let (line_a, temp) = rest.split_at_mut(line_len);
-                let (temp, line_b) = temp.split_at_mut(temp.len()-line_len);
+                let (temp, line_b) = temp.split_at_mut(temp.len() - line_len);
 
                 line_a.swap_with_slice(line_b);
 

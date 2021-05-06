@@ -81,31 +81,23 @@ impl Rgba {
     }
 
     /// Set the [`red`](Rgba::red) component from any type that converts to [`RgbaComponent`].
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_red<R: Into<RgbaComponent>>(&mut self, red: R) {
-        self.red = clamp_normal(red.into().0)
+        self.red = red.into().0
     }
 
     /// Set the [`green`](Rgba::green) component from any type that converts to [`RgbaComponent`].
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_green<G: Into<RgbaComponent>>(&mut self, green: G) {
-        self.green = clamp_normal(green.into().0)
+        self.green = green.into().0
     }
 
     /// Set the [`blue`](Rgba::blue) component from any type that converts to [`RgbaComponent`].
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_blue<B: Into<RgbaComponent>>(&mut self, blue: B) {
-        self.blue = clamp_normal(blue.into().0)
+        self.blue = blue.into().0
     }
 
     /// Set the [`alpha`](Rgba::alpha) component from any type that converts to [`RgbaComponent`].
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_alpha<A: Into<RgbaComponent>>(&mut self, alpha: A) {
-        self.alpha = clamp_normal(alpha.into().0)
+        self.alpha = alpha.into().0
     }
 
     /// Returns a copy of the color with the alpha set to `0`.
@@ -204,24 +196,18 @@ impl Hsla {
     }
 
     /// Sets the [`lightness`](Self::lightness) value.
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_lightness<L: Into<FactorNormal>>(&mut self, lightness: L) {
-        self.lightness = lightness.into().clamp_range().0;
+        self.lightness = lightness.into().0;
     }
 
     /// Sets the [`saturation`](Self::saturation) value.
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_saturation<L: Into<FactorNormal>>(&mut self, saturation: L) {
-        self.saturation = saturation.into().clamp_range().0;
+        self.saturation = saturation.into().0;
     }
 
     /// Sets the [`alpha`](Self::alpha) value.
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
-        self.alpha = alpha.into().clamp_range().0
+        self.alpha = alpha.into().0
     }
 
     /// Converts a copy of this color to [`Rgba`].
@@ -285,24 +271,18 @@ impl Hsva {
     }
 
     /// Sets the [`value`](Self::value).
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_value<L: Into<FactorNormal>>(&mut self, value: L) {
-        self.value = value.into().clamp_range().0;
+        self.value = value.into().0;
     }
 
     /// Sets the [`saturation`](Self::saturation) value.
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_saturation<L: Into<FactorNormal>>(&mut self, saturation: L) {
-        self.saturation = saturation.into().clamp_range().0;
+        self.saturation = saturation.into().0;
     }
 
     /// Sets the [`alpha`](Self::alpha) value.
-    ///
-    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
-        self.alpha = alpha.into().clamp_range().0
+        self.alpha = alpha.into().0
     }
 
     /// Converts a copy of this color to [`Rgba`].
@@ -517,13 +497,23 @@ impl_from_and_into_var! {
     }
 }
 
+/// Values are clamped to the `[0.0..=1.0]` range and `NaN` becomes `0.0`.
 impl From<Rgba> for RenderColor {
     fn from(rgba: Rgba) -> Self {
+        fn c(f: f32) -> f32 {
+            if f.is_nan() || f <= 0.0 {
+                0.0
+            } else if f >= 1.0 {
+                1.0
+            } else {
+                f
+            }
+        }
         RenderColor {
-            r: rgba.red,
-            g: rgba.green,
-            b: rgba.blue,
-            a: rgba.alpha,
+            r: c(rgba.red),
+            g: c(rgba.green),
+            b: c(rgba.blue),
+            a: c(rgba.alpha),
         }
     }
 }
