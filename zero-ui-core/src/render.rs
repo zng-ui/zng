@@ -1924,7 +1924,7 @@ impl_from_and_into_var! {
 }
 
 mod renderer {
-    use std::{mem, rc::Rc, sync::Arc};
+    use std::{fmt, mem, rc::Rc, sync::Arc};
 
     use gleam::gl;
     use glutin::{
@@ -2143,7 +2143,7 @@ mod renderer {
 
         headless: bool,
         size: RenderSize,
-        pixel_ratio: f32,
+        scale_factor: f32,
         resized: bool,
         clear_color: Option<RenderColor>,
     }
@@ -2198,12 +2198,12 @@ mod renderer {
 
         /// Create a headless renderer.
         ///
-        /// The `size` must be already scaled by the `pixel_ratio`. The `pixel_ratio` is usually `1.0` for headless rendering.
+        /// The `size` must be already scaled by the `scale_factor`. The `scale_factor` is usually `1.0` for headless rendering.
         ///
         /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
         pub fn new<C: RenderCallback>(
             size: RenderSize,
-            pixel_ratio: f32,
+            scale_factor: f32,
             config: RendererConfig,
             render_callback: C,
         ) -> Result<Self, RendererError> {
@@ -2255,7 +2255,7 @@ mod renderer {
             Self::new_(
                 GlContext::Headless(context, HeadlessData::partial(el)),
                 size,
-                config.wr_options(pixel_ratio, renderer_kind),
+                config.wr_options(scale_factor, renderer_kind),
                 Box::new(Notifier(render_callback, None)),
             )
         }
@@ -2327,7 +2327,7 @@ mod renderer {
                 pipeline_id,
 
                 size,
-                pixel_ratio,
+                scale_factor: pixel_ratio,
                 resized: false,
                 clear_color,
                 headless,
@@ -2364,12 +2364,12 @@ mod renderer {
 
         /// Resize the renderer surface.
         ///
-        /// The `new_size` must be already scaled by the `new_pixel_ratio`.
+        /// The `new_size` must be already scaled by the `new_scale_factor`.
         ///
         /// This must be called even when the renderer was created from a window.
         ///
         /// This does not render a new frame, you must call [`render`](Self::render) before presenting the new size.
-        pub fn resize(&mut self, new_size: RenderSize, new_pixel_ratio: f32) -> Result<(), RendererError> {
+        pub fn resize(&mut self, new_size: RenderSize, new_scale_factor: f32) -> Result<(), RendererError> {
             let context = self.context.make_current()?;
 
             match &context {
@@ -2385,7 +2385,7 @@ mod renderer {
             self.context = context.make_not_current()?;
 
             self.size = new_size;
-            self.pixel_ratio = new_pixel_ratio;
+            self.scale_factor = new_scale_factor;
             self.resized = true;
 
             Ok(())
@@ -2400,8 +2400,8 @@ mod renderer {
             frame_id: FrameId,
         ) {
             let viewport_size = LayoutSize::new(
-                self.size.width as f32 * self.pixel_ratio,
-                self.size.height as f32 * self.pixel_ratio,
+                self.size.width as f32 * self.scale_factor,
+                self.size.height as f32 * self.scale_factor,
             );
 
             let mut txn = Transaction::new();
@@ -2410,7 +2410,7 @@ mod renderer {
 
             if self.resized {
                 self.resized = false;
-                txn.set_document_view(self.size.into(), self.pixel_ratio);
+                txn.set_document_view(self.size.into(), self.scale_factor);
             }
 
             txn.generate_frame();
@@ -2425,7 +2425,7 @@ mod renderer {
 
             if self.resized {
                 self.resized = false;
-                txn.set_document_view(self.size.into(), self.pixel_ratio);
+                txn.set_document_view(self.size.into(), self.scale_factor);
             }
 
             txn.generate_frame();
@@ -2475,21 +2475,98 @@ mod renderer {
             )
         }
 
-        /// Read the pixels in the rectangle as a vec of RGBA unsigned
+        /// `glReadPixels` a new buffer.
+        ///
+        /// This is a direct call to `glReadPixels`, `x` and `y` start
+        /// at the bottom-left corner of the rectangle and each *stride*
+        /// is a row from bottom-to-top.
         #[inline]
-        pub fn read_pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, RendererError> {
-            let _ = (x, y, width, height);
-            // gl::RGB, gl::UNSIGNED_BYTE
-
+        pub fn read_pixels(&mut self, x: i32, y: i32, width: i32, height: i32) -> Result<Vec<u8>, RendererError> {
             let context = self.context.make_current()?;
 
-            let pixels = self
-                .gl
-                .read_pixels(x as _, y as _, width as _, height as _, gl::RGBA, gl::UNSIGNED_BYTE);
+            let pixels = self.gl.read_pixels(x, y, width, height, gl::RGBA, gl::UNSIGNED_BYTE);
+            // TODO gl error
 
             self.context = context.make_not_current()?;
 
             Ok(pixels)
+        }
+
+        /// `glReadPixels` to an existing buffer.
+        ///
+        /// This is a direct call to `glReadPixels`, `x` and `y` start
+        /// at the bottom-left corner of the rectangle and each *stride*
+        /// is a row from bottom-to-top.
+        #[inline]
+        pub fn read_pixels_to(&mut self, x: i32, y: i32, width: i32, height: i32, pixels: &mut [u8]) -> Result<(), RendererError> {
+            let context = self.context.make_current()?;
+
+            self.gl
+                .read_pixels_into_buffer(x, y, width, height, gl::RGBA, gl::UNSIGNED_BYTE, pixels);
+            // TODO gl error
+
+            self.context = context.make_not_current()?;
+
+            Ok(())
+        }
+
+        /// Read the current presented frame into a [`FramePixels`].
+        #[inline]
+        pub fn frame_pixels(&mut self) -> Result<FramePixels, RendererError> {
+            self.frame_pixels_rect(0, 0, self.size.width as u32, self.size.height as u32)
+        }
+
+        /// Read a rectangle of the currently presented frame into a [`FramePixels`].
+        ///
+        /// The coordinates are in pixels units and `x` and `y` starting at the top-left corner.
+        /// If the rectangle does not fully overlap with the frame the result is clipped.
+        pub fn frame_pixels_rect(&mut self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, RendererError> {
+            let max_rect = euclid::Rect::from_size(self.size);
+            let rect = euclid::Rect::new(euclid::Point2D::new(x, y), euclid::Size2D::new(width as i32, height as i32));
+            let rect = rect.intersection(&max_rect).unwrap_or_default();
+
+            if rect.size.width == 0 || rect.size.height == 0 {
+                return Ok(FramePixels {
+                    pixels: Box::new([]),
+                    width: rect.size.width as u32,
+                    height: rect.size.height as u32,
+                    scale_factor: self.scale_factor,
+                });
+            }
+
+            let pixels = self.read_pixels(
+                rect.origin.x,
+                max_rect.size.height - rect.origin.y - rect.size.height,
+                rect.size.width,
+                rect.size.height,
+            )?;
+
+            let mut pixels_flipped = Vec::with_capacity(pixels.len());
+            for v in (0..height as _).rev() {
+                let s = 4 * v as usize * width as usize;
+                let o = 4 * width as usize;
+                pixels_flipped.extend_from_slice(&pixels[s..(s + o)]);
+            }
+
+            Ok(FramePixels {
+                pixels: pixels_flipped.into_boxed_slice(),
+                width: rect.size.width as u32,
+                height: rect.size.height as u32,
+                scale_factor: self.scale_factor,
+            })
+        }
+
+        /// Read a rectangle of the currently presented frame into a [`FramePixels`].
+        ///
+        /// The `rect` is converted to pixels coordinates using the current [`scale_factor`](Self::scale_factor)
+        #[inline]
+        pub fn frame_pixels_l_rect(&mut self, rect: crate::units::LayoutRect) -> Result<FramePixels, RendererError> {
+            self.frame_pixels_rect(
+                (rect.origin.x * self.scale_factor) as i32,
+                (rect.origin.y * self.scale_factor) as i32,
+                (rect.size.width * self.scale_factor) as u32,
+                (rect.size.height * self.scale_factor) as u32,
+            )
         }
 
         /// If the renderer is headless, renders a new [`UiNode`](crate::UiNode).
@@ -2585,6 +2662,84 @@ mod renderer {
 
         fn new_frame_ready(&self, _: webrender::api::DocumentId, _scrolled: bool, _composite_needed: bool, _render_time_ns: Option<u64>) {
             self.0.on_new_frame(NewFrameArgs { window_id: self.1 })
+        }
+    }
+
+    /// Pixels copied from a [`Renderer`] frame.
+    #[derive(Clone)]
+    pub struct FramePixels {
+        pixels: Box<[u8]>,
+        width: u32,
+        height: u32,
+
+        /// Scale factor used when rendering the frame.
+        ///
+        /// This value is used only as the *DPI* metadata of
+        /// image files encoded from these pixels.
+        pub scale_factor: f32,
+    }
+    impl fmt::Debug for FramePixels {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("FramePixels")
+                .field("pixels", &format_args!("<{} heap bytes>", self.pixels.len()))
+                .field("width", &self.width)
+                .field("height", &self.height)
+                .field("scale_factor", &self.scale_factor)
+                .finish()
+        }
+    }
+    impl FramePixels {
+        /// **Rgba8** pixel buffer.
+        #[inline]
+        pub fn pixels(&self) -> &[u8] {
+            &self.pixels
+        }
+
+        /// Pixels width.
+        #[inline]
+        pub fn width(&self) -> u32 {
+            self.width
+        }
+
+        /// Pixels height.
+        #[inline]
+        pub fn height(&self) -> u32 {
+            self.height
+        }
+
+        /// Get the underlying data `(pixels, width, height)`.
+        #[inline]
+        pub fn raw(self) -> (Box<[u8]>, u32, u32) {
+            (self.pixels, self.width, self.height)
+        }
+    }
+
+    /// Helper methods that use the [`image`] crate.
+    impl FramePixels {
+        /// Encode and save the pixels as an image.
+        pub fn save(&self, path: impl AsRef<std::path::Path>) -> image::ImageResult<()> {
+            if !crate::units::about_eq(self.scale_factor, 1.0, 0.00001) {
+                // TODO, see https://github.com/image-rs/image/issues/911
+                //           https://crates.io/crates/img-parts
+            }
+            image::save_buffer(path, &self.pixels, self.width, self.height, image::ColorType::Rgba8)
+        }
+
+        /// Clone the pixel data into an [`image::RgbaImage`].
+        #[inline]
+        pub fn image(&self) -> image::RgbaImage {
+            image::RgbaImage::from_raw(self.width, self.height, self.pixels.to_vec()).unwrap()
+        }
+
+        /// Moves the pixel data to an [`image::RgbaImage`].
+        #[inline]
+        pub fn into_image(self) -> image::RgbaImage {
+            image::RgbaImage::from_raw(self.width, self.height, self.pixels.into()).unwrap()
+        }
+    }
+    impl From<FramePixels> for image::RgbaImage {
+        fn from(pixels: FramePixels) -> Self {
+            pixels.into_image()
         }
     }
 }

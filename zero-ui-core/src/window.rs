@@ -5,7 +5,8 @@ use crate::{
     event::*,
     profiler::profile_scope,
     render::{
-        FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, NewFrameArgs, RenderSize, Renderer, RendererConfig, WidgetTransformKey,
+        FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, NewFrameArgs, RenderSize, Renderer, RendererConfig,
+        WidgetTransformKey,
     },
     service::Service,
     text::{Text, ToText},
@@ -1591,8 +1592,12 @@ impl OpenWindow {
     /// # Panics
     ///
     /// Panics if running in [renderless mode](Self::mode).
-    pub fn screenshot(&self) -> ScreenshotData {
-        self.screenshot_rect(LayoutRect::from_size(self.size()))
+    pub fn screenshot(&self) -> FramePixels {
+        if let Some(renderer) = &self.renderer {
+            renderer.borrow_mut().frame_pixels().expect("failed to read pixels")
+        } else {
+            panic!("cannot screenshot in renderless mode")
+        }
     }
 
     /// Take a screenshot of a window area.
@@ -1600,44 +1605,9 @@ impl OpenWindow {
     /// # Panics
     ///
     /// Panics if running in [renderless mode](Self::mode).
-    pub fn screenshot_rect(&self, rect: LayoutRect) -> ScreenshotData {
-        let max_rect = LayoutRect::from_size(self.size());
-        let rect = rect.intersection(&max_rect).unwrap_or_default();
-        let dpi = self.scale_factor();
-        let rect = rect * dpi;
-
-        let x = rect.origin.x as u32;
-        let y = rect.origin.y as u32;
-        let width = rect.size.width as u32;
-        let height = rect.size.height as u32;
-
-        if width == 0 || height == 0 {
-            return ScreenshotData {
-                pixels: vec![],
-                width,
-                height,
-                dpi,
-            };
-        }
-
+    pub fn screenshot_rect(&self, rect: LayoutRect) -> FramePixels {
         if let Some(renderer) = &self.renderer {
-            let pixels = renderer
-                .borrow_mut()
-                .read_pixels(x, y, width, height)
-                .expect("failed to read pixels");
-
-            let mut pixels_flipped = Vec::with_capacity(pixels.len());
-            for v in (0..height as _).rev() {
-                let s = 4 * v as usize * width as usize;
-                let o = 4 * width as usize;
-                pixels_flipped.extend_from_slice(&pixels[s..(s + o)]);
-            }
-            ScreenshotData {
-                pixels: pixels_flipped,
-                width,
-                height,
-                dpi,
-            }
+            renderer.borrow_mut().frame_pixels_l_rect(rect).expect("failed to read pixels")
         } else {
             panic!("cannot screenshot in renderless mode")
         }
@@ -2323,24 +2293,6 @@ impl Drop for OpenWindow {
         // these need to be dropped in this order.
         let _ = self.renderer.take();
         let _ = self.window.take();
-    }
-}
-
-/// Window screenshot image data.
-pub struct ScreenshotData {
-    /// RGBA8
-    pub pixels: Vec<u8>,
-    /// Width in pixels.
-    pub width: u32,
-    /// Height in pixels.
-    pub height: u32,
-    /// Dpi scale when the screenshot was taken.
-    pub dpi: f32,
-}
-impl ScreenshotData {
-    /// Encode and save the screenshot image.
-    pub fn save(&self, path: impl AsRef<std::path::Path>) -> image::ImageResult<()> {
-        image::save_buffer(path, &self.pixels, self.width, self.height, image::ColorType::Rgba8)
     }
 }
 

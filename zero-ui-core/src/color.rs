@@ -45,8 +45,17 @@ pub use zero_ui_proc_macros::hex_color;
 /// Webrender RGBA.
 pub type RenderColor = webrender::api::ColorF;
 
+/// Minimal difference between values in around the 0.0..=1.0 scale.
+const EPSILON: f32 = 0.00001;
+/// Minimal difference between values in around the 1.0..=100.0 scale.
+const EPSILON_100: f32 = 0.001;
+
 /// RGB + alpha.
-#[derive(Copy, Clone, Debug, PartialEq)]
+///
+/// # Equality
+///
+/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
+#[derive(Copy, Clone, Debug)]
 pub struct Rgba {
     /// Red channel value, in the `[0.0..=1.0]` range.
     pub red: f32,
@@ -56,6 +65,14 @@ pub struct Rgba {
     pub blue: f32,
     /// Alpha channel value, in the `[0.0..=1.0]` range.
     pub alpha: f32,
+}
+impl PartialEq for Rgba {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.red, other.red, EPSILON)
+            && about_eq(self.green, other.green, EPSILON)
+            && about_eq(self.blue, other.blue, EPSILON)
+            && about_eq(self.alpha, other.alpha, EPSILON)
+    }
 }
 impl Rgba {
     /// See [`rgba`] for a better constructor.
@@ -125,7 +142,12 @@ impl fmt::Display for Rgba {
 }
 
 /// HSL + alpha.
-#[derive(Copy, Clone, Debug, PartialEq)]
+///
+/// # Equality
+///
+/// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsla::hue)
+/// and `0.00001` epsilon for the others.
+#[derive(Copy, Clone, Debug)]
 pub struct Hsla {
     /// Hue color angle in the `[0.0..=360.0]` range.
     pub hue: f32,
@@ -135,6 +157,14 @@ pub struct Hsla {
     pub lightness: f32,
     /// Alpha channel in the `[0.0..=1.0]` range, zero is invisible, one is opaque.
     pub alpha: f32,
+}
+impl PartialEq for Hsla {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.hue, other.hue, EPSILON_100)
+            && about_eq(self.saturation, other.saturation, EPSILON)
+            && about_eq(self.lightness, other.lightness, EPSILON)
+            && about_eq(self.alpha, other.alpha, EPSILON)
+    }
 }
 impl Hsla {
     /// Adds the `amount` to the [`lightness`](Self::lightness).
@@ -213,7 +243,7 @@ impl fmt::Display for Hsla {
         }
         let a = p(self.alpha);
         let h = AngleDegree(self.hue).modulo().0.round();
-        if (a - 100.0).abs() <= f32::EPSILON {
+        if (a - 100.0).abs() <= EPSILON {
             write!(f, "hsl({}º, {}%, {}%)", h, p(self.saturation), p(self.lightness))
         } else {
             write!(f, "hsla({}º, {}%, {}%, {}%)", h, p(self.saturation), p(self.lightness), a)
@@ -222,7 +252,12 @@ impl fmt::Display for Hsla {
 }
 
 /// HSV + alpha
-#[derive(Copy, Clone, Debug, PartialEq)]
+///
+/// # Equality
+///
+/// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsva::hue)
+/// and `0.00001` epsilon for the others.
+#[derive(Copy, Clone, Debug)]
 pub struct Hsva {
     /// Hue color angle in the `[0.0..=360.0]` range.
     pub hue: f32,
@@ -232,6 +267,14 @@ pub struct Hsva {
     pub value: f32,
     /// Alpha channel in the `[0.0..=1.0]` range, zero is invisible, one is opaque.
     pub alpha: f32,
+}
+impl PartialEq for Hsva {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.hue, other.hue, EPSILON_100)
+            && about_eq(self.saturation, other.saturation, EPSILON)
+            && about_eq(self.value, other.value, EPSILON)
+            && about_eq(self.alpha, other.alpha, EPSILON)
+    }
 }
 impl Hsva {
     /// Sets the [`hue`](Self::hue) color angle.
@@ -281,7 +324,7 @@ impl fmt::Display for Hsva {
         }
         let a = p(self.alpha);
         let h = AngleDegree(self.hue).modulo().0.round();
-        if (a - 100.0).abs() <= f32::EPSILON {
+        if (a - 100.0).abs() <= EPSILON {
             write!(f, "hsv({}º, {}%, {}%)", h, p(self.saturation), p(self.value))
         } else {
             write!(f, "hsva({}º, {}%, {}%, {}%)", h, p(self.saturation), p(self.value), a)
@@ -294,7 +337,7 @@ impl_from_and_into_var! {
         let saturation = clamp_normal(hsla.saturation);
 
         let value = lightness + saturation * lightness.min(1.0 - lightness);
-        let saturation = if value <= f32::EPSILON {
+        let saturation = if value <= EPSILON {
             0.0
         } else {
             2.0 * (1.0 - lightness / value)
@@ -313,7 +356,7 @@ impl_from_and_into_var! {
         let value = clamp_normal(hsva.value);
 
         let lightness = value * (1.0 - saturation / 2.0);
-        let saturation = if lightness <= f32::EPSILON || lightness >= 1.0 - f32::EPSILON {
+        let saturation = if lightness <= EPSILON || lightness >= 1.0 - EPSILON {
             0.0
         } else {
             2.0 * (1.0 * lightness / value)
@@ -365,7 +408,7 @@ impl_from_and_into_var! {
     }
 
     fn from(hsla: Hsla) -> Rgba {
-        if hsla.saturation <= f32::EPSILON {
+        if hsla.saturation <= EPSILON {
             return rgba(hsla.lightness, hsla.lightness, hsla.lightness, hsla.alpha);
         }
 
@@ -418,12 +461,12 @@ macro_rules! cylindrical_color {
         let $max = r.max(g).max(b);
 
         fn about_eq(a: f32, b: f32) -> bool {
-            (a - b) <= f32::EPSILON
+            (a - b) <= EPSILON
         }
 
         let $delta = $max - $min;
 
-        let $hue = if $delta <= f32::EPSILON {
+        let $hue = if $delta <= EPSILON {
             0.0
         } else {
             60.0 * if about_eq($max, r) {
@@ -442,7 +485,7 @@ impl_from_and_into_var! {
     fn from(rgba: Rgba) -> Hsva {
         cylindrical_color!(rgba -> (min, max, delta, hue));
 
-        let saturation = if max <= f32::EPSILON { 0.0 } else { delta / max };
+        let saturation = if max <= EPSILON { 0.0 } else { delta / max };
 
         let value = max;
 
@@ -459,7 +502,7 @@ impl_from_and_into_var! {
 
         let lightness = (max + min) / 2.0;
 
-        let saturation = if delta <= f32::EPSILON {
+        let saturation = if delta <= EPSILON {
             0.0
         } else {
             delta / (1.0 - (2.0 * lightness - 1.0).abs())

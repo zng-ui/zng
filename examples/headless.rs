@@ -3,6 +3,10 @@ use zero_ui::prelude::*;
 fn main() {
     println!("-=Headless Example=-\n");
     // This example uses a headless window to render an image.
+    //
+    // Note: this is a demonstration of headless, if you just want
+    //       to render an image you can use the renderer directly
+    //       like in the "renderer.rs" example.
 
     // we only need the window services.
     let mut app = App::default().run_headless();
@@ -27,10 +31,13 @@ fn main() {
             // find the image window.
             let wn = wns.windows().next().unwrap();
 
-            // copy the frame to a ScreenshotData and save it.
+            // copy the frame pixel data and save it.
             print!("saving ./screenshot.png ... ");
             flush_stdout();
             wn.screenshot().save("screenshot.png").expect("error saving screenshot");
+            wn.screenshot_rect(zero_ui::core::units::LayoutRect::new((0.0, 550.0).into(), (100.0, 100.0).into()))
+                .save("screenshot-empty.png")
+                .expect("error saving screenshot");
             println!("done");
 
             wn.id()
