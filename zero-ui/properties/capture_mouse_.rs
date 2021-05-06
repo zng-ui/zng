@@ -25,7 +25,7 @@ use crate::prelude::new_property::*;
 ///     }
 /// }
 /// ```
-#[property(context)]
+#[property(context, default(false))]
 pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
     struct CaptureMouseNode<C: UiNode, M: Var<CaptureMode>> {
         child: C,

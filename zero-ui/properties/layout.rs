@@ -33,7 +33,7 @@ use zero_ui::prelude::new_property::*;
 ///
 /// In the example the button has `10` pixels of space above and bellow and `5%` of the container width to the left and right.
 /// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
-#[property(outer)]
+#[property(outer, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     struct MarginNode<T, M> {
         child: T,
@@ -162,7 +162,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
 /// # `x` and `y`
 ///
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
-#[property(outer)]
+#[property(outer, default((0, 0)))]
 pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNode {
     struct PositionNode<T: UiNode, P: Var<Point>> {
         child: T,
@@ -215,7 +215,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 /// # `position`
 ///
 /// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
-#[property(outer)]
+#[property(outer, default(0))]
 pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     struct XNode<T: UiNode, X: Var<Length>> {
         child: T,
@@ -268,7 +268,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// # `position`
 ///
 /// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
-#[property(outer)]
+#[property(outer, default(0))]
 pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     struct YNode<T: UiNode, Y: Var<Length>> {
         child: T,
@@ -324,7 +324,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// You can use the [`min_width`](fn@min_width) and [`min_height`](fn@min_height) properties to only
 /// set the minimum size of one dimension.
-#[property(size)]
+#[property(size, default((0, 0)))]
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
     struct MinSizeNode<T: UiNode, S: Var<Size>> {
         child: T,
@@ -382,7 +382,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// # `min_size`
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
-#[property(size)]
+#[property(size, default(0))]
 pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
     struct MinWidthNode<T: UiNode, W: Var<Length>> {
         child: T,
@@ -456,7 +456,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// # `min_size`
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
-#[property(size)]
+#[property(size, default(0))]
 pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
     struct MinHeightNode<T: UiNode, H: Var<Length>> {
         child: T,

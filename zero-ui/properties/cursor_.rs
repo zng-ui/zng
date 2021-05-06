@@ -12,7 +12,7 @@ use crate::prelude::new_property::*;
 /// }
 /// # ;
 /// ```
-#[property(context)]
+#[property(context, default(CursorIcon::Default))]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
     struct CursorNode<T, C> {
         cursor: C,

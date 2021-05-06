@@ -5,7 +5,7 @@ use crate::core::mouse::MouseButton;
 use crate::prelude::new_property::*;
 
 /// Enable widget move by pressing and moving the pointer.
-#[property(outer)]
+#[property(outer, default(false))]
 pub fn draggable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     struct DraggableNode<C: UiNode, E: Var<bool>> {
         child: C,

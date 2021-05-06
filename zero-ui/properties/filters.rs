@@ -1,4 +1,4 @@
-//! Color filter properties, [`opacity`](mod@opacity), [`filter`](mod@filter) and more.
+//! Color filter properties, [`opacity`](fn@opacity), [`filter`](fn@filter) and more.
 
 use crate::prelude::new_property::*;
 
@@ -9,9 +9,9 @@ use crate::prelude::new_property::*;
 ///
 /// # Performance
 ///
-/// The performance for setting specific filter properties versus this one is the same, except for [`opacity`](module@opacity)
+/// The performance for setting specific filter properties versus this one is the same, except for [`opacity`](fn@opacity)
 /// with is optimized for animation.
-#[property(context)]
+#[property(context, default(Filter::default()))]
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     struct FilterNode<C, F> {
         child: C,
@@ -45,28 +45,28 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 
 /// Inverts the colors of the widget.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color::invert(amount)`](color::invert) using variable merging.
-#[property(context)]
+/// This property is a shorthand way of setting [`filter`](fn@filter) to [`color::invert(amount)`](color::invert) using variable merging.
+#[property(context, default(false))]
 pub fn invert_color(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::invert(a)))
 }
 
-#[property(context)]
+#[property(context, default(0))]
 pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
     filter(child, radius.into_var().map(|&r| color::blur(r)))
 }
 
-#[property(context)]
+#[property(context, default(false))]
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::sepia(a)))
 }
 
-#[property(context)]
+#[property(context, default(false))]
 pub fn grayscale(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::grayscale(a)))
 }
 
-#[property(context)]
+#[property(context, default((0, 0), 0, colors::BLACK.transparent()))]
 pub fn drop_shadow(
     child: impl UiNode,
     offset: impl IntoVar<Point>,
@@ -81,22 +81,22 @@ pub fn drop_shadow(
     )
 }
 
-#[property(context)]
+#[property(context, default(1.0))]
 pub fn brightness(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::brightness(a)))
 }
 
-#[property(context)]
+#[property(context, default(1.0))]
 pub fn contrast(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::contrast(a)))
 }
 
-#[property(context)]
+#[property(context, default(1.0))]
 pub fn saturate(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::saturate(a)))
 }
 
-#[property(context)]
+#[property(context, default(0.deg()))]
 pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
     filter(child, angle.into_var().map(|&a| color::hue_rotate(a)))
 }
@@ -105,7 +105,7 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 ///
 /// This property provides the same visual result as setting [`filter`] to [`color::opacity(opacity)`](color::opacity),
 /// **but** updating the opacity is faster in this property.
-#[property(context)]
+#[property(context, default(1.0))]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl UiNode {
     struct OpacityNode<C, A> {
         child: C,
