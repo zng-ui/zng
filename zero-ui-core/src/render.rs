@@ -2481,11 +2481,13 @@ mod renderer {
         /// at the bottom-left corner of the rectangle and each *stride*
         /// is a row from bottom-to-top.
         #[inline]
-        pub fn read_pixels(&mut self, x: i32, y: i32, width: i32, height: i32) -> Result<Vec<u8>, RendererError> {
+        pub fn read_pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, RendererError> {
             let context = self.context.make_current()?;
 
-            let pixels = self.gl.read_pixels(x, y, width, height, gl::RGBA, gl::UNSIGNED_BYTE);
-            // TODO gl error
+            let pixels = self
+                .gl
+                .read_pixels(x as _, y as _, width as _, height as _, gl::RGBA, gl::UNSIGNED_BYTE);
+            assert!(self.gl.get_error() == 0);
 
             self.context = context.make_not_current()?;
 
@@ -2498,12 +2500,12 @@ mod renderer {
         /// at the bottom-left corner of the rectangle and each *stride*
         /// is a row from bottom-to-top.
         #[inline]
-        pub fn read_pixels_to(&mut self, x: i32, y: i32, width: i32, height: i32, pixels: &mut [u8]) -> Result<(), RendererError> {
+        pub fn read_pixels_to(&mut self, x: u32, y: u32, width: u32, height: u32, pixels: &mut [u8]) -> Result<(), RendererError> {
             let context = self.context.make_current()?;
 
             self.gl
-                .read_pixels_into_buffer(x, y, width, height, gl::RGBA, gl::UNSIGNED_BYTE, pixels);
-            // TODO gl error
+                .read_pixels_into_buffer(x as _, y as _, width as _, height as _, gl::RGBA, gl::UNSIGNED_BYTE, pixels);
+            assert!(self.gl.get_error() == 0);
 
             self.context = context.make_not_current()?;
 
@@ -2535,10 +2537,10 @@ mod renderer {
             }
 
             let mut pixels = self.read_pixels(
-                rect.origin.x,
-                max_rect.size.height - rect.origin.y - rect.size.height,
-                rect.size.width,
-                rect.size.height,
+                rect.origin.x as u32,
+                (max_rect.size.height - rect.origin.y - rect.size.height) as u32,
+                rect.size.width as u32,
+                rect.size.height as u32,
             )?;
 
             let line_len = rect.size.width as usize * 4;
