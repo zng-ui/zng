@@ -4,13 +4,10 @@ use crate::{
     context::*,
     event::*,
     profiler::profile_scope,
-    render::{
-        FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, NewFrameArgs, RenderSize, Renderer, RendererConfig,
-        WidgetTransformKey,
-    },
+    render::*,
     service::Service,
     text::{Text, ToText},
-    units::{FactorUnits, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
+    units::*,
     var::{var, RcVar, VarsRead},
     UiNode, WidgetId, LAYOUT_ANY_SIZE,
 };
@@ -1177,16 +1174,25 @@ pub struct HeadlessScreen {
     pub screen_size: LayoutSize,
 }
 impl HeadlessScreen {
-    /// New at `1.0` scale.
+    /// New with custom size at `1.0` scale.
     #[inline]
     pub fn new(screen_size: LayoutSize) -> Self {
         Self::new_scaled(screen_size, 1.0)
     }
 
-    /// New with custom scale.
+    /// New with custom size and scale.
     #[inline]
     pub fn new_scaled(screen_size: LayoutSize, scale_factor: f32) -> Self {
         HeadlessScreen { scale_factor, screen_size }
+    }
+
+    /// New default size `1920x1080` and custom scale.
+    #[inline]
+    pub fn new_scale(scale_factor: f32) -> Self {
+        HeadlessScreen {
+            scale_factor,
+            ..Self::default()
+        }
     }
 }
 impl Default for HeadlessScreen {
@@ -1196,15 +1202,27 @@ impl Default for HeadlessScreen {
     }
 }
 impl From<(f32, f32)> for HeadlessScreen {
-    /// (width, height) at `1.0` scale.
+    /// Calls [`HeadlessScreen::new_scaled`]
     fn from((width, height): (f32, f32)) -> Self {
         Self::new(LayoutSize::new(width, height))
     }
 }
 impl From<(u32, u32)> for HeadlessScreen {
-    /// (width, height) at `1.0` scale.
+    /// Calls [`HeadlessScreen::new`]
     fn from((width, height): (u32, u32)) -> Self {
         Self::new(LayoutSize::new(width as f32, height as f32))
+    }
+}
+impl From<FactorNormal> for HeadlessScreen {
+    /// Calls [`HeadlessScreen::new_scale`]
+    fn from(f: FactorNormal) -> Self {
+        Self::new_scale(f.0)
+    }
+}
+impl From<FactorPercent> for HeadlessScreen {
+    /// Calls [`HeadlessScreen::new_scale`]
+    fn from(f: FactorPercent) -> Self {
+        Self::new_scale(f.0 / 100.0)
     }
 }
 

@@ -2722,10 +2722,53 @@ mod renderer {
     /// Helper methods that use the [`image`] crate.
     impl FramePixels {
         /// Encode and save the pixels as an image.
+        ///
+        /// # Scale Factor
+        ///
+        /// The scale factor is used only if the formats are `PNG` or `JPEG`, for both
+        /// it sets the pixel density to `96dpi * scale_factor`.
         pub fn save(&self, path: impl AsRef<std::path::Path>) -> image::ImageResult<()> {
-            if !crate::units::about_eq(self.scale_factor, 1.0, 0.00001) {
-                // TODO, see https://github.com/image-rs/image/issues/911
-                //           https://crates.io/crates/img-parts
+            use image::*;
+            use std::fs;
+
+            let path = path.as_ref();
+            if let Ok(format) = ImageFormat::from_path(path) {
+                match format {
+                    ImageFormat::Jpeg => {
+                        let mut w = fs::File::create(path)?;
+                        let mut jpg = codecs::jpeg::JpegEncoder::new(&mut w);
+                        let dpi = (96.0 * self.scale_factor) as u16;
+                        jpg.set_pixel_density(codecs::jpeg::PixelDensity::dpi(dpi));
+                        jpg.encode(&self.pixels, self.width, self.height, ColorType::Rgba8)?;
+                        return Ok(());
+                    }
+                    ImageFormat::Png => {
+                        let mut w = vec![];
+                        let png = codecs::png::PngEncoder::new(&mut w);
+                        png.encode(&self.pixels, self.width, self.height, ColorType::Rgba8)?;
+                        let mut png = img_parts::png::Png::from_bytes(w.into()).unwrap();
+
+                        let chunk_kind = [b'p', b'H', b'Y', b's'];
+                        debug_assert!(png.chunk_by_type(chunk_kind).is_none());
+
+                        use byteorder::*;
+                        let mut chunk = Vec::with_capacity(4 * 2 + 1);
+
+                        // 96dpi * scale / inch_to_metric
+                        let ppm = (96.0 * self.scale_factor / 0.0254) as u32;
+
+                        chunk.write_u32::<BigEndian>(ppm).unwrap(); // x
+                        chunk.write_u32::<BigEndian>(ppm).unwrap(); // y
+                        chunk.write_u8(1).unwrap(); // metric
+
+                        let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
+                        png.chunks_mut().insert(1, chunk);
+
+                        png.encoder().write_to(fs::File::create(path)?)?;
+                        return Ok(());
+                    }
+                    _ => {}
+                };
             }
             image::save_buffer(path, &self.pixels, self.width, self.height, image::ColorType::Rgba8)
         }

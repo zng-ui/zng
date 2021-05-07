@@ -284,6 +284,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae44d1a3d5a19df61dd0c8beb138458ac2a53a7ac09eba97d55592540004306b"
 
 [[package]]
+name = "bytes"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"
+
+[[package]]
 name = "cache-padded"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1196,6 +1202,17 @@ dependencies = [
  "png",
  "scoped_threadpool",
  "tiff",
+]
+
+[[package]]
+name = "img-parts"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e210871d2017abd6d46ffc9f743747549cb54fdeef37fbcc829400f52794e4e5"
+dependencies = [
+ "bytes",
+ "crc32fast",
+ "miniz_oxide 0.4.4",
 ]
 
 [[package]]
@@ -2862,6 +2879,7 @@ dependencies = [
  "array-init",
  "async-global-executor",
  "bitflags",
+ "byteorder",
  "colored",
  "derive_more",
  "ego-tree",
@@ -2873,6 +2891,7 @@ dependencies = [
  "glutin",
  "harfbuzz_rs",
  "image",
+ "img-parts",
  "is_main_thread",
  "lazy_static",
  "once_cell",
