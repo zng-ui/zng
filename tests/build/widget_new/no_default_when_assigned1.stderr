@@ -1,5 +1,5 @@
 error: property `my_property` is not assigned and has no default value
-  --> $DIR/no_default_when_assigned1.rs:15:13
+  --> $DIR/no_default_when_assigned1.rs:14:13
    |
-15 |             my_property = 20
+14 |             my_property = 20
    |             ^^^^^^^^^^^
