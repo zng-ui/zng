@@ -1209,7 +1209,7 @@ macro_rules! __event_property {
         /// # Preview Event
         ///
         #[doc = "You can preview this event using [`on_pre_" $event "`]."]
-        #[$crate::property(event)]
+        #[$crate::property(event, default(|_, _|{}))]
         $vis fn [<on_ $event>](
             child: impl $crate::UiNode,
             handler: impl FnMut(&mut $crate::context::WidgetContext, &$Args) + 'static
@@ -1223,7 +1223,7 @@ macro_rules! __event_property {
         ///
         /// Preview events are fired before the main event, if you stop the propagation of a preview event
         /// the main event does not run. See [`on_pre_event`](crate::properties::events::on_pre_event) for more details.
-        #[$crate::property(event)]
+        #[$crate::property(event, default(|_, _|{}))]
         $vis fn [<on_pre_ $event>](
             child: impl $crate::UiNode,
             handler: impl FnMut(&mut $crate::context::WidgetContext, &$Args) + 'static
