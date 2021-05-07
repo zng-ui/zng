@@ -211,38 +211,45 @@ impl FontFeaturesContext {
     }
 }
 
-struct WithFontFeatureNode<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static> {
-    child: C,
-    _s: PhantomData<S>,
-    var: V,
-    delegate: D,
-}
-#[impl_ui_node(child)]
-impl<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static> UiNode for WithFontFeatureNode<C, S, V, D> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.init(ctx));
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.deinit(ctx));
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.update(ctx));
-    }
-
-    // TODO update_hp?
-}
-
 /// Include the font feature config in the widget context.
-pub fn with_font_feature<C: UiNode, S: VarValue, V: IntoVar<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static>(
-    child: C,
-    state: V,
-    set_feature: D,
-) -> impl UiNode {
+pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> impl UiNode
+where
+    C: UiNode,
+    S: VarValue,
+    V: IntoVar<S>,
+    D: FnMut(&mut FontFeatures, S) -> S + 'static,
+{
+    struct WithFontFeatureNode<C, S, V, D> {
+        child: C,
+        _s: PhantomData<S>,
+        var: V,
+        delegate: D,
+    }
+    #[impl_ui_node(child)]
+    impl<C, S, V, D> UiNode for WithFontFeatureNode<C, S, V, D>
+    where
+        C: UiNode,
+        S: VarValue,
+        V: Var<S>,
+        D: FnMut(&mut FontFeatures, S) -> S + 'static,
+    {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.init(ctx));
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.deinit(ctx));
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.update(ctx));
+        }
+
+        // TODO update_hp?
+    }
     WithFontFeatureNode {
         child,
         _s: PhantomData,
@@ -251,22 +258,25 @@ pub fn with_font_feature<C: UiNode, S: VarValue, V: IntoVar<S>, D: FnMut(&mut Fo
     }
 }
 
-struct FontFeaturesNode<C: UiNode, V: Var<FontFeatures>> {
-    child: C,
-    features: V,
-}
-#[impl_ui_node(child)]
-impl<C: UiNode, V: Var<FontFeatures>> UiNode for FontFeaturesNode<C, V> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        let features = self.features.get(ctx.vars);
-        println!("TODO {:?}", features);
-        self.child.init(ctx);
-    }
-}
-
 /// Sets/overrides font features.
 #[property(context)]
 pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -> impl UiNode {
+    struct FontFeaturesNode<C, V> {
+        child: C,
+        features: V,
+    }
+    #[impl_ui_node(child)]
+    impl<C, V> UiNode for FontFeaturesNode<C, V>
+    where
+        C: UiNode,
+        V: Var<FontFeatures>,
+    {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let features = self.features.get(ctx.vars);
+            println!("TODO {:?}", features);
+            self.child.init(ctx);
+        }
+    }
     FontFeaturesNode {
         child,
         features: features.into_var(),
@@ -274,121 +284,121 @@ pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -
 }
 
 /// Sets the font kerning feature.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_kerning(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.kerning().set(s))
 }
 
 /// Sets the font common ligatures features.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_common_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.common_lig().set(s))
 }
 
 /// Sets the font discretionary ligatures feature.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_discretionary_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.discretionary_lig().set(s))
 }
 
 /// Sets the font historical ligatures feature.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_historical_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.historical_lig().set(s))
 }
 
 /// Sets the font contextual alternatives feature.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_contextual_alt(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.contextual_alt().set(s))
 }
 
 /// Sets the font capital variant features.
-#[property(context)]
+#[property(context, default(CapsVariant::Auto))]
 pub fn font_caps(child: impl UiNode, state: impl IntoVar<CapsVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.caps().set(s))
 }
 
 /// Sets the font numeric variant features.
-#[property(context)]
+#[property(context, default(NumVariant::Auto))]
 pub fn font_numeric(child: impl UiNode, state: impl IntoVar<NumVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.numeric().set(s))
 }
 
 /// Sets the font numeric spacing features.
-#[property(context)]
+#[property(context, default(NumSpacing::Auto))]
 pub fn font_num_spacing(child: impl UiNode, state: impl IntoVar<NumSpacing>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.num_spacing().set(s))
 }
 
 /// Sets the font numeric fraction features.
-#[property(context)]
+#[property(context, default(NumFraction::Auto))]
 pub fn font_num_fraction(child: impl UiNode, state: impl IntoVar<NumFraction>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.num_fraction().set(s))
 }
 
 /// Sets the font swash features.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_swash(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.swash().set(s))
 }
 
 /// Sets the font stylistic alternative feature.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_stylistic(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.stylistic().set(s))
 }
 
 /// Sets the font historical forms alternative feature.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_historical_forms(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.historical_forms().set(s))
 }
 
 /// Sets the font ornaments alternative feature.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_ornaments(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.ornaments().set(s))
 }
 
 /// Sets the font annotation alternative feature.
-#[property(context)]
+#[property(context, default(FontFeatureState::auto()))]
 pub fn font_annotation(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.annotation().set(s))
 }
 
 /// Sets the font stylistic set alternative feature.
-#[property(context)]
+#[property(context, default(FontStyleSet::auto()))]
 pub fn font_style_set(child: impl UiNode, state: impl IntoVar<FontStyleSet>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.style_set().set(s))
 }
 
 /// Sets the font character variant alternative feature.
-#[property(context)]
+#[property(context, default(CharVariant::auto()))]
 pub fn font_char_variant(child: impl UiNode, state: impl IntoVar<CharVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.char_variant().set(s))
 }
 
 /// Sets the font sub/super script position alternative feature.
-#[property(context)]
+#[property(context, default(FontPosition::Auto))]
 pub fn font_position(child: impl UiNode, state: impl IntoVar<FontPosition>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.position().set(s))
 }
 
 /// Sets the Japanese logographic set.
-#[property(context)]
+#[property(context, default(JpVariant::Auto))]
 pub fn font_jp_variant(child: impl UiNode, state: impl IntoVar<JpVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.jp_variant().set(s))
 }
 
 /// Sets the Chinese logographic set.
-#[property(context)]
+#[property(context, default(CnVariant::Auto))]
 pub fn font_cn_variant(child: impl UiNode, state: impl IntoVar<CnVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.cn_variant().set(s))
 }
 
 /// Sets the East Asian figure width.
-#[property(context)]
+#[property(context, default(EastAsianWidth::Auto))]
 pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.ea_width().set(s))
 }

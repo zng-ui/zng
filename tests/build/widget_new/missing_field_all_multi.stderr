@@ -10,6 +10,9 @@ error[E0061]: this function takes 2 arguments but 1 argument was supplied
 note: associated function defined here
    --> $DIR/visual.rs:119:1
     |
-119 | #[property(inner)]
-    | ^^^^^^^^^^^^^^^^^^
+119 | / #[property(inner, default(0.deg(), {
+120 | |     let c = colors::BLACK.transparent();
+121 | |     crate::core::gradient::stops![c, c]
+122 | | }))]
+    | |____^
     = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

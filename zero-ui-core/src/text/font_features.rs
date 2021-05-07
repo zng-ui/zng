@@ -818,7 +818,7 @@ pub trait FontFeatureExclusiveSetsState: Copy + PartialEq + 'static {
 }
 
 /// State of a [font feature](FontFeatures).
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Default)]
 pub struct FontFeatureState(Option<u32>);
 impl FontFeatureState {
     /// Automatic state.
@@ -848,7 +848,7 @@ impl FontFeatureState {
     /// Is [`auto`](Self::auto).
     #[inline]
     pub fn is_auto(self) -> bool {
-        self == Self::auto()
+        self.0.is_none()
     }
 
     /// Is [`enabled`](Self::enabled) or [`enabled_alt`](Self::enabled_alt).
@@ -946,6 +946,12 @@ pub enum CapsVariant {
     /// This corresponds to OpenType `titl` feature.
     TitlingCaps,
 }
+impl Default for CapsVariant {
+    /// [`CapsVariant::Auto`]
+    fn default() -> Self {
+        CapsVariant::Auto
+    }
+}
 impl FontFeatureExclusiveSetsState for CapsVariant {
     #[inline]
     fn names() -> &'static [&'static [FontFeatureName]] {
@@ -998,6 +1004,12 @@ pub enum NumVariant {
     /// This corresponds to OpenType `onum` feature.
     OldStyle,
 }
+impl Default for NumVariant {
+    /// [`NumVariant::Auto`]
+    fn default() -> Self {
+        NumVariant::Auto
+    }
+}
 impl FontFeatureExclusiveSetState for NumVariant {
     #[inline]
     fn names() -> &'static [FontFeatureName] {
@@ -1042,6 +1054,12 @@ pub enum NumSpacing {
     /// This corresponds to OpenType `tnum` feature.
     Tabular,
 }
+impl Default for NumSpacing {
+    /// [`NumSpacing::Auto`]
+    fn default() -> Self {
+        NumSpacing::Auto
+    }
+}
 impl FontFeatureExclusiveSetState for NumSpacing {
     #[inline]
     fn names() -> &'static [FontFeatureName] {
@@ -1085,6 +1103,12 @@ pub enum NumFraction {
     ///
     /// This corresponds to OpenType `afrc` feature.
     Stacked,
+}
+impl Default for NumFraction {
+    /// [`NumFraction::Auto`]
+    fn default() -> Self {
+        NumFraction::Auto
+    }
 }
 impl FontFeatureExclusiveSetState for NumFraction {
     #[inline]
@@ -1148,6 +1172,12 @@ pub enum FontStyleSet {
     S18,
     S19,
     S20,
+}
+impl Default for FontStyleSet {
+    /// [`FontStyleSet::Auto`]
+    fn default() -> Self {
+        FontStyleSet::Auto
+    }
 }
 impl_from_and_into_var! {
     /// `set == 0 || set > 20` is Auto, `set >= 1 && set <= 20` maps to their variant.
@@ -1283,6 +1313,12 @@ pub enum FontPosition {
     /// This corresponds to OpenType `sups` feature.
     Super,
 }
+impl Default for FontPosition {
+    /// [`FontPosition::Auto`]
+    fn default() -> Self {
+        FontPosition::Auto
+    }
+}
 impl FontFeatureExclusiveSetState for FontPosition {
     #[inline]
     fn names() -> &'static [FontFeatureName] {
@@ -1341,6 +1377,12 @@ pub enum JpVariant {
     /// This corresponds to OpenType `nlck` feature.
     NlcKanji,
 }
+impl Default for JpVariant {
+    /// [`JpVariant::Auto`]
+    fn default() -> Self {
+        JpVariant::Auto
+    }
+}
 impl FontFeatureExclusiveSetState for JpVariant {
     #[inline]
     fn names() -> &'static [FontFeatureName] {
@@ -1385,6 +1427,12 @@ pub enum CnVariant {
     /// This corresponds to OpenType `trad` feature.
     Tradicional,
 }
+impl Default for CnVariant {
+    /// [`CnVariant::Auto`]
+    fn default() -> Self {
+        CnVariant::Auto
+    }
+}
 impl FontFeatureExclusiveSetState for CnVariant {
     #[inline]
     fn names() -> &'static [FontFeatureName] {
@@ -1420,6 +1468,7 @@ impl FontFeatureExclusiveSetState for CnVariant {
 pub enum EastAsianWidth {
     /// Uses the font default glyphs and spacing.
     Auto,
+
     /// Uses the set of glyphs designed for proportional spacing.
     ///
     /// This corresponds to OpenType `pwid` feature.
@@ -1459,6 +1508,12 @@ pub enum EastAsianWidth {
     ///
     /// This corresponds to OpenType `qwid` feature.
     Quarter,
+}
+impl Default for EastAsianWidth {
+    /// [`EastAsianWidth::Auto`]
+    fn default() -> Self {
+        EastAsianWidth::Auto
+    }
 }
 impl FontFeatureExclusiveSetState for EastAsianWidth {
     #[inline]

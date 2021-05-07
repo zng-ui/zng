@@ -7,15 +7,19 @@ use crate::prelude::new_property::*;
 /// See [`Transform`] for how to initialize a custom transform.
 ///
 /// This property does not affect layout, the widget is transformed only during rendering.
-#[property(context)]
+#[property(context, default(Transform::identity()))]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
-    struct TransformNode<C: UiNode, T: Var<Transform>> {
+    struct TransformNode<C, T> {
         child: C,
         transform: T,
         layout_transform: LayoutTransform,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, T: Var<Transform>> UiNode for TransformNode<C, T> {
+    impl<C, T> UiNode for TransformNode<C, T>
+    where
+        C: UiNode,
+        T: Var<Transform>,
+    {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             if self.transform.is_new(ctx.vars) {
@@ -48,7 +52,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 /// This property is a shorthand way of setting [`transform`] to [`rotate(angle)`](units::rotate) using variable mapping.
 ///
 /// This property does not affect layout, the widget is rotated only during rendering.
-#[property(context)]
+#[property(context, default(0.rad()))]
 pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform(child, angle.into_var().map(|&a| units::rotate(a)))
 }
@@ -58,7 +62,7 @@ pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNo
 /// This property is a shorthand way of setting [`transform`] to [`scale(s)`](units::scale) using variable mapping.
 ///
 /// This property does not affect layout, the widget is scaled only during rendering.
-#[property(context)]
+#[property(context, default(1.normal()))]
 pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
     transform(child, s.into_var().map(|&x| units::scale(x)))
 }
@@ -68,7 +72,7 @@ pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
 /// This property is a shorthand way of setting [`transform`] to [`scale_xy(x, y)`](units::scale) using variable merging.
 ///
 /// This property does not affect layout, the widget is scaled only during rendering.
-#[property(context)]
+#[property(context, default(1.normal(), 1.normal()))]
 pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoVar<FactorNormal>) -> impl UiNode {
     transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::scale_xy(x, y)))
 }
@@ -78,7 +82,7 @@ pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoV
 /// This property is a shorthand way of setting [`transform`] to [`scale_x(x)`](units::scale_x) using variable mapping.
 ///
 /// This property does not affect layout, the widget is scaled only during rendering.
-#[property(context)]
+#[property(context, default(1.normal()))]
 pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode {
     transform(child, x.into_var().map(|&x| units::scale_x(x)))
 }
@@ -88,7 +92,7 @@ pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode
 /// This property is a shorthand way of setting [`transform`] to [`scale_y(y)`](units::scale_y) using variable mapping.
 ///
 /// This property does not affect layout, the widget is scaled only during rendering.
-#[property(context)]
+#[property(context, default(1.normal()))]
 pub fn scale_y(child: impl UiNode, y: impl IntoVar<FactorNormal>) -> impl UiNode {
     transform(child, y.into_var().map(|&y| units::scale_y(y)))
 }
@@ -98,7 +102,7 @@ pub fn scale_y(child: impl UiNode, y: impl IntoVar<FactorNormal>) -> impl UiNode
 /// This property is a shorthand way of setting [`transform`] to [`skew(x, y)`](units::skew) using variable merging.
 ///
 /// This property does not affect layout, the widget is skewed only during rendering.
-#[property(context)]
+#[property(context, default(0.rad(), 0.rad()))]
 pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::skew(x, y)))
 }
@@ -108,7 +112,7 @@ pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<An
 /// This property is a shorthand way of setting [`transform`] to [`skew_x(x)`](units::skew_x) using variable mapping.
 ///
 /// This property does not affect layout, the widget is skewed only during rendering.
-#[property(context)]
+#[property(context, default(0.rad()))]
 pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform(child, x.into_var().map(|&x| units::skew_x(x)))
 }
@@ -128,7 +132,7 @@ pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
 /// This property is a shorthand way of setting [`transform`] to [`translate(x, y)`](units::translate) using variable merging.
 ///
 /// This property does not affect layout, the widget is moved only during rendering.
-#[property(context)]
+#[property(context, default(0, 0))]
 pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> impl UiNode {
     transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::translate(x, y)))
 }
@@ -138,7 +142,7 @@ pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Le
 /// This property is a shorthand way of setting [`transform`] to [`translate_x(x)`](units::translate_x) using variable mapping.
 ///
 /// This property does not affect layout, the widget is moved only during rendering.
-#[property(context)]
+#[property(context, default(0))]
 pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     transform(child, x.into_var().map(|&x| units::translate_x(x)))
 }
@@ -148,7 +152,7 @@ pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// This property is a shorthand way of setting [`transform`] to [`translate_y(y)`](units::translate_y) using variable mapping.
 ///
 /// This property does not affect layout, the widget is moved only during rendering.
-#[property(context)]
+#[property(context, default(0))]
 pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     transform(child, y.into_var().map(|&y| units::translate_y(y)))
 }
@@ -156,7 +160,7 @@ pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// Point relative to the widget bounds around which the widget transform is applied.
 ///
 /// When unset the default origin is the center (50%, 50%).
-#[property(context)]
+#[property(context, default((50.pct(), 50.pct())))]
 pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
     struct TransformOriginNode<C, O> {
         child: C,

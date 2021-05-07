@@ -2748,7 +2748,7 @@ mod renderer {
                         png.encode(&self.pixels, self.width, self.height, ColorType::Rgba8)?;
                         let mut png = img_parts::png::Png::from_bytes(w.into()).unwrap();
 
-                        let chunk_kind = [b'p', b'H', b'Y', b's'];
+                        let chunk_kind = *b"pHYs";
                         debug_assert!(png.chunk_by_type(chunk_kind).is_none());
 
                         use byteorder::*;

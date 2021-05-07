@@ -30,7 +30,7 @@ use super::margin;
 /// ```
 ///
 /// The example renders a custom text background.
-#[property(inner, allowed_in_when = false)]
+#[property(inner, allowed_in_when = false, default(crate::core::NilUiNode))]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     struct BackgroundNode<T: UiNode, B: UiNode> {
         child: T,
@@ -92,7 +92,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 /// }
 /// # ;
 /// ```
-#[property(inner)]
+#[property(inner, default(colors::BLACK.transparent()))]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     background(child, fill_color(color))
 }
@@ -116,7 +116,10 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// }
 /// # ;
 /// ```
-#[property(inner)]
+#[property(inner, default(0.deg(), {
+    let c = colors::BLACK.transparent();
+    crate::core::gradient::stops![c, c]
+}))]
 pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     background(child, linear_gradient(axis, stops))
 }
@@ -146,7 +149,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// ```
 ///
 /// The example renders a custom see-through text overlay.
-#[property(inner, allowed_in_when = false)]
+#[property(inner, allowed_in_when = false, default(crate::core::NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     struct ForegroundNode<T: UiNode, B: UiNode> {
         child: T,
@@ -215,7 +218,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 /// ```
 ///
 /// The example renders a solid blue 1 pixel border overlay, the border lines are inset 3 pixels in the container.
-#[property(inner)]
+#[property(inner, default(0, 0, BorderStyle::Hidden, 0))]
 pub fn foreground_highlight(
     child: impl UiNode,
     offsets: impl IntoVar<SideOffsets>,
@@ -245,7 +248,7 @@ pub fn foreground_highlight(
 /// ```
 ///
 /// The example adds a green tint to the container content.
-#[property(inner)]
+#[property(inner, default(colors::BLACK.transparent()))]
 pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     foreground(child, fill_color(color))
 }
@@ -271,7 +274,10 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// ```
 ///
 /// The example adds a *shadow* gradient to a 10px strip in the top part of the container content.
-#[property(inner)]
+#[property(inner, default(0.deg(), {
+    let c = colors::BLACK.transparent();
+    crate::core::gradient::stops![c, c]
+}))]
 pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     foreground(child, linear_gradient(axis, stops))
 }
@@ -298,7 +304,7 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// }
 /// # ;
 /// ```
-#[property(inner)]
+#[property(inner, default(false))]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
     struct ClipToBoundsNode<T, S> {
         child: T,
