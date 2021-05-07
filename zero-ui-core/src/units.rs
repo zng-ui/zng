@@ -315,6 +315,10 @@ impl_from_and_into_var! {
         FactorNormal(f)
     }
 
+    fn from(f: f64) -> FactorNormal {
+        FactorNormal(f as f32)
+    }
+
     /// | Input  | Output  |
     /// |--------|---------|
     /// |`true`  | `1.0`   |

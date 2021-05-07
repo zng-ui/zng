@@ -62,7 +62,7 @@ pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNo
 /// This property is a shorthand way of setting [`transform`] to [`scale(s)`](units::scale) using variable mapping.
 ///
 /// This property does not affect layout, the widget is scaled only during rendering.
-#[property(context, default(1.normal()))]
+#[property(context, default(1.0))]
 pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
     transform(child, s.into_var().map(|&x| units::scale(x)))
 }
@@ -72,7 +72,7 @@ pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
 /// This property is a shorthand way of setting [`transform`] to [`scale_xy(x, y)`](units::scale) using variable merging.
 ///
 /// This property does not affect layout, the widget is scaled only during rendering.
-#[property(context, default(1.normal(), 1.normal()))]
+#[property(context, default(1.0, 1.0))]
 pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoVar<FactorNormal>) -> impl UiNode {
     transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::scale_xy(x, y)))
 }
@@ -82,7 +82,7 @@ pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoV
 /// This property is a shorthand way of setting [`transform`] to [`scale_x(x)`](units::scale_x) using variable mapping.
 ///
 /// This property does not affect layout, the widget is scaled only during rendering.
-#[property(context, default(1.normal()))]
+#[property(context, default(1.0))]
 pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode {
     transform(child, x.into_var().map(|&x| units::scale_x(x)))
 }
@@ -92,7 +92,7 @@ pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode
 /// This property is a shorthand way of setting [`transform`] to [`scale_y(y)`](units::scale_y) using variable mapping.
 ///
 /// This property does not affect layout, the widget is scaled only during rendering.
-#[property(context, default(1.normal()))]
+#[property(context, default(1.0))]
 pub fn scale_y(child: impl UiNode, y: impl IntoVar<FactorNormal>) -> impl UiNode {
     transform(child, y.into_var().map(|&y| units::scale_y(y)))
 }
