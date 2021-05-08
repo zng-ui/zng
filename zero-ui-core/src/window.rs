@@ -431,6 +431,8 @@ impl AppExtension for WindowManager {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     let new_position = window.position();
 
+                    // TODO check if in new monitor.
+
                     // set the window position variable if it is not read-only.
                     window.vars.position().set_ne(ctx.vars, new_position.into());
 
@@ -1457,7 +1459,7 @@ impl OpenWindow {
                 let event_loop = event_loop.headed_target().expect("AppContext is not headless but event_loop is");
 
                 let r = Renderer::new_with_glutin(window_, &event_loop, renderer_config, move |args: NewFrameArgs| {
-                    event_loop_proxy.send_event(AppEvent::NewFrameReady(WindowId::System(args.window_id.unwrap())))
+                    event_loop_proxy.send_event(AppEvent::NewFrameReady(args.window_id.unwrap()))
                 })
                 .expect("failed to create a window renderer");
 
@@ -1480,9 +1482,13 @@ impl OpenWindow {
                 id = WindowId::new_unique();
 
                 if headless == WindowMode::HeadlessWithRenderer {
-                    let rend = Renderer::new(RenderSize::zero(), 1.0, renderer_config, move |_| {
-                        event_loop_proxy.send_event(AppEvent::NewFrameReady(id))
-                    })
+                    let rend = Renderer::new(
+                        RenderSize::zero(),
+                        1.0,
+                        renderer_config,
+                        move |args: NewFrameArgs| event_loop_proxy.send_event(AppEvent::NewFrameReady(args.window_id.unwrap())),
+                        Some(id),
+                    )
                     .expect("failed to create a headless renderer");
 
                     api = Some(Arc::clone(rend.api()));

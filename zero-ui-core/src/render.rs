@@ -2190,7 +2190,7 @@ mod renderer {
                 GlContext::Windowed(context),
                 size,
                 config.wr_options(window.scale_factor() as f32, RendererKind::Native),
-                Box::new(Notifier(render_callback, Some(window.id()))),
+                Box::new(Notifier(render_callback, Some(window.id().into()))),
             )?;
 
             Ok((renderer, window))
@@ -2201,11 +2201,14 @@ mod renderer {
         /// The `size` must be already scaled by the `scale_factor`. The `scale_factor` is usually `1.0` for headless rendering.
         ///
         /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
+        ///
+        /// The `window_id` is the optional id of the headless window associated with this renderer.
         pub fn new<C: RenderCallback>(
             size: RenderSize,
             scale_factor: f32,
             config: RendererConfig,
             render_callback: C,
+            window_id: Option<crate::window::WindowId>,
         ) -> Result<Self, RendererError> {
             if !is_main_thread::is_main_thread().unwrap_or(true) {
                 panic!("can only init renderer in the main thread")
@@ -2256,7 +2259,7 @@ mod renderer {
                 GlContext::Headless(context, HeadlessData::partial(el)),
                 size,
                 config.wr_options(scale_factor, renderer_kind),
-                Box::new(Notifier(render_callback, None)),
+                Box::new(Notifier(render_callback, window_id)),
             )
         }
 
@@ -2645,9 +2648,8 @@ mod renderer {
     /// Arguments for the [`RenderCallback`].
     #[derive(Debug)]
     pub struct NewFrameArgs {
-        // TODO: Headless window_id is showing up as None
-        /// The window that owns the frame in headed mode.
-        pub window_id: Option<glutin::window::WindowId>,
+        /// The window that owns the renderer.
+        pub window_id: Option<crate::window::WindowId>,
     }
 
     /// A callback called by a [`Renderer`] every time a frame is ready to be presented.
@@ -2661,7 +2663,7 @@ mod renderer {
         }
     }
 
-    struct Notifier<C>(C, Option<glutin::window::WindowId>);
+    struct Notifier<C>(C, Option<crate::window::WindowId>);
     impl<C: RenderCallback> webrender::api::RenderNotifier for Notifier<C> {
         fn clone(&self) -> Box<dyn webrender::api::RenderNotifier> {
             Box::new(Notifier(self.0.clone(), self.1))
