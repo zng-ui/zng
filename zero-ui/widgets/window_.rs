@@ -1,6 +1,6 @@
 use crate::core::focus::*;
 use crate::core::gesture::*;
-use crate::core::window::{HeadlessScreen, StartPosition, Window};
+use crate::core::window::{HeadlessScreen, RedrawArgs, StartPosition, Window};
 use crate::prelude::new_widget::*;
 
 /// A window container.
@@ -124,6 +124,14 @@ pub mod window {
         #[allowed_in_when = false]
         kiosk(bool) = false;
 
+        /// Event just before the window frame is redraw.
+        #[allowed_in_when = false]
+        on_pre_redraw(impl FnMut(&mut RedrawArgs) + 'static) = |_| {};
+
+        /// Event just after the window frame is redraw.
+        #[allowed_in_when = false]
+        on_redraw(impl FnMut(&mut RedrawArgs) + 'static) = |_| {};
+
         remove {
             // replaced with `root_id` to more clearly indicate that it is not the window ID.
             id;
@@ -140,8 +148,18 @@ pub mod window {
         start_position: impl Into<StartPosition>,
         kiosk: bool,
         headless_screen: impl Into<HeadlessScreen>,
+        on_pre_redraw: impl FnMut(&mut RedrawArgs) + 'static,
+        on_redraw: impl FnMut(&mut RedrawArgs) + 'static,
     ) -> Window {
-        Window::new(root_id, start_position, kiosk, headless_screen, child)
+        Window::new(
+            root_id,
+            start_position,
+            kiosk,
+            headless_screen,
+            Box::new(on_pre_redraw),
+            Box::new(on_redraw),
+            child,
+        )
     }
 
     /// Window stand-alone properties.

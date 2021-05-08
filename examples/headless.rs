@@ -17,7 +17,7 @@ fn main() {
 
     // open the window that is our image.
     app.with_context(|ctx| {
-        ctx.services.req::<Windows>().open(|_| image());
+        ctx.services.req::<Windows>().open(|_| image(), None);
     });
     app.update();
 

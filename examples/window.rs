@@ -30,6 +30,7 @@ fn main() {
                             property_stack("miscellaneous", widgets![
                                 screenshot(),
                                 inspect(),
+                                headless(),
                             ]),
                         ];
                     },
@@ -106,6 +107,31 @@ fn inspect() -> impl Widget {
         content = text("inspector");
         on_click = |_,_| {
             println!("in debug only, press CTRL+SHIFT+I")
+        };
+    }
+}
+
+fn headless() -> impl Widget {
+    button! {
+        content = text("headless");
+        on_click = |ctx, _| {
+            println!("taking `screenshot.png` using a new headless window ..");
+                ctx.services.req::<Windows>().open(|_|window! {
+                    size = (500, 400);
+                    background_color = colors::DARK_GREEN;
+                    font_size = 72;
+                    content = text("No Head!");
+
+                    on_redraw = |args| {
+                        let img = args.frame_pixels().unwrap();
+                        args.close();
+                        println!("saving screenshot..");
+                        img.save("screenshot.png").unwrap();
+                        println!("saved");
+                    };
+                },
+                Some(zero_ui::core::window::WindowMode::HeadlessWithRenderer)
+            );
         };
     }
 }
