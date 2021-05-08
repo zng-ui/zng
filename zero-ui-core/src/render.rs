@@ -2643,7 +2643,9 @@ mod renderer {
     }
 
     /// Arguments for the [`RenderCallback`].
+    #[derive(Debug)]
     pub struct NewFrameArgs {
+        // TODO: Headless window_id is showing up as None
         /// The window that owns the frame in headed mode.
         pub window_id: Option<glutin::window::WindowId>,
     }

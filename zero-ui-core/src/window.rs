@@ -474,7 +474,7 @@ impl AppExtension for WindowManager {
 
         // we need to detach the windows from the ctx, because the window needs it
         // to create a layout context. Services are not visible in the layout context
-        // so this is fine.
+        // so this is fine. // TODO: REVIEW
         let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
         for (_, window) in windows.iter_mut() {
             window.layout(ctx);
@@ -1745,6 +1745,7 @@ impl OpenWindow {
 
             if let Some(&min_size) = self.vars.min_size().get_new(ctx.vars) {
                 let factor = self.scale_factor();
+                let prev_min_size = self.min_size;
                 let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
                     min_size.to_layout(*ctx.viewport_size, ctx)
                 });
@@ -1762,12 +1763,15 @@ impl OpenWindow {
                     window.set_min_inner_size(Some(size));
                 }
 
-                self.expect_layout_update();
-                ctx.updates.layout();
+                if prev_min_size != self.min_size {
+                    self.expect_layout_update();
+                    ctx.updates.layout();
+                }
             }
 
             if let Some(&max_size) = self.vars.max_size().get_new(ctx.vars) {
                 let factor = self.scale_factor();
+                let prev_max_size = self.max_size;
                 let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
                     max_size.to_layout(*ctx.viewport_size, ctx)
                 });
@@ -1785,8 +1789,10 @@ impl OpenWindow {
                     window.set_max_inner_size(Some(size));
                 }
 
-                self.expect_layout_update();
-                ctx.updates.layout();
+                if prev_max_size != self.max_size {
+                    self.expect_layout_update();
+                    ctx.updates.layout();
+                }
             }
 
             if let Some(&size) = self.vars.size().get_new(ctx.vars) {

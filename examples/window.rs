@@ -116,7 +116,7 @@ fn headless() -> impl Widget {
         content = text("headless");
         on_click = |ctx, _| {
             println!("taking `screenshot.png` using a new headless window ..");
-                ctx.services.req::<Windows>().open(|_|window! {
+            ctx.services.req::<Windows>().open(|_|window! {
                     size = (500, 400);
                     background_color = colors::DARK_GREEN;
                     font_size = 72;
