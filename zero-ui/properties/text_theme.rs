@@ -66,115 +66,115 @@ context_var! {
 }
 
 /// Sets the [`FontFamilyVar`] context var.
-#[property(context)]
+#[property(context, default(FontFamilyVar))]
 pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl UiNode {
     with_context_var(child, FontFamilyVar, names)
 }
 
 /// Sets the [`FontStyleVar`] context var.
-#[property(context)]
+#[property(context, default(FontStyleVar))]
 pub fn font_style(child: impl UiNode, style: impl IntoVar<FontStyle>) -> impl UiNode {
     with_context_var(child, FontStyleVar, style)
 }
 
 /// Sets the [`FontWeightVar`] context var.
-#[property(context)]
+#[property(context, default(FontWeightVar))]
 pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl UiNode {
     with_context_var(child, FontWeightVar, weight)
 }
 
 /// Sets the [`FontStretchVar`] context var.
-#[property(context)]
+#[property(context, default(FontStretchVar))]
 pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> impl UiNode {
     with_context_var(child, FontStretchVar, stretch)
 }
 
 /// Sets the [`FontSynthesisVar`] context var.
-#[property(context)]
+#[property(context, default(FontSynthesisVar))]
 pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) -> impl UiNode {
     with_context_var(child, FontSynthesisVar, enabled)
 }
 
 /// Sets the [`FontSizeVar`] context var.
-#[property(context)]
+#[property(context, default(FontSizeVar))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, FontSizeVar, size)
 }
 
 /// Sets the [`TextColorVar`] context var.
-#[property(context)]
+#[property(context, default(TextColorVar))]
 pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, TextColorVar, color)
 }
 
 /// Sets the [`TextColorDisabledVar`] context var.
-#[property(context)]
+#[property(context, default(TextColorDisabledVar))]
 pub fn text_color_disabled(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, TextColorDisabledVar, color)
 }
 
 /// Sets the [`TextTransformVar`] context var.
-#[property(context)]
+#[property(context, default(TextTransformVar))]
 pub fn text_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
     with_context_var(child, TextTransformVar, transform)
 }
 
 /// Sets the [`LineHeightVar`] context var.
-#[property(context)]
+#[property(context, default(LineHeightVar))]
 pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl UiNode {
     with_context_var(child, LineHeightVar, height)
 }
 
 /// Sets the [`LetterSpacingVar`] context var.
-#[property(context)]
+#[property(context, default(LetterSpacingVar))]
 pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) -> impl UiNode {
     with_context_var(child, LetterSpacingVar, extra)
 }
 
 /// Sets the [`LineSpacingVar`] context var.
-#[property(context)]
+#[property(context, default(LineSpacingVar))]
 pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, LineSpacingVar, extra)
 }
 
 /// Sets the [`WordSpacingVar`] context var.
-#[property(context)]
+#[property(context, default(WordSpacingVar))]
 pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
     with_context_var(child, WordSpacingVar, extra)
 }
 
 /// Sets the [`ParagraphSpacingVar`] context var.
-#[property(context)]
+#[property(context, default(ParagraphSpacingVar))]
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
     with_context_var(child, ParagraphSpacingVar, extra)
 }
 
 /// Sets the [`WordBreakVar`] context var.
-#[property(context)]
+#[property(context, default(WordBreakVar))]
 pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiNode {
     with_context_var(child, WordBreakVar, mode)
 }
 
 /// Sets the [`LineBreakVar`] context var.
-#[property(context)]
+#[property(context, default(LineBreakVar))]
 pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiNode {
     with_context_var(child, LineBreakVar, mode)
 }
 
 /// Sets the [`TextAlignVar`] context var.
-#[property(context)]
+#[property(context, default(TextAlignVar))]
 pub fn text_align(child: impl UiNode, mode: impl IntoVar<TextAlign>) -> impl UiNode {
     with_context_var(child, TextAlignVar, mode)
 }
 
 /// Sets the [`TabLengthVar`] context var.
-#[property(context)]
+#[property(context, default(TabLengthVar))]
 pub fn tab_length(child: impl UiNode, length: impl IntoVar<TabLength>) -> impl UiNode {
     with_context_var(child, TabLengthVar, length)
 }
 
 /// Sets the [`WhiteSpaceVar`] context var.
-#[property(context)]
+#[property(context, default(WhiteSpaceVar))]
 pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
     with_context_var(child, WhiteSpaceVar, transform)
 }

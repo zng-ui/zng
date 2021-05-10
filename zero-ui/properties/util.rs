@@ -14,7 +14,7 @@ use zero_ui::prelude::new_property::*;
 /// }
 ///
 /// /// Sets the [`FontSizeVar`] context var.
-/// #[property(context)]
+/// #[property(context, default(FontSizeVar))]
 /// pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
 ///     with_context_var(child, FontSizeVar, size)
 /// }
