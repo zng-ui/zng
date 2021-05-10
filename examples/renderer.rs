@@ -24,7 +24,7 @@ fn main() {
     };
 
     let mut renderer =
-        Renderer::new(RenderSize::new(800, 600), 1.0, RendererConfig::default(), on_frame_ready).expect("error creating renderer");
+        Renderer::new(RenderSize::new(800, 600), 1.0, RendererConfig::default(), on_frame_ready, None).expect("error creating renderer");
 
     // The renderer will initialize the `image`, do updates, layout using the render size
     // and then start rendering the widget. The actual rendering is async, the `on_frame_ready`

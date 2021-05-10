@@ -420,7 +420,7 @@ impl UiNode for WidgetInstanceInfoNode {
             when.condition_version = var.version(ctx.vars);
         }
 
-        info.parent_property = ParentPropertyName::var().get(ctx.vars);
+        info.parent_property = ParentPropertyName::get(ctx.vars);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {

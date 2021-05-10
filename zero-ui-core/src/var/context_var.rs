@@ -2,29 +2,23 @@ use super::*;
 
 /// A [`Var`] that represents a [`ContextVar`].
 ///
-/// `PhantomData` is public here because we can't implement a `const fn new()` on stable.
-/// We need to generate a const value to implement `ContextVar::var()`.
+/// Context var types don't implement [`Var`] directly, to avoid problems with overlapping generics
+/// this *proxy* zero-sized type is used.
 #[derive(Clone)]
-pub struct ContextVarProxy<C: ContextVar>(pub PhantomData<C>);
+pub struct ContextVarProxy<C: ContextVar>(PhantomData<C>);
 impl<C: ContextVar> ContextVarProxy<C> {
-    /// References the value in the current `vars` context.
-    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a C::Type {
-        <Self as VarObj<C::Type>>::get(self, vars)
+    /// New context var proxy.
+    ///
+    /// Prefer using [`ContextVar::new`] or the `new` generated using the [`context_var!`] macro.
+    #[inline]
+    pub fn new() -> Self {
+        ContextVarProxy(PhantomData)
     }
 
-    /// References the value in the current `vars` context if it is marked as new.
-    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a C::Type> {
-        <Self as VarObj<C::Type>>::get_new(self, vars)
-    }
-
-    /// If the value in the current `vars` context is marked as new.
-    pub fn is_new(&self, vars: &Vars) -> bool {
-        <Self as VarObj<C::Type>>::is_new(self, vars)
-    }
-
-    /// Gets the version of the value in the current `vars` context.
-    pub fn version(&self, vars: &VarsRead) -> u32 {
-        <Self as VarObj<C::Type>>::version(self, vars)
+    #[doc(hidden)]
+    #[inline]
+    pub fn static_ref() -> &'static Self {
+        &ContextVarProxy(PhantomData)
     }
 }
 impl<C: ContextVar> protected::Var for ContextVarProxy<C> {}
@@ -243,17 +237,45 @@ macro_rules! __context_var_inner {
                 static THREAD_LOCAL_VALUE: $crate::var::ContextVarValue<$ident> = $crate::var::ContextVarValue::init();
             }
 
-            /// [`Var`](crate::var::Var) that represents this context var.
+            /// [`Var`](crate::var::Var) implementer that represents this context var.
             #[inline]
-            pub fn var() -> &'static $crate::var::ContextVarProxy<Self> {
-                const VAR: $crate::var::ContextVarProxy<$ident> = $crate::var::ContextVarProxy(std::marker::PhantomData);
-                &VAR
+            #[allow(unused)]
+            pub fn new() -> $crate::var::ContextVarProxy<Self> {
+                $crate::var::ContextVarProxy::new()
             }
 
             /// Default value, used when the variable is not set in a context.
             #[inline]
             pub fn default_value() -> &'static $type {
                 $DEFAULT
+            }
+
+            /// References the value in the current `vars` context.
+            #[inline]
+            #[allow(unused)]
+            pub fn get<'a>(vars: &'a $crate::var::VarsRead) -> &'a $type {
+                $crate::var::VarObj::get($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+            }
+
+            /// References the value in the current `vars` context if it is marked as new.
+            #[inline]
+            #[allow(unused)]
+            pub fn get_new<'a>(vars: &'a $crate::var::Vars) -> Option<&'a $type> {
+                $crate::var::VarObj::get_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+            }
+
+            /// If the value in the current `vars` context is marked as new.
+            #[inline]
+            #[allow(unused)]
+            pub fn is_new(vars: & $crate::var::Vars) -> bool {
+                $crate::var::VarObj::is_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+            }
+
+            /// Gets the version of the value in the current `vars` context.
+            #[inline]
+            #[allow(unused)]
+            pub fn version(vars: & $crate::var::VarsRead) -> u32 {
+                $crate::var::VarObj::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
         }
 
@@ -263,11 +285,6 @@ macro_rules! __context_var_inner {
             #[inline]
             fn default_value() -> &'static Self::Type {
                Self::default_value()
-            }
-
-            #[inline]
-            fn var() -> &'static $crate::var::ContextVarProxy<Self> {
-               Self::var()
             }
 
             #[inline]

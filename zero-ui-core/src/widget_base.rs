@@ -238,7 +238,7 @@ pub struct IsEnabled;
 impl IsEnabled {
     /// Gets the enabled state in the current `vars` context.
     pub fn get(vars: &VarsRead) -> bool {
-        *IsEnabledVar::var().get(vars)
+        *IsEnabledVar::get(vars)
     }
 }
 
@@ -330,7 +330,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     }
     impl<C: UiNode, V: Var<Visibility>> VisibilityNode<C, V> {
         fn with_context(&mut self, vars: &VarsRead, f: impl FnOnce(&mut C)) {
-            match *VisibilityVar::var().get(vars) {
+            match *VisibilityVar::get(vars) {
                 // parent collapsed => all descendants collapsed
                 Visibility::Collapsed => f(&mut self.child),
                 // parent hidden =>
@@ -542,7 +542,7 @@ impl VisibilityContext {
     /// Gets the visibility state in the current `vars` context.
     #[inline]
     pub fn get(vars: &Vars) -> Visibility {
-        *VisibilityVar::var().get(vars)
+        *VisibilityVar::get(vars)
     }
 }
 
@@ -629,7 +629,7 @@ pub struct IsHitTestable;
 impl IsHitTestable {
     /// Gets the hit-testable state in the current `vars` context.
     pub fn get(vars: &VarsRead) -> bool {
-        *IsHitTestableVar::var().get(vars)
+        *IsHitTestableVar::get(vars)
     }
 }
 

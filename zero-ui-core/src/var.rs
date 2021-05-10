@@ -70,7 +70,10 @@ pub trait ContextVar: Clone + Copy + 'static {
     fn default_value() -> &'static Self::Type;
 
     /// Gets the variable.
-    fn var() -> &'static ContextVarProxy<Self>;
+    #[inline]
+    fn new() -> ContextVarProxy<Self> {
+        ContextVarProxy::new()
+    }
 
     /// Use [`context_var!`] to implement context vars.
     ///

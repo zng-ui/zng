@@ -919,7 +919,7 @@ pub mod core {
     /// properties! {
     ///     background_color = colors::BLACK;
     ///
-    ///     when ST_VALUE && *#{FooVar::var().clone()} && bar() {
+    ///     when ST_VALUE && *#{FooVar::new()} && bar() {
     ///         background_color = colors::RED;
     ///     }
     /// }

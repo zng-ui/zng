@@ -261,7 +261,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
                 .clone();
 
             if !self.font_face.as_ref().map(|f| f.ptr_eq(&face)).unwrap_or_default() {
-                self.synthesis_used = *FontSynthesisVar::var().get(ctx.vars) & face.synthesis_for(font_style, font_weight);
+                self.synthesis_used = *FontSynthesisVar::get(ctx.vars) & face.synthesis_for(font_style, font_weight);
                 self.font_face = Some(face);
                 self.font = None;
                 self.shaped_text = ShapedText::default();
