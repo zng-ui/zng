@@ -18,6 +18,10 @@ Things that must be done first because they influence the core API design that i
   * Support more then one ALT scopes?
   * Configurable shortcuts for stuff like `Tab`?
 
+* Window
+  * Finish window vars.
+  * Drag regions.
+  * Custom resize borders.
 
 * Localization.
 * Scrolling.
