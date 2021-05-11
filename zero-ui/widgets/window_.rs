@@ -106,6 +106,18 @@ pub mod window {
         /// from a minimized window where the icon is still visible.
         properties::visible;
 
+        /// Whether the window should always stay on top of other windows.
+        ///
+        /// Note this only applies to other windows that are not also "always-on-top".
+        ///
+        /// The default value is `false`.
+        properties::always_on_top;
+
+        /// If the window is visible in the task-bar.
+        ///
+        /// The default value is `true`.
+        properties::taskbar_visible;
+
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that

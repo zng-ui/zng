@@ -61,7 +61,12 @@ pub use vars::*;
 pub trait VarValue: Debug + Clone + 'static {}
 impl<T: Debug + Clone + 'static> VarValue for T {}
 
-/// Type Id if a contextual variable.
+/// Represents a context variable.
+///
+/// Context variables are [`Var`] implements with different values defined in different **contexts**,
+/// usually a parent widget.
+///
+/// Use [`context_var!`] to declare.
 pub trait ContextVar: Clone + Copy + 'static {
     /// The variable type.
     type Type: VarValue;

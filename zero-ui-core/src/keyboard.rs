@@ -157,12 +157,14 @@ event! {
 #[derive(Default)]
 pub struct KeyboardManager;
 impl KeyboardManager {
-    fn target(window_id: WindowId, services: &mut Services) -> WidgetPath {
-        let focused = services.get::<Focus>().and_then(|f| f.focused().cloned());
-        if let Some(focused) = focused {
-            focused
+    fn target(window_id: WindowId, services: &mut Services) -> Option<WidgetPath> {
+        if let Some(focused) = services.get::<Focus>().and_then(|f| f.focused().cloned()) {
+            Some(focused)
         } else {
-            services.req::<Windows>().window(window_id).unwrap().frame_info().root().path()
+            services
+                .get::<Windows>()
+                .and_then(|f| f.window(window_id).ok())
+                .map(|w| w.frame_info().root().path())
         }
     }
 }
@@ -185,20 +187,23 @@ impl AppExtension for KeyboardManager {
                     },
                 ..
             } => {
-                let target = Self::target(window_id, ctx.services);
-                ctx.services
-                    .req::<Keyboard>()
-                    .device_input(device_id, scancode, key.map(Into::into), state, target, ctx.events);
+                if let Some(target) = Self::target(window_id, ctx.services) {
+                    ctx.services
+                        .req::<Keyboard>()
+                        .device_input(device_id, scancode, key.map(Into::into), state, target, ctx.events);
+                }
             }
 
             WindowEvent::ModifiersChanged(m) => {
-                let target = Self::target(window_id, ctx.services);
-                ctx.services.req::<Keyboard>().set_modifiers(m, target, ctx.events);
+                if let Some(target) = Self::target(window_id, ctx.services) {
+                    ctx.services.req::<Keyboard>().set_modifiers(m, target, ctx.events);
+                }
             }
 
             WindowEvent::ReceivedCharacter(c) => {
-                let target = Self::target(window_id, ctx.services);
-                ctx.services.req::<Keyboard>().char_input(c, target, ctx.events);
+                if let Some(target) = Self::target(window_id, ctx.services) {
+                    ctx.services.req::<Keyboard>().char_input(c, target, ctx.events);
+                }
             }
 
             _ => {}

@@ -1860,6 +1860,13 @@ impl OpenWindow {
                 }
             }
 
+            if let Some(&taskbar_visible) = self.vars.taskbar_visible().get_new(ctx.vars) {
+                if let Some(window) = &self.window {
+                    let _ = (taskbar_visible, window);
+                    todo!();
+                }
+            }
+
             if let Some(&visible) = self.vars.visible().get_new(ctx.vars) {
                 if let Some(window) = &self.window {
                     window.set_visible(visible && matches!(self.init_state, WindowInitState::Inited));
@@ -1906,6 +1913,9 @@ impl OpenWindow {
             }
             if self.vars.always_on_top().is_new(ctx.vars) {
                 self.vars.always_on_top().set_ne(ctx.vars, true);
+            }
+            if self.vars.taskbar_visible().is_new(ctx.vars) {
+                self.vars.taskbar_visible().set_ne(ctx.vars, true);
             }
             if self.vars.visible().is_new(ctx.vars) {
                 self.vars.visible().set_ne(ctx.vars, true);
@@ -2043,6 +2053,8 @@ impl OpenWindow {
                 window.set_resizable(resizable);
 
                 window.set_always_on_top(*self.vars.always_on_top().get(ctx.vars));
+
+                // TODO self.vars.taskbar_visible()
             } else {
                 self.headless_position = layout_position;
                 self.headless_size = size;
@@ -2087,6 +2099,7 @@ impl OpenWindow {
             self.vars.resizable().set_ne(ctx.vars, false);
             self.vars.movable().set_ne(ctx.vars, false);
             self.vars.always_on_top().set_ne(ctx.vars, true);
+            self.vars.taskbar_visible().set_ne(ctx.vars, true);
             self.vars.visible().set_ne(ctx.vars, true);
         }
 

@@ -31,6 +31,8 @@ fn main() {
                                 screenshot(),
                                 inspect(),
                                 headless(),
+                                always_on_top(),
+                                taskbar_visible()
                             ]),
                         ];
                     },
@@ -133,5 +135,37 @@ fn headless() -> impl Widget {
                 Some(zero_ui::core::window::WindowMode::HeadlessWithRenderer)
             );
         };
+    }
+}
+
+fn always_on_top() -> impl Widget {
+    button! {
+        content = text("always_on_top");
+        on_click = |ctx, _| {
+            ctx.services.req::<Windows>().open(|_| {
+                window! {
+                    always_on_top = true;
+                    title = "always_on_top";
+                    content = text("always_on_top=true window");
+                    size = (400, 300);
+                }
+            }, None);
+        }
+    }
+}
+
+fn taskbar_visible() -> impl Widget {
+    button! {
+        content = text("taskbar_visible");
+        on_click = |ctx, _| {
+            ctx.services.req::<Windows>().open(|_| {
+                window! {
+                    taskbar_visible = false;
+                    title = "taskbar_visible";
+                    content = text("taskbar_visible=false window");
+                    size = (400, 300);
+                }
+            }, None);
+        }
     }
 }

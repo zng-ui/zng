@@ -22,6 +22,7 @@ Things that must be done first because they influence the core API design that i
   * Finish window vars.
   * Drag regions.
   * Custom resize borders.
+  * Modal.
 
 * Localization.
 * Scrolling.
@@ -39,7 +40,6 @@ Things that must be done first because they influence the core API design that i
 * Automatic screen reader integration (UI Automation).
 * Other DisplayListBuilder (iframe).
 * Drag-drop.
-* Modal Window.
 * Support for external input methods (IMEs).
 * Integrate thread_profiler.
 * Diagnostics.
