@@ -26,6 +26,11 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
     cmd.args(&args[..]);
     cmd.envs(envs.iter().filter(|t| !t.0.is_empty() && !t.1.is_empty()).map(|&t| t));
 
+    // TEMP-FIX, remove when this is resolved: https://github.com/rust-lang/rust/issues/84970
+    if !default_args.contains(&"--release") && !user_args.contains(&"--release") {
+        cmd.env("RUSTC_FORCE_INCREMENTAL", "1");
+    }
+
     for (remove, _) in envs.iter().filter(|t| !t.0.is_empty() && t.1.is_empty()) {
         cmd.env_remove(remove);
     }
