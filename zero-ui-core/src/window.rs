@@ -929,6 +929,23 @@ impl_from_and_into_var! {
         })
     }
 }
+impl<const N: usize> From<&'static [u8; N]> for WindowIcon {
+    /// [`WindowIcon::from_file`]
+    fn from(bytes: &'static [u8; N]) -> Self {
+        Self::from_bytes(bytes).unwrap_or_else(|e| {
+            error_println!("failed to load icon from encoded bytes: {:?}", e);
+            WindowIcon::Default
+        })
+    }
+}
+impl<const N: usize> crate::var::IntoVar<WindowIcon> for &'static [u8; N] {
+    type Var = crate::var::OwnedVar<WindowIcon>;
+
+    /// [`WindowIcon::from_file`]
+    fn into_var(self) -> Self::Var {
+        crate::var::OwnedVar(self.into())
+    }
+}
 
 /// Window chrome, the non-client area of the window.
 #[derive(Clone, Debug, PartialEq)]
@@ -1852,6 +1869,10 @@ impl OpenWindow {
             }
         }
 
+        if let Some(icon) = self.vars.icon().get_new(ctx.vars) {
+            Self::set_icon(&self.window, icon);
+        }
+
         if !self.kiosk {
             if let Some(&auto_size) = self.vars.auto_size().get_new(ctx.vars) {
                 // size will be updated in self.layout(..)
@@ -2170,6 +2191,7 @@ impl OpenWindow {
                 self.headless_position = layout_position;
                 self.headless_size = size;
             }
+            Self::set_icon(&self.window, self.vars.icon().get(ctx.vars));
             self.set_taskbar_visible(*self.vars.taskbar_visible().get(ctx.vars));
 
             // update vars back.
@@ -2411,6 +2433,24 @@ impl OpenWindow {
             (ctx.root.on_redraw)(&mut args);
             if args.close {
                 self.close();
+            }
+        }
+    }
+
+    fn set_icon(window: &Option<glutin::window::Window>, icon: &WindowIcon) {
+        match icon {
+            WindowIcon::Default => {
+                if let Some(window) = window {
+                    window.set_window_icon(None);
+                }
+            }
+            WindowIcon::Icon(ico) => {
+                if let Some(window) = window {
+                    window.set_window_icon(Some((&**ico).clone()));
+                }
+            }
+            WindowIcon::Render(_) => {
+                todo!()
             }
         }
     }

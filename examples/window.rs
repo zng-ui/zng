@@ -11,9 +11,12 @@ fn main() {
         });
         let background_color = var(rgb(0.1, 0.1, 0.1));
 
+        let icon = var(WindowIcon::Default);
+
         window! {
             position = position.clone();
             size = size.clone();
+            icon = icon.clone();
             background_color = background_color.clone();
             title;
             content = h_stack! {
@@ -40,6 +43,17 @@ fn main() {
                         set_size(1000.0, 900.0, &size),
                         set_size(500.0, 1000.0, &size),
                         set_size(800.0, 600.0, &size),
+                    ]),
+                    property_stack("icon", widgets![
+                        set_icon("Default", WindowIcon::Default, &icon),
+                        set_icon("Icon (File)", "examples/res/icon-file.png", &icon),
+                        set_icon("Icon (Bytes)", include_bytes!("res/icon-bytes.png"), &icon),
+                        set_icon("Render", WindowIcon::render(|_| {
+                            container! {
+                                content = text("W");
+                                background_color = colors::DARK_BLUE;
+                            }
+                        }), &icon)
                     ]),
                     property_stack("background_color", widgets![
                         set_background(rgb(0.1, 0.1, 0.1), "default", &background_color),
@@ -167,5 +181,16 @@ fn taskbar_visible() -> impl Widget {
                 }
             }, None);
         }
+    }
+}
+
+fn set_icon(label: impl IntoVar<Text> + 'static, icon: impl Into<WindowIcon>, var: &RcVar<WindowIcon>) -> impl Widget {
+    let var = var.clone();
+    let icon = icon.into();
+    button! {
+        content = text(label);
+        on_click = move |ctx, _| {
+            var.set_ne(ctx.vars, icon.clone());
+        };
     }
 }
