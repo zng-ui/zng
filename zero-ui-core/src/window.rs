@@ -1389,6 +1389,7 @@ pub struct OpenWindow {
     headless_position: LayoutPoint,
     headless_size: LayoutSize,
     headless_state: WindowState,
+    taskbar_visible: bool,
 
     renderless_event_sender: Option<EventLoopProxy>,
 
@@ -1527,6 +1528,7 @@ impl OpenWindow {
             headless_size: LayoutSize::zero(),
             headless_state: WindowState::Normal,
             headless_screen,
+            taskbar_visible: true,
             mode,
             init_state: WindowInitState::New,
             min_size: LayoutSize::new(192.0, 48.0),
@@ -1861,10 +1863,7 @@ impl OpenWindow {
             }
 
             if let Some(&taskbar_visible) = self.vars.taskbar_visible().get_new(ctx.vars) {
-                if let Some(window) = &self.window {
-                    let _ = (taskbar_visible, window);
-                    todo!();
-                }
+                self.set_taskbar_visible(taskbar_visible);
             }
 
             if let Some(&visible) = self.vars.visible().get_new(ctx.vars) {
@@ -2053,12 +2052,11 @@ impl OpenWindow {
                 window.set_resizable(resizable);
 
                 window.set_always_on_top(*self.vars.always_on_top().get(ctx.vars));
-
-                // TODO self.vars.taskbar_visible()
             } else {
                 self.headless_position = layout_position;
                 self.headless_size = size;
             }
+            self.set_taskbar_visible(*self.vars.taskbar_visible().get(ctx.vars));
 
             // update vars back.
             self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
@@ -2406,6 +2404,68 @@ impl OpenWindow {
                     winapi::um::commctrl::DefSubclassProc(hwnd, msg, wparam, lparam)
                 }
             }
+        }
+    }
+
+    fn set_taskbar_visible(&mut self, visible: bool) {
+        if visible == self.taskbar_visible {
+            return;
+        }
+        self.taskbar_visible = visible;
+
+        use std::ptr;
+        use winapi::shared::winerror;
+        use winapi::um::combaseapi;
+        use winapi::um::shobjidl_core::ITaskbarList;
+        use winapi::Interface;
+
+        // winit already initializes COM
+
+        unsafe {
+            let mut tb_ptr: *mut ITaskbarList = ptr::null_mut();
+            let result = combaseapi::CoCreateInstance(
+                &winapi::um::shobjidl_core::CLSID_TaskbarList,
+                ptr::null_mut(),
+                winapi::shared::wtypesbase::CLSCTX_INPROC_SERVER,
+                &ITaskbarList::uuidof(),
+                &mut tb_ptr as *mut _ as *mut _,
+            );
+            match result {
+                winerror::S_OK => {
+                    let tb = tb_ptr.as_ref().unwrap();
+                    let result = if visible {
+                        tb.AddTab(self.hwnd())
+                    } else {
+                        tb.DeleteTab(self.hwnd())
+                    };
+                    match result {
+                        winerror::S_OK => {}
+                        error => {
+                            let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
+                            error_println!(
+                                "cannot set `taskbar_visible`, `ITaskbarList::{}` failed, error: {:X}",
+                                mtd_name,
+                                error
+                            )
+                        }
+                    }
+                    tb.Release();
+                }
+                error => {
+                    error_println!(
+                        "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {:X}",
+                        error
+                    )
+                }
+            }
+        }
+    }
+}
+#[cfg(not(windows))]
+impl OpenWindow {
+    fn set_taskbar_visible(&mut self, visible: bool) {
+        if !visible {
+            error_println!("`taskbar_visible = false` only implemented for Windows");
         }
     }
 }
