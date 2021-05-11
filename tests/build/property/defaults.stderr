@@ -76,11 +76,11 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
    | required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
    |
    = help: the following implementations were found:
+             <&'static [u8] as IntoVar<WindowIcon>>
              <&'static str as IntoVar<FontName>>
              <&'static str as IntoVar<FontNames>>
-             <&'static str as IntoVar<zero_ui::prelude::Text>>
-             <&[(C, L)] as IntoVar<GradientStops>>
-           and 255 others
+             <&'static str as IntoVar<WindowIcon>>
+           and 259 others
 
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:39:35
@@ -108,11 +108,11 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
    | required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
    |
    = help: the following implementations were found:
+             <&'static [u8] as IntoVar<WindowIcon>>
              <&'static str as IntoVar<FontName>>
              <&'static str as IntoVar<FontNames>>
-             <&'static str as IntoVar<zero_ui::prelude::Text>>
-             <&[(C, L)] as IntoVar<GradientStops>>
-           and 255 others
+             <&'static str as IntoVar<WindowIcon>>
+           and 259 others
 
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:45:41

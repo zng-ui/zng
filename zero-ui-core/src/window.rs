@@ -19,7 +19,7 @@ use glutin::window::WindowBuilder;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     cell::{Cell, RefCell},
-    mem,
+    fmt, mem,
     num::NonZeroU16,
     rc::Rc,
     sync::Arc,
@@ -805,15 +805,129 @@ impl std::fmt::Display for WindowNotFound {
 }
 impl std::error::Error for WindowNotFound {}
 
+// We don't use Rc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
+type RenderIcon = Rc<Box<dyn Fn(&mut WindowContext) -> Box<dyn UiNode>>>;
+
 /// Window icon.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub enum WindowIcon {
     /// Operating system default icon.
+    ///
+    /// In Windows this is the icon associated with the executable.
     Default,
-    /// A bitmap TODO
-    Icon,
-    /// An [`UiNode`] that draws the icon. TODO
-    Render,
+    /// A bitmap icon.
+    ///
+    /// Use the [`from_rgba`], [`from_bytes`] or [`from_file`] functions to initialize.
+    Icon(Rc<glutin::window::Icon>),
+    /// An [`UiNode`] that draws the icon.
+    ///
+    /// Use the [`render`](Self::render) function to initialize.
+    Render(RenderIcon),
+}
+impl fmt::Debug for WindowIcon {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WindowIcon::Default => write!(f, "Default"),
+            WindowIcon::Icon(_) => write!(f, "Icon"),
+            WindowIcon::Render(_) => write!(f, "Render"),
+        }
+    }
+}
+impl PartialEq for WindowIcon {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (WindowIcon::Default, WindowIcon::Default) => true,
+            (WindowIcon::Icon(a), WindowIcon::Icon(b)) => Rc::ptr_eq(a, b),
+            (WindowIcon::Render(a), WindowIcon::Render(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+impl Default for WindowIcon {
+    /// [`WindowIcon::Default`]
+    fn default() -> Self {
+        Self::Default
+    }
+}
+impl WindowIcon {
+    /// New window icon from 32bpp RGBA data.
+    ///
+    /// The `rgba` must be a sequence of RGBA pixels in top-to-bottom rows.
+    #[inline]
+    pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, glutin::window::BadIcon> {
+        let icon = glutin::window::Icon::from_rgba(rgba, width, height)?;
+        Ok(Self::Icon(Rc::new(icon)))
+    }
+
+    /// New window icon from the bytes of an encoded image.
+    ///
+    /// The image format is guessed, PNG is recommended. Loading is done using the [`image::load_from_memory`]
+    /// function from the [`image`] crate.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, image::error::ImageError> {
+        use image::GenericImageView;
+
+        let image = image::load_from_memory(bytes)?;
+        let (width, height) = image.dimensions();
+        let icon = Self::from_rgba(image.into_bytes(), width, height).expect("image loaded a BadIcon from memory");
+        Ok(icon)
+    }
+
+    /// New window icon from image file.
+    ///
+    /// The image format is guessed from the path extension. Loading is done using the [`image::open`]
+    /// function from the [`image`] crate.
+    pub fn from_file<P: AsRef<std::path::Path>>(file: P) -> Result<Self, image::error::ImageError> {
+        use image::GenericImageView;
+
+        let image = image::open(file)?;
+        let (width, height) = image.dimensions();
+        let icon = Self::from_rgba(image.into_bytes(), width, height).expect("image loaded a BadIcon from file");
+        Ok(icon)
+    }
+
+    /// New window icon from a function that generates a new icon [`UiNode`] for the window.
+    ///
+    /// The function is called once on init and every time the window icon property changes,
+    /// the input is the window context, the result is a node that is rendered to create an icon.
+    ///
+    /// The icon node is updated like any other node and it can request a new render, you should
+    /// limit the interval for new frames,
+    pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_icon: F) -> Self {
+        Self::Render(Rc::new(Box::new(move |ctx| new_icon(ctx).boxed())))
+    }
+}
+impl_from_and_into_var! {
+    /// [`WindowIcon::from_bytes`]
+    fn from(bytes: &'static [u8]) -> WindowIcon {
+        WindowIcon::from_bytes(bytes).unwrap_or_else(|e| {
+            error_println!("failed to load icon from encoded bytes: {:?}", e);
+            WindowIcon::Default
+        })
+    }
+
+    /// [`WindowIcon::from_rgba`]
+    fn from(rgba: (Vec<u8>, u32, u32)) -> WindowIcon {
+        WindowIcon::from_rgba(rgba.0, rgba.1, rgba.2).unwrap_or_else(|e| {
+            error_println!("failed to load icon from RGBA data: {:?}", e);
+            WindowIcon::Default
+        })
+    }
+
+    /// [`WindowIcon::from_file`]
+    fn from(file: &'static str) -> WindowIcon {
+        WindowIcon::from_file(file).unwrap_or_else(|e| {
+            error_println!("failed to load icon from file: {:?}", e);
+            WindowIcon::Default
+        })
+    }
+
+    /// [`WindowIcon::from_file`]
+    fn from(file: std::path::PathBuf) -> WindowIcon {
+        WindowIcon::from_file(file).unwrap_or_else(|e| {
+            error_println!("failed to load icon from file: {:?}", e);
+            WindowIcon::Default
+        })
+    }
 }
 
 /// Window chrome, the non-client area of the window.

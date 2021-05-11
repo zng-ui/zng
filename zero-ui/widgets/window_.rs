@@ -31,6 +31,11 @@ pub mod window {
         /// Window title.
         properties::title;
 
+        /// Window icon.
+        ///
+        /// See [`WindowIcon`] for details.
+        properties::icon;
+
         /// Window position when it opens.
         #[allowed_in_when = false]
         start_position(impl Into<StartPosition>) = StartPosition::Default;
