@@ -19,8 +19,7 @@ use glutin::event_loop::{
 };
 use std::{
     any::{type_name, TypeId},
-    sync::atomic::AtomicBool,
-    time::Duration,
+    sync::{atomic::AtomicBool, Condvar},
 };
 use std::{
     mem,
@@ -278,7 +277,7 @@ fn shutdown(shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>, ctx: &mut A
 #[derive(Debug)]
 enum EventLoopInner {
     Glutin(GEventLoop<AppEvent>),
-    Headless(Arc<Mutex<Vec<AppEvent>>>),
+    Headless(Arc<(Mutex<Vec<AppEvent>>, Condvar)>),
 }
 
 /// Provides a way to retrieve events from the system and from the windows that were registered to the events loop.
@@ -306,11 +305,15 @@ impl EventLoop {
     /// # Panics
     ///
     /// If the event loop is not headless panics with the message: `"cannot take user events from headed EventLoop`.
-    pub fn take_headless_app_events(&self) -> Vec<AppEvent> {
+    pub fn take_headless_app_events(&self, wait: bool) -> Vec<AppEvent> {
         match &self.0 {
             EventLoopInner::Headless(uev) => {
-                let mut user_events = uev.lock().unwrap();
-                mem::take(&mut user_events)
+                let mut user_events = uev.0.lock().unwrap();
+                if wait {
+                    mem::take(&mut uev.1.wait(user_events).unwrap())
+                } else {
+                    mem::take(&mut user_events)
+                }
             }
             _ => panic!("cannot take user events from headed EventLoop"),
         }
@@ -378,7 +381,7 @@ impl<'a> EventLoopWindowTarget<'a> {
 #[derive(Debug, Clone)]
 enum EventLoopProxyInner {
     Glutin(GEventLoopProxy<AppEvent>),
-    Headless(Arc<Mutex<Vec<AppEvent>>>),
+    Headless(Arc<(Mutex<Vec<AppEvent>>, Condvar)>),
 }
 
 /// Used to send custom events to [`EventLoop`].
@@ -399,8 +402,9 @@ impl EventLoopProxy {
         match &self.0 {
             EventLoopProxyInner::Glutin(elp) => elp.send_event(event).unwrap(),
             EventLoopProxyInner::Headless(uev) => {
-                let mut user_events = uev.lock().unwrap();
+                let mut user_events = uev.0.lock().unwrap();
                 user_events.push(event);
+                uev.1.notify_one();
             }
         }
     }
@@ -732,22 +736,23 @@ impl HeadlessApp {
     }
 
     /// Takes the last requested [app events](AppEvent).
-    pub fn take_app_events(&mut self) -> Vec<AppEvent> {
-        self.event_loop.take_headless_app_events()
+    ///
+    /// If `wait` is `true` the thread sleeps until at least one event is send, if it is `false` returns immediately
+    /// with an empty vec if there where no events.
+    pub fn take_app_events(&mut self, wait: bool) -> Vec<AppEvent> {
+        self.event_loop.take_headless_app_events(wait)
     }
 
     /// **Blocks** until a new frame event is received.
     pub fn wait_frame(&mut self) -> AppEvent {
-        // TODO move this to OpenWindow.
         loop {
-            for event in self.take_app_events() {
+            for event in self.take_app_events(true) {
                 if let AppEvent::NewFrameReady(id) = event {
                     self.extensions
                         .on_new_frame_ready(id, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
                     return event;
                 }
             }
-            std::thread::sleep(Duration::from_millis(10));
         }
     }
 

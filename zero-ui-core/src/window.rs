@@ -2788,7 +2788,7 @@ mod headless_tests {
 
         app.update();
 
-        let events = app.take_app_events();
+        let events = app.take_app_events(false);
 
         assert!(events.iter().any(|ev| matches!(ev, AppEvent::NewFrameReady(_))));
 
