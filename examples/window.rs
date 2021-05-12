@@ -46,8 +46,13 @@ fn main() {
                     ]),
                     property_stack("icon", widgets![
                         set_icon("Default", WindowIcon::Default, &icon),
-                        set_icon("Icon (File)", "examples/res/icon-file.png", &icon),
-                        set_icon("Icon (Bytes)", include_bytes!("res/icon-bytes.png"), &icon),
+                        set_icon("Png File", "examples/res/icon-file.png", &icon),
+                        set_icon("Png Bytes", include_bytes!("res/icon-bytes.png"), &icon),
+                        set_icon("Raw Rgba", {
+                            let translucent_red = [255, 0, 0, 255 / 2];
+                            let rgba = translucent_red.iter().copied().cycle().take(32 * 32 * 4).collect::<Vec<u8>>();
+                            (rgba, 32, 32)
+                        }, &icon),
                         set_icon("Render", WindowIcon::render(|_| {
                             container! {
                                 content = text("W");
