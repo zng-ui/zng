@@ -9,5 +9,5 @@ error[E0277]: the trait bound `bool: IntoVar<SideOffsets>` is not satisfied
             <bool as IntoVar<CaptureMode>>
             <bool as IntoVar<FactorNormal>>
             <bool as IntoVar<FontFeatureState>>
-          and 2 others
+          and 3 others
   = note: required by `margin_ArgsImpl::<T_margin>::new`
