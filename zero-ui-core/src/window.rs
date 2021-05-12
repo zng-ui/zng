@@ -957,6 +957,32 @@ pub enum WindowChrome {
     /// An [`UiNode`] that provides the window chrome.
     Custom,
 }
+impl WindowChrome {
+    /// Is operating system chrome.
+    #[inline]
+    fn is_default(&self) -> bool {
+        matches!(self, WindowChrome::Default)
+    }
+}
+impl Default for WindowChrome {
+    /// [`WindowChrome::Default`]
+    fn default() -> Self {
+        Self::Default
+    }
+}
+impl_from_and_into_var! {
+    /// | Input  | Output                  |
+    /// |--------|-------------------------|
+    /// |`true`  | `WindowChrome::Default` |
+    /// |`false` | `WindowChrome::None`    |
+    fn from(default_: bool) -> WindowChrome {
+        if default_ {
+            WindowChrome::Default
+        } else {
+            WindowChrome::None
+        }
+    }
+}
 
 /// Window screen state.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -2001,6 +2027,12 @@ impl OpenWindow {
                 self.set_taskbar_visible(taskbar_visible);
             }
 
+            if let Some(chrome) = self.vars.chrome().get_new(ctx.vars) {
+                if let Some(window) = &self.window {
+                    window.set_decorations(chrome.is_default());
+                }
+            }
+
             if let Some(&visible) = self.vars.visible().get_new(ctx.vars) {
                 if let Some(window) = &self.window {
                     window.set_visible(visible && matches!(self.init_state, WindowInitState::Inited));
@@ -2187,6 +2219,7 @@ impl OpenWindow {
                 window.set_resizable(resizable);
 
                 window.set_always_on_top(*self.vars.always_on_top().get(ctx.vars));
+                window.set_decorations(self.vars.chrome().get(ctx.vars).is_default());
             } else {
                 self.headless_position = layout_position;
                 self.headless_size = size;

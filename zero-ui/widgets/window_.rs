@@ -36,6 +36,11 @@ pub mod window {
         /// See [`WindowIcon`] for details.
         properties::icon;
 
+        /// Window chrome, the non-client area of the window.
+        ///
+        /// See [`WindowChrome`] for details.
+        properties::chrome;
+
         /// Window position when it opens.
         #[allowed_in_when = false]
         start_position(impl Into<StartPosition>) = StartPosition::Default;

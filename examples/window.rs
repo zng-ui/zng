@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use enclose::enclose;
 use zero_ui::prelude::*;
 
 fn main() {
@@ -12,11 +13,13 @@ fn main() {
         let background_color = var(rgb(0.1, 0.1, 0.1));
 
         let icon = var(WindowIcon::Default);
+        let chrome = var(WindowChrome::Default);
 
         window! {
             position = position.clone();
             size = size.clone();
             icon = icon.clone();
+            chrome = chrome.clone();
             background_color = background_color.clone();
             title;
             content = h_stack! {
@@ -59,6 +62,11 @@ fn main() {
                                 background_color = colors::DARK_BLUE;
                             }
                         }), &icon)
+                    ]),
+                    property_stack("chrome", widgets![
+                        set_chrome("Default", true, &chrome),
+                        set_chrome("None", false, &chrome),
+
                     ]),
                     property_stack("background_color", widgets![
                         set_background(rgb(0.1, 0.1, 0.1), "default", &background_color),
@@ -162,11 +170,17 @@ fn always_on_top() -> impl Widget {
         content = text("always_on_top");
         on_click = |ctx, _| {
             ctx.services.req::<Windows>().open(|_| {
+                let always_on_top = var(true);
                 window! {
-                    always_on_top = true;
-                    title = "always_on_top";
-                    content = text("always_on_top=true window");
+                    title = always_on_top.map(|b| formatx!{"always_on_top = {}", b});
+                    content = button!{
+                        content = text("toggle always_on_top");
+                        on_click = enclose!{(always_on_top) move |ctx, _| {
+                            always_on_top.modify(ctx.vars, |b| *b = !*b)
+                        }}
+                    };
                     size = (400, 300);
+                    always_on_top;
                 }
             }, None);
         }
@@ -178,14 +192,31 @@ fn taskbar_visible() -> impl Widget {
         content = text("taskbar_visible");
         on_click = |ctx, _| {
             ctx.services.req::<Windows>().open(|_| {
+                let taskbar_visible = var(false);
                 window! {
-                    taskbar_visible = false;
-                    title = "taskbar_visible";
-                    content = text("taskbar_visible=false window");
+                    title = taskbar_visible.map(|b| formatx!{"taskbar_visible = {}", b});
+                    content = button!{
+                        content = text("toggle taskbar_visible");
+                        on_click = enclose!{(taskbar_visible) move |ctx, _| {
+                            taskbar_visible.modify(ctx.vars, |b| *b = !*b)
+                        }}
+                    };
                     size = (400, 300);
+                    taskbar_visible;
                 }
             }, None);
         }
+    }
+}
+
+fn set_chrome(label: impl IntoVar<Text> + 'static, chrome: impl Into<WindowChrome>, var: &RcVar<WindowChrome>) -> impl Widget {
+    let var = var.clone();
+    let chrome = chrome.into();
+    button! {
+        content = text(label);
+        on_click = move |ctx, _| {
+            var.set_ne(ctx.vars, chrome.clone());
+        };
     }
 }
 
