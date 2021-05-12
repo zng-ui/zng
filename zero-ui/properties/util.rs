@@ -212,7 +212,7 @@ mod tests {
         let mut wgt = blank! {
             set_state_test = value.clone();
         };
-        let mut ctx = TestWidgetContext::wait_new();
+        let mut ctx = TestWidgetContext::new();
 
         assert_eq!(None, wgt.state().get::<TestKey>());
 
@@ -270,7 +270,7 @@ mod tests {
             with_var_test = value.clone();
             test_var_probe = probe.clone();
         };
-        let mut ctx = TestWidgetContext::wait_new();
+        let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
         ctx.apply_updates();
@@ -297,7 +297,7 @@ mod tests {
             with_var_test = value.clone();
         };
 
-        let mut ctx = TestWidgetContext::wait_new();
+        let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
         ctx.apply_updates();
@@ -327,7 +327,7 @@ mod tests {
                 }
             ];
         };
-        let mut ctx = TestWidgetContext::wait_new();
+        let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
         ctx.apply_updates();
@@ -351,7 +351,7 @@ mod tests {
             with_var_wgt_only_test = value.clone();
             test_var_probe = probe.clone();
         };
-        let mut ctx = TestWidgetContext::wait_new();
+        let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
         ctx.apply_updates();
@@ -378,7 +378,7 @@ mod tests {
             with_var_wgt_only_test = value.clone();
         };
 
-        let mut ctx = TestWidgetContext::wait_new();
+        let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
         ctx.apply_updates();

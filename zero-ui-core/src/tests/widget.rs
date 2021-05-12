@@ -49,7 +49,7 @@ pub mod bar_wgt {
 #[test]
 pub fn wgt_with_mixin_default_values() {
     let mut default = bar_wgt!();
-    default.test_init(&mut TestWidgetContext::wait_new());
+    default.test_init(&mut TestWidgetContext::new());
 
     // test default values used.
     assert!(util::traced(&default, "foo_mixin"));
@@ -62,7 +62,7 @@ pub fn wgt_with_mixin_assign_values() {
         foo_trace; // shorthand assign test.
         bar_trace = "bar!";
     };
-    default.test_init(&mut TestWidgetContext::wait_new());
+    default.test_init(&mut TestWidgetContext::new());
 
     // test new values used.
     assert!(util::traced(&default, "foo!"));
@@ -87,7 +87,7 @@ pub mod reset_wgt {
 #[test]
 pub fn wgt_with_new_value_for_inherited() {
     let mut default = reset_wgt!();
-    default.test_init(&mut TestWidgetContext::wait_new());
+    default.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&default, "reset_wgt"));
     assert!(!util::traced(&default, "foo_mixin"));
@@ -107,7 +107,7 @@ pub mod alias_inherit_wgt {
 #[test]
 pub fn wgt_alias_inherit() {
     let mut default = alias_inherit_wgt!();
-    default.test_init(&mut TestWidgetContext::wait_new());
+    default.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&default, "foo_mixin"));
     assert!(util::traced(&default, "alias_inherit_wgt"));
@@ -116,7 +116,7 @@ pub fn wgt_alias_inherit() {
         foo_trace = "foo!";
         alias_trace = "alias!";
     );
-    assigned.test_init(&mut TestWidgetContext::wait_new());
+    assigned.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&assigned, "foo!"));
     assert!(util::traced(&assigned, "alias!"));
@@ -136,7 +136,7 @@ pub fn wgt_property_from_path() {
     let mut assigned = property_from_path_wgt!(
         trace = "trace!";
     );
-    assigned.test_init(&mut TestWidgetContext::wait_new());
+    assigned.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&assigned, "trace!"));
 }
@@ -155,7 +155,7 @@ pub mod remove_property_wgt {
 #[test]
 pub fn wgt_remove_property() {
     let mut default = remove_property_wgt!();
-    default.test_init(&mut TestWidgetContext::wait_new());
+    default.test_init(&mut TestWidgetContext::new());
 
     assert!(!util::traced(&default, "foo_mixin"));
 }
@@ -172,14 +172,14 @@ pub mod default_value_wgt {
 #[test]
 pub fn unset_default_value() {
     let mut default = default_value_wgt!();
-    default.test_init(&mut TestWidgetContext::wait_new());
+    default.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&default, "default_value_wgt"));
 
     let mut no_default = default_value_wgt! {
         trace = unset!;
     };
-    no_default.test_init(&mut TestWidgetContext::wait_new());
+    no_default.test_init(&mut TestWidgetContext::new());
 
     assert!(!util::traced(&no_default, "default_value_wgt"));
 }
@@ -204,7 +204,7 @@ pub fn wgt_required_property() {
         trace = "required!";
         foo_trace = "required2!"
     );
-    required.test_init(&mut TestWidgetContext::wait_new());
+    required.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&required, "required!"));
     assert!(util::traced(&required, "required2!"));
@@ -231,7 +231,7 @@ pub fn wgt_required_inherited() {
     let mut required = required_inherited_wgt! {
         required_trace = "required!";// removing this line must cause a compile error.
     };
-    required.test_init(&mut TestWidgetContext::wait_new());
+    required.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&required, "required!"))
 }
@@ -260,14 +260,14 @@ pub fn wgt_required_inherited_default() {
     let mut required = required_inherited_default_wgt! {
         //required_trace = unset!; // uncommenting this line must cause a compile error.
     };
-    required.test_init(&mut TestWidgetContext::wait_new());
+    required.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&required, "required_inherited_default_wgt"));
 
     let mut required2 = required_inherited_default_depth2_wgt! {
         //required_trace = unset!; // uncommenting this line must cause a compile error.
     };
-    required2.test_init(&mut TestWidgetContext::wait_new());
+    required2.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&required2, "required_inherited_default_wgt"));
 }
@@ -289,7 +289,7 @@ pub fn wgt_required_inherited_default_required() {
     let mut required = required_inherited_default_required_wgt! {
         required_trace = "required!"; // commenting this line must cause a compile error.
     };
-    required.test_init(&mut TestWidgetContext::wait_new());
+    required.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&required, "required!"))
 }
@@ -305,7 +305,7 @@ pub fn value_init_order() {
         util::count_inner = Position::next("count_inner");
         util::count_context = Position::next("count_context");
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     // values evaluated in typed order.
     assert_eq!(util::sorted_value_init(&wgt), ["count_inner", "count_context"]);
@@ -334,7 +334,7 @@ pub fn wgt_child_property_init_order() {
         count_child_inner = Position::next("count_child_inner");
         util::count_context = Position::next("count_context");
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     // values evaluated in typed order.
     assert_eq!(util::sorted_value_init(&wgt), ["count_inner", "count_child_inner", "count_context"]);
@@ -361,7 +361,7 @@ pub fn wgt_same_priority_order() {
         inner_a = Position::next("inner_a");
         inner_b = Position::next("inner_b");
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     // values evaluated in typed order.
     assert_eq!(util::sorted_value_init(&wgt), ["inner_a", "inner_b"]);
@@ -379,7 +379,7 @@ pub fn wgt_same_priority_order() {
         inner_b = Position::next("inner_b");
         inner_a = Position::next("inner_a");
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert_eq!(util::sorted_value_init(&wgt), ["inner_b", "inner_a"]);
     assert_eq!(util::sorted_node_init(&wgt), ["inner_b", "inner_a"]);
@@ -404,7 +404,7 @@ pub mod when_wgt {
 #[test]
 pub fn wgt_when() {
     let mut wgt = when_wgt!();
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
 
     assert!(util::traced(&wgt, "boo!"));
@@ -432,7 +432,7 @@ pub fn widget_user_when() {
             util::live_trace = "B";
         }
     };
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
 
     assert!(util::traced(&wgt, "A"));
@@ -471,7 +471,7 @@ pub mod multi_when_wgt {
 #[test]
 pub fn wgt_multi_when() {
     let mut wgt = multi_when_wgt!();
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
 
     assert!(util::traced(&wgt, "default"));
@@ -515,7 +515,7 @@ pub mod cfg_property_wgt {
 #[test]
 pub fn wgt_cfg_property() {
     let mut wgt = cfg_property_wgt!();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "always-trace"));
     assert!(!util::traced(&wgt, "never-trace"));
@@ -539,7 +539,7 @@ pub fn user_cfg_property() {
         };
     };
 
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "always-trace"));
     assert!(!util::traced(&wgt, "never-trace"));
@@ -576,7 +576,7 @@ pub mod cfg_when_wgt {
 pub fn wgt_cfg_when() {
     let mut wgt = cfg_when_wgt!();
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
 
     assert!(util::traced(&wgt, "trace"));
@@ -616,7 +616,7 @@ pub fn user_cfg_when() {
         }
     };
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
 
     assert!(util::traced(&wgt, "trace"));
@@ -673,7 +673,7 @@ pub mod capture_properties_wgt {
 #[test]
 pub fn wgt_capture_properties() {
     let mut wgt = capture_properties_wgt!();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "property"));
     assert!(util::traced(&wgt, "custom new_child"));
@@ -690,7 +690,7 @@ pub fn wgt_capture_properties_reassign() {
         property_trace = "user-property";
         new_trace = "user-new";
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "user-property"));
     assert!(util::traced(&wgt, "custom new_child (user)"));
@@ -728,7 +728,7 @@ pub mod new_capture_property_wgt {
 #[test]
 pub fn wgt_new_capture_property() {
     let mut wgt = new_capture_property_wgt!();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "captured new_capture (default)"));
 }
@@ -737,7 +737,7 @@ pub fn wgt_new_capture_property_reassign() {
     let mut wgt = new_capture_property_wgt! {
         new_capture = "new_capture-user", 24
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "captured new_capture (user)"));
 }
@@ -765,7 +765,7 @@ pub mod new_capture_property_named_wgt {
 #[test]
 pub fn wgt_new_capture_property_named() {
     let mut wgt = new_capture_property_named_wgt!();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "captured new_capture (default)"));
 }
@@ -777,7 +777,7 @@ pub fn wgt_new_capture_property_named_reassign() {
             age: 24
         }
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "captured new_capture (user)"));
 }
@@ -807,7 +807,7 @@ pub mod captured_property_wgt {
 #[test]
 pub fn wgt_captured_property() {
     let mut wgt = captured_property_wgt!();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "captured capture (default)"));
 }
@@ -816,7 +816,7 @@ pub fn wgt_captured_property_reassign() {
     let mut wgt = captured_property_wgt! {
         capture_only_trace = "capture-user"
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert!(util::traced(&wgt, "captured capture (user)"));
 }
@@ -888,7 +888,7 @@ pub fn property_priority_sorting_value_init1() {
     Position::reset();
 
     let mut wgt = property_priority_sorting_init1();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     // assert that value init is the same as typed.
     assert_eq!(
@@ -948,7 +948,7 @@ pub fn property_priority_sorting_value_init2() {
     Position::reset();
 
     let mut wgt = property_priority_sorting_init2();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     // assert that value init is the same as typed.
     assert_eq!(
@@ -1014,7 +1014,7 @@ pub fn property_priority_sorting_node_init1() {
     Position::reset();
 
     let mut wgt = property_priority_sorting_init1();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert_node_order(&wgt);
 }
@@ -1024,7 +1024,7 @@ pub fn property_priority_sorting_node_init2() {
     Position::reset();
 
     let mut wgt = property_priority_sorting_init2();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert_node_order(&wgt);
 }
@@ -1060,7 +1060,7 @@ pub fn property_priority_sorting_node_inherited_init() {
         count_inner1 = Position::next("count_inner1");
         count_inner2 = Position::next("count_inner2");
     };
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
 
     assert_node_order(&wgt);
 }
@@ -1102,7 +1102,7 @@ pub fn property_priority_sorting_defaults() {
     Position::reset();
 
     let mut wgt = property_priority_sorting_defaults_wgt!();
-    wgt.test_init(&mut TestWidgetContext::wait_new());
+    wgt.test_init(&mut TestWidgetContext::new());
     assert_node_order(&wgt);
 }
 
@@ -1123,7 +1123,7 @@ pub fn when_property_member_default() {
        }
     };
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
     assert!(util::traced(&wgt, "true"));
 }
@@ -1142,7 +1142,7 @@ pub fn when_property_member_index() {
        }
     };
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
     assert!(util::traced(&wgt, "true"));
 }
@@ -1161,7 +1161,7 @@ pub fn when_property_member_named() {
        }
     };
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
     assert!(util::traced(&wgt, "true"));
 }
@@ -1179,7 +1179,7 @@ pub fn when_property_member_default_method() {
        }
     };
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
     assert!(util::traced(&wgt, "true"));
 }
@@ -1197,7 +1197,7 @@ pub fn when_property_member_indexed_method() {
        }
     };
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
     assert!(util::traced(&wgt, "true"));
 }
@@ -1235,7 +1235,7 @@ pub mod inherit_override_wgt2 {
 pub fn inherit_override() {
     let mut wgt = inherit_override_wgt1!();
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
     assert!(util::traced(&wgt, "base_b::property"));
     assert!(!util::traced(&wgt, "base_a::property"));
@@ -1260,7 +1260,7 @@ pub fn allowed_in_when_without_wgt_assign() {
         }
     };
 
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
     assert!(util::traced(&wgt, "default-trace"));
     assert!(!util::traced(&wgt, "when-trace"));
@@ -1287,7 +1287,7 @@ pub fn generated_name_collision() {
         util::live_trace = "!";
         util_live_trace = false;
     };
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
 
@@ -1306,7 +1306,7 @@ pub fn generated_name_collision_in_when() {
             util::live_trace = "3";
         }
     };
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
     util::set_state(&mut wgt, true);
@@ -1329,7 +1329,7 @@ pub fn generated_name_collision_in_when_assign() {
             util_live_trace = true;
         }
     };
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
     util::set_state(&mut wgt, true);
@@ -1359,7 +1359,7 @@ pub mod name_collision_wgt_when {
 #[test]
 pub fn name_collision_wgt_when() {
     let mut wgt = name_collision_wgt_when!();
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
     util::set_state(&mut wgt, true);

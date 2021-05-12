@@ -88,7 +88,7 @@ pub fn default_delegate_iter() {
 }
 fn test_trace(node: impl UiNode) {
     let mut wgt = implicit_base::new(node, WidgetId::new_unique());
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
     assert_only_traced!(wgt.state(), "init");
@@ -146,7 +146,7 @@ pub fn allow_missing_delegate() {
 
     fn test(node: impl UiNode) {
         let mut wgt = implicit_base::new(node, WidgetId::new_unique());
-        let mut ctx = TestWidgetContext::wait_new();
+        let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
         assert_only_traced!(wgt.state(), "init");
@@ -170,7 +170,7 @@ pub fn default_no_child() {
     impl UiNode for Node {}
 
     let mut wgt = implicit_base::new(Node, WidgetId::new_unique());
-    let mut ctx = TestWidgetContext::wait_new();
+    let mut ctx = TestWidgetContext::new();
 
     // we expect defaults to do nothing with the WidgetContext.
     wgt.test_init(&mut ctx);

@@ -142,31 +142,41 @@ macro_rules! impl_from_and_into_var {
     };
 }
 
-/// Generates a type that can only have a single instance at a time.
-macro_rules! singleton_assert {
+/// Generates a type that can only have a single instance per thread.
+macro_rules! thread_singleton {
     ($Singleton:ident) => {
-        struct $Singleton {}
-
+        struct $Singleton {
+            _not_send: std::marker::PhantomData<Rc<()>>,
+        }
         impl $Singleton {
-            fn flag() -> &'static std::sync::atomic::AtomicBool {
-                static ALIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                &ALIVE
+            std::thread_local! {
+                static IN_USE: std::cell::Cell<bool> = std::cell::Cell::new(false);
             }
 
-            pub fn assert_new() -> Self {
-                if Self::flag().load(std::sync::atomic::Ordering::SeqCst) {
-                    panic!("only a single instance of `{}` can exist at at time", stringify!($Singleton))
+            fn set(in_use: bool) {
+                Self::IN_USE.with(|f| f.set(in_use));
+            }
+
+            /// If an instance of this type already exists in this thread.
+            pub fn in_use() -> bool {
+                Self::IN_USE.with(|f| f.get())
+            }
+
+            /// Panics if [`Self::in_use`], otherwise creates the single instance of `Self` for the thread.
+            pub fn assert_new(type_name: &str) -> Self {
+                if Self::in_use() {
+                    panic!("only a single instance of `{}` can exist per thread at a time", type_name)
                 }
+                Self::set(true);
 
-                Self::flag().store(true, std::sync::atomic::Ordering::SeqCst);
-
-                $Singleton {}
+                Self {
+                    _not_send: std::marker::PhantomData,
+                }
             }
         }
-
         impl Drop for $Singleton {
             fn drop(&mut self) {
-                Self::flag().store(false, std::sync::atomic::Ordering::SeqCst);
+                Self::set(false);
             }
         }
     };

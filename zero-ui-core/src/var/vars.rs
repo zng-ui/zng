@@ -2,7 +2,7 @@ use super::*;
 use crate::context::Updates;
 use std::{fmt, ops::Deref};
 
-singleton_assert!(SingletonVars);
+thread_singleton!(SingletonVars);
 
 /// Read-only access to [`Vars`].
 ///
@@ -168,13 +168,20 @@ impl fmt::Debug for Vars {
     }
 }
 impl Vars {
+    /// If an instance of `Vars` already exists in the  current thread.
+    #[inline]
+    pub fn instantiated() -> bool {
+        SingletonVars::in_use()
+    }
+
     /// Produces the instance of `Vars`. Only a single
-    /// instance can exist at a time, panics if called
+    /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
+    #[inline]
     pub fn instance() -> Self {
         Vars {
             read: VarsRead {
-                _singleton: SingletonVars::assert_new(),
+                _singleton: SingletonVars::assert_new("Vars"),
                 update_id: 0,
                 widget_clear: Default::default(),
             },

@@ -932,23 +932,9 @@ impl<'a> WindowContext<'a> {
     }
 }
 
-#[cfg(any(test, doc, feature = "pub_test"))]
-pub(crate) struct TestContextLock(std::sync::MutexGuard<'static, ()>);
-#[cfg(any(test, doc, feature = "pub_test"))]
-impl TestContextLock {
-    pub(crate) fn wait_new() -> Self {
-        static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(()));
-        let guard = TEST_CONTEXT_LOCK.lock().unwrap_or_else(|e| {
-            error_println!("TestContextLock poisoned, ignoring");
-            e.into_inner()
-        });
-        Self(guard)
-    }
-}
-
 /// <span class="stab portability" title="This is supported on `any(test, doc, feature="pub_test")` only"><code>any(test, doc, feature="pub_test")</code></span> A mock [`WidgetContext`] for testing widgets.
 ///
-/// Only a single instance of this type can exist at a time, see [`Self::wait_new`] for details.
+/// Only a single instance of this type can exist per-thread at a time, see [`new`](Self::new) for details.
 ///
 /// This is less cumbersome to use then a full headless app, but also more limited. Use a [`HeadlessApp`](crate::app::HeadlessApp)
 /// for more complex integration tests.
@@ -1014,17 +1000,23 @@ pub struct TestWidgetContext {
     ///
     /// TODO: Implement a timers pump for this.
     pub sync: Sync,
-
-    _lock: TestContextLock,
+}
+#[cfg(any(test, doc, feature = "pub_test"))]
+impl Default for TestWidgetContext {
+    /// [`TestWidgetContext::new`]
+    fn default() -> Self {
+        Self::new()
+    }
 }
 #[cfg(any(test, doc, feature = "pub_test"))]
 impl TestWidgetContext {
-    /// Gets a new [`TestWidgetContext`] instance. If another instance is alive in another thread
-    /// **blocks until the other instance is dropped**.
-    ///
-    /// This also blocks if there is a [`HeadlessApp`](crate::app::HeadlessApp) running.
-    pub fn wait_new() -> Self {
-        let lock = TestContextLock::wait_new();
+    /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
+    /// or if an app is running in the current thread.
+    pub fn new() -> Self {
+        if crate::app::App::is_running() {
+            panic!("only one `TestWidgetContext` or app is allowed per thread")
+        }
+
         let event_loop = crate::app::EventLoop::new(true);
         let updates = OwnedUpdates::new(event_loop.create_proxy());
         let update_notifier = updates.0.notifier().clone();
@@ -1041,7 +1033,6 @@ impl TestWidgetContext {
             vars: Vars::instance(),
             events: Events::instance(),
             sync: Sync::new(update_notifier),
-            _lock: lock,
         }
     }
 

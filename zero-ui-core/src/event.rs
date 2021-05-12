@@ -364,7 +364,7 @@ impl<T: Clone> BufEventListener<T> {
     }
 }
 
-singleton_assert!(SingletonEvents);
+thread_singleton!(SingletonEvents);
 
 /// Access to application events.
 ///
@@ -380,16 +380,23 @@ pub struct Events {
 }
 
 impl Events {
+    /// If an instance of `Events` already exists in the  current thread.
+    #[inline]
+    pub fn instantiated() -> bool {
+        SingletonEvents::in_use()
+    }
+
     /// Produces the instance of `Events`. Only a single
-    /// instance can exist at a time, panics if called
+    /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
+    #[inline]
     pub fn instance() -> Self {
         Events {
             events: Default::default(),
             update_id: 0,
             pending: RefCell::default(),
             buffers: RefCell::default(),
-            _singleton: SingletonEvents::assert_new(),
+            _singleton: SingletonEvents::assert_new("Events"),
         }
     }
 

@@ -19,6 +19,7 @@ use glutin::event_loop::{
 };
 use std::{
     any::{type_name, TypeId},
+    sync::atomic::AtomicBool,
     time::Duration,
 };
 use std::{
@@ -199,6 +200,22 @@ impl App {
             .extend(WindowManager::default())
             .extend(FontManager::default())
             .extend(FocusManager::default())
+    }
+
+    /// If a headed app is running in the current process.
+    ///
+    /// Only a single headed app is allowed per-process.
+    #[inline]
+    pub fn is_headed_running() -> bool {
+        HEADED_APP_RUNNING.load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    /// If an app is already running in the current thread.
+    ///
+    /// Only a single app is allowed per-thread and only a single headed app is allowed per-process.
+    #[inline]
+    pub fn is_running() -> bool {
+        crate::var::Vars::instantiated() || crate::event::Events::instantiated()
     }
 }
 
@@ -427,6 +444,8 @@ impl<E: AppExtension> AppExtended<E> {
     }
 }
 
+static HEADED_APP_RUNNING: AtomicBool = AtomicBool::new(false);
+
 impl<E: AppExtension> AppExtended<E> {
     /// Gets if the application is already extended with the extension type.
     #[inline]
@@ -444,6 +463,12 @@ impl<E: AppExtension> AppExtended<E> {
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
         if !is_main_thread::is_main_thread().unwrap_or(true) {
             panic!("can only init headed app in the main thread")
+        }
+        if HEADED_APP_RUNNING.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            panic!("only one headed app is allowed per process")
+        }
+        if App::is_running() {
+            panic!("only one app is allowed per thread")
         }
 
         #[cfg(feature = "app_profiler")]
@@ -571,11 +596,16 @@ impl<E: AppExtension> AppExtended<E> {
     /// # Tests
     ///
     /// If called in a test (`cfg(test)`) this blocks until no other instance of [`HeadlessApp`] and
-    /// [`TestWidgetContext`] are running.
+    /// [`TestWidgetContext`] are running in the current thread.
     #[inline]
     pub fn run_headless(self) -> HeadlessApp {
-        #[cfg(any(test, doc, feature = "pub_test"))]
-        let lock = TestContextLock::wait_new();
+        if App::is_running() {
+            if cfg!(any(test, doc, feature = "pub_test")) {
+                panic!("only one app or `TestWidgetContext` is allowed per thread")
+            } else {
+                panic!("only one app is allowed per thread")
+            }
+        }
 
         #[cfg(feature = "app_profiler")]
         let profile_scope = {
@@ -601,8 +631,6 @@ impl<E: AppExtension> AppExtended<E> {
 
             #[cfg(feature = "app_profiler")]
             _pf: profile_scope,
-            #[cfg(any(test, doc, feature = "pub_test"))]
-            _lock: lock,
         }
     }
 }
@@ -629,8 +657,6 @@ pub struct HeadlessApp {
     control_flow: ControlFlow,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
-    #[cfg(any(test, doc, feature = "pub_test"))]
-    _lock: TestContextLock,
 }
 impl HeadlessApp {
     /// Headless state.
@@ -1072,5 +1098,26 @@ mod headless_tests {
         });
 
         app.update();
+    }
+
+    #[test]
+    #[should_panic(expected = "only one app or `TestWidgetContext` is allowed per thread")]
+    pub fn two_in_one_thread() {
+        let _a = App::default().run_headless();
+        let _b = App::default().run_headless();
+    }
+
+    #[test]
+    #[should_panic(expected = "only one `TestWidgetContext` or app is allowed per thread")]
+    pub fn app_and_test_ctx() {
+        let _a = App::default().run_headless();
+        let _b = TestWidgetContext::new();
+    }
+
+    #[test]
+    #[should_panic(expected = "only one app or `TestWidgetContext` is allowed per thread")]
+    pub fn test_ctx_and_app() {
+        let _a = TestWidgetContext::new();
+        let _b = App::default().run_headless();
     }
 }

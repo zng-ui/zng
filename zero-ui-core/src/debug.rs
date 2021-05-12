@@ -696,7 +696,7 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::wait_new();
+            let ctx = TestWidgetContext::new();
 
             assert_eq!("true", r.get(&ctx.vars))
         }
@@ -709,7 +709,7 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let mut ctx = TestWidgetContext::wait_new();
+            let mut ctx = TestWidgetContext::new();
 
             assert_eq!("true", r.get(&ctx.vars));
 
@@ -726,7 +726,7 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::wait_new();
+            let ctx = TestWidgetContext::new();
 
             assert_eq!("true", r.get(&ctx.vars))
         }
@@ -738,7 +738,7 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::wait_new();
+            let ctx = TestWidgetContext::new();
 
             assert!(r.get(&ctx.vars).contains("Foo"));
         }
