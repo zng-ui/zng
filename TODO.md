@@ -24,7 +24,6 @@ Things that must be done first because they influence the core API design that i
   * Custom resize borders.
   * Modal.
 
-* Allow multiple headless apps, one per thread.
 * Localization.
 * Scrolling.
   * Virtualization.
