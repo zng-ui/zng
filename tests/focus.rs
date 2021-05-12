@@ -2,7 +2,7 @@ use zero_ui::core::app::HeadlessApp;
 use zero_ui::core::focus::{FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs};
 use zero_ui::core::gesture::HeadlessAppGestureExt;
 use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
-use zero_ui::core::window::{HeadlessAppOpenWindowExt, WindowId};
+use zero_ui::core::window::{HeadlessAppWindowExt, WindowId};
 use zero_ui::prelude::*;
 use zero_ui_core::event::BufEventListener;
 

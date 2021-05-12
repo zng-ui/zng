@@ -2578,52 +2578,6 @@ mod renderer {
                 (rect.size.height * self.scale_factor) as u32,
             )
         }
-
-        /// If the renderer is headless, renders a new [`UiNode`](crate::UiNode).
-        ///
-        /// This method calls `create_ui` and then:
-        ///
-        /// * Initializes the node (`UiNode::init`).
-        /// * Calls the update methods until there is no more update.
-        /// * Layouts the node using the renderer size.
-        /// * Builds a frame from the node (`UiNode::render`).
-        /// * De-initializes the node (`UiNode::deinit`).
-        /// * Start rendering the frame, like a call to [`render`](Self::render).
-        ///
-        /// No services or events are available in the contexts passed to the new UI node.
-        ///
-        /// # Panics
-        ///
-        /// Panics if the renderer is not [`headless`](Self::headless).
-        pub fn render_new_ui<O: crate::UiNode, F: FnOnce(&mut crate::context::WindowContext) -> O>(&mut self, create_ui: F) {
-            if !self.headless() {
-                panic!("can only `render_new_ui` with headless renderer");
-            }
-
-            let _ = create_ui;
-
-            todo!()
-        }
-
-        /// If the renderer is headless, renders an existing [`UiNode`](crate::UiNode).
-        ///
-        /// This method does:
-        ///
-        /// * Layout the `ui` using the renderer size.
-        /// * Builds a frame from the node (`UiNode::render`).
-        /// * Start rendering the frame, like a call to [`render`](Self::render).
-        ///
-        /// # Panics
-        ///
-        /// Panics if the renderer is not [`headless`](Self::headless).
-        pub fn render_ui<U: crate::UiNode>(&mut self, ui: &mut U) {
-            if !self.headless() {
-                panic!("can only `render_ui` with headless renderer");
-            }
-            let _ = ui;
-
-            todo!()
-        }
     }
     impl Drop for Renderer {
         fn drop(&mut self) {

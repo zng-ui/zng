@@ -1,14 +1,10 @@
 use zero_ui::prelude::*;
+use zero_ui_core::window::HeadlessAppWindowExt;
 
 fn main() {
     println!("-=Headless Example=-\n");
     // This example uses a headless window to render an image.
-    //
-    // Note: this is a demonstration of headless, if you just want
-    //       to render an image you can use the renderer directly
-    //       like in the "renderer.rs" example.
 
-    // we only need the window services.
     let mut app = App::default().run_headless();
 
     // set the renderer flag, this causes headless windows to
@@ -16,30 +12,22 @@ fn main() {
     app.enable_renderer(true);
 
     // open the window that is our image.
-    app.with_context(|ctx| {
-        ctx.services.req::<Windows>().open(|_| image(), None);
-    });
-    app.update();
+    let window_id = app.open_window(|_| image());
 
     // Block until the frame is rendered.
     app.wait_frame();
 
     // save the drawing using the screenshot mechanism.
     app.with_context(|ctx| {
-        let wns = ctx.services.req::<Windows>();
-        let id = {
-            // find the image window.
-            let wn = wns.windows().next().unwrap();
+        let wn = ctx.services.req::<Windows>().window(window_id).unwrap();
 
-            // copy the frame pixel data and save it.
-            print!("saving ./screenshot.png ... ");
-            flush_stdout();
-            wn.screenshot().save("screenshot.png").expect("error saving screenshot");
-            println!("done");
+        // copy the frame pixel data and save it.
+        print!("saving ./screenshot.png ... ");
+        flush_stdout();
+        wn.screenshot().save("screenshot.png").expect("error saving screenshot");
+        println!("done");
 
-            wn.id()
-        };
-        wns.close(id).unwrap();
+        wn.close();
     });
 
     // apply the window close request, you need to close all

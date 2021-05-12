@@ -118,7 +118,7 @@ impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
 }
 
 /// Extension trait, adds [`open_window`](HeadlessAppOpenWindowExt::open_window) to [`HeadlessApp`](app::HeadlessApp).
-pub trait HeadlessAppOpenWindowExt {
+pub trait HeadlessAppWindowExt {
     /// Open a new headless window and returns the new window ID.
     ///
     /// The `new_window` argument is the [`WindowContext`] of the new window.
@@ -134,7 +134,7 @@ pub trait HeadlessAppOpenWindowExt {
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
 }
-impl HeadlessAppOpenWindowExt for app::HeadlessApp {
+impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
         let listener = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window, None));
         let mut window_id = None;
