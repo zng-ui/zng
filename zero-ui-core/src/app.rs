@@ -735,25 +735,24 @@ impl HeadlessApp {
         self.event_loop.create_proxy().send_event(event);
     }
 
-    /// Takes the last requested [app events](AppEvent).
+    /// Applies the last requested [app events](AppEvent), returns the events that where applied.
     ///
-    /// If `wait` is `true` the thread sleeps until at least one event is send, if it is `false` returns immediately
+    /// If `wait` is `true` the thread sleeps until at least one event is received, if it is `false` returns immediately
     /// with an empty vec if there where no events.
-    pub fn take_app_events(&mut self, wait: bool) -> Vec<AppEvent> {
-        self.event_loop.take_headless_app_events(wait)
-    }
-
-    /// **Blocks** until a new frame event is received.
-    pub fn wait_frame(&mut self) -> AppEvent {
-        loop {
-            for event in self.take_app_events(true) {
-                if let AppEvent::NewFrameReady(id) = event {
+    pub fn do_app_events(&mut self, wait: bool) -> Vec<AppEvent> {
+        let events = self.event_loop.take_headless_app_events(wait);
+        for event in &events {
+            match event {
+                AppEvent::NewFrameReady(window_id) => {
                     self.extensions
-                        .on_new_frame_ready(id, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
-                    return event;
+                        .on_new_frame_ready(*window_id, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
+                }
+                AppEvent::Update => {
+                    self.update();
                 }
             }
         }
+        events
     }
 
     /// Runs a custom action in the headless app context.

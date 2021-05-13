@@ -131,6 +131,9 @@ pub trait HeadlessAppWindowExt {
     /// Cause the headless window to think focus moved away from it.
     fn deactivate_window(&mut self, window_id: WindowId);
 
+    /// Sleeps until the window frame is rendered, then returns the frame pixels.
+    fn wait_frame(&mut self, window_id: WindowId) -> FramePixels;
+
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
 }
@@ -160,6 +163,25 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let event = WindowEvent::Focused(false);
         self.on_window_event(window_id, &event);
         self.update();
+    }
+
+    fn wait_frame(&mut self, window_id: WindowId) -> FramePixels {
+        'wait: loop {
+            for event in self.do_app_events(true) {
+                if let AppEvent::NewFrameReady(id) = event {
+                    if id == window_id {
+                        break 'wait;
+                    }
+                }
+            }
+        }
+        self.with_context(|ctx| {
+            ctx.services
+                .req::<Windows>()
+                .window(window_id)
+                .expect("window not found")
+                .screenshot()
+        })
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
@@ -2788,7 +2810,7 @@ mod headless_tests {
 
         app.update();
 
-        let events = app.take_app_events(false);
+        let events = app.do_app_events(false);
 
         assert!(events.iter().any(|ev| matches!(ev, AppEvent::NewFrameReady(_))));
 

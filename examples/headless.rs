@@ -14,25 +14,17 @@ fn main() {
     // open the window that is our image.
     let window_id = app.open_window(|_| image());
 
-    // Block until the frame is rendered.
-    app.wait_frame();
+    // sleep until the frame is rendered.
+    let frame = app.wait_frame(window_id);
 
-    // save the drawing using the screenshot mechanism.
-    app.with_context(|ctx| {
-        let wn = ctx.services.req::<Windows>().window(window_id).unwrap();
+    // save the frame.
+    print!("saving ./screenshot.png ... ");
+    flush_stdout();
+    frame.save("screenshot.png").expect("error saving screenshot");
+    println!("done");
 
-        // copy the frame pixel data and save it.
-        print!("saving ./screenshot.png ... ");
-        flush_stdout();
-        wn.screenshot().save("screenshot.png").expect("error saving screenshot");
-        println!("done");
-
-        wn.close();
-    });
-
-    // apply the window close request, you need to close all
-    // windows before dropping the `app`.
-    app.update();
+    // you need to close all windows before dropping the `app`.
+    app.close_window(window_id);
 }
 
 // A 800x600 "Hello World!" with a fancy background.
