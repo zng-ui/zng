@@ -316,12 +316,15 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             // TODO
             let font = self.font.as_ref().unwrap();
             self.shaped_text = font.shape_text(&self.text, &self.line_shaping_args);
-            self.size = self.shaped_text.size().snap_to(*ctx.pixel_grid);
+            self.size = self.shaped_text.size();
         }
 
         if !is_layout_any_size(available_size.width) && available_size.width < self.size.width {
             //TODO wrap here? or estimate the height pos wrap?
         }
+
+        // always snap because the scale_factor can have changed.
+        self.size = self.size.snap_to(*ctx.pixel_grid);
 
         self.size
     }

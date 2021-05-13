@@ -443,10 +443,10 @@ impl AppExtension for WindowManager {
                         ctx.updates.layout();
                         window.expect_layout_update();
                         window.resize_renderer();
-                    }
 
-                    // raise window_resize
-                    self.window_resize.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
+                        // raise window_resize
+                        self.window_resize.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
+                    }
                 }
             }
             WindowEvent::Moved(_) => {
@@ -468,16 +468,35 @@ impl AppExtension for WindowManager {
                     ctx.updates.update();
                 }
             }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+            WindowEvent::ScaleFactorChanged {
+                scale_factor,
+                new_inner_size,
+            } => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
-                    ctx.updates.layout();
-                    window.expect_layout_update();
-                    window.resize_renderer();
-
-                    self.window_scale_changed.notify(
-                        ctx.events,
-                        WindowScaleChangedArgs::now(window_id, *scale_factor as f32, window.size()),
+                    let scale_factor = *scale_factor as f32;
+                    let new_size = LayoutSize::new(
+                        new_inner_size.width as f32 / scale_factor,
+                        new_inner_size.height as f32 / scale_factor,
                     );
+
+                    // winit has not set the new_inner_size yet, so
+                    // we can determinate if the system only changed the size
+                    // to visually match the new scale_factor or if the window was
+                    // really resized.
+                    if *window.vars.size().get(ctx.vars) == new_size.into() {
+                        // if it only changed to visually match, the WindowEvent::Resized
+                        // will not cause a re-layout, so we need to do it here, but window.resize_renderer()
+                        // calls window.size(), so we need to set the new_inner_size before winit.
+                        if let Some(w) = &window.window {
+                            w.set_inner_size(**new_inner_size);
+                        }
+                        ctx.updates.layout();
+                        window.expect_layout_update();
+                        window.resize_renderer();
+                    }
+
+                    self.window_scale_changed
+                        .notify(ctx.events, WindowScaleChangedArgs::now(window_id, scale_factor, new_size));
                 }
             }
             _ => {}
@@ -2328,6 +2347,7 @@ impl OpenWindow {
 
         w_ctx.root_layout(ctx, self.size(), scale_factor, |root, layout_ctx| {
             let mut final_size = root.measure(layout_ctx, *layout_ctx.viewport_size);
+
             if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
                 final_size.width = size.width;
             }
