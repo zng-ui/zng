@@ -1370,9 +1370,7 @@ impl PartialEq for WidgetPath {
 impl Eq for WidgetPath {}
 impl fmt::Display for WidgetPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let window_id = format!("{:?}", self.window_id);
-        let window_id_raw = window_id.trim_start_matches("WindowId(").trim_end_matches(')');
-        write!(f, "win-{}//", window_id_raw)?;
+        write!(f, "{}//", self.window_id)?;
         for w in self.ancestors() {
             write!(f, "wgt-{}/", w.get())?;
         }

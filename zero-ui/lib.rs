@@ -1126,6 +1126,7 @@ pub mod prelude {
             sepia, Rgba,
         },
         context::WidgetContext,
+        event::Events,
         focus::{DirectionalNav, Focus, TabIndex, TabNav},
         gesture::{shortcut, GestureKey, Shortcut, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},

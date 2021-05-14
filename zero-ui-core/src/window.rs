@@ -70,6 +70,20 @@ impl From<LogicalWindowId> for WindowId {
         WindowId::Logical(id)
     }
 }
+impl fmt::Display for WindowId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WindowId::System(s) => {
+                let window_id = format!("{:?}", s);
+                let window_id_raw = window_id.trim_start_matches("WindowId(").trim_end_matches(')');
+                write!(f, "win-sys-{}", window_id_raw)
+            }
+            WindowId::Logical(s) => {
+                write!(f, "win-logi-{}", s.get())
+            }
+        }
+    }
+}
 
 /// Extension trait, adds [`run_window`](AppRunWindowExt::run_window) to [`AppExtended`].
 pub trait AppRunWindowExt {
@@ -117,7 +131,7 @@ impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     }
 }
 
-/// Extension trait, adds [`open_window`](HeadlessAppOpenWindowExt::open_window) to [`HeadlessApp`](app::HeadlessApp).
+/// Extension trait, adds [`open_window`](HeadlessAppWindowExt::open_window) to [`HeadlessApp`](app::HeadlessApp).
 pub trait HeadlessAppWindowExt {
     /// Open a new headless window and returns the new window ID.
     ///
@@ -858,7 +872,7 @@ pub enum WindowIcon {
     Default,
     /// A bitmap icon.
     ///
-    /// Use the [`from_rgba`], [`from_bytes`] or [`from_file`] functions to initialize.
+    /// Use the [`from_rgba`](Self::from_rgba), [`from_bytes`](Self::from_bytes) or [`from_file`](Self::from_file) functions to initialize.
     Icon(Rc<glutin::window::Icon>),
     /// An [`UiNode`] that draws the icon.
     ///

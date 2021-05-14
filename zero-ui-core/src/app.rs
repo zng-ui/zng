@@ -574,8 +574,10 @@ impl<E: AppExtension> AppExtended<E> {
                             return;
                         }
                         extensions.update_preview(update, &mut ctx);
+                        ctx.events.on_pre_events(&mut ctx);
                         extensions.update_ui(update, &mut ctx);
                         extensions.update(update, &mut ctx);
+                        ctx.events.on_events(&mut ctx);
                     }
                 } else {
                     break;
@@ -803,12 +805,14 @@ impl HeadlessApp {
                     }
                     self.extensions.update_preview(update, &mut ctx);
                     on_update_preview(update, &mut ctx);
+                    ctx.events.on_pre_events(&mut ctx);
 
                     self.extensions.update_ui(update, &mut ctx);
                     on_update_ui(update, &mut ctx);
 
                     self.extensions.update(update, &mut ctx);
                     on_update(update, &mut ctx);
+                    ctx.events.on_events(&mut ctx);
                 }
             } else {
                 break;

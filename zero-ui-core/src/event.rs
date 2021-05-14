@@ -1,6 +1,6 @@
 //! App event API.
 
-use crate::context::{AlreadyRegistered, UpdateRequest, Updates, WidgetContext};
+use crate::context::{AlreadyRegistered, AppContext, UpdateRequest, Updates, WidgetContext};
 use crate::profiler::profile_scope;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, AnyMap, UiNode};
@@ -376,7 +376,46 @@ pub struct Events {
     pending: RefCell<Vec<Box<dyn FnOnce(u32, &mut UpdateRequest)>>>,
     #[allow(clippy::type_complexity)]
     buffers: RefCell<Vec<Box<dyn Fn(u32) -> Retain>>>,
+    app_pre_handlers: AppHandlers,
+    app_handlers: AppHandlers,
     _singleton: SingletonEvents,
+}
+
+type AppHandlerWeak = std::rc::Weak<RefCell<dyn FnMut(&mut AppContext)>>;
+
+#[derive(Default)]
+struct AppHandlers(RefCell<Vec<AppHandlerWeak>>);
+impl AppHandlers {
+    pub fn push(&self, handler: &EventHandler) {
+        self.0.borrow_mut().push(Rc::downgrade(&handler.0));
+    }
+
+    pub fn notify(&self, ctx: &mut AppContext) {
+        let mut handlers = self.0.borrow_mut();
+        let mut live_handlers = Vec::with_capacity(handlers.len());
+        handlers.retain(|h| {
+            if let Some(handler) = h.upgrade() {
+                live_handlers.push(handler);
+                true
+            } else {
+                false
+            }
+        });
+        drop(handlers);
+
+        for handler in live_handlers {
+            handler.borrow_mut()(ctx);
+        }
+    }
+}
+
+/// A *global* event handler created by [`Events::on_event`].
+#[derive(Clone)]
+pub struct EventHandler(Rc<RefCell<dyn FnMut(&mut AppContext)>>);
+impl EventHandler {
+    pub(self) fn new(handler: impl FnMut(&mut AppContext) + 'static) -> Self {
+        Self(Rc::new(RefCell::new(handler)))
+    }
 }
 
 impl Events {
@@ -396,6 +435,8 @@ impl Events {
             update_id: 0,
             pending: RefCell::default(),
             buffers: RefCell::default(),
+            app_pre_handlers: AppHandlers::default(),
+            app_handlers: AppHandlers::default(),
             _singleton: SingletonEvents::assert_new("Events"),
         }
     }
@@ -466,6 +507,114 @@ impl Events {
         self.listen_or_never::<E>().make_buffered(self)
     }
 
+    /// Creates a preview event handler if the event is registered in the application.
+    ///
+    /// See [`on_pre_event`](Self::on_pre_event) for more details.
+    pub fn try_on_pre_event<E, H>(&self, mut handler: H) -> Option<EventHandler>
+    where
+        E: Event,
+        H: FnMut(&mut AppContext, &E::Args) + 'static,
+    {
+        self.try_listen::<E>().map(|l| {
+            let handler = EventHandler::new(move |ctx| {
+                for update in l.updates_filtered(ctx.events) {
+                    handler(ctx, update)
+                }
+            });
+            self.app_pre_handlers.push(&handler);
+            handler
+        })
+    }
+
+    /// Creates an event handler if the event is registered in the application.
+    ///
+    /// See [`on_event`](Self::on_event) for more details.
+    pub fn try_on_event<E, H>(&self, mut handler: H) -> Option<EventHandler>
+    where
+        E: Event,
+        H: FnMut(&mut AppContext, &E::Args) + 'static,
+    {
+        self.try_listen::<E>().map(|l| {
+            let handler = EventHandler::new(move |ctx| {
+                for update in l.updates_filtered(ctx.events) {
+                    handler(ctx, update)
+                }
+            });
+            self.app_handlers.push(&handler);
+            handler
+        })
+    }
+
+    /// Creates a preview event handler.
+    ///
+    /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
+    /// The handler is called before UI handlers and [`on_event`](Self::on_event) handlers, it is called after all previous registered
+    /// preview handlers.
+    ///
+    /// Drop all clones of the [`EventHandler`] object to unsubscribe.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui_core::events::*;
+    /// # use zero_ui_core::focus::FocusChangedEvent;
+    /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
+    /// let handler = ctx.events.on_pre_event::<FocusChangedEvent, _>(|_ctx, args| {
+    ///     println!("focused: {:?}", args.new_focus);
+    /// });
+    /// # }
+    /// ```
+    /// The example listens to all `FocusChangedEvent` events, independent of widget context and before all UI handlers.
+    ///
+    /// # Panics
+    ///
+    /// If the event is not registered in the application.
+    pub fn on_pre_event<E, H>(&self, handler: H) -> EventHandler
+    where
+        E: Event,
+        H: FnMut(&mut AppContext, &E::Args) + 'static,
+    {
+        self.try_on_pre_event::<E, H>(handler)
+            .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
+    }
+
+    /// Creates an event handler.
+    ///
+    /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
+    /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
+    /// registered before this one.
+    ///
+    /// Creating a [listener](Events::listen) is slightly more efficient then this and also gives you access to args marked
+    /// with [`stop_propagation`](EventArgs::stop_propagation), this method exists for the convenience of listening on
+    /// an event at the app level without having to declare an [`AppExtension`](crate::app::AppExtension) or a weird property.
+    ///
+    /// Drop all clones of the [`EventHandler`] object to unsubscribe.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui_core::events::*;
+    /// # use zero_ui_core::focus::FocusChangedEvent;
+    /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
+    /// let handler = ctx.events.on_event::<FocusChangedEvent, _>(|_ctx, args| {
+    ///     println!("focused: {:?}", args.new_focus);
+    /// });
+    /// # }
+    /// ```
+    /// The example listens to all `FocusChangedEvent` events, independent of widget context, after the UI was notified.
+    ///
+    /// # Panics
+    ///
+    /// If the event is not registered in the application.
+    pub fn on_event<E, H>(&self, handler: H) -> EventHandler
+    where
+        E: Event,
+        H: FnMut(&mut AppContext, &E::Args) + 'static,
+    {
+        self.try_on_event::<E, H>(handler)
+            .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
+    }
+
     pub(super) fn update_id(&self) -> u32 {
         self.update_id
     }
@@ -491,6 +640,14 @@ impl Events {
 
             self.buffers.borrow_mut().retain(|b| b(self.update_id));
         }
+    }
+
+    pub(super) fn on_pre_events(&self, ctx: &mut AppContext) {
+        self.app_pre_handlers.notify(ctx);
+    }
+
+    pub(super) fn on_events(&self, ctx: &mut AppContext) {
+        self.app_handlers.notify(ctx);
     }
 }
 
