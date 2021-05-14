@@ -20,9 +20,15 @@ Things that must be done first because they influence the core API design that i
 
 * Window
   * Finish window vars.
+  * `x`, `y`, `width`, `height`, and `max_width` etc.
+     * Make properties combine values using Var::modify, implement is_finite for Length?
   * Drag regions.
   * Custom resize borders.
   * Modal.
+
+* Widget Inspector (console).
+  * Widget name is broken.
+  * Debug print of some values is too verbose.
 
 * Localization.
 * Scrolling.
@@ -44,7 +50,7 @@ Things that must be done first because they influence the core API design that i
 * Integrate thread_profiler.
 * Diagnostics.
 * State-of-art Text layout.
-* Widget Inspector (console).
+
 * Let properties detect and warn when they are used in weird places (like margin on a window).
 
 ## Basic Layout

@@ -208,6 +208,8 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 /// Keyboard shortcuts that focus this widget.
 ///
 /// When any of the `shortcuts` is pressed, focus this widget the parent focusable widget.
+///
+/// This property sets [`focusable`] to `true` if it is not set on the widget.
 #[property(context)]
 pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     struct FocusShortcutNode<C: UiNode, S: Var<Shortcuts>> {

@@ -19,7 +19,15 @@ fn main() {
             content = v_stack! {
                 items = widgets![
                     alt_scope(),
-                    normal_scope(),
+                    h_stack! {
+                        margin = (50, 0, 0, 0);
+                        align = Alignment::CENTER;
+                        spacing = 10;
+                        items = widgets![
+                            normal_scope(),
+                            functions()
+                        ]
+                    }
                 ];
             };
         }
@@ -42,11 +50,9 @@ fn normal_scope() -> impl Widget {
     v_stack! {
         focus_scope = true;
         focus_shortcut = shortcut!(T);
-        margin = (50, 0, 0, 0);
-        align = Alignment::CENTER;
         spacing = 5;
         items = widgets![
-            text! { text = "TabIndex (T)"; font_weight = FontWeight::BOLD; align = Alignment::CENTER; },
+            title("TabIndex (T)"),
             button("Button 5", TabIndex(5)),
             button("Button 4", TabIndex(3)),
             button("Button 3", TabIndex(2)),
@@ -54,6 +60,41 @@ fn normal_scope() -> impl Widget {
             button("Button 2", TabIndex(0)),
         ];
     }
+}
+
+fn functions() -> impl Widget {
+    v_stack! {
+        focus_shortcut = shortcut!(F);
+        spacing = 5;
+        focus_scope = true;
+        items = widgets![
+            title("Functions (F)"),
+            button! {
+                content = text("New Window");
+                on_click = |ctx, _| {
+                    ctx.services.req::<Windows>().open(|_|window! {
+                        title = "Other Window";
+                        focus_shortcut = shortcut!(W);
+                        content = v_stack! {
+                            spacing = 5;
+                            items = widgets![
+                                title("Other Window (W)"),
+                                button("Button 5", TabIndex(5)),
+                                button("Button 4", TabIndex(3)),
+                                button("Button 3", TabIndex(2)),
+                                button("Button 1", TabIndex(0)),
+                                button("Button 2", TabIndex(0)),
+                            ]
+                        };
+                    }, None);
+                };
+            }
+        ]
+    }
+}
+
+fn title(text: impl IntoVar<Text>) -> impl Widget {
+    text! { text; font_weight = FontWeight::BOLD; align = Alignment::CENTER; }
 }
 
 fn button(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {

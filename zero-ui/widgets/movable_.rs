@@ -111,6 +111,7 @@ where
                 self.inner.node.borrow_mut().init(ctx);
                 self.inner.active_slot_id.set(self.id);
                 self.taking = false;
+                ctx.updates.layout();
             }
         }
     }

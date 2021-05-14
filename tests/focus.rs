@@ -49,7 +49,7 @@ pub fn first_and_last_window_events() {
     */
 
     app.set_shutdown_on_last_close(false);
-    app.close_window();
+    app.close_main_window();
 
     let events = app.take_focus_changed();
     assert_eq!(1, events.len());
@@ -1074,34 +1074,6 @@ pub fn focus_widget_or_child_goes_to_child() {
     app.focus_or_child(parent_id);
     assert_eq!(Some(child_id), app.focused());
 }
-#[test]
-pub fn focus_continued_after_widget_move() {
-    let id = WidgetId::new_unique();
-    let button = UiMovable::new(button! {
-        id;
-        content = text("Click Me!");
-    });
-    let do_move = var(false);
-
-    let mut app = TestApp::new(v_stack(widgets![
-        container! {
-            content = button.slot_take()
-        },
-        container! {
-            content = button.slot_var(do_move.clone())
-        }
-    ]));
-    assert_eq!(Some(id), app.focused());
-    app.take_focus_changed();
-
-    app.set_vars(|vars| do_move.set(vars, true));
-
-    assert_eq!(Some(id), app.focused());
-    let evs = app.take_focus_changed();
-    assert_eq!(1, evs.len());
-    assert!(evs[0].is_widget_move());
-    assert_eq!(FocusChangedCause::Recovery, evs[0].cause);
-}
 
 #[test]
 pub fn focus_continued_after_widget_id_move() {
@@ -1131,8 +1103,68 @@ pub fn focus_continued_after_widget_id_move() {
 }
 
 #[test]
+pub fn focus_continued_after_widget_move_same_window() {
+    let id = WidgetId::new_unique();
+    let button = UiMovable::new(button! {
+        id;
+        content = text("Click Me!");
+    });
+    let do_move = var(false);
+
+    let mut app = TestApp::new(v_stack(widgets![
+        container! {
+            content = button.slot_take()
+        },
+        container! {
+            content = button.slot_var(do_move.clone())
+        }
+    ]));
+    assert_eq!(Some(id), app.focused());
+    app.take_focus_changed();
+
+    app.set_vars(|vars| do_move.set(vars, true));
+
+    assert_eq!(Some(id), app.focused());
+    let evs = app.take_focus_changed();
+    assert_eq!(1, evs.len());
+    assert!(evs[0].is_widget_move());
+    assert_eq!(FocusChangedCause::Recovery, evs[0].cause);
+}
+
+#[test]
 pub fn focus_continued_after_widget_move_to_other_window() {
-    todo!()
+    let id = WidgetId::new_unique();
+    let button = UiMovable::new(button! {
+        id;
+        content = text("Click Me!");
+    });
+
+    let mut app = TestApp::new(container! { content = button.slot_take() });
+    assert_eq!(Some(id), app.focused());
+    app.take_focus_changed();
+
+    app.open_window(button.slot_take());
+    assert_eq!(Some(id), app.focused());    
+    let evs = app.take_focus_changed();
+    assert_eq!(1, evs.len());
+}
+
+#[test]
+pub fn focus_moves_to_new_window() {
+    let main_id = WidgetId::new_unique();
+    let new_id = WidgetId::new_unique();
+
+    let mut app = TestApp::new(button! {
+        id = main_id;
+        content = text("Button in main window");
+    });
+    assert_eq!(Some(main_id), app.focused());
+
+    app.open_window(button! {
+        id = new_id;
+        content = text("Button in new window");
+    });
+    assert_eq!(Some(new_id), app.focused());
 }
 
 #[test]
@@ -1210,10 +1242,28 @@ impl TestApp {
         });
     }
 
-    pub fn close_window(&mut self) {
+    pub fn close_main_window(&mut self) {
         let closed = self.app.close_window(self.window_id);
         assert!(closed);
     }
+
+    pub fn open_window(&mut self, content: impl UiNode) -> WindowId {
+        let id = self.app.open_window(|_| {
+            window! {
+                content
+            }
+        });
+        self.app.do_app_events(false);
+        self.app.update();
+        id
+    }
+
+    /*
+    pub fn close_window(&mut self, window_id: WindowId) {
+        let closed = self.app.close_window(window_id);
+        assert!(closed);
+    }
+    */
 
     pub fn take_focus_changed(&mut self) -> Vec<FocusChangedArgs> {
         self.focus_changed.pop_all()
