@@ -272,7 +272,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             });
             let assigned_flags: Vec<_> = new.iter().enumerate().map(|(i, id)| ident!("__{}_{}_user_set", i, id)).collect();
 
-            let wgt_name = ident.to_string();
             r.extend(quote! {
                 #[doc(hidden)]
                 #[allow(clippy::too_many_arguments)]
@@ -280,10 +279,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     __child: impl #crate_core::UiNode,
                     #(#new : impl self::#p_new::Args,)*
                     #(#assigned_flags: bool,)*
-                     __new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
-                     __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
-                     __decl_location: #crate_core::debug::SourceLocation,
-                     __instance_location: #crate_core::debug::SourceLocation,
+                    __widget_name: &'static str,
+                    __new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
+                    __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
+                    __decl_location: #crate_core::debug::SourceLocation,
+                    __instance_location: #crate_core::debug::SourceLocation,
                 ) #output {
                     let __child = #crate_core::UiNode::boxed(__child);
                     let __new_captures = std::vec![
@@ -291,7 +291,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     ];
                     let __child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
                         __child,
-                        #wgt_name,
+                        __widget_name,
                         __decl_location,
                         __instance_location,
                         __new_child_captures,
@@ -309,7 +309,13 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     #[cfg(debug_assertions)]
     let debug_info = {
         let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+        let wgt_name = ident.to_string();
         quote! {
+            #[doc(hidden)]
+            pub fn __widget_name() -> &'static str {
+                #wgt_name
+            }
+
             #[doc(hidden)]
             pub fn __decl_location() -> #crate_core::debug::SourceLocation {
                 #decl_location

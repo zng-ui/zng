@@ -1144,7 +1144,7 @@ pub fn focus_continued_after_widget_move_to_other_window() {
     app.take_focus_changed();
 
     app.open_window(button.slot_take());
-    assert_eq!(Some(id), app.focused());    
+    assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();
     assert_eq!(1, evs.len());
 }

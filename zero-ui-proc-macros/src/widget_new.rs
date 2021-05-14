@@ -816,6 +816,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 node__,
                 #(#new_caps,)*
                 #(#cap_user_set,)*
+                #module::__widget_name(),
                 captured_new_child__,
                 when_infos__,
                 #module::__decl_location(),
