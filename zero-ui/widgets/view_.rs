@@ -48,7 +48,7 @@ pub enum View<U: UiNode> {
 ///     }.boxed(),
 ///
 ///     // presenter:
-///     move |n, ctx| match state {
+///     move |ctx, n| match state {
 ///         State::Starting => {
 ///             state = State::Counting;
 ///             View::Update(text! {
@@ -82,12 +82,26 @@ pub enum View<U: UiNode> {
 ///     })
 /// }
 /// ```
-pub fn view<D, U, V, P>(data: V, initial_ui: U, presenter: P) -> impl UiNode
+pub fn view<D, U, V, P>(data: V, initial_ui: U, presenter: P) -> impl Widget
 where
     D: VarValue,
     U: UiNode,
     V: Var<D>,
-    P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static,
+    P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
+{
+    crate::core::widget_base::implicit_base::new(view_node(data, initial_ui, presenter), WidgetId::new_unique())
+}
+
+/// Node only [`view`].
+///
+/// This is the raw [`UiNode`] that implements the core `view` functionality
+/// without defining a full widget.
+pub fn view_node<D, U, V, P>(data: V, initial_ui: U, presenter: P) -> impl UiNode
+where
+    D: VarValue,
+    U: UiNode,
+    V: Var<D>,
+    P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
 {
     struct ViewNode<D, U, V, P> {
         data: V,
@@ -101,10 +115,10 @@ where
         D: VarValue,
         U: UiNode,
         V: Var<D>,
-        P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static,
+        P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
     {
         fn refresh_child(&mut self, ctx: &mut WidgetContext) {
-            if let View::Update(new_child) = (self.presenter)(&self.data, ctx) {
+            if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
                 self.child = new_child;
                 ctx.updates.layout();
             }

@@ -564,17 +564,18 @@ fn parse_delegate_expr(args: ParseStream, ident: &Ident) -> Result<Expr> {
 struct DelegateValidator<'a> {
     pub ident: &'a Ident,
     pub list_variant: Ident,
+    pub list_specific_variant: Ident,
     pub attrs: &'a [Attribute],
     args_count: u8,
     pub delegates: bool,
 }
-
 impl<'a> DelegateValidator<'a> {
     fn new(manual_impl: &'a ImplItem) -> Self {
         if let ImplItem::Method(m) = manual_impl {
             DelegateValidator {
                 ident: &m.sig.ident,
                 list_variant: ident!("{}_all", m.sig.ident),
+                list_specific_variant: ident!("widget_{}", m.sig.ident),
                 attrs: &m.attrs,
                 args_count: (m.sig.inputs.len() - 1) as u8,
                 delegates: false,
@@ -584,10 +585,12 @@ impl<'a> DelegateValidator<'a> {
         }
     }
 }
-
 impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
     fn visit_expr_method_call(&mut self, i: &'ast ExprMethodCall) {
-        if (&i.method == self.ident && i.args.len() as u8 == self.args_count) || i.method == self.list_variant {
+        if (&i.method == self.ident && i.args.len() as u8 == self.args_count)
+            || i.method == self.list_variant
+            || i.method == self.list_specific_variant
+        {
             self.delegates = true;
         }
         visit::visit_expr_method_call(self, i)

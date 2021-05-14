@@ -11,6 +11,8 @@ mod window_;
 mod fill_color;
 mod gradient;
 mod line_;
+mod movable_;
+mod switch_;
 mod ui_n;
 mod view_;
 
@@ -19,6 +21,8 @@ pub use container_::*;
 pub use fill_color::*;
 pub use gradient::*;
 pub use line_::*;
+pub use movable_::*;
+pub use switch_::*;
 pub use ui_n::*;
 pub use view_::*;
 pub use window_::*;

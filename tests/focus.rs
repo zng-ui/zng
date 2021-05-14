@@ -944,6 +944,227 @@ pub fn window_deactivate_activate() {
     assert_eq!(Some(expected_id), app.focused());
 }
 
+#[test]
+pub fn focused_removed_by_disabling() {
+    let enabled = var(true);
+    focused_removed_test(button! { content = text("Button 1"); enabled = enabled.clone() }, |vars| {
+        enabled.set(vars, false)
+    })
+}
+#[test]
+pub fn focused_removed_by_hidding() {
+    let visibility = var(Visibility::Visible);
+    focused_removed_test(button! { content = text("Button 1"); visibility = visibility.clone() }, |vars| {
+        visibility.set(vars, Visibility::Hidden)
+    })
+}
+#[test]
+pub fn focused_removed_by_collapsing() {
+    let visibility = var(Visibility::Visible);
+    focused_removed_test(button! { content = text("Button 1"); visibility = visibility.clone() }, |vars| {
+        visibility.set(vars, Visibility::Collapsed)
+    })
+}
+#[test]
+pub fn focused_removed_by_making_not_focusable() {
+    let focusable = var(true);
+    focused_removed_test(button! { content = text("Button 1"); focusable = focusable.clone() }, |vars| {
+        focusable.set(vars, false)
+    })
+}
+fn focused_removed_test(button1: impl Widget, set_var: impl FnOnce(&Vars)) {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button1,
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(buttons));
+
+    app.focus(ids[1]);
+
+    assert_eq!(Some(ids[1]), app.focused());
+
+    app.set_vars(set_var);
+
+    assert_ne!(Some(ids[1]), app.focused());
+}
+#[test]
+pub fn focused_removed_by_deleting() {
+    let index = var(0);
+    let button1_id = WidgetId::new_unique();
+    let buttons = widgets! {
+        button! { content = text("Button 0") },
+        switch(
+            index.clone(),
+            widgets![button! { id = button1_id; content = text("Button 1") }, button! { content = text("Button Other") },],
+        ),
+        button! { content = text("Button 2") ,}
+    };
+
+    let mut app = TestApp::new(v_stack(buttons));
+
+    app.focus(button1_id);
+    assert_eq!(Some(button1_id), app.focused());
+
+    app.set_vars(|vars| {
+        index.set(vars, 1);
+    });
+
+    assert_ne!(Some(button1_id), app.focused());
+}
+
+#[test]
+pub fn focus_widget_or_parent_goes_to_parent() {
+    let first_focus_id = WidgetId::new_unique();
+    let parent_id = WidgetId::new_unique();
+    let child_id = WidgetId::new_unique();
+
+    let mut app = TestApp::new(v_stack(widgets![
+        button! {
+            id = first_focus_id;
+            content = text("initial focus")
+        },
+        container! {
+            id = parent_id;
+            focusable = true;
+            content = text! {
+                id = child_id;
+                focusable = false;
+                text = "not focusable"
+            }
+        }
+    ]));
+
+    assert_eq!(Some(first_focus_id), app.focused());
+    app.focus(child_id); // not focusable, does nothing.
+    assert_eq!(Some(first_focus_id), app.focused());
+
+    app.focus_or_parent(child_id);
+    assert_eq!(Some(parent_id), app.focused());
+}
+
+#[test]
+pub fn focus_widget_or_child_goes_to_child() {
+    let first_focus_id = WidgetId::new_unique();
+    let parent_id = WidgetId::new_unique();
+    let child_id = WidgetId::new_unique();
+
+    let mut app = TestApp::new(v_stack(widgets![
+        button! {
+            id = first_focus_id;
+            content = text("initial focus")
+        },
+        container! {
+            id = parent_id;
+            focusable = false;
+            content = text! {
+                id = child_id;
+                focusable = true;
+                text = "focusable focusable"
+            }
+        }
+    ]));
+
+    assert_eq!(Some(first_focus_id), app.focused());
+    app.focus(parent_id); // not focusable, does nothing.
+    assert_eq!(Some(first_focus_id), app.focused());
+
+    app.focus_or_child(parent_id);
+    assert_eq!(Some(child_id), app.focused());
+}
+#[test]
+pub fn focus_continued_after_widget_move() {
+    let id = WidgetId::new_unique();
+    let button = UiMovable::new(button! {
+        id;
+        content = text("Click Me!");
+    });
+    let do_move = var(false);
+
+    let mut app = TestApp::new(v_stack(widgets![
+        container! {
+            content = button.slot_take()
+        },
+        container! {
+            content = button.slot_var(do_move.clone())
+        }
+    ]));
+    assert_eq!(Some(id), app.focused());
+    app.take_focus_changed();
+
+    app.set_vars(|vars| do_move.set(vars, true));
+
+    assert_eq!(Some(id), app.focused());
+    let evs = app.take_focus_changed();
+    assert_eq!(1, evs.len());
+    assert!(evs[0].is_widget_move());
+    assert_eq!(FocusChangedCause::Recovery, evs[0].cause);
+}
+
+#[test]
+pub fn focus_continued_after_widget_id_move() {
+    let id = WidgetId::new_unique();
+    let index = var(0);
+    let button = switch(
+        index.clone(),
+        widgets![
+            button! { id; content = text("Button A") },
+            container! {
+                content = button! { id; content = text("Button B") }
+            },
+        ],
+    );
+    let mut app = TestApp::new(button);
+    assert_eq!(Some(id), app.focused());
+    app.take_focus_changed();
+
+    app.set_vars(|vars| {
+        index.set(vars, 1);
+    });
+    assert_eq!(Some(id), app.focused());
+    let evs = app.take_focus_changed();
+    assert_eq!(1, evs.len());
+    assert!(evs[0].is_widget_move());
+    assert_eq!(FocusChangedCause::Recovery, evs[0].cause);
+}
+
+#[test]
+pub fn focus_continued_after_widget_move_to_other_window() {
+    todo!()
+}
+
+#[test]
+pub fn focus_goes_to_parent_after_remove() {
+    let parent_id = WidgetId::new_unique();
+    let child_id = WidgetId::new_unique();
+
+    let enabled = var(true);
+
+    let mut app = TestApp::new(v_stack(widgets![container! {
+        id = parent_id;
+        focusable = true;
+        content = button! {
+            id = child_id;
+            enabled = enabled.clone();
+            content = text( "item 'removed'")
+        }
+    }]));
+
+    app.focus(child_id);
+    assert_eq!(Some(child_id), app.focused());
+    app.take_focus_changed();
+
+    app.set_vars(|vars| {
+        enabled.set(vars, false);
+    });
+    assert_eq!(Some(parent_id), app.focused());
+    let evs = app.take_focus_changed();
+    assert_eq!(1, evs.len());
+    assert_eq!(FocusChangedCause::Recovery, evs[0].cause);
+}
+
 struct TestApp {
     app: HeadlessApp,
     pub window_id: WindowId,
@@ -971,6 +1192,15 @@ impl TestApp {
             focus_changed,
             return_focus_changed,
         }
+    }
+
+    pub fn set_vars(&mut self, set: impl FnOnce(&Vars)) {
+        self.app.with_context(|ctx| {
+            set(ctx.vars);
+        });
+        self.app.update();
+        self.app.do_app_events(false);
+        self.app.update();
     }
 
     pub fn set_shutdown_on_last_close(&mut self, shutdown: bool) {
@@ -1022,6 +1252,18 @@ impl TestApp {
     pub fn focus(&mut self, widget_id: WidgetId) {
         self.app
             .with_context(|ctx| ctx.services.req::<Focus>().focus_widget(widget_id, true));
+        self.app.update();
+    }
+
+    pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
+        self.app
+            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_parent(widget_id, true));
+        self.app.update();
+    }
+
+    pub fn focus_or_child(&mut self, widget_id: WidgetId) {
+        self.app
+            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_child(widget_id, true));
         self.app.update();
     }
 

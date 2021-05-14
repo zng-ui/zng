@@ -64,6 +64,9 @@ pub trait UiNodeList: 'static {
         A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
         D: FnMut(usize, LayoutSize, &mut LayoutContext);
 
+    /// Calls [`UiNode::measure`] in only the `index` widget.
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
+
     /// Calls [`UiNode::arrange`] in all widgets in the list, sequentially.
     ///
     /// # `final_size`
@@ -73,6 +76,9 @@ pub trait UiNodeList: 'static {
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize;
+
+    /// Calls [`UiNode::arrange`] in only the `index` widget.
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize);
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially. Uses a reference frame
     /// to offset each widget.
@@ -85,8 +91,14 @@ pub trait UiNodeList: 'static {
     where
         O: FnMut(usize) -> LayoutPoint;
 
+    /// Calls [`UiNode::render`] in only the `index` widget.
+    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+
     /// Calls [`UiNode::render_update`] in all widgets in the list, sequentially.
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+
+    /// Calls [`UiNode::render_update`] in only the `index` widget.
+    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
 
 /// A generic view over a list of [`Widget`] UI nodes.
@@ -277,6 +289,10 @@ impl<U: UiNode> UiNodeList for Vec<U> {
         }
     }
 
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        self[index].measure(ctx, available_size)
+    }
+
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
@@ -285,6 +301,10 @@ impl<U: UiNode> UiNodeList for Vec<U> {
             let final_size = final_size(i, ctx);
             w.arrange(ctx, final_size);
         }
+    }
+
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        self[index].arrange(ctx, final_size)
     }
 
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -297,10 +317,18 @@ impl<U: UiNode> UiNodeList for Vec<U> {
         }
     }
 
+    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self[index].render(ctx, frame)
+    }
+
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         for w in self {
             w.render_update(ctx, update);
         }
+    }
+
+    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self[index].render_update(ctx, update)
     }
 }
 impl<W: Widget> WidgetList for Vec<W> {
@@ -376,11 +404,19 @@ impl UiNodeList for WidgetVec {
         self.0.measure_all(ctx, available_size, desired_size)
     }
 
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        self.0.widget_measure(index, ctx, available_size)
+    }
+
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
     {
         self.0.arrange_all(ctx, final_size)
+    }
+
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        self.0.widget_arrange(index, ctx, final_size)
     }
 
     fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -390,8 +426,16 @@ impl UiNodeList for WidgetVec {
         self.0.render_all(origin, ctx, frame)
     }
 
+    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.0.widget_render(index, ctx, frame)
+    }
+
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.0.render_update_all(ctx, update)
+    }
+
+    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.0.widget_render_update(index, ctx, update)
     }
 }
 impl WidgetList for WidgetVec {
@@ -529,11 +573,19 @@ impl UiNodeList for UiNodeVec {
         self.0.measure_all(ctx, available_size, desired_size)
     }
 
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        self.0.widget_measure(index, ctx, available_size)
+    }
+
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
     {
         self.0.arrange_all(ctx, final_size)
+    }
+
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        self.0.widget_arrange(index, ctx, final_size)
     }
 
     fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -542,8 +594,17 @@ impl UiNodeList for UiNodeVec {
     {
         self.0.render_all(origin, ctx, frame)
     }
+
+    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.0.widget_render(index, ctx, frame)
+    }
+
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.0.render_update_all(ctx, update)
+    }
+
+    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.0.widget_render_update(index, ctx, update)
     }
 }
 
@@ -826,6 +887,15 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
             .measure_all(ctx, |i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c));
     }
 
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_measure(index, ctx, available_size)
+        } else {
+            self.1.widget_measure(index - a_len, ctx, available_size)
+        }
+    }
+
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
@@ -833,6 +903,15 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.0.arrange_all(ctx, |i, c| final_size(i, c));
         let offset = self.0.len();
         self.1.arrange_all(ctx, |i, c| final_size(i + offset, c));
+    }
+
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_arrange(index, ctx, final_size)
+        } else {
+            self.1.widget_arrange(index - a_len, ctx, final_size)
+        }
     }
 
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -844,9 +923,27 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.render_all(|i| origin(i + offset), ctx, frame);
     }
 
+    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_render(index, ctx, frame)
+        } else {
+            self.1.widget_render(index - a_len, ctx, frame)
+        }
+    }
+
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.0.render_update_all(ctx, update);
         self.1.render_update_all(ctx, update);
+    }
+
+    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_render_update(index, ctx, update)
+        } else {
+            self.1.widget_render_update(index - a_len, ctx, update)
+        }
     }
 }
 
@@ -955,6 +1052,15 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
             .measure_all(ctx, |i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c));
     }
 
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_measure(index, ctx, available_size)
+        } else {
+            self.1.widget_measure(index - a_len, ctx, available_size)
+        }
+    }
+
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
@@ -962,6 +1068,15 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.0.arrange_all(ctx, |i, c| final_size(i, c));
         let offset = self.0.len();
         self.1.arrange_all(ctx, |i, c| final_size(i + offset, c));
+    }
+
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_arrange(index, ctx, final_size)
+        } else {
+            self.1.widget_arrange(index - a_len, ctx, final_size)
+        }
     }
 
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -973,9 +1088,27 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.render_all(|i| origin(i + offset), ctx, frame);
     }
 
+    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_render(index, ctx, frame)
+        } else {
+            self.1.widget_render(index - a_len, ctx, frame)
+        }
+    }
+
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.0.render_update_all(ctx, update);
         self.1.render_update_all(ctx, update);
+    }
+
+    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_render_update(index, ctx, update)
+        } else {
+            self.1.widget_render_update(index - a_len, ctx, update)
+        }
     }
 }
 
@@ -1090,6 +1223,16 @@ macro_rules! impl_tuples {
                 )+
             }
 
+            #[inline]
+            fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+                match index {
+                    $(
+                        $n => self.$n.measure(ctx, available_size),
+                    )+
+                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                }
+            }
+
             fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
             where
                 F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
@@ -1098,6 +1241,16 @@ macro_rules! impl_tuples {
                 let fi_sz = final_size($n, ctx);
                 self.$n.arrange(ctx, fi_sz);
                 )+
+            }
+
+            #[inline]
+            fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+                match index {
+                    $(
+                        $n => self.$n.arrange(ctx, final_size),
+                    )+
+                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                }
             }
 
             fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -1111,8 +1264,28 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
+            fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                match index {
+                    $(
+                        $n => self.$n.render(ctx, frame),
+                    )+
+                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                }
+            }
+
+            #[inline]
             fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 $(self.$n.render_update(ctx, update);)+
+            }
+
+            #[inline]
+            fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                match index {
+                    $(
+                        $n => self.$n.render_update(ctx, update),
+                    )+
+                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                }
             }
         }
     };
@@ -1167,10 +1340,20 @@ macro_rules! empty_node_list {
             {
             }
 
+            #[inline]
+            fn widget_measure(&mut self, index: usize, _: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
+                panic!("index {} out of range for length 0", index)
+            }
+
             fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: F)
             where
                 F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
             {
+            }
+
+            #[inline]
+            fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: LayoutSize) {
+                panic!("index {} out of range for length 0", index)
             }
 
             fn render_all<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
@@ -1180,7 +1363,17 @@ macro_rules! empty_node_list {
             }
 
             #[inline]
+            fn widget_render(&self, index: usize, _: &mut RenderContext, _: &mut FrameBuilder) {
+                panic!("index {} out of range for length 0", index)
+            }
+
+            #[inline]
             fn render_update_all(&self, _: &mut RenderContext, _: &mut FrameUpdate) {}
+
+            #[inline]
+            fn widget_render_update(&self, index: usize, _: &mut RenderContext, _: &mut FrameUpdate) {
+                panic!("index {} out of range for length 0", index)
+            }
         }
     )+}
 }
