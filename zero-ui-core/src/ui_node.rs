@@ -1,3 +1,5 @@
+use std::{borrow::Borrow, cell::{Cell, RefCell}, rc::{Rc, Weak}};
+
 use crate::context::*;
 use crate::impl_ui_node;
 use crate::render::{FrameBuilder, FrameUpdate};
@@ -298,5 +300,149 @@ pub mod impl_ui_node_util {
                 child.render_update(ctx, update);
             }
         }
+    }
+}
+
+/// A reference counted [`UiNode`].
+///
+/// Nodes can only appear in one place of the UI tree at a time, this `struct` allows the
+/// creation of ***slots*** that are [`UiNode`] implementers that can *exclusive take* the
+/// referenced node as its child.
+///
+/// When a slot takes the node it is deinited in the previous UI tree place and reinited in the slot place.
+///
+/// Slots hold a strong reference to the node when they have it as their child and a weak reference when they don't.
+pub struct RcNode<U: UiNode>(Rc<RcNodeData<U>>);
+impl<U: UiNode> Clone for RcNode<U> {
+    fn clone(&self) -> Self {
+        Self(Rc::clone(&self.0))
+    }
+}
+impl<U: UiNode> RcNode<U> {
+    /// New movable node.
+    ///
+    /// The `node` is assumed to not be inited.
+    pub fn new(node: U) -> Self {
+        Self(Rc::new(RcNodeData::new(node)))
+    }
+
+    /// New movable node that contains a weak reference to itself.
+    ///
+    /// **Node** the weak reference cannot be updated during the call to `node`
+    pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
+        todo!()
+    }
+
+    /// Creates an [`UiNode`] implementer that can *exclusive take* the referenced node as its child when
+    /// signaled by `take_signal`.
+    pub fn slot(&self, take_signal: impl RcNodeTakeSignal) -> impl UiNode {
+        todo!();
+        crate::NilUiNode
+    }
+
+    /// Creates a new [`WeakNode`] that points to this node.
+    #[inline]
+    pub fn downgrade(&self) -> WeakNode<U> {
+        WeakNode(Rc::downgrade(&self.0))
+    }
+}
+
+/// `Weak` version of [`RcNode`].
+pub struct WeakNode<U: UiNode>(Weak<RcNodeData<U>>);
+impl<U: UiNode> Clone for WeakNode<U> {
+    fn clone(&self) -> Self {
+        Self(Weak::clone(&self.0))
+    }
+}
+impl<U: UiNode> WeakNode<U> {
+    /// Attempts to upgrade to a [`RcNode`].
+    pub fn upgrade(&self) -> Option<RcNode<U>> {
+        self.0.upgrade().map(RcNode)
+    }
+}
+
+/// Signal an [`RcNode`] slot to take the referenced node as its child.
+pub trait RcNodeTakeSignal: 'static {
+    /// Returns `true` when the slot must take the node as its child.
+    fn take(&mut self, ctx: &mut WidgetContext) -> bool;
+}
+
+struct RcNodeData<U: UiNode> {
+    next_slot_id: Cell<u32>,
+    waiting_deinit: Cell<bool>,
+    node: RefCell<U>,
+}
+impl<U: UiNode> RcNodeData<U> {
+    pub fn new(node: U) -> Self {
+        Self { 
+            next_slot_id: Cell::new(1),
+            waiting_deinit: Cell::new(false),
+            node: RefCell::new(node)
+         }
+    }
+}
+
+enum SlotNodeRef<U: UiNode> {
+    Active(Rc<RcNodeData<U>>),
+    Inactive(Weak<RcNodeData<U>>),
+    Dropped
+}
+
+struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
+    slot_id: u32,
+    taking: bool,
+    take_signal: S,
+    node: SlotNodeRef<U>
+}
+impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        match &mut self.node {
+            SlotNodeRef::Active(r) => {
+                if r.waiting_deinit.take() {
+                    r.node.borrow_mut().deinit(ctx);
+                    self.node = SlotNodeRef::Inactive(Rc::downgrade(r));
+                    ctx.updates.update();
+                } else {
+                    r.node.borrow_mut().init(ctx);
+                }
+            }
+            SlotNodeRef::Inactive(r) => {
+                self.taking |= self.take_signal.take(ctx);
+                if self.taking {
+                    if let Some(r) = r.upgrade() {
+
+                    }
+                }
+            }
+            SlotNodeRef::Dropped => {}
+        }
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        todo!()
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        todo!()
+    }
+
+    fn update_hp(&mut self, ctx: &mut WidgetContext) {
+        todo!()
+    }
+
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        todo!()
+    }
+
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        todo!()
+    }
+
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        todo!()
+    }
+
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        todo!()
     }
 }
