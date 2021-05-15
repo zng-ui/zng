@@ -1,4 +1,8 @@
-use std::{borrow::Borrow, cell::{Cell, RefCell}, rc::{Rc, Weak}};
+use std::{
+    borrow::Borrow,
+    cell::{Cell, RefCell},
+    rc::{Rc, Weak},
+};
 
 use crate::context::*;
 use crate::impl_ui_node;
@@ -319,25 +323,38 @@ impl<U: UiNode> Clone for RcNode<U> {
     }
 }
 impl<U: UiNode> RcNode<U> {
-    /// New movable node.
+    /// New rc node.
     ///
     /// The `node` is assumed to not be inited.
     pub fn new(node: U) -> Self {
-        Self(Rc::new(RcNodeData::new(node)))
+        Self(Rc::new(RcNodeData::new(Some(node))))
     }
 
-    /// New movable node that contains a weak reference to itself.
+    /// New rc node that contains a weak reference to itself.
     ///
     /// **Node** the weak reference cannot be updated during the call to `node`
     pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
-        todo!()
+        // Note: Rewrite this method with `Rc::new_cyclic` when
+        // https://github.com/rust-lang/rust/issues/75861 stabilizes
+        let r = Self(Rc::new(RcNodeData::new(None)));
+        let n = node(r.downgrade());
+        *r.0.node.borrow_mut() = Some(n);
+        r
     }
 
     /// Creates an [`UiNode`] implementer that can *exclusive take* the referenced node as its child when
     /// signaled by `take_signal`.
     pub fn slot(&self, take_signal: impl RcNodeTakeSignal) -> impl UiNode {
-        todo!();
-        crate::NilUiNode
+        SlotNode {
+            slot_id: {
+                let id = self.0.next_slot_id.get();
+                self.0.next_slot_id.set(id + 1);
+                id
+            },
+            taking: false,
+            take_signal,
+            node: SlotNodeRef::Inactive(Rc::downgrade(&self.0)),
+        }
     }
 
     /// Creates a new [`WeakNode`] that points to this node.
@@ -357,61 +374,107 @@ impl<U: UiNode> Clone for WeakNode<U> {
 impl<U: UiNode> WeakNode<U> {
     /// Attempts to upgrade to a [`RcNode`].
     pub fn upgrade(&self) -> Option<RcNode<U>> {
-        self.0.upgrade().map(RcNode)
+        if let Some(rc) = self.0.upgrade() {
+            if rc.node.borrow().is_some() {
+                return Some(RcNode(rc));
+            }
+        }
+        None
     }
 }
 
 /// Signal an [`RcNode`] slot to take the referenced node as its child.
+///
+/// This trait is implemented for all `bool` variables, you can also use [`take_on_init`] to
+/// be the first slot to take the widget, [`take_on`] to take when an event updates or [`take_if`]
+/// to use a custom delegate to signal.
 pub trait RcNodeTakeSignal: 'static {
     /// Returns `true` when the slot must take the node as its child.
     fn take(&mut self, ctx: &mut WidgetContext) -> bool;
+}
+impl<V> RcNodeTakeSignal for V
+where
+    V: crate::var::VarObj<bool>,
+{
+    /// Takes the widget when the var value is `true`.
+    fn take(&mut self, ctx: &mut WidgetContext) -> bool {
+        *self.get(ctx.vars)
+    }
+}
+/// An [`RcNodeTakeSignal`] that takes the widget when `custom` returns `true`.
+pub fn take_if<F: FnMut(&mut WidgetContext) -> bool + 'static>(custom: F) -> impl RcNodeTakeSignal {
+    struct TakeIf<F>(F);
+    impl<F: FnMut(&mut WidgetContext) -> bool + 'static> RcNodeTakeSignal for TakeIf<F> {
+        fn take(&mut self, ctx: &mut WidgetContext) -> bool {
+            (self.0)(ctx)
+        }
+    }
+    TakeIf(custom)
+}
+/// An [`RcNodeTakeSignal`] that takes the widget every time the `event` updates.
+pub fn take_on<E>(event: crate::event::EventListener<E>) -> impl RcNodeTakeSignal {
+    struct TakeOn<E: 'static>(crate::event::EventListener<E>);
+    impl<E> RcNodeTakeSignal for TakeOn<E> {
+        fn take(&mut self, ctx: &mut WidgetContext) -> bool {
+            self.0.has_updates(ctx.events)
+        }
+    }
+    TakeOn(event)
+}
+/// An [`RcNodeTakeSignal`] that takes the widget once on init.
+pub fn take_on_init() -> impl RcNodeTakeSignal {
+    struct TakeOnInit(bool);
+    impl RcNodeTakeSignal for TakeOnInit {
+        fn take(&mut self, _: &mut WidgetContext) -> bool {
+            std::mem::take(&mut self.0)
+        }
+    }
+    TakeOnInit(true)
 }
 
 struct RcNodeData<U: UiNode> {
     next_slot_id: Cell<u32>,
     waiting_deinit: Cell<bool>,
-    node: RefCell<U>,
+    node: RefCell<Option<U>>,
 }
 impl<U: UiNode> RcNodeData<U> {
-    pub fn new(node: U) -> Self {
-        Self { 
+    pub fn new(node: Option<U>) -> Self {
+        Self {
             next_slot_id: Cell::new(1),
             waiting_deinit: Cell::new(false),
-            node: RefCell::new(node)
-         }
+            node: RefCell::new(node),
+        }
     }
 }
 
 enum SlotNodeRef<U: UiNode> {
     Active(Rc<RcNodeData<U>>),
     Inactive(Weak<RcNodeData<U>>),
-    Dropped
+    Dropped,
 }
 
 struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
     slot_id: u32,
     taking: bool,
     take_signal: S,
-    node: SlotNodeRef<U>
+    node: SlotNodeRef<U>,
 }
 impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         match &mut self.node {
             SlotNodeRef::Active(r) => {
                 if r.waiting_deinit.take() {
-                    r.node.borrow_mut().deinit(ctx);
+                    r.node.borrow_mut().as_mut().unwrap().deinit(ctx);
                     self.node = SlotNodeRef::Inactive(Rc::downgrade(r));
                     ctx.updates.update();
                 } else {
-                    r.node.borrow_mut().init(ctx);
+                    r.node.borrow_mut().as_mut().unwrap().init(ctx);
                 }
             }
             SlotNodeRef::Inactive(r) => {
                 self.taking |= self.take_signal.take(ctx);
                 if self.taking {
-                    if let Some(r) = r.upgrade() {
-
-                    }
+                    if let Some(r) = r.upgrade() {}
                 }
             }
             SlotNodeRef::Dropped => {}
