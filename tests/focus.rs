@@ -1113,10 +1113,10 @@ pub fn focus_continued_after_widget_move_same_window() {
 
     let mut app = TestApp::new(v_stack(widgets![
         container! {
-            content = button.slot_take()
+            content = button.slot(take_on_init())
         },
         container! {
-            content = button.slot_var(do_move.clone())
+            content = button.slot(do_move.clone())
         }
     ]));
     assert_eq!(Some(id), app.focused());
@@ -1139,11 +1139,11 @@ pub fn focus_continued_after_widget_move_to_other_window() {
         content = text("Click Me!");
     });
 
-    let mut app = TestApp::new(container! { content = button.slot_take() });
+    let mut app = TestApp::new(container! { content = button.slot(take_on_init()) });
     assert_eq!(Some(id), app.focused());
     app.take_focus_changed();
 
-    app.open_window(button.slot_take());
+    app.open_window(button.slot(take_on_init()));
     assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();
     assert_eq!(1, evs.len());

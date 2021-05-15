@@ -80,6 +80,11 @@ fn functions() -> impl Widget {
                         };
                     }, None);
                 };
+            }, {
+                let detach_focused = UiMovable::new(button! {
+                    content = text("Detach Button")
+                });
+                slot(detach_focused, take_on_init())
             }
         ]
     }

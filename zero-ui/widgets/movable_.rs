@@ -42,12 +42,14 @@ impl<N: UiNode> UiMovable<N> {
 
     /// Create an [`UiNode`] that **takes** the movable when `take_if` returns `true` in a [`update`](UiNode::update).
     ///
-    /// Every update `take_if` is called, when it returns `true` the movable widget is [deinitialized](UiNode::deinit)
+    /// Every update `take_signal` is probed, when it returns `true` the movable widget is [deinitialized](UiNode::deinit)
     /// in its previous initialized slot and then [reinitialized](UiNode::init) in this slot.
     ///
-    /// The `take_if` closure does not need to constantly return `true`, the last slot to `take_if` is the new
+    /// The `take_signal` does not need to constantly return `true`, the last slot to signal is the new
     /// owner of the movable node.
-    pub fn slot(&self, take_if: impl FnMut(&mut WidgetContext) -> bool + 'static) -> impl UiNode {
+    ///
+    /// See also [`slot!`](mod@slot).
+    pub fn slot(&self, take_signal: impl UiMovableTakeSignal) -> impl UiNode {
         UiMovableSlotNode {
             id: {
                 let id = self.inner.next_slot_id.get();
@@ -55,30 +57,101 @@ impl<N: UiNode> UiMovable<N> {
                 id
             },
             taking: false,
-            take_if,
+            take_signal,
             inner: self.inner.clone(),
         }
     }
+}
 
-    /// Create a [`UiNode`] that **takes** the movable node when `event` updates.
-    pub fn slot_event<E>(&self, event: EventListener<E>) -> impl UiNode {
-        self.slot(move |ctx| event.has_updates(ctx.events))
+/// Signals an [`UiMovable`] slot that it should take the widget as its exclusive child.
+///
+/// This trait is implemented for all `bool` variables, you can also use [`take_on_init`] to
+/// be the first slot to take the widget, [`take_on`] to take when an event updates or [`take_if`]
+/// to use a custom delegate to signal.
+pub trait UiMovableTakeSignal: 'static {
+    /// Returns `true` when the slot must take the movable widget as its exclusive child.
+    fn take_if(&mut self, ctx: &mut WidgetContext) -> bool;
+}
+impl<V> UiMovableTakeSignal for V
+where
+    V: VarObj<bool>,
+{
+    /// Takes the widget when the var value is `true`.
+    fn take_if(&mut self, ctx: &mut WidgetContext) -> bool {
+        *self.get(ctx.vars)
+    }
+}
+
+/// An [`UiMovableTakeSignal`] that takes the widget when `custom` returns `true`.
+pub fn take_if<F: FnMut(&mut WidgetContext) -> bool + 'static>(custom: F) -> impl UiMovableTakeSignal {
+    struct TakeIf<F>(F);
+    impl<F: FnMut(&mut WidgetContext) -> bool + 'static> UiMovableTakeSignal for TakeIf<F> {
+        fn take_if(&mut self, ctx: &mut WidgetContext) -> bool {
+            (self.0)(ctx)
+        }
+    }
+    TakeIf(custom)
+}
+
+/// An [`UiMovableTakeSignal`] that takes the widget every time the `event` updates.
+pub fn take_on<E>(event: EventListener<E>) -> impl UiMovableTakeSignal {
+    struct TakeOn<E: 'static>(EventListener<E>);
+    impl<E> UiMovableTakeSignal for TakeOn<E> {
+        fn take_if(&mut self, ctx: &mut WidgetContext) -> bool {
+            self.0.has_updates(ctx.events)
+        }
+    }
+    TakeOn(event)
+}
+
+/// An [`UiMovableTakeSignal`] that takes the widget once on init.
+pub fn take_on_init() -> impl UiMovableTakeSignal {
+    struct TakeOnInit(bool);
+    impl UiMovableTakeSignal for TakeOnInit {
+        fn take_if(&mut self, _: &mut WidgetContext) -> bool {
+            std::mem::take(&mut self.0)
+        }
+    }
+    TakeOnInit(true)
+}
+
+/// An [`UiMovable`] slot widget.
+///
+/// ## `slot()`
+///
+/// If you only want to create a slot as an widget there is a [`slot`](fn@slot) shortcut function.
+#[widget($crate::widgets::slot)]
+pub mod slot {
+    use super::*;
+
+    properties! {
+        /// The [`UiMovable`] reference.
+        #[allowed_in_when = false]
+        movable(UiMovable<impl UiNode>);
+
+        /// A closure that returns `true` when this slot should **take** the `movable`.
+        ///
+        /// This property accepts any `bool` variable, you can also use [`take_on_init`] to
+        /// be the first slot to take the widget, [`take_on`] to take when an event listener updates or [`take_if`]
+        /// to use a custom delegate to signal.
+        ///
+        /// See [`UiMovable::slot`] for more details.
+        #[allowed_in_when = false]
+        take_signal(impl UiMovableTakeSignal);
     }
 
-    /// Create an [`UiNode`] that **takes** the movable node when `var` is `true`.
-    ///
-    /// The `var` does not need to stay `true`, the slot takes the movable node when the `var` first signal `true`
-    /// and retains the movable node even if `var` changes to `false`.
-    pub fn slot_var(&self, var: impl VarObj<bool>) -> impl UiNode {
-        self.slot(move |ctx| *var.get(ctx.vars))
+    fn new_child(movable: UiMovable<impl UiNode>, take_signal: impl UiMovableTakeSignal) -> impl UiNode {
+        movable.slot(take_signal)
     }
+}
 
-    /// Create an [`UiNode`] that **takes** the movable node once on init.
-    #[inline]
-    pub fn slot_take(&self) -> impl UiNode {
-        let mut take = true;
-        self.slot(move |_| std::mem::take(&mut take))
-    }
+/// An [`UiMovable`] slot widget.
+///
+/// # `slot!`
+///
+/// This function is just a shortcut for [`slot!`](mod@slot).
+pub fn slot(movable: UiMovable<impl UiNode>, take_signal: impl UiMovableTakeSignal) -> impl Widget {
+    slot!(movable; take_signal)
 }
 
 struct UiMovableInner<N> {
@@ -92,17 +165,17 @@ struct UiMovableInner<N> {
 struct UiMovableSlotNode<T, N> {
     id: u32,
     taking: bool,
-    take_if: T,
+    take_signal: T,
     inner: Rc<UiMovableInner<N>>,
 }
 
 impl<T, N> UiMovableSlotNode<T, N>
 where
-    T: FnMut(&mut WidgetContext) -> bool + 'static,
+    T: UiMovableTakeSignal,
     N: UiNode,
 {
     fn maybe_take(&mut self, ctx: &mut WidgetContext) {
-        if self.taking || (self.take_if)(ctx) {
+        if self.taking || self.take_signal.take_if(ctx) {
             if self.inner.inited.get() {
                 self.taking = true;
                 self.inner.waiting_deinit.set(true);
@@ -118,7 +191,7 @@ where
 }
 impl<T, N> UiNode for UiMovableSlotNode<T, N>
 where
-    T: FnMut(&mut WidgetContext) -> bool + 'static,
+    T: UiMovableTakeSignal,
     N: UiNode,
 {
     #[inline]
