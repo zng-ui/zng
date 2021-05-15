@@ -1136,6 +1136,7 @@ pub mod prelude {
         render::WidgetPath,
         service::Services,
         sync::Sync,
+        take_if, take_on, take_on_init,
         text::{
             font_features::{
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
@@ -1152,7 +1153,7 @@ pub mod prelude {
         widget_base::Visibility,
         widget_vec, widgets,
         window::{AppRunWindowExt, AutoSize, CursorIcon, StartPosition, Window, WindowChrome, WindowIcon, WindowState, Windows},
-        UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
+        RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
     };
 
     #[doc(no_inline)]

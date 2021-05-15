@@ -1105,7 +1105,7 @@ pub fn focus_continued_after_widget_id_move() {
 #[test]
 pub fn focus_continued_after_widget_move_same_window() {
     let id = WidgetId::new_unique();
-    let button = UiMovable::new(button! {
+    let button = RcNode::new(button! {
         id;
         content = text("Click Me!");
     });
@@ -1134,7 +1134,7 @@ pub fn focus_continued_after_widget_move_same_window() {
 #[test]
 pub fn focus_continued_after_widget_move_to_other_window() {
     let id = WidgetId::new_unique();
-    let button = UiMovable::new(button! {
+    let button = RcNode::new(button! {
         id;
         content = text("Click Me!");
     });

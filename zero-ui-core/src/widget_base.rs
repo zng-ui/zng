@@ -71,28 +71,59 @@ pub mod implicit_base {
             state: OwnedStateMap,
             child: T,
             size: LayoutSize,
+            #[cfg(debug_assertions)]
+            inited: bool,
         }
         #[impl_ui_node(child)]
         impl<T: UiNode> UiNode for WidgetNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
+                #[cfg(debug_assertions)]
+                if self.inited {
+                    error_println!("`UiNode::init` called in already inited widget {:?}", self.id);
+                }
+
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.init(ctx));
+
+                self.inited = true;
             }
             fn deinit(&mut self, ctx: &mut WidgetContext) {
+                #[cfg(debug_assertions)]
+                if !self.inited {
+                    error_println!("`UiNode::deinit` called in already deinited widget {:?}", self.id);
+                }
+
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.deinit(ctx));
+
+                self.inited = false;
             }
             fn update(&mut self, ctx: &mut WidgetContext) {
+                #[cfg(debug_assertions)]
+                if !self.inited {
+                    panic!();
+                    error_println!("`UiNode::update` called in deinited widget {:?}", self.id);
+                }
+
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
             }
             fn update_hp(&mut self, ctx: &mut WidgetContext) {
+                #[cfg(debug_assertions)]
+                if !self.inited {
+                    error_println!("`UiNode::update_hp` called in deinited widget {:?}", self.id);
+                }
+
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
             }
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
                 #[cfg(debug_assertions)]
                 {
+                    if !self.inited {
+                        error_println!("`UiNode::measure` called in deinited widget {:?}", self.id);
+                    }
+
                     fn valid_measure(f: f32) -> bool {
                         f.is_finite() || crate::is_layout_any_size(f)
                     }
@@ -127,11 +158,15 @@ pub mod implicit_base {
 
                 child_size
             }
-            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {                
                 self.size = final_size;
-
+                
                 #[cfg(debug_assertions)]
                 {
+                    if !self.inited {
+                        error_println!("`UiNode::arrange` called in deinited widget {:?}", self.id);
+                    }
+
                     if !final_size.width.is_finite() || !final_size.height.is_finite() {
                         error_println!(
                             "{:?} `UiNode::arrange` called with invalid `final_size: {:?}`, must be finite",
@@ -156,11 +191,21 @@ pub mod implicit_base {
                 });
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                #[cfg(debug_assertions)]
+                if !self.inited {
+                    error_println!("`UiNode::render` called in deinited widget {:?}", self.id);
+                }
+
                 ctx.with_widget(self.id, &self.state, |ctx| {
                     frame.push_widget(self.id, self.transform_key, self.size, &self.child, ctx);
                 });
             }
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                #[cfg(debug_assertions)]
+                if !self.inited {
+                    error_println!("`UiNode::render_update` called in deinited widget {:?}", self.id);
+                }
+
                 ctx.with_widget(self.id, &self.state, |ctx| {
                     update.update_widget(self.id, self.transform_key, &self.child, ctx);
                 });
@@ -191,6 +236,8 @@ pub mod implicit_base {
             state: OwnedStateMap::default(),
             child,
             size: LayoutSize::zero(),
+            #[cfg(debug_assertions)]
+            inited: false,
         }
     }
 }

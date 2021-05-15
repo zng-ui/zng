@@ -81,8 +81,19 @@ fn functions() -> impl Widget {
                     }, None);
                 };
             }, {
-                let detach_focused = UiMovable::new(button! {
-                    content = text("Detach Button")
+                let detach_focused = RcNode::new_cyclic(|wk| {
+                    button! {
+                        content = text("Detach Button");
+                        on_click = move |ctx, _| {
+                            let wwk = wk.clone();
+                            ctx.services.req::<Windows>().open(move |_| {
+                                window! {
+                                    title = "Detached Button";
+                                    content = slot(wwk.upgrade().unwrap(), take_on_init())
+                                }
+                            }, None);
+                        }
+                    }
                 });
                 slot(detach_focused, take_on_init())
             }

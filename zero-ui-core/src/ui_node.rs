@@ -1,6 +1,6 @@
 use std::{
-    borrow::Borrow,
     cell::{Cell, RefCell},
+    fmt,
     rc::{Rc, Weak},
 };
 
@@ -346,14 +346,9 @@ impl<U: UiNode> RcNode<U> {
     /// signaled by `take_signal`.
     pub fn slot(&self, take_signal: impl RcNodeTakeSignal) -> impl UiNode {
         SlotNode {
-            slot_id: {
-                let id = self.0.next_slot_id.get();
-                self.0.next_slot_id.set(id + 1);
-                id
-            },
-            taking: false,
+            slot_id: self.0.next_id(),
             take_signal,
-            node: SlotNodeRef::Inactive(Rc::downgrade(&self.0)),
+            state: SlotNodeState::Inactive(Rc::downgrade(&self.0)),
         }
     }
 
@@ -433,79 +428,194 @@ pub fn take_on_init() -> impl RcNodeTakeSignal {
 }
 
 struct RcNodeData<U: UiNode> {
-    next_slot_id: Cell<u32>,
+    next_id: Cell<u32>,
+    owner_id: Cell<u32>,
     waiting_deinit: Cell<bool>,
+    inited: Cell<bool>,
     node: RefCell<Option<U>>,
 }
 impl<U: UiNode> RcNodeData<U> {
     pub fn new(node: Option<U>) -> Self {
         Self {
-            next_slot_id: Cell::new(1),
+            next_id: Cell::new(1),
+            owner_id: Cell::new(0),
             waiting_deinit: Cell::new(false),
+            inited: Cell::new(false),
             node: RefCell::new(node),
         }
     }
+
+    pub fn next_id(&self) -> u32 {
+        let id = self.next_id.get();
+        self.next_id.set(id.wrapping_add(1));
+        id
+    }
 }
 
-enum SlotNodeRef<U: UiNode> {
-    Active(Rc<RcNodeData<U>>),
+enum SlotNodeState<U: UiNode> {
+    /// Slot is not the owner of the child node.
     Inactive(Weak<RcNodeData<U>>),
+    /// Slot is the next owner of the child node, awaiting previous slot deinit.
+    Activating(Rc<RcNodeData<U>>),
+    /// Slot is the owner of the child node.
+    Active(Rc<RcNodeData<U>>),
+    /// Slot deinited itself when it was the owner of the child node.
+    ActiveDeinited(Rc<RcNodeData<U>>),
+    /// Tried to activate but the weak reference in `Inactive` is dead.
     Dropped,
+}
+impl<U: UiNode> fmt::Debug for SlotNodeState<U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SlotNodeState::Inactive(wk) => {
+                write!(f, "Inactive(can_upgrade: {})", wk.upgrade().is_some())
+            }
+            SlotNodeState::Activating(_) => write!(f, "Activating"),
+            SlotNodeState::Active(_) => write!(f, "Active"),
+            SlotNodeState::ActiveDeinited(_) => write!(f, "ActiveDeinited"),
+            SlotNodeState::Dropped => write!(f, "Dropped"),
+        }
+    }
 }
 
 struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
     slot_id: u32,
-    taking: bool,
     take_signal: S,
-    node: SlotNodeRef<U>,
+    state: SlotNodeState<U>,
 }
 impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        match &mut self.node {
-            SlotNodeRef::Active(r) => {
-                if r.waiting_deinit.take() {
-                    r.node.borrow_mut().as_mut().unwrap().deinit(ctx);
-                    self.node = SlotNodeRef::Inactive(Rc::downgrade(r));
-                    ctx.updates.update();
+        match &self.state {
+            SlotNodeState::Inactive(wk) => {
+                if self.take_signal.take(ctx) {
+                    if let Some(rc) = wk.upgrade() {
+                        if rc.inited.get() {
+                            rc.waiting_deinit.set(true);
+                            self.state = SlotNodeState::Activating(rc);
+                            ctx.updates.update(); // notify the other slot to deactivate.
+                        } else {
+                            // node already free to take.
+                            rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                            rc.inited.set(true);
+                            rc.owner_id.set(self.slot_id);
+                            self.state = SlotNodeState::Active(rc);
+                        }
+                    } else {
+                        self.state = SlotNodeState::Dropped;
+                    }
+                }
+            }
+            SlotNodeState::ActiveDeinited(rc) => {
+                if rc.owner_id.get() == self.slot_id {
+                    // still the owner
+                    assert!(!rc.inited.get());
+                    assert!(!rc.waiting_deinit.get());
+
+                    rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                    rc.inited.set(true);
+
+                    self.state = SlotNodeState::Active(Rc::clone(rc));
                 } else {
-                    r.node.borrow_mut().as_mut().unwrap().init(ctx);
+                    // TODO check signal?
                 }
             }
-            SlotNodeRef::Inactive(r) => {
-                self.taking |= self.take_signal.take(ctx);
-                if self.taking {
-                    if let Some(r) = r.upgrade() {}
-                }
+            SlotNodeState::Activating(_) => {
+                panic!("`SlotNode` in `Activating` state on init")
             }
-            SlotNodeRef::Dropped => {}
+            SlotNodeState::Active(_) => {
+                panic!("`SlotNode` in `Active` state on init")
+            }
+            SlotNodeState::Dropped => {}
         }
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
-        todo!()
+        if let SlotNodeState::Active(rc) = &self.state {
+            assert!(rc.inited.take());
+
+            rc.node.borrow_mut().as_mut().unwrap().deinit(ctx);
+            rc.waiting_deinit.set(false); // just in case?
+
+            self.state = SlotNodeState::ActiveDeinited(Rc::clone(rc));
+        }
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        todo!()
+        match &self.state {
+            SlotNodeState::Inactive(wk) => {
+                if self.take_signal.take(ctx) {
+                    if let Some(rc) = wk.upgrade() {
+                        if rc.inited.get() {
+                            rc.waiting_deinit.set(true);
+                            self.state = SlotNodeState::Activating(rc);
+                            ctx.updates.update(); // notify the other slot to deactivate.
+                        } else {
+                            // node already free to take.
+                            rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                            rc.inited.set(true);
+                            rc.owner_id.set(self.slot_id);
+                            self.state = SlotNodeState::Active(rc);
+                            ctx.updates.layout();
+                        }
+                    } else {
+                        self.state = SlotNodeState::Dropped
+                    }
+                }
+            }
+            SlotNodeState::Activating(rc) => {
+                if !rc.inited.get() {
+                    // node now free to take.
+                    rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                    rc.inited.set(true);
+                    self.state = SlotNodeState::Active(Rc::clone(rc));
+                }
+            }
+            SlotNodeState::Active(rc) => {
+                if rc.waiting_deinit.take() {
+                    if rc.inited.take() {
+                        rc.node.borrow_mut().as_mut().unwrap().deinit(ctx);
+                    }
+                    ctx.updates.update(); // notify the other slot to activate.
+                } else {
+                    rc.node.borrow_mut().as_mut().unwrap().update(ctx);
+                }
+            }
+            SlotNodeState::ActiveDeinited(_) => {
+                panic!("`SlotNode` in `ActiveDeinited` state on update")
+            }
+            SlotNodeState::Dropped => {}
+        }
     }
 
     fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        todo!()
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow_mut().as_mut().unwrap().update_hp(ctx);
+        }
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-        todo!()
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow_mut().as_mut().unwrap().measure(ctx, available_size)
+        } else {
+            LayoutSize::zero()
+        }
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-        todo!()
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow_mut().as_mut().unwrap().arrange(ctx, final_size);
+        }
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        todo!()
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow().as_ref().unwrap().render(ctx, frame);
+        }
     }
 
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        todo!()
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow().as_ref().unwrap().render_update(ctx, update);
+        }
     }
 }
