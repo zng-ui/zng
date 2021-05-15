@@ -13,7 +13,6 @@ use crate::{
 };
 
 use app::AppEvent;
-use fnv::FnvHashMap;
 
 use glutin::window::WindowBuilder;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -440,7 +439,7 @@ impl AppExtension for WindowManager {
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match event {
             WindowEvent::Focused(focused) => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
                     window.is_active = *focused;
 
                     let args = WindowIsActiveArgs::now(window_id, window.is_active, false);
@@ -448,7 +447,7 @@ impl AppExtension for WindowManager {
                 }
             }
             WindowEvent::Resized(_) => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
                     let new_size = window.size();
 
                     // set the window size variable.
@@ -464,7 +463,7 @@ impl AppExtension for WindowManager {
                 }
             }
             WindowEvent::Moved(_) => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                if let Some(window) = ctx.services.req::<Windows>().windows.iter().find(|w| w.id == window_id) {
                     let new_position = window.position();
 
                     // TODO check if in new monitor.
@@ -477,7 +476,7 @@ impl AppExtension for WindowManager {
                 }
             }
             WindowEvent::CloseRequested => {
-                if let Some(win) = ctx.services.req::<Windows>().windows.get(&window_id) {
+                if let Some(win) = ctx.services.req::<Windows>().windows.iter().find(|w| w.id == window_id) {
                     win.close_requested.set(true);
                     ctx.updates.update();
                 }
@@ -486,7 +485,7 @@ impl AppExtension for WindowManager {
                 scale_factor,
                 new_inner_size,
             } => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
                     let scale_factor = *scale_factor as f32;
                     let new_size = LayoutSize::new(
                         new_inner_size.width as f32 / scale_factor,
@@ -533,7 +532,7 @@ impl AppExtension for WindowManager {
         // to create a layout context. Services are not visible in the layout context
         // so this is fine. // TODO: REVIEW
         let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
-        for (_, window) in windows.iter_mut() {
+        for window in windows.iter_mut() {
             window.layout(ctx);
             window.render(ctx);
             window.render_update(ctx);
@@ -542,13 +541,13 @@ impl AppExtension for WindowManager {
     }
 
     fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+        if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
             window.request_redraw(ctx.vars);
         }
     }
 
     fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+        if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
             window.redraw();
         }
     }
@@ -557,7 +556,7 @@ impl AppExtension for WindowManager {
         if !args.cancel_requested() {
             let service = ctx.services.req::<Windows>();
             if service.shutdown_on_last_close {
-                let windows: Vec<WindowId> = service.windows.keys().copied().collect();
+                let windows: Vec<WindowId> = service.windows.iter().map(|w| w.id).collect();
                 if !windows.is_empty() {
                     args.cancel();
                     service.close_together(windows).unwrap();
@@ -568,9 +567,13 @@ impl AppExtension for WindowManager {
 
     fn deinit(&mut self, ctx: &mut AppContext) {
         let windows = mem::take(&mut ctx.services.req::<Windows>().windows);
-        for (id, window) in windows {
+        for window in windows {
             {
-                error_println!("dropping `{:?} ({})` without closing events", id, window.vars.title().get(ctx.vars));
+                error_println!(
+                    "dropping `{:?} ({})` without closing events",
+                    window.id,
+                    window.vars.title().get(ctx.vars)
+                );
                 window.context.borrow_mut().deinit(ctx);
             }
         }
@@ -587,21 +590,14 @@ impl WindowManager {
             let w = OpenWindow::new(
                 request.new,
                 request.force_headless,
+                request.notifier,
                 ctx,
                 ctx.event_loop,
                 self.event_loop_proxy.as_ref().unwrap().clone(),
                 Arc::clone(&self.ui_threads),
                 ctx.updates.notifier().clone(),
             );
-
-            let args = WindowEventArgs::now(w.id(), true);
-            ctx.services.req::<Windows>().windows.insert(args.window_id, w);
-
-            // notify the window requester
-            request.notifier.notify(ctx.events, args.clone());
-
-            // notify everyone
-            self.window_open.notify(ctx.events, args.clone());
+            ctx.services.req::<Windows>().opening_windows.push(w);
         }
 
         for (window_id, group) in close {
@@ -619,7 +615,7 @@ impl WindowManager {
                 .req::<Windows>()
                 .windows
                 .iter_mut()
-                .map(|(_, w)| w.context.clone())
+                .map(|w| w.context.clone())
                 .collect();
 
             // high-pressure pump.
@@ -636,13 +632,29 @@ impl WindowManager {
                 }
             }
 
-            // do window vars update.
             if update.update {
+                // do window vars update.
                 let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
-                for (_, window) in windows.iter_mut() {
+                for window in windows.iter_mut() {
                     window.update_window(ctx);
                 }
                 ctx.services.req::<Windows>().windows = windows;
+
+                // do window vars init.
+                let opening = mem::take(&mut ctx.services.req::<Windows>().opening_windows);
+                let mut retain = Vec::with_capacity(opening.len());
+                for mut window in opening {
+                    window.update_window(ctx);
+                    if let WindowInitState::VarsInited = window.init_state {
+                        let args = WindowEventArgs::now(window.id, true);
+                        window.open_response.take().unwrap().notify(ctx.events, args.clone());
+                        self.window_open.notify(ctx.events, args);
+                        ctx.services.req::<Windows>().windows.push(window);
+                    } else {
+                        retain.push(window);
+                    }
+                }
+                ctx.services.req::<Windows>().opening_windows = retain;
             }
         }
     }
@@ -677,7 +689,7 @@ impl WindowManager {
                 } else {
                     CloseWindowResult::Cancel
                 };
-                win.close_request.notify(ctx.events, r);
+                win.close_response.notify(ctx.events, r);
             }
         }
     }
@@ -689,7 +701,14 @@ impl WindowManager {
         }
 
         for close in self.window_close.updates(ctx.events) {
-            if let Some(w) = ctx.services.req::<Windows>().windows.remove(&close.window_id) {
+            let window = {
+                let wns = ctx.services.req::<Windows>();
+                wns.windows
+                    .iter()
+                    .position(|w| w.id == close.window_id)
+                    .map(|idx| wns.windows.remove(idx))
+            };
+            if let Some(w) = window {
                 w.context.clone().borrow_mut().deinit(ctx);
                 if w.is_active {
                     let args = WindowIsActiveArgs::now(w.id, false, true);
@@ -699,7 +718,7 @@ impl WindowManager {
         }
 
         let service = ctx.services.req::<Windows>();
-        if service.shutdown_on_last_close && service.windows.is_empty() {
+        if service.shutdown_on_last_close && service.windows.is_empty() && service.opening_windows.is_empty() {
             ctx.services.req::<AppProcess>().shutdown();
         }
     }
@@ -723,9 +742,10 @@ pub struct Windows {
     /// If shutdown is requested when there are no more windows open, `true` by default.
     pub shutdown_on_last_close: bool,
 
-    windows: FnvHashMap<WindowId, OpenWindow>,
+    windows: Vec<OpenWindow>,
 
     open_requests: Vec<OpenWindowRequest>,
+    opening_windows: Vec<OpenWindow>,
     next_group: u16,
     update_notifier: UpdateNotifier,
 }
@@ -734,9 +754,10 @@ impl Windows {
     fn new(update_notifier: UpdateNotifier) -> Self {
         Windows {
             shutdown_on_last_close: true,
+            windows: Vec::with_capacity(1),
             open_requests: Vec::with_capacity(1),
+            opening_windows: Vec::with_capacity(1),
             next_group: 1,
-            windows: FnvHashMap::default(),
             update_notifier,
         }
     }
@@ -772,11 +793,19 @@ impl Windows {
     /// [close requested event](WindowCloseRequestedEvent).
     ///
     /// Returns a listener that will update once with the result of the operation.
-    pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
-        if let Some(w) = self.windows.get(&window_id) {
+    pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, GetWindowError> {
+        if let Some(w) = self.windows.iter().find(|w| w.id == window_id) {
             Ok(w.close())
         } else {
-            Err(WindowNotFound(window_id))
+            Err(self.get_window_error(window_id))
+        }
+    }
+
+    fn get_window_error(&self, window_id: WindowId) -> GetWindowError {
+        if let Some(w) = self.opening_windows.iter().find(|w| w.id == window_id) {
+            GetWindowError::Opening(window_id, w.open_response.as_ref().unwrap().listener())
+        } else {
+            GetWindowError::NotFound(window_id)
         }
     }
 
@@ -787,11 +816,16 @@ impl Windows {
     pub fn close_together(
         &mut self,
         windows: impl IntoIterator<Item = WindowId>,
-    ) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
+    ) -> Result<EventListener<CloseWindowResult>, GetWindowError> {
         let windows = windows.into_iter();
         let mut all = Vec::with_capacity(windows.size_hint().0);
         for window_id in windows {
-            all.push(self.windows.get(&window_id).ok_or(WindowNotFound(window_id))?);
+            all.push(
+                self.windows
+                    .iter()
+                    .find(|w| w.id == window_id)
+                    .ok_or_else(|| self.get_window_error(window_id))?,
+            );
         }
         if all.is_empty() {
             return Ok(EventEmitter::response().into_listener());
@@ -800,7 +834,7 @@ impl Windows {
         let set_id = NonZeroU16::new(self.next_group).unwrap();
         self.next_group += 1;
 
-        let listener = all[0].close_request.listener();
+        let listener = all[0].close_response.listener();
         for window in all {
             window.close_requested.set(true);
             window.close_group.set(Some(set_id));
@@ -813,19 +847,22 @@ impl Windows {
 
     /// Reference an open window.
     #[inline]
-    pub fn window(&self, window_id: WindowId) -> Result<&OpenWindow, WindowNotFound> {
-        self.windows.get(&window_id).ok_or(WindowNotFound(window_id))
+    pub fn window(&self, window_id: WindowId) -> Result<&OpenWindow, GetWindowError> {
+        self.windows
+            .iter()
+            .find(|w| w.id == window_id)
+            .ok_or_else(|| self.get_window_error(window_id))
     }
 
-    /// Iterate over all open windows.
+    /// All open windows.
     #[inline]
-    pub fn windows(&self) -> impl Iterator<Item = &OpenWindow> {
-        self.windows.values()
+    pub fn windows(&self) -> &[OpenWindow] {
+        &self.windows
     }
 
     fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<(WindowId, CloseTogetherGroup)>) {
         let mut close_requests = vec![];
-        for w in self.windows.values_mut() {
+        for w in self.windows.iter() {
             if w.close_requested.take() {
                 close_requests.push((w.id, w.close_group.take()));
             }
@@ -850,15 +887,40 @@ pub enum CloseWindowResult {
     Cancel,
 }
 
-/// Window not found error.
-#[derive(Debug)]
-pub struct WindowNotFound(pub WindowId);
-impl std::fmt::Display for WindowNotFound {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "window `{:?}` is not opened in `Windows` service", self.0)
+/// Error when searching for an open window.
+pub enum GetWindowError {
+    /// Window not found, it is not open and not opening.
+    NotFound(WindowId),
+    /// Window is not available because it is still opening.
+    ///
+    /// The associated values are the requested window ID and an event listener that will notify once when
+    /// the window finishes opening.
+    ///
+    /// **Note:** The window initial content does a single [`init`](UiNode::init), [`measure`](UiNode::measure),
+    /// [`arrange`](UiNode::arrange) and [`render`](UiNode::render) sequence before the window is fully opened.
+    Opening(WindowId, EventListener<WindowEventArgs>),
+}
+impl fmt::Debug for GetWindowError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GetWindowError::NotFound(id) => f.debug_tuple("NotFound").field(&id).finish(),
+            GetWindowError::Opening(id, _) => f.debug_tuple("Opening").field(&id).finish(),
+        }
     }
 }
-impl std::error::Error for WindowNotFound {}
+impl fmt::Display for GetWindowError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            GetWindowError::NotFound(id) => {
+                write!(f, "window `{}` is not opened in `Windows` service", id)
+            }
+            GetWindowError::Opening(id, _) => {
+                write!(f, "window `{}` not available because it is still opening in `Windows` service", id)
+            }
+        }
+    }
+}
+impl std::error::Error for GetWindowError {}
 
 // We don't use Rc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
 type RenderIcon = Rc<Box<dyn Fn(&mut WindowContext) -> Box<dyn UiNode>>>;
@@ -1605,15 +1667,18 @@ pub struct OpenWindow {
 
     renderless_event_sender: Option<EventLoopProxy>,
 
-    close_request: EventEmitter<CloseWindowResult>,
+    open_response: Option<EventEmitter<WindowEventArgs>>,
+    close_response: EventEmitter<CloseWindowResult>,
     close_requested: Cell<bool>,
     close_group: Cell<CloseTogetherGroup>,
     update_notifier: UpdateNotifier,
 }
 impl OpenWindow {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>,
         force_headless: Option<WindowMode>,
+        open_response: EventEmitter<WindowEventArgs>,
         ctx: &mut AppContext,
         event_loop: EventLoopWindowTarget,
         event_loop_proxy: EventLoopProxy,
@@ -1750,7 +1815,8 @@ impl OpenWindow {
             renderless_event_sender,
 
             close_requested: Cell::new(false),
-            close_request: EventEmitter::response(),
+            open_response: Some(open_response),
+            close_response: EventEmitter::response(),
             close_group: Cell::new(None),
             update_notifier,
 
@@ -1767,7 +1833,7 @@ impl OpenWindow {
         self.close_requested.set(true);
         self.close_group.set(None);
         self.update_notifier.update();
-        self.close_request.listener()
+        self.close_response.listener()
     }
 
     /// Window mode.
@@ -2849,7 +2915,7 @@ mod headless_tests {
         assert!(events.iter().any(|ev| matches!(ev, AppEvent::NewFrameReady(_))));
 
         app.with_context(|ctx| {
-            let wn = ctx.services.req::<Windows>().windows().next().unwrap();
+            let wn = &ctx.services.req::<Windows>().windows()[0];
 
             assert_eq!(wn.id(), wn.frame_info().window_id());
 

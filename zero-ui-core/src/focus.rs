@@ -939,7 +939,7 @@ impl Focus {
 
     #[must_use]
     fn focus_active_window(&mut self, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
-        if let Some(active) = windows.windows().find(|w| w.is_active()) {
+        if let Some(active) = windows.windows().iter().find(|w| w.is_active()) {
             let frame = FrameFocusInfo::new(active.frame_info());
             let root = frame.root();
             if root.is_focusable() {

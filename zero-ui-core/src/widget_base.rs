@@ -101,7 +101,6 @@ pub mod implicit_base {
             fn update(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    panic!();
                     error_println!("`UiNode::update` called in deinited widget {:?}", self.id);
                 }
 
@@ -158,9 +157,9 @@ pub mod implicit_base {
 
                 child_size
             }
-            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {                
+            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
                 self.size = final_size;
-                
+
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
