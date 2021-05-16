@@ -467,7 +467,7 @@ impl AppExtension for FocusManager {
             request = Some(req);
         } else if let Some(args) = self.mouse_down.updates(ctx.events).last() {
             // click
-            request = Some(FocusRequest::direct_or_parent(args.target.widget_id(), false));
+            request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
         } else if let Some(args) = self.shortcut.updates(ctx.events).last() {
             // keyboard
             if args.shortcut == shortcut!(Tab) {
@@ -642,10 +642,10 @@ impl Focus {
     /// If the widget and no parent are focusable the focus does not move, in this case the highlight changes
     /// for the current focused widget.
     ///
-    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_parent`].
+    /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_exit`].
     #[inline]
-    pub fn focus_widget_or_parent(&mut self, widget_id: WidgetId, highlight: bool) {
-        self.focus(FocusRequest::direct_or_parent(widget_id, highlight))
+    pub fn focus_widget_or_exit(&mut self, widget_id: WidgetId, highlight: bool) {
+        self.focus(FocusRequest::direct_or_exit(widget_id, highlight))
     }
 
     /// Focus the widget if it is focusable, else focus the first focusable descendant, also changes the highlight.
@@ -653,10 +653,42 @@ impl Focus {
     /// If the widget and no child are focusable the focus does not move, in this case the highlight changes for
     /// the current focused widget.
     ///
-    /// This makes a [`focus`](Self::focus) request [`FocusRequest::direct_or_child`].
+    /// This makes a [`focus`](Self::focus) request [`FocusRequest::direct_or_enter`].
     #[inline]
-    pub fn focus_widget_or_child(&mut self, widget_id: WidgetId, highlight: bool) {
-        self.focus(FocusRequest::direct_or_child(widget_id, highlight))
+    pub fn focus_widget_or_enter(&mut self, widget_id: WidgetId, highlight: bool) {
+        self.focus(FocusRequest::direct_or_enter(widget_id, highlight))
+    }
+
+    /// Focus the widget if it is focusable, else focus the first focusable descendant, else focus the first
+    /// focusable ancestor.
+    ///
+    /// If the widget no focusable widget is found the focus does not move, in this case the highlight changes
+    /// for the current focused widget.
+    ///
+    /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_related`].
+    #[inline]
+    pub fn focus_widget_or_related(&mut self, widget_id: WidgetId, highlight: bool) {
+        self.focus(FocusRequest::direct_or_related(widget_id, highlight))
+    }
+
+    /// Focus the first logical descendant that is focusable from the current focus.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::enter`].
+    #[inline]
+    pub fn focus_enter(&mut self) {
+        self.focus(FocusRequest::enter(self.is_highlighting))
+    }
+
+    /// Focus the first logical ancestor that is focusable from the current focus.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::exit`].
+    #[inline]
+    pub fn focus_exit(&mut self) {
+        self.focus(FocusRequest::exit(self.is_highlighting))
     }
 
     /// Focus the logical next widget from the current focus.
@@ -743,8 +775,9 @@ impl Focus {
     fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
             (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, false, windows, request),
-            (_, FocusTarget::DirectOrParent(widget_id)) => self.focus_direct(widget_id, request.highlight, false, true, windows, request),
-            (_, FocusTarget::DirectOrChild(widget_id)) => self.focus_direct(widget_id, request.highlight, true, false, windows, request),
+            (_, FocusTarget::DirectOrExit(widget_id)) => self.focus_direct(widget_id, request.highlight, false, true, windows, request),
+            (_, FocusTarget::DirectOrEnder(widget_id)) => self.focus_direct(widget_id, request.highlight, true, false, windows, request),
+            (_, FocusTarget::DirectOrRelated(widget_id)) => self.focus_direct(widget_id, request.highlight, true, true, windows, request),
             (Some(prev), move_) => {
                 if let Ok(w) = windows.window(prev.window_id()) {
                     let frame = FrameFocusInfo::new(w.frame_info());
@@ -754,6 +787,8 @@ impl Focus {
                             // tabular
                             FocusTarget::Next => w.next_tab(false),
                             FocusTarget::Prev => w.prev_tab(false),
+                            FocusTarget::Enter => w.tab_descendants().first().copied(),
+                            FocusTarget::Exit => w.ancestors().next(),
                             // directional
                             FocusTarget::Up => w.next_up(),
                             FocusTarget::Right => w.next_right(),
@@ -776,7 +811,10 @@ impl Focus {
                                 self.alt_return.as_ref().and_then(|(_, p)| frame.get_or_parent(&p))
                             }
                             // cases covered by parent match
-                            FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } | FocusTarget::DirectOrChild { .. } => {
+                            FocusTarget::Direct { .. }
+                            | FocusTarget::DirectOrExit { .. }
+                            | FocusTarget::DirectOrEnder { .. }
+                            | FocusTarget::DirectOrRelated { .. } => {
                                 unreachable!()
                             }
                         } {
@@ -1221,15 +1259,30 @@ impl FocusRequest {
     pub fn direct(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::Direct(widget_id), highlight)
     }
-    /// New [`FocusTarget::DirectOrParent`] request.
+    /// New [`FocusTarget::DirectOrExit`] request.
     #[inline]
-    pub fn direct_or_parent(widget_id: WidgetId, highlight: bool) -> Self {
-        Self::new(FocusTarget::DirectOrParent(widget_id), highlight)
+    pub fn direct_or_exit(widget_id: WidgetId, highlight: bool) -> Self {
+        Self::new(FocusTarget::DirectOrExit(widget_id), highlight)
     }
-    /// New [`FocusTarget::DirectOrChild`] request.
+    /// New [`FocusTarget::DirectOrEnder`] request.
     #[inline]
-    pub fn direct_or_child(widget_id: WidgetId, highlight: bool) -> Self {
-        Self::new(FocusTarget::DirectOrChild(widget_id), highlight)
+    pub fn direct_or_enter(widget_id: WidgetId, highlight: bool) -> Self {
+        Self::new(FocusTarget::DirectOrEnder(widget_id), highlight)
+    }
+    /// New [`FocusTarget::DirectOrRelated`] request.
+    #[inline]
+    pub fn direct_or_related(widget_id: WidgetId, highlight: bool) -> Self {
+        Self::new(FocusTarget::DirectOrRelated(widget_id), highlight)
+    }
+    /// New [`FocusTarget::Enter`] request.
+    #[inline]
+    pub fn enter(highlight: bool) -> Self {
+        Self::new(FocusTarget::Enter, highlight)
+    }
+    /// New [`FocusTarget::Exit`] request.
+    #[inline]
+    pub fn exit(highlight: bool) -> Self {
+        Self::new(FocusTarget::Exit, highlight)
     }
     /// New [`FocusTarget::Next`] request.
     #[inline]
@@ -1274,14 +1327,22 @@ impl FocusRequest {
 }
 
 /// Focus request target.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FocusTarget {
     /// Move focus to widget.
     Direct(WidgetId),
-    /// Move focus to the widget if it is focusable or to a focusable parent.
-    DirectOrParent(WidgetId),
-    /// Move focus to the widget if it is focusable or to a focusable child.
-    DirectOrChild(WidgetId),
+    /// Move focus to the widget if it is focusable or to the first focusable ancestor.
+    DirectOrExit(WidgetId),
+    /// Move focus to the widget if it is focusable or to first focusable descendant.
+    DirectOrEnder(WidgetId),
+    /// Move focus to the widget if it is focusable, or to the first focusable descendant or
+    /// to the first focusable ancestor.
+    DirectOrRelated(WidgetId),
+
+    /// Move focus to the first focusable descendant of the current focus, or to first in screen.
+    Enter,
+    /// Move focus to the first focusable ancestor of the current focus, or to first in screen.
+    Exit,
 
     /// Move focus to next from current in screen, or to first in screen.
     Next,

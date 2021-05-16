@@ -205,11 +205,10 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
     }
 }
 
-/// Keyboard shortcuts that focus this widget.
+/// Keyboard shortcuts that focus this widget or its first focusable descendant or its first focusable parent.
 ///
-/// When any of the `shortcuts` is pressed, focus this widget the parent focusable widget.
-///
-/// This property sets [`focusable`] to `true` if it is not set on the widget.
+/// When any of the `shortcuts` is pressed, does a [`focus_widget_or_related`](Focus::focus_widget_or_related)
+/// request using the current widget ID and with highlight.
 #[property(context)]
 pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     struct FocusShortcutNode<C: UiNode, S: Var<Shortcuts>> {
@@ -232,20 +231,11 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
             for args in self.shortcut_listener.updates(ctx.events) {
                 if !args.stop_propagation_requested() && shortcuts.0.contains(&args.shortcut) {
                     // focus on shortcut
-                    ctx.services.req::<Focus>().focus_widget_or_parent(ctx.path.widget_id(), true);
+                    ctx.services.req::<Focus>().focus_widget_or_related(ctx.path.widget_id(), true);
 
                     args.stop_propagation();
                     break;
                 }
-            }
-        }
-
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
-
-            let focus = frame.meta().entry::<FocusInfoKey>().or_default();
-            if focus.focusable.is_none() {
-                focus.focusable = Some(true);
             }
         }
     }

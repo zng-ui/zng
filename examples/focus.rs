@@ -16,7 +16,7 @@ fn main() {
                         align = Alignment::CENTER;
                         spacing = 10;
                         items = widgets![
-                            normal_scope(),
+                            tab_index(),
                             functions()
                         ]
                     }
@@ -38,7 +38,7 @@ fn alt_scope() -> impl Widget {
     }
 }
 
-fn normal_scope() -> impl Widget {
+fn tab_index() -> impl Widget {
     v_stack! {
         focus_scope = true;
         focus_shortcut = shortcut!(T);
@@ -56,9 +56,8 @@ fn normal_scope() -> impl Widget {
 
 fn functions() -> impl Widget {
     v_stack! {
-        focus_shortcut = shortcut!(F);
         spacing = 5;
-        focus_scope = true;
+        focus_shortcut = shortcut!(F);
         items = widgets![
             title("Functions (F)"),
             button! {
@@ -110,7 +109,7 @@ fn button(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
     button! {
         content = text(content.clone());
         tab_index;
-        on_click = move |_,_| {
+        on_click = move |_, _| {
             println!("Clicked {} {:?}", content, tab_index)
         };
     }

@@ -1307,13 +1307,13 @@ impl TestApp {
 
     pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
         self.app
-            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_parent(widget_id, true));
+            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_exit(widget_id, true));
         self.app.update();
     }
 
     pub fn focus_or_child(&mut self, widget_id: WidgetId) {
         self.app
-            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_child(widget_id, true));
+            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_enter(widget_id, true));
         self.app.update();
     }
 
