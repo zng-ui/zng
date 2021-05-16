@@ -10,7 +10,7 @@ pub mod slot {
     use super::*;
 
     properties! {
-        /// The [`UiMovable`] reference.
+        /// The [`RcNode`] reference.
         #[allowed_in_when = false]
         node(RcNode<impl UiNode>);
 
@@ -20,7 +20,7 @@ pub mod slot {
         /// be the first slot to take the widget, [`take_on`] to take when an event listener updates or [`take_if`]
         /// to use a custom delegate to signal.
         ///
-        /// See [`UiMovable::slot`] for more details.
+        /// See [`RcNode::slot`] for more details.
         #[allowed_in_when = false]
         take_signal(impl RcNodeTakeSignal);
     }

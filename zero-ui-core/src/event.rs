@@ -556,7 +556,7 @@ impl Events {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::events::*;
+    /// # use zero_ui_core::event::*;
     /// # use zero_ui_core::focus::FocusChangedEvent;
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
     /// let handler = ctx.events.on_pre_event::<FocusChangedEvent, _>(|_ctx, args| {
@@ -593,7 +593,7 @@ impl Events {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::events::*;
+    /// # use zero_ui_core::event::*;
     /// # use zero_ui_core::focus::FocusChangedEvent;
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
     /// let handler = ctx.events.on_event::<FocusChangedEvent, _>(|_ctx, args| {
