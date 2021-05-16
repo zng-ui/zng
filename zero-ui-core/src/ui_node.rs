@@ -344,11 +344,15 @@ impl<U: UiNode> RcNode<U> {
 
     /// Creates an [`UiNode`] implementer that can *exclusive take* the referenced node as its child when
     /// signaled by `take_signal`.
-    pub fn slot(&self, take_signal: impl RcNodeTakeSignal) -> impl UiNode {
+    pub fn slot<S: RcNodeTakeSignal>(&self, take_signal: S) -> impl UiNode {
         SlotNode {
             slot_id: self.0.next_id(),
             take_signal,
-            state: SlotNodeState::Inactive(Rc::downgrade(&self.0)),
+            state: if S::TAKE_ON_INIT {
+                SlotNodeState::TakeOnInit(Rc::clone(&self.0))
+            } else {
+                SlotNodeState::Inactive(Rc::downgrade(&self.0))
+            },
         }
     }
 
@@ -384,6 +388,9 @@ impl<U: UiNode> WeakNode<U> {
 /// be the first slot to take the widget, [`take_on`] to take when an event updates or [`take_if`]
 /// to use a custom delegate to signal.
 pub trait RcNodeTakeSignal: 'static {
+    /// If slot node must take the node when it is created.
+    const TAKE_ON_INIT: bool = false;
+
     /// Returns `true` when the slot must take the node as its child.
     fn take(&mut self, ctx: &mut WidgetContext) -> bool;
 }
@@ -418,13 +425,15 @@ pub fn take_on<E>(event: crate::event::EventListener<E>) -> impl RcNodeTakeSigna
 }
 /// An [`RcNodeTakeSignal`] that takes the widget once on init.
 pub fn take_on_init() -> impl RcNodeTakeSignal {
-    struct TakeOnInit(bool);
+    struct TakeOnInit;
     impl RcNodeTakeSignal for TakeOnInit {
+        const TAKE_ON_INIT: bool = true;
+
         fn take(&mut self, _: &mut WidgetContext) -> bool {
-            std::mem::take(&mut self.0)
+            false
         }
     }
-    TakeOnInit(true)
+    TakeOnInit
 }
 
 struct RcNodeData<U: UiNode> {
@@ -453,6 +462,7 @@ impl<U: UiNode> RcNodeData<U> {
 }
 
 enum SlotNodeState<U: UiNode> {
+    TakeOnInit(Rc<RcNodeData<U>>),
     /// Slot is not the owner of the child node.
     Inactive(Weak<RcNodeData<U>>),
     /// Slot is the next owner of the child node, awaiting previous slot deinit.
@@ -467,6 +477,7 @@ enum SlotNodeState<U: UiNode> {
 impl<U: UiNode> fmt::Debug for SlotNodeState<U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            SlotNodeState::TakeOnInit(_) => write!(f, "TakeOnInit"),
             SlotNodeState::Inactive(wk) => {
                 write!(f, "Inactive(can_upgrade: {})", wk.upgrade().is_some())
             }
@@ -486,6 +497,19 @@ struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
 impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         match &self.state {
+            SlotNodeState::TakeOnInit(rc) => {
+                if rc.inited.get() {
+                    rc.waiting_deinit.set(true);
+                    self.state = SlotNodeState::Activating(Rc::clone(rc));
+                    ctx.updates.update(); // notify the other slot to deactivate.
+                } else {
+                    // node already free to take.
+                    rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                    rc.inited.set(true);
+                    rc.owner_id.set(self.slot_id);
+                    self.state = SlotNodeState::Active(Rc::clone(rc));
+                }
+            }
             SlotNodeState::Inactive(wk) => {
                 if self.take_signal.take(ctx) {
                     if let Some(rc) = wk.upgrade() {
@@ -568,6 +592,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     rc.node.borrow_mut().as_mut().unwrap().init(ctx);
                     rc.inited.set(true);
                     self.state = SlotNodeState::Active(Rc::clone(rc));
+                    ctx.updates.layout();
                 }
             }
             SlotNodeState::Active(rc) => {
@@ -576,12 +601,16 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                         rc.node.borrow_mut().as_mut().unwrap().deinit(ctx);
                     }
                     ctx.updates.update(); // notify the other slot to activate.
+                    self.state = SlotNodeState::Inactive(Rc::downgrade(rc));
                 } else {
                     rc.node.borrow_mut().as_mut().unwrap().update(ctx);
                 }
             }
             SlotNodeState::ActiveDeinited(_) => {
                 panic!("`SlotNode` in `ActiveDeinited` state on update")
+            }
+            SlotNodeState::TakeOnInit(_) => {
+                panic!("`SlotNode` in `TakeOnInit` state on update")
             }
             SlotNodeState::Dropped => {}
         }
