@@ -1502,8 +1502,9 @@ impl<'a> std::hash::Hash for WidgetInfo<'a> {
 impl<'a> std::fmt::Debug for WidgetInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WidgetInfo")
-            .field("frame", &"<omitted>")
-            .field("node_id", &self.node_id)
+            .field("[frame_id]", &self.frame.frame_id.0)
+            .field("[path]", &self.path().to_string())
+            .field("[meta]", self.meta())
             .finish()
     }
 }
@@ -1811,14 +1812,16 @@ impl<'a> WidgetInfo<'a> {
 /// Widget tree filter result.
 ///
 /// This `enum` is used by the [`filter_descendants`](WidgetInfo::filter_descendants) method on [`WidgetInfo`]. See its documentation for more.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum DescendantFilter {
     /// Include the descendant and continue filtering its descendants.
     Include,
     /// Skip the descendant but continue filtering its descendants.
     Skip,
     /// Skip the descendant and its descendants.
-    SkipTree,
+    SkipAll,
+    /// Include the descendant but skips its descendants.
+    SkipDescendants,
 }
 
 /// An iterator that filters a widget tree.
@@ -1841,7 +1844,7 @@ impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescen
                 match (self.filter)(widget) {
                     DescendantFilter::Include => return Some(widget),
                     DescendantFilter::Skip => continue,
-                    DescendantFilter::SkipTree => {
+                    DescendantFilter::SkipAll => {
                         for edge in &mut self.traverse {
                             if let Edge::Close(node2) = edge {
                                 if node2 == node {
@@ -1850,6 +1853,16 @@ impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescen
                             }
                         }
                         continue;
+                    }
+                    DescendantFilter::SkipDescendants => {
+                        for edge in &mut self.traverse {
+                            if let Edge::Close(node2) = edge {
+                                if node2 == node {
+                                    break; // skip to close node.
+                                }
+                            }
+                        }
+                        return Some(widget);
                     }
                 }
             }

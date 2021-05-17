@@ -78,7 +78,7 @@ fn functions() -> impl Widget {
                         };
                     }, None);
                 };
-            }, 
+            },
             {
                 let detach_focused = RcNode::new_cyclic(|wk| {
                     button! {

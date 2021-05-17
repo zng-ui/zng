@@ -89,6 +89,7 @@ use crate::widget_base::WidgetEnabledExt;
 use crate::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
 use crate::WidgetId;
 use fnv::FnvHashMap;
+use std::fmt;
 use std::time::{Duration, Instant};
 
 event_args! {
@@ -276,7 +277,7 @@ state_key! {
 /// Widget tab navigation position within a focus scope.
 ///
 /// The index is zero based, zero first.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct TabIndex(pub u32);
 impl TabIndex {
     /// Widget is skipped during tab navigation.
@@ -304,6 +305,18 @@ impl TabIndex {
         self == Self::AUTO
     }
 
+    /// If is a custom index placed [before auto](Self::before_auto).
+    #[inline]
+    pub fn is_before_auto(self) -> bool {
+        self.0 < Self::AUTO.0
+    }
+
+    /// If is a custom index placed [after auto](Self::after_auto).
+    #[inline]
+    pub fn is_after_auto(self) -> bool {
+        self.0 > Self::AUTO.0
+    }
+
     /// Create a new tab index that is guaranteed to not be [`SKIP`](Self::SKIP).
     ///
     /// Returns `SKIP - 1` if `index` is `SKIP`.
@@ -328,6 +341,19 @@ impl TabIndex {
     #[inline]
     pub fn after_auto(index: u32) -> Self {
         Self::not_skip((Self::AUTO.0 + 1).saturating_add(index))
+    }
+}
+impl fmt::Debug for TabIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_auto() {
+            write!(f, "TabIndex::AUTO")
+        } else if self.is_skip() {
+            write!(f, "TabIndex::SKIP")
+        } else if self.is_after_auto() {
+            write!(f, "TabIndex::after_auto({})", self.0 - Self::AUTO.0 - 1)
+        } else {
+            write!(f, "TabIndex({})", self.0)
+        }
     }
 }
 impl Default for TabIndex {
@@ -1576,7 +1602,7 @@ impl<'a> WidgetFocusInfo<'a> {
             scope
                 .filter_descendants(|w| {
                     if w == skip {
-                        DescendantFilter::SkipTree
+                        DescendantFilter::SkipAll
                     } else {
                         DescendantFilter::Include
                     }
@@ -1653,6 +1679,8 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Iterator over all focusable widgets contained by this widget filtered by the `filter` closure.
+    ///
+    /// If `skip` returns `true` the widget and all its descendants are skipped.
     #[inline]
     pub fn filter_descendants(
         self,
@@ -1669,70 +1697,37 @@ impl<'a> WidgetFocusInfo<'a> {
             .map(|info| info.as_focus_info())
     }
 
-    fn descendants_skip_tab(self, ignore_skip: impl Fn(WidgetId) -> bool) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
-        self.filter_descendants(move |f| {
-            if f.focus_info().tab_index() == TabIndex::SKIP && !ignore_skip(f.info.widget_id()) {
-                DescendantFilter::SkipTree
+    /// Descendants sorted by TAB index.
+    ///
+    /// [`SKIP`](TabIndex::SKIP) focusable items and its descendants are not included.
+    #[inline]
+    pub fn tab_descendants(self) -> Vec<WidgetFocusInfo<'a>> {
+        self.filter_tab_descendants(|f| {
+            if f.focus_info().tab_index().is_skip() {
+                DescendantFilter::SkipAll
             } else {
                 DescendantFilter::Include
             }
         })
     }
 
-    /// Descendants sorted by TAB index.
-    ///
-    /// [`SKIP`](TabIndex::SKIP) items and its descendants are not included.
-    #[inline]
-    pub fn tab_descendants(self) -> Vec<WidgetFocusInfo<'a>> {
-        self.tab_descendants_ignore_skip(|_| false)
-    }
-
-    /// Like [`tab_descendants`](Self::tab_descendants) but you can suppress skipping some items.
-    pub fn tab_descendants_ignore_skip(self, ignore_skip: impl Fn(WidgetId) -> bool) -> Vec<WidgetFocusInfo<'a>> {
-        let mut vec: Vec<_> = self.descendants_skip_tab(ignore_skip).collect();
-
+    /// Like [`tab_descendants`](Self::tab_descendants) but you can customize what items are skipped.
+    pub fn filter_tab_descendants(self, filter: impl Fn(WidgetFocusInfo) -> DescendantFilter) -> Vec<WidgetFocusInfo<'a>> {
+        let mut vec: Vec<_> = self.filter_descendants(filter).collect();
         vec.sort_by_key(|f| f.focus_info().tab_index());
-
         vec
     }
 
     /// First descendant considering TAB index.
     #[inline]
     pub fn first_tab_descendant(self) -> Option<WidgetFocusInfo<'a>> {
-        let mut r = None;
-        let mut r_index = TabIndex::SKIP;
-
-        for d in self.descendants_skip_tab(|_| false) {
-            let ti = d.focus_info().tab_index();
-            if ti < r_index {
-                r = Some(d);
-                r_index = ti;
-            }
-        }
-
-        r
+        self.tab_descendants().first().copied()
     }
 
     /// Last descendant considering TAB index.
     #[inline]
     pub fn last_tab_descendant(self) -> Option<WidgetFocusInfo<'a>> {
-        let mut descendants = self.descendants_skip_tab(|_| false);
-
-        if let Some(d) = descendants.next() {
-            let mut r_index = d.focus_info().tab_index();
-            let mut r = Some(d);
-            for d in descendants {
-                let ti = d.focus_info().tab_index();
-
-                if ti >= r_index {
-                    r = Some(d);
-                    r_index = ti;
-                }
-            }
-            r
-        } else {
-            None
-        }
+        self.tab_descendants().last().copied()
     }
 
     /// Iterator over all focusable widgets in the same scope after this widget.
@@ -1754,36 +1749,27 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Next focusable in the same scope after this widget respecting the TAB index.
     ///
-    /// If `self` is `TabIndex::SKIP` or `skip_self` is set returns the next non-skip
-    /// focusable in the same scope after this widget.
+    /// If `self` is `TabIndex::SKIP`returns the next non-skip focusable in the same scope after this widget.
+    ///
+    /// If `skip_self` is `true`, does not include widgets inside `self`.
     ///
     /// If `self` is the last item in scope returns the sorted descendants of the parent scope.
     pub fn next_tab_focusable(self, skip_self: bool) -> Result<WidgetFocusInfo<'a>, Vec<WidgetFocusInfo<'a>>> {
         let self_index = self.focus_info().tab_index();
 
-        // TAB siblings in the scope, excluding `TabIndex::SKIP` branches, unless its our own branch.
-        let mut siblings = self
-            .scope_with_path()
-            .map(|(scope, path)| {
-                let ignored_skips: Vec<_> = path
-                    .into_iter()
-                    .filter(|w| w.focus_info().tab_index() == TabIndex::SKIP)
-                    .map(|w| w.info.widget_id())
-                    .collect();
+        // TAB siblings in the scope.
+        //  - If `skip_self` excludes our own branch and SKIP branches.
+        //  - If not `skip_self` includes our own branch even if it is SKIP but excludes all other SKIP branches.
+        let mut siblings = self.siblings_skip_self(skip_self);
 
-                scope.tab_descendants_ignore_skip(|i| ignored_skips.contains(&i))
-            })
-            .unwrap_or_default();
-
-        if self_index == TabIndex::SKIP || skip_self {
+        if self_index == TabIndex::SKIP {
             // TAB from skip, goes to next in widget tree.
-
-            while let Some(next) = self.info.next_sibling().map(|s| s.as_focus_info()) {
-                if next.focus_info().tab_index() != TabIndex::SKIP {
-                    return Ok(next);
-                }
-            }
-            return Err(siblings);
+            return self
+                .info
+                .next_siblings()
+                .map(|s| s.as_focus_info())
+                .find(|s| s.focus_info().tab_index() != TabIndex::SKIP)
+                .ok_or(siblings);
         }
 
         // binary search the same tab index gets any of the items with the same tab index.
@@ -1848,6 +1834,28 @@ impl<'a> WidgetFocusInfo<'a> {
             .and_then(move |s| s.descendants().take_while(move |f| f.info.widget_id() != self_id).last())
     }
 
+    fn siblings_skip_self(self, skip_self: bool) -> Vec<WidgetFocusInfo<'a>> {
+        self.scope_with_path()
+            .map(|(scope, path)| {
+                scope.filter_tab_descendants(|i| {
+                    if skip_self && i == self {
+                        // does not skip `self`, but skips all inside `self`
+                        DescendantFilter::SkipDescendants
+                    } else if i.focus_info().tab_index().is_skip() {
+                        // skip only if is not a parent of `self`
+                        if path.iter().all(|&p| p != i) {
+                            DescendantFilter::SkipAll
+                        } else {
+                            DescendantFilter::Include
+                        }
+                    } else {
+                        DescendantFilter::Include
+                    }
+                })
+            })
+            .unwrap_or_default()
+    }
+
     /// Previous focusable in the same scope before this widget respecting the TAB index.
     ///
     /// If `self` is `TabIndex::SKIP` or `skip_self` is set returns the previous non-skip
@@ -1857,28 +1865,16 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn prev_tab_focusable(self, skip_self: bool) -> Result<WidgetFocusInfo<'a>, Vec<WidgetFocusInfo<'a>>> {
         let self_index = self.focus_info().tab_index();
 
-        // TAB siblings in the scope, excluding `TabIndex::SKIP` branches, unless its our own branch.
-        let mut siblings = self
-            .scope_with_path()
-            .map(|(scope, path)| {
-                let ignored_skips: Vec<_> = path
-                    .into_iter()
-                    .filter(|w| w.focus_info().tab_index() == TabIndex::SKIP)
-                    .map(|w| w.info.widget_id())
-                    .collect();
+        let mut siblings = self.siblings_skip_self(skip_self);
 
-                scope.tab_descendants_ignore_skip(|i| ignored_skips.contains(&i))
-            })
-            .unwrap_or_default();
-
-        if self_index == TabIndex::SKIP || skip_self {
+        if self_index == TabIndex::SKIP {
             // TAB from skip, goes to prev in widget tree.
-            while let Some(prev) = self.info.prev_sibling().map(|s| s.as_focus_info()) {
-                if prev.focus_info().tab_index() != TabIndex::SKIP {
-                    return Ok(prev);
-                }
-            }
-            return Err(siblings);
+            return self
+                .info
+                .prev_siblings()
+                .map(|s| s.as_focus_info())
+                .find(|s| s.focus_info().tab_index() != TabIndex::SKIP)
+                .ok_or(siblings);
         }
 
         // binary search the same tab index gets any of the items with the same tab index.
@@ -1987,7 +1983,7 @@ impl<'a> WidgetFocusInfo<'a> {
     fn descendants_skip_directional(self, also_skip: Option<WidgetFocusInfo<'a>>) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.filter_descendants(move |f| {
             if also_skip == Some(f) || f.focus_info().skip_directional() {
-                DescendantFilter::SkipTree
+                DescendantFilter::SkipAll
             } else {
                 DescendantFilter::Include
             }

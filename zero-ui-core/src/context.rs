@@ -207,9 +207,13 @@ use crate::{var::VarsRead, window::WindowMode};
 ///
 /// Note that there is no way to clear the map, remove a key or replace the map with a new empty one.
 /// This is by design, if you want to make a key *removable* make its value `Option<T>`.
-#[derive(Debug)]
 pub struct StateMap {
     map: AnyMap,
+}
+impl fmt::Debug for StateMap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "StateMap[{} entries]", self.map.len())
+    }
 }
 impl StateMap {
     fn new() -> Self {

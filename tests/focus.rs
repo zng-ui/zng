@@ -884,6 +884,24 @@ pub fn tab_inner_scope_none() {
 }
 
 #[test]
+pub fn tab_inner_scope_continue_to_non_focusable_siblings_focusable_child() {
+    let btn1 = WidgetId::new_unique();
+    let btn2 = WidgetId::new_unique();
+    let mut app = TestApp::new(h_stack(widgets![
+        v_stack! {
+            focus_scope = true;
+            tab_nav = TabNav::Continue;
+            items = widgets![button! { id = btn1; content = text("Btn 1"); }];
+        },
+        v_stack(widgets![button! { id = btn2; content = text("Btn 2"); }])
+    ]));
+
+    assert_eq!(Some(btn1), app.focused());
+    app.press_tab();
+    assert_eq!(Some(btn2), app.focused());
+}
+
+#[test]
 pub fn dont_focus_alt_when_alt_pressed_before_focusing_window() {
     let start_focus_id = WidgetId::new_unique();
     let buttons = widgets![
