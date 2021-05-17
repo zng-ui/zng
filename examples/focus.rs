@@ -40,9 +40,8 @@ fn alt_scope() -> impl Widget {
 
 fn tab_index() -> impl Widget {
     v_stack! {
-        focus_scope = true;
-        focus_shortcut = shortcut!(T);
         spacing = 5;
+        focus_shortcut = shortcut!(T);
         items = widgets![
             title("TabIndex (T)"),
             button("Button A5", TabIndex(5)),
@@ -79,7 +78,8 @@ fn functions() -> impl Widget {
                         };
                     }, None);
                 };
-            }, {
+            }, 
+            {
                 let detach_focused = RcNode::new_cyclic(|wk| {
                     button! {
                         content = text("Detach Button");
