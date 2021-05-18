@@ -7,7 +7,7 @@
 //! # Keyboard Focus
 //!
 //! In a given program only a single widget can receive keyboard input at a time, this widget has the *keyboard focus*.
-//! This is an extension of the operating system own focus manager that controls which window is *active*, receiving
+//! This is an extension of the operating system own focus manager that controls which window is *focused*, receiving
 //! keyboard input.
 //!
 //! You can track the focused widget by listening to the [`FocusChangedEvent`] event or by calling [`focused`](Focus::focused)
@@ -86,7 +86,7 @@ use crate::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::service::Service;
 use crate::units::LayoutPoint;
 use crate::widget_base::WidgetEnabledExt;
-use crate::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
+use crate::window::{WindowFocusChangedEvent, WindowId, WindowIsFocusedArgs, Windows};
 use crate::WidgetId;
 use fnv::FnvHashMap;
 use std::fmt;
@@ -439,7 +439,7 @@ event! {
 /// # Dependencies
 ///
 /// This extension requires the [`MouseDownEvent`],
-/// [`ShortcutEvent`] and [`WindowIsActiveChangedEvent`]
+/// [`ShortcutEvent`] and [`WindowFocusChangedEvent`]
 ///  events during initialization to function.
 ///
 /// # About Focus
@@ -449,7 +449,7 @@ event! {
 pub struct FocusManager {
     focus_changed: EventEmitter<FocusChangedArgs>,
     return_focus_changed: EventEmitter<ReturnFocusChangedArgs>,
-    windows_activation: EventListener<WindowIsActiveArgs>,
+    windows_focus: EventListener<WindowIsFocusedArgs>,
     mouse_down: EventListener<MouseInputArgs>,
     shortcut: EventListener<ShortcutArgs>,
     focused: Option<WidgetPath>,
@@ -460,7 +460,7 @@ impl Default for FocusManager {
         Self {
             focus_changed: FocusChangedEvent::emitter(),
             return_focus_changed: ReturnFocusChangedEvent::emitter(),
-            windows_activation: WindowIsActiveChangedEvent::never(),
+            windows_focus: WindowFocusChangedEvent::never(),
             mouse_down: MouseDownEvent::never(),
             shortcut: ShortcutEvent::never(),
             focused: None,
@@ -470,7 +470,7 @@ impl Default for FocusManager {
 }
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
-        self.windows_activation = ctx.events.listen::<WindowIsActiveChangedEvent>();
+        self.windows_focus = ctx.events.listen::<WindowFocusChangedEvent>();
         self.mouse_down = ctx.events.listen::<MouseDownEvent>();
         self.shortcut = ctx.events.listen::<ShortcutEvent>();
 
@@ -518,12 +518,12 @@ impl AppExtension for FocusManager {
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             self.notify(focus.fulfill_request(request, windows), focus, windows, ctx.events);
-        } else if self.windows_activation.has_updates(ctx.events) {
+        } else if self.windows_focus.has_updates(ctx.events) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             if let Some(mut args) = focus.continue_focus(windows) {
                 if !args.highlight && args.new_focus.is_some() && (Instant::now() - self.last_keyboard_event) < Duration::from_millis(300) {
-                    // window probably activated using keyboard.
+                    // window probably focused using keyboard.
                     args.highlight = true;
                     focus.is_highlighting = true;
                 }
@@ -531,7 +531,7 @@ impl AppExtension for FocusManager {
                 // TODO alt scope focused just before ALT+TAB clears the focus.
             }
 
-            for close in self.windows_activation.updates(ctx.events).iter().filter(|a| a.closed) {
+            for close in self.windows_focus.updates(ctx.events).iter().filter(|a| a.closed) {
                 for args in focus.cleanup_returns_win_closed(close.window_id) {
                     self.return_focus_changed.notify(ctx.events, args);
                 }
@@ -875,7 +875,7 @@ impl Focus {
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Ok(window) = windows.window(focused.window_id()) {
-                if window.is_active() {
+                if window.is_focused() {
                     if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
                         if widget.is_focusable() {
                             // :-) probably in the same place, maybe moved inside same window.
@@ -895,7 +895,7 @@ impl Focus {
                         self.continue_focus_moved_widget(windows)
                     }
                 } else {
-                    // window not active anymore
+                    // window not focused anymore
                     self.continue_focus_moved_widget(windows)
                 }
             } else {
@@ -904,7 +904,7 @@ impl Focus {
             }
         } else {
             // no previous focus
-            self.focus_active_window(windows, false)
+            self.focus_focused_window(windows, false)
         }
     }
 
@@ -914,7 +914,7 @@ impl Focus {
         for window in windows.windows() {
             if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
                 // found the widget in another window
-                if window.is_active() {
+                if window.is_focused() {
                     return if widget.is_focusable() {
                         // same widget, moved to another window
                         self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
@@ -932,8 +932,8 @@ impl Focus {
                 break;
             }
         }
-        // did not find the widget in a focusable context, was removed or is inside an inactive window.
-        self.focus_active_window(windows, self.is_highlighting)
+        // did not find the widget in a focusable context, was removed or is inside a not focused window.
+        self.focus_focused_window(windows, self.is_highlighting)
     }
 
     #[must_use]
@@ -1002,19 +1002,19 @@ impl Focus {
     }
 
     #[must_use]
-    fn focus_active_window(&mut self, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
-        if let Some(active) = windows.windows().iter().find(|w| w.is_active()) {
-            let frame = FrameFocusInfo::new(active.frame_info());
+    fn focus_focused_window(&mut self, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
+        if let Some(focused) = windows.windows().iter().find(|w| w.is_focused()) {
+            let frame = FrameFocusInfo::new(focused.frame_info());
             let root = frame.root();
             if root.is_focusable() {
-                // found active window and it is focusable.
+                // found focused window and it is focusable.
                 self.move_focus(Some(root.info.path()), highlight, FocusChangedCause::Recovery)
             } else {
-                // has active window but it is not focusable
+                // has focused window but it is not focusable
                 self.move_focus(None, false, FocusChangedCause::Recovery)
             }
         } else {
-            // no active window
+            // no focused window
             self.move_focus(None, false, FocusChangedCause::Recovery)
         }
     }

@@ -24,7 +24,7 @@ pub fn first_and_last_window_events() {
     let events = app.take_focus_changed();
     assert_eq!(2, events.len());
 
-    // "recover" focus to the active window root.
+    // "recover" focus to the focused window root.
     assert!(events[0].prev_focus.is_none());
     assert_eq!(Some(root_path.clone()), events[0].new_focus);
     assert_eq!(FocusChangedCause::Recovery, events[0].cause);
@@ -929,7 +929,7 @@ pub fn dont_focus_alt_when_alt_pressed_before_focusing_window() {
 }
 
 #[test]
-pub fn window_deactivate_activate() {
+pub fn window_blur_focus() {
     let expected_id = WidgetId::new_unique();
     let buttons = widgets![
         button! { content = text("Button 0"); },
@@ -948,17 +948,17 @@ pub fn window_deactivate_activate() {
     app.press_tab();
     assert_eq!(Some(expected_id), app.focused());
 
-    app.deactivate_window();
+    app.blur_window();
     assert_eq!(None, app.focused());
-    app.activate_window();
+    app.focus_window();
     assert_eq!(Some(expected_id), app.focused());
 
     app.press_alt();
     assert_ne!(Some(expected_id), app.focused());
 
-    app.deactivate_window();
+    app.blur_window();
     assert_eq!(None, app.focused());
-    app.activate_window();
+    app.focus_window();
     assert_eq!(Some(expected_id), app.focused());
 }
 
@@ -1335,11 +1335,11 @@ impl TestApp {
         self.app.update();
     }
 
-    pub fn activate_window(&mut self) {
-        self.app.activate_window(self.window_id)
+    pub fn focus_window(&mut self) {
+        self.app.focus_window(self.window_id)
     }
 
-    pub fn deactivate_window(&mut self) {
-        self.app.deactivate_window(self.window_id)
+    pub fn blur_window(&mut self) {
+        self.app.blur_window(self.window_id)
     }
 }

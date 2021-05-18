@@ -98,7 +98,7 @@ pub mod window {
         /// Windows cycle arrow navigation by default.
         directional_nav = DirectionalNav::Cycle;
 
-        /// Windows remember the last focused widget and return focus when activated again.
+        /// Windows remember the last focused widget and return focus when the window is focused.
         focus_scope_behavior = FocusScopeOnFocus::LastFocused;
 
         /// Test inspector.

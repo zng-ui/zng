@@ -755,7 +755,7 @@ impl MouseManager {
         self.hover_enter_args = Some(args);
     }
 
-    fn on_window_deactivated(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+    fn on_window_blur(&mut self, window_id: WindowId, ctx: &mut AppContext) {
         self.release_window_capture(window_id, ctx);
     }
 
@@ -798,7 +798,7 @@ impl AppExtension for MouseManager {
             } => self.on_mouse_input(window_id, device_id, state, button, ctx),
             WindowEvent::ModifiersChanged(m) => self.modifiers = m,
             WindowEvent::CursorLeft { device_id } => self.on_cursor_left(window_id, device_id, ctx),
-            WindowEvent::Focused(false) => self.on_window_deactivated(window_id, ctx),
+            WindowEvent::Focused(false) => self.on_window_blur(window_id, ctx),
             WindowEvent::Destroyed => self.on_window_closed(window_id, ctx),
             _ => {}
         }
@@ -1000,7 +1000,7 @@ impl Mouse {
         if let Some((current_target, current_mode)) = &self.current_capture {
             if let Some((widget_id, mode)) = self.capture_request.take() {
                 if let Ok(window) = windows.window(current_target.window_id()) {
-                    if window.is_active() {
+                    if window.is_focused() {
                         // current window pressed
                         if let Some(widget) = window.frame_info().find(widget_id) {
                             // request valid

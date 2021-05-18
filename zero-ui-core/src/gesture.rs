@@ -137,7 +137,7 @@ impl From<MouseClickArgs> for ClickArgs {
 impl ClickArgs {
     /// If the event counts as *primary* click.
     ///
-    /// A primary click causes the default widget activation interaction.
+    /// A primary click causes the default widget function interaction.
     ///
     /// Returns `true` if the click source is a left mouse button click or a
     /// [primary click shortcut](Gestures::click_focused).
@@ -725,9 +725,9 @@ impl AppExtension for GestureManager {
         // Generate click event for special shortcut.
         for (window_id, widget_id, kind, args) in gestures.click_shortcut.drain(..) {
             if let Ok(window) = windows.window(window_id) {
-                if window.is_active() {
+                if window.is_focused() {
                     if let Some(widget) = window.frame_info().find(widget_id) {
-                        // click target exists, in active window.
+                        // click target exists, in focused window.
                         self.click.notify(
                             ctx.events,
                             ClickArgs::now(

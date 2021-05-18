@@ -6,7 +6,7 @@ use zero_ui_core::widget_base::{IsHitTestable, WidgetHitTestableExt};
 
 use crate::core::mouse::*;
 use crate::core::sync::TimeElapsed;
-use crate::core::window::{WindowDeactivatedEvent, WindowIsActiveArgs};
+use crate::core::window::{WindowBlurEvent, WindowIsFocusedArgs};
 use crate::prelude::new_property::*;
 
 /// If the mouse pointer is over the widget.
@@ -169,7 +169,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         click: EventListener<ClickArgs>,
         mouse_leave: EventListener<MouseHoverArgs>,
         mouse_enter: EventListener<MouseHoverArgs>,
-        window_deactivated: EventListener<WindowIsActiveArgs>,
+        window_blur: EventListener<WindowIsFocusedArgs>,
         shortcut_release: EventListener<TimeElapsed>,
     }
     #[impl_ui_node(child)]
@@ -180,7 +180,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.click = ctx.events.listen::<ClickEvent>();
             self.mouse_enter = ctx.events.listen::<MouseEnterEvent>();
             self.mouse_leave = ctx.events.listen::<MouseLeaveEvent>();
-            self.window_deactivated = ctx.events.listen::<WindowDeactivatedEvent>();
+            self.window_blur = ctx.events.listen::<WindowBlurEvent>();
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -194,7 +194,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.click = ClickEvent::never();
             self.mouse_enter = MouseEnterEvent::never();
             self.mouse_leave = MouseLeaveEvent::never();
-            self.window_deactivated = WindowDeactivatedEvent::never();
+            self.window_blur = WindowBlurEvent::never();
             self.shortcut_release = EventListener::response_never();
             self.child.deinit(ctx);
         }
@@ -223,7 +223,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
                     self.is_over = true;
                 }
-                if self.window_deactivated.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                if self.window_blur.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
                     self.is_down = false;
                 }
 
@@ -269,7 +269,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         click: ClickEvent::never(),
         mouse_enter: MouseEnterEvent::never(),
         mouse_leave: MouseLeaveEvent::never(),
-        window_deactivated: WindowDeactivatedEvent::never(),
+        window_blur: WindowBlurEvent::never(),
         shortcut_release: EventListener::response_never(),
     }
 }
@@ -290,7 +290,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         mouse_input: EventListener<MouseInputArgs>,
         click: EventListener<ClickArgs>,
         mouse_captured: EventListener<MouseCaptureArgs>,
-        window_deactivate: EventListener<WindowIsActiveArgs>,
+        window_blur: EventListener<WindowIsFocusedArgs>,
         shortcut_release: EventListener<TimeElapsed>,
     }
     #[impl_ui_node(child)]
@@ -300,7 +300,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.mouse_input = ctx.events.listen::<MouseInputEvent>();
             self.click = ctx.events.listen::<ClickEvent>();
             self.mouse_captured = ctx.events.listen::<MouseCaptureEvent>();
-            self.window_deactivate = ctx.events.listen::<WindowDeactivatedEvent>();
+            self.window_blur = ctx.events.listen::<WindowBlurEvent>();
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -313,7 +313,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.mouse_input = MouseInputEvent::never();
             self.click = ClickEvent::never();
             self.mouse_captured = MouseCaptureEvent::never();
-            self.window_deactivate = WindowDeactivatedEvent::never();
+            self.window_blur = WindowBlurEvent::never();
             self.shortcut_release = EventListener::response_never();
             self.child.deinit(ctx);
         }
@@ -341,7 +341,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                         self.is_captured = a.is_got(ctx.path.widget_id());
                     }
                 }
-                if self.window_deactivate.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                if self.window_blur.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
                     self.is_down = false;
                 }
 
@@ -386,7 +386,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         mouse_input: MouseInputEvent::never(),
         click: ClickEvent::never(),
         mouse_captured: MouseCaptureEvent::never(),
-        window_deactivate: WindowDeactivatedEvent::never(),
+        window_blur: WindowBlurEvent::never(),
         shortcut_release: EventListener::response_never(),
     }
 }

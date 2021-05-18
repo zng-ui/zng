@@ -110,7 +110,7 @@ event_property! {
 /// Keyboard shortcuts that focus and clicks this widget.
 ///
 /// When any of the `shortcuts` is pressed, focus and click this widget. The widget is only focused
-/// if the parent window is active and the widget is focusable.
+/// if the parent window is focused and the widget is focusable.
 #[property(context)]
 pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
@@ -123,7 +123,7 @@ pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 /// Keyboard shortcuts that focus and [context clicks](fn@on_context_click) this widget.
 ///
 /// When any of the `shortcuts` is pressed, focus and context clicks this widget. The widget is only focused
-/// if the parent window is active and the widget is focusable.
+/// if the parent window is focused and the widget is focusable.
 #[property(context)]
 pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
@@ -159,7 +159,7 @@ impl<C: UiNode, S: Var<Shortcuts>> UiNode for ClickShortcutNode<C, S> {
 
             for args in self.shortcut_listener.updates(ctx.events) {
                 if !args.stop_propagation_requested() && shortcuts.0.contains(&args.shortcut) {
-                    // this request also focus the widget if the window is active
+                    // this request also focus the widget if the window is focused
                     // and the widget is focusable.
                     ctx.services
                         .req::<Gestures>()

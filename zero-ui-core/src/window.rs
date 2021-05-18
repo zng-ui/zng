@@ -140,9 +140,9 @@ pub trait HeadlessAppWindowExt {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId;
 
     /// Cause the headless window to think it is focused in the screen.
-    fn activate_window(&mut self, window_id: WindowId);
+    fn focus_window(&mut self, window_id: WindowId);
     /// Cause the headless window to think focus moved away from it.
-    fn deactivate_window(&mut self, window_id: WindowId);
+    fn blur_window(&mut self, window_id: WindowId);
 
     /// Sleeps until the window frame is rendered, then returns the frame pixels.
     fn wait_frame(&mut self, window_id: WindowId) -> FramePixels;
@@ -161,18 +161,18 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         });
         let window_id = window_id.expect("window did not open");
 
-        self.activate_window(window_id);
+        self.focus_window(window_id);
 
         window_id
     }
 
-    fn activate_window(&mut self, window_id: WindowId) {
+    fn focus_window(&mut self, window_id: WindowId) {
         let event = WindowEvent::Focused(true);
         self.on_window_event(window_id, &event);
         self.update();
     }
 
-    fn deactivate_window(&mut self, window_id: WindowId) {
+    fn blur_window(&mut self, window_id: WindowId) {
         let event = WindowEvent::Focused(false);
         self.on_window_event(window_id, &event);
         self.update();
@@ -242,15 +242,15 @@ event_args! {
         }
     }
 
-    /// [`WindowIsActiveChangedEvent`], [`WindowActivatedEvent`], [`WindowDeactivatedEvent`] args.
-    pub struct WindowIsActiveArgs {
-        /// Id of window that was activated or deactivated.
+    /// [`WindowFocusChangedEvent`], [`WindowFocusedEvent`], [`WindowBlurEvent`] args.
+    pub struct WindowIsFocusedArgs {
+        /// Id of window that got or lost keyboard focus.
         pub window_id: WindowId,
 
-        /// If the window was activated in this event.
-        pub activated: bool,
+        /// `true` if the window got focus, `false` if the window lost focus (blur).
+        pub focused: bool,
 
-        /// If the window was deactivated because it closed.
+        /// If the window was lost focus because it closed.
         pub closed: bool,
 
         ..
@@ -336,14 +336,14 @@ event! {
     /// New window event.
     pub WindowOpenEvent: WindowEventArgs;
 
-    /// Window activated/deactivated event.
-    pub WindowIsActiveChangedEvent: WindowIsActiveArgs;
+    /// Window focus/blur event.
+    pub WindowFocusChangedEvent: WindowIsFocusedArgs;
 
-    /// Window activated event.
-    pub WindowActivatedEvent: WindowIsActiveArgs;
+    /// Window got keyboard focus event.
+    pub WindowFocusEvent: WindowIsFocusedArgs;
 
-    /// Window deactivated event.
-    pub WindowDeactivatedEvent: WindowIsActiveArgs;
+    /// Window lost keyboard event.
+    pub WindowBlurEvent: WindowIsFocusedArgs;
 
     /// Window scale factor changed.
     pub WindowScaleChangedEvent: WindowScaleChangedArgs;
@@ -362,9 +362,9 @@ event! {
 /// Events this extension provides:
 ///
 /// * [WindowOpenEvent]
-/// * [WindowIsActiveChangedEvent]
-/// * [WindowActivatedEvent]
-/// * [WindowDeactivatedEvent]
+/// * [WindowFocusChangedEvent]
+/// * [WindowFocusEvent]
+/// * [WindowBlueEvent]
 /// * [WindowResizeEvent]
 /// * [WindowMoveEvent]
 /// * [WindowScaleChangedEvent]
@@ -380,9 +380,9 @@ pub struct WindowManager {
     event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
     window_open: EventEmitter<WindowEventArgs>,
-    window_is_active_changed: EventEmitter<WindowIsActiveArgs>,
-    window_activated: EventEmitter<WindowIsActiveArgs>,
-    window_deactivated: EventEmitter<WindowIsActiveArgs>,
+    window_focus_changed: EventEmitter<WindowIsFocusedArgs>,
+    window_focus: EventEmitter<WindowIsFocusedArgs>,
+    window_blur: EventEmitter<WindowIsFocusedArgs>,
     window_resize: EventEmitter<WindowResizeArgs>,
     window_move: EventEmitter<WindowMoveArgs>,
     window_scale_changed: EventEmitter<WindowScaleChangedArgs>,
@@ -407,9 +407,9 @@ impl Default for WindowManager {
             event_loop_proxy: None,
             ui_threads,
             window_open: WindowOpenEvent::emitter(),
-            window_is_active_changed: WindowIsActiveChangedEvent::emitter(),
-            window_activated: WindowActivatedEvent::emitter(),
-            window_deactivated: WindowDeactivatedEvent::emitter(),
+            window_focus_changed: WindowFocusChangedEvent::emitter(),
+            window_focus: WindowFocusEvent::emitter(),
+            window_blur: WindowBlurEvent::emitter(),
             window_resize: WindowResizeEvent::emitter(),
             window_move: WindowMoveEvent::emitter(),
             window_scale_changed: WindowScaleChangedEvent::emitter(),
@@ -425,10 +425,9 @@ impl AppExtension for WindowManager {
         r.services.register(Windows::new(r.updates.notifier().clone()));
 
         r.events.register::<WindowOpenEvent>(self.window_open.listener());
-        r.events
-            .register::<WindowIsActiveChangedEvent>(self.window_is_active_changed.listener());
-        r.events.register::<WindowActivatedEvent>(self.window_activated.listener());
-        r.events.register::<WindowDeactivatedEvent>(self.window_deactivated.listener());
+        r.events.register::<WindowFocusChangedEvent>(self.window_focus_changed.listener());
+        r.events.register::<WindowFocusEvent>(self.window_focus.listener());
+        r.events.register::<WindowBlurEvent>(self.window_blur.listener());
         r.events.register::<WindowResizeEvent>(self.window_resize.listener());
         r.events.register::<WindowMoveEvent>(self.window_move.listener());
         r.events.register::<WindowScaleChangedEvent>(self.window_scale_changed.listener());
@@ -440,10 +439,10 @@ impl AppExtension for WindowManager {
         match event {
             WindowEvent::Focused(focused) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
-                    window.is_active = *focused;
+                    window.is_focused = *focused;
 
-                    let args = WindowIsActiveArgs::now(window_id, window.is_active, false);
-                    self.notify_activation(args, ctx.events);
+                    let args = WindowIsFocusedArgs::now(window_id, window.is_focused, false);
+                    self.notify_focus(args, ctx.events);
                 }
             }
             WindowEvent::Resized(_) => {
@@ -710,9 +709,9 @@ impl WindowManager {
             };
             if let Some(w) = window {
                 w.context.clone().borrow_mut().deinit(ctx);
-                if w.is_active {
-                    let args = WindowIsActiveArgs::now(w.id, false, true);
-                    self.notify_activation(args, ctx.events);
+                if w.is_focused {
+                    let args = WindowIsFocusedArgs::now(w.id, false, true);
+                    self.notify_focus(args, ctx.events);
                 }
             }
         }
@@ -723,15 +722,11 @@ impl WindowManager {
         }
     }
 
-    fn notify_activation(&self, args: WindowIsActiveArgs, events: &Events) {
-        debug_assert!(!args.closed || (args.closed && !args.activated));
+    fn notify_focus(&self, args: WindowIsFocusedArgs, events: &Events) {
+        debug_assert!(!args.closed || (args.closed && !args.focused));
 
-        self.window_is_active_changed.notify(events, args.clone());
-        let specif_event = if args.activated {
-            &self.window_activated
-        } else {
-            &self.window_deactivated
-        };
+        self.window_focus_changed.notify(events, args.clone());
+        let specif_event = if args.focused { &self.window_focus } else { &self.window_blur };
         specif_event.notify(events, args);
     }
 }
@@ -1564,9 +1559,9 @@ impl_from_and_into_var! {
 pub enum StartPosition {
     /// Uses the value of the `position` property.
     Default,
-    /// Centralizes the window in relation to the active screen.
+    /// Centralizes the window in the monitor screen.
     CenterScreen,
-    /// Centralizes the window in relation to the parent window.
+    /// Centralizes the window the parent window.
     CenterParent,
 }
 impl Default for StartPosition {
@@ -1654,7 +1649,7 @@ pub struct OpenWindow {
     min_size: LayoutSize,
     max_size: LayoutSize,
 
-    is_active: bool,
+    is_focused: bool,
 
     #[cfg(windows)]
     subclass_id: std::cell::Cell<usize>,
@@ -1810,7 +1805,7 @@ impl OpenWindow {
             init_state: WindowInitState::New,
             min_size: LayoutSize::new(192.0, 48.0),
             max_size: LayoutSize::new(f32::INFINITY, f32::INFINITY),
-            is_active: true,
+            is_focused: true,
             frame_info,
             renderless_event_sender,
 
@@ -1855,10 +1850,10 @@ impl OpenWindow {
         &self.vars
     }
 
-    /// If the window is the foreground window.
+    /// If the window has the keyboard focus.
     #[inline]
-    pub fn is_active(&self) -> bool {
-        self.is_active
+    pub fn is_focused(&self) -> bool {
+        self.is_focused
     }
 
     /// Position of the window.
