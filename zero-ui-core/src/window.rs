@@ -161,12 +161,22 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         });
         let window_id = window_id.expect("window did not open");
 
+        self.do_app_events(false);
         self.focus_window(window_id);
 
         window_id
     }
 
     fn focus_window(&mut self, window_id: WindowId) {
+        let focused = self.with_context(|ctx| {
+            ctx.services.req::<Windows>().windows().iter().find(|w| w.is_focused()).map(|w| w.id())
+        });
+
+        if let Some(focused) = focused {
+            // blur_window
+            let event = WindowEvent::Focused(false);
+            self.on_window_event(focused, &event);
+        }
         let event = WindowEvent::Focused(true);
         self.on_window_event(window_id, &event);
         self.update();

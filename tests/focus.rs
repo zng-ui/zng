@@ -1170,7 +1170,8 @@ pub fn focus_continued_after_widget_move_to_other_window() {
 #[test]
 pub fn focus_moves_to_new_window() {
     let main_id = WidgetId::new_unique();
-    let new_id = WidgetId::new_unique();
+    let win2_id = WidgetId::new_unique();
+    let win3_id = WidgetId::new_unique();
 
     let mut app = TestApp::new(button! {
         id = main_id;
@@ -1179,10 +1180,16 @@ pub fn focus_moves_to_new_window() {
     assert_eq!(Some(main_id), app.focused());
 
     app.open_window(button! {
-        id = new_id;
-        content = text("Button in new window");
+        id = win2_id;
+        content = text("Button in second window");
     });
-    assert_eq!(Some(new_id), app.focused());
+    assert_eq!(Some(win2_id), app.focused());
+
+    app.open_window(button! {
+        id = win3_id;
+        content = text("Button in third window");
+    });
+    assert_eq!(Some(win3_id), app.focused());
 }
 
 #[test]
