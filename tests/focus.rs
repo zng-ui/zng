@@ -1157,14 +1157,18 @@ pub fn focus_continued_after_widget_move_to_other_window() {
         content = text("Click Me!");
     });
 
-    let mut app = TestApp::new(container! { content = button.slot(take_on_init()) });
+    let mut app = TestApp::new(slot(button.clone(), take_on_init()));
     assert_eq!(Some(id), app.focused());
     app.take_focus_changed();
 
-    app.open_window(button.slot(take_on_init()));
+    app.open_window(v_stack(widgets![
+        button! { content = text("Other Button") },
+        slot(button, take_on_init())
+    ]));
     assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();
     assert_eq!(1, evs.len());
+    assert!(evs[0].is_widget_move());
 }
 
 #[test]
@@ -1255,9 +1259,8 @@ impl TestApp {
         self.app.with_context(|ctx| {
             set(ctx.vars);
         });
-        self.app.update();
-        self.app.do_app_events(false);
-        self.app.update();
+        self.app.update(false); // notify vars.
+        self.app.update(false); // respond to new frame.
     }
 
     pub fn set_shutdown_on_last_close(&mut self, shutdown: bool) {
@@ -1278,8 +1281,7 @@ impl TestApp {
                 content
             }
         });
-        self.app.do_app_events(false);
-        self.app.update();
+        self.app.update(false);
         id
     }
 
@@ -1321,25 +1323,25 @@ impl TestApp {
 
     pub fn just_release_alt(&mut self) {
         self.app.on_keyboard_input(self.window_id, Key::LAlt, ElementState::Released);
-        self.app.update();
+        self.app.update(false);
     }
 
     pub fn focus(&mut self, widget_id: WidgetId) {
         self.app
             .with_context(|ctx| ctx.services.req::<Focus>().focus_widget(widget_id, true));
-        self.app.update();
+        self.app.update(false);
     }
 
     pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
         self.app
             .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_exit(widget_id, true));
-        self.app.update();
+        self.app.update(false);
     }
 
     pub fn focus_or_child(&mut self, widget_id: WidgetId) {
         self.app
             .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_enter(widget_id, true));
-        self.app.update();
+        self.app.update(false);
     }
 
     pub fn focus_window(&mut self) {

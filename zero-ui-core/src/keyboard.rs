@@ -791,7 +791,7 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
     fn press_key(&mut self, window_id: WindowId, key: Key) {
         self.on_keyboard_input(window_id, key, ElementState::Pressed);
         self.on_keyboard_input(window_id, key, ElementState::Released);
-        self.update();
+        self.update(false);
     }
 
     fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, key: Key) {
@@ -813,13 +813,13 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
             self.on_modifiers_changed(window_id, modifiers);
 
             // pressed the modifiers.
-            self.update();
+            self.update(false);
 
             self.on_keyboard_input(window_id, key, ElementState::Pressed);
             self.on_keyboard_input(window_id, key, ElementState::Released);
 
             // pressed the key.
-            self.update();
+            self.update(false);
 
             self.on_modifiers_changed(window_id, ModifiersState::default());
             if modifiers.logo() {
@@ -836,7 +836,7 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
             }
 
             // released the modifiers.
-            self.update();
+            self.update(false);
         }
     }
 }

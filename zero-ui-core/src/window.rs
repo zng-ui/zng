@@ -9,7 +9,7 @@ use crate::{
     text::{Text, ToText},
     units::*,
     var::{var, RcVar, VarsRead},
-    UiNode, WidgetId, LAYOUT_ANY_SIZE,
+    UiNode, WidgetId,
 };
 
 use app::AppEvent;
@@ -144,7 +144,10 @@ pub trait HeadlessAppWindowExt {
     /// Cause the headless window to think focus moved away from it.
     fn blur_window(&mut self, window_id: WindowId);
 
-    /// Sleeps until the window frame is rendered, then returns the frame pixels.
+    /// Copy the current frame pixels of the window.
+    fn screenshot(&mut self, window_id: WindowId) -> FramePixels;
+
+    /// Sleeps until the next window frame is rendered, then returns the frame pixels.
     fn wait_frame(&mut self, window_id: WindowId) -> FramePixels;
 
     /// Sends a close request, returns if the window was found and closed.
@@ -154,14 +157,18 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
         let listener = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window, None));
         let mut window_id = None;
-        self.update_observed(|_, ctx| {
-            if let Some(opened) = listener.updates(ctx.events).first() {
-                window_id = Some(opened.window_id);
-            }
-        });
-        let window_id = window_id.expect("window did not open");
+        while window_id.is_none() {
+            self.update_observe(
+                |_, ctx| {
+                    if let Some(opened) = listener.updates(ctx.events).first() {
+                        window_id = Some(opened.window_id);
+                    }
+                },
+                true,
+            );
+        }
+        let window_id = window_id.unwrap();
 
-        self.do_app_events(false);
         self.focus_window(window_id);
 
         window_id
@@ -169,7 +176,12 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
 
     fn focus_window(&mut self, window_id: WindowId) {
         let focused = self.with_context(|ctx| {
-            ctx.services.req::<Windows>().windows().iter().find(|w| w.is_focused()).map(|w| w.id())
+            ctx.services
+                .req::<Windows>()
+                .windows()
+                .iter()
+                .find(|w| w.is_focused())
+                .map(|w| w.id())
         });
 
         if let Some(focused) = focused {
@@ -179,25 +191,38 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         }
         let event = WindowEvent::Focused(true);
         self.on_window_event(window_id, &event);
-        self.update();
+        self.update(false);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
         let event = WindowEvent::Focused(false);
         self.on_window_event(window_id, &event);
-        self.update();
+        self.update(false);
     }
 
     fn wait_frame(&mut self, window_id: WindowId) -> FramePixels {
-        'wait: loop {
-            for event in self.do_app_events(true) {
-                if let AppEvent::NewFrameReady(id) = event {
+        let mut pixels = None;
+        while pixels.is_none() {
+            self.update_observe_frame(
+                |id, ctx| {
                     if id == window_id {
-                        break 'wait;
+                        let pxs = ctx
+                            .services
+                            .req::<Windows>()
+                            .window(window_id)
+                            .expect("window not found")
+                            .screenshot();
+
+                        pixels = Some(pxs);
                     }
-                }
-            }
+                },
+                true,
+            );
         }
+        pixels.unwrap()
+    }
+
+    fn screenshot(&mut self, window_id: WindowId) -> FramePixels {
         self.with_context(|ctx| {
             ctx.services
                 .req::<Windows>()
@@ -220,14 +245,17 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let mut requested = false;
         let mut closed = false;
 
-        self.update_observed(|_, ctx| {
-            for a in closing_ls.updates(ctx.events) {
-                requested |= a.window_id == window_id;
-            }
-            for a in closed_ls.updates(ctx.events) {
-                closed |= a.window_id == window_id;
-            }
-        });
+        self.update_observe(
+            |_, ctx| {
+                for a in closing_ls.updates(ctx.events) {
+                    requested |= a.window_id == window_id;
+                }
+                for a in closed_ls.updates(ctx.events) {
+                    closed |= a.window_id == window_id;
+                }
+            },
+            false,
+        );
 
         assert_eq!(requested, closed);
 
@@ -252,7 +280,7 @@ event_args! {
         }
     }
 
-    /// [`WindowFocusChangedEvent`], [`WindowFocusedEvent`], [`WindowBlurEvent`] args.
+    /// [`WindowFocusChangedEvent`], [`WindowFocusEvent`], [`WindowBlurEvent`] args.
     pub struct WindowIsFocusedArgs {
         /// Id of window that got or lost keyboard focus.
         pub window_id: WindowId,
@@ -374,7 +402,7 @@ event! {
 /// * [WindowOpenEvent]
 /// * [WindowFocusChangedEvent]
 /// * [WindowFocusEvent]
-/// * [WindowBlueEvent]
+/// * [WindowBlurEvent]
 /// * [WindowResizeEvent]
 /// * [WindowMoveEvent]
 /// * [WindowScaleChangedEvent]
@@ -540,18 +568,35 @@ impl AppExtension for WindowManager {
         // we need to detach the windows from the ctx, because the window needs it
         // to create a layout context. Services are not visible in the layout context
         // so this is fine. // TODO: REVIEW
-        let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
-        for window in windows.iter_mut() {
+        let (mut windows, mut opening) = {
+            let wns = ctx.services.req::<Windows>();
+            (mem::take(&mut wns.windows), mem::take(&mut wns.opening_windows))
+        };
+        for window in windows.iter_mut().chain(&mut opening) {
             window.layout(ctx);
             window.render(ctx);
             window.render_update(ctx);
         }
-        ctx.services.req::<Windows>().windows = windows;
+
+        let wns = ctx.services.req::<Windows>();
+        wns.windows = windows;
+        wns.opening_windows = opening;
     }
 
     fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
+        let wns = ctx.services.req::<Windows>();
+        if let Some(window) = wns.windows.iter_mut().find(|w| w.id == window_id) {
             window.request_redraw(ctx.vars);
+        } else if let Some(idx) = wns.opening_windows.iter().position(|w| w.id == window_id) {
+            let mut window = wns.opening_windows.remove(idx);
+            window.request_redraw(ctx.vars);
+
+            debug_assert!(matches!(window.init_state, WindowInitState::Inited));
+
+            let args = WindowEventArgs::now(window.id, true);
+            window.open_response.take().unwrap().notify(ctx.events, args.clone());
+            self.window_open.notify(ctx.events, args);
+            wns.windows.push(window);
         }
     }
 
@@ -649,21 +694,13 @@ impl WindowManager {
                 }
                 ctx.services.req::<Windows>().windows = windows;
 
-                // do window vars init.
-                let opening = mem::take(&mut ctx.services.req::<Windows>().opening_windows);
-                let mut retain = Vec::with_capacity(opening.len());
-                for mut window in opening {
-                    window.update_window(ctx);
-                    if let WindowInitState::VarsInited = window.init_state {
-                        let args = WindowEventArgs::now(window.id, true);
-                        window.open_response.take().unwrap().notify(ctx.events, args.clone());
-                        self.window_open.notify(ctx.events, args);
-                        ctx.services.req::<Windows>().windows.push(window);
-                    } else {
-                        retain.push(window);
-                    }
+                // do preload updates.
+                let mut opening = mem::take(&mut ctx.services.req::<Windows>().opening_windows);
+                for window in &mut opening {
+                    debug_assert!(!matches!(window.init_state, WindowInitState::Inited));
+                    window.preload_update_window(ctx);
                 }
-                ctx.services.req::<Windows>().opening_windows = retain;
+                ctx.services.req::<Windows>().opening_windows = opening;
             }
         }
     }
@@ -901,8 +938,7 @@ pub enum GetWindowError {
     /// The associated values are the requested window ID and an event listener that will notify once when
     /// the window finishes opening.
     ///
-    /// **Note:** The window initial content does a single [`init`](UiNode::init), [`measure`](UiNode::measure),
-    /// [`arrange`](UiNode::arrange) and [`render`](UiNode::render) sequence before the window is fully opened.
+    /// **Note:** The window initial content is inited, updated, layout and rendered once before the window is open.
     Opening(WindowId, EventListener<WindowEventArgs>),
 }
 impl fmt::Debug for GetWindowError {
@@ -1202,6 +1238,27 @@ impl WindowVars {
             transparent: var(false),
         });
         Self { vars }
+    }
+
+    /// Update all variables with the same value.
+    fn refresh_all(&self, vars: &crate::var::Vars) {
+        self.chrome().modify(vars, |_| {});
+        self.icon().modify(vars, |_| {});
+        self.title().modify(vars, |_| {});
+        self.state().modify(vars, |_| {});
+        self.position().modify(vars, |_| {});
+        self.size().modify(vars, |_| {});
+        self.min_size().modify(vars, |_| {});
+        self.max_size().modify(vars, |_| {});
+        self.auto_size().modify(vars, |_| {});
+        self.resizable().modify(vars, |_| {});
+        self.movable().modify(vars, |_| {});
+        self.always_on_top().modify(vars, |_| {});
+        self.visible().modify(vars, |_| {});
+        self.taskbar_visible().modify(vars, |_| {});
+        self.parent().modify(vars, |_| {});
+        self.modal().modify(vars, |_| {});
+        self.transparent().modify(vars, |_| {});
     }
 
     fn clone(&self) -> Self {
@@ -1624,14 +1681,11 @@ impl WindowMode {
 
 #[derive(Clone, Copy)]
 enum WindowInitState {
-    /// Window not visible, awaiting first call to `OpenWindow::update_window`.
+    /// Window not visible, awaiting first call to `OpenWindow::preload_update`.
     New,
-    /// Content `UiNode::init` called, awaiting next call `OpenWindow::update_window` with the
-    /// `WindowVars` set to their initial values.
+    /// Content `UiNode::init` called, next calls to `OpenWindow::preload_update` will do updates
+    /// until the first layout and render.
     ContentInited,
-    /// `WindowVars` initialized, first layout done, render requested, awaiting
-    /// first redraw request from renderer.
-    VarsInited,
     /// First frame rendered and presented, window `visible`synched with var, the window
     /// is fully launched.
     Inited,
@@ -2001,20 +2055,26 @@ impl OpenWindow {
         self.context.borrow_mut().update |= UpdateDisplayRequest::Layout;
     }
 
-    /// Update window from vars.
-    fn update_window(&mut self, ctx: &mut AppContext) {
-        if let WindowInitState::New = self.init_state {
-            self.context.borrow_mut().init(ctx);
-            ctx.updates.update();
-            self.init_state = WindowInitState::ContentInited;
-            return;
+    /// Updated not inited window.
+    fn preload_update_window(&mut self, ctx: &mut AppContext) {
+        match self.init_state {
+            WindowInitState::New => {
+                self.context.borrow_mut().init(ctx);
+                self.vars.refresh_all(ctx.vars);
+                self.init_state = WindowInitState::ContentInited;
+            }
+            WindowInitState::ContentInited => {
+                self.context.borrow_mut().update(ctx); // TODO _hp?
+                self.update_window(ctx);
+                ctx.updates.layout();
+                self.expect_layout_update();
+            }
+            WindowInitState::Inited => unreachable!(),
         }
-        if let WindowInitState::ContentInited = self.init_state {
-            self.init_window(ctx);
-            self.init_state = WindowInitState::VarsInited;
-            return;
-        }
+    }
 
+    /// Updated inited window.
+    fn update_window(&mut self, ctx: &mut AppContext) {
         if let Some(title) = self.vars.title().get_new(ctx.vars) {
             if let Some(window) = &self.window {
                 window.set_title(title);
@@ -2214,193 +2274,6 @@ impl OpenWindow {
             }
         }
     }
-    /// Update after content UiNode::init.
-    fn init_window(&mut self, ctx: &mut AppContext) {
-        if !self.kiosk {
-            let system_pos = self.position();
-            let system_size = self.size();
-            let min_size = *self.vars.min_size().get(ctx.vars);
-            let max_size = *self.vars.max_size().get(ctx.vars);
-            let size = *self.vars.size().get(ctx.vars);
-            let auto_size = *self.vars.auto_size().get(ctx.vars);
-
-            let position = *self.vars.position().get(ctx.vars);
-            let mut layout_position = LayoutPoint::zero();
-
-            let mut available_size = LayoutSize::zero();
-            let scale_factor = self.scale_factor();
-
-            // compute sizes.
-            ctx.outer_layout_context(self.screen_size(), scale_factor, self.id, self.root_id, |ctx| {
-                // initial max_size is 100%, 100%
-                self.max_size = *ctx.viewport_size;
-
-                layout_position = position.to_layout(*ctx.viewport_size, ctx);
-                if !layout_position.x.is_finite() {
-                    layout_position.x = system_pos.x;
-                }
-                if !layout_position.y.is_finite() {
-                    layout_position.y = system_pos.y;
-                }
-
-                let mut size = size.to_layout(*ctx.viewport_size, ctx);
-                if !size.width.is_finite() {
-                    size.width = system_size.width;
-                }
-                if !size.height.is_finite() {
-                    size.height = system_size.height;
-                }
-
-                let mut min_size = min_size.to_layout(*ctx.viewport_size, ctx);
-                if !min_size.width.is_finite() {
-                    min_size.width = self.min_size.width;
-                }
-                if !min_size.height.is_finite() {
-                    min_size.height = self.min_size.height;
-                }
-
-                let mut max_size = max_size.to_layout(*ctx.viewport_size, ctx);
-                if !max_size.width.is_finite() {
-                    max_size.width = self.max_size.width;
-                }
-                if !max_size.height.is_finite() {
-                    max_size.height = self.max_size.height;
-                }
-
-                self.min_size = min_size;
-                self.max_size = max_size;
-
-                size = size.max(min_size).min(max_size);
-
-                available_size = size;
-            });
-
-            // do first layout.
-            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                available_size.width = LAYOUT_ANY_SIZE;
-            }
-            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                available_size.height = LAYOUT_ANY_SIZE;
-            }
-            let size = self
-                .context
-                .borrow_mut()
-                .root_layout(ctx, available_size, scale_factor, |root, ctx| {
-                    let mut desired_size = root.measure(ctx, available_size);
-                    if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                        desired_size.width = available_size.width;
-                    }
-                    if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                        desired_size.height = available_size.height;
-                    }
-                    let final_size = desired_size.max(self.min_size).min(self.max_size);
-                    root.arrange(ctx, final_size);
-                    final_size
-                });
-
-            // do start position.
-            let center_space = match self.context.borrow().root.start_position {
-                StartPosition::Default => None,
-                StartPosition::CenterScreen => Some(LayoutRect::from_size(self.screen_size())),
-                StartPosition::CenterParent => {
-                    if let Some(parent_id) = self.vars.parent().get(ctx.vars) {
-                        if let Ok(parent) = ctx.services.req::<Windows>().window(*parent_id) {
-                            Some(LayoutRect::new(parent.position(), parent.size()))
-                        } else {
-                            Some(LayoutRect::from_size(self.screen_size()))
-                        }
-                    } else {
-                        Some(LayoutRect::from_size(self.screen_size()))
-                    }
-                }
-            };
-            if let Some(c) = center_space {
-                layout_position.x = c.origin.x + ((c.size.width - size.width) / 2.0);
-                layout_position.y = c.origin.y + ((c.size.height - size.height) / 2.0);
-            }
-
-            // not resizable if auto-sizing.
-            let resizable = auto_size == AutoSize::DISABLED && *self.vars.resizable().get(ctx.vars);
-
-            // update window.
-            if let Some(window) = &self.window {
-                window.set_title(self.vars.title().get(ctx.vars));
-
-                let factor = window.scale_factor() as f32;
-
-                let size = glutin::dpi::PhysicalSize::new((size.width * factor) as u32, (size.height * factor) as u32);
-                let min_size =
-                    glutin::dpi::PhysicalSize::new((self.min_size.width * factor) as u32, (self.min_size.height * factor) as u32);
-                let max_size =
-                    glutin::dpi::PhysicalSize::new((self.max_size.width * factor) as u32, (self.max_size.height * factor) as u32);
-
-                let position = glutin::dpi::PhysicalPosition::new((layout_position.x * factor) as i32, (layout_position.y * factor) as i32);
-
-                window.set_min_inner_size(Some(min_size));
-                window.set_max_inner_size(Some(max_size));
-                window.set_inner_size(size);
-
-                window.set_outer_position(position);
-
-                window.set_resizable(resizable);
-
-                window.set_always_on_top(*self.vars.always_on_top().get(ctx.vars));
-                window.set_decorations(self.vars.chrome().get(ctx.vars).is_default());
-            } else {
-                self.headless_position = layout_position;
-                self.headless_size = size;
-            }
-            Self::set_icon(&self.window, self.vars.icon().get(ctx.vars));
-            self.set_taskbar_visible(*self.vars.taskbar_visible().get(ctx.vars));
-
-            // update vars back.
-            self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
-            self.vars.max_size().set_ne(ctx.vars, self.max_size.into());
-            self.vars.size().set_ne(ctx.vars, size.into());
-            self.vars.position().set_ne(ctx.vars, layout_position.into());
-            self.vars.resizable().set_ne(ctx.vars, resizable);
-        } else {
-            // kiosk mode
-            let state = match *self.vars.state().get(ctx.vars) {
-                state @ WindowState::Fullscreen => state,
-                state @ WindowState::FullscreenExclusive => state,
-                _ => {
-                    self.vars.state().set(ctx.vars, WindowState::Fullscreen);
-                    WindowState::Fullscreen
-                }
-            };
-            if let Some(window) = &self.window {
-                window.set_always_on_top(true);
-                window.set_title(self.vars.title().get(ctx.vars));
-                match state {
-                    WindowState::Fullscreen => window.set_fullscreen(None),
-                    WindowState::FullscreenExclusive => window.set_fullscreen(None), // TODO,
-                    _ => unreachable!(),
-                }
-            } else {
-                self.headless_position = LayoutPoint::zero();
-                self.headless_size = self.headless_screen.screen_size;
-                self.headless_state = state;
-            }
-
-            let size = self.size();
-            self.vars.size().set_ne(ctx.vars, size.into());
-            self.vars.position().set_ne(ctx.vars, Point::zero());
-            self.vars.auto_size().set_ne(ctx.vars, AutoSize::DISABLED);
-            self.vars.min_size().set_ne(ctx.vars, Size::zero());
-            self.vars.max_size().set_ne(ctx.vars, Size::fill());
-            self.vars.resizable().set_ne(ctx.vars, false);
-            self.vars.movable().set_ne(ctx.vars, false);
-            self.vars.always_on_top().set_ne(ctx.vars, true);
-            self.vars.taskbar_visible().set_ne(ctx.vars, true);
-            self.vars.visible().set_ne(ctx.vars, true);
-        }
-
-        // request first frame.
-        self.resize_renderer();
-        self.context.borrow_mut().update = UpdateDisplayRequest::Render;
-        self.render(ctx);
-    }
 
     /// Re-flow layout if a layout pass was required. If yes will
     /// flag a render required.
@@ -2443,6 +2316,8 @@ impl OpenWindow {
             root.arrange(layout_ctx, size);
         });
 
+        let start_position = w_ctx.root.start_position;
+
         drop(w_ctx);
 
         if auto_size != AutoSize::DISABLED {
@@ -2454,6 +2329,39 @@ impl OpenWindow {
                 self.headless_size = size;
             }
             self.vars.size().set(ctx.vars, size.into());
+            self.resize_renderer();
+        }
+
+        if let WindowInitState::ContentInited = self.init_state {
+            let center_space = match start_position {
+                StartPosition::Default => None,
+                StartPosition::CenterScreen => Some(LayoutRect::from_size(self.screen_size())),
+                StartPosition::CenterParent => {
+                    if let Some(parent_id) = self.vars.parent().get(ctx.vars) {
+                        if let Ok(parent) = ctx.services.req::<Windows>().window(*parent_id) {
+                            Some(LayoutRect::new(parent.position(), parent.size()))
+                        } else {
+                            Some(LayoutRect::from_size(self.screen_size()))
+                        }
+                    } else {
+                        Some(LayoutRect::from_size(self.screen_size()))
+                    }
+                }
+            };
+            if let Some(c) = center_space {
+                let x = c.origin.x + ((c.size.width - size.width) / 2.0);
+                let y = c.origin.y + ((c.size.height - size.height) / 2.0);
+                let pos = LayoutPoint::new(x, y);
+                self.vars.position().set_ne(ctx.vars, pos.into());
+                if let Some(wn) = &self.window {
+                    let factor = self.scale_factor();
+                    let pos = glutin::dpi::PhysicalPosition::new((x * factor) as i32, (y * factor) as i32);
+                    wn.set_outer_position(pos);
+                } else {
+                    self.headless_position = pos;
+                }
+            }
+
             self.resize_renderer();
         }
     }
@@ -2525,6 +2433,8 @@ impl OpenWindow {
                 .as_ref()
                 .unwrap()
                 .send_event(AppEvent::NewFrameReady(self.id));
+
+            self.init_state = WindowInitState::Inited;
         }
     }
 
@@ -2563,15 +2473,13 @@ impl OpenWindow {
     /// from the OS after calling this.
     fn request_redraw(&mut self, vars: &VarsRead) {
         if let Some(window) = &self.window {
-            if let WindowInitState::VarsInited = self.init_state {
+            if let WindowInitState::ContentInited = self.init_state {
                 self.redraw();
 
                 // apply initial visibility.
                 if *self.vars.visible().get(vars) {
                     self.window.as_ref().unwrap().set_visible(true);
                 }
-
-                self.init_state = WindowInitState::Inited;
             } else {
                 debug_assert!(matches!(self.init_state, WindowInitState::Inited));
                 window.request_redraw();
@@ -2579,6 +2487,7 @@ impl OpenWindow {
         } else if self.renderer.is_some() {
             self.redraw();
         }
+        self.init_state = WindowInitState::Inited;
     }
 
     /// Redraws the last ready frame and swaps buffers.
@@ -2888,7 +2797,7 @@ mod headless_tests {
             ctx.services.req::<Windows>().open(test_window, None);
         });
 
-        app.update();
+        app.update(false);
     }
 
     #[test]
@@ -2902,7 +2811,7 @@ mod headless_tests {
             ctx.services.req::<Windows>().open(test_window, None);
         });
 
-        app.update();
+        app.update(false);
     }
 
     #[test]
@@ -2913,11 +2822,9 @@ mod headless_tests {
             ctx.services.req::<Windows>().open(test_window, None);
         });
 
-        app.update();
-
-        let events = app.do_app_events(false);
-
-        assert!(events.iter().any(|ev| matches!(ev, AppEvent::NewFrameReady(_))));
+        let mut got_new_frame = false;
+        app.update_observe_frame(|_, _| got_new_frame = true, false);
+        assert!(got_new_frame);
 
         app.with_context(|ctx| {
             let wn = &ctx.services.req::<Windows>().windows()[0];

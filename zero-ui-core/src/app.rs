@@ -17,13 +17,10 @@ use glutin::event::StartCause as GEventStartCause;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
+use std::mem;
 use std::{
     any::{type_name, TypeId},
-    sync::{atomic::AtomicBool, Condvar},
-};
-use std::{
-    mem,
-    sync::{Arc, Mutex},
+    sync::atomic::AtomicBool,
 };
 
 pub use glutin::event::{DeviceEvent, DeviceId, ElementState};
@@ -277,7 +274,7 @@ fn shutdown(shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>, ctx: &mut A
 #[derive(Debug)]
 enum EventLoopInner {
     Glutin(GEventLoop<AppEvent>),
-    Headless(Arc<(Mutex<Vec<AppEvent>>, Condvar)>),
+    Headless((flume::Sender<AppEvent>, flume::Receiver<AppEvent>)),
 }
 
 /// Provides a way to retrieve events from the system and from the windows that were registered to the events loop.
@@ -289,7 +286,7 @@ impl EventLoop {
     /// Initializes a new event loop.
     pub fn new(headless: bool) -> Self {
         if headless {
-            EventLoop(EventLoopInner::Headless(Default::default()))
+            EventLoop(EventLoopInner::Headless(flume::unbounded()))
         } else {
             EventLoop(EventLoopInner::Glutin(GEventLoop::with_user_event()))
         }
@@ -307,12 +304,16 @@ impl EventLoop {
     /// If the event loop is not headless panics with the message: `"cannot take user events from headed EventLoop`.
     pub fn take_headless_app_events(&self, wait: bool) -> Vec<AppEvent> {
         match &self.0 {
-            EventLoopInner::Headless(uev) => {
-                let mut user_events = uev.0.lock().unwrap();
-                if wait {
-                    mem::take(&mut uev.1.wait(user_events).unwrap())
+            EventLoopInner::Headless((_, rcv)) => {
+                if wait && rcv.is_empty() {
+                    let mut buffer = Vec::with_capacity(1);
+                    if let Ok(r) = rcv.recv() {
+                        buffer.push(r);
+                    }
+                    buffer.extend(rcv.try_iter());
+                    buffer
                 } else {
-                    mem::take(&mut user_events)
+                    rcv.try_iter().collect()
                 }
             }
             _ => panic!("cannot take user events from headed EventLoop"),
@@ -357,7 +358,7 @@ impl EventLoop {
     pub fn create_proxy(&self) -> EventLoopProxy {
         match &self.0 {
             EventLoopInner::Glutin(el) => EventLoopProxy(EventLoopProxyInner::Glutin(el.create_proxy())),
-            EventLoopInner::Headless(evs) => EventLoopProxy(EventLoopProxyInner::Headless(Arc::clone(evs))),
+            EventLoopInner::Headless((s, _)) => EventLoopProxy(EventLoopProxyInner::Headless(s.clone())),
         }
     }
 }
@@ -381,7 +382,7 @@ impl<'a> EventLoopWindowTarget<'a> {
 #[derive(Debug, Clone)]
 enum EventLoopProxyInner {
     Glutin(GEventLoopProxy<AppEvent>),
-    Headless(Arc<(Mutex<Vec<AppEvent>>, Condvar)>),
+    Headless(flume::Sender<AppEvent>),
 }
 
 /// Used to send custom events to [`EventLoop`].
@@ -401,11 +402,7 @@ impl EventLoopProxy {
     pub fn send_event(&self, event: AppEvent) {
         match &self.0 {
             EventLoopProxyInner::Glutin(elp) => elp.send_event(event).unwrap(),
-            EventLoopProxyInner::Headless(uev) => {
-                let mut user_events = uev.0.lock().unwrap();
-                user_events.push(event);
-                uev.1.notify_one();
-            }
+            EventLoopProxyInner::Headless(sender) => sender.send(event).unwrap(),
         }
     }
 }
@@ -673,7 +670,7 @@ impl HeadlessApp {
     }
 
     /// Mutable headless state.
-    pub fn headliess_state_mut(&mut self) -> &mut StateMap {
+    pub fn headless_state_mut(&mut self) -> &mut StateMap {
         self.owned_ctx.headless_state_mut().unwrap()
     }
 
@@ -714,7 +711,7 @@ impl HeadlessApp {
     ///
     /// This sets the [`HeadlessRendererEnabledKey`] state in the [headless state](Self::headless_state).
     pub fn enable_renderer(&mut self, enabled: bool) {
-        self.headliess_state_mut().set::<HeadlessRendererEnabledKey>(enabled);
+        self.headless_state_mut().set::<HeadlessRendererEnabledKey>(enabled);
     }
 
     /// Notifies extensions of a [device event](DeviceEvent).
@@ -737,26 +734,6 @@ impl HeadlessApp {
         self.event_loop.create_proxy().send_event(event);
     }
 
-    /// Applies the last requested [app events](AppEvent), returns the events that where applied.
-    ///
-    /// If `wait` is `true` the thread sleeps until at least one event is received, if it is `false` returns immediately
-    /// with an empty vec if there where no events.
-    pub fn do_app_events(&mut self, wait: bool) -> Vec<AppEvent> {
-        let events = self.event_loop.take_headless_app_events(wait);
-        for event in &events {
-            match event {
-                AppEvent::NewFrameReady(window_id) => {
-                    self.extensions
-                        .on_new_frame_ready(*window_id, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
-                }
-                AppEvent::Update => {
-                    self.update();
-                }
-            }
-        }
-        events
-    }
-
     /// Runs a custom action in the headless app context.
     pub fn with_context<R>(&mut self, action: impl FnOnce(&mut AppContext) -> R) -> R {
         profile_scope!("headless_app::with_context");
@@ -764,24 +741,61 @@ impl HeadlessApp {
     }
 
     /// Does updates until no more updates are requested.
+    ///
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
+    /// if it is `false` only responds to app events already in the buffer.
     #[inline]
-    pub fn update(&mut self) -> ControlFlow {
-        self.update_observed_full(|_, _| {}, |_, _| {}, |_, _| {})
+    pub fn update(&mut self, wait_app_event: bool) -> ControlFlow {
+        self.update_observe_all(|_, _| {}, |_, _| {}, |_, _| {}, |_, _| {}, wait_app_event)
     }
 
     /// Does updates with a callback called after the extensions update listeners.
-    pub fn update_observed(&mut self, on_update: impl FnMut(UpdateRequest, &mut AppContext)) -> ControlFlow {
-        self.update_observed_full(|_, _| {}, |_, _| {}, on_update)
+    ///
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
+    /// if it is `false` only responds to app events already in the buffer.
+    pub fn update_observe(&mut self, on_update: impl FnMut(UpdateRequest, &mut AppContext), wait_app_event: bool) -> ControlFlow {
+        self.update_observe_all(|_, _| {}, |_, _| {}, |_, _| {}, on_update, wait_app_event)
+    }
+
+    /// Does updates with a callback called after the extensions respond to a new frame ready.
+    ///
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
+    /// if it is `false` only responds to app events already in the buffer.
+    pub fn update_observe_frame(&mut self, on_new_frame_ready: impl FnMut(WindowId, &mut AppContext), wait_app_event: bool) -> ControlFlow {
+        self.update_observe_all(on_new_frame_ready, |_, _| {}, |_, _| {}, |_, _| {}, wait_app_event)
     }
 
     /// Does updates injecting update listeners after the extension listeners.
-    pub fn update_observed_full(
+    ///
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
+    /// if it is `false` only responds to app events already in the buffer.
+    pub fn update_observe_all(
         &mut self,
+        mut on_new_frame_ready: impl FnMut(WindowId, &mut AppContext),
         mut on_update_preview: impl FnMut(UpdateRequest, &mut AppContext),
         mut on_update_ui: impl FnMut(UpdateRequest, &mut AppContext),
         mut on_update: impl FnMut(UpdateRequest, &mut AppContext),
+        wait_app_event: bool,
     ) -> ControlFlow {
-        let mut event_update = self.owned_ctx.take_request();
+        if let ControlFlow::Exit = self.control_flow {
+            return ControlFlow::Exit;
+        }
+
+        let mut event_update = UpdateRequest::default();
+
+        for event in self.event_loop.take_headless_app_events(wait_app_event) {
+            match event {
+                AppEvent::NewFrameReady(window_id) => {
+                    let mut ctx = &mut self.owned_ctx.borrow(self.event_loop.window_target());
+                    self.extensions.on_new_frame_ready(window_id, &mut ctx);
+                    on_new_frame_ready(window_id, &mut ctx)
+                }
+                AppEvent::Update => {
+                    event_update |= self.owned_ctx.take_request();
+                }
+            }
+        }
+
         let mut sequence_update = UpdateDisplayRequest::None;
 
         // this loop implementation is kept in sync with the one in `AppExtended::run`.
@@ -801,6 +815,7 @@ impl HeadlessApp {
                     let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
                     let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
                     if shutdown(shutdown_requests, &mut ctx, &mut self.extensions) {
+                        self.control_flow = ControlFlow::Exit;
                         return ControlFlow::Exit;
                     }
                     self.extensions.update_preview(update, &mut ctx);
@@ -831,6 +846,12 @@ impl HeadlessApp {
         }
 
         self.control_flow
+    }
+
+    /// [`ControlFlow`] after the last update.
+    #[inline]
+    pub fn control_flow(&self) -> ControlFlow {
+        self.control_flow // TODO better merge
     }
 }
 
@@ -1062,13 +1083,13 @@ mod headless_tests {
     #[test]
     fn new_default() {
         let mut app = App::default().run_headless();
-        app.update();
+        app.update(false);
     }
 
     #[test]
     fn new_empty() {
         let mut app = App::blank().run_headless();
-        app.update();
+        app.update(false);
     }
 
     #[test]
@@ -1086,7 +1107,7 @@ mod headless_tests {
             assert!(!render_enabled);
         });
 
-        app.update();
+        app.update(false);
     }
 
     #[test]
@@ -1105,7 +1126,7 @@ mod headless_tests {
             assert!(render_enabled);
         });
 
-        app.update();
+        app.update(false);
     }
 
     #[test]

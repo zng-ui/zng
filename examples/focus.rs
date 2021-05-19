@@ -148,7 +148,11 @@ mod inspect {
                     return format!("<{}>", p);
                 };
                 let frame = window.frame_info();
-                let widget = frame.get(p).expect("expected widget");
+                let widget = if let Some(w) = frame.get(p) {
+                    w
+                } else {
+                    return format!("<{}>", p);
+                };
                 let info = widget.instance().expect("expected debug info").borrow();
 
                 if info.widget_name == "button" {
