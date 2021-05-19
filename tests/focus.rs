@@ -1150,28 +1150,6 @@ pub fn focus_continued_after_widget_move_same_window() {
 }
 
 #[test]
-pub fn focus_continued_after_widget_move_to_other_window() {
-    let id = WidgetId::new_unique();
-    let button = RcNode::new(button! {
-        id;
-        content = text("Click Me!");
-    });
-
-    let mut app = TestApp::new(slot(button.clone(), take_on_init()));
-    assert_eq!(Some(id), app.focused());
-    app.take_focus_changed();
-
-    app.open_window(v_stack(widgets![
-        button! { content = text("Other Button") },
-        slot(button, take_on_init())
-    ]));
-    assert_eq!(Some(id), app.focused());
-    let evs = app.take_focus_changed();
-    assert_eq!(1, evs.len());
-    assert!(evs[0].is_widget_move());
-}
-
-#[test]
 pub fn focus_moves_to_new_window() {
     let main_id = WidgetId::new_unique();
     let win2_id = WidgetId::new_unique();

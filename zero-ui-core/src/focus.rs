@@ -876,64 +876,34 @@ impl Focus {
         if let Some(focused) = &self.focused {
             if let Ok(window) = windows.window(focused.window_id()) {
                 if window.is_focused() {
-                    if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
+                    let frame = window.frame_info();
+                    if let Some(widget) = frame.find(focused.widget_id()).map(|w| w.as_focus_info()) {
                         if widget.is_focusable() {
                             // :-) probably in the same place, maybe moved inside same window.
-                            self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
+                            return self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
                         } else {
                             // widget no longer focusable
                             if let Some(parent) = widget.parent() {
                                 // move to focusable parent
-                                self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
+                                return self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
                             } else {
                                 // no focusable parent, is this an error?
-                                self.move_focus(None, false, FocusChangedCause::Recovery)
+                                return self.move_focus(None, false, FocusChangedCause::Recovery);
                             }
                         }
                     } else {
-                        // widget not found
-                        self.continue_focus_moved_widget(windows)
-                    }
-                } else {
-                    // window not focused anymore
-                    self.continue_focus_moved_widget(windows)
-                }
-            } else {
-                // window not found
-                self.continue_focus_moved_widget(windows)
-            }
-        } else {
-            // no previous focus
-            self.focus_focused_window(windows, false)
-        }
-    }
-
-    #[must_use]
-    fn continue_focus_moved_widget(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
-        let focused = self.focused.as_ref().unwrap();
-        for window in windows.windows() {
-            if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
-                // found the widget in another window
-                if window.is_focused() {
-                    return if widget.is_focusable() {
-                        // same widget, moved to another window
-                        self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
-                    } else {
-                        // widget no longer focusable
-                        if let Some(parent) = widget.parent() {
-                            // move to focusable parent
-                            self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
-                        } else {
-                            // no focusable parent, is this an error?
-                            self.move_focus(None, false, FocusChangedCause::Recovery)
+                        // widget not found, move to focusable known parent
+                        for &parent in focused.ancestors().iter().rev() {
+                            if let Some(parent) = frame.find(parent).and_then(|w| w.as_focusable()) {
+                                // move to focusable parent
+                                return self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
+                            }
                         }
-                    };
-                }
-                break;
-            }
-        }
-        // did not find the widget in a focusable context, was removed or is inside a not focused window.
-        self.focus_focused_window(windows, self.is_highlighting)
+                    }
+                } // else window not focused anymore
+            } // else window not found
+        } // else no current focus
+        self.focus_focused_window(windows, false)
     }
 
     #[must_use]

@@ -75,10 +75,10 @@ impl fmt::Display for WindowId {
             WindowId::System(s) => {
                 let window_id = format!("{:?}", s);
                 let window_id_raw = window_id.trim_start_matches("WindowId(").trim_end_matches(')');
-                write!(f, "win-sys-{}", window_id_raw)
+                write!(f, "win-{}", window_id_raw)
             }
             WindowId::Logical(s) => {
-                write!(f, "win-logi-{}", s.get())
+                write!(f, "win-{}", s.get())
             }
         }
     }

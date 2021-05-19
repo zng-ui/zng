@@ -19,6 +19,11 @@ unique_id! {
     /// Panics if you somehow reach `u64::max_value()` calls to `new`.
     pub struct WidgetId;
 }
+impl fmt::Display for WidgetId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "wgt-{}", self.get())
+    }
+}
 
 /// An Ui tree node.
 pub trait UiNode: 'static {

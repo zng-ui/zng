@@ -44,11 +44,11 @@ fn tab_index() -> impl Widget {
         focus_shortcut = shortcut!(T);
         items = widgets![
             title("TabIndex (T)"),
-            button("Button A5", TabIndex(5)),
-            button("Button A4", TabIndex(3)),
-            button("Button A3", TabIndex(2)),
-            button("Button A1", TabIndex(0)),
-            button("Button A2", TabIndex(0)),
+            button("Button A5", 5),
+            button("Button A4", 3),
+            button("Button A3", 2),
+            button("Button A1", 0),
+            button("Button A2", 0),
         ];
     }
 }
@@ -69,11 +69,11 @@ fn functions() -> impl Widget {
                             spacing = 5;
                             items = widgets![
                                 title("Other Window (W)"),
-                                button("Button B5", TabIndex(5)),
-                                button("Button B4", TabIndex(3)),
-                                button("Button B3", TabIndex(2)),
-                                button("Button B1", TabIndex(0)),
-                                button("Button B2", TabIndex(0)),
+                                button("Button B5", 5),
+                                button("Button B4", 3),
+                                button("Button B3", 2),
+                                button("Button B1", 0),
+                                button("Button B2", 0),
                             ]
                         };
                     }, None);
@@ -88,7 +88,7 @@ fn functions() -> impl Widget {
                             ctx.services.req::<Windows>().open(move |_| {
                                 window! {
                                     title = "Detached Button";
-                                    content = slot(wwk.upgrade().unwrap(), take_on_init())
+                                    content = slot(wwk.upgrade().unwrap(), take_on_init());
                                 }
                             }, None);
                         }
@@ -104,8 +104,9 @@ fn title(text: impl IntoVar<Text>) -> impl Widget {
     text! { text; font_weight = FontWeight::BOLD; align = Alignment::CENTER; }
 }
 
-fn button(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
+fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widget {
     let content = content.into();
+    let tab_index = tab_index.into();
     button! {
         content = text(content.clone());
         tab_index;

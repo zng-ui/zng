@@ -1372,9 +1372,9 @@ impl fmt::Display for WidgetPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}//", self.window_id)?;
         for w in self.ancestors() {
-            write!(f, "wgt-{}/", w.get())?;
+            write!(f, "{}/", w)?;
         }
-        write!(f, "wgt-{}", self.widget_id().get())
+        write!(f, "{}", self.widget_id())
     }
 }
 impl WidgetPath {
