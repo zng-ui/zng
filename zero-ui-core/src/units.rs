@@ -493,15 +493,71 @@ impl Length {
     pub fn to_layout(self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
         let l = match self {
             Length::Exact(l) => l,
-            Length::Relative(s) => available_size.get() * s.0,
-            Length::Em(s) => *ctx.font_size * s.0,
-            Length::RootEm(s) => *ctx.root_font_size * s.0,
+            Length::Relative(f) => available_size.get() * f.0,
+            Length::Em(f) => *ctx.font_size * f.0,
+            Length::RootEm(f) => *ctx.root_font_size * f.0,
             Length::ViewportWidth(p) => p * ctx.viewport_size.width / 100.0,
             Length::ViewportHeight(p) => p * ctx.viewport_size.height / 100.0,
             Length::ViewportMin(p) => p * *ctx.viewport_min / 100.0,
             Length::ViewportMax(p) => p * *ctx.viewport_max / 100.0,
         };
         LayoutLength::new(ctx.pixel_grid.snap(l))
+    }
+
+    /// If this length is zero in any unit.
+    pub fn is_zero(self) -> bool {
+        match self {
+            Length::Exact(l) => l.abs() < EPSILON_100,
+            Length::Relative(f) => f.0.abs() < EPSILON,
+            Length::Em(f) => f.0.abs() < EPSILON,
+            Length::RootEm(f) => f.0.abs() < EPSILON,
+            Length::ViewportWidth(p) => p.abs() < EPSILON,
+            Length::ViewportHeight(p) => p.abs() < EPSILON,
+            Length::ViewportMin(p) => p.abs() < EPSILON,
+            Length::ViewportMax(p) => p.abs() < EPSILON,
+        }
+    }
+
+    /// If this length is `NaN` in any unit.
+    pub fn is_nan(self) -> bool {
+        match self {
+            Length::Exact(l) => l.is_nan(),
+            Length::Relative(f) => f.0.is_nan(),
+            Length::Em(f) => f.0.is_nan(),
+            Length::RootEm(f) => f.0.is_nan(),
+            Length::ViewportWidth(p) => p.is_nan(),
+            Length::ViewportHeight(p) => p.is_nan(),
+            Length::ViewportMin(p) => p.is_nan(),
+            Length::ViewportMax(p) => p.is_nan(),
+        }
+    }
+
+    /// If this length is a finite number in any unit.
+    pub fn is_finite(self) -> bool {
+        match self {
+            Length::Exact(e) => e.is_finite(),
+            Length::Relative(f) => f.0.is_finite(),
+            Length::Em(f) => f.0.is_finite(),
+            Length::RootEm(f) => f.0.is_finite(),
+            Length::ViewportWidth(p) => p.is_finite(),
+            Length::ViewportHeight(p) => p.is_finite(),
+            Length::ViewportMin(p) => p.is_finite(),
+            Length::ViewportMax(p) => p.is_finite(),
+        }
+    }
+
+    /// If this length is an infinite number in any unit.
+    pub fn is_infinite(self) -> bool {
+        match self {
+            Length::Exact(e) => e.is_infinite(),
+            Length::Relative(f) => f.0.is_infinite(),
+            Length::Em(f) => f.0.is_infinite(),
+            Length::RootEm(f) => f.0.is_infinite(),
+            Length::ViewportWidth(p) => p.is_infinite(),
+            Length::ViewportHeight(p) => p.is_infinite(),
+            Length::ViewportMin(p) => p.is_infinite(),
+            Length::ViewportMax(p) => p.is_infinite(),
+        }
     }
 }
 

@@ -290,6 +290,12 @@ pub mod window {
 
             transparent: bool,
         }
+
+        #[property(context)]
+        pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
+            todo!("width, height, x, y");
+            child
+        }
     }
 }
 
