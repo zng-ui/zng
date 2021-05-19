@@ -2821,6 +2821,7 @@ mod headless_tests {
         app.with_context(|ctx| {
             ctx.services.req::<Windows>().open(test_window, None);
         });
+        app.update(false);// process open request.
 
         let mut got_new_frame = false;
         app.update_observe_frame(|_, _| got_new_frame = true, false);
