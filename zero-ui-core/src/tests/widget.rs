@@ -1405,10 +1405,7 @@ fn macro_rules_generated() {
 }
 
 mod util {
-    use std::{
-        collections::{HashMap, HashSet},
-        sync::atomic::{self, AtomicU32},
-    };
+    use std::{cell::Cell, collections::{HashMap, HashSet}};
 
     use crate::{
         context::WidgetContext,
@@ -1481,23 +1478,33 @@ mod util {
         pub pos: u32,
         pub tag: &'static str,
     }
-    static COUNT: AtomicU32 = AtomicU32::new(0);
-    static COUNT_INIT: AtomicU32 = AtomicU32::new(0);
+    thread_local! {
+        static COUNT: Cell<u32> = Cell::new(0);
+        static COUNT_INIT: Cell<u32> = Cell::new(0);
+    }
     impl Position {
         pub fn next(tag: &'static str) -> Self {
             Position {
-                pos: COUNT.fetch_add(1, atomic::Ordering::AcqRel),
+                pos: COUNT.with(|c| {
+                    let r = c.get();
+                    c.set(r + 1);
+                    r
+                }),
                 tag,
             }
         }
 
         fn next_init() -> u32 {
-            COUNT_INIT.fetch_add(1, atomic::Ordering::AcqRel)
+            COUNT_INIT.with(|c| {
+                let r = c.get();
+                c.set(r + 1);
+                r
+            })
         }
 
         pub fn reset() {
-            COUNT.store(0, atomic::Ordering::SeqCst);
-            COUNT_INIT.store(0, atomic::Ordering::SeqCst);
+            COUNT.with(|c|c.set(0));
+            COUNT_INIT.with(|c|c.set(0));
         }
     }
 
