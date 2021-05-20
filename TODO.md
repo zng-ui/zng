@@ -15,7 +15,6 @@ Things that must be done first because they influence the core API design that i
   - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
 
 * Focusable
-  * Focus on the closest existing sibling or parent in case the focused element is deleted, needs testing.
   * ESC hides focus indicator?
   * Support more then one ALT scopes?
   * Configurable shortcuts for stuff like `Tab`?
