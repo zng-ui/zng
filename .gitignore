@@ -1,7 +1,6 @@
 **/target
 **/*.rs.bk
 **/Cargo.lock
-Cargo.lock
 app_profile.json
 **/*.expanded.rs
 dump.*
