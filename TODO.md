@@ -18,6 +18,11 @@ Things that must be done first because they influence the core API design that i
   * ESC hides focus indicator?
   * Support more then one ALT scopes?
   * Configurable shortcuts for stuff like `Tab`?
+  * Custom focus request?
+  * Test directional navigation.
+     * Including layout transformed widgets.
+
+* Commands
 
 * Window
   * Finish window vars.
