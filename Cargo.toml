@@ -24,6 +24,7 @@ meval = "0.2.0"
 serial_test = "0.5.1"
 trybuild = "1.0.41"
 stderrlog = "0.5.1"
+log = "0.4"
 
 [workspace]
 members = ["zero-ui-proc-macros", "zero-ui-core"]

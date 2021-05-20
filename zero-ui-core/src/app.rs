@@ -131,6 +131,11 @@ cancelable_event_args! {
 }
 
 /// Defines and runs an application.
+///
+/// # Debug Log
+///
+/// In debug builds, `App` sets a [`logger`](log) that prints warnings and errors to `stderr`
+/// if no logger was registered before the call to [`blank`](Self::blank) and [`default`](Self::default).
 pub struct App;
 
 /// In release mode we use generics tricks to compile all app extensions with
@@ -173,6 +178,7 @@ impl App {
 impl App {
     /// Application without any extension.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtension>>> {
+        DebugLogger::init();
         AppExtended { extensions: vec![] }
     }
 
@@ -1149,4 +1155,40 @@ mod headless_tests {
         let _a = TestWidgetContext::new();
         let _b = App::default().run_headless();
     }
+}
+
+#[cfg(debug_assertions)]
+struct DebugLogger;
+
+#[cfg(debug_assertions)]
+impl DebugLogger {
+    fn init() {
+        if log::set_logger(&DebugLogger).is_ok() {
+            log::set_max_level(log::LevelFilter::Warn);
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+impl log::Log for DebugLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= log::Level::Warn
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            use colored::*;
+            match record.metadata().level() {
+                log::Level::Error => {
+                    eprintln!("{}: [{}] {}", "error".bright_red().bold(), record.target(), record.args())
+                }
+                log::Level::Warn => {
+                    eprintln!("{}: [{}] {}", "warn".bright_yellow().bold(), record.target(), record.args())
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn flush(&self) {}
 }

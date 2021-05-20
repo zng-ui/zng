@@ -2864,6 +2864,7 @@ version = "0.1.0"
 dependencies = [
  "bencher",
  "enclose",
+ "log",
  "meval",
  "paste",
  "serial_test",
@@ -2894,6 +2895,7 @@ dependencies = [
  "img-parts",
  "is_main_thread",
  "lazy_static",
+ "log",
  "once_cell",
  "paste",
  "rayon",

@@ -222,32 +222,6 @@ document.addEventListener('DOMContentLoaded', function() {
 #[allow(unused_extern_crates)]
 extern crate self as zero_ui;
 
-/// Calls `eprintln!("error: {}", format_args!($))` with `error` colored bright red and bold.
-#[allow(unused)]
-macro_rules! error_println {
-    ($($tt:tt)*) => {{
-        use colored::*;
-        eprintln!("{}: {}", "error".bright_red().bold(), format_args!($($tt)*))
-    }}
-}
-
-/// Calls `eprintln!("warning: {}", format_args!($))` with `warning` colored bright yellow and bold.
-#[allow(unused)]
-macro_rules! warn_println {
-    ($($tt:tt)*) => {{
-        use colored::*;
-        eprintln!("{}: {}", "warning".bright_yellow().bold(), format_args!($($tt)*))
-    }}
-}
-
-#[allow(unused)]
-#[cfg(debug_assertions)]
-macro_rules! print_backtrace {
-    () => {
-        eprintln!("\n\n\n=========BACKTRACE=========\n{:?}", backtrace::Backtrace::new())
-    };
-}
-
 /// Core infrastructure required for creating components and running an app.
 pub mod core {
     /// Expands an `impl` block into a [`UiNode`](crate::core::UiNode) trait implementation.

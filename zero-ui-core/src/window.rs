@@ -623,7 +623,8 @@ impl AppExtension for WindowManager {
         let windows = mem::take(&mut ctx.services.req::<Windows>().windows);
         for window in windows {
             {
-                error_println!(
+                log::error!(
+                    target: "window",
                     "dropping `{:?} ({})` without closing events",
                     window.id,
                     window.vars.title().get(ctx.vars)
@@ -1058,7 +1059,7 @@ impl_from_and_into_var! {
     /// [`WindowIcon::from_bytes`]
     fn from(bytes: &'static [u8]) -> WindowIcon {
         WindowIcon::from_bytes(bytes).unwrap_or_else(|e| {
-            error_println!("failed to load icon from encoded bytes: {:?}", e);
+            log::error!(target: "window", "failed to load icon from encoded bytes: {:?}", e);
             WindowIcon::Default
         })
     }
@@ -1066,7 +1067,7 @@ impl_from_and_into_var! {
     /// [`WindowIcon::from_rgba`]
     fn from(rgba: (Vec<u8>, u32, u32)) -> WindowIcon {
         WindowIcon::from_rgba(rgba.0, rgba.1, rgba.2).unwrap_or_else(|e| {
-            error_println!("failed to load icon from RGBA data: {:?}", e);
+            log::error!(target: "window", "failed to load icon from RGBA data: {:?}", e);
             WindowIcon::Default
         })
     }
@@ -1074,7 +1075,7 @@ impl_from_and_into_var! {
     /// [`WindowIcon::from_file`]
     fn from(file: &'static str) -> WindowIcon {
         WindowIcon::from_file(file).unwrap_or_else(|e| {
-            error_println!("failed to load icon from file: {:?}", e);
+            log::error!(target: "window", "failed to load icon from file: {:?}", e);
             WindowIcon::Default
         })
     }
@@ -1082,7 +1083,7 @@ impl_from_and_into_var! {
     /// [`WindowIcon::from_file`]
     fn from(file: std::path::PathBuf) -> WindowIcon {
         WindowIcon::from_file(file).unwrap_or_else(|e| {
-            error_println!("failed to load icon from file: {:?}", e);
+            log::error!(target: "window", "failed to load icon from file: {:?}", e);
             WindowIcon::Default
         })
     }
@@ -1091,7 +1092,7 @@ impl<const N: usize> From<&'static [u8; N]> for WindowIcon {
     /// [`WindowIcon::from_file`]
     fn from(bytes: &'static [u8; N]) -> Self {
         Self::from_bytes(bytes).unwrap_or_else(|e| {
-            error_println!("failed to load icon from encoded bytes: {:?}", e);
+            log::error!(target: "window", "failed to load icon from encoded bytes: {:?}", e);
             WindowIcon::Default
         })
     }
@@ -1757,7 +1758,7 @@ impl OpenWindow {
         if let Some(force) = force_headless {
             match force {
                 WindowMode::Headed => {
-                    error_println!("invalid `WindowMode::Headed` value in `force_headless`");
+                    log::error!(target: "window", "invalid `WindowMode::Headed` value in `force_headless`");
                 }
                 WindowMode::Headless => {
                     mode = WindowMode::Headless;
@@ -2665,7 +2666,8 @@ impl OpenWindow {
                         winerror::S_OK => {}
                         error => {
                             let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
-                            error_println!(
+                            log::error!(
+                                target: "window",
                                 "cannot set `taskbar_visible`, `ITaskbarList::{}` failed, error: {:X}",
                                 mtd_name,
                                 error
@@ -2675,7 +2677,8 @@ impl OpenWindow {
                     tb.Release();
                 }
                 error => {
-                    error_println!(
+                    log::error!(
+                        target: "window",
                         "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {:X}",
                         error
                     )
@@ -2688,7 +2691,7 @@ impl OpenWindow {
 impl OpenWindow {
     fn set_taskbar_visible(&mut self, visible: bool) {
         if !visible {
-            error_println!("`taskbar_visible = false` only implemented for Windows");
+            log::error!(target: "window", "`taskbar_visible = false` only implemented for Windows");
         }
     }
 }

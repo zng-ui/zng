@@ -4,7 +4,6 @@
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Use `log` instead of `error_println`.
 * Clone-move closure macro.
 * Improve property allowed_in_when validation for generics, generate a `new` like call for each
   argument, instead of all at once.

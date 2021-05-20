@@ -401,7 +401,7 @@ pub mod window {
             })+}
         }
         set_or_modify_properties! {
-            position(x, y) : Point,
+            position(x, y): Point,
             size(width, height): Size,
             min_size(width, height): Size,
             max_size(width, height): Size,

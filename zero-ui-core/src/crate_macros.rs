@@ -68,32 +68,6 @@ macro_rules! unique_id {
     };
 }
 
-/// Calls `eprintln!("error: {}", format_args!($))` with `error` colored bright red and bold.
-#[allow(unused)]
-macro_rules! error_println {
-    ($($tt:tt)*) => {{
-        use colored::*;
-        eprintln!("{}: {}", "error".bright_red().bold(), format_args!($($tt)*))
-    }}
-}
-
-/// Calls `eprintln!("warning: {}", format_args!($))` with `warning` colored bright yellow and bold.
-#[allow(unused)]
-macro_rules! warn_println {
-    ($($tt:tt)*) => {{
-        use colored::*;
-        eprintln!("{}: {}", "warning".bright_yellow().bold(), format_args!($($tt)*))
-    }}
-}
-
-#[allow(unused)]
-#[cfg(debug_assertions)]
-macro_rules! print_backtrace {
-    () => {
-        eprintln!("\n\n\n=========BACKTRACE=========\n{:?}", backtrace::Backtrace::new())
-    };
-}
-
 /// Implements From and IntoVar without boilerplate.
 macro_rules! impl_from_and_into_var {
     ($(

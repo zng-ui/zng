@@ -156,7 +156,7 @@ impl AppExtension for FontManager {
                                 }
                             });
                             if !ok {
-                                error_println!("failed to set WM_FONTCHANGE subclass monitor");
+                                log::error!(target: "font_loading", "failed to set WM_FONTCHANGE subclass monitor");
                             }
                         }
                     }
@@ -565,7 +565,7 @@ impl FontFace {
                 .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), LayoutLength::new(font_size as f32))));
             Rc::clone(f)
         } else {
-            warn_println!("creating font from unregistered `{}`, will not cache", self.display_name);
+            log::warn!(target: "font_loading", "creating font from unregistered `{}`, will not cache", self.display_name);
             Rc::new(Font::new(Rc::clone(self), font_size))
         }
     }
@@ -1013,7 +1013,7 @@ impl FontFaceLoader {
         }
 
         if r.is_empty() {
-            error_println!("failed to load fallback font");
+            log::error!(target: "font_loading", "failed to load fallback font");
             r.push(Rc::new(FontFace::empty()));
         }
 
@@ -1062,7 +1062,7 @@ impl FontFaceLoader {
                     return Some(f); // new match
                 }
                 Err(e) => {
-                    error_println!("failed to load system font, {}", e);
+                    log::error!(target: "font_loading", "failed to load system font, {}", e);
                 }
             }
         } else {
@@ -1086,7 +1086,7 @@ impl FontFaceLoader {
         {
             Ok(handle) => Some(handle),
             Err(e) => {
-                error_println!("failed to select system font, {}", e);
+                log::error!(target: "font_loading", "failed to select system font, {}", e);
                 None
             }
         }

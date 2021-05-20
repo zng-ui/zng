@@ -79,7 +79,7 @@ pub mod implicit_base {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if self.inited {
-                    error_println!("`UiNode::init` called in already inited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
@@ -90,7 +90,7 @@ pub mod implicit_base {
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    error_println!("`UiNode::deinit` called in already deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::deinit` called in already deinited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
@@ -101,7 +101,7 @@ pub mod implicit_base {
             fn update(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    error_println!("`UiNode::update` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::update` called in deinited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
@@ -110,7 +110,7 @@ pub mod implicit_base {
             fn update_hp(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    error_println!("`UiNode::update_hp` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::update_hp` called in deinited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
@@ -120,7 +120,7 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
-                        error_println!("`UiNode::measure` called in deinited widget {:?}", self.id);
+                        log::error!(target: "widget_base", "`UiNode::measure` called in deinited widget {:?}", self.id);
                     }
 
                     fn valid_measure(f: f32) -> bool {
@@ -128,7 +128,8 @@ pub mod implicit_base {
                     }
 
                     if !valid_measure(available_size.width) || !valid_measure(available_size.height) {
-                        error_println!(
+                        log::error!(
+                            target: "widget_base",
                             "{:?} `UiNode::measure` called with invalid `available_size: {:?}`, must be finite or `LAYOUT_ANY_SIZE`",
                             self.id,
                             available_size
@@ -142,10 +143,11 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 {
                     if !child_size.width.is_finite() || !child_size.height.is_finite() {
-                        error_println!("{:?} `UiNode::measure` result is not finite: `{:?}`", self.id, child_size);
+                        log::error!(target: "widget_base", "{:?} `UiNode::measure` result is not finite: `{:?}`", self.id, child_size);
                     } else if !child_size.is_aligned_to(*ctx.pixel_grid) {
                         let snapped = child_size.snap_to(*ctx.pixel_grid);
-                        error_println!(
+                        log::error!(
+                            target: "widget_base",
                             "{:?} `UiNode::measure` result not aligned, was: `{:?}`, expected: `{:?}`",
                             self.id,
                             child_size,
@@ -163,18 +165,20 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
-                        error_println!("`UiNode::arrange` called in deinited widget {:?}", self.id);
+                        log::error!(target: "widget_base", "`UiNode::arrange` called in deinited widget {:?}", self.id);
                     }
 
                     if !final_size.width.is_finite() || !final_size.height.is_finite() {
-                        error_println!(
+                        log::error!(
+                            target: "widget_base",
                             "{:?} `UiNode::arrange` called with invalid `final_size: {:?}`, must be finite",
                             self.id,
                             final_size
                         );
                     } else if !final_size.is_aligned_to(*ctx.pixel_grid) {
                         self.size = final_size.snap_to(*ctx.pixel_grid);
-                        error_println!(
+                        log::error!(
+                            target: "widget_base",
                             "{:?} `UiNode::arrange` called with not aligned value, was: `{:?}`, expected: `{:?}`",
                             self.id,
                             final_size,
@@ -192,7 +196,7 @@ pub mod implicit_base {
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    error_println!("`UiNode::render` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::render` called in deinited widget {:?}", self.id);
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
@@ -202,7 +206,7 @@ pub mod implicit_base {
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    error_println!("`UiNode::render_update` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::render_update` called in deinited widget {:?}", self.id);
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {

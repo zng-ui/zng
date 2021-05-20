@@ -26,7 +26,8 @@ macro_rules! debug_assert_aligned {
             let value = $value;
             let grid = $grid;
             if !value.is_aligned_to(grid) {
-                error_println!(
+                log::error!(
+                    target: "render",
                     "{}: `{:?}` is not aligned, expected `{:?}`",
                     stringify!($value),
                     value,
@@ -1081,7 +1082,7 @@ impl FrameHitInfo {
                     actual_hits.insert(widget_id, hit.tag.1);
                 }
             } else {
-                warn_println!("hit tag {} is not a WidgetId", hit.tag.0);
+                log::warn!(target: "render", "hit tag {} is not a WidgetId", hit.tag.0);
             }
         }
 
