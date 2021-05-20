@@ -138,6 +138,24 @@ cancelable_event_args! {
 /// if no logger was registered before the call to [`blank`](Self::blank) and [`default`](Self::default).
 pub struct App;
 
+impl App {
+    /// If a headed app is running in the current process.
+    ///
+    /// Only a single headed app is allowed per-process.
+    #[inline]
+    pub fn is_headed_running() -> bool {
+        HEADED_APP_RUNNING.load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    /// If an app is already running in the current thread.
+    ///
+    /// Only a single app is allowed per-thread and only a single headed app is allowed per-process.
+    #[inline]
+    pub fn is_running() -> bool {
+        crate::var::Vars::instantiated() || crate::event::Events::instantiated()
+    }
+}
+
 /// In release mode we use generics tricks to compile all app extensions with
 /// static dispatch optimized to a direct call to the extension handle.
 #[cfg(not(debug_assertions))]
@@ -202,22 +220,6 @@ impl App {
             .extend(WindowManager::default())
             .extend(FontManager::default())
             .extend(FocusManager::default())
-    }
-
-    /// If a headed app is running in the current process.
-    ///
-    /// Only a single headed app is allowed per-process.
-    #[inline]
-    pub fn is_headed_running() -> bool {
-        HEADED_APP_RUNNING.load(std::sync::atomic::Ordering::Acquire)
-    }
-
-    /// If an app is already running in the current thread.
-    ///
-    /// Only a single app is allowed per-thread and only a single headed app is allowed per-process.
-    #[inline]
-    pub fn is_running() -> bool {
-        crate::var::Vars::instantiated() || crate::event::Events::instantiated()
     }
 }
 

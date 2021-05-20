@@ -85,7 +85,10 @@ pub mod implicit_base {
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.init(ctx));
 
-                self.inited = true;
+                #[cfg(debug_assertions)]
+                {
+                    self.inited = true;
+                }
             }
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
@@ -96,7 +99,10 @@ pub mod implicit_base {
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.deinit(ctx));
 
-                self.inited = false;
+                #[cfg(debug_assertions)]
+                {
+                    self.inited = false;
+                }
             }
             fn update(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
