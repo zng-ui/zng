@@ -8,15 +8,15 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0.24"
-syn = { version = "1.0.58", features = ["full", "visit-mut", "extra-traits", "derive"] }
-quote = "1.0.8"
-proc-macro-crate = "1.0.0"
+proc-macro2 = "1"
+syn = { version = "1", features = ["full", "visit-mut", "extra-traits", "derive"] }
+quote = "1"
+proc-macro-crate = "1"
 
-once_cell = "1.5.2"
-uuid = { version = "0.8.2", features = ["v4"] }
-heck = "0.3.2"
-regex = "1.4.3"
+once_cell = "1"
+uuid = { version = "0.8", features = ["v4"] }
+heck = "0.3"
+regex = "1.4"
 
 [build-dependencies]
-minifier = "0.0.39"
+minifier = "0.0.41"

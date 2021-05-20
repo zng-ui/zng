@@ -3,10 +3,7 @@
 **/Cargo.lock
 app_profile.json
 **/*.expanded.rs
-dump.rs
-dump.log
-dump*.rs
-dump*.log
-dump*.asm
-screenshot.png
+dump.*
+dump*.*
+screenshot.*
 wip

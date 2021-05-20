@@ -5,7 +5,7 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
 
 [dependencies]
-serde = "1.0.115"
-serde_json = "1.0.57"
+serde = "1"
+serde_json = "1"
 
 [workspace] # Exclude from main workspace
