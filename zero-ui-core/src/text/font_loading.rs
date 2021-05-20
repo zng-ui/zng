@@ -318,7 +318,7 @@ impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
             underline_thickness: m.underline_thickness,
             cap_height: m.cap_height,
             x_height: m.x_height,
-            bounding_box: euclid::rect(
+            bounding_box: webrender::euclid::rect(
                 m.bounding_box.origin_x(),
                 m.bounding_box.origin_y(),
                 m.bounding_box.width(),
@@ -459,7 +459,7 @@ impl FontFace {
                 underline_thickness: 84.0,
                 cap_height: 1170.0,
                 x_height: 866.0,
-                bounding_box: euclid::rect(1524.0, 3483.0, -249.0, -1392.0),
+                bounding_box: webrender::euclid::rect(1524.0, 3483.0, -249.0, -1392.0),
             },
             instances: Default::default(),
             render_keys: Default::default(),

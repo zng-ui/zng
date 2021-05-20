@@ -1,27 +1,22 @@
 mod build_tests {
-    use serial_test::serial;
-
-    #[serial]
     #[test]
     fn impl_ui_node() {
         let t = trybuild::TestCases::new();
         t.compile_fail("tests/build/impl_ui_node/*.rs");
     }
 
-    #[serial]
     #[test]
     fn property() {
         let t = trybuild::TestCases::new();
         t.compile_fail("tests/build/property/*.rs");
     }
 
-    #[serial]
     #[test]
     fn widget_and_widget_mixin() {
         let t = trybuild::TestCases::new();
         t.compile_fail("tests/build/widget/*.rs");
     }
-    #[serial]
+
     #[test]
     fn widget_new() {
         let t = trybuild::TestCases::new();

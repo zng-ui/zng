@@ -4,7 +4,6 @@
 
 use self::util::Position;
 use crate::{context::TestWidgetContext, var::Var, widget, widget_mixin, Widget, WidgetId};
-use serial_test::serial;
 
 // Used in multiple tests.
 #[widget($crate::tests::widget::empty_wgt)]
@@ -298,7 +297,6 @@ pub fn wgt_required_inherited_default_required() {
  * Tests value initialization order.
  */
 #[test]
-#[serial(priority)]
 pub fn value_init_order() {
     Position::reset();
     let mut wgt = empty_wgt! {
@@ -326,7 +324,6 @@ pub mod child_property_wgt {
     }
 }
 #[test]
-#[serial(priority)]
 pub fn wgt_child_property_init_order() {
     Position::reset();
     let mut wgt = child_property_wgt! {
@@ -354,7 +351,6 @@ pub mod same_priority_order_wgt {
     }
 }
 #[test]
-#[serial(priority)]
 pub fn wgt_same_priority_order() {
     Position::reset();
     let mut wgt = same_priority_order_wgt! {
@@ -883,7 +879,6 @@ fn property_priority_sorting_init1() -> impl Widget {
     }
 }
 #[test]
-#[serial(priority)]
 pub fn property_priority_sorting_value_init1() {
     Position::reset();
 
@@ -943,7 +938,6 @@ fn property_priority_sorting_init2() -> impl Widget {
     }
 }
 #[test]
-#[serial(priority)]
 pub fn property_priority_sorting_value_init2() {
     Position::reset();
 
@@ -1009,7 +1003,6 @@ fn assert_node_order(wgt: &impl Widget) {
     );
 }
 #[test]
-#[serial(priority)]
 pub fn property_priority_sorting_node_init1() {
     Position::reset();
 
@@ -1019,7 +1012,6 @@ pub fn property_priority_sorting_node_init1() {
     assert_node_order(&wgt);
 }
 #[test]
-#[serial(priority)]
 pub fn property_priority_sorting_node_init2() {
     Position::reset();
 
@@ -1033,7 +1025,6 @@ pub mod property_priority_sorting_inherited_wgt {
     inherit!(super::property_priority_sorting_wgt);
 }
 #[test]
-#[serial(priority)]
 pub fn property_priority_sorting_node_inherited_init() {
     Position::reset();
 
@@ -1097,7 +1088,6 @@ pub mod property_priority_sorting_defaults_wgt {
     }
 }
 #[test]
-#[serial(priority)]
 pub fn property_priority_sorting_defaults() {
     Position::reset();
 

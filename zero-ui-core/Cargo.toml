@@ -40,7 +40,6 @@ xi-unicode = "0.3"
 
 # render
 webrender = "0.61"
-euclid = "0.20.7" #version required by webrender
 gleam = "0.6.17" #version required by webrender
 image = "0.23"
 
@@ -67,6 +66,3 @@ log = "0.4"
 # app_profiler only
 serde_json = { version = "1", optional = true }
 lazy_static = { version = "1", optional = true }
-
-[dev-dependencies]
-serial_test = "0.5"

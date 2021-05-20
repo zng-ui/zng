@@ -2538,8 +2538,11 @@ mod renderer {
         /// The coordinates are in pixels units and `x` and `y` starting at the top-left corner.
         /// If the rectangle does not fully overlap with the frame the result is clipped.
         pub fn frame_pixels_rect(&mut self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, RendererError> {
-            let max_rect = euclid::Rect::from_size(self.size);
-            let rect = euclid::Rect::new(euclid::Point2D::new(x, y), euclid::Size2D::new(width as i32, height as i32));
+            let max_rect = webrender::euclid::Rect::from_size(self.size);
+            let rect = webrender::euclid::Rect::new(
+                webrender::euclid::Point2D::new(x, y),
+                webrender::euclid::Size2D::new(width as i32, height as i32),
+            );
             let rect = rect.intersection(&max_rect).unwrap_or_default();
 
             if rect.size.width == 0 || rect.size.height == 0 {

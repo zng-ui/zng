@@ -188,7 +188,7 @@ pub struct FontFaceMetrics {
     /// A rectangle that surrounds all bounding boxes of all glyphs, in font units.
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
-    pub bounding_box: euclid::Rect<f32, FontUnit>,
+    pub bounding_box: webrender::euclid::Rect<f32, FontUnit>,
 }
 impl FontFaceMetrics {
     /// Compute [`FontMetrics`] given a font size in pixels.

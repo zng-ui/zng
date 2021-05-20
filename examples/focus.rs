@@ -81,7 +81,7 @@ fn functions() -> impl Widget {
             },
             {
                 let detach_focused = RcNode::new_cyclic(|wk| {
-                    button! {
+                    let btn = button! {
                         content = text("Detach Button");
                         on_click = move |ctx, _| {
                             let wwk = wk.clone();
@@ -92,7 +92,8 @@ fn functions() -> impl Widget {
                                 }
                             }, None);
                         }
-                    }
+                    };
+                    btn.boxed()
                 });
                 slot(detach_focused, take_on_init())
             }
@@ -194,9 +195,8 @@ mod inspect {
 #[cfg(not(debug_assertions))]
 mod inspect {
     use super::*;
-    use zero_ui::core::context::WidgetContext;
 
-    pub fn focus(path: &Option<WidgetPath>, _: &mut WidgetContext) -> String {
+    pub fn focus(path: &Option<WidgetPath>, _: &mut Services) -> String {
         path.as_ref()
             .map(|p| format!("{:?}", p.widget_id()))
             .unwrap_or_else(|| "<none>".to_owned())

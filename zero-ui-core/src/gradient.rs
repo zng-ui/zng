@@ -69,7 +69,7 @@ impl LinearGradientAxis {
 
                 let inv_dir_length = 1.0 / (dir.x * dir.x + dir.y * dir.y).sqrt();
 
-                let delta = euclid::Vector2D::new(
+                let delta = webrender::euclid::Vector2D::new(
                     dir.x * inv_dir_length * line_length / 2.0,
                     dir.y * inv_dir_length * line_length / 2.0,
                 );

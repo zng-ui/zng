@@ -65,7 +65,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let properties_remove: HashSet<_> = properties_remove.into_iter().collect();
     let properties_declared: HashSet<_> = properties_declared.into_iter().collect();
 
-    let crate_core = util::crate_core();
     let mut errors = Errors::default();
 
     // validate inherits
@@ -804,6 +803,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
         #[cfg(debug_assertions)]
         {
+            let crate_core = util::crate_core();
             let loc_ident = ident!("__loc_{}", w_prop);
             when_condition_default_props.extend(quote_spanned! {p_ident.span()=>
                 #w_prop::code_gen! {

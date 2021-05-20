@@ -188,7 +188,7 @@ impl_from_and_into_var! {
 }
 
 /// Radian angle type used by webrender.
-pub type LayoutAngle = euclid::Angle<f32>;
+pub type LayoutAngle = webrender::euclid::Angle<f32>;
 impl From<AngleRadian> for LayoutAngle {
     fn from(rad: AngleRadian) -> Self {
         LayoutAngle::radians(rad.0)
@@ -562,7 +562,7 @@ impl Length {
 }
 
 /// Computed [`Length`].
-pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
+pub type LayoutLength = webrender::euclid::Length<f32, wr::LayoutPixel>;
 
 /// Convert a [`LayoutLength`] to font units.
 #[inline]
@@ -2008,7 +2008,7 @@ impl Transform {
         for step in &self.steps {
             r = match step {
                 TransformStep::Computed(m) => r.post_transform(m),
-                TransformStep::Translate(x, y) => r.post_translate(euclid::vec3(
+                TransformStep::Translate(x, y) => r.post_translate(webrender::euclid::vec3(
                     x.to_layout(LayoutLength::new(available_size.width), ctx).get(),
                     y.to_layout(LayoutLength::new(available_size.height), ctx).get(),
                     0.0,
