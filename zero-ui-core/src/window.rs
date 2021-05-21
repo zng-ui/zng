@@ -33,7 +33,7 @@ unique_id! {
     /// Unique identifier of a headless window.
     ///
     /// See [`WindowId`] for more details.
-    pub struct LogicalWindowId;
+    pub struct HeadlessWindowId;
 }
 
 /// Unique identifier of a headed window or a headless window backed by a hidden system window.
@@ -50,13 +50,13 @@ pub enum WindowId {
     /// and also for headless windows with renderer enabled in compatibility mode, when a hidden window is used.
     System(SystemWindowId),
     /// The id for a headless window, when the window is not backed by a system window.
-    Logical(LogicalWindowId),
+    Headless(HeadlessWindowId),
 }
 impl WindowId {
     /// New unique [`Logical`](Self::Logical) window id.
     #[inline]
     pub fn new_unique() -> Self {
-        WindowId::Logical(LogicalWindowId::new_unique())
+        WindowId::Headless(HeadlessWindowId::new_unique())
     }
 }
 impl From<SystemWindowId> for WindowId {
@@ -64,9 +64,9 @@ impl From<SystemWindowId> for WindowId {
         WindowId::System(id)
     }
 }
-impl From<LogicalWindowId> for WindowId {
-    fn from(id: LogicalWindowId) -> Self {
-        WindowId::Logical(id)
+impl From<HeadlessWindowId> for WindowId {
+    fn from(id: HeadlessWindowId) -> Self {
+        WindowId::Headless(id)
     }
 }
 impl fmt::Display for WindowId {
@@ -75,10 +75,10 @@ impl fmt::Display for WindowId {
             WindowId::System(s) => {
                 let window_id = format!("{:?}", s);
                 let window_id_raw = window_id.trim_start_matches("WindowId(").trim_end_matches(')');
-                write!(f, "win-{}", window_id_raw)
+                write!(f, "WinId({})", window_id_raw)
             }
-            WindowId::Logical(s) => {
-                write!(f, "win-{}", s.get())
+            WindowId::Headless(s) => {
+                write!(f, "WinId({})", s.get())
             }
         }
     }

@@ -21,7 +21,7 @@ unique_id! {
 }
 impl fmt::Display for WidgetId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "wgt-{}", self.get())
+        write!(f, "WgtId({})", self.get())
     }
 }
 
