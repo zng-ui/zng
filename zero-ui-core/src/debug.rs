@@ -648,6 +648,88 @@ impl PartialEq for ValueInfo {
 }
 
 #[doc(hidden)]
+pub mod debug_var_util2 {
+    // reference: https://github.com/nvzqz/impls
+
+    use super::ValueInfo;
+    use crate::{formatx, text::ToText, var::{BoxedVar, IntoVar, OwnedVar, VarObj, VarValue}};
+    use std::{any::type_name, fmt::{Debug, Display}, marker::PhantomData};
+
+    pub trait NoMatch {
+        fn info(&self) -> Option<BoxedVar<ValueInfo>>;
+    }
+    impl<T> NoMatch for T {
+        fn info(&self) -> Option<BoxedVar<ValueInfo>> {
+            None
+        }
+    }
+    pub struct DisplayDebug<'a, T>(&'a T);
+    impl<'a, T: Display + Debug> DisplayDebug<'a, T> {
+        pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
+            Some(OwnedVar(ValueInfo {
+                display: formatx!("{}", self.0),
+                debug: formatx!("{:#?}", self.0),
+                type_name: type_name::<T>().into(),
+            }).boxed())
+        }
+    }
+
+    pub struct IntoVarDisplayDebug<'a, T: VarValue, V: IntoVar<T>>(&'a V, PhantomData<T>);
+    impl<'a, T: VarValue + Display, V: IntoVar<T>> IntoVarDisplayDebug<'a, T, V> {
+        pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
+            todo!()
+        }
+    }
+
+    pub struct DebugOnly<'a, T>(&'a T);
+    impl<'a, T: Debug> DebugOnly<'a, T> {
+        pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
+            Some(OwnedVar(ValueInfo {
+                display: formatx!("{:?}", self.0),
+                debug: formatx!("{:#?}", self.0),
+                type_name: type_name::<T>().into(),
+            }).boxed())
+        }
+    }
+
+    pub struct TypeNameOnly<'a, T>(&'a T);
+    impl<'a, T> TypeNameOnly<'a, T> {
+        pub fn info(&self) -> BoxedVar<ValueInfo> {
+            let name = type_name::<T>();
+
+            let display = if name.starts_with("zero_ui_core::widget_base::implicit_base::new::WidgetNode") {
+                "<widget!>".to_text()
+            } else if name == "zero_ui_core::ui_list::WidgetVec" || name.starts_with("zero_ui_core::ui_list::WidgetList") {
+                "<[widgets!]>".to_text()
+            } else if name == "zero_ui_core::ui_list::UiNodeVec" || name.starts_with("zero_ui_core::ui_list::UiNodeList") {
+                "<[nodes!]>".to_text()
+            } else if name.ends_with("{{closure}}") {
+                "<{{closure}}>".to_text()
+            } else {
+                // TODO short name
+                formatx!("<{}>", name)
+            };
+
+            OwnedVar(ValueInfo {
+                display,
+                debug: formatx!("<{}>", name),
+                type_name: name.into(),
+            }).boxed()
+        }
+    }
+    
+    #[test]
+    pub fn test() {
+        let value = "a";
+
+        DisplayDebug(&value)
+            .info()
+            .or_else(|| DebugOnly(&value).info())
+            .unwrap_or_else(|| TypeNameOnly(&value).info());
+    }
+}
+
+#[doc(hidden)]
 pub mod debug_var_util {
     use std::{
         any::type_name,
