@@ -700,7 +700,7 @@ pub mod debug_var_util2 {
     // reference: https://github.com/nvzqz/impls
 
     use super::ValueInfo;
-    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue};
+    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue, VarDebug, VarDisplay};
     use std::fmt::{Debug, Display};
 
     pub trait NoMatch {
@@ -712,49 +712,17 @@ pub mod debug_var_util2 {
         }
     }
 
-    pub trait DebugVar {
-        fn map_value_info(&self) -> BoxedVar<ValueInfo>;
-    }
-
-    pub trait DisplayDebugVar {
-        fn map_value_info(&self) -> BoxedVar<ValueInfo>;
-    }
-
     pub struct VarDisplayDebug<'a, V>(&'a V);
-    impl<'a, V: VarOpaqueDisplay> VarDisplayDebug<'a, V> {
+    impl<'a, V: VarDisplay> VarDisplayDebug<'a, V> {
         pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
-            Some(self.0.do_thing())
-        }
-    }
-    pub trait VarOpaqueDisplay<C = ()> {
-        type T;
-
-        fn do_thing(&self) -> BoxedVar<ValueInfo>;
-    }
-    impl<T: VarValue + Display, V: Var<T>> VarOpaqueDisplay<T> for V {
-        type T = T;
-
-        fn do_thing(&self) -> BoxedVar<ValueInfo> {
-            self.map(ValueInfo::new_display).boxed()
+            Some(self.0.display_var())
         }
     }
 
     pub struct VarDebugOnly<'a, V>(&'a V);
-    impl<'a, V: VarOpaque> VarDebugOnly<'a, V> {
+    impl<'a, V: VarDebug> VarDebugOnly<'a, V> {
         pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
-            Some(self.0.do_thing())
-        }
-    }
-    pub trait VarOpaque<C = ()> {
-        type T;
-
-        fn do_thing(&self) -> BoxedVar<ValueInfo>;
-    }
-    impl<T: VarValue, V: Var<T>> VarOpaque<T> for V {
-        type T = T;
-
-        fn do_thing(&self) -> BoxedVar<ValueInfo> {
-            self.map(ValueInfo::new_debug_only).boxed()
+            Some(self.0.debug_var())
         }
     }
 
