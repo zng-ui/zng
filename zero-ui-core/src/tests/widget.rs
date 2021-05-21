@@ -1405,7 +1405,10 @@ fn macro_rules_generated() {
 }
 
 mod util {
-    use std::{cell::Cell, collections::{HashMap, HashSet}};
+    use std::{
+        cell::Cell,
+        collections::{HashMap, HashSet},
+    };
 
     use crate::{
         context::WidgetContext,
@@ -1503,8 +1506,8 @@ mod util {
         }
 
         pub fn reset() {
-            COUNT.with(|c|c.set(0));
-            COUNT_INIT.with(|c|c.set(0));
+            COUNT.with(|c| c.set(0));
+            COUNT_INIT.with(|c| c.set(0));
         }
     }
 

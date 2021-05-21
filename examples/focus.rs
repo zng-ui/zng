@@ -168,13 +168,14 @@ mod inspect {
                             .expect("expected text in capture_new")
                             .args[0]
                             .value
+                            .display
                     )
                 } else if info.widget_name == "window" {
                     let title = widget
                         .properties()
                         .iter()
                         .find(|p| p.borrow().property_name == "title")
-                        .map(|p| p.borrow().args[0].value.clone())
+                        .map(|p| p.borrow().args[0].value.display.clone())
                         .unwrap_or_default();
                     format!("window({})", title)
                 } else {

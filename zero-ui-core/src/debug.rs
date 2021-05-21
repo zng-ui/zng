@@ -41,9 +41,9 @@ macro_rules! source_location {
         }
     };
 }
-use crate::context::RenderContext;
 #[doc(inline)]
 pub use crate::source_location;
+use crate::{context::RenderContext, formatx, text::Text};
 
 /// Debug information about a property of a widget instance.
 #[derive(Debug, Clone)]
@@ -105,8 +105,8 @@ pub type WidgetInstance = Rc<RefCell<WidgetInstanceInfo>>;
 pub struct PropertyArgInfo {
     /// Name of the argument.
     pub name: &'static str,
-    /// Debug pretty-printed value.
-    pub value: String,
+    /// Value printed in various formats.
+    pub value: ValueInfo,
     /// Value version from the source variable.
     pub value_version: u32,
     /// If the arg is a [`can_update` var](crate::var::VarObj::can_update).
@@ -287,7 +287,7 @@ pub struct WidgetInstanceInfoNode {
     child: Box<dyn UiNode>,
     info: WidgetInstance,
     // debug vars per property.
-    debug_vars: Box<[Box<[BoxedVar<String>]>]>,
+    debug_vars: Box<[Box<[BoxedVar<ValueInfo>]>]>,
     // when condition result variables.
     when_vars: Box<[BoxedVar<bool>]>,
 }
@@ -344,7 +344,12 @@ impl WidgetInstanceInfoNode {
                     .iter()
                     .map(|n| PropertyArgInfo {
                         name: n,
-                        value: String::new(),
+                        // TODO is this right?
+                        value: ValueInfo {
+                            display: "".into(),
+                            debug: "".into(),
+                            type_name: "".into(),
+                        },
                         value_version: 0,
                         can_update: false,
                     })
@@ -463,7 +468,7 @@ impl UiNode for WidgetInstanceInfoNode {
 #[doc(hidden)]
 pub struct PropertyInfoNode {
     child: Box<dyn UiNode>,
-    arg_debug_vars: Box<[BoxedVar<String>]>,
+    arg_debug_vars: Box<[BoxedVar<ValueInfo>]>,
     info: PropertyInstance,
 }
 #[allow(missing_docs)] // this is all hidden
@@ -481,7 +486,7 @@ impl PropertyInfoNode {
         instance_location: SourceLocation,
 
         arg_names: &[&'static str],
-        arg_debug_vars: Box<[BoxedVar<String>]>,
+        arg_debug_vars: Box<[BoxedVar<ValueInfo>]>,
 
         user_assigned: bool,
     ) -> Self {
@@ -501,7 +506,11 @@ impl PropertyInfoNode {
                     .iter()
                     .map(|n| PropertyArgInfo {
                         name: n,
-                        value: String::new(),
+                        value: ValueInfo {
+                            display: "".into(),
+                            debug: "".into(),
+                            type_name: "".into(),
+                        },
                         value_version: 0,
                         can_update: false,
                     })
@@ -622,56 +631,200 @@ impl UiNode for NewChildMarkerNode {
     }
 }
 
+/// Formatted data for the inspector.
+#[derive(Debug, Clone)]
+pub struct ValueInfo {
+    /// Data formatted using [`std::fmt::Display`].
+    pub display: Text,
+    /// Data formatted using the [`std::fmt::Debug`], pretty printed.
+    pub debug: Text,
+    /// Data type name, acquired using [`std::any::type_name`].
+    pub type_name: Text,
+}
+impl PartialEq for ValueInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.type_name == other.type_name && self.debug == other.debug
+    }
+}
+
 #[doc(hidden)]
 pub mod debug_var_util {
-    use std::any::type_name;
+    use std::{
+        any::type_name,
+        fmt::{Debug, Display},
+    };
 
-    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue};
+    use crate::{
+        formatx,
+        text::ToText,
+        var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue},
+    };
+
+    use super::ValueInfo;
+
+    pub trait DisplayAndDebug {
+        fn info(&self) -> ValueInfo;
+    }
+    impl<T: Display + Debug> DisplayAndDebug for T {
+        fn info(&self) -> ValueInfo {
+            ValueInfo {
+                display: formatx!("{}", self),
+                debug: formatx!("{:#?}", self),
+                type_name: type_name::<T>().into(),
+            }
+        }
+    }
+
+    pub trait DisplayOnly {
+        fn info(&self) -> ValueInfo;
+    }
+    impl<T: Display> DisplayOnly for T {
+        fn info(&self) -> ValueInfo {
+            let display = formatx!("{}", self);
+            ValueInfo {
+                debug: display.clone(),
+                display,
+                type_name: type_name::<T>().into(),
+            }
+        }
+    }
+
+    pub trait DebugOnly {
+        fn info(&self) -> ValueInfo;
+    }
+    impl<T: Debug> DebugOnly for T {
+        fn info(&self) -> ValueInfo {
+            ValueInfo {
+                display: formatx!("{:?}", self),
+                debug: formatx!("{:#?}", self),
+                type_name: type_name::<T>().into(),
+            }
+        }
+    }
+
+    pub trait TypeNameOnly {
+        fn info(&self) -> ValueInfo;
+    }
+    impl<T> TypeNameOnly for T {
+        fn info(&self) -> ValueInfo {
+            let name = type_name::<T>();
+
+            let display = if name.starts_with("zero_ui_core::widget_base::implicit_base::new::WidgetNode") {
+                "<widget!>".to_text()
+            } else if name == "zero_ui_core::ui_list::WidgetVec" || name.starts_with("zero_ui_core::ui_list::WidgetList") {
+                "<[widgets!]>".to_text()
+            } else if name == "zero_ui_core::ui_list::UiNodeVec" || name.starts_with("zero_ui_core::ui_list::UiNodeList") {
+                "<[nodes!]>".to_text()
+            } else if name.ends_with("{{closure}}") {
+                "<{{closure}}>".to_text()
+            } else {
+                // TODO short name
+                formatx!("<{}>", name)
+            };
+
+            ValueInfo {
+                display,
+                debug: formatx!("<{}>", name),
+                type_name: name.into(),
+            }
+        }
+    }
 
     pub struct Wrap<T>(pub T);
-
-    pub trait FromIntoVar<T> {
-        fn debug_var(&self) -> crate::var::BoxedVar<String>;
+    //
+    // `Wrap` - type_name only
+    //
+    pub trait FromTypeNameOnly {
+        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: VarValue, V: IntoVar<T>> FromIntoVar<T> for &Wrap<&V> {
-        fn debug_var(&self) -> BoxedVar<String> {
-            self.0.clone().into_var().into_map(|t| format!("{:?}", t)).boxed()
+    impl<T: TypeNameOnly> FromTypeNameOnly for Wrap<&T> {
+        fn debug_var(&self) -> BoxedVar<ValueInfo> {
+            OwnedVar(self.0.info()).boxed()
         }
     }
 
-    pub trait FromVar<T> {
-        fn debug_var(&self) -> crate::var::BoxedVar<String>;
+    //
+    // `&Wrap` - IntoVar<Debug>
+    //
+    pub trait FromIntoVarDebugOnly<T> {
+        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: VarValue, V: Var<T>> FromVar<T> for &&Wrap<&V> {
-        fn debug_var(&self) -> BoxedVar<String> {
-            self.0.map(|t| format!("{:?}", t)).boxed()
+    impl<T: VarValue, V: IntoVar<T>> FromIntoVarDebugOnly<T> for &Wrap<&V> {
+        fn debug_var(&self) -> BoxedVar<ValueInfo> {
+            self.0.clone().into_var().into_map(DebugOnly::info).boxed()
         }
     }
 
-    pub trait FromDebug {
-        fn debug_var(&self) -> crate::var::BoxedVar<String>;
+    // TODO make this work
+    //
+    // `&&Wrap` - IntoVar<Debug + Display>
+    //
+    //pub trait FromIntoVarDisplayDebug<T> {
+    //    fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
+    //}
+    //impl<T: VarValue + Display, V: IntoVar<T>> FromIntoVarDisplayDebug<T> for &&Wrap<&V> {
+    //    fn debug_var(&self) -> BoxedVar<ValueInfo> {
+    //        self.0.clone().into_var().into_map(DisplayAndDebug::info).boxed()
+    //    }
+    //}
+
+    //
+    // `&&&Wrap` - Debug only
+    //
+    pub trait FromDebugOnly {
+        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: std::fmt::Debug> FromDebug for &&&Wrap<&T> {
-        fn debug_var(&self) -> crate::var::BoxedVar<String> {
-            OwnedVar(format!("{:?}", &self.0)).boxed()
+    impl<T: DebugOnly> FromDebugOnly for &&&Wrap<&T> {
+        fn debug_var(&self) -> BoxedVar<ValueInfo> {
+            OwnedVar(self.0.info()).boxed()
         }
     }
 
-    pub trait FromAny {
-        fn debug_var(&self) -> crate::var::BoxedVar<String>;
+    //
+    // `&&&&Wrap` - Display only
+    //
+    pub trait FromDisplayOnly {
+        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T> FromAny for Wrap<&T> {
-        fn debug_var(&self) -> BoxedVar<String> {
-            let name = type_name::<T>();
-            if name.starts_with("zero_ui_core::widget_base::WidgetNode<") {
-                OwnedVar("<widget!>".to_owned()).boxed()
-            } else if name == "zero_ui_core::ui_list::WidgetVec" || name.starts_with("zero_ui_core::ui_list::WidgetList") {
-                OwnedVar("<[widgets!]>".to_owned()).boxed()
-            } else if name == "zero_ui_core::ui_list::UiNodeVec" || name.starts_with("zero_ui_core::ui_list::UiNodeList") {
-                OwnedVar("<[nodes!]>".to_owned()).boxed()
-            } else {
-                OwnedVar(format!("<{}>", name)).boxed()
-            }
+    impl<T: DisplayOnly> FromDisplayOnly for &&&&Wrap<&T> {
+        fn debug_var(&self) -> BoxedVar<ValueInfo> {
+            OwnedVar(self.0.info()).boxed()
+        }
+    }
+
+    //
+    // `&&&&&Wrap` - Debug + Display
+    //
+    pub trait FromDisplayAndDebug {
+        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
+    }
+    impl<T: DisplayAndDebug> FromDisplayAndDebug for &&&&&Wrap<&T> {
+        fn debug_var(&self) -> BoxedVar<ValueInfo> {
+            OwnedVar(self.0.info()).boxed()
+        }
+    }
+
+    //
+    // `&&&&&&Wrap` - Var<Debug>
+    //
+    pub trait FromVarDebugOnly<T> {
+        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
+    }
+    impl<T: VarValue, V: Var<T>> FromVarDebugOnly<T> for &&&&&&Wrap<&V> {
+        fn debug_var(&self) -> BoxedVar<ValueInfo> {
+            self.0.map(DebugOnly::info).boxed()
+        }
+    }
+
+    //
+    // `&&&&&&&Wrap` - Var<Debug + Display>
+    //
+    pub trait FromVarDisplayAndDebug<T> {
+        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
+    }
+    impl<T: VarValue + Display, V: Var<T>> FromVarDisplayAndDebug<T> for &&&&&&&Wrap<&V> {
+        fn debug_var(&self) -> BoxedVar<ValueInfo> {
+            self.0.map(DisplayAndDebug::info).boxed()
         }
     }
 
@@ -680,7 +833,7 @@ pub mod debug_var_util {
         macro_rules! debug_var_util_trick {
             ($value:expr) => {{
                 use $crate::debug::debug_var_util::*;
-                (&&&&Wrap($value)).debug_var()
+                (&&&&&&&Wrap($value)).debug_var()
             }};
         }
 
@@ -689,8 +842,17 @@ pub mod debug_var_util {
         #[test]
         fn from_into_var() {
             use crate::var::IntoVar;
-            fn value() -> impl IntoVar<bool> {
-                true
+            fn value() -> impl IntoVar<&'static str> {
+                #[derive(Clone, Copy)]
+                struct Test;
+                impl IntoVar<&'static str> for Test {
+                    type Var = crate::var::OwnedVar<&'static str>;
+
+                    fn into_var(self) -> Self::Var {
+                        crate::var::OwnedVar("called into_var")
+                    }
+                }
+                Test
             }
             let value = value();
 
@@ -698,7 +860,7 @@ pub mod debug_var_util {
 
             let ctx = TestWidgetContext::new();
 
-            assert_eq!("true", r.get(&ctx.vars))
+            assert_eq!("\"called into_var\"", r.get(&ctx.vars).debug)
         }
 
         #[test]
@@ -711,24 +873,28 @@ pub mod debug_var_util {
 
             let mut ctx = TestWidgetContext::new();
 
-            assert_eq!("true", r.get(&ctx.vars));
+            assert_eq!("true", r.get(&ctx.vars).debug);
 
             value.set(&ctx.vars, false);
 
             ctx.apply_updates();
 
-            assert_eq!("false", r.get(&ctx.vars));
+            assert_eq!("false", r.get(&ctx.vars).debug);
         }
 
         #[test]
         fn from_debug() {
             let value = true;
 
-            let r = debug_var_util_trick!(&value);
+            let r = {
+                use crate::debug::debug_var_util::*;
+                (&&&&&&Wrap(&value)).debug_var()
+            };
+            //let r = debug_var_util_trick!(&value);
 
             let ctx = TestWidgetContext::new();
 
-            assert_eq!("true", r.get(&ctx.vars))
+            assert_eq!("true", r.get(&ctx.vars).debug)
         }
 
         #[test]
@@ -740,13 +906,13 @@ pub mod debug_var_util {
 
             let ctx = TestWidgetContext::new();
 
-            assert!(r.get(&ctx.vars).contains("Foo"));
+            assert!(r.get(&ctx.vars).debug.contains("Foo"));
         }
     }
 }
 
 #[doc(hidden)]
-pub type DebugArgs = Box<[BoxedVar<String>]>;
+pub type DebugArgs = Box<[BoxedVar<ValueInfo>]>;
 
 /// Adds debug information to [`WidgetInfo`].
 pub trait WidgetDebugInfo<'a> {
@@ -794,7 +960,7 @@ pub struct WriteFrameState {
 struct WriteWidgetState {
     outer_size: LayoutSize,
     /// [(property_name, arg_name) => (value_version, value)]
-    properties: HashMap<(&'static str, &'static str), (u32, String)>,
+    properties: HashMap<(&'static str, &'static str), (u32, ValueInfo)>,
 }
 impl WriteFrameState {
     /// No property update.
@@ -946,7 +1112,14 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
         fmt.write_property(
             (".layout", false),
             ".outer_size",
-            &format!("{:?}", widget.bounds().size),
+            {
+                let size = widget.bounds().size;
+                &ValueInfo {
+                    display: formatx!("({}, {})", size.width, size.height),
+                    debug: formatx!("{:#?}", widget.bounds().size),
+                    type_name: std::any::type_name::<LayoutSize>().into(),
+                }
+            },
             false,
             true,
             updates_from.outer_size_diff(wgt.instance_id, widget.bounds().size),
@@ -960,7 +1133,27 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
     } else {
         fmt.open_widget("<unknown>", "", "");
 
-        fmt.write_property((".layout", false), ".bounds", &format!("{:?}", widget.bounds()), false, true, None);
+        fmt.write_property(
+            (".layout", false),
+            ".bounds",
+            {
+                let bounds = widget.bounds();
+                &ValueInfo {
+                    display: formatx!(
+                        "({}, {}).at({}, {})",
+                        bounds.size.width,
+                        bounds.size.height,
+                        bounds.origin.x,
+                        bounds.origin.y
+                    ),
+                    debug: formatx!("{:#?}", bounds),
+                    type_name: std::any::type_name::<crate::units::LayoutRect>().into(),
+                }
+            },
+            false,
+            true,
+            None,
+        );
 
         for child in widget.children() {
             write_tree(updates_from, child, "<unknown>", fmt);
@@ -969,7 +1162,9 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
     }
 }
 mod print_fmt {
-    use super::WriteArgDiff;
+    use crate::formatx;
+
+    use super::{ValueInfo, WriteArgDiff};
     use colored::*;
     use std::fmt::Display;
     use std::io::Write;
@@ -1052,9 +1247,9 @@ mod print_fmt {
             self.writeln();
         }
 
-        fn write_property_value(&mut self, value: &str, can_update: bool, diff: Option<WriteArgDiff>) {
+        fn write_property_value(&mut self, value: &ValueInfo, can_update: bool, diff: Option<WriteArgDiff>) {
             let mut l0 = true;
-            for line in value.lines() {
+            for line in value.display.lines() {
                 if l0 {
                     l0 = false;
                 } else {
@@ -1079,7 +1274,7 @@ mod print_fmt {
             &mut self,
             group: (&'static str, bool),
             name: &str,
-            value: &str,
+            value: &ValueInfo,
             user_assigned: bool,
             can_update: bool,
             diff: Option<WriteArgDiff>,
@@ -1106,7 +1301,15 @@ mod print_fmt {
                 } else {
                     self.write(", ");
                 }
-                self.write_property_value(&format!("<{}>", arg), false, None);
+                self.write_property_value(
+                    &ValueInfo {
+                        display: formatx!("<{}>", arg),
+                        debug: "".into(),
+                        type_name: "".into(),
+                    },
+                    false,
+                    None,
+                );
             }
             self.write_property_end(user_assigned);
         }
@@ -1122,7 +1325,14 @@ mod print_fmt {
             self.depth += 1;
         }
 
-        pub fn write_property_arg(&mut self, name: &str, value: &str, user_assigned: bool, can_update: bool, diff: Option<WriteArgDiff>) {
+        pub fn write_property_arg(
+            &mut self,
+            name: &str,
+            value: &ValueInfo,
+            user_assigned: bool,
+            can_update: bool,
+            diff: Option<WriteArgDiff>,
+        ) {
             self.write_tabs();
             if user_assigned {
                 self.write(name.blue().bold());

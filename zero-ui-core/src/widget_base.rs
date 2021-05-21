@@ -316,7 +316,7 @@ impl IsEnabled {
 /// # Focus
 ///
 /// Disabled widgets are not focusable. The focus manager skips disabled widgets.
-#[property(context)]
+#[property(context, default(true))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     struct EnabledNode<C, E> {
         child: C,
@@ -378,7 +378,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 }
 
 /// Sets the widget visibility.
-#[property(context)]
+#[property(context, default(true))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
     struct VisibilityNode<C, V> {
         child: C,
@@ -614,7 +614,7 @@ impl VisibilityContext {
 ///
 /// Events that use hit-testing to work are effectively disabled by setting this to `false`. That includes
 /// all mouse and touch events.
-#[property(context)]
+#[property(context, default(true))]
 pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> impl UiNode {
     struct HitTestableNode<U, H> {
         child: U,
