@@ -11,18 +11,6 @@ use super::*;
 #[derive(Clone, Default)]
 pub struct OwnedVar<T: VarValue>(pub T);
 impl<T: VarValue> protected::Var for OwnedVar<T> {}
-#[cfg(debug_assertions)]
-impl<T: VarValue> VarDebug for OwnedVar<T> {
-    fn debug_var(&self) -> BoxedVar<crate::debug::ValueInfo> {
-        OwnedVar(crate::debug::ValueInfo::new_debug_only(&self.0)).boxed()
-    }
-}
-#[cfg(debug_assertions)]
-impl<T: VarValue + std::fmt::Display> VarDisplay for OwnedVar<T> {
-    fn display_var(&self) -> BoxedVar<crate::debug::ValueInfo> {
-        OwnedVar(crate::debug::ValueInfo::new_display(&self.0)).boxed()
-    }
-}
 impl<T: VarValue> VarObj<T> for OwnedVar<T> {
     fn get<'a>(&'a self, _: &'a VarsRead) -> &'a T {
         &self.0

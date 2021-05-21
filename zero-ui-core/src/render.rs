@@ -1355,7 +1355,7 @@ impl FrameInfo {
 }
 
 /// Full address of a widget in a specific [`FrameInfo`].
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct WidgetPath {
     node_id: Option<ego_tree::NodeId>,
     window_id: WindowId,
@@ -1369,6 +1369,20 @@ impl PartialEq for WidgetPath {
     }
 }
 impl Eq for WidgetPath {}
+impl fmt::Debug for WidgetPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("WidgetPath")
+                .field("window_id", &self.window_id)
+                .field("path", &self.path)
+                .field("frame_id", &format_args!("FrameId({})", self.frame_id.0))
+                .field("node_id", &self.node_id)
+                .finish()
+        } else {
+            write!(f, "{}", self)
+        }
+    }
+}
 impl fmt::Display for WidgetPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}//", self.window_id)?;

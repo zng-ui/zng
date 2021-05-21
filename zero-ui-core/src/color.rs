@@ -55,7 +55,7 @@ const EPSILON_100: f32 = 0.001;
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct Rgba {
     /// Red channel value, in the `[0.0..=1.0]` range.
     pub red: f32,
@@ -119,16 +119,25 @@ impl Rgba {
         self.into()
     }
 }
-impl fmt::Display for Rgba {
+impl fmt::Debug for Rgba {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn i(n: f32) -> u8 {
-            (clamp_normal(n) * 255.0).round() as u8
-        }
-        let a = i(self.alpha);
-        if a == 255 {
-            write!(f, "rgb({}, {}, {})", i(self.red), i(self.green), i(self.blue))
+        if f.alternate() {
+            f.debug_struct("Rgba")
+                .field("red", &self.red)
+                .field("green", &self.green)
+                .field("blue", &self.blue)
+                .field("alpha", &self.alpha)
+                .finish()
         } else {
-            write!(f, "rgba({}, {}, {}, {})", i(self.red), i(self.green), i(self.blue), a)
+            fn i(n: f32) -> u8 {
+                (clamp_normal(n) * 255.0).round() as u8
+            }
+            let a = i(self.alpha);
+            if a == 255 {
+                write!(f, "rgb({}, {}, {})", i(self.red), i(self.green), i(self.blue))
+            } else {
+                write!(f, "rgba({}, {}, {}, {})", i(self.red), i(self.green), i(self.blue), a)
+            }
         }
     }
 }
@@ -684,16 +693,16 @@ mod tests {
     #[test]
     fn rgb_to_hsl() {
         let color = rgba(0, 100, 200, 0.2);
-        let a = color.to_string();
-        let b = color.to_hsla().to_rgba().to_string();
+        let a = format!("{:?}", color);
+        let b = format!("{:?}", color.to_hsla().to_rgba());
         assert_eq!(a, b)
     }
 
     #[test]
-    fn rgb_to_hsvl() {
+    fn rgb_to_hsv() {
         let color = rgba(0, 100, 200, 0.2);
-        let a = color.to_string();
-        let b = color.to_hsva().to_rgba().to_string();
+        let a = format!("{:?}", color);
+        let b = format!("{:?}", color.to_hsva().to_rgba());
         assert_eq!(a, b)
     }
 

@@ -101,17 +101,6 @@ mod protected {
     /// Ensures that only `zero-ui` can implement var types.
     pub trait Var {}
 }
-
-#[doc(hidden)]
-pub trait VarDebug {
-    fn debug_var(&self) -> BoxedVar<crate::debug::ValueInfo>;
-}
-
-#[doc(hidden)]
-pub trait VarDisplay {
-    fn display_var(&self) -> BoxedVar<crate::debug::ValueInfo>;
-}
-
 /// Part of [`Var`] that can be boxed.
 pub trait VarObj<T: VarValue>: protected::Var + 'static {
     /// References the current value.

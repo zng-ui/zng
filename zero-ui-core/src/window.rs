@@ -44,7 +44,7 @@ pub type SystemWindowId = glutin::window::WindowId;
 /// Unique identifier of a [`OpenWindow`].
 ///
 /// Can be obtained from [`OpenWindow::id`] or [`WindowContext::window_id`] or [`WidgetContext::path`].
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub enum WindowId {
     /// The id for a *real* system window, this is the case for all windows in [headed mode](OpenWindow::mode)
     /// and also for headless windows with renderer enabled in compatibility mode, when a hidden window is used.
@@ -67,6 +67,28 @@ impl From<SystemWindowId> for WindowId {
 impl From<HeadlessWindowId> for WindowId {
     fn from(id: HeadlessWindowId) -> Self {
         WindowId::Headless(id)
+    }
+}
+impl fmt::Debug for WindowId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WindowId::System(s) => {
+                let window_id = format!("{:?}", s);
+                let window_id_raw = window_id.trim_start_matches("WindowId(").trim_end_matches(')');
+                if f.alternate() {
+                    write!(f, "WindowId::System({})", window_id_raw)
+                } else {
+                    write!(f, "WindowId({})", window_id_raw)
+                }
+            }
+            WindowId::Headless(s) => {
+                if f.alternate() {
+                    write!(f, "WindowId::Headless({})", s.get())
+                } else {
+                    write!(f, "WindowId({})", s.get())
+                }
+            }
+        }
     }
 }
 impl fmt::Display for WindowId {

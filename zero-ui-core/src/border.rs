@@ -1,16 +1,33 @@
 //! Line and border types.
 
+use std::fmt;
+
 use webrender::api as w_api;
 
 use crate::{color::*, context::LayoutContext, units::*};
 
 /// Orientation of a straight line.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LineOrientation {
     /// Top-bottom line.
     Vertical,
     /// Left-right line.
     Horizontal,
+}
+impl fmt::Debug for LineOrientation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "LineOrientation::")?;
+        }
+        match self {
+            LineOrientation::Vertical => {
+                write!(f, "Vertical")
+            }
+            LineOrientation::Horizontal => {
+                write!(f, "Horizontal")
+            }
+        }
+    }
 }
 impl From<LineOrientation> for w_api::LineOrientation {
     fn from(o: LineOrientation) -> Self {
@@ -22,7 +39,7 @@ impl From<LineOrientation> for w_api::LineOrientation {
 }
 
 /// Represents a line style.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum LineStyle {
     /// A solid line.
     Solid,
@@ -48,10 +65,27 @@ pub enum LineStyle {
     /// Fully transparent line.
     Hidden,
 }
+impl fmt::Debug for LineStyle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "LineStyle::")?;
+        }
+        match self {
+            LineStyle::Solid => write!(f, "Solid"),
+            LineStyle::Double => write!(f, "Double"),
+            LineStyle::Dotted => write!(f, "Dotted"),
+            LineStyle::Dashed => write!(f, "Dashed"),
+            LineStyle::Groove => write!(f, "Groove"),
+            LineStyle::Ridge => write!(f, "Ridge"),
+            LineStyle::Wavy(t) => write!(f, "Wavy({})", t),
+            LineStyle::Hidden => write!(f, "Hidden"),
+        }
+    }
+}
 
 /// The line style for the sides of a widget's border.
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+#[derive(Clone, Copy, PartialEq, Hash, Eq)]
 pub enum BorderStyle {
     /// A single straight solid line.
     Solid = 1,
@@ -76,6 +110,24 @@ pub enum BorderStyle {
     /// Displays a border that makes the widget appear embossed.
     Outset = 9,
 }
+impl fmt::Debug for BorderStyle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "BorderStyle::")?;
+        }
+        match self {
+            BorderStyle::Solid => write!(f, "Solid"),
+            BorderStyle::Double => write!(f, "Double"),
+            BorderStyle::Dotted => write!(f, "Dotted"),
+            BorderStyle::Dashed => write!(f, "Dashed"),
+            BorderStyle::Groove => write!(f, "Groove"),
+            BorderStyle::Ridge => write!(f, "Ridge"),
+            BorderStyle::Hidden => write!(f, "Hidden"),
+            BorderStyle::Inset => write!(f, "Inset"),
+            BorderStyle::Outset => write!(f, "Outset"),
+        }
+    }
+}
 impl From<BorderStyle> for w_api::BorderStyle {
     fn from(s: BorderStyle) -> Self {
         match s {
@@ -94,12 +146,29 @@ impl From<BorderStyle> for w_api::BorderStyle {
 
 /// The line style and color for the sides of a widget's border.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct BorderSide {
     /// Line color.
     pub color: Rgba,
     /// Line style.
     pub style: BorderStyle,
+}
+impl fmt::Debug for BorderSide {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("BorderSide")
+                .field("color", &self.color)
+                .field("style", &self.style)
+                .finish()
+        } else {
+            if let BorderStyle::Hidden = self.style {
+                if self.color.alpha.abs() < 0.0001 {
+                    return write!(f, "Hidden");
+                }
+            }
+            write!(f, "({:?}, {:?})", self.color, self.style)
+        }
+    }
 }
 impl BorderSide {
     /// New border side from color and style value.
@@ -169,7 +238,7 @@ impl Default for BorderSide {
 }
 
 /// Radius of each corner of a border defined from [`Ellipse`] values.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct BorderRadius {
     /// Top-left corner.
     pub top_left: Ellipse,
@@ -179,6 +248,26 @@ pub struct BorderRadius {
     pub bottom_right: Ellipse,
     /// Bottom-left corner.
     pub bottom_left: Ellipse,
+}
+impl fmt::Debug for BorderRadius {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("BorderRadius")
+                .field("top_left", &self.top_left)
+                .field("top_right", &self.top_right)
+                .field("bottom_right", &self.bottom_right)
+                .field("bottom_left", &self.bottom_left)
+                .finish()
+        } else if self.all_corners_eq() {
+            write!(f, "{:?}", self.top_left)
+        } else {
+            write!(
+                f,
+                "({:?}, {:?}, {:?}, {:?})",
+                self.top_left, self.top_right, self.bottom_right, self.bottom_left
+            )
+        }
+    }
 }
 impl BorderRadius {
     /// New every corner unique.
@@ -211,6 +300,12 @@ impl BorderRadius {
     #[inline]
     pub fn zero() -> Self {
         Self::new_all(Ellipse::zero())
+    }
+
+    /// If all corners are the same value.
+    #[inline]
+    pub fn all_corners_eq(&self) -> bool {
+        self.top_left == self.top_right && self.top_left == self.bottom_right && self.top_left == self.bottom_left
     }
 
     /// Compute the radii in a layout context.
@@ -270,7 +365,7 @@ impl_from_and_into_var! {
 pub type LayoutBorderRadius = w_api::BorderRadius;
 
 /// The line style and color for each side of a widget's border.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct BorderSides {
     /// Color and style of the left border.
     pub left: BorderSide,
@@ -281,6 +376,24 @@ pub struct BorderSides {
     pub top: BorderSide,
     /// Color and style of the bottom border.
     pub bottom: BorderSide,
+}
+impl fmt::Debug for BorderSides {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("BorderSides")
+                .field("left", &self.left)
+                .field("right", &self.right)
+                .field("top", &self.top)
+                .field("bottom", &self.bottom)
+                .finish()
+        } else if self.all_eq() {
+            write!(f, "{:?}", self.top)
+        } else if self.dimensions_eq() {
+            write!(f, "({:?}, {:?})", self.top, self.left)
+        } else {
+            write!(f, "({:?}, {:?}, {:?}, {:?})", self.top, self.right, self.bottom, self.left)
+        }
+    }
 }
 impl BorderSides {
     /// All sides equal.
@@ -360,6 +473,18 @@ impl BorderSides {
     #[inline]
     pub fn hidden() -> Self {
         Self::new_all(BorderSide::hidden())
+    }
+
+    /// If all sides are equal.
+    #[inline]
+    pub fn all_eq(&self) -> bool {
+        self.top == self.bottom && self.top == self.left && self.top == self.right
+    }
+
+    /// If top and bottom are equal; and left and right are equal.
+    #[inline]
+    pub fn dimensions_eq(&self) -> bool {
+        self.top == self.bottom && self.left == self.right
     }
 }
 impl Default for BorderSides {

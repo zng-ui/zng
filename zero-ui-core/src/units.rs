@@ -383,7 +383,7 @@ impl FactorUnits for i32 {
 /// * `Exact` lengths uses [`about_eq`] with `0.001` epsilon.
 /// * `Relative`, `Em`, `RootEm` lengths use the [`FactorNormal`] equality.
 /// * Viewport lengths uses [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub enum Length {
     /// The exact length.
     Exact(f32),
@@ -420,6 +420,33 @@ impl PartialEq for Length {
             | (Length::ViewportMin(a), Length::ViewportMin(b))
             | (Length::ViewportMax(a), Length::ViewportMax(b)) => about_eq(a, b, EPSILON),
             _ => false,
+        }
+    }
+}
+impl fmt::Debug for Length {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            match self {
+                Length::Exact(e) => f.debug_tuple("Length::Exact").field(e).finish(),
+                Length::Relative(e) => f.debug_tuple("Length::Relative").field(e).finish(),
+                Length::Em(e) => f.debug_tuple("Length::Em").field(e).finish(),
+                Length::RootEm(e) => f.debug_tuple("Length::RootEm").field(e).finish(),
+                Length::ViewportWidth(e) => f.debug_tuple("Length::ViewportWidth").field(e).finish(),
+                Length::ViewportHeight(e) => f.debug_tuple("Length::ViewportHeight").field(e).finish(),
+                Length::ViewportMin(e) => f.debug_tuple("Length::ViewportMin").field(e).finish(),
+                Length::ViewportMax(e) => f.debug_tuple("Length::ViewportMax").field(e).finish(),
+            }
+        } else {
+            match self {
+                Length::Exact(e) => write!(f, "{}", e),
+                Length::Relative(e) => write!(f, "{}.pct()", e.0 * 100.0),
+                Length::Em(e) => write!(f, "{}.em()", e.0),
+                Length::RootEm(e) => write!(f, "{}.rem()", e.0),
+                Length::ViewportWidth(e) => write!(f, "{}.vw()", e),
+                Length::ViewportHeight(e) => write!(f, "{}.vh()", e),
+                Length::ViewportMin(e) => write!(f, "{}.vmin()", e),
+                Length::ViewportMax(e) => write!(f, "{}.vmax()", e),
+            }
         }
     }
 }
@@ -925,12 +952,26 @@ pub type LayoutSize = wr::LayoutSize;
 /// Ellipse in [`Length`] units.
 ///
 /// This is very similar to [`Size`] but allows initializing from a single [`Length`].
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Ellipse {
     /// *width* in length units.
     pub width: Length,
     /// *height* in length units.
     pub height: Length,
+}
+impl fmt::Debug for Ellipse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("Ellipse")
+                .field("width", &self.width)
+                .field("height", &self.height)
+                .finish()
+        } else if self.maybe_circle() {
+            write!(f, "{:?}", self.width)
+        } else {
+            write!(f, "({:?}, {:?})", self.width, self.height)
+        }
+    }
 }
 impl fmt::Display for Ellipse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1403,7 +1444,7 @@ impl<W: Into<Length>, H: Into<Length>> RectFromTuplesBuilder for (W, H) {
 /// 2D size offsets in [`Length`] units.
 ///
 /// This unit defines spacing around all four sides of a box, a widget margin can be defined using a value of this type.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct SideOffsets {
     /// Spacing above, in length units.
     pub top: Length,
@@ -1413,6 +1454,24 @@ pub struct SideOffsets {
     pub bottom: Length,
     /// Spacing to the left ,in length units.
     pub left: Length,
+}
+impl fmt::Debug for SideOffsets {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("SideOffsets")
+                .field("top", &self.top)
+                .field("right", &self.right)
+                .field("bottom", &self.bottom)
+                .field("left", &self.left)
+                .finish()
+        } else if self.all_eq() {
+            write!(f, "{:?}", self.top)
+        } else if self.dimensions_eq() {
+            write!(f, "({:?}, {:?})", self.top, self.left)
+        } else {
+            write!(f, "({:?}, {:?}, {:?}, {:?})", self.top, self.right, self.bottom, self.left)
+        }
+    }
 }
 impl SideOffsets {
     /// New top, right, bottom left offsets. From any [`Length`] type.
@@ -1452,6 +1511,18 @@ impl SideOffsets {
     #[inline]
     pub fn zero() -> Self {
         Self::new_all(Length::zero())
+    }
+
+    /// If all sides are equal.
+    #[inline]
+    pub fn all_eq(&self) -> bool {
+        self.top == self.bottom && self.top == self.left && self.top == self.right
+    }
+
+    /// If top and bottom are equal; and left and right are equal.
+    #[inline]
+    pub fn dimensions_eq(&self) -> bool {
+        self.top == self.bottom && self.left == self.right
     }
 
     /// Compute the offsets in a layout context.

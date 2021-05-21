@@ -181,18 +181,6 @@ impl<T: VarValue> Clone for RcVar<T> {
         RcVar(Rc::clone(&self.0))
     }
 }
-#[cfg(debug_assertions)]
-impl<T: VarValue> VarDebug for RcVar<T> {
-    fn debug_var(&self) -> BoxedVar<crate::debug::ValueInfo> {
-        self.map(crate::debug::ValueInfo::new_debug_only).boxed()
-    }
-}
-#[cfg(debug_assertions)]
-impl<T: VarValue + std::fmt::Display> VarDisplay for RcVar<T> {
-    fn display_var(&self) -> BoxedVar<crate::debug::ValueInfo> {
-        self.map(crate::debug::ValueInfo::new_display).boxed()
-    }
-}
 impl<T: VarValue> VarObj<T> for RcVar<T> {
     fn get<'a>(&'a self, _: &'a VarsRead) -> &'a T {
         // SAFETY: This is safe because we are bounding the value lifetime with
