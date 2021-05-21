@@ -13,6 +13,7 @@ use super::{
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
+    fmt,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -43,7 +44,11 @@ macro_rules! source_location {
 }
 #[doc(inline)]
 pub use crate::source_location;
-use crate::{context::RenderContext, formatx, text::Text};
+use crate::{
+    context::RenderContext,
+    formatx,
+    text::{Text, ToText},
+};
 
 /// Debug information about a property of a widget instance.
 #[derive(Debug, Clone)]
@@ -641,6 +646,49 @@ pub struct ValueInfo {
     /// Data type name, acquired using [`std::any::type_name`].
     pub type_name: Text,
 }
+impl ValueInfo {
+    /// New [`ValueInfo`] from a value type that is only known to implement [`Debug`](fmt::Debug).
+    pub fn new_debug_only<T: fmt::Debug>(value: &T) -> Self {
+        Self {
+            display: formatx!("{:?}", value),
+            debug: formatx!("{:#?}", value),
+            type_name: std::any::type_name::<T>().into(),
+        }
+    }
+
+    /// New [`ValueInfo`] from a value type that is known to implement  [`Debug`](fmt::Debug) and [`Display`](fmt::Display).
+    pub fn new_display<T: fmt::Debug + fmt::Display>(value: &T) -> Self {
+        Self {
+            display: formatx!("{}", value),
+            debug: formatx!("{:#?}", value),
+            type_name: std::any::type_name::<T>().into(),
+        }
+    }
+
+    /// New [`ValueInfo`] from a value type that is not known to implement any format trait.
+    pub fn new_type_name_only<T>(_: &T) -> Self {
+        let name = std::any::type_name::<T>();
+
+        let display = if name.starts_with("zero_ui_core::widget_base::implicit_base::new::WidgetNode") {
+            "<widget!>".to_text()
+        } else if name == "zero_ui_core::ui_list::WidgetVec" || name.starts_with("zero_ui_core::ui_list::WidgetList") {
+            "<[widgets!]>".to_text()
+        } else if name == "zero_ui_core::ui_list::UiNodeVec" || name.starts_with("zero_ui_core::ui_list::UiNodeList") {
+            "<[nodes!]>".to_text()
+        } else if name.ends_with("{{closure}}") {
+            "<{{closure}}>".to_text()
+        } else {
+            // TODO short name
+            formatx!("<{}>", name)
+        };
+
+        Self {
+            display,
+            debug: name.into(),
+            type_name: name.into(),
+        }
+    }
+}
 impl PartialEq for ValueInfo {
     fn eq(&self, other: &Self) -> bool {
         self.type_name == other.type_name && self.debug == other.debug
@@ -652,8 +700,8 @@ pub mod debug_var_util2 {
     // reference: https://github.com/nvzqz/impls
 
     use super::ValueInfo;
-    use crate::{formatx, text::ToText, var::{BoxedVar, IntoVar, OwnedVar, VarObj, VarValue}};
-    use std::{any::type_name, fmt::{Debug, Display}, marker::PhantomData};
+    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue};
+    use std::fmt::{Debug, Display};
 
     pub trait NoMatch {
         fn info(&self) -> Option<BoxedVar<ValueInfo>>;
@@ -663,154 +711,218 @@ pub mod debug_var_util2 {
             None
         }
     }
-    pub struct DisplayDebug<'a, T>(&'a T);
-    impl<'a, T: Display + Debug> DisplayDebug<'a, T> {
+
+    pub trait DebugVar {
+        fn map_value_info(&self) -> BoxedVar<ValueInfo>;
+    }
+
+    pub trait DisplayDebugVar {
+        fn map_value_info(&self) -> BoxedVar<ValueInfo>;
+    }
+
+    pub struct VarDisplayDebug<'a, V>(&'a V);
+    impl<'a, V: VarOpaqueDisplay> VarDisplayDebug<'a, V> {
         pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
-            Some(OwnedVar(ValueInfo {
-                display: formatx!("{}", self.0),
-                debug: formatx!("{:#?}", self.0),
-                type_name: type_name::<T>().into(),
-            }).boxed())
+            Some(self.0.do_thing())
+        }
+    }
+    pub trait VarOpaqueDisplay<C = ()> {
+        type T;
+
+        fn do_thing(&self) -> BoxedVar<ValueInfo>;
+    }
+    impl<T: VarValue + Display, V: Var<T>> VarOpaqueDisplay<T> for V {
+        type T = T;
+
+        fn do_thing(&self) -> BoxedVar<ValueInfo> {
+            self.map(ValueInfo::new_display).boxed()
         }
     }
 
-    pub struct IntoVarDisplayDebug<'a, T: VarValue, V: IntoVar<T>>(&'a V, PhantomData<T>);
-    impl<'a, T: VarValue + Display, V: IntoVar<T>> IntoVarDisplayDebug<'a, T, V> {
+    pub struct VarDebugOnly<'a, V>(&'a V);
+    impl<'a, V: VarOpaque> VarDebugOnly<'a, V> {
         pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
-            todo!()
+            Some(self.0.do_thing())
+        }
+    }
+    pub trait VarOpaque<C = ()> {
+        type T;
+
+        fn do_thing(&self) -> BoxedVar<ValueInfo>;
+    }
+    impl<T: VarValue, V: Var<T>> VarOpaque<T> for V {
+        type T = T;
+
+        fn do_thing(&self) -> BoxedVar<ValueInfo> {
+            self.map(ValueInfo::new_debug_only).boxed()
+        }
+    }
+
+    pub struct IntoVarDisplayDebug<'a, V>(&'a V);
+    impl<'a, V: OpaqueIntoVarDisplay> IntoVarDisplayDebug<'a, V> {
+        pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
+            Some(self.0.do_thing())
+        }
+    }
+    pub trait OpaqueIntoVarDisplay<C = ()> {
+        type T: VarValue;
+
+        fn do_thing(&self) -> BoxedVar<ValueInfo>;
+    }
+    impl<T: VarValue + Display, V: IntoVar<T>> OpaqueIntoVarDisplay<T> for V {
+        type T = T;
+
+        fn do_thing(&self) -> BoxedVar<ValueInfo> {
+            self.clone().into_var().into_map(ValueInfo::new_display).boxed()
+        }
+    }
+
+    pub struct IntoVarDebugOnly<'a, V>(&'a V);
+    impl<'a, V: OpaqueIntoVar> IntoVarDebugOnly<'a, V> {
+        pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
+            Some(self.0.do_thing())
+        }
+    }
+    pub trait OpaqueIntoVar<C = ()> {
+        type T: VarValue;
+
+        fn do_thing(&self) -> BoxedVar<ValueInfo>;
+    }
+    impl<T: VarValue, V: IntoVar<T>> OpaqueIntoVar<T> for V {
+        type T = T;
+
+        fn do_thing(&self) -> BoxedVar<ValueInfo> {
+            self.clone().into_var().into_map(ValueInfo::new_debug_only).boxed()
+        }
+    }
+
+    pub struct DisplayDebug<'a, T>(&'a T);
+    impl<'a, T: Display + Debug> DisplayDebug<'a, T> {
+        pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
+            Some(OwnedVar(ValueInfo::new_display(self.0)).boxed())
         }
     }
 
     pub struct DebugOnly<'a, T>(&'a T);
     impl<'a, T: Debug> DebugOnly<'a, T> {
         pub fn info(&self) -> Option<BoxedVar<ValueInfo>> {
-            Some(OwnedVar(ValueInfo {
-                display: formatx!("{:?}", self.0),
-                debug: formatx!("{:#?}", self.0),
-                type_name: type_name::<T>().into(),
-            }).boxed())
+            Some(OwnedVar(ValueInfo::new_debug_only(self.0)).boxed())
         }
     }
 
-    pub struct TypeNameOnly<'a, T>(&'a T);
-    impl<'a, T> TypeNameOnly<'a, T> {
-        pub fn info(&self) -> BoxedVar<ValueInfo> {
-            let name = type_name::<T>();
-
-            let display = if name.starts_with("zero_ui_core::widget_base::implicit_base::new::WidgetNode") {
-                "<widget!>".to_text()
-            } else if name == "zero_ui_core::ui_list::WidgetVec" || name.starts_with("zero_ui_core::ui_list::WidgetList") {
-                "<[widgets!]>".to_text()
-            } else if name == "zero_ui_core::ui_list::UiNodeVec" || name.starts_with("zero_ui_core::ui_list::UiNodeList") {
-                "<[nodes!]>".to_text()
-            } else if name.ends_with("{{closure}}") {
-                "<{{closure}}>".to_text()
-            } else {
-                // TODO short name
-                formatx!("<{}>", name)
-            };
-
-            OwnedVar(ValueInfo {
-                display,
-                debug: formatx!("<{}>", name),
-                type_name: name.into(),
-            }).boxed()
-        }
+    pub fn type_name_only<T>(value: &T) -> BoxedVar<ValueInfo> {
+        OwnedVar(ValueInfo::new_type_name_only(value)).boxed()
     }
-    
-    #[test]
-    pub fn test() {
-        let value = "a";
 
-        DisplayDebug(&value)
-            .info()
-            .or_else(|| DebugOnly(&value).info())
-            .unwrap_or_else(|| TypeNameOnly(&value).info());
+    #[doc(hidden)]
+    #[macro_export]
+    macro_rules! __debug_var_util_macro {
+        ($value_ref:expr) => {{
+            use $crate::debug::debug_var_util2::*;
+            let value = $value_ref;
+            None.or_else(|| VarDisplayDebug(value).info())
+                .or_else(|| VarDebugOnly(value).info())
+                .or_else(|| IntoVarDisplayDebug(value).info())
+                .or_else(|| IntoVarDebugOnly(value).info())
+                .or_else(|| DisplayDebug(value).info())
+                .or_else(|| DebugOnly(value).info())
+                .unwrap_or_else(|| type_name_only(value))
+        }};
+    }
+    pub use __debug_var_util_macro as debug_var;
+
+    #[cfg(test)]
+    mod tests {
+        use crate::{
+            context::TestWidgetContext,
+            var::{var, IntoVar},
+        };
+
+        use super::debug_var;
+
+        #[test]
+        pub fn var_display_debug() {
+            let value = var("a");
+
+            let info = debug_var!(&value);
+            let ctx = TestWidgetContext::new();
+            let info = info.get(&ctx.vars);
+            assert_eq!("a", info.display);
+        }
+
+        #[test]
+        pub fn var_debug_only() {
+            let value = var(vec!["a"]);
+
+            let info = debug_var!(&value);
+            let ctx = TestWidgetContext::new();
+            let info = info.get(&ctx.vars);
+            assert_eq!(r#"["a"]"#, info.display);
+        }
+
+        #[test]
+        pub fn into_var_display_debug() {
+            fn value() -> impl IntoVar<&'static str> {
+                "a"
+            }
+
+            let info = debug_var!(&value());
+            let ctx = TestWidgetContext::new();
+            let info = info.get(&ctx.vars);
+            assert_eq!("a", info.display);
+        }
+
+        #[test]
+        pub fn into_var_debug_only() {
+            fn value() -> impl IntoVar<Vec<&'static str>> {
+                vec!["a"]
+            }
+
+            let info = debug_var!(&value);
+            let ctx = TestWidgetContext::new();
+            let info = info.get(&ctx.vars);
+            assert_eq!(r#"["a"]"#, info.display);
+        }
+
+        #[test]
+        pub fn display_debug() {
+            let value = "a";
+
+            let info = debug_var!(&value);
+            let ctx = TestWidgetContext::new();
+            let info = info.get(&ctx.vars);
+            assert_eq!("a", info.display);
+        }
+
+        #[test]
+        pub fn debug_only() {
+            let value = vec!["a"];
+
+            let info = debug_var!(&value);
+            let ctx = TestWidgetContext::new();
+            let info = info.get(&ctx.vars);
+            assert_eq!(r#"["a"]"#, info.display);
+        }
+
+        #[test]
+        pub fn type_name_only() {
+            let value = || {};
+
+            let info = debug_var!(&value);
+            let ctx = TestWidgetContext::new();
+            let info = info.get(&ctx.vars);
+            assert_eq!("<{{closure}}>", info.display);
+        }
     }
 }
 
 #[doc(hidden)]
 pub mod debug_var_util {
-    use std::{
-        any::type_name,
-        fmt::{Debug, Display},
-    };
+    use std::fmt::{Debug, Display};
 
-    use crate::{
-        formatx,
-        text::ToText,
-        var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue},
-    };
+    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue};
 
     use super::ValueInfo;
-
-    pub trait DisplayAndDebug {
-        fn info(&self) -> ValueInfo;
-    }
-    impl<T: Display + Debug> DisplayAndDebug for T {
-        fn info(&self) -> ValueInfo {
-            ValueInfo {
-                display: formatx!("{}", self),
-                debug: formatx!("{:#?}", self),
-                type_name: type_name::<T>().into(),
-            }
-        }
-    }
-
-    pub trait DisplayOnly {
-        fn info(&self) -> ValueInfo;
-    }
-    impl<T: Display> DisplayOnly for T {
-        fn info(&self) -> ValueInfo {
-            let display = formatx!("{}", self);
-            ValueInfo {
-                debug: display.clone(),
-                display,
-                type_name: type_name::<T>().into(),
-            }
-        }
-    }
-
-    pub trait DebugOnly {
-        fn info(&self) -> ValueInfo;
-    }
-    impl<T: Debug> DebugOnly for T {
-        fn info(&self) -> ValueInfo {
-            ValueInfo {
-                display: formatx!("{:?}", self),
-                debug: formatx!("{:#?}", self),
-                type_name: type_name::<T>().into(),
-            }
-        }
-    }
-
-    pub trait TypeNameOnly {
-        fn info(&self) -> ValueInfo;
-    }
-    impl<T> TypeNameOnly for T {
-        fn info(&self) -> ValueInfo {
-            let name = type_name::<T>();
-
-            let display = if name.starts_with("zero_ui_core::widget_base::implicit_base::new::WidgetNode") {
-                "<widget!>".to_text()
-            } else if name == "zero_ui_core::ui_list::WidgetVec" || name.starts_with("zero_ui_core::ui_list::WidgetList") {
-                "<[widgets!]>".to_text()
-            } else if name == "zero_ui_core::ui_list::UiNodeVec" || name.starts_with("zero_ui_core::ui_list::UiNodeList") {
-                "<[nodes!]>".to_text()
-            } else if name.ends_with("{{closure}}") {
-                "<{{closure}}>".to_text()
-            } else {
-                // TODO short name
-                formatx!("<{}>", name)
-            };
-
-            ValueInfo {
-                display,
-                debug: formatx!("<{}>", name),
-                type_name: name.into(),
-            }
-        }
-    }
 
     pub struct Wrap<T>(pub T);
     //
@@ -819,9 +931,9 @@ pub mod debug_var_util {
     pub trait FromTypeNameOnly {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: TypeNameOnly> FromTypeNameOnly for Wrap<&T> {
+    impl<T> FromTypeNameOnly for Wrap<&T> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            OwnedVar(self.0.info()).boxed()
+            OwnedVar(ValueInfo::new_type_name_only(self.0)).boxed()
         }
     }
 
@@ -833,7 +945,7 @@ pub mod debug_var_util {
     }
     impl<T: VarValue, V: IntoVar<T>> FromIntoVarDebugOnly<T> for &Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            self.0.clone().into_var().into_map(DebugOnly::info).boxed()
+            self.0.clone().into_var().into_map(ValueInfo::new_debug_only).boxed()
         }
     }
 
@@ -846,7 +958,7 @@ pub mod debug_var_util {
     //}
     //impl<T: VarValue + Display, V: IntoVar<T>> FromIntoVarDisplayDebug<T> for &&Wrap<&V> {
     //    fn debug_var(&self) -> BoxedVar<ValueInfo> {
-    //        self.0.clone().into_var().into_map(DisplayAndDebug::info).boxed()
+    //        self.0.clone().into_var().into_map(ValueInfo::new_display).boxed()
     //    }
     //}
 
@@ -856,57 +968,45 @@ pub mod debug_var_util {
     pub trait FromDebugOnly {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: DebugOnly> FromDebugOnly for &&&Wrap<&T> {
+    impl<T: Debug> FromDebugOnly for &&&Wrap<&T> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            OwnedVar(self.0.info()).boxed()
+            OwnedVar(ValueInfo::new_debug_only(self.0)).boxed()
         }
     }
 
     //
-    // `&&&&Wrap` - Display only
-    //
-    pub trait FromDisplayOnly {
-        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
-    }
-    impl<T: DisplayOnly> FromDisplayOnly for &&&&Wrap<&T> {
-        fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            OwnedVar(self.0.info()).boxed()
-        }
-    }
-
-    //
-    // `&&&&&Wrap` - Debug + Display
+    // `&&&&Wrap` - Debug + Display
     //
     pub trait FromDisplayAndDebug {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: DisplayAndDebug> FromDisplayAndDebug for &&&&&Wrap<&T> {
+    impl<T: Debug + Display> FromDisplayAndDebug for &&&&Wrap<&T> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            OwnedVar(self.0.info()).boxed()
+            OwnedVar(ValueInfo::new_display(self.0)).boxed()
         }
     }
 
     //
-    // `&&&&&&Wrap` - Var<Debug>
+    // `&&&&&Wrap` - Var<Debug>
     //
     pub trait FromVarDebugOnly<T> {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: VarValue, V: Var<T>> FromVarDebugOnly<T> for &&&&&&Wrap<&V> {
+    impl<T: VarValue, V: Var<T>> FromVarDebugOnly<T> for &&&&&Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            self.0.map(DebugOnly::info).boxed()
+            self.0.map(ValueInfo::new_debug_only).boxed()
         }
     }
 
     //
-    // `&&&&&&&Wrap` - Var<Debug + Display>
+    // `&&&&&&Wrap` - Var<Debug + Display>
     //
     pub trait FromVarDisplayAndDebug<T> {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: VarValue + Display, V: Var<T>> FromVarDisplayAndDebug<T> for &&&&&&&Wrap<&V> {
+    impl<T: VarValue + Display, V: Var<T>> FromVarDisplayAndDebug<T> for &&&&&&Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            self.0.map(DisplayAndDebug::info).boxed()
+            self.0.map(ValueInfo::new_display).boxed()
         }
     }
 
