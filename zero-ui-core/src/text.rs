@@ -335,10 +335,22 @@ impl WhiteSpace {
 /// # Case Insensitive
 ///
 /// Font family names are case-insensitive. `"Arial"` and `"ARIAL"` are equal and have the same hash.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FontName {
     text: Text,
     is_ascii: bool,
+}
+impl fmt::Debug for FontName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("FontName")
+                .field("text", &self.text)
+                .field("is_ascii", &self.is_ascii)
+                .finish()
+        } else {
+            write!(f, "{:?}", self.text)
+        }
+    }
 }
 impl PartialEq for FontName {
     fn eq(&self, other: &Self) -> bool {

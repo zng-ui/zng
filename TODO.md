@@ -29,7 +29,7 @@ Things that must be done first because they influence the core API design that i
   * Modal.
 
 * Widget Inspector (console).
-  * Debug print of some values is too verbose.
+  * Finish new debug for all VarValue types.
 
 * Localization.
 * Scrolling.

@@ -1180,12 +1180,10 @@ impl<'a> WidgetContext<'a> {
 }
 
 /// Current widget context path.
-#[derive(Debug)]
 pub struct WidgetContextPath {
     window_id: WindowId,
     widget_ids: Vec<WidgetId>,
 }
-
 impl WidgetContextPath {
     fn new(window_id: WindowId, root_id: WidgetId) -> Self {
         let mut widget_ids = Vec::with_capacity(50);
@@ -1238,6 +1236,28 @@ impl WidgetContextPath {
     #[inline]
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.widget_ids.iter().any(move |&w| w == widget_id)
+    }
+}
+impl fmt::Debug for WidgetContextPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("WidgetContextPath")
+                .field("window_id", &self.window_id)
+                .field("widget_ids", &self.widget_ids)
+                .finish()
+        } else {
+            write!(f, "{}", self)
+        }
+    }
+}
+impl fmt::Display for WidgetContextPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // "WinId(1)//Wgt(1)/Wgt(23)"
+        write!(f, "{}/", self.window_id)?;
+        for w in &self.widget_ids {
+            write!(f, "/{}", w)?;
+        }
+        Ok(())
     }
 }
 

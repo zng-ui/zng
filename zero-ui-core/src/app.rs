@@ -135,7 +135,7 @@ cancelable_event_args! {
 /// # Debug Log
 ///
 /// In debug builds, `App` sets a [`logger`](log) that prints warnings and errors to `stderr`
-/// if no logger was registered before the call to [`blank`](Self::blank) and [`default`](Self::default).
+/// if no logger was registered before the call to [`blank`](Self::blank) or [`default`](Self::default).
 pub struct App;
 
 impl App {

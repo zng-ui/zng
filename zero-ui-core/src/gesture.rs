@@ -221,7 +221,7 @@ impl ClickArgs {
 }
 
 /// A keyboard combination.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyGesture {
     /// The key modifiers.
     pub modifiers: ModifiersState,
@@ -241,6 +241,18 @@ impl KeyGesture {
         KeyGesture {
             modifiers: ModifiersState::empty(),
             key,
+        }
+    }
+}
+impl fmt::Debug for KeyGesture {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("KeyGesture")
+                .field("modifiers", &self.modifiers)
+                .field("key", &self.key)
+                .finish()
+        } else {
+            write!(f, "{}", self)
         }
     }
 }
@@ -264,7 +276,7 @@ impl Display for KeyGesture {
 }
 
 /// A modifier key press and release without any other key press in between.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub enum ModifierGesture {
     /// Any of the Windows/Apple keys.
     Logo,
@@ -274,6 +286,14 @@ pub enum ModifierGesture {
     Shift,
     /// Any of the ALT keys.
     Alt,
+}
+impl fmt::Debug for ModifierGesture {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "ModifierGesture::")?;
+        }
+        write!(f, "{}", self)
+    }
 }
 impl Display for ModifierGesture {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -332,7 +352,7 @@ impl Display for KeyChord {
 }
 
 /// Keyboard gesture or chord associated with a command.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Shortcut {
     /// Key-press plus modifiers.
     Gesture(KeyGesture),
@@ -340,6 +360,19 @@ pub enum Shortcut {
     Chord(KeyChord),
     /// Modifier press and release.
     Modifier(ModifierGesture),
+}
+impl fmt::Debug for Shortcut {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            match self {
+                Shortcut::Gesture(g) => f.debug_tuple("Shortcut::Gesture").field(g).finish(),
+                Shortcut::Chord(c) => f.debug_tuple("Shortcut::Chord").field(c).finish(),
+                Shortcut::Modifier(m) => f.debug_tuple("Shortcut::Modifier").field(m).finish(),
+            }
+        } else {
+            write!(f, "{}", self)
+        }
+    }
 }
 impl Display for Shortcut {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -414,7 +447,7 @@ impl<const N: usize> crate::var::IntoVar<Shortcuts> for [Shortcut; N] {
 }
 
 /// Multiple shortcuts.
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct Shortcuts(pub Vec<Shortcut>);
 impl Shortcuts {
     /// New default (empty).
@@ -468,6 +501,41 @@ impl TryFrom<char> for Shortcuts {
     /// See [`from_char`](Self::from_char).
     fn try_from(value: char) -> Result<Self, Self::Error> {
         Shortcuts::from_char(value)
+    }
+}
+impl fmt::Debug for Shortcuts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("Shortcuts").field(&self.0).finish()
+        } else {
+            write!(f, "[")?;
+            if !self.0.is_empty() {
+                if let Shortcut::Chord(c) = self.0[0] {
+                    write!(f, "({:?})", c)?;
+                } else {
+                    write!(f, "{:?}", self.0[0])?;
+                }
+                for shortcut in &self.0[1..] {
+                    if let Shortcut::Chord(c) = shortcut {
+                        write!(f, ", ({:?})", c)?;
+                    } else {
+                        write!(f, ", {:?}", shortcut)?;
+                    }
+                }
+            }
+            write!(f, "]")
+        }
+    }
+}
+impl fmt::Display for Shortcuts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if !self.0.is_empty() {
+            write!(f, "{}", self.0[0])?;
+            for shortcut in &self.0[1..] {
+                write!(f, " | {}", shortcut)?;
+            }
+        }
+        Ok(())
     }
 }
 

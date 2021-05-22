@@ -345,14 +345,27 @@ impl TabIndex {
 }
 impl fmt::Debug for TabIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_auto() {
-            write!(f, "TabIndex::AUTO")
-        } else if self.is_skip() {
-            write!(f, "TabIndex::SKIP")
-        } else if self.is_after_auto() {
-            write!(f, "TabIndex::after_auto({})", self.0 - Self::AUTO.0 - 1)
+        if f.alternate() {
+            if self.is_auto() {
+                write!(f, "TabIndex::AUTO")
+            } else if self.is_skip() {
+                write!(f, "TabIndex::SKIP")
+            } else if self.is_after_auto() {
+                write!(f, "TabIndex::after_auto({})", self.0 - Self::AUTO.0 - 1)
+            } else {
+                write!(f, "TabIndex({})", self.0)
+            }
         } else {
-            write!(f, "TabIndex({})", self.0)
+            //
+            if self.is_auto() {
+                write!(f, "AUTO")
+            } else if self.is_skip() {
+                write!(f, "SKIP")
+            } else if self.is_after_auto() {
+                write!(f, "after_auto({})", self.0 - Self::AUTO.0 - 1)
+            } else {
+                write!(f, "{}", self.0)
+            }
         }
     }
 }
@@ -372,7 +385,7 @@ impl_from_and_into_var! {
 /// Tab navigation configuration of a focus scope.
 ///
 /// See the [module level](crate::focus#tab-navigation) for an overview of tab navigation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TabNav {
     /// Tab moves into the scope but does not move the focus inside the scope.
     None,
@@ -385,11 +398,25 @@ pub enum TabNav {
     /// Tab moves into the scope once but then moves out of the scope.
     Once,
 }
+impl fmt::Debug for TabNav {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "TabNav::")?;
+        }
+        match self {
+            TabNav::None => write!(f, "None"),
+            TabNav::Continue => write!(f, "Continue"),
+            TabNav::Contained => write!(f, "Contained"),
+            TabNav::Cycle => write!(f, "Cycle"),
+            TabNav::Once => write!(f, "Once"),
+        }
+    }
+}
 
 /// Directional navigation configuration of a focus scope.
 ///
 /// See the [module level](crate::focus#directional-navigation) for an overview of directional navigation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DirectionalNav {
     /// Arrows does not move the focus inside the scope.
     None,
@@ -399,6 +426,19 @@ pub enum DirectionalNav {
     Contained,
     /// Arrows move the focus inside the scope only, cycles back to oppose edges.
     Cycle,
+}
+impl fmt::Debug for DirectionalNav {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "DirectionalNav::")?;
+        }
+        match self {
+            DirectionalNav::None => write!(f, "None"),
+            DirectionalNav::Continue => write!(f, "Continue"),
+            DirectionalNav::Contained => write!(f, "Contained"),
+            DirectionalNav::Cycle => write!(f, "Cycle"),
+        }
+    }
 }
 
 event! {

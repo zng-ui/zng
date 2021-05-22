@@ -168,7 +168,7 @@ impl fmt::Display for Rgba {
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsla::hue)
 /// and `0.00001` epsilon for the others.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct Hsla {
     /// Hue color angle in the `[0.0..=360.0]` range.
     pub hue: f32,
@@ -251,6 +251,36 @@ impl Hsla {
         self.into()
     }
 }
+impl fmt::Debug for Hsla {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("Hsla")
+                .field("hue", &self.hue)
+                .field("saturation", &self.saturation)
+                .field("lightness", &self.lightness)
+                .field("alpha", &self.alpha)
+                .finish()
+        } else {
+            fn p(n: f32) -> f32 {
+                clamp_normal(n) * 100.0
+            }
+            let a = p(self.alpha);
+            let h = AngleDegree(self.hue).modulo().0.round();
+            if (a - 100.0).abs() <= EPSILON {
+                write!(f, "hsl({}.deg(), {}.pct(), {}.pct())", h, p(self.saturation), p(self.lightness))
+            } else {
+                write!(
+                    f,
+                    "hsla({}.deg(), {}.pct(), {}.pct(), {}.pct())",
+                    h,
+                    p(self.saturation),
+                    p(self.lightness),
+                    a
+                )
+            }
+        }
+    }
+}
 impl fmt::Display for Hsla {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn p(n: f32) -> f32 {
@@ -272,7 +302,7 @@ impl fmt::Display for Hsla {
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsva::hue)
 /// and `0.00001` epsilon for the others.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct Hsva {
     /// Hue color angle in the `[0.0..=360.0]` range.
     pub hue: f32,
@@ -324,6 +354,36 @@ impl Hsva {
     #[inline]
     pub fn to_hsla(self) -> Hsla {
         self.into()
+    }
+}
+impl fmt::Debug for Hsva {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("Hsla")
+                .field("hue", &self.hue)
+                .field("saturation", &self.saturation)
+                .field("value", &self.value)
+                .field("alpha", &self.alpha)
+                .finish()
+        } else {
+            fn p(n: f32) -> f32 {
+                clamp_normal(n) * 100.0
+            }
+            let a = p(self.alpha);
+            let h = AngleDegree(self.hue).modulo().0.round();
+            if (a - 100.0).abs() <= EPSILON {
+                write!(f, "hsv({}.deg(), {}.pct(), {}.pct())", h, p(self.saturation), p(self.value))
+            } else {
+                write!(
+                    f,
+                    "hsva({}.deg(), {}.pct(), {}.pct(), {}.pct())",
+                    h,
+                    p(self.saturation),
+                    p(self.value),
+                    a
+                )
+            }
+        }
     }
 }
 impl fmt::Display for Hsva {
@@ -452,6 +512,15 @@ impl_from_and_into_var! {
             green: f(green),
             blue: f(blue),
             alpha: hsla.alpha,
+        }
+    }
+
+    fn from(color: RenderColor) -> Rgba {
+        Rgba {
+            red: color.r,
+            green: color.g,
+            blue: color.b,
+            alpha: color.a,
         }
     }
 }
@@ -841,7 +910,7 @@ impl From<FactorNormal> for RgbaComponent {
 /// ```
 ///
 /// The example above creates a filter that lowers the opacity to `50%` and blurs by `3px`.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default)]
 pub struct Filter {
     filters: Vec<FilterData>,
 }
@@ -935,15 +1004,96 @@ impl Filter {
         self.op(FilterOp::HueRotate(angle.into().0))
     }
 }
+impl fmt::Debug for Filter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("Filter").field(&self.filters).finish()
+        } else if self.filters.is_empty() {
+            write!(f, "[]")
+        } else {
+            write!(f, "{:?}", self.filters[0])?;
+            for filter in &self.filters[1..] {
+                write!(f, ".{:?}", filter)?;
+            }
+            Ok(())
+        }
+    }
+}
 
 /// A computed [`Filter`], ready for Webrender.
 pub type RenderFilter = Vec<FilterOp>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 enum FilterData {
     Op(FilterOp),
     Blur(Length),
     DropShadow { offset: Point, blur_radius: Length, color: Rgba },
+}
+impl fmt::Debug for FilterData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "FilterData::")?;
+            match self {
+                FilterData::Op(op) => f.debug_tuple("Op").field(op).finish(),
+                FilterData::Blur(l) => f.debug_tuple("Blur").field(l).finish(),
+                FilterData::DropShadow {
+                    offset,
+                    blur_radius,
+                    color,
+                } => f
+                    .debug_struct("DropShadow")
+                    .field("offset", offset)
+                    .field("blur_radius", blur_radius)
+                    .field("color", color)
+                    .finish(),
+            }
+        } else {
+            fn bool_or_pct(func: &'static str, value: f32, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                if value.abs() < 0.0001 {
+                    write!(f, "{}(false)", func)
+                } else if (value - 1.0).abs() < 0.0001 {
+                    write!(f, "{}(true)", func)
+                } else {
+                    write!(f, "{}({}.pct())", func, value * 100.0)
+                }
+            }
+            match self {
+                FilterData::Op(op) => match op {
+                    FilterOp::Identity => todo!(),
+                    FilterOp::Blur(b) => write!(f, "blur({})", b),
+                    FilterOp::Brightness(b) => write!(f, "brightness({}.pct())", b * 100.0),
+                    FilterOp::Contrast(c) => write!(f, "brightness({}.pct())", c * 100.0),
+                    FilterOp::Grayscale(c) => bool_or_pct("grayscale", *c, f),
+                    FilterOp::HueRotate(d) => write!(f, "hue_rotate({}.deg())", d),
+                    FilterOp::Invert(i) => bool_or_pct("invert", *i, f),
+                    FilterOp::Opacity(_, a) => write!(f, "opacity({}.pct())", a * 100.0),
+                    FilterOp::Saturate(s) => write!(f, "saturate({}.pct())", s * 100.0),
+                    FilterOp::Sepia(s) => bool_or_pct("sepia", *s, f),
+                    FilterOp::DropShadow(s) => write!(
+                        f,
+                        "drop_shadow(({}, {}), {}, {})",
+                        s.offset.x,
+                        s.offset.y,
+                        s.blur_radius,
+                        Rgba::from(s.color)
+                    ),
+                    FilterOp::ColorMatrix(_) => todo!(),
+                    FilterOp::SrgbToLinear => todo!(),
+                    FilterOp::LinearToSrgb => todo!(),
+                    FilterOp::ComponentTransfer => todo!(),
+                    FilterOp::Flood(_) => todo!(),
+                },
+                FilterData::Blur(l) => write!(f, "blur({:?})", l),
+                FilterData::DropShadow {
+                    offset,
+                    blur_radius,
+                    color,
+                } => {
+                    write!(f, "drop_shadow({:?}, {:?}, {:?})", offset, blur_radius, color)
+                }
+            }
+        }
+    }
 }
 
 /// New [`Filter::opacity`].
