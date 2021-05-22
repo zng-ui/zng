@@ -337,13 +337,25 @@ impl ModifierGesture {
 }
 
 /// A sequence of two keyboard combinations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyChord {
     /// The first key gesture.
     pub starter: KeyGesture,
 
     /// The second key gesture.
     pub complement: KeyGesture,
+}
+impl fmt::Debug for KeyChord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("KeyChord")
+                .field("starter", &self.starter)
+                .field("complement", &self.complement)
+                .finish()
+        } else {
+            write!(f, "{}", self)
+        }
+    }
 }
 impl Display for KeyChord {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -992,7 +1004,7 @@ macro_rules! gesture_key_name {
 macro_rules! gesture_keys {
     ($($(#[$docs:meta])* $key:ident $(= $name:expr)?),+ $(,)?) => {
         /// The set of keys that can be used in a [`KeyGesture`].
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Clone, Copy, PartialEq, Eq, Hash)]
         #[repr(u32)]
         #[allow(missing_docs)] // they are mostly self-explanatory.
         pub enum GestureKey {
@@ -1000,6 +1012,18 @@ macro_rules! gesture_keys {
                 $(#[$docs])*
                 $key
             ),+
+        }
+        impl fmt::Debug for GestureKey {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                if f.alternate() {
+                    write!(f, "GestureKey::")?;
+                }
+                match self {
+                    $(
+                        GestureKey::$key => write!(f, "{}", stringify!($key)),
+                    )+
+                }
+            }
         }
         impl TryFrom<Key> for GestureKey {
             type Error = Key;

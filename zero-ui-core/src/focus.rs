@@ -1676,7 +1676,7 @@ impl<'a> WidgetFocusInfo<'a> {
                             self.first_tab_descendant()
                         }
                     }), // fallback
-                FocusScopeOnFocus::Self_ => None,
+                FocusScopeOnFocus::Widget => None,
             },
             FocusInfo::NotFocusable | FocusInfo::Focusable { .. } => None,
         }
@@ -2223,18 +2223,30 @@ pub enum FocusInfo {
 }
 
 /// Behavior of a focus scope when it receives direct focus.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum FocusScopeOnFocus {
     /// Just focus the scope widget.
-    Self_,
+    Widget,
     /// Focus the first descendant considering the TAB index, if the scope has no descendants
-    /// behaves like [`Self_`](Self::Self_).
+    /// behaves like [`Widget`](Self::Widget).
     ///
     /// Focus the last descendant if the focus is *reversing* in, e.g. in a SHIFT+TAB action.
     FirstDescendant,
     /// Focus the descendant that was last focused before focus moved out of the scope. If the
     /// scope cannot return focus, behaves like [`FirstDescendant`](Self::FirstDescendant).
     LastFocused,
+}
+impl fmt::Debug for FocusScopeOnFocus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "FocusScopeOnFocus::")?;
+        }
+        match self {
+            FocusScopeOnFocus::Widget => write!(f, "Widget"),
+            FocusScopeOnFocus::FirstDescendant => write!(f, "FirstDescendant"),
+            FocusScopeOnFocus::LastFocused => write!(f, "LastFocused"),
+        }
+    }
 }
 impl Default for FocusScopeOnFocus {
     /// [`FirstDescendant`](Self::FirstDescendant)
@@ -2337,7 +2349,7 @@ impl FocusInfo {
     pub fn scope_on_focus(self) -> FocusScopeOnFocus {
         match self {
             FocusInfo::FocusScope { on_focus, .. } => on_focus,
-            _ => FocusScopeOnFocus::Self_,
+            _ => FocusScopeOnFocus::Widget,
         }
     }
 }

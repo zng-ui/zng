@@ -35,10 +35,7 @@ pub fn about_eq(a: f32, b: f32, epsilon: f32) -> bool {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(
-    Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
-)]
-#[display(fmt = "{} rad", self.0)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg)]
 pub struct AngleRadian(pub f32);
 impl AngleRadian {
     /// Radians in `[0.0 ..= TAU]`.
@@ -72,6 +69,20 @@ impl_from_and_into_var! {
         AngleRadian(turn.0 * TAU)
     }
 }
+impl fmt::Debug for AngleRadian {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("AngleRadian").field(&self.0).finish()
+        } else {
+            write!(f, "{}.rad()", self.0)
+        }
+    }
+}
+impl fmt::Display for AngleRadian {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} rad", self.0)
+    }
+}
 
 /// Angle in gradians.
 ///
@@ -80,10 +91,7 @@ impl_from_and_into_var! {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(
-    Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
-)]
-#[display(fmt = "{} gon", self.0)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg)]
 pub struct AngleGradian(pub f32);
 impl AngleGradian {
     /// Gradians in `[0.0 ..= 400.0]`.
@@ -110,6 +118,20 @@ impl_from_and_into_var! {
         AngleGradian(turn.0 * 400.0)
     }
 }
+impl fmt::Debug for AngleGradian {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("AngleGradian").field(&self.0).finish()
+        } else {
+            write!(f, "{}.grad()", self.0)
+        }
+    }
+}
+impl fmt::Display for AngleGradian {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} gon", self.0)
+    }
+}
 
 /// Angle in degrees.
 ///
@@ -118,10 +140,7 @@ impl_from_and_into_var! {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(
-    Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
-)]
-#[display(fmt = "{}º", self.0)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg)]
 pub struct AngleDegree(pub f32);
 impl AngleDegree {
     /// Degrees in `[0.0 ..= 360.0]`.
@@ -148,6 +167,20 @@ impl_from_and_into_var! {
         AngleDegree(turn.0 * 360.0)
     }
 }
+impl fmt::Debug for AngleDegree {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("AngleDegree").field(&self.0).finish()
+        } else {
+            write!(f, "{}.deg()", self.0)
+        }
+    }
+}
+impl fmt::Display for AngleDegree {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}º", self.0)
+    }
+}
 
 /// Angle in turns (complete rotations).
 ///
@@ -156,16 +189,31 @@ impl_from_and_into_var! {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(
-    Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg,
-)]
-#[display(fmt = "{} tr", self.0)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg)]
 pub struct AngleTurn(pub f32);
 impl AngleTurn {
     /// Turns in `[0.0 ..= 1.0]`.
     #[inline]
     pub fn modulo(self) -> Self {
         AngleTurn(self.0.rem_euclid(1.0))
+    }
+}
+impl fmt::Debug for AngleTurn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("AngleTurn").field(&self.0).finish()
+        } else {
+            write!(f, "{}.turn()", self.0)
+        }
+    }
+}
+impl fmt::Display for AngleTurn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if (self.0 - 1.0).abs() < 0.0001 {
+            write!(f, "1 turn")
+        } else {
+            write!(f, "{} turns", self.0)
+        }
     }
 }
 impl PartialEq for AngleTurn {
@@ -264,8 +312,7 @@ impl AngleUnits for i32 {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
-#[display(fmt = "{}%", self.0)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
 pub struct FactorPercent(pub f32);
 impl FactorPercent {
     /// Clamp factor to [0.0..=100.0] range.
@@ -284,6 +331,20 @@ impl_from_and_into_var! {
         FactorPercent(n.0 * 100.0)
     }
 }
+impl fmt::Debug for FactorPercent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("FactorPercent").field(&self.0).finish()
+        } else {
+            write!(f, "{}.pct()", self.0)
+        }
+    }
+}
+impl fmt::Display for FactorPercent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}%", self.0)
+    }
+}
 
 /// Normalized multiplication factor (0.0-1.0).
 ///
@@ -292,7 +353,7 @@ impl_from_and_into_var! {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
 pub struct FactorNormal(pub f32);
 impl FactorNormal {
     /// Clamp factor to [0.0..=1.0] range.
@@ -325,6 +386,20 @@ impl_from_and_into_var! {
     /// |`false` | `0.0`   |
     fn from(b: bool) -> FactorNormal {
         FactorNormal(if b { 1.0 } else { 0.0 })
+    }
+}
+impl fmt::Debug for FactorNormal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("FactorNormal").field(&self.0).finish()
+        } else {
+            write!(f, "{}.normal()", self.0)
+        }
+    }
+}
+impl fmt::Display for FactorNormal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
     }
 }
 
@@ -753,12 +828,21 @@ macro_rules! impl_length_comp_conversions {
 }
 
 /// 2D point in [`Length`] units.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Point {
     /// *x* offset in length units.
     pub x: Length,
     /// *y* offset in length units.
     pub y: Length,
+}
+impl fmt::Debug for Point {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("Point").field("x", &self.x).field("y", &self.y).finish()
+        } else {
+            write!(f, "({:?}, {:?})", self.x, self.y)
+        }
+    }
 }
 impl fmt::Display for Point {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -881,12 +965,24 @@ impl_from_and_into_var! {
 pub type LayoutPoint = wr::LayoutPoint;
 
 /// 2D size in [`Length`] units.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Size {
     /// *width* in length units.
     pub width: Length,
     /// *height* in length units.
     pub height: Length,
+}
+impl fmt::Debug for Size {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("Size")
+                .field("width", &self.width)
+                .field("height", &self.height)
+                .finish()
+        } else {
+            write!(f, "({:?}, {:?})", self.width, self.height)
+        }
+    }
 }
 impl fmt::Display for Size {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1074,7 +1170,7 @@ impl_from_and_into_var! {
 pub type LayoutEllipse = LayoutSize;
 
 /// Spacing in-between grid cells in [`Length`] units.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct GridSpacing {
     /// Spacing in-between columns, in length units.
     pub column: Length,
@@ -1139,6 +1235,20 @@ impl_from_and_into_var! {
         GridSpacing::new(spacing.column, spacing.row)
     }
 }
+impl fmt::Debug for GridSpacing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("GridSpacing")
+                .field("column", &self.column)
+                .field("row", &self.row)
+                .finish()
+        } else if self.column == self.row {
+            write!(f, "{:?}", self.column)
+        } else {
+            write!(f, "({:?}, {:?})", self.column, self.row)
+        }
+    }
+}
 
 /// Computed [`GridSpacing`].
 #[derive(Clone, Copy, Debug)]
@@ -1150,12 +1260,24 @@ pub struct LayoutGridSpacing {
 }
 
 /// 2D rect in [`Length`] units.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Rect {
     /// Top-left origin of the rectangle in length units.
     pub origin: Point,
     /// Size of the rectangle in length units.
     pub size: Size,
+}
+impl fmt::Debug for Rect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("Rect")
+                .field("origin", &self.origin)
+                .field("size", &self.size)
+                .finish()
+        } else {
+            write!(f, "{:?}.at{:?}", self.origin, self.size)
+        }
+    }
 }
 impl fmt::Display for Rect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1245,12 +1367,21 @@ impl_from_and_into_var! {
 pub type LayoutRect = wr::LayoutRect;
 
 /// 2D line in [`Length`] units.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Line {
     /// Start point in length units.
     pub start: Point,
     /// End point in length units.
     pub end: Point,
+}
+impl fmt::Debug for Line {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("Line").field("start", &self.start).field("end", &self.end).finish()
+        } else {
+            write!(f, "{:?}.to{:?}", self.start, self.end)
+        }
+    }
 }
 impl fmt::Display for Line {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1685,7 +1816,7 @@ impl_from_and_into_var! {
 }
 
 /// Text line height.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum LineHeight {
     /// Default height from the font data.
     ///
@@ -1696,6 +1827,17 @@ pub enum LineHeight {
     ///
     /// Relative lengths are computed to the font size.
     Length(Length),
+}
+impl fmt::Debug for LineHeight {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "LineHeight::")?;
+        }
+        match self {
+            LineHeight::Font => write!(f, "Font"),
+            LineHeight::Length(l) => f.debug_tuple("Length").field(l).finish(),
+        }
+    }
 }
 impl Default for LineHeight {
     /// [`LineHeight::Font`]
@@ -1733,7 +1875,7 @@ impl_from_and_into_var! {
 /// extra space added to the computed spacing.
 ///
 /// A "letter" is a character glyph cluster, e.g.: `a`, `â`, `1`, `-`, `漢`.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum LetterSpacing {
     /// Letter spacing can be tweaked when justification is enabled.
     Auto,
@@ -1744,6 +1886,17 @@ pub enum LetterSpacing {
     ///
     /// This variant disables automatic adjustments for justification.
     Length(Length),
+}
+impl fmt::Debug for LetterSpacing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "LetterSpacing::")?;
+        }
+        match self {
+            LetterSpacing::Auto => write!(f, "Auto"),
+            LetterSpacing::Length(l) => f.debug_tuple("Length").field(l).finish(),
+        }
+    }
 }
 impl Default for LetterSpacing {
     /// [`LetterSpacing::Auto`]
@@ -1784,7 +1937,7 @@ impl_from_and_into_var! {
 /// spacing is applied per space character not per word, if there are three spaces between words
 /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
 /// see [`WhiteSpace`](crate::text::WhiteSpace).
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum WordSpacing {
     /// Word spacing can be tweaked when justification is enabled.
     Auto,
@@ -1794,6 +1947,17 @@ pub enum WordSpacing {
     ///
     /// This variant disables automatic adjustments for justification.
     Length(Length),
+}
+impl fmt::Debug for WordSpacing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "WordSpacing")?;
+        }
+        match self {
+            WordSpacing::Auto => write!(f, "Auto"),
+            WordSpacing::Length(l) => f.debug_tuple("Length").field(l).finish(),
+        }
+    }
 }
 impl Default for WordSpacing {
     /// [`WordSpacing::Auto`]

@@ -27,7 +27,7 @@ pub use shaping::*;
 pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 
 /// Configuration of text wrapping for Chinese, Japanese, or Korean text.
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum LineBreak {
     /// The same rule used by other languages.
     Auto,
@@ -46,9 +46,23 @@ impl Default for LineBreak {
         LineBreak::Auto
     }
 }
+impl fmt::Debug for LineBreak {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "LineBreak::")?;
+        }
+        match self {
+            LineBreak::Auto => write!(f, "Auto"),
+            LineBreak::Loose => write!(f, "Loose"),
+            LineBreak::Normal => write!(f, "Normal"),
+            LineBreak::Strict => write!(f, "Strict"),
+            LineBreak::Anywhere => write!(f, "Anywhere"),
+        }
+    }
+}
 
 /// Hyphenation configuration.
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum Hyphens {
     /// Hyphens are never inserted in word breaks.
     None,
@@ -67,13 +81,25 @@ impl Default for Hyphens {
         Hyphens::Auto
     }
 }
+impl fmt::Debug for Hyphens {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "Hyphens::")?;
+        }
+        match self {
+            Hyphens::None => write!(f, "None"),
+            Hyphens::Manual => write!(f, "Manual"),
+            Hyphens::Auto => write!(f, "Auto"),
+        }
+    }
+}
 
 /// Configure line breaks inside words during text wrap.
 ///
 /// This value is only considered if it is impossible to fit the a word to a line.
 ///
 /// Hyphens can be inserted in word breaks using the [`Hyphens`] configuration.
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum WordBreak {
     /// Line breaks can be inserted in between letters of Chinese/Japanese/Korean text only.
     Normal,
@@ -88,9 +114,21 @@ impl Default for WordBreak {
         WordBreak::Normal
     }
 }
+impl fmt::Debug for WordBreak {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "WordBreak::")?;
+        }
+        match self {
+            WordBreak::Normal => write!(f, "Normal"),
+            WordBreak::BreakAll => write!(f, "BreakAll"),
+            WordBreak::KeepAll => write!(f, "KeepAll"),
+        }
+    }
+}
 
 /// Text alignment.
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum TextAlign {
     /// `Left` in LTR or `Right` in RTL.
     Start,
@@ -125,9 +163,24 @@ impl Default for TextAlign {
         TextAlign::Start
     }
 }
+impl fmt::Debug for TextAlign {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "TextAlign::")?;
+        }
+        match self {
+            TextAlign::Start => write!(f, "Start"),
+            TextAlign::End => write!(f, "End"),
+            TextAlign::Left => write!(f, "Left"),
+            TextAlign::Center => write!(f, "Center"),
+            TextAlign::Right => write!(f, "Right"),
+            TextAlign::Justify(j) => f.debug_tuple("Justify").field(j).finish(),
+        }
+    }
+}
 
 /// Text alignment justification mode.
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum Justify {
     /// Selects the justification mode based on the language.
     /// For Chinese/Japanese/Korean uses `InterLetter` for the others uses `InterWord`.
@@ -145,6 +198,18 @@ impl Default for Justify {
     /// [`Justify::Auto`]
     fn default() -> Self {
         Justify::Auto
+    }
+}
+impl fmt::Debug for Justify {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "Justify::")?;
+        }
+        match self {
+            Justify::Auto => write!(f, "Auto"),
+            Justify::InterWord => write!(f, "InterWord"),
+            Justify::InterLetter => write!(f, "InterLetter"),
+        }
     }
 }
 
@@ -290,6 +355,9 @@ impl TextTransformFn {
 }
 impl fmt::Debug for TextTransformFn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "TextTransformFn::")?;
+        }
         match self {
             TextTransformFn::None => write!(f, "None"),
             TextTransformFn::Uppercase => write!(f, "Uppercase"),
@@ -300,7 +368,7 @@ impl fmt::Debug for TextTransformFn {
 }
 
 /// Text white space transform.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum WhiteSpace {
     /// Text is not changed, all white spaces and line breaks are preserved.
     Preserve,
@@ -324,6 +392,18 @@ impl WhiteSpace {
             WhiteSpace::Preserve => text,
             WhiteSpace::Merge => text.split_ascii_whitespace().collect::<Vec<_>>().join(" ").into(),
             WhiteSpace::MergeNoBreak => text.split_whitespace().collect::<Vec<_>>().join(" ").into(),
+        }
+    }
+}
+impl fmt::Debug for WhiteSpace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "WhiteSpace::")?;
+        }
+        match self {
+            WhiteSpace::Preserve => write!(f, "Preserve"),
+            WhiteSpace::Merge => write!(f, "Merge"),
+            WhiteSpace::MergeNoBreak => write!(f, "MergeNoBreak"),
         }
     }
 }
@@ -499,7 +579,7 @@ impl AsRef<str> for FontName {
 ///
 /// The default value is [`sans_serif`](FontName::sans_serif), [`serif`](FontName::serif),
 /// [`monospace`](FontName::sans_serif), [`cursive`](FontName::sans_serif) and [`fantasy`](FontName::sans_serif).
-#[derive(Eq, PartialEq, Hash, Debug, Clone)]
+#[derive(Eq, PartialEq, Hash, Clone)]
 pub struct FontNames(pub Vec<FontName>);
 impl FontNames {
     /// Empty list.
@@ -522,6 +602,23 @@ impl Default for FontNames {
             FontName::cursive(),
             FontName::fantasy(),
         ])
+    }
+}
+impl fmt::Debug for FontNames {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("FontNames").field(&self.0).finish()
+        } else if self.0.is_empty() {
+            write!(f, "[]")
+        } else if self.0.len() == 1 {
+            write!(f, "{:?}", self.0[0])
+        } else {
+            write!(f, "[{:?}, ", self.0[0])?;
+            for name in &self.0[1..] {
+                write!(f, "{:?}, ", name)?;
+            }
+            write!(f, "]")
+        }
     }
 }
 impl_from_and_into_var! {

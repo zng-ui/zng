@@ -1007,6 +1007,9 @@ pub enum WindowIcon {
 }
 impl fmt::Debug for WindowIcon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "WindowIcon::")?;
+        }
         match self {
             WindowIcon::Default => write!(f, "Default"),
             WindowIcon::Icon(_) => write!(f, "Icon"),
@@ -1129,7 +1132,7 @@ impl<const N: usize> crate::var::IntoVar<WindowIcon> for &'static [u8; N] {
 }
 
 /// Window chrome, the non-client area of the window.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum WindowChrome {
     /// Operating system chrome.
     Default,
@@ -1137,6 +1140,18 @@ pub enum WindowChrome {
     None,
     /// An [`UiNode`] that provides the window chrome.
     Custom,
+}
+impl fmt::Debug for WindowChrome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "WindowChrome::")?;
+        }
+        match self {
+            WindowChrome::Default => write!(f, "Default"),
+            WindowChrome::None => write!(f, "None"),
+            WindowChrome::Custom => write!(f, "Custom"),
+        }
+    }
 }
 impl WindowChrome {
     /// Is operating system chrome.
@@ -1166,7 +1181,7 @@ impl_from_and_into_var! {
 }
 
 /// Window screen state.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum WindowState {
     /// A visible window, at the `position` and `size` configured.
     Normal,
@@ -1178,6 +1193,20 @@ pub enum WindowState {
     Fullscreen,
     /// Exclusive video access to the monitor, only the window content is visible. TODO video config
     FullscreenExclusive,
+}
+impl fmt::Debug for WindowState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "WindowState::")?;
+        }
+        match self {
+            WindowState::Normal => write!(f, "Normal"),
+            WindowState::Minimized => write!(f, "Minimized"),
+            WindowState::Maximized => write!(f, "Maximized"),
+            WindowState::Fullscreen => write!(f, "Fullscreen"),
+            WindowState::FullscreenExclusive => write!(f, "FullscreenExclusive"),
+        }
+    }
 }
 
 bitflags! {
@@ -1552,7 +1581,7 @@ impl Window {
 }
 
 /// "Screen" configuration used by windows in [headless mode](WindowMode::is_headless).
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HeadlessScreen {
     /// The scale factor used for the headless layout and rendering.
     ///
@@ -1565,6 +1594,22 @@ pub struct HeadlessScreen {
     ///
     /// `(1920.0, 1080.0)` by default.
     pub screen_size: LayoutSize,
+}
+impl fmt::Debug for HeadlessScreen {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("HeadlessScreen")
+                .field("scale_factor", &self.scale_factor)
+                .field("screen_size", &self.screen_size)
+                .finish()
+        } else {
+            write!(
+                f,
+                "({}, ({}, {}))",
+                self.scale_factor, self.screen_size.width, self.screen_size.height
+            )
+        }
+    }
 }
 impl HeadlessScreen {
     /// New with custom size at `1.0` scale.
@@ -1645,7 +1690,7 @@ impl_from_and_into_var! {
 }
 
 /// Window startup position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum StartPosition {
     /// Uses the value of the `position` property.
     Default,
@@ -1659,9 +1704,21 @@ impl Default for StartPosition {
         Self::Default
     }
 }
+impl fmt::Debug for StartPosition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "StartPosition::")?;
+        }
+        match self {
+            StartPosition::Default => write!(f, "Default"),
+            StartPosition::CenterScreen => write!(f, "CenterScreen"),
+            StartPosition::CenterParent => write!(f, "CenterParent"),
+        }
+    }
+}
 
 /// Mode of an [`OpenWindow`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum WindowMode {
     /// Normal mode, shows a system window with content rendered.
     Headed,
@@ -1672,6 +1729,18 @@ pub enum WindowMode {
     /// Headless mode, no visible system window but with a renderer. The window does everything a [`Headed`](WindowMode::Headed)
     /// window does, except presenting frame textures in a system window.
     HeadlessWithRenderer,
+}
+impl fmt::Debug for WindowMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "WindowMode::")?;
+        }
+        match self {
+            WindowMode::Headed => write!(f, "Headed"),
+            WindowMode::Headless => write!(f, "Headless"),
+            WindowMode::HeadlessWithRenderer => write!(f, "HeadlessWithRenderer"),
+        }
+    }
 }
 impl WindowMode {
     /// If is the [`Headed`](WindowMode::Headed) mode.

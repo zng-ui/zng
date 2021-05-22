@@ -180,10 +180,7 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
 }
 
 /// Access to a widget contextual [`FontFeatures`].
-///
-/// This type is a wrapper
-#[derive(Copy, Clone, Debug)]
-pub struct FontFeaturesContext;
+pub struct FontFeaturesContext {}
 impl FontFeaturesContext {
     /// Reference the contextual font features, if any is set.
     #[inline]

@@ -1,6 +1,6 @@
 //! The [`implicit_base`](mod@implicit_base) and properties used in all or most widgets.
 
-use std::ops;
+use std::{fmt, ops};
 
 use crate::var::{context_var, IntoVar, Vars};
 use crate::{
@@ -491,7 +491,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 /// * If the parent is visible the descendants can have the other visibility modes.
 ///
 /// This combination of visibility is implemented as a *bit OR* (`|`) operation.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Visibility {
     /// The widget is visible, this is default.
     Visible,
@@ -506,6 +506,18 @@ pub enum Visibility {
     ///
     /// Layout widgets can also consider this value.
     Collapsed,
+}
+impl fmt::Debug for Visibility {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "Visibility::")?;
+        }
+        match self {
+            Visibility::Visible => write!(f, "Visible"),
+            Visibility::Hidden => write!(f, "Hidden"),
+            Visibility::Collapsed => write!(f, "Collapsed"),
+        }
+    }
 }
 impl Default for Visibility {
     /// [` Visibility::Visible`]

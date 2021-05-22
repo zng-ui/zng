@@ -1,6 +1,6 @@
 //! Gradient types.
 
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
 use crate::color::*;
 use crate::context::*;
@@ -8,7 +8,7 @@ use crate::units::*;
 use crate::var::*;
 
 /// Specifies how to draw the gradient outside the first and last stop.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ExtendMode {
     /// Default value. The color values at the ends of the gradient vector fill the remaining space.
     Clamp,
@@ -16,6 +16,18 @@ pub enum ExtendMode {
     Repeat,
     /// The gradient is repeated alternating direction until the space is filled.
     Reflect,
+}
+impl fmt::Debug for ExtendMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "ExtendMode::")?;
+        }
+        match self {
+            ExtendMode::Clamp => write!(f, "Clamp"),
+            ExtendMode::Repeat => write!(f, "Repeat"),
+            ExtendMode::Reflect => write!(f, "Reflect"),
+        }
+    }
 }
 impl From<ExtendMode> for RenderExtendMode {
     /// `Reflect` is converted to `Repeat`, you need to prepare the color stops to repeat *reflecting*.
@@ -46,7 +58,7 @@ pub type RenderExtendMode = webrender::api::ExtendMode;
 /// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum LinearGradientAxis {
     /// Line defined by an angle. 0º is a line from bottom-to-top, 90º is a line from left-to-right.
     ///
@@ -57,6 +69,21 @@ pub enum LinearGradientAxis {
     /// Line defined by two points. If the points are inside the fill area the gradient is extended-out in the
     /// same direction defined by the line, according to the extend mode.
     Line(Line),
+}
+impl fmt::Debug for LinearGradientAxis {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            match self {
+                LinearGradientAxis::Angle(a) => f.debug_tuple("LinearGradientAxis::Angle").field(a).finish(),
+                LinearGradientAxis::Line(l) => f.debug_tuple("LinearGradientAxis::Line").field(l).finish(),
+            }
+        } else {
+            match self {
+                LinearGradientAxis::Angle(a) => write!(f, "{}.deg()", AngleDegree::from(*a).0),
+                LinearGradientAxis::Line(l) => write!(f, "{:?}", l),
+            }
+        }
+    }
 }
 impl LinearGradientAxis {
     /// Compute a [`LayoutLine`].
@@ -104,7 +131,7 @@ impl_from_and_into_var! {
 }
 
 /// A color stop in a gradient.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct ColorStop {
     /// The color.
     pub color: Rgba,
@@ -113,6 +140,20 @@ pub struct ColorStop {
     /// Relative lengths are calculated on the length of the gradient line. There is also a special
     /// relative length (`f32::INFINITY`) that indicates this color stop [is positional](Self::is_positional).
     pub offset: Length,
+}
+impl fmt::Debug for ColorStop {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("ColorStop")
+                .field("color", &self.color)
+                .field("offset", &self.offset)
+                .finish()
+        } else if self.offset.is_finite() {
+            write!(f, "({:?}, {:?})", self.color, self.offset)
+        } else {
+            write!(f, "{:?}", self.color)
+        }
+    }
 }
 impl ColorStop {
     /// New color stop with a defined offset.
@@ -209,7 +250,7 @@ impl_from_and_into_var! {
 pub type RenderGradientStop = webrender::api::GradientStop;
 
 /// A stop in a gradient.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum GradientStop {
     /// Color stop.
     Color(ColorStop),
@@ -264,11 +305,26 @@ impl_from_and_into_var! {
         GradientStop::Color(ColorStop::new_positional(positional_color))
     }
 }
+impl fmt::Debug for GradientStop {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            match self {
+                GradientStop::Color(c) => f.debug_tuple("GradientStop::Color").field(c).finish(),
+                GradientStop::ColorHint(l) => f.debug_tuple("GradientStop::ColorHint").field(l).finish(),
+            }
+        } else {
+            match self {
+                GradientStop::Color(c) => write!(f, "{:?}", c),
+                GradientStop::ColorHint(l) => write!(f, "{:?}", l),
+            }
+        }
+    }
+}
 
 /// Stops in a gradient.
 ///
 /// Use [`stops!`] to create a new instance, you can convert from arrays for simpler gradients.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GradientStops {
     /// First color stop.
     pub start: ColorStop,
@@ -278,6 +334,23 @@ pub struct GradientStops {
 
     /// Last color stop.
     pub end: ColorStop,
+}
+impl fmt::Debug for GradientStops {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("GradientStops")
+                .field("start", &self.start)
+                .field("middle", &self.middle)
+                .field("end", &self.end)
+                .finish()
+        } else {
+            write!(f, "stops![{:?}, ", self.start)?;
+            for stop in &self.middle {
+                write!(f, "{:?}, ", stop)?;
+            }
+            write!(f, "{:?}]", self.end)
+        }
+    }
 }
 #[allow(clippy::len_without_is_empty)] // cannot be empty
 impl GradientStops {

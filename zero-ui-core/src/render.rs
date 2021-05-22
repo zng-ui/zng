@@ -1275,8 +1275,8 @@ impl FrameInfoBuilder {
     }
 }
 
-/// Id of a building widget info.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+/// Id of a *building* widget info.
+#[derive(Clone, Debug, Copy, Eq, PartialEq, Hash)]
 pub struct WidgetInfoId(ego_tree::NodeId);
 
 /// Information about a rendered frame.
@@ -1950,7 +1950,7 @@ impl_from_and_into_var! {
 }
 
 mod renderer {
-    use std::{fmt, mem, rc::Rc, sync::Arc};
+    use std::{error::Error, fmt, mem, rc::Rc, sync::Arc};
 
     use gleam::gl;
     use glutin::{
@@ -2048,6 +2048,28 @@ mod renderer {
     impl From<glutin::ContextError> for RendererError {
         fn from(e: glutin::ContextError) -> Self {
             RendererError::Context(e)
+        }
+    }
+    impl fmt::Display for RendererError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                RendererError::Creation(e) => write!(f, "{}", e),
+                RendererError::Context(e) => write!(f, "{}", e),
+                RendererError::ContextNotRecovered(e) => write!(f, "{}", e),
+                RendererError::RenderRecovered(ers) => write!(f, "{} renderer errors", ers.len()),
+                RendererError::RenderNotRecovered(ers, e) => write!(f, "{} renderer errors not recovered, {}", ers.len(), e),
+            }
+        }
+    }
+    impl Error for RendererError {
+        fn source(&self) -> Option<&(dyn Error + 'static)> {
+            match self {
+                RendererError::Creation(e) => Some(e),
+                RendererError::Context(e) => Some(e),
+                RendererError::ContextNotRecovered(e) => Some(e),
+                RendererError::RenderRecovered(_) => None, // webrender error does not implement Error
+                RendererError::RenderNotRecovered(_, e) => Some(e),
+            }
         }
     }
 

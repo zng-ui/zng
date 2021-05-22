@@ -911,7 +911,7 @@ impl_from_and_into_var! {
 }
 
 /// Font capital letters variant features.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CapsVariant {
     /// No caps variant.
     Auto,
@@ -945,6 +945,22 @@ pub enum CapsVariant {
     ///
     /// This corresponds to OpenType `titl` feature.
     TitlingCaps,
+}
+impl fmt::Debug for CapsVariant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "CapsVariant::")?;
+        }
+        match self {
+            CapsVariant::Auto => write!(f, "Auto"),
+            CapsVariant::SmallCaps => write!(f, "SmallCaps"),
+            CapsVariant::AllSmallCaps => write!(f, "AllSmallCaps"),
+            CapsVariant::Petite => write!(f, "Petite"),
+            CapsVariant::AllPetite => write!(f, "AllPetite"),
+            CapsVariant::Unicase => write!(f, "Unicase"),
+            CapsVariant::TitlingCaps => write!(f, "TitlingCaps"),
+        }
+    }
 }
 impl Default for CapsVariant {
     /// [`CapsVariant::Auto`]
@@ -991,7 +1007,7 @@ impl FontFeatureExclusiveSetsState for CapsVariant {
 }
 
 /// Font numeric variant features.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum NumVariant {
     /// Uses the default numeric glyphs, in most fonts this is the same as `Lining`, some fonts use the `OldStyle`.
     Auto,
@@ -1003,6 +1019,18 @@ pub enum NumVariant {
     ///
     /// This corresponds to OpenType `onum` feature.
     OldStyle,
+}
+impl fmt::Debug for NumVariant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "NumVariant::")?;
+        }
+        match self {
+            NumVariant::Auto => write!(f, "Auto"),
+            NumVariant::Lining => write!(f, "Lining"),
+            NumVariant::OldStyle => write!(f, "OldStyle"),
+        }
+    }
 }
 impl Default for NumVariant {
     /// [`NumVariant::Auto`]
@@ -1041,7 +1069,7 @@ impl FontFeatureExclusiveSetState for NumVariant {
 }
 
 /// Font numeric spacing features.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum NumSpacing {
     /// Uses the default numeric width, usually this is `Tabular` for *monospace* fonts and `Proportional` for the others.
     Auto,
@@ -1053,6 +1081,18 @@ pub enum NumSpacing {
     ///
     /// This corresponds to OpenType `tnum` feature.
     Tabular,
+}
+impl fmt::Debug for NumSpacing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "NumSpacing::")?;
+        }
+        match self {
+            NumSpacing::Auto => write!(f, "Auto"),
+            NumSpacing::Proportional => write!(f, "Proportional"),
+            NumSpacing::Tabular => write!(f, "Tabular"),
+        }
+    }
 }
 impl Default for NumSpacing {
     /// [`NumSpacing::Auto`]
@@ -1091,7 +1131,7 @@ impl FontFeatureExclusiveSetState for NumSpacing {
 }
 
 /// Font numeric fraction features.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum NumFraction {
     /// Don't use fraction variants.
     Auto,
@@ -1103,6 +1143,18 @@ pub enum NumFraction {
     ///
     /// This corresponds to OpenType `afrc` feature.
     Stacked,
+}
+impl fmt::Debug for NumFraction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "NumFraction::")?;
+        }
+        match self {
+            NumFraction::Auto => write!(f, "Auto"),
+            NumFraction::Diagonal => write!(f, "Diagonal"),
+            NumFraction::Stacked => write!(f, "Stacked"),
+        }
+    }
 }
 impl Default for NumFraction {
     /// [`NumFraction::Auto`]
@@ -1144,7 +1196,7 @@ impl FontFeatureExclusiveSetState for NumFraction {
 ///
 /// The styles depend on the font, it is recommended you create an `enum` with named sets that
 /// converts into this one for each font you wish to use.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(u8)]
 #[allow(missing_docs)]
 pub enum FontStyleSet {
@@ -1177,6 +1229,19 @@ impl Default for FontStyleSet {
     /// [`FontStyleSet::Auto`]
     fn default() -> Self {
         FontStyleSet::Auto
+    }
+}
+impl fmt::Debug for FontStyleSet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "FontStyleSet::")?;
+        }
+        let n = *self as u8;
+        if n == 0 {
+            write!(f, "Auto")
+        } else {
+            write!(f, "S{:0<2}", n)
+        }
     }
 }
 impl_from_and_into_var! {
@@ -1300,7 +1365,7 @@ impl FontFeatureExclusiveSetState for CharVariant {
 }
 
 /// Sub-script and super-script variants.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum FontPosition {
     /// Don't use sub/super script positions.
     Auto,
@@ -1312,6 +1377,18 @@ pub enum FontPosition {
     ///
     /// This corresponds to OpenType `sups` feature.
     Super,
+}
+impl fmt::Debug for FontPosition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "FontPosition::")?;
+        }
+        match self {
+            FontPosition::Auto => write!(f, "Auto"),
+            FontPosition::Sub => write!(f, "Sub"),
+            FontPosition::Super => write!(f, "Super"),
+        }
+    }
 }
 impl Default for FontPosition {
     /// [`FontPosition::Auto`]
@@ -1350,7 +1427,7 @@ impl FontFeatureExclusiveSetState for FontPosition {
 }
 
 /// Logographic glyph variants for Japanese fonts.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum JpVariant {
     /// Uses the font default glyphs.
     Auto,
@@ -1376,6 +1453,21 @@ pub enum JpVariant {
     ///
     /// This corresponds to OpenType `nlck` feature.
     NlcKanji,
+}
+impl fmt::Debug for JpVariant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "JpVariant::")?;
+        }
+        match self {
+            JpVariant::Auto => write!(f, "Auto"),
+            JpVariant::Jis78 => write!(f, "Jis78"),
+            JpVariant::Jis83 => write!(f, "Jis83"),
+            JpVariant::Jis90 => write!(f, "Jis90"),
+            JpVariant::Jis04 => write!(f, "Jis04"),
+            JpVariant::NlcKanji => write!(f, "NlcKanji"),
+        }
+    }
 }
 impl Default for JpVariant {
     /// [`JpVariant::Auto`]
@@ -1414,7 +1506,7 @@ impl FontFeatureExclusiveSetState for JpVariant {
     }
 }
 /// Logographic glyph variants for Chinese fonts.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CnVariant {
     /// Uses the font default glyphs.
     Auto,
@@ -1426,6 +1518,18 @@ pub enum CnVariant {
     ///
     /// This corresponds to OpenType `trad` feature.
     Tradicional,
+}
+impl fmt::Debug for CnVariant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "CnVariant")?;
+        }
+        match self {
+            CnVariant::Auto => write!(f, "Auto"),
+            CnVariant::Simplified => write!(f, "Simplified"),
+            CnVariant::Tradicional => write!(f, "Tradicional"),
+        }
+    }
 }
 impl Default for CnVariant {
     /// [`CnVariant::Auto`]
@@ -1464,7 +1568,7 @@ impl FontFeatureExclusiveSetState for CnVariant {
 }
 
 /// The sizing and spacing of figures used for East Asian characters.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum EastAsianWidth {
     /// Uses the font default glyphs and spacing.
     Auto,
@@ -1508,6 +1612,24 @@ pub enum EastAsianWidth {
     ///
     /// This corresponds to OpenType `qwid` feature.
     Quarter,
+}
+impl fmt::Debug for EastAsianWidth {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "EastAsianWidth::")?;
+        }
+        match self {
+            EastAsianWidth::Auto => write!(f, "Auto"),
+            EastAsianWidth::Proportional => write!(f, "Proportional"),
+            EastAsianWidth::ProportionalAlt => write!(f, "ProportionalAlt"),
+            EastAsianWidth::ProportionalKana => write!(f, "ProportionalKana"),
+            EastAsianWidth::Full => write!(f, "Full"),
+            EastAsianWidth::Half => write!(f, "Half"),
+            EastAsianWidth::HalfAlt => write!(f, "HalfAlt"),
+            EastAsianWidth::Third => write!(f, "Third"),
+            EastAsianWidth::Quarter => write!(f, "Quarter"),
+        }
+    }
 }
 impl Default for EastAsianWidth {
     /// [`EastAsianWidth::Auto`]

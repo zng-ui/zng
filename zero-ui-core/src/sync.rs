@@ -8,6 +8,7 @@ use super::{
 use flume::{self, Receiver, Sender, TryRecvError};
 use retain_mut::*;
 use std::{
+    fmt,
     future::Future,
     time::{Duration, Instant},
 };
@@ -269,10 +270,19 @@ impl Sync {
 }
 
 /// Message of a [`Sync`] timer listener.
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TimeElapsed {
     /// Moment the timer notified.
     pub timestamp: Instant,
+}
+impl fmt::Debug for TimeElapsed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("TimeElapsed").field("timestamp", &self.timestamp).finish()
+        } else {
+            write!(f, "{:?}", self.timestamp)
+        }
+    }
 }
 
 struct OnceTimer {

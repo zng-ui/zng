@@ -21,7 +21,7 @@ use std::{
 /// A location in source-code.
 ///
 /// Use [`source_location!`] to construct.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceLocation {
     /// [`file!`]
     pub file: &'static str,
@@ -29,6 +29,11 @@ pub struct SourceLocation {
     pub line: u32,
     /// [`column!`]
     pub column: u32,
+}
+impl fmt::Display for SourceLocation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}:{}", self.file, self.line, self.column)
+    }
 }
 
 /// New [`SourceLocation`] that represents the location you call this macro.

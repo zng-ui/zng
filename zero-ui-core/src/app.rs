@@ -17,11 +17,11 @@ use glutin::event::StartCause as GEventStartCause;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
-use std::mem;
 use std::{
     any::{type_name, TypeId},
     sync::atomic::AtomicBool,
 };
+use std::{fmt, mem};
 
 pub use glutin::event::{DeviceEvent, DeviceId, ElementState};
 
@@ -230,14 +230,19 @@ pub struct AppExtended<E: AppExtension> {
 
 /// Cancellation message of a [shutdown request](AppProcess::shutdown).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ShutDownCancelled;
+pub struct ShutdownCancelled;
+impl fmt::Display for ShutdownCancelled {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "shutdown cancelled")
+    }
+}
 
 /// Service for managing the application process.
 ///
 /// This is the only service that is registered without an application extension.
 #[derive(Service)]
 pub struct AppProcess {
-    shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>,
+    shutdown_requests: Vec<EventEmitter<ShutdownCancelled>>,
     update_notifier: UpdateNotifier,
 }
 impl AppProcess {
@@ -253,19 +258,19 @@ impl AppProcess {
     ///
     /// Returns an event listener that is updated once with the unit value [`ShutDownCancelled`]
     /// if the shutdown operation is cancelled.
-    pub fn shutdown(&mut self) -> EventListener<ShutDownCancelled> {
+    pub fn shutdown(&mut self) -> EventListener<ShutdownCancelled> {
         let emitter = EventEmitter::response();
         self.shutdown_requests.push(emitter.clone());
         self.update_notifier.update();
         emitter.into_listener()
     }
 
-    fn take_requests(&mut self) -> Vec<EventEmitter<ShutDownCancelled>> {
+    fn take_requests(&mut self) -> Vec<EventEmitter<ShutdownCancelled>> {
         mem::take(&mut self.shutdown_requests)
     }
 }
 ///Returns if should shutdown
-fn shutdown(shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>, ctx: &mut AppContext, ext: &mut impl AppExtension) -> bool {
+fn shutdown(shutdown_requests: Vec<EventEmitter<ShutdownCancelled>>, ctx: &mut AppContext, ext: &mut impl AppExtension) -> bool {
     if shutdown_requests.is_empty() {
         return false;
     }
@@ -273,7 +278,7 @@ fn shutdown(shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>, ctx: &mut A
     ext.on_shutdown_requested(&args, ctx);
     if args.cancel_requested() {
         for c in shutdown_requests {
-            c.notify(ctx.events, ShutDownCancelled);
+            c.notify(ctx.events, ShutdownCancelled);
         }
     }
     !args.cancel_requested()

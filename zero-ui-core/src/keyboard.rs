@@ -741,11 +741,10 @@ impl From<VKey> for Key {
         }
     }
 }
-
 impl From<Key> for VKey {
     fn from(key: Key) -> Self {
         // SAFETY: This is safe because we use the same repr(u32) and use a match to convert
-        // from VKey in debug builds to ensure the types are synced if glutin changes their enum.
+        // from VKey in debug builds to ensure the types are synced if winit changes their enum.
         unsafe { std::mem::transmute(key) }
     }
 }
