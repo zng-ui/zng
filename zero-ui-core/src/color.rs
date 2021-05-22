@@ -146,17 +146,17 @@ impl fmt::Display for Rgba {
         fn i(n: f32) -> u32 {
             (clamp_normal(n) * 255.0).round() as u32
         }
-        
+
         let mut rgb: u32 = 0;
         rgb |= i(self.red) << 16;
         rgb |= i(self.green) << 8;
         rgb |= i(self.blue);
-        
+
         let a = i(self.alpha);
         if a == 255 {
             write!(f, "#{:0>6X}", rgb)
         } else {
-            let rgba =  rgb << 8 | a;
+            let rgba = rgb << 8 | a;
             write!(f, "#{:0>8X}", rgba)
         }
     }
@@ -745,6 +745,25 @@ mod tests {
         test!(#12345678);
         test!(#00000000);
         test!(#FFFFFF00);
+    }
+
+    #[test]
+    fn test_hex_color() {
+        fn f(n: u8) -> f32 {
+            n as f32 / 255.0
+        }
+        assert_eq!(Rgba::new(f(0x11), f(0x22), f(0x33), f(0x44)), hex!(0x11223344));
+
+        assert_eq!(colors::BLACK, hex!(0x00_00_00_FF));
+        assert_eq!(colors::WHITE, hex!(0xFF_FF_FF_FF));
+        assert_eq!(colors::WHITE, hex!(0xFF_FF_FF));
+        assert_eq!(colors::WHITE, hex!(0xFFFFFF));
+        assert_eq!(colors::WHITE, hex!(#FFFFFF));
+        assert_eq!(colors::WHITE, hex!(FFFFFF));
+        assert_eq!(colors::WHITE, hex!(0xFFFF));
+        assert_eq!(colors::BLACK, hex!(0x000));
+        assert_eq!(colors::BLACK, hex!(#000));
+        assert_eq!(colors::BLACK, hex!(000));
     }
 
     // #[test]
@@ -1695,23 +1714,4 @@ pub mod colors {
     ///
     /// `rgb(0, 0, 0)`
     pub const BLACK: Rgba = rgb!(0, 0, 0);
-}
-
-#[test]
-fn test_hex_color() {
-    fn f(n: u8) -> f32 {
-        n as f32 / 255.0
-    }
-    assert_eq!(Rgba::new(f(0x11), f(0x22), f(0x33), f(0x44)), hex!(0x11223344));
-
-    assert_eq!(colors::BLACK, hex!(0x00_00_00_FF));
-    assert_eq!(colors::WHITE, hex!(0xFF_FF_FF_FF));
-    assert_eq!(colors::WHITE, hex!(0xFF_FF_FF));
-    assert_eq!(colors::WHITE, hex!(0xFFFFFF));
-    assert_eq!(colors::WHITE, hex!(#FFFFFF));
-    assert_eq!(colors::WHITE, hex!(FFFFFF));
-    assert_eq!(colors::WHITE, hex!(0xFFFF));
-    assert_eq!(colors::BLACK, hex!(0x000));
-    assert_eq!(colors::BLACK, hex!(#000));
-    assert_eq!(colors::BLACK, hex!(000));
 }

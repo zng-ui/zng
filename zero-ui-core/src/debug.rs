@@ -748,7 +748,7 @@ pub mod debug_var_util {
         macro_rules! debug_var_util_trick {
             ($value:expr) => {{
                 use $crate::debug::debug_var_util::*;
-                (&&&&&&&Wrap($value)).debug_var()
+                (&&&Wrap($value)).debug_var()
             }};
         }
 

@@ -11,7 +11,7 @@ use crate::keyboard::ModifiersState;
 use crate::render::*;
 use crate::service::*;
 use crate::window::{WindowEvent, WindowId, Windows};
-use std::time::*;
+use std::{fmt, time::*};
 use std::{mem, num::NonZeroU8};
 
 type WPos = glutin::dpi::PhysicalPosition<f64>;
@@ -1060,7 +1060,7 @@ impl Mouse {
 }
 
 /// Mouse capture mode.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum CaptureMode {
     /// Mouse captured by the window only.
     ///
@@ -1072,6 +1072,18 @@ pub enum CaptureMode {
 
     /// Mouse events redirected to the widget.
     Widget,
+}
+impl fmt::Debug for CaptureMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "CaptureMode::")?;
+        }
+        match self {
+            CaptureMode::Window => write!(f, "Window"),
+            CaptureMode::Subtree => write!(f, "Subtree"),
+            CaptureMode::Widget => write!(f, "Widget"),
+        }
+    }
 }
 impl Default for CaptureMode {
     /// [`CaptureMode::Window`]
