@@ -141,6 +141,26 @@ impl fmt::Debug for Rgba {
         }
     }
 }
+impl fmt::Display for Rgba {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn i(n: f32) -> u32 {
+            (clamp_normal(n) * 255.0).round() as u32
+        }
+        
+        let mut rgb: u32 = 0;
+        rgb |= i(self.red) << 16;
+        rgb |= i(self.green) << 8;
+        rgb |= i(self.blue);
+        
+        let a = i(self.alpha);
+        if a == 255 {
+            write!(f, "#{:0>6X}", rgb)
+        } else {
+            let rgba =  rgb << 8 | a;
+            write!(f, "#{:0>8X}", rgba)
+        }
+    }
+}
 
 /// HSL + alpha.
 ///
@@ -704,6 +724,27 @@ mod tests {
         let a = format!("{:?}", color);
         let b = format!("{:?}", color.to_hsva().to_rgba());
         assert_eq!(a, b)
+    }
+
+    #[test]
+    fn rgba_display() {
+        macro_rules! test {
+            ($($tt:tt)+) => {
+                let expected = stringify!($($tt)+).replace(" ", "");
+                let actual = hex!($($tt)+).to_string();
+                assert_eq!(expected, actual);
+            }
+        }
+
+        test!(#AABBCC);
+        test!(#123456);
+        test!(#000000);
+        test!(#FFFFFF);
+
+        test!(#AABBCCDD);
+        test!(#12345678);
+        test!(#00000000);
+        test!(#FFFFFF00);
     }
 
     // #[test]
