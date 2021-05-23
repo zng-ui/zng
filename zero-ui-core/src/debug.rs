@@ -695,7 +695,7 @@ impl PartialEq for ValueInfo {
 pub mod debug_var_util {
     use std::fmt::Debug;
 
-    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue};
+    use crate::var::{BoxedVar, IntoValue, IntoVar, OwnedVar, Var, VarObj, VarValue};
 
     use super::ValueInfo;
 
@@ -713,36 +713,48 @@ pub mod debug_var_util {
     }
 
     //
-    // `&Wrap` - IntoVar<Debug>
+    // `&Wrap` - IntoValue<Debug>
+    //
+    pub trait FromIntoValue<T> {
+        fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
+    }
+    impl<T: VarValue, V: IntoValue<T>> FromIntoValue<T> for &Wrap<&V> {
+        fn debug_var(&self) -> BoxedVar<ValueInfo> {
+            OwnedVar(ValueInfo::new(&self.0.clone().into())).boxed()
+        }
+    }
+
+    //
+    // `&&Wrap` - IntoVar<Debug>
     //
     pub trait FromIntoVar<T> {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: VarValue, V: IntoVar<T>> FromIntoVar<T> for &Wrap<&V> {
+    impl<T: VarValue, V: IntoVar<T>> FromIntoVar<T> for &&Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
             self.0.clone().into_var().into_map(ValueInfo::new).boxed()
         }
     }
 
     //
-    // `&&Wrap` - Debug only
+    // `&&&Wrap` - Debug only
     //
     pub trait FromDebug {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: Debug> FromDebug for &&Wrap<&T> {
+    impl<T: Debug> FromDebug for &&&Wrap<&T> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
             OwnedVar(ValueInfo::new(self.0)).boxed()
         }
     }
 
     //
-    // `&&&Wrap` - Var<Debug>
+    // `&&&&Wrap` - Var<Debug>
     //
     pub trait FromVarDebugOnly<T> {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: VarValue, V: Var<T>> FromVarDebugOnly<T> for &&&Wrap<&V> {
+    impl<T: VarValue, V: Var<T>> FromVarDebugOnly<T> for &&&&Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
             self.0.map(ValueInfo::new).boxed()
         }
@@ -753,7 +765,7 @@ pub mod debug_var_util {
         macro_rules! debug_var_util_trick {
             ($value:expr) => {{
                 use $crate::debug::debug_var_util::*;
-                (&&&Wrap($value)).debug_var()
+                (&&&&Wrap($value)).debug_var()
             }};
         }
 

@@ -8,7 +8,7 @@ use crate::{
     service::Service,
     text::{Text, ToText},
     units::*,
-    var::{var, RcVar, VarsRead},
+    var::{var, IntoValue, RcVar, VarsRead},
     UiNode, WidgetId,
 };
 
@@ -1639,24 +1639,28 @@ impl Default for HeadlessScreen {
         Self::new(LayoutSize::new(1920.0, 1080.0))
     }
 }
+impl IntoValue<HeadlessScreen> for (f32, f32) {}
 impl From<(f32, f32)> for HeadlessScreen {
     /// Calls [`HeadlessScreen::new_scaled`]
     fn from((width, height): (f32, f32)) -> Self {
         Self::new(LayoutSize::new(width, height))
     }
 }
+impl IntoValue<HeadlessScreen> for (u32, u32) {}
 impl From<(u32, u32)> for HeadlessScreen {
     /// Calls [`HeadlessScreen::new`]
     fn from((width, height): (u32, u32)) -> Self {
         Self::new(LayoutSize::new(width as f32, height as f32))
     }
 }
+impl IntoValue<HeadlessScreen> for FactorNormal {}
 impl From<FactorNormal> for HeadlessScreen {
     /// Calls [`HeadlessScreen::new_scale`]
     fn from(f: FactorNormal) -> Self {
         Self::new_scale(f.0)
     }
 }
+impl IntoValue<HeadlessScreen> for FactorPercent {}
 impl From<FactorPercent> for HeadlessScreen {
     /// Calls [`HeadlessScreen::new_scale`]
     fn from(f: FactorPercent) -> Self {

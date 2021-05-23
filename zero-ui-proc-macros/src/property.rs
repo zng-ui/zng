@@ -927,7 +927,7 @@ mod output {
                     quote_spanned! {ty.span()=>
                         {
                             use #crate_core::debug::debug_var_util::*;
-                            (&&&Wrap(#lid)).debug_var()
+                            (&&&&Wrap(#lid)).debug_var()
                         },
                     }
                 });

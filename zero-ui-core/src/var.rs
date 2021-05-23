@@ -326,6 +326,10 @@ pub trait IntoVar<T: VarValue>: Clone {
     }
 }
 
+/// Like [`IntoVar`], but for values that don't change.
+pub trait IntoValue<T: VarValue>: Into<T> + Clone {}
+impl<T: VarValue> IntoValue<T> for T {}
+
 /// New [`impl Var<T>`](Var) from an expression with interpolated *vars*.
 ///
 /// # Interpolation
