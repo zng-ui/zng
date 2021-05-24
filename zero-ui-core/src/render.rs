@@ -16,6 +16,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
+use fnv::FnvHashMap;
 use std::{fmt, marker::PhantomData, mem, sync::Arc};
 use webrender::api::*;
 
@@ -1261,17 +1262,55 @@ impl FrameInfoBuilder {
     #[inline]
     pub fn build(self) -> FrameInfo {
         let root_id = self.tree.root().id();
-        FrameInfo {
+
+        // we build a WidgetId => NodeId lookup
+        //
+        // in debug mode we validate that the same WidgetId is not repeated
+        //
+        let valid_nodes = self
+            .tree
+            .nodes()
+            .filter(|n| n.parent().is_some() || n.id() == root_id)
+            .map(|n| (n.value().widget_id, n.id()));
+
+        #[cfg(debug_assertions)]
+        let (repeats, lookup) = {
+            let mut repeats = FnvHashMap::default();
+            let mut lookup = FnvHashMap::default();
+
+            for (widget_id, node_id) in valid_nodes {
+                if let Some(prev) = lookup.insert(widget_id, node_id) {
+                    repeats.entry(widget_id).or_insert_with(|| vec![prev]).push(node_id);
+                }
+            }
+
+            (repeats, lookup)
+        };
+        #[cfg(not(debug_assertions))]
+        let lookup = valid_nodes.collect();
+
+        let r = FrameInfo {
             window_id: self.window_id,
             frame_id: self.frame_id,
-            lookup: self
-                .tree
-                .nodes()
-                .filter(|n| n.parent().is_some() || n.id() == root_id)
-                .map(|n| (n.value().widget_id, n.id()))
-                .collect(),
+            lookup,
             tree: self.tree,
+        };
+
+        #[cfg(debug_assertions)]
+        for (widget_id, repeats) in repeats {
+            log::error!(target: "render", "widget id `{:?}` appears more then once in {:?}:FrameId({}){}",
+            widget_id, self.window_id, self.frame_id.0, {
+                let mut places = String::new();
+                use std::fmt::Write;
+                for node in repeats {
+                    let info = WidgetInfo::new(&r, node);
+                    write!(places, "\n    {}", info.path()).unwrap();
+                }
+                places
+            });
         }
+
+        r
     }
 }
 
