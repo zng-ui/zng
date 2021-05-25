@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use enclose::enclose;
 use zero_ui::{core::units::pt_to_layout, prelude::*};
 
 fn main() {
@@ -35,15 +34,15 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         widgets![
             button! {
                 content = text("Increase Size");
-                on_click = enclose!{ (font_size) move |ctx, _| {
+                on_click = clone_move!(font_size, |ctx, _| {
                     change_size(&font_size, 1.0, ctx)
-                }};
+                });
             },
             button! {
                 content = text("Decrease Size");
-                on_click = enclose!{ (font_size) move |ctx, _| {
+                on_click = clone_move!(font_size, |ctx, _| {
                     change_size(&font_size, -1.0, ctx)
-                }};
+                });
             },
         ],
     )

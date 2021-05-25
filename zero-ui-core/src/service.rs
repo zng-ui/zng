@@ -132,7 +132,7 @@ pub trait Service: 'static {
     /// Use `#[derive ..]` to implement this trait.
     ///
     /// If that is not possible copy the `thread_local` implementation generated
-    // by the macro as close as possible.
+    /// by the macro as close as possible.
     #[doc(hidden)]
     fn thread_local_entry() -> ServiceEntry<Self>
     where

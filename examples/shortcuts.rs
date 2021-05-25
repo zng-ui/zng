@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use enclose::enclose;
 use zero_ui::{prelude::*, properties::text_theme::TextColorVar};
 
 fn main() {
@@ -13,11 +12,11 @@ fn main() {
             auto_size = true;
             padding = 50;
             start_position = StartPosition::CenterScreen;
-            on_shortcut = enclose! { (shortcut_text, shortcut_color) move |ctx, args| {
+            on_shortcut = clone_move!(shortcut_text, shortcut_color, |ctx, args| {
                 shortcut_text.set(ctx.vars, args.shortcut.to_text());
                 shortcut_color.set(ctx.vars, shortcut_color_dft);
-            }};
-            on_key_down = enclose! { (keypress_text, shortcut_text, shortcut_color) move |ctx, args| {
+            });
+            on_key_down = clone_move!(keypress_text, shortcut_text, shortcut_color, |ctx, args| {
                 let mut new_shortcut_text = "not supported";
                 if let Some(key) = args.key {
                     if key.is_modifier() {
@@ -30,7 +29,7 @@ fn main() {
 
                 shortcut_text.set(ctx.vars, new_shortcut_text.into());
                 shortcut_color.set(ctx.vars, colors::SALMON);
-            }};
+            });
             content = v_stack! {
                 items = widgets![
                     text!{

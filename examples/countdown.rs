@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use enclose::enclose;
 use zero_ui::prelude::*;
 use zero_ui::properties::events::widget::on_update;
 
@@ -9,7 +8,7 @@ fn main() {
         let mut every1s = Some(ctx.sync.update_every_secs(1));
         window! {
             title = "Countdown Example";
-            on_update = enclose!{ (count) move |ctx| {
+            on_update = clone_move!(count, |ctx| {
                 println!("on_update");
 
                 // if timer still running.
@@ -34,7 +33,7 @@ fn main() {
                         }
                     }
                 }
-            }};
+            });
             content = example(count);
         }
     })

@@ -1095,6 +1095,7 @@ pub mod prelude {
     pub use crate::core::{
         app::{App, ElementState},
         border::{BorderSides, BorderStyle, LineOrientation},
+        clone_move,
         color::{
             self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
             sepia, Rgba,

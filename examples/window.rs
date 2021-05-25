@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use enclose::enclose;
 use zero_ui::prelude::*;
 
 fn main() {
@@ -175,9 +174,9 @@ fn always_on_top() -> impl Widget {
                     title = always_on_top.map(|b| formatx!{"always_on_top = {}", b});
                     content = button!{
                         content = text("toggle always_on_top");
-                        on_click = enclose!{(always_on_top) move |ctx, _| {
+                        on_click = clone_move!(always_on_top, |ctx, _| {
                             always_on_top.modify(ctx.vars, |b| *b = !*b)
-                        }}
+                        })
                     };
                     size = (400, 300);
                     always_on_top;
@@ -197,9 +196,9 @@ fn taskbar_visible() -> impl Widget {
                     title = taskbar_visible.map(|b| formatx!{"taskbar_visible = {}", b});
                     content = button!{
                         content = text("toggle taskbar_visible");
-                        on_click = enclose!{(taskbar_visible) move |ctx, _| {
+                        on_click = clone_move!(taskbar_visible, |ctx, _| {
                             taskbar_visible.modify(ctx.vars, |b| *b = !*b)
-                        }}
+                        })
                     };
                     size = (400, 300);
                     taskbar_visible;

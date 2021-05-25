@@ -69,3 +69,57 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 pub use zero_ui_proc_macros::{impl_ui_node, property, widget, widget_mixin};
 
 mod tests;
+
+/// Cloning closure.
+///
+/// # Example
+///
+/// TODO
+#[macro_export]
+macro_rules! clone_move {
+    ($($tt:tt)+) => { $crate::__clone_move!{[][][] $($tt)+} }
+}
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __clone_move {
+    // match start of mut var
+    ([$($done:tt)*][][] mut $($rest:tt)+) => {
+        $crate::__clone_move! {
+            [$($done)*]
+            [mut]
+            [*]
+            $($rest)+
+        }
+    };
+
+    // match one deref (*)
+    ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
+        $crate::__clone_move! {
+            [$($done)*]
+            [$($mut:tt)?]
+            [$($deref)* *]
+            $($rest)+
+        }
+    };
+
+    // match end of a variable
+    ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] $var:ident, $($rest:tt)+) => {
+        $crate::__clone_move! {
+            [
+                $($done)*
+                let $($mut)? $var = ( $($deref)* $var ).clone();
+            ]
+            []
+            []
+            $($rest)+
+        }
+    };
+
+    // match start of closure
+    ([$($done:tt)*][][] | $($rest:tt)+) => {
+        {
+            $($done)*
+            move | $($rest)+
+        }
+    };
+}
