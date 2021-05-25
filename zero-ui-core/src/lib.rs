@@ -72,9 +72,101 @@ mod tests;
 
 /// Cloning closure.
 ///
+/// A common pattern when creating widgets is a [variable](crate::var::var) that is shared between a property and an event handler.
+/// The event handler is a closure but you cannot just move the variable, it needs to take a clone of the variable.
+///
+/// This macro facilitates this pattern.
+///
 /// # Example
 ///
-/// TODO
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{widget, clone_move, NilUiNode, var::{var, IntoVar}, text::{Text, ToText}, context::WidgetContext};
+/// #
+/// # #[widget($crate::window)]
+/// # pub mod window {
+/// #     use super::*;
+/// #
+/// #     properties! {
+/// #         #[allowed_in_when = false]
+/// #         title(impl IntoVar<Text>);
+/// #
+/// #         #[allowed_in_when = false]
+/// #         on_click(impl FnMut(&mut WidgetContext, ()));
+/// #     }
+/// #
+/// #     fn new_child(title: impl IntoVar<Text>, on_click: impl FnMut(&mut WidgetContext, ())) -> NilUiNode {
+/// #         NilUiNode
+/// #     }
+/// # }
+/// #
+/// # fn demo() {
+/// let title = var("Click Me!".to_text());
+/// window! {
+///     on_click = clone_move!(title, |ctx, _| {
+///         title.set(ctx.vars, "Clicked!".into());
+///     });
+///     title;
+/// }
+/// # ;
+/// # }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{widget, clone_move, NilUiNode, var::{var, IntoVar}, text::{Text, ToText}, context::WidgetContext};
+/// #
+/// # #[widget($crate::window)]
+/// # pub mod window {
+/// #     use super::*;
+/// #
+/// #     properties! {
+/// #         #[allowed_in_when = false]
+/// #         title(impl IntoVar<Text>);
+/// #
+/// #         #[allowed_in_when = false]
+/// #         on_click(impl FnMut(&mut WidgetContext, ()));
+/// #     }
+/// #
+/// #     fn new_child(title: impl IntoVar<Text>, on_click: impl FnMut(&mut WidgetContext, ())) -> NilUiNode {
+/// #         NilUiNode
+/// #     }
+/// # }
+/// #
+/// # fn demo() {
+/// let title = var("Click Me!".to_text());
+/// window! {
+///     on_click = {
+///         let title = title.clone();
+///         move |ctx, _| {
+///             title.set(ctx.vars, "Clicked!".into());
+///         }
+///     };
+///     title;
+/// }
+/// # ;
+/// # }
+/// ```
+///
+/// # Other Patterns
+///
+/// Although this macro exists primarily for creating event handlers, you can use it with any Rust variable. The
+/// cloned variable can be marked `mut` and you can deref `*` as many times as you need to get to the actual value you
+/// want to clone.
+///
+/// ```
+/// # use zero_ui_core::clone_move;
+/// # use std::rc::Rc;
+/// let foo = vec![1, 2, 3];
+/// let bar = Rc::new(vec!['a', 'b', 'c']);
+/// let closure = clone_move!(mut foo, *bar, || {
+///     foo.push(4);
+///     let cloned_vec: Vec<_> = bar;
+/// });
+/// assert_eq!(foo.len(), 3);
+/// ```
 #[macro_export]
 macro_rules! clone_move {
     ($($tt:tt)+) => { $crate::__clone_move!{[][][] $($tt)+} }
@@ -87,12 +179,12 @@ macro_rules! __clone_move {
         $crate::__clone_move! {
             [$($done)*]
             [mut]
-            [*]
+            []
             $($rest)+
         }
     };
 
-    // match one deref (*)
+    // match one var deref (*)
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
         $crate::__clone_move! {
             [$($done)*]
@@ -120,6 +212,14 @@ macro_rules! __clone_move {
         {
             $($done)*
             move | $($rest)+
+        }
+    };
+
+    // match start of closure without input
+    ([$($done:tt)*][][] || $($rest:tt)+) => {
+        {
+            $($done)*
+            move || $($rest)+
         }
     };
 }
