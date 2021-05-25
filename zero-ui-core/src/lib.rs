@@ -167,6 +167,24 @@ mod tests;
 /// });
 /// assert_eq!(foo.len(), 3);
 /// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui_core::clone_move;
+/// # use std::rc::Rc;
+/// let foo = vec![1, 2, 3];
+/// let bar = Rc::new(vec!['a', 'b', 'c']);
+/// let closure = {
+///     let mut foo = foo.clone();
+///     let bar = (*bar).clone();
+///     move || {
+///         foo.push(4);
+///         let cloned_vec: Vec<_> = bar;
+///     }
+/// };
+/// assert_eq!(foo.len(), 3);
+/// ```
 #[macro_export]
 macro_rules! clone_move {
     ($($tt:tt)+) => { $crate::__clone_move!{[][][] $($tt)+} }

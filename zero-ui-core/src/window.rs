@@ -53,7 +53,7 @@ pub enum WindowId {
     Headless(HeadlessWindowId),
 }
 impl WindowId {
-    /// New unique [`Logical`](Self::Logical) window id.
+    /// New unique [`Headless`](Self::Headless) window id.
     #[inline]
     pub fn new_unique() -> Self {
         WindowId::Headless(HeadlessWindowId::new_unique())

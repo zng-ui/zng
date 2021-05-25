@@ -950,7 +950,7 @@ impl<'a> WindowContext<'a> {
 pub struct TestWidgetContext {
     /// Id of the pretend window that owns the pretend root widget.
     ///
-    /// This is a new unique [logical window id](WindowId::Logical).
+    /// This is a new unique [headless window id](WindowId::Headless).
     pub window_id: WindowId,
     /// Id of the pretend root widget that is the context widget.
     pub root_id: WidgetId,

@@ -256,7 +256,7 @@ impl AppProcess {
 
     /// Register a request for process shutdown in the next update.
     ///
-    /// Returns an event listener that is updated once with the unit value [`ShutDownCancelled`]
+    /// Returns an event listener that is updated once with the unit value [`ShutdownCancelled`]
     /// if the shutdown operation is cancelled.
     pub fn shutdown(&mut self) -> EventListener<ShutdownCancelled> {
         let emitter = EventEmitter::response();
