@@ -51,8 +51,6 @@ Things that must be done first because they influence the core API design that i
 * Diagnostics.
 * State-of-art Text layout.
 
-* Let properties detect and warn when they are used in weird places (like margin on a window).
-
 ## Basic Layout
 
 * Grid.

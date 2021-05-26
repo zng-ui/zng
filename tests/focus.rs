@@ -1204,6 +1204,304 @@ pub fn focus_goes_to_parent_after_remove() {
     assert_eq!(FocusChangedCause::Recovery, evs[0].cause);
 }
 
+#[test]
+pub fn directional_focus_up() {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button! { content = text("Button 1") },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(buttons));
+
+    app.focus(ids[2]);
+    assert_eq!(Some(ids[2]), app.focused());
+
+    app.press_up();
+    assert_eq!(Some(ids[1]), app.focused());
+
+    app.press_up();
+    assert_eq!(Some(ids[0]), app.focused());
+}
+
+#[test]
+pub fn directional_focus_down() {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button! { content = text("Button 1") },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(buttons));
+
+    assert_eq!(Some(ids[0]), app.focused());
+
+    app.press_down();
+    assert_eq!(Some(ids[1]), app.focused());
+
+    app.press_down();
+    assert_eq!(Some(ids[2]), app.focused());
+}
+
+#[test]
+pub fn directional_focus_left() {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button! { content = text("Button 1") },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(h_stack(buttons));
+
+    app.focus(ids[2]);
+    assert_eq!(Some(ids[2]), app.focused());
+
+    app.press_left();
+    assert_eq!(Some(ids[1]), app.focused());
+
+    app.press_left();
+    assert_eq!(Some(ids[0]), app.focused());
+}
+
+#[test]
+pub fn directional_focus_right() {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button! { content = text("Button 1") },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(h_stack(buttons));
+
+    assert_eq!(Some(ids[0]), app.focused());
+
+    app.press_right();
+    assert_eq!(Some(ids[1]), app.focused());
+
+    app.press_right();
+    assert_eq!(Some(ids[2]), app.focused());
+}
+
+#[test]
+pub fn directional_cycle_vertical() {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button! { content = text("Button 1") },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new_w(window! {
+        directional_nav = DirectionalNav::Cycle;
+        content = v_stack(buttons);
+    });
+    assert_eq!(Some(ids[0]), app.focused());
+
+    app.press_up();
+    assert_eq!(Some(ids[2]), app.focused());
+
+    app.press_down();
+    assert_eq!(Some(ids[0]), app.focused());
+}
+
+#[test]
+pub fn directional_cycle_horizontal() {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button! { content = text("Button 1") },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new_w(window! {
+        directional_nav = DirectionalNav::Cycle;
+        content = h_stack(buttons);
+    });
+    assert_eq!(Some(ids[0]), app.focused());
+
+    app.press_left();
+    assert_eq!(Some(ids[2]), app.focused());
+
+    app.press_right();
+    assert_eq!(Some(ids[0]), app.focused());
+}
+
+#[test]
+pub fn directional_contained_vertical() {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button! { content = text("Button 1") },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new_w(window! {
+        directional_nav = DirectionalNav::Contained;
+        content = v_stack(buttons);
+    });
+    assert_eq!(Some(ids[0]), app.focused());
+
+    app.press_up();
+    assert_eq!(Some(ids[0]), app.focused());
+
+    app.press_down();
+    assert_eq!(Some(ids[1]), app.focused());
+}
+
+#[test]
+pub fn directional_contained_horizontal() {
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        button! { content = text("Button 1") },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new_w(window! {
+        directional_nav = DirectionalNav::Contained;
+        content = h_stack(buttons);
+    });
+    assert_eq!(Some(ids[0]), app.focused());
+
+    app.press_left();
+    assert_eq!(Some(ids[0]), app.focused());
+
+    app.press_right();
+    assert_eq!(Some(ids[1]), app.focused());
+}
+
+#[test]
+pub fn directional_none() {
+    fn test(press: impl Fn(&mut TestApp)) {
+        let buttons = widgets![
+            button! { content = text("Button 0") },
+            button! { content = text("Button 1") },
+            button! { content = text("Button 2") },
+        ];
+        let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+        let mut app = TestApp::new_w(window! {
+            directional_nav = DirectionalNav::None;
+            content = h_stack(buttons);
+        });
+
+        app.focus(ids[1]);
+        assert_eq!(Some(ids[1]), app.focused());
+
+        press(&mut app);
+        assert_eq!(Some(ids[1]), app.focused());
+    }
+
+    test(|a| a.press_up());
+    test(|a| a.press_down());
+    test(|a| a.press_left());
+    test(|a| a.press_right());
+}
+
+#[test]
+pub fn directional_continue_up() {
+    let start_id = WidgetId::new_unique();
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            focus_scope = true;
+            directional_nav = DirectionalNav::Continue;
+            items = widgets![
+                button! { content = text("Button 1"); id = start_id; },
+            ];
+        },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(buttons));
+
+    app.focus(start_id);
+    assert_eq!(Some(start_id), app.focused());
+
+    app.press_up();
+    assert_eq!(Some(ids[0]), app.focused());
+}
+
+#[test]
+pub fn directional_continue_down() {
+    let start_id = WidgetId::new_unique();
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            focus_scope = true;
+            directional_nav = DirectionalNav::Continue;
+            items = widgets![
+                button! { content = text("Button 1"); id = start_id; },
+            ];
+        },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(buttons));
+
+    app.focus(start_id);
+    assert_eq!(Some(start_id), app.focused());
+
+    app.press_down();
+    assert_eq!(Some(ids[2]), app.focused());
+}
+
+#[test]
+pub fn directional_continue_left() {
+    let start_id = WidgetId::new_unique();
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            focus_scope = true;
+            directional_nav = DirectionalNav::Continue;
+            items = widgets![
+                button! { content = text("Button 1"); id = start_id; },
+            ];
+        },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(h_stack(buttons));
+
+    app.focus(start_id);
+    assert_eq!(Some(start_id), app.focused());
+
+    app.press_left();
+    assert_eq!(Some(ids[0]), app.focused());
+}
+
+#[test]
+pub fn directional_continue_right() {
+    let start_id = WidgetId::new_unique();
+    let buttons = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            focus_scope = true;
+            directional_nav = DirectionalNav::Continue;
+            items = widgets![
+                button! { content = text("Button 1"); id = start_id; },
+            ];
+        },
+        button! { content = text("Button 2") },
+    ];
+    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+
+    let mut app = TestApp::new(h_stack(buttons));
+
+    app.focus(start_id);
+    assert_eq!(Some(start_id), app.focused());
+
+    app.press_right();
+    assert_eq!(Some(ids[2]), app.focused());
+}
+
 struct TestApp {
     app: HeadlessApp,
     pub window_id: WindowId,
@@ -1286,7 +1584,6 @@ impl TestApp {
     pub fn press_tab(&mut self) {
         self.app.press_key(self.window_id, Key::Tab)
     }
-
     pub fn press_shift_tab(&mut self) {
         self.app.press_shortcut(self.window_id, shortcut!(SHIFT + Tab));
     }
@@ -1294,9 +1591,21 @@ impl TestApp {
     pub fn press_alt(&mut self) {
         self.app.press_key(self.window_id, Key::LAlt);
     }
-
     pub fn press_esc(&mut self) {
         self.app.press_key(self.window_id, Key::Escape);
+    }
+
+    pub fn press_up(&mut self) {
+        self.app.press_key(self.window_id, Key::Up);
+    }
+    pub fn press_down(&mut self) {
+        self.app.press_key(self.window_id, Key::Down);
+    }
+    pub fn press_left(&mut self) {
+        self.app.press_key(self.window_id, Key::Left);
+    }
+    pub fn press_right(&mut self) {
+        self.app.press_key(self.window_id, Key::Right);
     }
 
     pub fn just_release_alt(&mut self) {

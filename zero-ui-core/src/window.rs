@@ -1957,7 +1957,7 @@ impl OpenWindow {
             root_id,
             kiosk,
             headless_position: LayoutPoint::zero(),
-            headless_size: LayoutSize::zero(),
+            headless_size: LayoutSize::new(800.0, 600.0), // same as winit
             headless_state: WindowState::Normal,
             headless_screen,
             taskbar_visible: true,
