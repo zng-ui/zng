@@ -32,7 +32,7 @@ glutin = "0.26"
 winapi = "0.3"
 
 # text
-font-kit = "0.8.0" #version required by harfbuzz_rs
+font-kit = "0.10"
 unicode-script = "0.5"
 unicase = "2"
 rustybuzz = "0.3"
