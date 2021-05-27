@@ -304,9 +304,6 @@ impl Fonts {
 
 pub use font_kit::error::FontLoadingError;
 
-type HarfbuzzFace = harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>;
-type HarfbuzzFont = harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>;
-
 impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
     fn from(m: font_kit::metrics::Metrics) -> Self {
         FontFaceMetrics {
@@ -333,7 +330,8 @@ impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
 /// Usually this is part of a [`FontList`] that can be requested from
 /// the [`Fonts`] service.
 pub struct FontFace {
-    h_face: HarfbuzzFace,
+    bytes: Arc<Vec<u8>>,
+    face_index: u32,
     display_name: FontName,
     family_name: FontName,
     postscript_name: Option<String>,
@@ -363,29 +361,25 @@ impl fmt::Debug for FontFace {
 }
 impl FontFace {
     fn load_custom(custom_font: CustomFont, loader: &mut FontFaceLoader) -> Result<Self, FontLoadingError> {
-        let (kit_font, h_face) = match custom_font.source {
-            FontSource::File(path, font_index) => (
-                font_kit::handle::Handle::Path {
-                    path: path.clone(),
-                    font_index,
-                }
-                .load()?,
-                harfbuzz_rs::Face::from_file(path, font_index).map_err(FontLoadingError::Io)?,
-            ),
-            FontSource::Memory(bytes, font_index) => (
-                font_kit::handle::Handle::Memory {
-                    bytes: Arc::clone(&bytes),
-                    font_index,
-                }
-                .load()?,
-                harfbuzz_rs::Face::new(harfbuzz_rs::Blob::with_bytes_owned(bytes, |b| &b[..]), font_index),
-            ),
+        let bytes;
+        let face_index;
+
+        match custom_font.source {
+            FontSource::File(path, font_index) => {
+                bytes = Arc::new(std::fs::read(path)?);
+                face_index = font_index;
+            }
+            FontSource::Memory(arc, font_index) => {
+                bytes = arc;
+                face_index = font_index;
+            }
             FontSource::Alias(other_font) => {
                 let other_font = loader
                     .get(&other_font, custom_font.style, custom_font.weight, custom_font.stretch)
                     .ok_or(FontLoadingError::NoSuchFontInCollection)?;
                 return Ok(FontFace {
-                    h_face: other_font.h_face.clone(),
+                    bytes: Arc::clone(&other_font.bytes),
+                    face_index: other_font.face_index,
                     display_name: custom_font.name.clone(),
                     family_name: custom_font.name,
                     postscript_name: None,
@@ -397,10 +391,21 @@ impl FontFace {
                     unregistered: Cell::new(false),
                 });
             }
-        };
+        }
+
+        let kit_font = font_kit::handle::Handle::Memory {
+            bytes: Arc::clone(&bytes),
+            font_index: face_index,
+        }
+        .load()?;
+
+        if rustybuzz::Face::from_slice(&bytes, face_index).is_none() {
+            return Err(FontLoadingError::Parse);
+        }
 
         Ok(FontFace {
-            h_face: h_face.to_shared(),
+            bytes,
+            face_index,
             display_name: custom_font.name.clone(),
             family_name: custom_font.name,
             postscript_name: None,
@@ -418,17 +423,33 @@ impl FontFace {
     }
 
     fn load(handle: font_kit::handle::Handle) -> Result<Self, FontLoadingError> {
-        let kit_font = handle.load()?;
-        let h_face = match handle {
+        let bytes;
+        let face_index;
+
+        match handle {
             font_kit::handle::Handle::Path { path, font_index } => {
-                harfbuzz_rs::Face::from_file(path, font_index).map_err(FontLoadingError::Io)?
+                bytes = Arc::new(std::fs::read(path)?);
+                face_index = font_index;
             }
-            font_kit::handle::Handle::Memory { bytes, font_index } => {
-                harfbuzz_rs::Face::new(harfbuzz_rs::Blob::with_bytes_owned(bytes, |b| &b[..]), font_index)
+            font_kit::handle::Handle::Memory { bytes: vec, font_index } => {
+                bytes = vec;
+                face_index = font_index;
             }
         };
+
+        let kit_font = font_kit::handle::Handle::Memory {
+            bytes: Arc::clone(&bytes),
+            font_index: face_index,
+        }
+        .load()?;
+
+        if rustybuzz::Face::from_slice(&bytes, face_index).is_none() {
+            return Err(FontLoadingError::Parse);
+        }
+
         Ok(FontFace {
-            h_face: h_face.to_shared(),
+            bytes,
+            face_index,
             display_name: kit_font.full_name().into(),
             family_name: kit_font.family_name().into(),
             postscript_name: kit_font.postscript_name(),
@@ -443,7 +464,8 @@ impl FontFace {
 
     fn empty() -> Self {
         FontFace {
-            h_face: harfbuzz_rs::Face::empty().into(),
+            bytes: Arc::new(vec![]),
+            face_index: 0,
             display_name: "<empty>".into(),
             family_name: "<empty>".into(),
             postscript_name: None,
@@ -482,17 +504,23 @@ impl FontFace {
         }
 
         let key = api.generate_font_key();
-        txn.add_raw_font(key, self.h_face.face_data().get_data().into(), self.h_face.index());
+        txn.add_raw_font(key, (*self.bytes).clone(), self.face_index);
 
         keys.push(RenderFontFace::new(api, key));
 
         key
     }
 
-    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font face handle.
+    /// Reference the underlying font bytes.
     #[inline]
-    pub fn harfbuzz_handle(&self) -> &HarfbuzzFace {
-        &self.h_face
+    pub fn bytes(&self) -> &Arc<Vec<u8>> {
+        &self.bytes
+    }
+
+    /// The font face index in the [font file](Self::bytes).
+    #[inline]
+    pub fn face_index(&self) -> u32 {
+        self.face_index
     }
 
     /// Font full name.
@@ -513,16 +541,10 @@ impl FontFace {
         self.postscript_name.as_deref()
     }
 
-    /// Index of the font face in the font file.
+    /// Index of the font face in the [font file](Self::bytes).
     #[inline]
     pub fn index(&self) -> u32 {
-        self.h_face.index()
-    }
-
-    /// Number of glyphs in the font.
-    #[inline]
-    pub fn glyph_count(&self) -> u32 {
-        self.h_face.glyph_count()
+        self.face_index
     }
 
     /// Font style.
@@ -597,14 +619,11 @@ impl FontFace {
 /// A shared [`FontFace`].
 pub type FontFaceRef = Rc<FontFace>;
 
-const HARFBUZZ_FONT_SCALE: i32 = 64;
-
 /// A sized font face.
 ///
 /// A sized font can be requested from a [`FontFace`].
 pub struct Font {
     face: FontFaceRef,
-    h_font: HarfbuzzFont,
     size: LayoutLength,
     metrics: FontMetrics,
     render_keys: RefCell<Vec<RenderFont>>,
@@ -621,18 +640,10 @@ impl fmt::Debug for Font {
 }
 impl Font {
     fn new(face: FontFaceRef, size: LayoutLength) -> Self {
-        let mut h_font = harfbuzz_rs::Font::new(HarfbuzzFace::clone(&face.h_face));
-        let metrics = face.metrics().sized(size.get());
-
-        let font_size_pt = layout_to_pt(size) as u32;
-        h_font.set_ppem(font_size_pt, font_size_pt);
-        h_font.set_scale(font_size_pt as i32 * HARFBUZZ_FONT_SCALE, font_size_pt as i32 * HARFBUZZ_FONT_SCALE);
-
         Font {
+            metrics: face.metrics().sized(size.get()),
             face,
-            h_font: h_font.into(),
             size,
-            metrics,
             render_keys: Default::default(),
         }
     }
@@ -679,12 +690,6 @@ impl Font {
     #[inline]
     pub fn face(&self) -> &FontFaceRef {
         &self.face
-    }
-
-    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
-    #[inline]
-    pub fn harfbuzz_handle(&self) -> &HarfbuzzFont {
-        &self.h_font
     }
 
     /// Font size.

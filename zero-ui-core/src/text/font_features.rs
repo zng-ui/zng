@@ -114,12 +114,12 @@ impl FontFeatures {
         }
     }
 
-    /// Generate the harfbuzz font features.
+    /// Generate the rustybuzz font features.
     #[inline]
-    pub fn finalize(&self) -> HFontFeatures {
+    pub fn finalize(&self) -> RFontFeatures {
         self.0
             .iter()
-            .map(|(&n, &s)| harfbuzz_rs::Feature::new(n, s, 0..usize::MAX))
+            .map(|(&n, &s)| rustybuzz::Feature::new(rustybuzz::Tag::from_bytes(n), s, 0..usize::MAX))
             .collect()
     }
 }
@@ -135,8 +135,8 @@ impl fmt::Debug for FontFeatures {
 
 /// Finalized [`FontFeatures`].
 ///
-/// This is a vec of [harfbuzz features](harfbuzz_rs::Feature).
-pub type HFontFeatures = Vec<harfbuzz_rs::Feature>;
+/// This is a vec of [rustybuzz features](rustybuzz::Feature).
+pub type RFontFeatures = Vec<rustybuzz::Feature>;
 
 fn name_to_str(name: FontFeatureName) -> &'static str {
     std::str::from_utf8(name).unwrap_or_default()

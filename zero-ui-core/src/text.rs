@@ -258,9 +258,10 @@ pub struct FontFaceMetrics {
 impl FontFaceMetrics {
     /// Compute [`FontMetrics`] given a font size in pixels.
     pub fn sized(&self, font_size_px: f32) -> FontMetrics {
-        let em = self.units_per_em as f32;
-        let s = move |f: f32| f / em * font_size_px;
+        let size_scale = 1.0 / self.units_per_em as f32 * font_size_px;
+        let s = move |f: f32| f * size_scale;
         FontMetrics {
+            size_scale,
             ascent: s(self.ascent),
             descent: s(self.descent),
             line_gap: s(self.line_gap),
@@ -286,6 +287,9 @@ pub struct FontUnit;
 /// You can compute these metrics from a [`FontFaceMetrics`]
 #[derive(Clone, Debug)]
 pub struct FontMetrics {
+    /// Multiply this to a font EM value to get the size in layout pixels.
+    pub size_scale: f32,
+
     /// The maximum amount the font rises above the baseline, in layout pixels.
     pub ascent: f32,
 

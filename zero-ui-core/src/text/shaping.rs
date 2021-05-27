@@ -1,5 +1,5 @@
 use super::{
-    font_features::HFontFeatures, Font, FontList, FontMetrics, GlyphInstance, Script, SegmentedText, TextSegment, TextSegmentKind,
+    font_features::RFontFeatures, Font, FontList, FontMetrics, GlyphInstance, Script, SegmentedText, TextSegment, TextSegmentKind,
 };
 use crate::units::{FactorNormal, FactorPercent, LayoutPoint, LayoutSize};
 
@@ -38,7 +38,7 @@ pub struct TextShapingArgs {
     pub text_indent: f32,
 
     /// Finalized font features.
-    pub font_features: HFontFeatures,
+    pub font_features: RFontFeatures,
 }
 impl Default for TextShapingArgs {
     fn default() -> Self {
@@ -52,7 +52,7 @@ impl Default for TextShapingArgs {
             right_to_left: false,
             tab_size: TextShapingUnit::Relative(3.0),
             text_indent: 0.0,
-            font_features: HFontFeatures::default(),
+            font_features: RFontFeatures::default(),
         }
     }
 }
@@ -135,18 +135,20 @@ impl ShapedText {
 }
 
 impl Font {
-    fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
-        let mut buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
-            harfbuzz_rs::Direction::Rtl
+    fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> rustybuzz::UnicodeBuffer {
+        let mut buffer = rustybuzz::UnicodeBuffer::new();
+        buffer.set_direction(if config.right_to_left {
+            rustybuzz::Direction::RightToLeft
         } else {
-            harfbuzz_rs::Direction::Ltr
+            rustybuzz::Direction::LeftToRight
         });
         if config.script != Script::Unknown {
-            buffer = buffer.set_script(script_to_tag(config.script)).add_str(segment);
+            buffer.set_script(to_rustybuzz_script(config.script));
+            buffer.push_str(segment);
         } else {
-            buffer = buffer.add_str(segment).guess_segment_properties();
+            buffer.push_str(segment);
+            buffer.guess_segment_properties();
         }
-
         buffer
     }
 
@@ -160,17 +162,23 @@ impl Font {
         let mut origin = LayoutPoint::new(0.0, baseline);
         let mut max_line_x = 0.0;
 
+        let face = rustybuzz::Face::from_slice(&self.face().bytes(), self.face().index()).unwrap();
+
+        let to_layout = |p: i32| p as f32 * metrics.size_scale;
+
+        // space metrics used for Tab
+        let space_buff = self.buffer_segment(" ", config);
+        let space_buff = rustybuzz::shape(&face, &config.font_features, space_buff);
+        let space_index = space_buff.glyph_infos()[0].codepoint;
+        let space_advance = to_layout(space_buff.glyph_positions()[0].x_advance);
+
         for (seg, kind) in text.iter() {
             let mut shape_seg = |cluster_spacing: f32| {
                 let buffer = self.buffer_segment(seg, config);
-                let buffer = harfbuzz_rs::shape(self.harfbuzz_handle(), buffer, &config.font_features);
+                let buffer = rustybuzz::shape(&face, &config.font_features, buffer);
 
                 let mut prev_cluster = u32::MAX;
-                let glyphs = buffer.get_glyph_infos().iter().zip(buffer.get_glyph_positions()).map(|(i, p)| {
-                    fn to_layout(p: harfbuzz_rs::Position) -> f32 {
-                        // remove our scale of 64 and convert to layout pixels
-                        (p as f32 / 64.0) * 96.0 / 72.0
-                    }
+                let glyphs = buffer.glyph_infos().iter().zip(buffer.glyph_positions()).map(|(i, p)| {
                     let x_offset = to_layout(p.x_offset);
                     let y_offset = to_layout(p.y_offset);
                     let x_advance = to_layout(p.x_advance);
@@ -199,13 +207,10 @@ impl Font {
                     shape_seg(config.word_spacing);
                 }
                 TextSegmentKind::Tab => {
-                    let space_idx = self.harfbuzz_handle().get_nominal_glyph(' ').expect("no U+20 SPACE glyph");
-                    let space_advance = self.harfbuzz_handle().get_glyph_h_advance(space_idx) as f32;
                     let point = LayoutPoint::new(origin.x, origin.y);
-
                     origin.x += config.tab_size(space_advance);
 
-                    out.glyphs.push(GlyphInstance { index: space_idx, point });
+                    out.glyphs.push(GlyphInstance { index: space_index, point });
                 }
                 TextSegmentKind::LineBreak => {
                     max_line_x = origin.x.max(max_line_x);
@@ -243,12 +248,7 @@ impl FontList {
     }
 }
 
-fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
-    let mut name = script.short_name().chars();
-    harfbuzz_rs::Tag::new(
-        name.next().unwrap(),
-        name.next().unwrap(),
-        name.next().unwrap(),
-        name.next().unwrap(),
-    )
+fn to_rustybuzz_script(script: Script) -> rustybuzz::Script {
+    let t: Vec<_> = script.short_name().bytes().collect();
+    rustybuzz::Script::from_iso15924_tag(rustybuzz::Tag::from_bytes(&[t[0], t[1], t[2], t[3]])).unwrap()
 }

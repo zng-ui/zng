@@ -35,7 +35,7 @@ winapi = "0.3"
 font-kit = "0.8.0" #version required by harfbuzz_rs
 unicode-script = "0.5"
 unicase = "2"
-harfbuzz_rs = "1"
+rustybuzz = "0.3"
 xi-unicode = "0.3"
 
 # render
