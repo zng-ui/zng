@@ -63,8 +63,8 @@ pub fn is_layout_any_size(f: f32) -> bool {
 /// Value that indicates that any size is available during layout.
 pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
 
-/// A map of TypeId -> Box<dyn Any>.
-type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
+/// A map of TypeId -> Box<dyn UnsafeAny>.
+type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn unsafe_any::UnsafeAny>>;
 
 pub use zero_ui_proc_macros::{impl_ui_node, property, widget, widget_mixin};
 

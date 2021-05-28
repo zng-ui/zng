@@ -468,9 +468,10 @@ impl Events {
 
     /// Creates an event listener if the event is registered in the application.
     pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
-        self.events
-            .get(&TypeId::of::<E>())
-            .map(|any| any.downcast_ref::<EventListener<E::Args>>().unwrap().clone())
+        self.events.get(&TypeId::of::<E>()).map(|any| {
+            // SAFETY: The type system asserts this is valid.
+            unsafe { any.downcast_ref_unchecked::<EventListener<E::Args>>().clone() }
+        })
     }
 
     /// Creates a buffered event listener if the event is registered in the application.

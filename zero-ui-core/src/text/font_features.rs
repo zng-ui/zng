@@ -1759,8 +1759,8 @@ pub type RFontVariations = Vec<rustybuzz::Variation>;
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::text::FontVariations;
-/// let features = FontVariations::builder().variation(b"BLDB", 1000).build();
+/// # use zero_ui_core::text::font_features::FontVariations;
+/// let features = FontVariations::builder().variation(b"BLDB", 1000.0).build();
 /// ```
 #[derive(Default)]
 pub struct FontVariationsBuilder(FontVariations);
