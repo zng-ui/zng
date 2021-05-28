@@ -184,7 +184,8 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
 
 /// Includes the font variation config in the widget context.
 ///
-/// Only the same variation `name` is replaced any other font variations in the [`FontVariationsVar`] is kept.
+/// The variation `name` is set for the [`FontVariationsVar`] in this context, variations already set in the parent
+/// context that are not the same `name` are also included.
 pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: impl IntoVar<f32>) -> impl UiNode {
     struct WithFontVariationNode<C, V> {
         child: C,
@@ -195,7 +196,6 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
         variations: FontVariations,
         version: u32,
     }
-    //#[impl_ui_node(child)]
     impl<C, V> UiNode for WithFontVariationNode<C, V>
     where
         C: UiNode,
@@ -295,7 +295,8 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
 
 /// Include the font feature config in the widget context.
 ///
-/// Only the same feature set in `set_feature` is replaced any other font features in the [`FontFeaturesVar`] is kept.
+/// The modifications done in `modify` are visible only in the [`FontFeaturesVar`] in this context, and features
+/// already set in a parent context are included.
 pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> impl UiNode
 where
     C: UiNode,
@@ -303,7 +304,9 @@ where
     V: IntoVar<S>,
     D: FnMut(&mut FontFeatures, S) -> S + 'static,
 {
-    // TODO review performance of this.
+    // TODO review performance of this, every feature set duplicates the hash-map,
+    // all the intermediary maps are probably only used to make an inner feature map, 
+    // on the other hand the values are tiny, but if we are so sure it is tiny why are we using a hash-map?.
     struct WithFontFeatureNode<C, S, V, D> {
         child: C,
         _s: PhantomData<S>,
@@ -313,7 +316,6 @@ where
         features: FontFeatures,
         version: u32,
     }
-    //#[impl_ui_node(child)]
     impl<C, S, V, D> UiNode for WithFontFeatureNode<C, S, V, D>
     where
         C: UiNode,
