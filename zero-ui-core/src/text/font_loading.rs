@@ -11,7 +11,9 @@ use fnv::FnvHashMap;
 use font_kit::properties::Weight;
 use webrender::api::RenderApi;
 
-use super::{FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script};
+use super::{
+    font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
+};
 use crate::app::AppExtension;
 use crate::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
 use crate::event::{event, event_args, EventEmitter};
@@ -325,6 +327,29 @@ impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
     }
 }
 
+#[derive(PartialEq, Eq, Hash)]
+struct FontInstanceKey(u32, Box<[(rustybuzz::Tag, i32)]>);
+impl FontInstanceKey {
+    /// Returns the key and adjusts the values to match the key rounding.
+    pub fn new(size: &mut LayoutLength, variations: &mut RFontVariations) -> Self {
+        let size_key = (size.get() * 2.0) as u32;
+        let variations_key: Vec<_> = variations.iter().map(|p| (p.tag, (p.value * 1000.0) as i32)).collect();
+        let key = FontInstanceKey(size_key, variations_key.into_boxed_slice());
+
+        *size = LayoutLength::new(key.0 as f32 / 2.0);
+        *variations = key
+            .1
+            .iter()
+            .map(|&(n, v)| rustybuzz::Variation {
+                tag: n,
+                value: (v as f32 / 1000.0),
+            })
+            .collect();
+
+        key
+    }
+}
+
 /// A font face selected from a font family.
 ///
 /// Usually this is part of a [`FontList`] that can be requested from
@@ -339,11 +364,12 @@ pub struct FontFace {
     properties: font_kit::properties::Properties,
     metrics: FontFaceMetrics,
 
-    instances: RefCell<FnvHashMap<u32, FontRef>>,
+    instances: RefCell<FnvHashMap<FontInstanceKey, FontRef>>,
     render_keys: RefCell<Vec<RenderFontFace>>,
 
     unregistered: Cell<bool>,
 }
+
 impl fmt::Debug for FontFace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FontFace")
@@ -578,17 +604,22 @@ impl FontFace {
     }
 
     /// Gets a cached sized [`Font`].
-    pub fn sized(self: &Rc<Self>, font_size: LayoutLength) -> FontRef {
+    ///
+    /// The `font_size` is the size of `1 font EM` in layout pixels.
+    ///
+    /// The `variations` are custom [font variations](crate::text::font_features::FontVariations::finalize) that will be used
+    /// during shaping and rendering.
+    pub fn sized(self: &Rc<Self>, mut font_size: LayoutLength, mut variations: RFontVariations) -> FontRef {
+        let key = FontInstanceKey::new(&mut font_size, &mut variations);
         if !self.unregistered.get() {
-            let font_size = font_size.get() as u32;
             let mut instances = self.instances.borrow_mut();
             let f = instances
-                .entry(font_size)
-                .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), LayoutLength::new(font_size as f32))));
+                .entry(key)
+                .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), font_size, variations)));
             Rc::clone(f)
         } else {
             log::warn!(target: "font_loading", "creating font from unregistered `{}`, will not cache", self.display_name);
-            Rc::new(Font::new(Rc::clone(self), font_size))
+            Rc::new(Font::new(Rc::clone(self), font_size, variations))
         }
     }
 
@@ -625,6 +656,7 @@ pub type FontFaceRef = Rc<FontFace>;
 pub struct Font {
     face: FontFaceRef,
     size: LayoutLength,
+    variations: RFontVariations,
     metrics: FontMetrics,
     render_keys: RefCell<Vec<RenderFont>>,
 }
@@ -639,11 +671,12 @@ impl fmt::Debug for Font {
     }
 }
 impl Font {
-    fn new(face: FontFaceRef, size: LayoutLength) -> Self {
+    fn new(face: FontFaceRef, size: LayoutLength, variations: RFontVariations) -> Self {
         Font {
             metrics: face.metrics().sized(size.get()),
             face,
             size,
+            variations,
             render_keys: Default::default(),
         }
     }
@@ -676,7 +709,13 @@ impl Font {
             webrender::api::units::Au::from_f32_px(self.size.get()),
             Some(opt),
             None,
-            vec![],
+            self.variations
+                .iter()
+                .map(|v| webrender::api::FontVariation {
+                    tag: v.tag.0,
+                    value: v.value,
+                })
+                .collect(),
         );
 
         api.update_resources(txn.resource_updates);
@@ -696,6 +735,12 @@ impl Font {
     #[inline]
     pub fn size(&self) -> LayoutLength {
         self.size
+    }
+
+    /// Custom font variations.
+    #[inline]
+    pub fn variations(&self) -> &RFontVariations {
+        &self.variations
     }
 
     /// Font size in point units.
@@ -793,10 +838,12 @@ impl FontFaceList {
     }
 
     /// Gets a sized font list.
+    ///
+    /// This calls [`FontFace::sized`] for each font in the list.
     #[inline]
-    pub fn sized(&self, font_size: LayoutLength) -> FontList {
+    pub fn sized(&self, font_size: LayoutLength, variations: RFontVariations) -> FontList {
         FontList {
-            fonts: self.fonts.iter().map(|f| f.sized(font_size)).collect(),
+            fonts: self.fonts.iter().map(|f| f.sized(font_size, variations.clone())).collect(),
             requested_style: self.requested_style,
             requested_weight: self.requested_weight,
             requested_stretch: self.requested_stretch,

@@ -161,8 +161,12 @@ impl Font {
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
         let mut origin = LayoutPoint::new(0.0, baseline);
         let mut max_line_x = 0.0;
+        let ppem = self.size().get().round() as u16;
 
-        let face = rustybuzz::Face::from_slice(&self.face().bytes(), self.face().index()).unwrap();
+        let mut face = rustybuzz::Face::from_slice(&self.face().bytes(), self.face().index()).unwrap();
+        face.set_pixels_per_em(Some((ppem, ppem)));
+        face.set_points_per_em(None); // TODO?
+        face.set_variations(self.variations());
 
         let to_layout = |p: i32| p as f32 * metrics.size_scale;
 

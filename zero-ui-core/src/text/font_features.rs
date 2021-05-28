@@ -1,4 +1,4 @@
-//! Font features config types.
+//! Font features and variation types.
 
 use fnv::FnvHashMap;
 use std::{collections::hash_map::Entry as HEntry, marker::PhantomData, num::NonZeroU32};
@@ -1665,5 +1665,165 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
     #[inline]
     fn auto() -> Self {
         EastAsianWidth::Auto
+    }
+}
+
+/// Name of a font variation axis.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui_core::text::font_features::FontVariationName;
+/// let devocar_worm: FontVariationName = b"BLDB";
+/// ```
+pub type FontVariationName = &'static [u8; 4];
+
+/// Font variations configuration.
+#[derive(Default, Clone)]
+pub struct FontVariations(FnvHashMap<FontVariationName, f32>);
+impl FontVariations {
+    /// New default.
+    #[inline]
+    pub fn new() -> FontVariations {
+        FontVariations::default()
+    }
+
+    /// New builder.
+    #[inline]
+    pub fn builder() -> FontVariationsBuilder {
+        FontVariationsBuilder::default()
+    }
+
+    /// Set or override the variations of `self` from `other`.
+    ///
+    /// Returns the variation values of all affected names.
+    #[inline]
+    pub fn set_all(&mut self, other: &FontVariations) -> Vec<(FontVariationName, Option<f32>)> {
+        let mut prev = Vec::with_capacity(other.0.len());
+        for (&name, &state) in other.0.iter() {
+            prev.push((name, self.0.insert(name, state)));
+        }
+        prev
+    }
+
+    /// Restore variation values that where overridden in [`set_all`](Self::set_all).
+    #[inline]
+    pub fn restore(&mut self, prev: Vec<(FontVariationName, Option<f32>)>) {
+        for (name, value) in prev {
+            match value {
+                Some(value) => {
+                    self.0.insert(name, value);
+                }
+                None => {
+                    self.0.remove(name);
+                }
+            }
+        }
+    }
+
+    /// Access to the named variation.
+    #[inline]
+    pub fn variation(&mut self, name: FontVariationName) -> FontVariation {
+        FontVariation(self.0.entry(name))
+    }
+
+    /// Generate the rustybuzz font variation.
+    #[inline]
+    pub fn finalize(&self) -> RFontVariations {
+        self.0
+            .iter()
+            .map(|(&n, &v)| rustybuzz::Variation {
+                tag: rustybuzz::Tag::from_bytes(n),
+                value: v,
+            })
+            .collect()
+    }
+}
+impl fmt::Debug for FontVariations {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut map = f.debug_map();
+        for (name, state) in self.0.iter() {
+            map.entry(&name_to_str(name), state);
+        }
+        map.finish()
+    }
+}
+
+/// Finalized [`FontVariations`].
+///
+/// This is a vec of [rustybuzz variations](rustybuzz::Variation).
+pub type RFontVariations = Vec<rustybuzz::Variation>;
+
+/// A builder for [`FontVariations`].
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui_core::text::FontVariations;
+/// let features = FontVariations::builder().variation(b"BLDB", 1000).build();
+/// ```
+#[derive(Default)]
+pub struct FontVariationsBuilder(FontVariations);
+impl FontVariationsBuilder {
+    /// Finish building.
+    #[inline]
+    pub fn build(self) -> FontVariations {
+        self.0
+    }
+
+    /// Set the variation value.
+    #[inline]
+    pub fn variation(mut self, name: FontVariationName, value: impl Into<f32>) -> Self {
+        self.0.variation(name).set_value(value);
+        self
+    }
+}
+
+/// Represents a variation in a [`FontVariations`] configuration.
+pub struct FontVariation<'a>(HEntry<'a, FontVariationName, f32>);
+impl<'a> FontVariation<'a> {
+    /// Gets the variation name.
+    #[inline]
+    pub fn name(&self) -> FontVariationName {
+        self.0.key()
+    }
+
+    /// Gets the current value of the variation.
+    pub fn value(&self) -> Option<f32> {
+        match &self.0 {
+            HEntry::Occupied(e) => Some(*e.get()),
+            HEntry::Vacant(_) => None,
+        }
+    }
+
+    /// Set the variation value.
+    ///
+    /// Returns the previous value.
+    #[inline]
+    pub fn set_value(self, value: impl Into<f32>) -> Option<f32> {
+        let prev = self.value();
+        match self.0 {
+            HEntry::Occupied(mut e) => {
+                e.insert(value.into());
+            }
+            HEntry::Vacant(e) => {
+                e.insert(value.into());
+            }
+        }
+        prev
+    }
+
+    /// Remove the variation.
+    #[inline]
+    pub fn remove(self) -> Option<f32> {
+        match self.0 {
+            HEntry::Occupied(e) => Some(e.remove()),
+            HEntry::Vacant(_) => None,
+        }
+    }
+}
+impl<'a> fmt::Debug for FontVariation<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "b\"{}\": {:?}", name_to_str(self.name()), self.value())
     }
 }

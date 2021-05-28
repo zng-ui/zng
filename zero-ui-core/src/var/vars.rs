@@ -68,10 +68,18 @@ impl VarsRead {
     /// Calls `f` with the context var value.
     ///
     /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
-    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, version: u32, f: F) {
+    pub fn with_context_var<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+    {
         self.with_context_var_impl(context_var, value, false, version, f)
     }
-    fn with_context_var_impl<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+    fn with_context_var_impl<C, R, F>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+    {
         // SAFETY: `Self::context_var` makes safety assumptions about this code
         // don't change before studying it.
 
@@ -81,7 +89,7 @@ impl VarsRead {
             C::thread_local_value().set(prev);
         });
 
-        f();
+        f()
 
         // _prev restores the parent reference here on drop
     }
@@ -92,17 +100,18 @@ impl VarsRead {
     ///
     /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
     /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
-    pub fn with_context_var_wgt_only<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, version: u32, f: F) {
+    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+    {
         self.with_context_var_wgt_only_impl(context_var, value, false, version, f)
     }
-    fn with_context_var_wgt_only_impl<C: ContextVar, F: FnOnce()>(
-        &self,
-        context_var: C,
-        value: &C::Type,
-        is_new: bool,
-        version: u32,
-        f: F,
-    ) {
+    fn with_context_var_wgt_only_impl<C, R, F>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+    {
         // SAFETY: `Self::context_var` makes safety assumptions about this code
         // don't change before studying it.
 
@@ -123,16 +132,26 @@ impl VarsRead {
             C::thread_local_value().set(prev);
         });
 
-        f();
+        f()
     }
 
     /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
-    pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+    pub fn with_context_bind<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+        V: VarObj<C::Type>,
+    {
         self.with_context_var_impl(context_var, other_var.get(self), false, other_var.version(self), f)
     }
 
     /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
-    pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+    pub fn with_context_bind_wgt_only<C: ContextVar, R, F: FnOnce() -> R, V: VarObj<C::Type>>(
+        &self,
+        context_var: C,
+        other_var: &V,
+        f: F,
+    ) -> R {
         self.with_context_var_wgt_only_impl(context_var, other_var.get(self), false, other_var.version(self), f)
     }
 

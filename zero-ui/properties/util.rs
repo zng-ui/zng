@@ -25,7 +25,6 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
         var: C,
         value: V,
     }
-    #[impl_ui_node(child)]
     impl<U, T, C, V> UiNode for WithContextVarNode<U, C, V>
     where
         U: UiNode,
@@ -48,6 +47,24 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
         fn update_hp(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.update_hp(ctx));
+        }
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_bind(self.var, &self.value, || child.measure(ctx, available_size))
+        }
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.arrange(ctx, final_size));
+        }
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            let child = &self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.render(ctx, frame));
+        }
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            let child = &self.child;
+            ctx.vars
+                .with_context_bind(self.var, &self.value, || child.render_update(ctx, update));
         }
     }
     WithContextVarNode {
@@ -108,6 +125,16 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
         fn update_hp(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
             ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.update_hp(ctx));
+        }
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            let child = &self.child;
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, &self.value, || child.render(ctx, frame));
+        }
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            let child = &self.child;
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, &self.value, || child.render_update(ctx, update));
         }
     }
     WithContextVarWidgetOnlyNode {

@@ -144,14 +144,9 @@ pub struct TextNode<T: Var<Text>> {
     /* init, update data */
     // Transformed and white space corrected, or empty before init.
     text: SegmentedText,
-    // Copy for render, or black before init.
-    color: RenderColor,
+
     // Loaded from [font query](Fonts::get_or_default) during init.
     font_face: Option<FontFaceRef>,
-    // Copy for layout, or zero before init.
-    font_size: Length,
-    #[allow(unused)] // TODO
-    line_spacing: Length,
 
     synthesis_used: FontSynthesis,
 
@@ -178,11 +173,7 @@ impl<T: Var<Text>> TextNode<T> {
             text_var: text,
 
             text: SegmentedText::default(),
-            color: colors::BLACK.into(),
             font_face: None,
-
-            font_size: 0.into(),
-            line_spacing: 0.into(),
 
             synthesis_used: FontSynthesis::DISABLED,
 
@@ -198,25 +189,16 @@ impl<T: Var<Text>> TextNode<T> {
 #[impl_ui_node(none)]
 impl<T: Var<Text>> UiNode for TextNode<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let t_ctx = TextContext::get(ctx.vars);
+        let (family, style, weight, stretch) = TextContext::font_face(ctx.vars);
 
         // TODO use the full list.
-        let font_face = ctx
-            .services
-            .req::<Fonts>()
-            .get_list(t_ctx.font_family, t_ctx.font_style, t_ctx.font_weight, t_ctx.font_stretch)
-            .best()
-            .clone();
-        self.synthesis_used = t_ctx.font_synthesis & font_face.synthesis_for(t_ctx.font_style, t_ctx.font_weight);
+        let font_face = ctx.services.req::<Fonts>().get_list(family, style, weight, stretch).best().clone();
+        self.synthesis_used = *FontSynthesisVar::get(ctx.vars) & font_face.synthesis_for(style, weight);
         self.font_face = Some(font_face);
 
-        self.font_size = t_ctx.font_size;
-
-        self.color = t_ctx.text_color.into();
-
         let text = self.text_var.get(ctx.vars).clone();
-        let text = t_ctx.text_transform.transform(text);
-        let text = t_ctx.white_space.transform(text);
+        let text = TextTransformVar::get(ctx.vars).transform(text);
+        let text = WhiteSpaceVar::get(ctx.vars).transform(text);
         self.text = SegmentedText::new(text)
     }
 
@@ -252,7 +234,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // update `self.font_face`, affects shaping and layout
-        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_fate_update(ctx.vars) {
+        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
             let face = ctx
                 .services
                 .req::<Fonts>()
@@ -271,27 +253,17 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // update `self.font_instance`, affects shaping and layout
-        if let Some(font_size) = TextContext::font_update(ctx.vars) {
-            if font_size != self.font_size {
-                self.font_size = font_size;
-
-                self.font = None;
-                self.shaped_text = ShapedText::default();
-
-                ctx.updates.layout();
-            }
+        if TextContext::font_update(ctx.vars).is_some() {
+            self.font = None;
+            self.shaped_text = ShapedText::default();
+            ctx.updates.layout();
         }
 
         // TODO features, spacing, breaking.
 
         // update `self.color`
-        if let Some(color) = TextContext::color_update(ctx.vars) {
-            let color = RenderColor::from(color);
-            if self.color != color {
-                self.color = color;
-
-                ctx.updates.render();
-            }
+        if TextContext::color_update(ctx.vars).is_some() {
+            ctx.updates.render();
         }
 
         // update `self.font_synthesis`
@@ -308,8 +280,14 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
         if self.font.is_none() {
-            let size = self.font_size.to_layout(LayoutLength::new(available_size.width), ctx);
-            self.font = Some(self.font_face.as_ref().expect("font not inited in measure").sized(size));
+            let (size, variations) = TextContext::font(ctx.vars);
+            let size = size.to_layout(LayoutLength::new(available_size.width), ctx);
+            self.font = Some(
+                self.font_face
+                    .as_ref()
+                    .expect("font not inited in measure")
+                    .sized(size, variations.finalize()),
+            );
         };
 
         if self.shaped_text.is_empty() {
@@ -334,12 +312,12 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         // http://www.unicode.org/reports/tr14/tr14-45.html
     }
 
-    fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_text(
             LayoutRect::from_size(self.size),
             self.shaped_text.glyphs(),
             self.font.as_ref().expect("font not initied in render"),
-            self.color,
+            RenderColor::from(*TextColorVar::get(ctx.vars)),
             self.synthesis_used,
         );
     }
