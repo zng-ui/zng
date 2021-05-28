@@ -2,7 +2,6 @@
 
 use crate::core::text::{font_features::*, *};
 use crate::prelude::new_property::*;
-use std::cell::{Ref, RefCell};
 use std::marker::PhantomData;
 
 context_var! {
@@ -62,9 +61,11 @@ context_var! {
     /// Text white space transform of [`text`](crate::widgets::text) spans.
     pub struct WhiteSpaceVar: WhiteSpace = return &WhiteSpace::Preserve;
 
-    struct FontFeaturesVar: Option<RefCell<FontFeatures>> = return &None;
+    /// Font features of [`text`](crate::widgets::text) spans.
+    pub struct FontFeaturesVar: FontFeatures = once FontFeatures::new();
 
-    struct FontVariationsVar: FontVariations = once FontVariations::new();
+    /// Font variations of [`text`](crate::widgets::text) spans.
+    pub struct FontVariationsVar: FontVariations = once FontVariations::new();
 }
 
 /// Sets the [`FontFamilyVar`] context var.
@@ -181,73 +182,120 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
     with_context_var(child, WhiteSpaceVar, transform)
 }
 
-/// Access to a widget contextual [`FontVariations`].
-pub struct FontVariationsContext {}
-impl FontVariationsContext {
-    /// Reference the contextual font variations.
-    #[inline]
-    pub fn get(vars: &VarsRead) -> &FontVariations {
-        FontVariationsVar::get(vars)
-    }
-}
-
-/// Access to a widget contextual [`FontFeatures`].
-pub struct FontFeaturesContext {}
-impl FontFeaturesContext {
-    /// Reference the contextual font features, if any is set.
-    #[inline]
-    pub fn get(vars: &VarsRead) -> Option<std::cell::Ref<FontFeatures>> {
-        FontFeaturesVar::get(vars).as_ref().map(RefCell::borrow)
-    }
-
-    /// Calls `action` with the contextual feature set to `new_state`.
-    pub fn with_feature<S, D, R, A>(set_feature_state: &mut D, new_state: S, vars: &VarsRead, action: A) -> R
-    where
-        S: VarValue,
-        D: FnMut(&mut FontFeatures, S) -> S,
-        A: FnOnce() -> R,
-    {
-        if let Some(cell) = FontFeaturesVar::get(vars) {
-            let prev_state = set_feature_state(&mut *cell.borrow_mut(), new_state);
-            let r = action();
-            set_feature_state(&mut *cell.borrow_mut(), prev_state);
-            r
-        } else {
-            let mut features = FontFeatures::default();
-            set_feature_state(&mut features, new_state);
-            vars.with_context_var(FontFeaturesVar, &Some(RefCell::new(features)), 0, action)
-            //TODO version, is_new
-        }
-    }
-}
-
 /// Includes the font variation config in the widget context.
+///
+/// Only the same variation `name` is replaced any other font variations in the [`FontVariationsVar`] is kept.
 pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: impl IntoVar<f32>) -> impl UiNode {
     struct WithFontVariationNode<C, V> {
         child: C,
+
         name: FontVariationName,
         value: V,
+
+        variations: FontVariations,
+        version: u32,
     }
-    #[impl_ui_node(child)]
+    //#[impl_ui_node(child)]
     impl<C, V> UiNode for WithFontVariationNode<C, V>
     where
         C: UiNode,
         V: Var<f32>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let value = self.value.get(ctx.vars);
-            self.child.init(ctx);
-            todo!("TODO {:?}: {}", self.name, value);
+            self.variations = FontVariationsVar::get(ctx.vars).clone();
+            self.variations.variation(self.name).set_value(*self.value.get(ctx.vars));
+
+            self.version = FontVariationsVar::version(ctx.vars);
+            let is_new = FontVariationsVar::is_new(ctx.vars);
+
+            if is_new {
+                self.version = self.version.wrapping_add(1);
+            }
+
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_var(FontVariationsVar, &self.variations, is_new, self.version, || {
+                    child.init(ctx);
+                })
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
+                    child.update_hp(ctx);
+                });
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let mut is_new = false;
+
+            if let Some(new_ctx) = FontVariationsVar::get_new(ctx.vars) {
+                self.variations = new_ctx.clone();
+                self.variations.variation(self.name).set_value(*self.value.get(ctx.vars));
+                self.version = self.version.wrapping_add(1);
+                is_new = true;
+            } else if let Some(value) = self.value.get_new(ctx.vars) {
+                self.variations.variation(self.name).set_value(*value);
+                self.version = self.version.wrapping_add(1);
+                is_new = true;
+            }
+
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_var(FontVariationsVar, &self.variations, is_new, self.version, || {
+                    child.update(ctx);
+                });
+        }
+
+        fn update_hp(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
+                    child.update_hp(ctx);
+                });
+        }
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let child = &mut self.child;
+            ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
+                child.measure(ctx, available_size)
+            })
+        }
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
+                child.arrange(ctx, final_size);
+            });
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            let child = &self.child;
+            ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
+                child.render(ctx, frame);
+            });
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            let child = &self.child;
+            ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
+                child.render_update(ctx, update);
+            });
         }
     }
     WithFontVariationNode {
         child,
         name,
         value: value.into_var(),
+        variations: FontVariations::default(),
+        version: 0,
     }
 }
 
 /// Include the font feature config in the widget context.
+///
+/// Only the same feature set in `set_feature` is replaced any other font features in the [`FontFeaturesVar`] is kept.
 pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> impl UiNode
 where
     C: UiNode,
@@ -255,13 +303,17 @@ where
     V: IntoVar<S>,
     D: FnMut(&mut FontFeatures, S) -> S + 'static,
 {
+    // TODO review performance of this.
     struct WithFontFeatureNode<C, S, V, D> {
         child: C,
         _s: PhantomData<S>,
         var: V,
-        delegate: D,
+        set_feature: D,
+
+        features: FontFeatures,
+        version: u32,
     }
-    #[impl_ui_node(child)]
+    //#[impl_ui_node(child)]
     impl<C, S, V, D> UiNode for WithFontFeatureNode<C, S, V, D>
     where
         C: UiNode,
@@ -270,78 +322,112 @@ where
         D: FnMut(&mut FontFeatures, S) -> S + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.features = FontFeaturesVar::get(ctx.vars).clone();
+            self.version = FontFeaturesVar::version(ctx.vars);
+            let is_new = FontFeaturesVar::is_new(ctx.vars);
+            if is_new {
+                self.version = self.version.wrapping_add(1);
+            }
+
+            (self.set_feature)(&mut self.features, self.var.get(ctx.vars).clone());
+
             let child = &mut self.child;
-            FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.init(ctx));
+            ctx.vars
+                .with_context_var(FontFeaturesVar, &self.features, is_new, self.version, || {
+                    child.init(ctx);
+                })
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
-            FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.deinit(ctx));
+            ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
+                child.init(ctx);
+            });
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
+            let mut is_new = false;
+
+            if let Some(new_ctx) = FontFeaturesVar::get_new(ctx.vars) {
+                self.features = new_ctx.clone();
+                (self.set_feature)(&mut self.features, self.var.get(ctx.vars).clone());
+                self.version = self.version.wrapping_add(1);
+                is_new = true;
+            } else if let Some(value) = self.var.get_new(ctx.vars) {
+                (self.set_feature)(&mut self.features, value.clone());
+                self.version = self.version.wrapping_add(1);
+                is_new = true;
+            }
+
             let child = &mut self.child;
-            FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.update(ctx));
+            ctx.vars
+                .with_context_var(FontFeaturesVar, &self.features, is_new, self.version, || {
+                    child.update(ctx);
+                });
         }
 
-        // TODO update_hp, layout and render?
+        fn update_hp(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
+                child.init(ctx);
+            });
+        }
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_var(FontFeaturesVar, &self.features, self.version, || child.measure(ctx, available_size))
+        }
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
+                child.arrange(ctx, final_size);
+            });
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            let child = &self.child;
+            ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
+                child.render(ctx, frame);
+            });
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            let child = &self.child;
+            ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
+                child.render_update(ctx, update);
+            });
+        }
     }
     WithFontFeatureNode {
         child,
         _s: PhantomData,
+
         var: state.into_var(),
-        delegate: set_feature,
+        set_feature,
+
+        features: FontFeatures::new(),
+        version: 0,
     }
 }
 
-/// Sets/overrides font variations.
+/// Sets font variations.
+///
+/// **Note:** This property fully replaces the font variations for the widget and descendants, use [`with_font_variation`]
+/// to create a property that sets a variation but retains others from the context.
 #[property(context)]
 pub fn font_variations(child: impl UiNode, variations: impl IntoVar<FontVariations>) -> impl UiNode {
-    struct FontVariationsNode<C, V> {
-        child: C,
-        variations: V,
-    }
-    #[impl_ui_node(child)]
-    impl<C, V> UiNode for FontVariationsNode<C, V>
-    where
-        C: UiNode,
-        V: Var<FontVariations>,
-    {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            let variations = self.variations.get(ctx.vars);
-            self.child.init(ctx);
-            todo!("TODO {:?}", variations);
-        }
-    }
-    FontVariationsNode {
-        child,
-        variations: variations.into_var(),
-    }
+    with_context_var(child, FontVariationsVar, variations)
 }
 
-/// Sets/overrides font features.
+/// Sets font features.
+///
+/// **Note:** This property fully replaces the font variations for the widget and descendants, use [`with_font_variation`]
+/// to create a property that sets a variation but retains others from the context.
 #[property(context)]
 pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -> impl UiNode {
-    struct FontFeaturesNode<C, V> {
-        child: C,
-        features: V,
-    }
-    #[impl_ui_node(child)]
-    impl<C, V> UiNode for FontFeaturesNode<C, V>
-    where
-        C: UiNode,
-        V: Var<FontFeatures>,
-    {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            let features = self.features.get(ctx.vars);
-            self.child.init(ctx);
-            todo!("TODO {:?}", features);
-        }
-    }
-    FontFeaturesNode {
-        child,
-        features: features.into_var(),
-    }
+    with_context_var(child, FontFeaturesVar, features)
 }
 
 /// Sets the font kerning feature.
@@ -505,7 +591,7 @@ pub struct TextContext<'a> {
     /// The [`tab_length`](fn@tab_length) value.
     pub tab_length: TabLength,
     /// The [`font_features`](fn@font_features) value.
-    pub font_features: Option<Ref<'a, FontFeatures>>,
+    pub font_features: &'a FontFeatures,
 
     /* Affects arrange */
     /// The [`text_align`](fn@text_align) value.
@@ -532,7 +618,7 @@ impl<'a> TextContext<'a> {
             white_space: *WhiteSpaceVar::get(vars),
 
             font_size: *FontSizeVar::get(vars),
-            font_variations: FontVariationsContext::get(vars),
+            font_variations: FontVariationsVar::get(vars),
 
             line_height: *LineHeightVar::get(vars),
             letter_spacing: *LetterSpacingVar::get(vars),
@@ -541,7 +627,7 @@ impl<'a> TextContext<'a> {
             word_break: *WordBreakVar::get(vars),
             line_break: *LineBreakVar::get(vars),
             tab_length: *TabLengthVar::get(vars),
-            font_features: FontFeaturesContext::get(vars),
+            font_features: FontFeaturesVar::get(vars),
 
             text_align: *TextAlignVar::get(vars),
 
@@ -586,7 +672,7 @@ impl<'a> TextContext<'a> {
     /// Gets the properties that affect the sized font. The [`Length`] is `font_size`.
     #[inline]
     pub fn font(vars: &'a VarsRead) -> (Length, &'a FontVariations) {
-        (*FontSizeVar::get(vars), FontVariationsContext::get(vars))
+        (*FontSizeVar::get(vars), FontVariationsVar::get(vars))
     }
     /// Gets [`font`](Self::font) if any of the properties updated.
     #[inline]
@@ -628,9 +714,8 @@ impl<'a> TextContext<'a> {
 impl<'a> Clone for TextContext<'a> {
     fn clone(&self) -> Self {
         TextContext {
-            font_features: self.font_features.as_ref().map(Ref::clone),
+            font_features: self.font_features,
             text_transform: self.text_transform.clone(),
-
             font_family: self.font_family,
             font_size: self.font_size,
             font_weight: self.font_weight,
