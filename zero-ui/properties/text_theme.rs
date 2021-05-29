@@ -203,7 +203,7 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.variations = FontVariationsVar::get(ctx.vars).clone();
-            self.variations.variation(self.name).set_value(*self.value.get(ctx.vars));
+            self.variations.insert(self.name, *self.value.get(ctx.vars));
 
             self.version = FontVariationsVar::version(ctx.vars);
             let is_new = FontVariationsVar::is_new(ctx.vars);
@@ -232,11 +232,11 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
 
             if let Some(new_ctx) = FontVariationsVar::get_new(ctx.vars) {
                 self.variations = new_ctx.clone();
-                self.variations.variation(self.name).set_value(*self.value.get(ctx.vars));
+                self.variations.insert(self.name, *self.value.get(ctx.vars));
                 self.version = self.version.wrapping_add(1);
                 is_new = true;
             } else if let Some(value) = self.value.get_new(ctx.vars) {
-                self.variations.variation(self.name).set_value(*value);
+                self.variations.insert(self.name, *value);
                 self.version = self.version.wrapping_add(1);
                 is_new = true;
             }
@@ -305,7 +305,7 @@ where
     D: FnMut(&mut FontFeatures, S) -> S + 'static,
 {
     // TODO review performance of this, every feature set duplicates the hash-map,
-    // all the intermediary maps are probably only used to make an inner feature map, 
+    // all the intermediary maps are probably only used to make an inner feature map,
     // on the other hand the values are tiny, but if we are so sure it is tiny why are we using a hash-map?.
     struct WithFontFeatureNode<C, S, V, D> {
         child: C,
