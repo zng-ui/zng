@@ -2019,12 +2019,18 @@ mod renderer {
 
         /// Color used to clear the frame buffer for a new rendering.
         pub clear_color: Option<RenderColor>,
+
+        /// Enable text sub-pixel anti-aliasing if a fast implementation is available.
+        pub subpixel_aa: bool,
     }
     impl Default for RendererConfig {
         fn default() -> Self {
             Self {
                 workers: None,
-                clear_color: Some(RenderColor::new(1.0, 1.0, 1.0, 1.0)), // same as wr default
+                clear_color: Some(RenderColor::new(1.0, 1.0, 1.0, 1.0)),// same as wr default
+                subpixel_aa: true, // update this with the event WM_SETTINGCHANGE for
+                                   // SPI_SETFONTSMOOTHING and SPI_SETFONTSMOOTHINGTYPE
+                                   // https://searchfox.org/mozilla-central/source/gfx/thebes/gfxDWriteFonts.cpp#33
             }
         }
     }
@@ -2035,6 +2041,7 @@ mod renderer {
                 renderer_kind,
                 workers: self.workers,
                 clear_color: self.clear_color,
+                enable_subpixel_aa: self.subpixel_aa,
                 //panic_on_gl_error: true,
                 // TODO expose more options to the user.
                 ..Default::default()

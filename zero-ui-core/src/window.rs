@@ -1882,6 +1882,7 @@ impl OpenWindow {
         let renderer_config = RendererConfig {
             clear_color: None,
             workers: Some(ui_threads),
+            ..Default::default()
         };
         match mode {
             WindowMode::Headed => {
