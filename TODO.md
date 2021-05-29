@@ -7,10 +7,6 @@ Things that must be done first because they influence the core API design that i
 * Improve property allowed_in_when validation for generics, generate a `new` like call for each
   argument, instead of all at once.
 * Test `#[cfg(..)]` support in widget declarations.
-* Use something like this [https://docs.rs/crate/xss-probe/0.2.0/source/build.rs] to patch docs.
-* Link property declaration to their source-code point.
-* FIX: Reexported properties in widgets become the target of intra-doc links in some cases.
-  - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
 
 * Focusable
   * Support more then one ALT scopes?
@@ -140,3 +136,10 @@ Hard to-do but does not mess with the core API.
 * Morphing.
 * PropertyGrid.
 * Review widgets available in other frameworks?
+
+## Docs
+
+* Link property declaration to their source-code point.
+* FIX: Reexported properties in widgets become the target of intra-doc links in some cases.
+  - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
+* Make a tool that can be used with ".cargo/config.toml build.rustdoc" to replace JS hacks with generated HTML.
