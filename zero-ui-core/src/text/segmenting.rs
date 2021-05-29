@@ -7,7 +7,7 @@ pub enum TextSegmentKind {
     /// A sequence of characters that cannot be separated by a line-break.
     Word,
     /// A sequence of characters that all have the `White_Space` Unicode property, except the [`Tab`](Self::Tab) and
-    ///[`LineBreak`](Self::LineBreak) characters..
+    ///[`LineBreak`](Self::LineBreak) characters.
     Space,
     /// A sequence of `U+0009 TABULAR` characters.
     Tab,
