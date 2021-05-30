@@ -4,10 +4,13 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use crate::context::*;
 use crate::impl_ui_node;
 use crate::render::{FrameBuilder, FrameUpdate};
 use crate::units::*;
+use crate::{
+    context::*,
+    event::{AnyEventArgs, AnyEventUpdate, EventUpdate},
+};
 
 unique_id! {
     /// Unique id of a widget.
@@ -47,6 +50,26 @@ pub trait UiNode: 'static {
     ///
     /// Event sources that are high pressure mention this in their documentation.
     fn update_hp(&mut self, ctx: &mut WidgetContext);
+
+    /// Called by the `UiNode` implementation for `Box<dyn UiNode>` when it receives an `event` update.
+    ///
+    /// # Implementers
+    ///
+    /// If you cannot use [`#[impl_ui_node(..)]`](impl_ui_node) you must only call [`Self::event`](UiNode::event) and mark
+    /// your implementation with `#[inline(always)]`.
+    #[doc(hidden)]
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs);
+
+    /// Called every time an event updates.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// // TODO demonstrate how to pass call to children.
+    /// ```
+    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+    where
+        Self: Sized;
 
     /// Called every time a layout update is needed.
     ///
@@ -89,6 +112,20 @@ pub trait UiNode: 'static {
 }
 #[impl_ui_node(delegate = self.as_ref(), delegate_mut = self.as_mut())]
 impl UiNode for Box<dyn UiNode> {
+    #[inline(always)]
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
+        self.as_mut().event_boxed(ctx, update, args);
+    }
+
+    #[allow_(zero_ui::missing_delegate)]
+    fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+    where
+        Self: Sized,
+    {
+        let (update, args) = AnyEventUpdate::from(update, args);
+        self.as_mut().event_boxed(ctx, update, args);
+    }
+
     fn boxed(self) -> Box<dyn UiNode> {
         self
     }
@@ -169,7 +206,22 @@ pub trait Widget: UiNode {
 }
 
 #[impl_ui_node(delegate = self.as_ref(), delegate_mut = self.as_mut())]
-impl UiNode for Box<dyn Widget> {}
+impl UiNode for Box<dyn Widget> {
+    #[inline(always)]
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
+        self.as_mut().event_boxed(ctx, update, args);
+    }
+
+    #[allow_(zero_ui::missing_delegate)]
+    #[inline(always)]
+    fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+    where
+        Self: Sized,
+    {
+        let (update, args) = AnyEventUpdate::from(update, args);
+        self.as_mut().event_boxed(ctx, update, args);
+    }
+}
 impl Widget for Box<dyn Widget> {
     #[inline]
     fn id(&self) -> WidgetId {
@@ -212,26 +264,27 @@ impl UiNode for FillUiNode {}
 pub mod impl_ui_node_util {
     use crate::{
         context::{LayoutContext, RenderContext, WidgetContext},
+        event::EventUpdate,
         render::{FrameBuilder, FrameUpdate},
         units::LayoutSize,
         UiNode, UiNodeList,
     };
 
     #[inline]
-    pub fn delegate(d: &(impl UiNode + ?Sized)) -> &(impl UiNode + ?Sized) {
+    pub fn delegate<U: UiNode + ?Sized>(d: &U) -> &U {
         d
     }
     #[inline]
-    pub fn delegate_mut(d: &mut (impl UiNode + ?Sized)) -> &mut (impl UiNode + ?Sized) {
+    pub fn delegate_mut<U: UiNode + ?Sized>(d: &mut U) -> &mut U {
         d
     }
 
     #[inline]
-    pub fn delegate_list(d: &(impl UiNodeList + ?Sized)) -> &(impl UiNodeList + ?Sized) {
+    pub fn delegate_list<U: UiNodeList + ?Sized>(d: &U) -> &U {
         d
     }
     #[inline]
-    pub fn delegate_list_mut(d: &mut (impl UiNodeList + ?Sized)) -> &mut (impl UiNodeList + ?Sized) {
+    pub fn delegate_list_mut<U: UiNodeList + ?Sized>(d: &mut U) -> &mut U {
         d
     }
 
@@ -249,6 +302,7 @@ pub mod impl_ui_node_util {
         fn deinit_all(self, ctx: &mut WidgetContext);
         fn update_all(self, ctx: &mut WidgetContext);
         fn update_hp_all(self, ctx: &mut WidgetContext);
+        fn event_all<EU: EventUpdate>(self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
         fn measure_all(self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
         fn arrange_all(self, ctx: &mut LayoutContext, final_size: LayoutSize);
     }
@@ -279,6 +333,12 @@ pub mod impl_ui_node_util {
         fn update_hp_all(self, ctx: &mut WidgetContext) {
             for child in self {
                 child.update_hp(ctx);
+            }
+        }
+
+        fn event_all<EU: EventUpdate>(self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+            for child in self {
+                child.event(ctx, update, args);
             }
         }
 
@@ -618,6 +678,22 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                 panic!("`SlotNode` in `TakeOnInit` state on update")
             }
             SlotNodeState::Dropped => {}
+        }
+    }
+
+    #[inline]
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow_mut().as_mut().unwrap().event_boxed(ctx, update, args);
+        }
+    }
+
+    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+    where
+        Self: Sized,
+    {
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow_mut().as_mut().unwrap().event(ctx, update, args);
         }
     }
 

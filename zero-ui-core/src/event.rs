@@ -41,7 +41,7 @@ pub trait CancelableEventArgs: EventArgs {
 }
 
 /// Identifies an event type.
-pub trait Event: 'static {
+pub trait Event: Debug + Clone + Copy + 'static {
     /// Event arguments type.
     type Args: EventArgs;
     /// If the event is updated in the high-pressure lane.
@@ -57,6 +57,84 @@ pub trait Event: 'static {
         EventListener::never(Self::IS_HIGH_PRESSURE)
     }
 }
+
+mod protected {
+    use std::any::TypeId;
+
+    pub trait EventUpdate {
+        fn event_type_id(self) -> TypeId;
+    }
+}
+
+/// Represents an [`Event`] type during an update.
+pub trait EventUpdate: protected::EventUpdate + Clone + Copy + 'static {
+    /// The event update args type.
+    type Args;
+
+    /// Returns the event `E` args if the update is for the event.
+    fn is<E: Event>(self, args: &Self::Args) -> Option<&E::Args>;
+}
+impl<E: Event> protected::EventUpdate for E {
+    #[inline(always)]
+    fn event_type_id(self) -> TypeId {
+        TypeId::of::<E>()
+    }
+}
+impl<EU: Event + protected::EventUpdate> EventUpdate for EU {
+    type Args = EU::Args;
+
+    #[inline(always)]
+    fn is<E: Event>(self, args: &Self::Args) -> Option<&E::Args> {
+        if TypeId::of::<EU>() == TypeId::of::<E>() {
+            Some(unsafe {
+                // SAFETY: its the same type.
+                #[allow(clippy::transmute_ptr_to_ptr)]
+                std::mem::transmute(args)
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// A type that represents an [`Event`] type  during an update without generics.
+#[derive(Clone, Copy)]
+pub struct AnyEventUpdate(TypeId);
+impl AnyEventUpdate {
+    /// Gets the `AnyEventUpdate` that represents `E`.
+    pub fn from<E: EventUpdate>(update: E, args: &E::Args) -> (Self, &AnyEventArgs) {
+        (Self(update.event_type_id()), unsafe {
+            // SAFETY: there is nothing you can do with a &AnyEventArgs and `AnyEventArgs` is 0 sized.
+            #[allow(clippy::transmute_ptr_to_ptr)]
+            std::mem::transmute(args)
+        })
+    }
+}
+impl protected::EventUpdate for AnyEventUpdate {
+    #[inline(always)]
+    fn event_type_id(self) -> TypeId {
+        self.0
+    }
+}
+impl EventUpdate for AnyEventUpdate {
+    type Args = AnyEventArgs;
+
+    #[inline(always)]
+    fn is<E: Event>(self, args: &Self::Args) -> Option<&E::Args> {
+        if self.0 == TypeId::of::<E>() {
+            Some(unsafe {
+                // SAFETY: it was the same type before becoming &AnyEventArgs.
+                #[allow(clippy::transmute_ptr_to_ptr)]
+                std::mem::transmute(args)
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// Type erased event args used by [`AnyEventUpdate`].
+pub enum AnyEventArgs {}
 
 /// Identifies an event type for an action that can be canceled.
 ///
@@ -1155,6 +1233,7 @@ pub use crate::cancelable_event_args;
 macro_rules! event {
     ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
         $(#[$outer])*
+        #[derive(Clone, Copy, Debug)]
         $vis struct $Event;
         impl $crate::event::Event for $Event {
             type Args = $Args;
@@ -1207,6 +1286,7 @@ pub use crate::event;
 macro_rules! event_hp {
     ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
         $(#[$outer])*
+        #[derive(Debug, Clone, Copy)]
         $vis struct $Event;
         impl $crate::event::Event for $Event {
             type Args = $Args;

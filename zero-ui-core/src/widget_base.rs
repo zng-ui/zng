@@ -2,6 +2,7 @@
 
 use std::{fmt, ops};
 
+use crate::event::{AnyEventArgs, AnyEventUpdate, EventUpdate};
 use crate::var::{context_var, IntoVar, Vars};
 use crate::{
     context::RenderContext,
@@ -65,7 +66,7 @@ pub mod implicit_base {
     /// [`WidgetContext::widget_context`](crate::context::WidgetContext::widget_context) and
     /// [`FrameBuilder::push_widget`](crate::render::FrameBuilder::push_widget) to define the widget.
     pub fn new(child: impl UiNode, id: WidgetId) -> impl Widget {
-        struct WidgetNode<T: UiNode> {
+        struct WidgetNode<T> {
             id: WidgetId,
             transform_key: WidgetTransformKey,
             state: OwnedStateMap,
@@ -364,6 +365,13 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.with_context(ctx.vars, |c| c.update_hp(ctx));
         }
 
+        fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+        where
+            Self: Sized,
+        {
+            self.with_context(ctx.vars, |c| c.event(ctx, update, args));
+        }
+
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if !*self.enabled.get(ctx.vars) {
                 frame.meta().set::<EnabledState>(false);
@@ -450,6 +458,18 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             if let Visibility::Visible = self.visibility.get(ctx.vars) {
                 self.child.arrange(ctx, final_size)
             }
+        }
+
+        #[inline(always)]
+        fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
+            self.event(ctx, update, args);
+        }
+
+        fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+        where
+            Self: Sized,
+        {
+            self.with_context(ctx.vars, |c| c.event(ctx, update, args));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -672,6 +692,13 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
 
         fn update_hp(&mut self, ctx: &mut WidgetContext) {
             self.with_context(ctx.vars, |c| c.update_hp(ctx));
+        }
+
+        fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+        where
+            Self: Sized,
+        {
+            self.with_context(ctx.vars, |c| c.event(ctx, update, args));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

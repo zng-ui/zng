@@ -357,14 +357,14 @@ impl Fonts {
     pub fn system_text_aa(&self) -> TextAntiAliasing {
         #[cfg(windows)]
         {
-            use winapi::um::winuser::{SystemParametersInfoW, FE_FONTSMOOTHINGCLEARTYPE, SPI_GETFONTSMOOTHING, SPI_GETFONTSMOOTHINGTYPE};
             use winapi::um::errhandlingapi::GetLastError;
+            use winapi::um::winuser::{SystemParametersInfoW, FE_FONTSMOOTHINGCLEARTYPE, SPI_GETFONTSMOOTHING, SPI_GETFONTSMOOTHINGTYPE};
 
             unsafe {
                 let mut enabled = 0;
                 let mut smoothing_type: u32 = 0;
 
-                if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {                    
+                if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
                     log::error!("SPI_GETFONTSMOOTHING error: {:X}", GetLastError());
                     return TextAntiAliasing::Mono;
                 }

@@ -248,6 +248,12 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
 
+        [fn event_boxed(&mut self, ctx: &mut #crate_::context::WidgetContext, update: #crate_::event::AnyEventUpdate, args: &#crate_::event::AnyEventArgs) {
+            self.event(ctx, update, args);
+        }]
+
+        [fn event<__EU: #crate_::event::EventUpdate>(&mut self, ctx: &mut #crate_::context::WidgetContext, update: __EU, args: &__EU::Args) where Self: Sized { }]
+
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) { }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) { }]
@@ -299,6 +305,15 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             child.update_hp(ctx)
         }]
 
+        [fn event_boxed(&mut self, ctx: &mut #crate_::context::WidgetContext, update: #crate_::event::AnyEventUpdate, args: &#crate_::event::AnyEventArgs) {
+            self.event(ctx, update, args);
+        }]
+
+        [fn event<__EU: #crate_::event::EventUpdate>(&mut self, ctx: &mut #crate_::context::WidgetContext, update: __EU, args: &__EU::Args) where Self: Sized {
+            let child = {#borrow_mut};
+            child.event(ctx, update, args)
+        }]
+
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
             let child = {#borrow};
             child.render(ctx, frame)
@@ -348,6 +363,15 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
         [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let children = {#borrow_mut};
             #crate_::UiNodeList::update_hp_all(children, ctx)
+        }]
+
+        [fn event_boxed(&mut self, ctx: &mut #crate_::context::WidgetContext, update: #crate_::event::AnyEventUpdate, args: &#crate_::event::AnyEventArgs) {
+            self.event(ctx, update, args);
+        }]
+
+        [fn event<__EU: #crate_::event::EventUpdate>(&mut self, ctx: &mut #crate_::context::WidgetContext, update: __EU, args: &__EU::Args) where Self: Sized {
+            let children = {#borrow_mut};
+            #crate_::UiNodeList::event_all(children, ctx, update, args);
         }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
@@ -403,6 +427,15 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
         [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let children = {#iter_mut};
             #crate_::impl_ui_node_util::IterMutImpl::update_hp_all(children, ctx);
+        }]
+
+        [fn event_boxed(&mut self, ctx: &mut #crate_::context::WidgetContext, update: #crate_::event::AnyEventUpdate, args: &#crate_::event::AnyEventArgs) {
+            self.event(ctx, update, args);
+        }]
+
+        [fn event<__EU: #crate_::event::EventUpdate>(&mut self, ctx: &mut #crate_::context::WidgetContext, update: __EU, args: &__EU::Args) where Self: Sized {
+            let children = {#iter_mut};
+            #crate_::impl_ui_node_util::IterMutImpl::event_all(children, ctx, update, args);
         }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
