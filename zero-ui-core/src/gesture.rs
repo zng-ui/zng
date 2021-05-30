@@ -737,13 +737,13 @@ impl AppExtension for GestureManager {
         r.services.register(Gestures::new());
     }
 
-    fn on_window_event(&mut self, _: WindowId, event: &WindowEvent, _: &mut AppContext) {
+    fn on_window_event(&mut self, _: &mut AppContext, _: WindowId, event: &WindowEvent) {
         if let WindowEvent::Focused(false) = event {
             self.pressed_modifier = None;
         }
     }
 
-    fn update(&mut self, request: UpdateRequest, ctx: &mut AppContext) {
+    fn update(&mut self, ctx: &mut AppContext, request: UpdateRequest) {
         if !request.update {
             return;
         }

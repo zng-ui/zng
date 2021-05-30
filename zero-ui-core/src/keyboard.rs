@@ -174,7 +174,7 @@ impl AppExtension for KeyboardManager {
         r.services.register(k);
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         match *event {
             WindowEvent::KeyboardInput {
                 device_id,

@@ -149,7 +149,7 @@ impl AppExtension for FontManager {
         }
     }
 
-    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+    fn update(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
         if update.update {
             {
                 let fonts = ctx.services.req::<Fonts>();
@@ -377,7 +377,6 @@ impl Fonts {
                     return TextAntiAliasing::Mono;
                 }
 
-                println!("{:X}", smoothing_type);
                 if smoothing_type == FE_FONTSMOOTHINGCLEARTYPE {
                     TextAntiAliasing::Subpixel
                 } else {

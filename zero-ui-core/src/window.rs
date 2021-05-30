@@ -495,7 +495,7 @@ impl AppExtension for WindowManager {
         r.events.register::<WindowCloseEvent>(self.window_close.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         match event {
             WindowEvent::Focused(focused) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
@@ -575,14 +575,14 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn update_ui(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+    fn update_ui(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
         self.update_open_close(ctx);
         self.update_pump(update, ctx);
         self.update_closing(update, ctx);
         self.update_close(update, ctx);
     }
 
-    fn update_display(&mut self, _: UpdateDisplayRequest, ctx: &mut AppContext) {
+    fn update_display(&mut self, ctx: &mut AppContext, _: UpdateDisplayRequest) {
         // Pump layout and render in all windows.
         // The windows don't do a layout update unless they recorded
         // an update request for layout or render.
@@ -605,7 +605,7 @@ impl AppExtension for WindowManager {
         wns.opening_windows = opening;
     }
 
-    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let wns = ctx.services.req::<Windows>();
         if let Some(window) = wns.windows.iter_mut().find(|w| w.id == window_id) {
             window.request_redraw(ctx.vars);
@@ -622,13 +622,13 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+    fn on_redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
             window.redraw();
         }
     }
 
-    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
+    fn on_shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
         if !args.cancel_requested() {
             let service = ctx.services.req::<Windows>();
             if service.shutdown_on_last_close {

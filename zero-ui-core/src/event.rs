@@ -1,7 +1,6 @@
 //! App event API.
 
 use crate::context::{AlreadyRegistered, AppContext, UpdateRequest, Updates, WidgetContext};
-use crate::profiler::profile_scope;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, AnyMap, UiNode};
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -1320,57 +1319,26 @@ where
     H: FnMut(&mut WidgetContext, &E::Args),
 {
     child: C,
-    _event: E,
-    listener: EventListener<E::Args>,
+    event: E,
     filter: F,
     handler: H,
 }
 #[impl_ui_node(child)]
-impl<C, E, F, H> OnEventNode<C, E, F, H>
+impl<C, E, F, H> UiNode for OnEventNode<C, E, F, H>
 where
     C: UiNode,
     E: Event,
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     H: FnMut(&mut WidgetContext, &E::Args) + 'static,
 {
-    #[UiNode]
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.listener = ctx.events.listen::<E>();
-        self.child.init(ctx);
-    }
-
-    #[UiNode]
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        self.listener = E::never();
-        self.child.deinit(ctx);
-    }
-
-    #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
-
-        if !E::IS_HIGH_PRESSURE {
-            self.do_update(ctx)
-        }
-    }
-
-    #[UiNode]
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        self.child.update_hp(ctx);
-
-        if E::IS_HIGH_PRESSURE {
-            self.do_update(ctx)
-        }
-    }
-
-    fn do_update(&mut self, ctx: &mut WidgetContext) {
-        if self.listener.has_updates(ctx.events) && IsEnabled::get(ctx.vars) {
-            for args in self.listener.updates(ctx.events) {
-                if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                    profile_scope!("on_event::<{}>", std::any::type_name::<E>());
-                    (self.handler)(ctx, &args);
-                }
+    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+        if let Some(args) = update.is::<E>(args) {
+            self.child.event(ctx, self.event, args);
+            if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                (self.handler)(ctx, args);
             }
+        } else {
+            self.child.event(ctx, update, args);
         }
     }
 }
@@ -1383,57 +1351,26 @@ where
     H: FnMut(&mut WidgetContext, &E::Args),
 {
     child: C,
-    _event: E,
-    listener: EventListener<E::Args>,
+    event: E,
     filter: F,
     handler: H,
 }
 #[impl_ui_node(child)]
-impl<C, E, F, H> OnPreviewEventNode<C, E, F, H>
+impl<C, E, F, H> UiNode for OnPreviewEventNode<C, E, F, H>
 where
     C: UiNode,
     E: Event,
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     H: FnMut(&mut WidgetContext, &E::Args) + 'static,
 {
-    #[UiNode]
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.listener = ctx.events.listen::<E>();
-        self.child.init(ctx);
-    }
-
-    #[UiNode]
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        self.listener = E::never();
-        self.child.deinit(ctx);
-    }
-
-    #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if !E::IS_HIGH_PRESSURE {
-            self.do_update(ctx)
-        }
-
-        self.child.update(ctx);
-    }
-
-    #[UiNode]
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        if E::IS_HIGH_PRESSURE {
-            self.do_update(ctx)
-        }
-
-        self.child.update_hp(ctx);
-    }
-
-    fn do_update(&mut self, ctx: &mut WidgetContext) {
-        if self.listener.has_updates(ctx.events) && IsEnabled::get(ctx.vars) {
-            for args in self.listener.updates(ctx.events) {
-                if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                    profile_scope!("on_pre_event::<{}>", std::any::type_name::<E>());
-                    (self.handler)(ctx, &args);
-                }
+    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+        if let Some(args) = update.is::<E>(args) {
+            if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                (self.handler)(ctx, args);
             }
+            self.child.event(ctx, self.event, args);
+        } else {
+            self.child.event(ctx, update, args);
         }
     }
 }
@@ -1580,8 +1517,7 @@ pub fn on_event<E: Event>(
 ) -> impl UiNode {
     OnEventNode {
         child,
-        _event: event,
-        listener: E::never(),
+        event,
         filter,
         handler,
     }
@@ -1609,8 +1545,7 @@ pub fn on_pre_event<E: Event>(
 ) -> impl UiNode {
     OnPreviewEventNode {
         child,
-        _event: event,
-        listener: E::never(),
+        event,
         filter,
         handler,
     }

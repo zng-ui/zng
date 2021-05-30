@@ -790,7 +790,7 @@ impl AppExtension for MouseManager {
         r.services.register(Mouse::new(r.updates.notifier().clone(), r.events));
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         match *event {
             WindowEvent::CursorMoved { device_id, position, .. } => self.on_cursor_moved(window_id, device_id, position, ctx),
             WindowEvent::MouseInput {
@@ -804,7 +804,7 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+    fn update(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
         if update.update_hp {
             return;
         }
@@ -812,7 +812,7 @@ impl AppExtension for MouseManager {
         self.on_update(ctx);
     }
 
-    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         self.on_new_frame(window_id, ctx);
     }
 }
