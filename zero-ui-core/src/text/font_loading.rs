@@ -1,7 +1,7 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
-    fmt,
+    fmt, mem,
     path::PathBuf,
     rc::Rc,
     sync::Arc,
@@ -14,11 +14,11 @@ use webrender::api::RenderApi;
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
-use crate::app::AppExtension;
 use crate::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
 use crate::event::{event, event_args, EventEmitter};
 use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
+use crate::{app::AppExtension, render::TextAntiAliasing};
 
 #[cfg(windows)]
 use crate::{
@@ -38,14 +38,31 @@ event! {
     /// Fonts only unload when all references to then are dropped, so you can still continue using
     /// old references if you don't want to monitor this event.
     pub FontChangedEvent: FontChangedArgs;
+
+    /// Change in [system text anti-aliasing config](Fonts::system_text_aa).
+    pub TextAntiAliasingChangedEvent: TextAntiAliasingChangedArgs;
 }
 
 event_args! {
     /// [`FontChangedEvent`] arguments.
     pub struct FontChangedArgs {
-
         /// The change that happened.
         pub change: FontChange,
+
+        ..
+
+        /// Concerns all widgets.
+        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+            true
+        }
+    }
+
+    /// [`TextAntiAliasingChangedEvent`] arguments.
+    pub struct TextAntiAliasingChangedArgs {
+        /// The previous anti-aliasing config.
+        pub prev: TextAntiAliasing,
+        /// The new anti-aliasing config.
+        pub new: TextAntiAliasing,
 
         ..
 
@@ -92,27 +109,39 @@ pub enum FontChange {
 pub struct FontManager {
     font_changed: EventEmitter<FontChangedArgs>,
 
+    text_aa_changed: EventEmitter<TextAntiAliasingChangedArgs>,
+    current_text_aa: TextAntiAliasing,
+
     #[cfg(windows)]
     window_open: EventListener<WindowEventArgs>,
     #[cfg(windows)]
     system_fonts_changed: Rc<Cell<bool>>,
+    #[cfg(windows)]
+    system_text_aa_changed: Rc<Cell<bool>>,
 }
 impl Default for FontManager {
     fn default() -> Self {
         FontManager {
             font_changed: FontChangedEvent::emitter(),
+            text_aa_changed: TextAntiAliasingChangedEvent::emitter(),
+            current_text_aa: TextAntiAliasing::Default,
 
             #[cfg(windows)]
             window_open: WindowOpenEvent::never(),
             #[cfg(windows)]
             system_fonts_changed: Rc::new(Cell::new(false)),
+            #[cfg(windows)]
+            system_text_aa_changed: Rc::new(Cell::new(false)),
         }
     }
 }
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
         ctx.events.register::<FontChangedEvent>(self.font_changed.listener());
-        ctx.services.register(Fonts::new(ctx.updates.notifier().clone()));
+        ctx.events.register::<TextAntiAliasingChangedEvent>(self.text_aa_changed.listener());
+        let fonts = Fonts::new(ctx.updates.notifier().clone());
+        self.current_text_aa = fonts.system_text_aa();
+        ctx.services.register(fonts);
 
         #[cfg(windows)]
         {
@@ -137,6 +166,16 @@ impl AppExtension for FontManager {
                 } else if fonts.prune_requested {
                     fonts.on_prune();
                 }
+
+                #[cfg(windows)]
+                if self.system_text_aa_changed.take() {
+                    // subclass monitor flagged a text AA config change.
+                    let new = fonts.system_text_aa();
+                    let prev = mem::replace(&mut self.current_text_aa, new);
+                    if prev != new {
+                        self.text_aa_changed.notify(ctx.events, TextAntiAliasingChangedArgs::now(prev, new));
+                    }
+                }
             }
 
             #[cfg(windows)]
@@ -147,12 +186,23 @@ impl AppExtension for FontManager {
                     if let Ok(w) = windows.window(w.window_id) {
                         if w.mode().is_headed() {
                             let notifier = ctx.updates.notifier().clone();
-                            let flag = Rc::clone(&self.system_fonts_changed);
-                            let ok = w.set_raw_windows_event_handler(move |_, msg, _, _| {
+                            let system_fonts_changed = Rc::clone(&self.system_fonts_changed);
+                            let system_text_aa_changed = Rc::clone(&self.system_text_aa_changed);
+                            let ok = w.set_raw_windows_event_handler(move |_, msg, wparam, _| {
                                 if msg == winapi::um::winuser::WM_FONTCHANGE {
-                                    flag.set(true);
+                                    system_fonts_changed.set(true);
                                     notifier.update();
                                     Some(0)
+                                } else if msg == winapi::um::winuser::WM_SETTINGCHANGE {
+                                    if wparam == winapi::um::winuser::SPI_GETFONTSMOOTHING as usize
+                                        || wparam == winapi::um::winuser::SPI_GETFONTSMOOTHINGTYPE as usize
+                                    {
+                                        system_text_aa_changed.set(true);
+                                        notifier.update();
+                                        Some(0)
+                                    } else {
+                                        None
+                                    }
                                 } else {
                                     None
                                 }
@@ -301,6 +351,38 @@ impl Fonts {
             .into_iter()
             .map(FontName::from)
             .collect()
+    }
+
+    /// Gets the system text anti-aliasing config.
+    pub fn system_text_aa(&self) -> TextAntiAliasing {
+        #[cfg(windows)]
+        {
+            use winapi::um::winuser::{SystemParametersInfoW, FE_FONTSMOOTHINGCLEARTYPE, SPI_GETFONTSMOOTHING, SPI_GETFONTSMOOTHINGTYPE};
+
+            unsafe {
+                let mut enabled = 0;
+                let mut smoothing_type: u32 = 0;
+
+                if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) != 0 || enabled == 0 {
+                    return TextAntiAliasing::Mono;
+                }
+
+                if SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &mut smoothing_type as *mut _ as *mut _, 0) != 0 {
+                    return TextAntiAliasing::Mono;
+                }
+
+                if smoothing_type == FE_FONTSMOOTHINGCLEARTYPE {
+                    TextAntiAliasing::Subpixel
+                } else {
+                    TextAntiAliasing::Alpha
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            // TODO
+            TextAntiAliasing::Subpixel
+        }
     }
 }
 

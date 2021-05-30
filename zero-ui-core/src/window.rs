@@ -1882,7 +1882,7 @@ impl OpenWindow {
         let renderer_config = RendererConfig {
             clear_color: None,
             workers: Some(ui_threads),
-            ..Default::default()
+            text_aa: ctx.services.get::<crate::text::Fonts>().map(|f| f.system_text_aa()).unwrap_or(TextAntiAliasing::Subpixel),
         };
         match mode {
             WindowMode::Headed => {
