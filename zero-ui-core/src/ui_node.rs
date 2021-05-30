@@ -51,15 +51,6 @@ pub trait UiNode: 'static {
     /// Event sources that are high pressure mention this in their documentation.
     fn update_hp(&mut self, ctx: &mut WidgetContext);
 
-    /// Called by the `UiNode` implementation for `Box<dyn UiNode>` when it receives an `event` update.
-    ///
-    /// # Implementers
-    ///
-    /// If you cannot use [`#[impl_ui_node(..)]`](impl_ui_node) you must only call [`Self::event`](UiNode::event) and mark
-    /// your implementation with `#[inline(always)]`.
-    #[doc(hidden)]
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs);
-
     /// Called every time an event updates.
     ///
     /// # Example
@@ -102,23 +93,86 @@ pub trait UiNode: 'static {
     /// * `update`: Contains the frame value updates.
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 
-    /// Box this node, unless it is already `Box<dyn UiNode>`.
-    fn boxed(self) -> Box<dyn UiNode>
+    /// Box this node, unless it is already `BoxedUiNode`.
+    fn boxed(self) -> BoxedUiNode
     where
         Self: Sized,
     {
         Box::new(self)
     }
 }
-#[impl_ui_node(delegate = self.as_ref(), delegate_mut = self.as_mut())]
-impl UiNode for Box<dyn UiNode> {
-    #[inline(always)]
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-        self.as_mut().event_boxed(ctx, update, args);
+#[doc(hidden)]
+pub trait UiNodeBoxed: 'static {
+    fn init_boxed(&mut self, ctx: &mut WidgetContext);
+    fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
+    fn update_boxed(&mut self, ctx: &mut WidgetContext);
+    fn update_hp_boxed(&mut self, ctx: &mut WidgetContext);
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs);
+    fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
+    fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize);
+    fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+    fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+}
+
+impl<U: UiNode> UiNodeBoxed for U {
+    fn init_boxed(&mut self, ctx: &mut WidgetContext) {
+        self.init(ctx);
     }
 
-    #[allow_(zero_ui::missing_delegate)]
-    fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+    fn deinit_boxed(&mut self, ctx: &mut WidgetContext) {
+        self.deinit(ctx);
+    }
+
+    fn update_boxed(&mut self, ctx: &mut WidgetContext) {
+        self.update(ctx);
+    }
+
+    fn update_hp_boxed(&mut self, ctx: &mut WidgetContext) {
+        self.update_hp(ctx);
+    }
+
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
+        self.event(ctx, update, args);
+    }
+
+    fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        self.measure(ctx, available_size)
+    }
+
+    fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        self.arrange(ctx, final_size);
+    }
+
+    fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.render(ctx, frame);
+    }
+
+    fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.render_update(ctx, update);
+    }
+}
+
+/// An [`UiNode`] in a box.
+pub type BoxedUiNode = Box<dyn UiNodeBoxed>;
+
+impl UiNode for BoxedUiNode {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().init_boxed(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().deinit_boxed(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().update_boxed(ctx);
+    }
+
+    fn update_hp(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().update_hp_boxed(ctx);
+    }
+
+    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
     where
         Self: Sized,
     {
@@ -126,7 +180,26 @@ impl UiNode for Box<dyn UiNode> {
         self.as_mut().event_boxed(ctx, update, args);
     }
 
-    fn boxed(self) -> Box<dyn UiNode> {
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        self.as_mut().measure_boxed(ctx, available_size)
+    }
+
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        self.as_mut().arrange_boxed(ctx, final_size);
+    }
+
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.as_ref().render_boxed(ctx, frame);
+    }
+
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.as_ref().render_update_boxed(ctx, update);
+    }
+
+    fn boxed(self) -> BoxedUiNode
+    where
+        Self: Sized,
+    {
         self
     }
 }
@@ -161,8 +234,8 @@ pub trait Widget: UiNode {
     /// Last arranged size.
     fn size(&self) -> LayoutSize;
 
-    /// Box this widget node, unless it is already `Box<dyn Widget>`.
-    fn boxed_widget(self) -> Box<dyn Widget>
+    /// Box this widget node, unless it is already `BoxedWidget`.
+    fn boxed_widget(self) -> BoxedWidget
     where
         Self: Sized,
     {
@@ -205,43 +278,90 @@ pub trait Widget: UiNode {
     }
 }
 
-#[impl_ui_node(delegate = self.as_ref(), delegate_mut = self.as_mut())]
-impl UiNode for Box<dyn Widget> {
-    #[inline(always)]
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-        self.as_mut().event_boxed(ctx, update, args);
+#[doc(hidden)]
+pub trait WidgetBoxed: UiNodeBoxed {
+    fn id_boxed(&self) -> WidgetId;
+    fn state_boxed(&self) -> &StateMap;
+    fn state_mut_boxed(&mut self) -> &mut StateMap;
+    fn size_boxed(&self) -> LayoutSize;
+}
+impl<W: Widget> WidgetBoxed for W {
+    fn id_boxed(&self) -> WidgetId {
+        self.id()
     }
 
-    #[allow_(zero_ui::missing_delegate)]
-    #[inline(always)]
-    fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+    fn state_boxed(&self) -> &StateMap {
+        self.state()
+    }
+
+    fn state_mut_boxed(&mut self) -> &mut StateMap {
+        self.state_mut()
+    }
+
+    fn size_boxed(&self) -> LayoutSize {
+        self.size()
+    }
+}
+
+/// An [`Widget`] in a box.
+pub type BoxedWidget = Box<dyn WidgetBoxed>;
+
+impl UiNode for BoxedWidget {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().init_boxed(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().deinit_boxed(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().update_boxed(ctx);
+    }
+
+    fn update_hp(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().update_hp_boxed(ctx);
+    }
+
+    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
     where
         Self: Sized,
     {
         let (update, args) = AnyEventUpdate::from(update, args);
         self.as_mut().event_boxed(ctx, update, args);
     }
+
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        self.as_mut().measure_boxed(ctx, available_size)
+    }
+
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        self.as_mut().arrange_boxed(ctx, final_size)
+    }
+
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.as_ref().render_boxed(ctx, frame);
+    }
+
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.as_ref().render_update_boxed(ctx, update);
+    }
 }
-impl Widget for Box<dyn Widget> {
-    #[inline]
+impl Widget for BoxedWidget {
     fn id(&self) -> WidgetId {
-        self.as_ref().id()
+        self.as_ref().id_boxed()
     }
-    #[inline]
+
     fn state(&self) -> &StateMap {
-        self.as_ref().state()
+        self.as_ref().state_boxed()
     }
-    #[inline]
+
     fn state_mut(&mut self) -> &mut StateMap {
-        self.as_mut().state_mut()
+        self.as_mut().state_mut_boxed()
     }
-    #[inline]
+
     fn size(&self) -> LayoutSize {
-        self.as_ref().size()
-    }
-    #[inline]
-    fn boxed_widget(self) -> Box<dyn Widget> {
-        self
+        self.as_ref().size_boxed()
     }
 }
 
@@ -678,13 +798,6 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                 panic!("`SlotNode` in `TakeOnInit` state on update")
             }
             SlotNodeState::Dropped => {}
-        }
-    }
-
-    #[inline]
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().as_mut().unwrap().event_boxed(ctx, update, args);
         }
     }
 

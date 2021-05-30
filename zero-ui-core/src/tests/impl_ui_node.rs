@@ -220,7 +220,7 @@ mod util {
 
     use crate::{
         context::{LayoutContext, RenderContext, WidgetContext},
-        event::{AnyEventArgs, AnyEventUpdate, EventUpdate},
+        event::EventUpdate,
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::LayoutSize,
@@ -303,11 +303,6 @@ mod util {
 
         fn update_hp(&mut self, _: &mut WidgetContext) {
             self.trace("update_hp");
-        }
-
-        fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-            self.trace("event_boxed");
-            self.event(ctx, update, args);
         }
 
         fn event<U: EventUpdate>(&mut self, _: &mut WidgetContext, _: U, _: &U::Args)

@@ -299,9 +299,9 @@ pub mod core {
     /// to the same [`UiNode`](crate::core::UiNode) method on each node.
     ///
     /// ```
-    /// # use zero_ui::core::{impl_ui_node, UiNode};
+    /// # use zero_ui::core::{impl_ui_node, UiNode, BoxedUiNode};
     /// struct MyNode {
-    ///     children: Vec<Box<dyn UiNode>>
+    ///     children: Vec<BoxedUiNode>
     /// }
     /// #[impl_ui_node(
     ///     delegate_iter = self.children.iter(),
@@ -314,8 +314,8 @@ pub mod core {
     /// you can use this shorthand to the same effect:
     ///
     /// ```
-    /// # use zero_ui::core::{impl_ui_node, UiNode};
-    /// # struct MyNode { children: Vec<Box<dyn UiNode>> }
+    /// # use zero_ui::core::{impl_ui_node, UiNode, BoxedUiNode};
+    /// # struct MyNode { children: Vec<BoxedUiNode> }
     /// #[impl_ui_node(children_iter)]
     /// impl UiNode for MyNode { }
     /// ```
@@ -357,8 +357,8 @@ pub mod core {
     /// methods must be tagged with the `#[UiNode]` pseudo-attribute.
     ///
     /// ```
-    /// # use zero_ui::core::{impl_ui_node, UiNode, context::WidgetContext};
-    /// # struct MyNode { child: Box<dyn UiNode> }
+    /// # use zero_ui::core::{impl_ui_node, UiNode, BoxedUiNode, context::WidgetContext};
+    /// # struct MyNode { child: BoxedUiNode }
     /// #[impl_ui_node(child)]
     /// impl MyNode {
     ///     fn do_the_thing(&mut self, ctx: &mut WidgetContext) {

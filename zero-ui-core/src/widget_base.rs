@@ -2,7 +2,7 @@
 
 use std::{fmt, ops};
 
-use crate::event::{AnyEventArgs, AnyEventUpdate, EventUpdate};
+use crate::event::EventUpdate;
 use crate::var::{context_var, IntoVar, Vars};
 use crate::{
     context::RenderContext,
@@ -458,11 +458,6 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             if let Visibility::Visible = self.visibility.get(ctx.vars) {
                 self.child.arrange(ctx, final_size)
             }
-        }
-
-        #[inline(always)]
-        fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-            self.event(ctx, update, args);
         }
 
         fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)

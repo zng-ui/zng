@@ -256,10 +256,6 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
                 });
         }
 
-        fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-            self.event(ctx, update, args);
-        }
-
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
         where
             Self: Sized,
@@ -388,10 +384,6 @@ where
             ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
                 child.init(ctx);
             });
-        }
-
-        fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-            self.event(ctx, update, args);
         }
 
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)

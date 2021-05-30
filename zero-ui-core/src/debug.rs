@@ -51,9 +51,10 @@ macro_rules! source_location {
 pub use crate::source_location;
 use crate::{
     context::RenderContext,
-    event::{AnyEventArgs, AnyEventUpdate, EventUpdate},
+    event::EventUpdate,
     formatx,
     text::{Text, ToText},
+    BoxedUiNode,
 };
 
 /// Debug information about a property of a widget instance.
@@ -295,7 +296,7 @@ context_var! {
 // It registers the `WidgetInstanceInfo` metadata.
 #[doc(hidden)]
 pub struct WidgetInstanceInfoNode {
-    child: Box<dyn UiNode>,
+    child: BoxedUiNode,
     info: WidgetInstance,
     // debug vars per property.
     debug_vars: Box<[Box<[BoxedVar<ValueInfo>]>]>,
@@ -321,7 +322,7 @@ pub struct WhenInfoV1 {
 #[allow(missing_docs)] // this is all hidden
 impl WidgetInstanceInfoNode {
     pub fn new_v1(
-        node: Box<dyn UiNode>,
+        node: BoxedUiNode,
         widget_name: &'static str,
         decl_location: SourceLocation,
         instance_location: SourceLocation,
@@ -478,7 +479,7 @@ impl UiNode for WidgetInstanceInfoNode {
 // and registers the property in the widget metadata in a frame.
 #[doc(hidden)]
 pub struct PropertyInfoNode {
-    child: Box<dyn UiNode>,
+    child: BoxedUiNode,
     arg_debug_vars: Box<[BoxedVar<ValueInfo>]>,
     info: PropertyInstance,
 }
@@ -486,7 +487,7 @@ pub struct PropertyInfoNode {
 impl PropertyInfoNode {
     #[allow(clippy::too_many_arguments)]
     pub fn new_v1(
-        node: Box<dyn UiNode>,
+        node: BoxedUiNode,
 
         priority: PropertyPriority,
         child: bool,
@@ -583,10 +584,6 @@ impl UiNode for PropertyInfoNode {
         ctx_mtd!(self.update_hp, ctx, mut info);
     }
 
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-        self.event(ctx, update, args);
-    }
-
     fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
     where
         Self: Sized,
@@ -636,11 +633,11 @@ impl UiNode for PropertyInfoNode {
 
 #[doc(hidden)]
 pub struct NewChildMarkerNode {
-    child: Box<dyn UiNode>,
+    child: BoxedUiNode,
 }
 #[allow(missing_docs)] // this is hidden
 impl NewChildMarkerNode {
-    pub fn new_v1(child: Box<dyn UiNode>) -> Self {
+    pub fn new_v1(child: BoxedUiNode) -> Self {
         NewChildMarkerNode { child }
     }
 }

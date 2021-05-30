@@ -9,7 +9,7 @@ use crate::{
     text::{Text, ToText},
     units::*,
     var::{var, IntoValue, RcVar, VarsRead},
-    UiNode, WidgetId,
+    BoxedUiNode, UiNode, WidgetId,
 };
 
 use app::AppEvent;
@@ -987,7 +987,7 @@ impl fmt::Display for GetWindowError {
 impl std::error::Error for GetWindowError {}
 
 // We don't use Rc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderIcon = Rc<Box<dyn Fn(&mut WindowContext) -> Box<dyn UiNode>>>;
+type RenderIcon = Rc<Box<dyn Fn(&mut WindowContext) -> BoxedUiNode>>;
 
 /// Window icon.
 #[derive(Clone)]
@@ -1543,7 +1543,7 @@ pub struct Window {
     headless_screen: HeadlessScreen,
     on_pre_redraw: Box<dyn FnMut(&mut RedrawArgs)>,
     on_redraw: Box<dyn FnMut(&mut RedrawArgs)>,
-    child: Box<dyn UiNode>,
+    child: BoxedUiNode,
 }
 impl Window {
     /// New window configuration.
@@ -2814,7 +2814,7 @@ struct OwnedWindowContext {
     update: UpdateDisplayRequest,
 }
 impl OwnedWindowContext {
-    fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext)) -> UpdateDisplayRequest {
+    fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut BoxedUiNode, &mut WidgetContext)) -> UpdateDisplayRequest {
         let root = &mut self.root;
 
         ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
@@ -2831,7 +2831,7 @@ impl OwnedWindowContext {
         ctx: &mut AppContext,
         window_size: LayoutSize,
         scale_factor: f32,
-        f: impl FnOnce(&mut Box<dyn UiNode>, &mut LayoutContext) -> R,
+        f: impl FnOnce(&mut BoxedUiNode, &mut LayoutContext) -> R,
     ) -> R {
         let root = &mut self.root;
         ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
@@ -2843,7 +2843,7 @@ impl OwnedWindowContext {
         .0
     }
 
-    fn root_render(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut RenderContext)) {
+    fn root_render(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut BoxedUiNode, &mut RenderContext)) {
         let root = &mut self.root;
         ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
             let child = &mut root.child;

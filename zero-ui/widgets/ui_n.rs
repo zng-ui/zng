@@ -1,6 +1,6 @@
 use crate::core::{
     context::{LayoutContext, RenderContext, WidgetContext},
-    event::{AnyEventArgs, AnyEventUpdate, EventUpdate},
+    event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::LayoutSize,
     UiNode,
@@ -36,10 +36,6 @@ macro_rules! ui_n {
                 match self {
                     $($UiEnum::$UiNode(ui) => ui.update_hp(ctx),)+
                 }
-            }
-
-            fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-                self.event(ctx, update, args);
             }
 
             fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {

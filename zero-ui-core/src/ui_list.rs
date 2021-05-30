@@ -182,7 +182,7 @@ pub trait WidgetList: UiNodeList {
 /// }
 /// ```
 #[derive(Default)]
-pub struct WidgetVec(pub Vec<Box<dyn Widget>>);
+pub struct WidgetVec(pub Vec<BoxedWidget>);
 impl WidgetVec {
     /// New empty (default).
     #[inline]
@@ -196,7 +196,7 @@ impl WidgetVec {
     }
 }
 impl Deref for WidgetVec {
-    type Target = Vec<Box<dyn Widget>>;
+    type Target = Vec<BoxedWidget>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -208,34 +208,34 @@ impl DerefMut for WidgetVec {
     }
 }
 impl<'a> IntoIterator for &'a WidgetVec {
-    type Item = &'a Box<dyn Widget>;
+    type Item = &'a BoxedWidget;
 
-    type IntoIter = std::slice::Iter<'a, Box<dyn Widget>>;
+    type IntoIter = std::slice::Iter<'a, BoxedWidget>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }
 }
 impl<'a> IntoIterator for &'a mut WidgetVec {
-    type Item = &'a mut Box<dyn Widget>;
+    type Item = &'a mut BoxedWidget;
 
-    type IntoIter = std::slice::IterMut<'a, Box<dyn Widget>>;
+    type IntoIter = std::slice::IterMut<'a, BoxedWidget>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter_mut()
     }
 }
 impl IntoIterator for WidgetVec {
-    type Item = Box<dyn Widget>;
+    type Item = BoxedWidget;
 
-    type IntoIter = std::vec::IntoIter<Box<dyn Widget>>;
+    type IntoIter = std::vec::IntoIter<BoxedWidget>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
-impl FromIterator<Box<dyn Widget>> for WidgetVec {
-    fn from_iter<T: IntoIterator<Item = Box<dyn Widget>>>(iter: T) -> Self {
+impl FromIterator<BoxedWidget> for WidgetVec {
+    fn from_iter<T: IntoIterator<Item = BoxedWidget>>(iter: T) -> Self {
         WidgetVec(Vec::from_iter(iter))
     }
 }
@@ -498,7 +498,7 @@ impl WidgetList for WidgetVec {
 /// nodes.push(bar("Dynamic!"));
 /// ```
 #[derive(Default)]
-pub struct UiNodeVec(pub Vec<Box<dyn UiNode>>);
+pub struct UiNodeVec(pub Vec<BoxedUiNode>);
 impl UiNodeVec {
     /// New empty (default).
     #[inline]
@@ -512,7 +512,7 @@ impl UiNodeVec {
     }
 }
 impl Deref for UiNodeVec {
-    type Target = Vec<Box<dyn UiNode>>;
+    type Target = Vec<BoxedUiNode>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -524,34 +524,34 @@ impl DerefMut for UiNodeVec {
     }
 }
 impl<'a> IntoIterator for &'a UiNodeVec {
-    type Item = &'a Box<dyn UiNode>;
+    type Item = &'a BoxedUiNode;
 
-    type IntoIter = std::slice::Iter<'a, Box<dyn UiNode>>;
+    type IntoIter = std::slice::Iter<'a, BoxedUiNode>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }
 }
 impl<'a> IntoIterator for &'a mut UiNodeVec {
-    type Item = &'a mut Box<dyn UiNode>;
+    type Item = &'a mut BoxedUiNode;
 
-    type IntoIter = std::slice::IterMut<'a, Box<dyn UiNode>>;
+    type IntoIter = std::slice::IterMut<'a, BoxedUiNode>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter_mut()
     }
 }
 impl IntoIterator for UiNodeVec {
-    type Item = Box<dyn UiNode>;
+    type Item = BoxedUiNode;
 
-    type IntoIter = std::vec::IntoIter<Box<dyn UiNode>>;
+    type IntoIter = std::vec::IntoIter<BoxedUiNode>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
-impl FromIterator<Box<dyn UiNode>> for UiNodeVec {
-    fn from_iter<T: IntoIterator<Item = Box<dyn UiNode>>>(iter: T) -> Self {
+impl FromIterator<BoxedUiNode> for UiNodeVec {
+    fn from_iter<T: IntoIterator<Item = BoxedUiNode>>(iter: T) -> Self {
         UiNodeVec(Vec::from_iter(iter))
     }
 }
@@ -652,7 +652,7 @@ macro_rules! widget_vec {
 }
 #[doc(inline)]
 pub use crate::widget_vec;
-use crate::{context::RenderContext, event::EventUpdate};
+use crate::{context::RenderContext, event::EventUpdate, BoxedUiNode, BoxedWidget};
 
 /// Creates a [`UiNodeVec`](crate::UiNodeVec) containing the arguments.
 ///

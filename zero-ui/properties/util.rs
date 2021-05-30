@@ -48,9 +48,6 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.update_hp(ctx));
         }
-        fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-            self.event(ctx, update, args);
-        }
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
         where
             Self: Sized,
