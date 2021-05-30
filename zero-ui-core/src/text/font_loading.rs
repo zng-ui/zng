@@ -358,19 +358,26 @@ impl Fonts {
         #[cfg(windows)]
         {
             use winapi::um::winuser::{SystemParametersInfoW, FE_FONTSMOOTHINGCLEARTYPE, SPI_GETFONTSMOOTHING, SPI_GETFONTSMOOTHINGTYPE};
+            use winapi::um::errhandlingapi::GetLastError;
 
             unsafe {
                 let mut enabled = 0;
                 let mut smoothing_type: u32 = 0;
 
-                if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) != 0 || enabled == 0 {
+                if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {                    
+                    log::error!("SPI_GETFONTSMOOTHING error: {:X}", GetLastError());
+                    return TextAntiAliasing::Mono;
+                }
+                if enabled == 0 {
                     return TextAntiAliasing::Mono;
                 }
 
-                if SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &mut smoothing_type as *mut _ as *mut _, 0) != 0 {
+                if SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &mut smoothing_type as *mut _ as *mut _, 0) == 0 {
+                    log::error!("SPI_GETFONTSMOOTHINGTYPE error: {:X}", GetLastError());
                     return TextAntiAliasing::Mono;
                 }
 
+                println!("{:X}", smoothing_type);
                 if smoothing_type == FE_FONTSMOOTHINGCLEARTYPE {
                     TextAntiAliasing::Subpixel
                 } else {
