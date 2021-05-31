@@ -14,7 +14,7 @@ pub trait EventArgs: Debug + Clone + 'static {
     /// Gets the instant this event happen.
     fn timestamp(&self) -> Instant;
     /// If this event arguments is relevant to the widget context.
-    fn concerns_widget(&self, _: &mut WidgetContext) -> bool;
+    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool;
 
     /// Requests that subsequent handlers skip this event.
     ///

@@ -35,17 +35,19 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
             if let Some(args) = update.is::<MouseDownEvent>(args) {
-                let mouse = ctx.services.req::<Mouse>();
-                let widget_id = ctx.path.widget_id();
+                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                    let mouse = ctx.services.req::<Mouse>();
+                    let widget_id = ctx.path.widget_id();
 
-                match *self.mode.get(ctx.vars) {
-                    CaptureMode::Widget => {
-                        mouse.capture_widget(widget_id);
+                    match *self.mode.get(ctx.vars) {
+                        CaptureMode::Widget => {
+                            mouse.capture_widget(widget_id);
+                        }
+                        CaptureMode::Subtree => {
+                            mouse.capture_subtree(widget_id);
+                        }
+                        CaptureMode::Window => (),
                     }
-                    CaptureMode::Subtree => {
-                        mouse.capture_subtree(widget_id);
-                    }
-                    CaptureMode::Window => (),
                 }
 
                 self.child.event(ctx, MouseDownEvent, args);
@@ -56,15 +58,17 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(&new_mode) = self.mode.get_new(ctx.vars) {
-                let mouse = ctx.services.req::<Mouse>();
-                let widget_id = ctx.path.widget_id();
-                if let Some((current, _)) = mouse.current_capture() {
-                    if current.widget_id() == widget_id {
-                        // If mode updated and we are capturing the mouse:
-                        match new_mode {
-                            CaptureMode::Widget => mouse.capture_widget(widget_id),
-                            CaptureMode::Subtree => mouse.capture_subtree(widget_id),
-                            CaptureMode::Window => mouse.release_capture(),
+                if IsEnabled::get(ctx.vars) {
+                    let mouse = ctx.services.req::<Mouse>();
+                    let widget_id = ctx.path.widget_id();
+                    if let Some((current, _)) = mouse.current_capture() {
+                        if current.widget_id() == widget_id {
+                            // If mode updated and we are capturing the mouse:
+                            match new_mode {
+                                CaptureMode::Widget => mouse.capture_widget(widget_id),
+                                CaptureMode::Subtree => mouse.capture_subtree(widget_id),
+                                CaptureMode::Window => mouse.release_capture(),
+                            }
                         }
                     }
                 }
