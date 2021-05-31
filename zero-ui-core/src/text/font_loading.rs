@@ -14,17 +14,17 @@ use webrender::api::RenderApi;
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
-use crate::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
-use crate::event::{event, event_args, EventEmitter};
+use crate::event::{event, event_args};
 use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
 use crate::{app::AppExtension, render::TextAntiAliasing};
+use crate::{
+    context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest},
+    event::EventUpdate,
+};
 
 #[cfg(windows)]
-use crate::{
-    event::EventListener,
-    window::{WindowEventArgs, WindowOpenEvent, Windows},
-};
+use crate::window::{WindowOpenEvent, Windows};
 
 event! {
     /// Change in [`Fonts`] that may cause a font query to now give
@@ -107,13 +107,8 @@ pub enum FontChange {
 ///
 /// * [FontChangedEvent] - Font config or system fonts changed.
 pub struct FontManager {
-    font_changed: EventEmitter<FontChangedArgs>,
-
-    text_aa_changed: EventEmitter<TextAntiAliasingChangedArgs>,
     current_text_aa: TextAntiAliasing,
 
-    #[cfg(windows)]
-    window_open: EventListener<WindowEventArgs>,
     #[cfg(windows)]
     system_fonts_changed: Rc<Cell<bool>>,
     #[cfg(windows)]
@@ -122,12 +117,8 @@ pub struct FontManager {
 impl Default for FontManager {
     fn default() -> Self {
         FontManager {
-            font_changed: FontChangedEvent::emitter(),
-            text_aa_changed: TextAntiAliasingChangedEvent::emitter(),
             current_text_aa: TextAntiAliasing::Default,
 
-            #[cfg(windows)]
-            window_open: WindowOpenEvent::never(),
             #[cfg(windows)]
             system_fonts_changed: Rc::new(Cell::new(false)),
             #[cfg(windows)]
@@ -137,16 +128,9 @@ impl Default for FontManager {
 }
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
-        ctx.events.register::<FontChangedEvent>(self.font_changed.listener());
-        ctx.events.register::<TextAntiAliasingChangedEvent>(self.text_aa_changed.listener());
         let fonts = Fonts::new(ctx.updates.notifier().clone());
         self.current_text_aa = fonts.system_text_aa();
         ctx.services.register(fonts);
-
-        #[cfg(windows)]
-        {
-            self.window_open = ctx.events.listen_or_never::<WindowOpenEvent>();
-        }
     }
 
     fn update(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
@@ -155,13 +139,13 @@ impl AppExtension for FontManager {
                 let fonts = ctx.services.req::<Fonts>();
 
                 for args in fonts.take_updates() {
-                    self.font_changed.notify(ctx.events, args);
+                    FontChangedEvent::notify(ctx.events, args);
                 }
 
                 #[cfg(windows)]
                 if self.system_fonts_changed.take() {
                     // subclass monitor flagged a font (un)install.
-                    self.font_changed.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+                    FontChangedEvent::notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
                     fonts.on_system_fonts_changed();
                 } else if fonts.prune_requested {
                     fonts.on_prune();
@@ -173,44 +157,44 @@ impl AppExtension for FontManager {
                     let new = fonts.system_text_aa();
                     let prev = mem::replace(&mut self.current_text_aa, new);
                     if prev != new {
-                        self.text_aa_changed.notify(ctx.events, TextAntiAliasingChangedArgs::now(prev, new));
+                        TextAntiAliasingChangedEvent::notify(ctx.events, TextAntiAliasingChangedArgs::now(prev, new));
                     }
                 }
             }
+        }
+    }
 
-            #[cfg(windows)]
-            if self.window_open.has_updates(ctx.events) {
-                // attach subclass WM_FONTCHANGE monitor to new headed windows.
-                let windows = ctx.services.req::<Windows>();
-                for w in self.window_open.updates(ctx.events) {
-                    if let Ok(w) = windows.window(w.window_id) {
-                        if w.mode().is_headed() {
-                            let notifier = ctx.updates.notifier().clone();
-                            let system_fonts_changed = Rc::clone(&self.system_fonts_changed);
-                            let system_text_aa_changed = Rc::clone(&self.system_text_aa_changed);
-                            let ok = w.set_raw_windows_event_handler(move |_, msg, wparam, _| {
-                                if msg == winapi::um::winuser::WM_FONTCHANGE {
-                                    system_fonts_changed.set(true);
-                                    notifier.update();
-                                    Some(0)
-                                } else if msg == winapi::um::winuser::WM_SETTINGCHANGE {
-                                    if wparam == winapi::um::winuser::SPI_GETFONTSMOOTHING as usize
-                                        || wparam == winapi::um::winuser::SPI_GETFONTSMOOTHINGTYPE as usize
-                                    {
-                                        system_text_aa_changed.set(true);
-                                        notifier.update();
-                                        Some(0)
-                                    } else {
-                                        None
-                                    }
-                                } else {
-                                    None
-                                }
-                            });
-                            if !ok {
-                                log::error!(target: "font_loading", "failed to set WM_FONTCHANGE subclass monitor");
+    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
+        #[cfg(windows)]
+        if let Some(args) = update.is::<WindowOpenEvent>(args) {
+            // attach subclass WM_FONTCHANGE monitor to new headed windows.
+            let windows = ctx.services.req::<Windows>();
+            if let Ok(w) = windows.window(args.window_id) {
+                if w.mode().is_headed() {
+                    let notifier = ctx.updates.notifier().clone();
+                    let system_fonts_changed = Rc::clone(&self.system_fonts_changed);
+                    let system_text_aa_changed = Rc::clone(&self.system_text_aa_changed);
+                    let ok = w.set_raw_windows_event_handler(move |_, msg, wparam, _| {
+                        if msg == winapi::um::winuser::WM_FONTCHANGE {
+                            system_fonts_changed.set(true);
+                            notifier.update();
+                            Some(0)
+                        } else if msg == winapi::um::winuser::WM_SETTINGCHANGE {
+                            if wparam == winapi::um::winuser::SPI_GETFONTSMOOTHING as usize
+                                || wparam == winapi::um::winuser::SPI_GETFONTSMOOTHINGTYPE as usize
+                            {
+                                system_text_aa_changed.set(true);
+                                notifier.update();
+                                Some(0)
+                            } else {
+                                None
                             }
+                        } else {
+                            None
                         }
+                    });
+                    if !ok {
+                        log::error!(target: "font_loading", "failed to set WM_FONTCHANGE subclass monitor");
                     }
                 }
             }

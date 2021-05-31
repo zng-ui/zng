@@ -294,8 +294,15 @@ impl<'a> WidgetEnabledExt for WidgetInfo<'a> {
 pub struct IsEnabled;
 impl IsEnabled {
     /// Gets the enabled state in the current `vars` context.
+    #[inline]
     pub fn get(vars: &VarsRead) -> bool {
         *IsEnabledVar::get(vars)
+    }
+
+    /// Gets the new enabled state in the current `vars` context.
+    #[inline]
+    pub fn get_new(vars: &Vars) -> Option<bool> {
+        IsEnabledVar::get_new(vars).copied()
     }
 }
 

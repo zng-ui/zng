@@ -1,6 +1,6 @@
 //! App event API.
 
-use crate::context::{AlreadyRegistered, AppContext, UpdateRequest, Updates, WidgetContext};
+use crate::context::{AppContext, UpdateRequest, Updates, WidgetContext};
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, AnyMap, UiNode};
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -46,15 +46,8 @@ pub trait Event: Debug + Clone + Copy + 'static {
     /// If the event is updated in the high-pressure lane.
     const IS_HIGH_PRESSURE: bool = false;
 
-    /// New event emitter.
-    fn emitter() -> EventEmitter<Self::Args> {
-        EventEmitter::new(Self::IS_HIGH_PRESSURE)
-    }
-
-    /// New event listener that never updates.
-    fn never() -> EventListener<Self::Args> {
-        EventListener::never(Self::IS_HIGH_PRESSURE)
-    }
+    /// Schedule an event update.
+    fn notify(events: &Events, args: Self::Args);
 }
 
 mod protected {
@@ -448,6 +441,9 @@ thread_singleton!(SingletonEvents);
 /// Only a single instance of this type exists at a time.
 pub struct Events {
     events: AnyMap,
+
+    updates: RefCell<Vec<Box<dyn OwnedAnyEventUpdate>>>,
+
     update_id: u32,
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<Box<dyn FnOnce(u32, &mut UpdateRequest)>>>,
@@ -495,6 +491,22 @@ impl EventHandler {
     }
 }
 
+/// An [`AnyEventUpdate`] that also owns the event arguments.
+pub trait OwnedAnyEventUpdate {
+    /// Borrow the update and arguments.
+    fn borrow(&self) -> (AnyEventUpdate, &AnyEventArgs);
+}
+struct OwnedEventUpdate<A: 'static>(TypeId, A);
+impl<A: 'static> OwnedAnyEventUpdate for OwnedEventUpdate<A> {
+    fn borrow(&self) -> (AnyEventUpdate, &AnyEventArgs) {
+        (AnyEventUpdate(self.0), unsafe {
+            // SAFETY: there is nothing you can do with a &AnyEventArgs and `AnyEventArgs` is 0 sized.
+            #[allow(clippy::transmute_ptr_to_ptr)]
+            std::mem::transmute(&self.1)
+        })
+    }
+}
+
 impl Events {
     /// If an instance of `Events` already exists in the  current thread.
     #[inline]
@@ -509,6 +521,7 @@ impl Events {
     pub fn instance() -> Self {
         Events {
             events: Default::default(),
+            updates: RefCell::default(),
             update_id: 0,
             pending: RefCell::default(),
             buffers: RefCell::default(),
@@ -518,29 +531,10 @@ impl Events {
         }
     }
 
-    /// Register a new event for the duration of the application.
-    pub fn try_register<E: Event>(&mut self, listener: EventListener<E::Args>) -> Result<(), AlreadyRegistered> {
-        debug_assert_eq!(E::IS_HIGH_PRESSURE, listener.is_high_pressure());
-
-        match self.events.entry(TypeId::of::<E>()) {
-            std::collections::hash_map::Entry::Occupied(_) => Err(AlreadyRegistered {
-                type_name: type_name::<E>(),
-            }),
-            std::collections::hash_map::Entry::Vacant(e) => {
-                e.insert(Box::new(listener));
-                Ok(())
-            }
-        }
-    }
-
-    /// Register a new event for the duration of the application.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the event type is already registered.
-    #[track_caller]
-    pub fn register<E: Event>(&mut self, listener: EventListener<E::Args>) {
-        self.try_register::<E>(listener).unwrap()
+    #[doc(hidden)]
+    pub fn notify<E: Event>(&self, args: E::Args) {
+        let update = OwnedEventUpdate(TypeId::of::<E>(), args);
+        self.updates.borrow_mut().push(Box::new(update));
     }
 
     /// Creates an event listener if the event is registered in the application.
@@ -577,7 +571,7 @@ impl Events {
 
     /// Creates an event listener or returns [`E::never()`](Event::never).
     pub fn listen_or_never<E: Event>(&self) -> EventListener<E::Args> {
-        self.try_listen::<E>().unwrap_or_else(E::never)
+        self.try_listen::<E>().unwrap_or_else(|| EventListener::never(E::IS_HIGH_PRESSURE))
     }
 
     /// Creates a buffered event listener or returns [`E::never()`](Event::never).
@@ -705,7 +699,8 @@ impl Events {
         self.buffers.borrow_mut().push(buffer);
     }
 
-    pub(super) fn apply(&mut self, updates: &mut Updates) {
+    #[must_use]
+    pub(super) fn apply(&mut self, updates: &mut Updates) -> Vec<Box<dyn OwnedAnyEventUpdate>> {
         self.update_id = self.update_id.wrapping_add(1);
 
         let pending = self.pending.get_mut();
@@ -718,6 +713,8 @@ impl Events {
 
             self.buffers.borrow_mut().retain(|b| b(self.update_id));
         }
+
+        std::mem::take(&mut self.updates.get_mut())
     }
 
     pub(super) fn on_pre_events(&self, ctx: &mut AppContext) {
@@ -1234,19 +1231,19 @@ macro_rules! event {
         $(#[$outer])*
         #[derive(Clone, Copy, Debug)]
         $vis struct $Event;
+        impl $Event {
+            /// Schedule an event update.
+            #[inline]
+            pub fn notify(events: &$crate::event::Events, args: $Args) {
+                <Self as $crate::event::Event>::notify(events, args);
+            }
+        }
         impl $crate::event::Event for $Event {
             type Args = $Args;
-        }
-        impl $Event {
-            /// New event emitter.
-            #[inline]
-            pub fn emitter() -> $crate::event::EventEmitter<$Args> {
-                <Self as $crate::event::Event>::emitter()
-            }
 
-            /// New event listener that never updates.
-            pub fn never() -> $crate::event::EventListener<$Args> {
-                <Self as $crate::event::Event>::never()
+            #[inline]
+            fn notify(events: &$crate::event::Events, args: $Args) {
+                events.notify::<$Event>(args);
             }
         }
     )+};
@@ -1287,21 +1284,19 @@ macro_rules! event_hp {
         $(#[$outer])*
         #[derive(Debug, Clone, Copy)]
         $vis struct $Event;
+        impl $Event {
+            /// Schedule an event update.
+            pub fn notify(events: &$crate::event::Events, args: $Args) {
+                <Self as $crate::event::Event>::notify(events, args);
+            }
+        }
         impl $crate::event::Event for $Event {
             type Args = $Args;
             const IS_HIGH_PRESSURE: bool = true;
-        }
 
-        impl $Event {
-            /// New event emitter.
             #[inline]
-            pub fn emitter() -> $crate::event::EventEmitter<$Args> {
-                <Self as $crate::event::Event>::emitter()
-            }
-
-            /// New event listener that never updates.
-            pub fn never() -> $crate::event::EventListener<$Args> {
-                <Self as $crate::event::Event>::never()
+            fn notify(events: &$crate::event::Events, args: $Args) {
+                events.notify::<$Event>(args);
             }
         }
     )+};

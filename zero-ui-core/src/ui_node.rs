@@ -58,9 +58,7 @@ pub trait UiNode: 'static {
     /// ```
     /// // TODO demonstrate how to pass call to children.
     /// ```
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
-    where
-        Self: Sized;
+    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
 
     /// Called every time a layout update is needed.
     ///

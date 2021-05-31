@@ -763,18 +763,26 @@ impl<E: AppExtension> AppExtended<E> {
             // changes to this loop must be copied to the `HeadlessApp::update` loop.
             let mut limit = UPDATE_LIMIT;
             loop {
-                let ((mut update, display), wake) = owned_ctx.apply_updates();
+                let u = owned_ctx.apply_updates();
 
-                update |= mem::take(&mut event_update);
-                sequence_update |= display;
-                if let Some(until) = wake {
+                let mut ctx = owned_ctx.borrow(event_loop);
+
+                for event in u.events {
+                    let (update, args) = event.borrow();
+                    extensions.on_event_preview(&mut ctx, update, args);
+                    extensions.on_event_ui(&mut ctx, update, args);
+                    extensions.on_event(&mut ctx, update, args);
+                }
+
+                let update = u.update | mem::take(&mut event_update);
+                sequence_update |= u.display_update;
+                if let Some(until) = u.wake_time {
                     *control_flow = ControlFlow::WaitUntil(until);
                 }
 
                 if update.update || update.update_hp {
                     {
                         profile_scope!("app::update");
-                        let mut ctx = owned_ctx.borrow(event_loop);
                         let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
                         if shutdown(shutdown_requests, &mut ctx, &mut extensions) {
                             *control_flow = ControlFlow::Exit;
@@ -1011,18 +1019,26 @@ impl HeadlessApp {
         // this loop implementation is kept in sync with the one in `AppExtended::run`.
         let mut limit = UPDATE_LIMIT;
         loop {
-            let ((mut update, display), wake) = self.owned_ctx.apply_updates();
+            let u = self.owned_ctx.apply_updates();
 
-            update |= mem::take(&mut event_update);
-            sequence_update |= display;
-            if let Some(until) = wake {
+            let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
+
+            for event in u.events {
+                let (update, args) = event.borrow();
+                self.extensions.on_event_preview(&mut ctx, update, args);
+                self.extensions.on_event_ui(&mut ctx, update, args);
+                self.extensions.on_event(&mut ctx, update, args);
+            }
+
+            let update = u.update | mem::take(&mut event_update);
+            sequence_update |= u.display_update;
+            if let Some(until) = u.wake_time {
                 self.control_flow = ControlFlow::WaitUntil(until);
             }
 
             if update.update || update.update_hp {
                 {
                     profile_scope!("headless_app::update");
-                    let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
                     let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
                     if shutdown(shutdown_requests, &mut ctx, &mut self.extensions) {
                         self.control_flow = ControlFlow::Exit;

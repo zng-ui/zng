@@ -388,17 +388,6 @@ pub struct MouseManager {
     capture_count: u8,
 
     hover_enter_args: Option<MouseHoverArgs>,
-
-    mouse_move: EventEmitter<MouseMoveArgs>,
-
-    mouse_input: EventEmitter<MouseInputArgs>,
-    mouse_down: EventEmitter<MouseInputArgs>,
-    mouse_up: EventEmitter<MouseInputArgs>,
-
-    mouse_click: EventEmitter<MouseClickArgs>,
-
-    mouse_enter: EventEmitter<MouseHoverArgs>,
-    mouse_leave: EventEmitter<MouseHoverArgs>,
 }
 
 impl Default for MouseManager {
@@ -417,17 +406,6 @@ impl Default for MouseManager {
             hover_enter_args: None,
 
             capture_count: 0,
-
-            mouse_move: MouseMoveEvent::emitter(),
-
-            mouse_input: MouseInputEvent::emitter(),
-            mouse_down: MouseDownEvent::emitter(),
-            mouse_up: MouseUpEvent::emitter(),
-
-            mouse_click: MouseClickEvent::emitter(),
-
-            mouse_enter: MouseEnterEvent::emitter(),
-            mouse_leave: MouseLeaveEvent::emitter(),
         }
     }
 }
@@ -486,12 +464,12 @@ impl MouseManager {
         );
 
         // on_mouse_input
-        self.mouse_input.notify(ctx.events, args.clone());
+        MouseInputEvent::notify(ctx.events, args.clone());
 
         match state {
             ElementState::Pressed => {
                 // on_mouse_down
-                self.mouse_down.notify(ctx.events, args);
+                MouseDownEvent::notify(ctx.events, args);
 
                 self.click_count = self.click_count.saturating_add(1);
                 let now = Instant::now();
@@ -516,7 +494,7 @@ impl MouseManager {
 
                     // on_mouse_click (click_count > 1)
 
-                    self.mouse_click.notify(ctx.events, args);
+                    MouseClickEvent::notify(ctx.events, args);
                 } else {
                     // initial mouse press, could be a click if a Released happened on the same target.
                     self.click_count = 1;
@@ -526,7 +504,7 @@ impl MouseManager {
             }
             ElementState::Released => {
                 // on_mouse_up
-                self.mouse_up.notify(ctx.events, args);
+                MouseUpEvent::notify(ctx.events, args);
 
                 if let Some(click_count) = NonZeroU8::new(self.click_count) {
                     if click_count.get() == 1 {
@@ -547,7 +525,7 @@ impl MouseManager {
                             self.click_target = Some(target);
 
                             // on_mouse_click
-                            self.mouse_click.notify(ctx.events, args);
+                            MouseClickEvent::notify(ctx.events, args);
                         } else {
                             self.click_count = 0;
                             self.click_target = None;
@@ -613,7 +591,7 @@ impl MouseManager {
                 target.clone(),
                 capture,
             );
-            self.mouse_move.notify(ctx.events, args);
+            MouseMoveEvent::notify(ctx.events, args);
 
             // mouse_enter/mouse_leave.
             self.update_hovered(
@@ -643,50 +621,7 @@ impl MouseManager {
                     args.target,
                     capture,
                 );
-                self.mouse_leave.notify(ctx.events, args);
-            }
-        }
-    }
-
-    fn on_update(&mut self, ctx: &mut AppContext) {
-        let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
-
-        if let Some(cap_args) = mouse.capture_event.updates(ctx.events).iter().last() {
-            if let Some(hover_args) = self.hover_enter_args.take() {
-                let hover_args = MouseHoverArgs::now(
-                    hover_args.window_id,
-                    hover_args.device_id,
-                    hover_args.position,
-                    hover_args.hits,
-                    hover_args.target,
-                    cap_args.new_capture.as_ref().map(|(path, mode)| CaptureInfo {
-                        target: path.clone(),
-                        mode: *mode,
-                        position: LayoutPoint::zero(), //TODO
-                    }),
-                );
-                self.mouse_enter.notify(ctx.events, hover_args.clone());
-                self.hover_enter_args = Some(hover_args);
-            }
-        }
-
-        mouse.fulfill_requests(windows, ctx.events);
-    }
-
-    fn on_new_frame(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        // update hovered
-        if self.pos_window == Some(window_id) {
-            let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
-            let window = windows.window(window_id).unwrap();
-            let hits = window.hit_test(self.pos);
-            let target = hits.target().and_then(|t| window.frame_info().find(t.widget_id)).map(|w| w.path());
-            self.update_hovered(window_id, None, hits, target, ctx.events, mouse);
-        }
-        // update capture
-        if self.capture_count > 0 {
-            let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
-            if let Ok(window) = windows.window(window_id) {
-                mouse.continue_capture(window.frame_info(), ctx.events);
+                MouseLeaveEvent::notify(ctx.events, args);
             }
         }
     }
@@ -734,7 +669,7 @@ impl MouseManager {
             position: self.pos, // TODO
         });
         let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits, old_target, capture);
-        self.mouse_leave.notify(events, args);
+        MouseLeaveEvent::notify(events, args);
     }
     fn notify_mouse_enter(
         &mut self,
@@ -751,7 +686,7 @@ impl MouseManager {
             position: self.pos, // TODO
         });
         let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits, new_target, capture);
-        self.mouse_enter.notify(events, args.clone());
+        MouseEnterEvent::notify(events, args.clone());
         self.hover_enter_args = Some(args);
     }
 
@@ -776,18 +711,7 @@ impl MouseManager {
 
 impl AppExtension for MouseManager {
     fn init(&mut self, r: &mut AppInitContext) {
-        r.events.register::<MouseMoveEvent>(self.mouse_move.listener());
-
-        r.events.register::<MouseInputEvent>(self.mouse_input.listener());
-        r.events.register::<MouseDownEvent>(self.mouse_down.listener());
-        r.events.register::<MouseUpEvent>(self.mouse_up.listener());
-
-        r.events.register::<MouseClickEvent>(self.mouse_click.listener());
-
-        r.events.register::<MouseEnterEvent>(self.mouse_enter.listener());
-        r.events.register::<MouseLeaveEvent>(self.mouse_leave.listener());
-
-        r.services.register(Mouse::new(r.updates.notifier().clone(), r.events));
+        r.services.register(Mouse::new(r.updates.notifier().clone()));
     }
 
     fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
@@ -804,16 +728,53 @@ impl AppExtension for MouseManager {
         }
     }
 
+    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
+        if let Some(args) = update.is::<MouseCaptureEvent>(args) {
+            if let Some(hover_args) = self.hover_enter_args.take() {
+                let hover_args = MouseHoverArgs::now(
+                    hover_args.window_id,
+                    hover_args.device_id,
+                    hover_args.position,
+                    hover_args.hits,
+                    hover_args.target,
+                    args.new_capture.as_ref().map(|(path, mode)| CaptureInfo {
+                        target: path.clone(),
+                        mode: *mode,
+                        position: LayoutPoint::zero(), //TODO
+                    }),
+                );
+                MouseEnterEvent::notify(ctx.events, hover_args.clone());
+                self.hover_enter_args = Some(hover_args);
+            }
+        }
+    }
+
     fn update(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
         if update.update_hp {
             return;
         }
 
-        self.on_update(ctx);
+        let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
+
+        mouse.fulfill_requests(windows, ctx.events);
     }
 
     fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.on_new_frame(window_id, ctx);
+        // update hovered
+        if self.pos_window == Some(window_id) {
+            let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
+            let window = windows.window(window_id).unwrap();
+            let hits = window.hit_test(self.pos);
+            let target = hits.target().and_then(|t| window.frame_info().find(t.widget_id)).map(|w| w.path());
+            self.update_hovered(window_id, None, hits, target, ctx.events, mouse);
+        }
+        // update capture
+        if self.capture_count > 0 {
+            let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
+            if let Ok(window) = windows.window(window_id) {
+                mouse.continue_capture(window.frame_info(), ctx.events);
+            }
+        }
     }
 }
 
@@ -857,19 +818,14 @@ fn multi_click_time_ms() -> Duration {
 /// This service is provided by the [`MouseManager`] extension.
 #[derive(Service)]
 pub struct Mouse {
-    capture_event: EventEmitter<MouseCaptureArgs>,
     current_capture: Option<(WidgetPath, CaptureMode)>,
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
     notifier: UpdateNotifier,
 }
 impl Mouse {
-    fn new(notifier: UpdateNotifier, events: &mut Events) -> Self {
-        let capture_event = MouseCaptureEvent::emitter();
-        events.register::<MouseCaptureEvent>(capture_event.listener());
-
+    fn new(notifier: UpdateNotifier) -> Self {
         Mouse {
-            capture_event,
             current_capture: None,
             capture_request: None,
             release_requested: false,
@@ -1047,14 +1003,14 @@ impl Mouse {
         if new != self.current_capture {
             let prev = self.current_capture.take();
             self.current_capture = new.clone();
-            self.capture_event.notify(events, MouseCaptureArgs::now(prev, new));
+            MouseCaptureEvent::notify(events, MouseCaptureArgs::now(prev, new));
         }
     }
 
     fn unset_capture(&mut self, events: &Events) {
         if self.current_capture.is_some() {
             let prev = self.current_capture.take();
-            self.capture_event.notify(events, MouseCaptureArgs::now(prev, None));
+            MouseCaptureEvent::notify(events, MouseCaptureArgs::now(prev, None));
         }
     }
 }

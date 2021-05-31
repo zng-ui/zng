@@ -439,15 +439,6 @@ event! {
 pub struct WindowManager {
     event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
-    window_open: EventEmitter<WindowEventArgs>,
-    window_focus_changed: EventEmitter<WindowIsFocusedArgs>,
-    window_focus: EventEmitter<WindowIsFocusedArgs>,
-    window_blur: EventEmitter<WindowIsFocusedArgs>,
-    window_resize: EventEmitter<WindowResizeArgs>,
-    window_move: EventEmitter<WindowMoveArgs>,
-    window_scale_changed: EventEmitter<WindowScaleChangedArgs>,
-    window_closing: EventEmitter<WindowCloseRequestedArgs>,
-    window_close: EventEmitter<WindowEventArgs>,
 }
 
 impl Default for WindowManager {
@@ -466,15 +457,6 @@ impl Default for WindowManager {
         WindowManager {
             event_loop_proxy: None,
             ui_threads,
-            window_open: WindowOpenEvent::emitter(),
-            window_focus_changed: WindowFocusChangedEvent::emitter(),
-            window_focus: WindowFocusEvent::emitter(),
-            window_blur: WindowBlurEvent::emitter(),
-            window_resize: WindowResizeEvent::emitter(),
-            window_move: WindowMoveEvent::emitter(),
-            window_scale_changed: WindowScaleChangedEvent::emitter(),
-            window_closing: WindowCloseRequestedEvent::emitter(),
-            window_close: WindowCloseEvent::emitter(),
         }
     }
 }
@@ -483,16 +465,6 @@ impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.updates.notifier().clone()));
-
-        r.events.register::<WindowOpenEvent>(self.window_open.listener());
-        r.events.register::<WindowFocusChangedEvent>(self.window_focus_changed.listener());
-        r.events.register::<WindowFocusEvent>(self.window_focus.listener());
-        r.events.register::<WindowBlurEvent>(self.window_blur.listener());
-        r.events.register::<WindowResizeEvent>(self.window_resize.listener());
-        r.events.register::<WindowMoveEvent>(self.window_move.listener());
-        r.events.register::<WindowScaleChangedEvent>(self.window_scale_changed.listener());
-        r.events.register::<WindowCloseRequestedEvent>(self.window_closing.listener());
-        r.events.register::<WindowCloseEvent>(self.window_close.listener());
     }
 
     fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
@@ -517,7 +489,7 @@ impl AppExtension for WindowManager {
                         window.resize_renderer();
 
                         // raise window_resize
-                        self.window_resize.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
+                        WindowResizeEvent::notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
                     }
                 }
             }
@@ -531,7 +503,7 @@ impl AppExtension for WindowManager {
                     window.vars.position().set_ne(ctx.vars, new_position.into());
 
                     // raise window_move
-                    self.window_move.notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
+                    WindowMoveEvent::notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
                 }
             }
             WindowEvent::CloseRequested => {
@@ -567,19 +539,38 @@ impl AppExtension for WindowManager {
                         window.resize_renderer();
                     }
 
-                    self.window_scale_changed
-                        .notify(ctx.events, WindowScaleChangedArgs::now(window_id, scale_factor, new_size));
+                    WindowScaleChangedEvent::notify(ctx.events, WindowScaleChangedArgs::now(window_id, scale_factor, new_size));
                 }
             }
             _ => {}
         }
     }
 
+    fn on_event_ui<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
+        let wn_ctxs: Vec<_> = ctx
+            .services
+            .req::<Windows>()
+            .windows
+            .iter_mut()
+            .map(|w| w.context.clone())
+            .collect();
+
+        for wn_ctx in wn_ctxs {
+            wn_ctx.borrow_mut().event(ctx, update, args);
+        }
+    }
+
     fn update_ui(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
         self.update_open_close(ctx);
-        self.update_pump(update, ctx);
-        self.update_closing(update, ctx);
-        self.update_close(update, ctx);
+        self.update_pump(ctx, update);
+    }
+
+    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
+        if let Some(args) = update.is::<WindowCloseRequestedEvent>(args) {
+            self.update_closing(ctx, args);
+        } else if let Some(args) = update.is::<WindowCloseEvent>(args) {
+            self.update_close(ctx, args);
+        }
     }
 
     fn update_display(&mut self, ctx: &mut AppContext, _: UpdateDisplayRequest) {
@@ -617,7 +608,7 @@ impl AppExtension for WindowManager {
 
             let args = WindowEventArgs::now(window.id, true);
             window.open_response.take().unwrap().notify(ctx.events, args.clone());
-            self.window_open.notify(ctx.events, args);
+            WindowOpenEvent::notify(ctx.events, args);
             wns.windows.push(window);
         }
     }
@@ -678,16 +669,15 @@ impl WindowManager {
         }
 
         for (window_id, group) in close {
-            self.window_closing
-                .notify(ctx.events, WindowCloseRequestedArgs::now(window_id, group));
+            WindowCloseRequestedEvent::notify(ctx.events, WindowCloseRequestedArgs::now(window_id, group));
         }
     }
 
     /// Pump the requested update methods.
-    fn update_pump(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+    fn update_pump(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
         if update.update_hp || update.update {
             // detach context part so we can let a window content access its own window.
-            let mut wn_ctxs: Vec<_> = ctx
+            let wn_ctxs: Vec<_> = ctx
                 .services
                 .req::<Windows>()
                 .windows
@@ -697,14 +687,14 @@ impl WindowManager {
 
             // high-pressure pump.
             if update.update_hp {
-                for wn_ctx in wn_ctxs.iter_mut() {
+                for wn_ctx in &wn_ctxs {
                     wn_ctx.borrow_mut().update_hp(ctx);
                 }
             }
 
             // low-pressure pump.
             if update.update {
-                for wn_ctx in wn_ctxs.iter_mut() {
+                for wn_ctx in &wn_ctxs {
                     wn_ctx.borrow_mut().update(ctx);
                 }
             }
@@ -729,60 +719,33 @@ impl WindowManager {
     }
 
     /// Respond to window_closing events.
-    fn update_closing(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        if !update.update {
-            return;
-        }
-
-        // close_together are canceled together
-        let canceled_groups: Vec<_> = self
-            .window_closing
-            .updates(ctx.events)
-            .iter()
-            .filter_map(|c| {
-                if c.cancel_requested() && c.group.is_some() {
-                    Some(c.group)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let service = ctx.services.req::<Windows>();
-
-        for closing in self.window_closing.updates(ctx.events) {
-            if let Ok(win) = service.window(closing.window_id) {
-                let r = if !closing.cancel_requested() && !canceled_groups.contains(&closing.group) {
-                    self.window_close.notify(ctx.events, WindowEventArgs::now(closing.window_id, false));
-                    CloseWindowResult::Close
-                } else {
-                    CloseWindowResult::Cancel
-                };
-                win.close_response.notify(ctx.events, r);
+    fn update_closing(&mut self, ctx: &mut AppContext, args: &WindowCloseRequestedArgs) {
+        let wins = ctx.services.req::<Windows>();
+        if let Ok(win) = wins.window(args.window_id) {
+            if args.cancel_requested() {
+                // TODO cancel group
+                win.close_response.notify(ctx.events, CloseWindowResult::Cancel);
+            } else {
+                WindowCloseEvent::notify(ctx.events, WindowEventArgs::now(args.window_id, false));
+                win.close_response.notify(ctx.events, CloseWindowResult::Close);
             }
         }
     }
 
     /// Respond to window_close events.
-    fn update_close(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        if !update.update {
-            return;
-        }
-
-        for close in self.window_close.updates(ctx.events) {
-            let window = {
-                let wns = ctx.services.req::<Windows>();
-                wns.windows
-                    .iter()
-                    .position(|w| w.id == close.window_id)
-                    .map(|idx| wns.windows.remove(idx))
-            };
-            if let Some(w) = window {
-                w.context.clone().borrow_mut().deinit(ctx);
-                if w.is_focused {
-                    let args = WindowIsFocusedArgs::now(w.id, false, true);
-                    self.notify_focus(args, ctx.events);
-                }
+    fn update_close(&mut self, ctx: &mut AppContext, args: &WindowEventArgs) {
+        let window = {
+            let wns = ctx.services.req::<Windows>();
+            wns.windows
+                .iter()
+                .position(|w| w.id == args.window_id)
+                .map(|idx| wns.windows.remove(idx))
+        };
+        if let Some(w) = window {
+            w.context.clone().borrow_mut().deinit(ctx);
+            if w.is_focused {
+                let args = WindowIsFocusedArgs::now(w.id, false, true);
+                self.notify_focus(args, ctx.events);
             }
         }
 
@@ -795,9 +758,11 @@ impl WindowManager {
     fn notify_focus(&self, args: WindowIsFocusedArgs, events: &Events) {
         debug_assert!(!args.closed || (args.closed && !args.focused));
 
-        self.window_focus_changed.notify(events, args.clone());
-        let specif_event = if args.focused { &self.window_focus } else { &self.window_blur };
-        specif_event.notify(events, args);
+        WindowFocusChangedEvent::notify(events, args.clone());
+        if args.focused {
+        } else {
+            WindowBlurEvent::notify(events, args);
+        }
     }
 }
 
@@ -2851,7 +2816,7 @@ impl OwnedWindowContext {
         });
     }
 
-    /// Call [`UiNode::init`](UiNode::init) in all nodes.
+    /// Call [`UiNode::init`] in all nodes.
     pub fn init(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::init");
 
@@ -2861,7 +2826,7 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
-    /// Call [`UiNode::update_hp`](UiNode::update_hp) in all nodes.
+    /// Call [`UiNode::update_hp`] in all nodes.
     pub fn update_hp(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::update_hp");
 
@@ -2869,12 +2834,20 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
-    /// Call [`UiNode::update`](UiNode::update) in all nodes.
+    /// Call [`UiNode::update`] in all nodes.
     pub fn update(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::update");
 
         // do UiNode updates
         let update = self.root_context(ctx, |root, ctx| root.update(ctx));
+        self.update |= update;
+    }
+
+    /// Call [`UiNode::event`] in all nodes.
+    pub fn event<EU: EventUpdate>(&mut self, ctx: &mut AppContext, update: EU, args: &EU::Args) {
+        profile_scope!("window::event");
+
+        let update = self.root_context(ctx, |root, ctx| root.event(ctx, update, args));
         self.update |= update;
     }
 

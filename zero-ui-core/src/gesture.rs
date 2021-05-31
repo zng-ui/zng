@@ -704,36 +704,15 @@ event! {
 ///
 /// * [Gestures]
 pub struct GestureManager {
-    key_input: EventListener<KeyInputArgs>,
-    mouse_click: EventListener<MouseClickArgs>,
-
-    click: EventEmitter<ClickArgs>,
-
-    shortcut: EventEmitter<ShortcutArgs>,
     pressed_modifier: Option<ModifierGesture>,
 }
 impl Default for GestureManager {
     fn default() -> Self {
-        GestureManager {
-            key_input: KeyInputEvent::never(),
-            mouse_click: MouseClickEvent::never(),
-
-            click: ClickEvent::emitter(),
-
-            shortcut: ShortcutEvent::emitter(),
-            pressed_modifier: None,
-        }
+        GestureManager { pressed_modifier: None }
     }
 }
 impl AppExtension for GestureManager {
     fn init(&mut self, r: &mut AppInitContext) {
-        self.key_input = r.events.listen::<KeyInputEvent>();
-        self.mouse_click = r.events.listen::<MouseClickEvent>();
-
-        r.events.register::<ClickEvent>(self.click.listener());
-
-        r.events.register::<ShortcutEvent>(self.shortcut.listener());
-
         r.services.register(Gestures::new());
     }
 
@@ -743,64 +722,96 @@ impl AppExtension for GestureManager {
         }
     }
 
+    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
+        if let Some(args) = update.is::<MouseClickEvent>(args) {
+            // Generate click events from mouse clicks.
+            if !args.stop_propagation_requested() {
+                ClickEvent::notify(ctx.events, args.clone().into());
+            }
+        } else if let Some(args) = update.is::<KeyInputEvent>(args) {
+            // Generate shortcut events from keyboard input.
+            if !args.stop_propagation_requested() {
+                if let Some(key) = args.key {
+                    match args.state {
+                        ElementState::Pressed => {
+                            if let Ok(gesture_key) = GestureKey::try_from(key) {
+                                let s_args = ShortcutArgs::new(
+                                    args.timestamp,
+                                    args.window_id,
+                                    args.device_id,
+                                    Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)),
+                                    args.repeat,
+                                    args.target.clone(),
+                                );
+                                ShortcutEvent::notify(ctx.events, s_args);
+                                self.pressed_modifier = None;
+                            } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
+                                if !args.repeat {
+                                    self.pressed_modifier = Some(mod_gesture);
+                                }
+                            } else {
+                                self.pressed_modifier = None;
+                            }
+                        }
+                        ElementState::Released => {
+                            if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
+                                if Some(mod_gesture) == self.pressed_modifier.take() && args.modifiers.is_empty() {
+                                    let s_args = ShortcutArgs::new(
+                                        args.timestamp,
+                                        args.window_id,
+                                        args.device_id,
+                                        Shortcut::Modifier(mod_gesture),
+                                        false,
+                                        args.target.clone(),
+                                    );
+                                    ShortcutEvent::notify(ctx.events, s_args);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Scancode only
+                    self.pressed_modifier = None;
+                }
+            }
+        } else if let Some(args) = update.is::<ShortcutEvent>(args) {
+            // Generate click events from shortcuts.
+            if !args.stop_propagation_requested() {
+                let gestures = ctx.services.req::<Gestures>();
+                let click = if gestures.click_focused.0.contains(&args.shortcut) {
+                    Some(ShortcutClick::Primary)
+                } else if gestures.context_click_focused.0.contains(&args.shortcut) {
+                    Some(ShortcutClick::Context)
+                } else {
+                    None
+                };
+                if let Some(kind) = click {
+                    ClickEvent::notify(
+                        ctx.events,
+                        ClickArgs::new(
+                            args.timestamp,
+                            args.window_id,
+                            args.device_id,
+                            ClickArgsSource::Shortcut {
+                                shortcut: args.shortcut,
+                                kind,
+                                repeat: args.repeat,
+                            },
+                            NonZeroU32::new(1).unwrap(),
+                            args.shortcut.modifiers_state(),
+                            args.target.clone(),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
     fn update(&mut self, ctx: &mut AppContext, request: UpdateRequest) {
         if !request.update {
             return;
         }
 
-        // Generate click events from mouse clicks.
-        for args in self.mouse_click.updates(ctx.events) {
-            self.click.notify(ctx.events, args.clone().into());
-        }
-
-        // Generate shortcut events from keyboard input.
-        for args in self.key_input.updates(ctx.events) {
-            if args.stop_propagation_requested() {
-                continue;
-            }
-            if let Some(key) = args.key {
-                match args.state {
-                    ElementState::Pressed => {
-                        if let Ok(gesture_key) = GestureKey::try_from(key) {
-                            let s_args = ShortcutArgs::new(
-                                args.timestamp,
-                                args.window_id,
-                                args.device_id,
-                                Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)),
-                                args.repeat,
-                                args.target.clone(),
-                            );
-                            self.shortcut.notify(ctx.events, s_args);
-                            self.pressed_modifier = None;
-                        } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                            if !args.repeat {
-                                self.pressed_modifier = Some(mod_gesture);
-                            }
-                        } else {
-                            self.pressed_modifier = None;
-                        }
-                    }
-                    ElementState::Released => {
-                        if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                            if Some(mod_gesture) == self.pressed_modifier.take() && args.modifiers.is_empty() {
-                                let s_args = ShortcutArgs::new(
-                                    args.timestamp,
-                                    args.window_id,
-                                    args.device_id,
-                                    Shortcut::Modifier(mod_gesture),
-                                    false,
-                                    args.target.clone(),
-                                );
-                                self.shortcut.notify(ctx.events, s_args);
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Scancode only
-                self.pressed_modifier = None;
-            }
-        }
         let (gestures, windows, focus) = ctx.services.req_multi::<(Gestures, Windows, Focus)>();
         // Generate click event for special shortcut.
         for (window_id, widget_id, kind, args) in gestures.click_shortcut.drain(..) {
@@ -808,7 +819,7 @@ impl AppExtension for GestureManager {
                 if window.is_focused() {
                     if let Some(widget) = window.frame_info().find(widget_id) {
                         // click target exists, in focused window.
-                        self.click.notify(
+                        ClickEvent::notify(
                             ctx.events,
                             ClickArgs::now(
                                 window_id,
@@ -826,40 +837,6 @@ impl AppExtension for GestureManager {
                         focus.focus_widget(widget_id, true);
                         args.stop_propagation();
                     }
-                }
-            }
-        }
-
-        // Generate click events from shortcuts.
-        if self.shortcut.has_updates(ctx.events) && !gestures.click_focused.0.is_empty() {
-            for args in self.shortcut.updates(ctx.events) {
-                if args.stop_propagation_requested() {
-                    continue;
-                }
-                let click = if gestures.click_focused.0.contains(&args.shortcut) {
-                    Some(ShortcutClick::Primary)
-                } else if gestures.context_click_focused.0.contains(&args.shortcut) {
-                    Some(ShortcutClick::Context)
-                } else {
-                    None
-                };
-                if let Some(kind) = click {
-                    self.click.notify(
-                        ctx.events,
-                        ClickArgs::new(
-                            args.timestamp,
-                            args.window_id,
-                            args.device_id,
-                            ClickArgsSource::Shortcut {
-                                shortcut: args.shortcut,
-                                kind,
-                                repeat: args.repeat,
-                            },
-                            NonZeroU32::new(1).unwrap(),
-                            args.shortcut.modifiers_state(),
-                            args.target.clone(),
-                        ),
-                    );
                 }
             }
         }

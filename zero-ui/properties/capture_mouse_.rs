@@ -1,4 +1,4 @@
-use crate::core::mouse::{CaptureMode, Mouse, MouseDownEvent, MouseInputArgs};
+use crate::core::mouse::{CaptureMode, Mouse, MouseDownEvent};
 use crate::prelude::new_property::*;
 
 /// Capture mouse for the widget on mouse down.
@@ -30,22 +30,11 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     struct CaptureMouseNode<C: UiNode, M: Var<CaptureMode>> {
         child: C,
         mode: M,
-        mouse_down: EventListener<MouseInputArgs>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_down = ctx.events.listen::<MouseDownEvent>();
-            self.child.init(ctx);
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_down = MouseDownEvent::never();
-            self.child.deinit(ctx);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+        fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+            if let Some(args) = update.is::<MouseDownEvent>(args) {
                 let mouse = ctx.services.req::<Mouse>();
                 let widget_id = ctx.path.widget_id();
 
@@ -58,7 +47,15 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     }
                     CaptureMode::Window => (),
                 }
-            } else if let Some(&new_mode) = self.mode.get_new(ctx.vars) {
+
+                self.child.event(ctx, MouseDownEvent, args);
+            } else {
+                self.child.event(ctx, update, args);
+            }
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if let Some(&new_mode) = self.mode.get_new(ctx.vars) {
                 let mouse = ctx.services.req::<Mouse>();
                 let widget_id = ctx.path.widget_id();
                 if let Some((current, _)) = mouse.current_capture() {
@@ -78,6 +75,5 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     CaptureMouseNode {
         child,
         mode: mode.into_var(),
-        mouse_down: MouseDownEvent::never(),
     }
 }

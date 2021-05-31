@@ -194,6 +194,7 @@ macro_rules! state_key {
     )+};
 }
 
+use crate::event::OwnedAnyEventUpdate;
 #[doc(inline)]
 pub use crate::state_key;
 use crate::{var::VarsRead, window::WindowMode};
@@ -673,15 +674,24 @@ impl OwnedAppContext {
     ///
     /// Returns the update requests and a time for the loop wake back and call
     /// [`Sync::update_timers`].
-    pub fn apply_updates(&mut self) -> ((UpdateRequest, UpdateDisplayRequest), Option<Instant>) {
-        let wake = self.sync.update(&mut AppSyncContext {
+    #[must_use]
+    pub fn apply_updates(&mut self) -> ContextUpdates {
+        let wake_time = self.sync.update(&mut AppSyncContext {
             vars: &mut self.vars,
             events: &mut self.events,
             updates: &mut self.updates.0,
         });
         self.vars.apply(&mut self.updates.0);
-        self.events.apply(&mut self.updates.0);
-        (self.updates.take_updates(), wake)
+        let events = self.events.apply(&mut self.updates.0);
+
+        let (update, display_update) = self.updates.take_updates();
+
+        ContextUpdates {
+            events,
+            update,
+            display_update,
+            wake_time,
+        }
     }
 }
 
@@ -1118,16 +1128,37 @@ impl TestWidgetContext {
     ///
     /// Returns the update requests and a time for the loop wake back and call
     /// [`Sync::update_timers`].
-    pub fn apply_updates(&mut self) -> ((UpdateRequest, UpdateDisplayRequest), Option<Instant>) {
-        let wake = self.sync.update(&mut AppSyncContext {
+    pub fn apply_updates(&mut self) -> ContextUpdates {
+        let wake_time = self.sync.update(&mut AppSyncContext {
             vars: &mut self.vars,
             events: &mut self.events,
             updates: &mut self.updates.0,
         });
         self.vars.apply(&mut self.updates.0);
-        self.events.apply(&mut self.updates.0);
-        (self.updates.take_updates(), wake)
+        let events = self.events.apply(&mut self.updates.0);
+        let (update, display_update) = self.updates.take_updates();
+        ContextUpdates {
+            events,
+            update,
+            display_update,
+            wake_time,
+        }
     }
+}
+
+/// Updates that must be reacted by an app context owner.
+pub struct ContextUpdates {
+    /// Events update to notify.
+    pub events: Vec<Box<dyn OwnedAnyEventUpdate>>,
+
+    /// Update to notify.
+    pub update: UpdateRequest,
+
+    /// Display update to notify.
+    pub display_update: UpdateDisplayRequest,
+
+    /// Time for the loop to wake.
+    pub wake_time: Option<Instant>,
 }
 
 /// A widget context.

@@ -170,8 +170,7 @@ impl KeyboardManager {
 }
 impl AppExtension for KeyboardManager {
     fn init(&mut self, r: &mut AppInitContext) {
-        let k = Keyboard::new(r.events);
-        r.services.register(k);
+        r.services.register(Keyboard::default());
     }
 
     fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
@@ -216,44 +215,12 @@ impl AppExtension for KeyboardManager {
 /// # Provider
 ///
 /// This service is provided by the [`KeyboardManager`] extension.
-#[derive(Service)]
+#[derive(Service, Default)]
 pub struct Keyboard {
     modifiers: ModifiersState,
     last_key_down: Option<(Option<DeviceId>, ScanCode)>,
-
-    key_input: EventEmitter<KeyInputArgs>,
-    key_down: EventEmitter<KeyInputArgs>,
-    key_up: EventEmitter<KeyInputArgs>,
-
-    modifiers_changed: EventEmitter<ModifiersChangedArgs>,
-
-    char_input: EventEmitter<CharInputArgs>,
 }
 impl Keyboard {
-    /// New keyboard service. Used `events` to register the keyboard events.
-    pub fn new(events: &mut Events) -> Self {
-        let self_ = Keyboard {
-            modifiers: ModifiersState::empty(),
-            last_key_down: None,
-
-            key_input: KeyInputEvent::emitter(),
-            key_down: KeyDownEvent::emitter(),
-            key_up: KeyUpEvent::emitter(),
-
-            modifiers_changed: ModifiersChangedEvent::emitter(),
-
-            char_input: CharInputEvent::emitter(),
-        };
-
-        events.register::<KeyInputEvent>(self_.key_input.listener());
-        events.register::<KeyDownEvent>(self_.key_down.listener());
-        events.register::<KeyUpEvent>(self_.key_up.listener());
-        events.register::<ModifiersChangedEvent>(self_.modifiers_changed.listener());
-        events.register::<CharInputEvent>(self_.char_input.listener());
-
-        self_
-    }
-
     /// Process a software keyboard input.
     #[inline]
     pub fn input(&mut self, key: Key, state: ElementState, target: WidgetPath, events: &Events) {
@@ -279,14 +246,14 @@ impl Keyboard {
         if self.modifiers != modifiers {
             let prev_modifiers = std::mem::replace(&mut self.modifiers, modifiers);
             let args = ModifiersChangedArgs::now(prev_modifiers, modifiers, target);
-            self.modifiers_changed.notify(events, args);
+            ModifiersChangedEvent::notify(events, args);
         }
     }
 
     /// Character input.
     pub fn char_input(&mut self, character: char, target: WidgetPath, events: &Events) {
         let args = CharInputArgs::now(target.window_id(), character, target);
-        self.char_input.notify(events, args);
+        CharInputEvent::notify(events, args);
     }
 
     /// Current modifiers pressed.
@@ -316,13 +283,12 @@ impl Keyboard {
 
         let args = KeyInputArgs::now(target.window_id(), device_id, scan_code, state, key, self.modifiers, repeat, target);
 
-        self.key_input.notify(events, args.clone());
+        KeyInputEvent::notify(events, args.clone());
 
-        let specific_event = match args.state {
-            ElementState::Pressed => &self.key_down,
-            ElementState::Released => &self.key_up,
-        };
-        specific_event.notify(events, args);
+        match args.state {
+            ElementState::Pressed => KeyDownEvent::notify(events, args),
+            ElementState::Released => KeyUpEvent::notify(events, args),
+        }
     }
 }
 

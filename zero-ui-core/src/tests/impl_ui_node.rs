@@ -177,10 +177,11 @@ pub fn default_no_child() {
     wgt.test_update(&mut ctx);
     wgt.test_update_hp(&mut ctx);
     wgt.test_deinit(&mut ctx);
-    let ((updates, display_updates), wake_time) = ctx.apply_updates();
-    assert_eq!(updates, UpdateRequest::default());
-    assert_eq!(display_updates, UpdateDisplayRequest::None);
-    assert!(wake_time.is_none());
+    let u = ctx.apply_updates();
+    assert!(u.events.is_empty());
+    assert_eq!(u.update, UpdateRequest::default());
+    assert_eq!(u.display_update, UpdateDisplayRequest::None);
+    assert!(u.wake_time.is_none());
 
     wgt.test_init(&mut ctx);
 
