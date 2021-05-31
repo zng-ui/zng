@@ -317,31 +317,46 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusedNode<C> {
         child: C,
         state: StateVar,
+        is_focused: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsFocusedNode<C> {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             self.state.set_ne(ctx.vars, false);
+            self.is_focused = false;
         }
 
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
             if let Some(args) = update.is::<FocusChangedEvent>(args) {
-                let is_focused = args
-                    .new_focus
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default();
-
-                self.state.set_ne(ctx.vars, is_focused);
+                if IsEnabled::get(ctx.vars) {
+                    self.is_focused = args
+                        .new_focus
+                        .as_ref()
+                        .map(|p| p.widget_id() == ctx.path.widget_id())
+                        .unwrap_or_default();
+                }
 
                 self.child.event(ctx, FocusChangedEvent, args);
             } else {
                 self.child.event(ctx, update, args);
             }
         }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+                self.is_focused = false;
+            }
+
+            self.state.set_ne(ctx.vars, self.is_focused);
+        }
     }
-    IsFocusedNode { child, state }
+    IsFocusedNode {
+        child,
+        state,
+        is_focused: false,
+    }
 }
 
 /// If the widget or one of its descendants has keyboard focus.
@@ -352,30 +367,45 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusWithinNode<C: UiNode> {
         child: C,
         state: StateVar,
+        is_focus_within: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             self.state.set_ne(ctx.vars, false);
+            self.is_focus_within = false;
         }
 
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
             if let Some(args) = update.is::<FocusChangedEvent>(args) {
-                let is_focused = args
-                    .new_focus
-                    .as_ref()
-                    .map(|p| p.contains(ctx.path.widget_id()))
-                    .unwrap_or_default();
-                self.state.set_ne(ctx.vars, is_focused);
-
+                if IsEnabled::get(ctx.vars) {
+                    self.is_focus_within = args
+                        .new_focus
+                        .as_ref()
+                        .map(|p| p.contains(ctx.path.widget_id()))
+                        .unwrap_or_default();
+                }
                 self.child.event(ctx, FocusChangedEvent, args);
             } else {
                 self.child.event(ctx, update, args);
             }
         }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+                self.is_focus_within = false;
+            }
+            self.state.set_ne(ctx.vars, self.is_focus_within);
+        }
     }
-    IsFocusWithinNode { child, state }
+    IsFocusWithinNode {
+        child,
+        state,
+        is_focus_within: false,
+    }
 }
 
 /// If the widget has keyboard focus and focus highlighting is enabled.
@@ -389,32 +419,48 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusedHglNode<C> {
         child: C,
         state: StateVar,
+        is_focused_hgl: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx.vars, false);
+            self.is_focused_hgl = false;
             self.child.deinit(ctx);
         }
 
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
             if let Some(args) = update.is::<FocusChangedEvent>(args) {
-                let is_focused_hgl = args.highlight
-                    && args
-                        .new_focus
-                        .as_ref()
-                        .map(|p| p.widget_id() == ctx.path.widget_id())
-                        .unwrap_or_default();
-
-                self.state.set_ne(ctx.vars, is_focused_hgl);
+                if IsEnabled::get(ctx.vars) {
+                    self.is_focused_hgl = args.highlight
+                        && args
+                            .new_focus
+                            .as_ref()
+                            .map(|p| p.widget_id() == ctx.path.widget_id())
+                            .unwrap_or_default();
+                }
 
                 self.child.event(ctx, FocusChangedEvent, args);
             } else {
                 self.child.event(ctx, update, args);
             }
         }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+                self.is_focused_hgl = false;
+            }
+
+            self.state.set_ne(ctx.vars, self.is_focused_hgl);
+        }
     }
-    IsFocusedHglNode { child, state }
+    IsFocusedHglNode {
+        child,
+        state,
+        is_focused_hgl: false,
+    }
 }
 
 /// If the widget or one of its descendants has keyboard focus and focus highlighting is enabled.
@@ -428,30 +474,48 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusWithinHglNode<C: UiNode> {
         child: C,
         state: StateVar,
+        is_focus_within_hgl: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx.vars, false);
+            self.is_focus_within_hgl = false;
             self.child.deinit(ctx);
         }
 
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
             if let Some(args) = update.is::<FocusChangedEvent>(args) {
-                let is_focused_hgl = args.highlight
-                    && args
-                        .new_focus
-                        .as_ref()
-                        .map(|p| p.contains(ctx.path.widget_id()))
-                        .unwrap_or_default();
-                self.state.set_ne(ctx.vars, is_focused_hgl);
+                if IsEnabled::get(ctx.vars) {
+                    self.is_focus_within_hgl = args.highlight
+                        && args
+                            .new_focus
+                            .as_ref()
+                            .map(|p| p.contains(ctx.path.widget_id()))
+                            .unwrap_or_default();
+                }
+
                 self.child.event(ctx, FocusChangedEvent, args);
             } else {
                 self.child.event(ctx, update, args);
             }
         }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+                self.is_focus_within_hgl = false;
+            }
+
+            self.state.set_ne(ctx.vars, self.is_focus_within_hgl);
+        }
     }
-    IsFocusWithinHglNode { child, state }
+    IsFocusWithinHglNode {
+        child,
+        state,
+        is_focus_within_hgl: false,
+    }
 }
 
 /// If the widget is focused when a parent scope is focused.
@@ -460,36 +524,54 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsReturnFocusNode<C: UiNode> {
         child: C,
         state: StateVar,
+        is_return_focus: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx.vars, false);
+            self.is_return_focus = false;
             self.child.deinit(ctx);
         }
 
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
             if let Some(args) = update.is::<ReturnFocusChangedEvent>(args) {
-                if args
-                    .prev_return
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default()
-                {
-                    self.state.set_ne(ctx.vars, false);
-                } else if args
-                    .new_return
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default()
-                {
-                    self.state.set_ne(ctx.vars, true);
+                if IsEnabled::get(ctx.vars) {
+                    if args
+                        .prev_return
+                        .as_ref()
+                        .map(|p| p.widget_id() == ctx.path.widget_id())
+                        .unwrap_or_default()
+                    {
+                        self.is_return_focus = false;
+                    } else if args
+                        .new_return
+                        .as_ref()
+                        .map(|p| p.widget_id() == ctx.path.widget_id())
+                        .unwrap_or_default()
+                    {
+                        self.is_return_focus = true;
+                    }
                 }
                 self.child.event(ctx, ReturnFocusChangedEvent, args);
             } else {
                 self.child.event(ctx, update, args);
             }
         }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+                self.is_return_focus = false;
+            }
+
+            self.state.set_ne(ctx.vars, self.is_return_focus);
+        }
     }
-    IsReturnFocusNode { child, state }
+    IsReturnFocusNode {
+        child,
+        state,
+        is_return_focus: false,
+    }
 }

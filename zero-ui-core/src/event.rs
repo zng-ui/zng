@@ -714,7 +714,13 @@ impl Events {
             self.buffers.borrow_mut().retain(|b| b(self.update_id));
         }
 
-        std::mem::take(&mut self.updates.get_mut())
+        let r = std::mem::take(self.updates.get_mut());
+
+        if !r.is_empty() {
+            updates.update();
+        }
+
+        r
     }
 
     pub(super) fn on_pre_events(&self, ctx: &mut AppContext) {
