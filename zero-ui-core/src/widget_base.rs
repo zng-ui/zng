@@ -75,7 +75,6 @@ pub mod implicit_base {
             #[cfg(debug_assertions)]
             inited: bool,
         }
-        #[impl_ui_node(child)]
         impl<T: UiNode> UiNode for WidgetNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
@@ -94,7 +93,7 @@ pub mod implicit_base {
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::deinit` called in already deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
@@ -108,7 +107,7 @@ pub mod implicit_base {
             fn update(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::update` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
@@ -117,17 +116,26 @@ pub mod implicit_base {
             fn update_hp(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::update_hp` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::update_hp` called in not inited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
             }
+            fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+                #[cfg(debug_assertions)]
+                if !self.inited {
+                    log::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", std::any::type_name::<EU>(), self.id);
+                }
+
+                let child = &mut self.child;
+                ctx.widget_context(self.id, &mut self.state, |ctx| child.event(ctx, update, args));
+            }
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
-                        log::error!(target: "widget_base", "`UiNode::measure` called in deinited widget {:?}", self.id);
+                        log::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
                     }
 
                     fn valid_measure(f: f32) -> bool {
@@ -172,7 +180,7 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
-                        log::error!(target: "widget_base", "`UiNode::arrange` called in deinited widget {:?}", self.id);
+                        log::error!(target: "widget_base", "`UiNode::arrange` called in not inited widget {:?}", self.id);
                     }
 
                     if !final_size.width.is_finite() || !final_size.height.is_finite() {
@@ -203,7 +211,7 @@ pub mod implicit_base {
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::render` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", self.id);
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
@@ -213,7 +221,7 @@ pub mod implicit_base {
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::render_update` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
