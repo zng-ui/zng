@@ -113,15 +113,6 @@ pub mod implicit_base {
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
             }
-            fn update_hp(&mut self, ctx: &mut WidgetContext) {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::update_hp` called in not inited widget {:?}", self.id);
-                }
-
-                let child = &mut self.child;
-                ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
-            }
             fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
@@ -376,10 +367,6 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.with_context(ctx.vars, |c| c.update(ctx));
         }
 
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            self.with_context(ctx.vars, |c| c.update_hp(ctx));
-        }
-
         fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
         where
             Self: Sized,
@@ -456,10 +443,6 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
                 ctx.updates.layout();
             }
             self.with_context(ctx.vars, |c| c.update(ctx));
-        }
-
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            self.with_context(ctx.vars, |c| c.update_hp(ctx));
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
@@ -698,10 +681,6 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
                 ctx.updates.render();
             }
             self.with_context(ctx.vars, |c| c.update(ctx));
-        }
-
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            self.with_context(ctx.vars, |c| c.update_hp(ctx));
         }
 
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)

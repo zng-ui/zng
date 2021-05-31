@@ -96,9 +96,6 @@ fn test_trace(node: impl UiNode) {
     wgt.test_update(&mut ctx);
     assert_only_traced!(wgt.state(), "update");
 
-    wgt.test_update_hp(&mut ctx);
-    assert_only_traced!(wgt.state(), "update_hp");
-
     let l_size = LayoutSize::new(1000.0, 800.0);
 
     wgt.test_measure(&mut ctx, l_size);
@@ -175,7 +172,6 @@ pub fn default_no_child() {
     // we expect defaults to do nothing with the WidgetContext.
     wgt.test_init(&mut ctx);
     wgt.test_update(&mut ctx);
-    wgt.test_update_hp(&mut ctx);
     wgt.test_deinit(&mut ctx);
     let u = ctx.apply_updates();
     assert!(u.events.is_empty());
@@ -300,10 +296,6 @@ mod util {
 
         fn update(&mut self, _: &mut WidgetContext) {
             self.trace("update");
-        }
-
-        fn update_hp(&mut self, _: &mut WidgetContext) {
-            self.trace("update_hp");
         }
 
         fn event<U: EventUpdate>(&mut self, _: &mut WidgetContext, _: U, _: &U::Args)

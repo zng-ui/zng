@@ -43,8 +43,6 @@ pub trait CancelableEventArgs: EventArgs {
 pub trait Event: Debug + Clone + Copy + 'static {
     /// Event arguments type.
     type Args: EventArgs;
-    /// If the event is updated in the high-pressure lane.
-    const IS_HIGH_PRESSURE: bool = false;
 
     /// Schedule an event update.
     fn notify(events: &Events, args: Self::Args);
@@ -145,7 +143,6 @@ struct EventChannelInner<T> {
     data: UnsafeCell<Vec<T>>,
     listener_count: Cell<usize>,
     last_update: Cell<u32>,
-    is_high_pressure: bool,
 }
 
 struct EventChannel<T: 'static> {
@@ -170,11 +167,7 @@ impl<T: 'static> EventChannel<T> {
 
             data.push(new_update);
 
-            if me.is_high_pressure {
-                updates.update_hp = true;
-            } else {
-                updates.update = true;
-            }
+            updates.update = true;
         }));
     }
 
@@ -191,11 +184,6 @@ impl<T: 'static> EventChannel<T> {
             unsafe { &mut *self.r.data.get() }.clear();
             &[]
         }
-    }
-
-    /// If this update is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
-    pub fn is_high_pressure(&self) -> bool {
-        self.r.is_high_pressure
     }
 
     pub fn listener_count(&self) -> usize {
@@ -259,13 +247,13 @@ impl<T: 'static> EventListener<T> {
         EventListener { chan }
     }
 
-    fn never(is_high_pressure: bool) -> Self {
-        EventEmitter::new(is_high_pressure).into_listener()
+    fn never() -> Self {
+        EventEmitter::new().into_listener()
     }
 
     /// New [`response`](EventEmitter::response) that never updates.
     pub fn response_never() -> Self {
-        EventListener::never(false)
+        EventListener::never()
     }
 
     /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::UiNode::update).
@@ -276,11 +264,6 @@ impl<T: 'static> EventListener<T> {
     /// If [`updates`](EventListener::updates) is not empty.
     pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
         !self.updates(events).is_empty()
-    }
-
-    /// If this update is notified using the [`UiNode::update_hp`](crate::UiNode::update_hp) method.
-    pub fn is_high_pressure(&self) -> bool {
-        self.chan.is_high_pressure()
     }
 }
 impl<T: EventArgs> EventListener<T> {
@@ -318,14 +301,13 @@ impl<T: 'static> Clone for EventEmitter<T> {
     }
 }
 impl<T: 'static> EventEmitter<T> {
-    fn new(is_high_pressure: bool) -> Self {
+    fn new() -> Self {
         EventEmitter {
             chan: EventChannel {
                 r: Rc::new(EventChannelInner {
                     data: UnsafeCell::default(),
                     listener_count: Cell::new(0),
                     last_update: Cell::new(0),
-                    is_high_pressure,
                 }),
             },
         }
@@ -335,7 +317,7 @@ impl<T: 'static> EventEmitter<T> {
     ///
     /// The emitter is expected to update only once so it is not high-pressure.
     pub fn response() -> Self {
-        Self::new(false)
+        Self::new()
     }
 
     /// Number of listener to this event emitter.
@@ -356,11 +338,6 @@ impl<T: 'static> EventEmitter<T> {
     /// If [`updates`](EventEmitter::updates) is not empty.
     pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
         !self.updates(events).is_empty()
-    }
-
-    /// If this event is notified using the [`UiNode::update_hp`](crate::UiNode::update_hp) method.
-    pub fn is_high_pressure(&self) -> bool {
-        self.chan.is_high_pressure()
     }
 
     /// Schedules an update notification.
@@ -571,7 +548,7 @@ impl Events {
 
     /// Creates an event listener or returns [`E::never()`](Event::never).
     pub fn listen_or_never<E: Event>(&self) -> EventListener<E::Args> {
-        self.try_listen::<E>().unwrap_or_else(|| EventListener::never(E::IS_HIGH_PRESSURE))
+        self.try_listen::<E>().unwrap_or_else(EventListener::never)
     }
 
     /// Creates a buffered event listener or returns [`E::never()`](Event::never).
@@ -1256,59 +1233,6 @@ macro_rules! event {
 }
 #[doc(inline)]
 pub use crate::event;
-
-/// Declares new high-pressure [`Event`](crate::event::Event) types.
-///
-/// Same syntax as [`event!`](macro.event.html) but the event is marked [high-pressure](crate::event::Event::IS_HIGH_PRESSURE).
-///
-/// # Example
-///
-/// ```
-/// # use zero_ui_core::event::event_hp;
-/// # use zero_ui_core::mouse::MouseMoveArgs;
-/// event_hp! {
-///     /// Event docs.
-///     pub MouseMoveEvent: MouseMoveArgs;
-/// }
-/// ```
-///
-/// Expands to:
-///
-/// ```
-/// # use zero_ui_core::event::event_hp;
-/// # use zero_ui_core::mouse::MouseMoveArgs;
-/// /// Event docs
-/// pub struct MouseMoveEvent;
-/// impl zero_ui_core::event::Event for MouseMoveEvent {
-///     type Args = MouseMoveArgs;
-///     const IS_HIGH_PRESSURE: bool = true;
-/// }
-/// ```
-#[macro_export]
-macro_rules! event_hp {
-    ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
-        $(#[$outer])*
-        #[derive(Debug, Clone, Copy)]
-        $vis struct $Event;
-        impl $Event {
-            /// Schedule an event update.
-            pub fn notify(events: &$crate::event::Events, args: $Args) {
-                <Self as $crate::event::Event>::notify(events, args);
-            }
-        }
-        impl $crate::event::Event for $Event {
-            type Args = $Args;
-            const IS_HIGH_PRESSURE: bool = true;
-
-            #[inline]
-            fn notify(events: &$crate::event::Events, args: $Args) {
-                events.notify::<$Event>(args);
-            }
-        }
-    )+};
-}
-#[doc(inline)]
-pub use crate::event_hp;
 
 /* Event Property */
 

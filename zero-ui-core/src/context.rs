@@ -76,16 +76,12 @@ impl std::cmp::Ord for UpdateDisplayRequest {
 pub struct UpdateRequest {
     /// If should notify all that variables or events change occurred.
     pub update: bool,
-    /// If should notify all that variables or events change occurred using
-    /// the high-pressure band when applicable.
-    pub update_hp: bool,
 }
 
 impl std::ops::BitOrAssign for UpdateRequest {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         self.update |= rhs.update;
-        self.update_hp |= rhs.update_hp;
     }
 }
 
@@ -131,7 +127,6 @@ impl UpdateNotifier {
     }
 
     const UPDATE: u8 = 0b01;
-    const UPDATE_HP: u8 = 0b11;
 
     #[inline]
     fn set(&self, update: u8) {
@@ -146,13 +141,6 @@ impl UpdateNotifier {
     #[inline]
     pub fn update(&self) {
         self.set(Self::UPDATE);
-    }
-
-    /// Flags an update request(high-pressure) and sends an update event
-    /// if none was sent since the last one was consumed.
-    #[inline]
-    pub fn update_hp(&self) {
-        self.set(Self::UPDATE_HP);
     }
 }
 
@@ -460,11 +448,9 @@ impl OwnedUpdates {
         let request = self.0.notifier.request.swap(0, atomic::Ordering::Relaxed);
 
         const UPDATE: u8 = UpdateNotifier::UPDATE;
-        const UPDATE_HP: u8 = UpdateNotifier::UPDATE_HP;
 
         UpdateRequest {
             update: request & UPDATE == UPDATE,
-            update_hp: request & UPDATE_HP == UPDATE_HP,
         }
     }
 
@@ -515,18 +501,6 @@ impl Updates {
     #[inline]
     pub fn update_requested(&self) -> bool {
         self.update.update
-    }
-
-    /// Schedules a high-pressure update.
-    #[inline]
-    pub fn update_hp(&mut self) {
-        self.update.update_hp = true;
-    }
-
-    /// Gets `true` if a high-pressure update was requested.
-    #[inline]
-    pub fn update_hp_requested(&self) -> bool {
-        self.update.update_hp
     }
 
     /// Schedules the `updates`.

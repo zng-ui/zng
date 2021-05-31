@@ -65,7 +65,7 @@ macro_rules! widget_context_handler_events {
     })+}
 }
 widget_context_handler_events! {
-    Init, Deinit, Update, UpdateHp
+    Init, Deinit, Update
 }
 
 /// Arguments of the [`on_measure`](fn@on_measure) event.

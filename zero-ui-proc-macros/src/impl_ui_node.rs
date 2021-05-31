@@ -246,8 +246,6 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
-
         [fn event<__EU: #crate_::event::EventUpdate>(&mut self, ctx: &mut #crate_::context::WidgetContext, update: __EU, args: &__EU::Args) where Self: Sized { }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) { }]
@@ -294,11 +292,6 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let child = {#borrow_mut};
             child.update(ctx)
-        }]
-
-        [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let child = {#borrow_mut};
-            child.update_hp(ctx)
         }]
 
         [fn event<__EU: #crate_::event::EventUpdate>(&mut self, ctx: &mut #crate_::context::WidgetContext, update: __EU, args: &__EU::Args) where Self: Sized {
@@ -350,11 +343,6 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let children = {#borrow_mut};
             #crate_::UiNodeList::update_all(children, ctx)
-        }]
-
-        [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#borrow_mut};
-            #crate_::UiNodeList::update_hp_all(children, ctx)
         }]
 
         [fn event<__EU: #crate_::event::EventUpdate>(&mut self, ctx: &mut #crate_::context::WidgetContext, update: __EU, args: &__EU::Args) where Self: Sized {
@@ -410,11 +398,6 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let children = {#iter_mut};
             #crate_::impl_ui_node_util::IterMutImpl::update_all(children, ctx);
-        }]
-
-        [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::update_hp_all(children, ctx);
         }]
 
         [fn event<__EU: #crate_::event::EventUpdate>(&mut self, ctx: &mut #crate_::context::WidgetContext, update: __EU, args: &__EU::Args) where Self: Sized {

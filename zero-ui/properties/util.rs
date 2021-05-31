@@ -44,10 +44,6 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.update(ctx));
         }
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            let child = &mut self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.update_hp(ctx));
-        }
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
         where
             Self: Sized,
@@ -128,10 +124,6 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
         fn update(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
             ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.update(ctx));
-        }
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            let child = &mut self.child;
-            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.update_hp(ctx));
         }
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let child = &self.child;

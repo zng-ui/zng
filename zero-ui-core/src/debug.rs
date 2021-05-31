@@ -168,8 +168,6 @@ pub struct UiNodeDurations {
     pub deinit: Duration,
     /// Duration of [`UiNode::update`] call.
     pub update: Duration,
-    /// Duration of [`UiNode::update_hp`] call.
-    pub update_hp: Duration,
     /// Duration of [`UiNode::measure`] call.
     pub measure: Duration,
     /// Duration of [`UiNode::arrange`] call.
@@ -191,8 +189,6 @@ pub struct UiNodeCounts {
     pub deinit: usize,
     /// Count of calls to [`UiNode::update`].
     pub update: usize,
-    /// Count of calls to [`UiNode::update_hp`].
-    pub update_hp: usize,
     /// Count of calls to [`UiNode::measure`].
     pub measure: usize,
     /// Count of calls to [`UiNode::arrange`].
@@ -579,9 +575,6 @@ impl UiNode for PropertyInfoNode {
                 arg.value_version = var.version(ctx.vars);
             }
         }
-    }
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        ctx_mtd!(self.update_hp, ctx, mut info);
     }
 
     fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)

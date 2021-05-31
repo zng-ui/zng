@@ -32,12 +32,6 @@ macro_rules! ui_n {
                 }
             }
 
-            fn update_hp(&mut self, ctx: &mut WidgetContext) {
-                match self {
-                    $($UiEnum::$UiNode(ui) => ui.update_hp(ctx),)+
-                }
-            }
-
             fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
                 match self {
                     $($UiEnum::$UiNode(ui) => ui.event(ctx, update, args),)+

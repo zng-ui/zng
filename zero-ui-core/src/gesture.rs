@@ -807,11 +807,7 @@ impl AppExtension for GestureManager {
         }
     }
 
-    fn update(&mut self, ctx: &mut AppContext, request: UpdateRequest) {
-        if !request.update {
-            return;
-        }
-
+    fn update(&mut self, ctx: &mut AppContext) {
         let (gestures, windows, focus) = ctx.services.req_multi::<(Gestures, Windows, Focus)>();
         // Generate click event for special shortcut.
         for (window_id, widget_id, kind, args) in gestures.click_shortcut.drain(..) {

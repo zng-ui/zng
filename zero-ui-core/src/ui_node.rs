@@ -36,21 +36,6 @@ pub trait UiNode: 'static {
     /// Called every time the node is unplugged from an Ui tree.
     fn deinit(&mut self, ctx: &mut WidgetContext);
 
-    /// Called every time a low pressure event update happens.
-    ///
-    /// # Event Pressure
-    /// See [`update_hp`](UiNode::update_hp) for more information about event pressure rate.
-    fn update(&mut self, ctx: &mut WidgetContext);
-
-    /// Called every time a high pressure event update happens.
-    ///
-    /// # Event Pressure
-    /// Some events occur a lot more times then others, for performance reasons this
-    /// event source may choose to be propagated in this high-pressure lane.
-    ///
-    /// Event sources that are high pressure mention this in their documentation.
-    fn update_hp(&mut self, ctx: &mut WidgetContext);
-
     /// Called every time an event updates.
     ///
     /// # Example
@@ -59,6 +44,12 @@ pub trait UiNode: 'static {
     /// // TODO demonstrate how to pass call to children.
     /// ```
     fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
+
+    /// Called every time an update is requested.
+    ///
+    /// An update happens every time after a sequence of [`event`](Self::event), they also happen
+    /// when variables update and any other context or service structure that can be observed update.
+    fn update(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time a layout update is needed.
     ///
@@ -104,7 +95,6 @@ pub trait UiNodeBoxed: 'static {
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
     fn update_boxed(&mut self, ctx: &mut WidgetContext);
-    fn update_hp_boxed(&mut self, ctx: &mut WidgetContext);
     fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs);
     fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
     fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize);
@@ -123,10 +113,6 @@ impl<U: UiNode> UiNodeBoxed for U {
 
     fn update_boxed(&mut self, ctx: &mut WidgetContext) {
         self.update(ctx);
-    }
-
-    fn update_hp_boxed(&mut self, ctx: &mut WidgetContext) {
-        self.update_hp(ctx);
     }
 
     fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
@@ -164,10 +150,6 @@ impl UiNode for BoxedUiNode {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.as_mut().update_boxed(ctx);
-    }
-
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().update_hp_boxed(ctx);
     }
 
     fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
@@ -241,7 +223,7 @@ pub trait Widget: UiNode {
     }
 
     declare_widget_test_calls! {
-        init, deinit, update, update_hp
+        init, deinit, update
     }
 
     /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
@@ -315,10 +297,6 @@ impl UiNode for BoxedWidget {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.as_mut().update_boxed(ctx);
-    }
-
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().update_hp_boxed(ctx);
     }
 
     fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
@@ -419,7 +397,6 @@ pub mod impl_ui_node_util {
         fn init_all(self, ctx: &mut WidgetContext);
         fn deinit_all(self, ctx: &mut WidgetContext);
         fn update_all(self, ctx: &mut WidgetContext);
-        fn update_hp_all(self, ctx: &mut WidgetContext);
         fn event_all<EU: EventUpdate>(self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
         fn measure_all(self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
         fn arrange_all(self, ctx: &mut LayoutContext, final_size: LayoutSize);
@@ -445,12 +422,6 @@ pub mod impl_ui_node_util {
         fn update_all(self, ctx: &mut WidgetContext) {
             for child in self {
                 child.update(ctx);
-            }
-        }
-
-        fn update_hp_all(self, ctx: &mut WidgetContext) {
-            for child in self {
-                child.update_hp(ctx);
             }
         }
 
@@ -805,12 +776,6 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
     {
         if let SlotNodeState::Active(rc) = &self.state {
             rc.node.borrow_mut().as_mut().unwrap().event(ctx, update, args);
-        }
-    }
-
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().as_mut().unwrap().update_hp(ctx);
         }
     }
 

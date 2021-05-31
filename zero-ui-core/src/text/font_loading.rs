@@ -19,7 +19,7 @@ use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
 use crate::{app::AppExtension, render::TextAntiAliasing};
 use crate::{
-    context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest},
+    context::{AppContext, AppInitContext, UpdateNotifier},
     event::EventUpdate,
 };
 
@@ -133,33 +133,29 @@ impl AppExtension for FontManager {
         ctx.services.register(fonts);
     }
 
-    fn update(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
-        if update.update {
-            {
-                let fonts = ctx.services.req::<Fonts>();
+    fn update(&mut self, ctx: &mut AppContext) {
+        let fonts = ctx.services.req::<Fonts>();
 
-                for args in fonts.take_updates() {
-                    FontChangedEvent::notify(ctx.events, args);
-                }
+        for args in fonts.take_updates() {
+            FontChangedEvent::notify(ctx.events, args);
+        }
 
-                #[cfg(windows)]
-                if self.system_fonts_changed.take() {
-                    // subclass monitor flagged a font (un)install.
-                    FontChangedEvent::notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
-                    fonts.on_system_fonts_changed();
-                } else if fonts.prune_requested {
-                    fonts.on_prune();
-                }
+        #[cfg(windows)]
+        if self.system_fonts_changed.take() {
+            // subclass monitor flagged a font (un)install.
+            FontChangedEvent::notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+            fonts.on_system_fonts_changed();
+        } else if fonts.prune_requested {
+            fonts.on_prune();
+        }
 
-                #[cfg(windows)]
-                if self.system_text_aa_changed.take() {
-                    // subclass monitor flagged a text AA config change.
-                    let new = fonts.system_text_aa();
-                    let prev = mem::replace(&mut self.current_text_aa, new);
-                    if prev != new {
-                        TextAntiAliasingChangedEvent::notify(ctx.events, TextAntiAliasingChangedArgs::now(prev, new));
-                    }
-                }
+        #[cfg(windows)]
+        if self.system_text_aa_changed.take() {
+            // subclass monitor flagged a text AA config change.
+            let new = fonts.system_text_aa();
+            let prev = mem::replace(&mut self.current_text_aa, new);
+            if prev != new {
+                TextAntiAliasingChangedEvent::notify(ctx.events, TextAntiAliasingChangedArgs::now(prev, new));
             }
         }
     }

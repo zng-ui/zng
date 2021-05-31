@@ -384,15 +384,13 @@ cancelable_event_args! {
     }
 }
 
-event_hp! {
+event! {
     /// Window resized event.
     pub WindowResizeEvent: WindowResizeArgs;
 
     /// Window moved event.
     pub WindowMoveEvent: WindowMoveArgs;
-}
 
-event! {
     /// New window event.
     pub WindowOpenEvent: WindowEventArgs;
 
@@ -560,9 +558,9 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
+    fn update_ui(&mut self, ctx: &mut AppContext) {
         self.update_open_close(ctx);
-        self.update_pump(ctx, update);
+        self.update_pump(ctx);
     }
 
     fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
@@ -674,48 +672,34 @@ impl WindowManager {
     }
 
     /// Pump the requested update methods.
-    fn update_pump(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
-        if update.update_hp || update.update {
-            // detach context part so we can let a window content access its own window.
-            let wn_ctxs: Vec<_> = ctx
-                .services
-                .req::<Windows>()
-                .windows
-                .iter_mut()
-                .map(|w| w.context.clone())
-                .collect();
+    fn update_pump(&mut self, ctx: &mut AppContext) {
+        // detach context part so we can let a window content access its own window.
+        let wn_ctxs: Vec<_> = ctx
+            .services
+            .req::<Windows>()
+            .windows
+            .iter_mut()
+            .map(|w| w.context.clone())
+            .collect();
 
-            // high-pressure pump.
-            if update.update_hp {
-                for wn_ctx in &wn_ctxs {
-                    wn_ctx.borrow_mut().update_hp(ctx);
-                }
-            }
-
-            // low-pressure pump.
-            if update.update {
-                for wn_ctx in &wn_ctxs {
-                    wn_ctx.borrow_mut().update(ctx);
-                }
-            }
-
-            if update.update {
-                // do window vars update.
-                let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
-                for window in windows.iter_mut() {
-                    window.update_window(ctx);
-                }
-                ctx.services.req::<Windows>().windows = windows;
-
-                // do preload updates.
-                let mut opening = mem::take(&mut ctx.services.req::<Windows>().opening_windows);
-                for window in &mut opening {
-                    debug_assert!(!matches!(window.init_state, WindowInitState::Inited));
-                    window.preload_update_window(ctx);
-                }
-                ctx.services.req::<Windows>().opening_windows = opening;
-            }
+        for wn_ctx in &wn_ctxs {
+            wn_ctx.borrow_mut().update(ctx);
         }
+
+        // do window vars update.
+        let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
+        for window in windows.iter_mut() {
+            window.update_window(ctx);
+        }
+        ctx.services.req::<Windows>().windows = windows;
+
+        // do preload updates.
+        let mut opening = mem::take(&mut ctx.services.req::<Windows>().opening_windows);
+        for window in &mut opening {
+            debug_assert!(!matches!(window.init_state, WindowInitState::Inited));
+            window.preload_update_window(ctx);
+        }
+        ctx.services.req::<Windows>().opening_windows = opening;
     }
 
     /// Respond to window_closing events.
@@ -2823,14 +2807,6 @@ impl OwnedWindowContext {
         let update = self.root_context(ctx, |root, ctx| {
             root.init(ctx);
         });
-        self.update |= update;
-    }
-
-    /// Call [`UiNode::update_hp`] in all nodes.
-    pub fn update_hp(&mut self, ctx: &mut AppContext) {
-        profile_scope!("window::update_hp");
-
-        let update = self.root_context(ctx, |root, ctx| root.update_hp(ctx));
         self.update |= update;
     }
 

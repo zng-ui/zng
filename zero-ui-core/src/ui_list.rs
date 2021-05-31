@@ -42,9 +42,6 @@ pub trait UiNodeList: 'static {
     /// Calls [`UiNode::update`] in all widgets in the list, sequentially.
     fn update_all(&mut self, ctx: &mut WidgetContext);
 
-    /// Calls [`UiNode::update_hp`] in all widgets in the list, sequentially.
-    fn update_hp_all(&mut self, ctx: &mut WidgetContext);
-
     /// Calls [`UiNode::event`] in all widgets in the list, sequentially.
     fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
 
@@ -274,12 +271,6 @@ impl<U: UiNode> UiNodeList for Vec<U> {
         }
     }
 
-    fn update_hp_all(&mut self, ctx: &mut WidgetContext) {
-        for node in self {
-            node.update_hp(ctx);
-        }
-    }
-
     fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
         for node in self {
             node.event(ctx, update, args);
@@ -399,10 +390,6 @@ impl UiNodeList for WidgetVec {
 
     fn update_all(&mut self, ctx: &mut WidgetContext) {
         self.0.update_all(ctx)
-    }
-
-    fn update_hp_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.update_hp_all(ctx)
     }
 
     fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
@@ -573,9 +560,6 @@ impl UiNodeList for UiNodeVec {
     }
     fn update_all(&mut self, ctx: &mut WidgetContext) {
         self.0.update_all(ctx)
-    }
-    fn update_hp_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.update_hp_all(ctx)
     }
     fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
         self.0.event_all(ctx, update, args)
@@ -886,11 +870,6 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.update_all(ctx);
     }
 
-    fn update_hp_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.update_hp_all(ctx);
-        self.1.update_hp_all(ctx);
-    }
-
     fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
         self.0.event_all(ctx, update, args);
         self.1.event_all(ctx, update, args);
@@ -1054,11 +1033,6 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     fn update_all(&mut self, ctx: &mut WidgetContext) {
         self.0.update_all(ctx);
         self.1.update_all(ctx);
-    }
-
-    fn update_hp_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.update_hp_all(ctx);
-        self.1.update_hp_all(ctx);
     }
 
     fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
@@ -1233,11 +1207,6 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn update_hp_all(&mut self, ctx: &mut WidgetContext) {
-                $(self.$n.update_hp(ctx);)+
-            }
-
-            #[inline]
             fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
                 $(self.$n.event(ctx, update, args);)+
             }
@@ -1360,9 +1329,6 @@ macro_rules! empty_node_list {
 
             #[inline]
             fn update_all(&mut self, _: &mut WidgetContext) {}
-
-            #[inline]
-            fn update_hp_all(&mut self, _: &mut WidgetContext) {}
 
             #[inline]
             fn event_all<EU: EventUpdate>(&mut self, _: &mut WidgetContext, _: EU, _: &EU::Args) {}

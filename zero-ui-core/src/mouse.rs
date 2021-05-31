@@ -321,12 +321,10 @@ impl MouseCaptureArgs {
     }
 }
 
-event_hp! {
+event! {
     /// Mouse move event.
     pub MouseMoveEvent: MouseMoveArgs;
-}
 
-event! {
     /// Mouse down or up event.
     pub MouseInputEvent: MouseInputArgs;
 
@@ -749,11 +747,7 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn update(&mut self, ctx: &mut AppContext, update: UpdateRequest) {
-        if update.update_hp {
-            return;
-        }
-
+    fn update(&mut self, ctx: &mut AppContext) {
         let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
 
         mouse.fulfill_requests(windows, ctx.events);
