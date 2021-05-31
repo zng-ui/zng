@@ -1,5 +1,7 @@
 //! Asynchronous tasks and communication.
 
+use crate::event::{AnyEventArgs, AnyEventUpdate, Event, EventUpdate};
+
 use super::{
     context::{AppSyncContext, UpdateNotifier},
     event::{EventEmitter, EventListener, Events},
@@ -109,25 +111,26 @@ impl Sync {
         channel
     }
 
-    /// Creates an event emitter that can be used from other threads.
-    pub fn event_sender<T: Send + 'static>(&mut self, event: EventEmitter<T>) -> EventSender<T> {
-        let (sync, sender) = EventSenderSync::new(event, self.notifier.clone());
+    /// Creates a channel that can raise an event from another thread.
+    pub fn event_sender<A, E>(&mut self) -> EventSender<E>
+    where
+        E: Event,
+        E::Args: Send,
+    {
+        let (sync, sender) = EventSenderSync::new(self.notifier.clone());
         self.channels.push(Box::new(sync));
         sender
     }
 
-    /// Creates an event listener that can be used from other threads.
-    pub fn event_receiver<T: Clone + Send + 'static>(&mut self, event: EventListener<T>) -> EventReceiver<T> {
-        let (sync, receiver) = EventReceiverSync::new(event);
+    /// Creates a channel that can listen to event from another thread.
+    pub fn event_receiver<E>(&mut self) -> EventReceiver<E>
+    where
+        E: Event,
+        E::Args: Send,
+    {
+        let (sync, receiver) = EventReceiverSync::new();
         self.channels.push(Box::new(sync));
         receiver
-    }
-
-    fn response<T: Send + 'static>(&mut self) -> (EventSender<T>, EventListener<T>) {
-        let event = EventEmitter::response();
-        let listener = event.listener();
-        let event = self.event_sender(event);
-        (event, listener)
     }
 
     /// Run a CPU bound task.
@@ -153,13 +156,14 @@ impl Sync {
     /// }
     /// # }
     /// ```
-    pub fn run<R: Send + 'static, T: FnOnce() -> R + Send + 'static>(&mut self, task: T) -> EventListener<R> {
-        let (event, listener) = self.response();
-        rayon::spawn(move || {
-            let r = task();
-            event.notify(r);
-        });
-        listener
+    pub fn run<R: Send + 'static, T: FnOnce() -> R + Send + 'static>(&mut self, _task: T) -> EventListener<R> {
+        //let (event, listener) = self.response();
+        //rayon::spawn(move || {
+        //    let r = task();
+        //    event.notify(r);
+        //});
+        //listener
+        todo!()
     }
 
     /// Run an IO bound task.
@@ -185,15 +189,16 @@ impl Sync {
     /// }
     /// # }
     /// ```
-    pub fn run_async<R: Send + 'static, T: Future<Output = R> + Send + 'static>(&mut self, task: T) -> EventListener<R> {
-        let (event, listener) = self.response();
-        // TODO run block-on?
-        async_global_executor::spawn(async move {
-            let r = task.await;
-            event.notify(r);
-        })
-        .detach();
-        listener
+    pub fn run_async<R: Send + 'static, T: Future<Output = R> + Send + 'static>(&mut self, _task: T) -> EventListener<R> {
+        //let (event, listener) = self.response();
+        //// TODO run block-on?
+        //async_global_executor::spawn(async move {
+        //    let r = task.await;
+        //    event.notify(r);
+        //})
+        //.detach();
+        //listener
+        todo!()
     }
 
     fn update_wake_time(&mut self, due_time: Instant) {
@@ -349,6 +354,11 @@ impl IntervalTimer {
 type Retain = bool;
 
 trait SyncChannel {
+    /// Sync events.
+    ///
+    /// Returns if this object should be retained.
+    fn on_event(&self, ctx: &mut AppSyncContext, event: AnyEventUpdate, args: &AnyEventArgs) -> Retain;
+
     /// Sync updates.
     ///
     /// Returns if this object should be retained.
@@ -358,12 +368,19 @@ trait SyncChannel {
 /// Represents an [`EventEmitter`] that can be updated from other threads.
 ///
 /// See [`Sync::event_sender`] for more details.
-
-pub struct EventSender<T: Send + 'static> {
+pub struct EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
     notifier: UpdateNotifier,
-    sender: Sender<T>,
+    sender: Sender<E::Args>,
 }
-impl<T: Send + 'static> Clone for EventSender<T> {
+impl<E> Clone for EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
     fn clone(&self) -> Self {
         EventSender {
             notifier: self.notifier.clone(),
@@ -371,29 +388,48 @@ impl<T: Send + 'static> Clone for EventSender<T> {
         }
     }
 }
-impl<T: Send + 'static> EventSender<T> {
+impl<E> EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
     /// Pushes an update notification.
     ///
-    /// This will generate an event update.
-    pub fn notify(&self, args: T) {
+    /// This will generate an event update in the UI thread.
+    pub fn notify(&self, args: E::Args) {
         self.sender.send(args).expect("TODO can this fail?");
-        self.notifier.update(); // TODO high-pressure?
+        self.notifier.update();
     }
 }
-struct EventSenderSync<T: Send + 'static> {
-    event: EventEmitter<T>,
-    receiver: Receiver<T>,
+struct EventSenderSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    receiver: Receiver<E::Args>,
 }
-impl<T: Send + 'static> EventSenderSync<T> {
-    fn new(event: EventEmitter<T>, notifier: UpdateNotifier) -> (Self, EventSender<T>) {
+impl<E> EventSenderSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn new(notifier: UpdateNotifier) -> (Self, EventSender<E>) {
         let (sender, receiver) = flume::unbounded();
-        (EventSenderSync { event, receiver }, EventSender { notifier, sender })
+        (EventSenderSync { receiver }, EventSender { notifier, sender })
     }
 }
-impl<T: Send + 'static> SyncChannel for EventSenderSync<T> {
+impl<E> SyncChannel for EventSenderSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+        true
+    }
+
     fn update(&self, ctx: &mut AppSyncContext) -> Retain {
         for args in self.receiver.try_iter() {
-            self.event.notify(ctx.events, args);
+            E::notify(ctx.events, args);
         }
         !self.receiver.is_disconnected()
     }
@@ -403,42 +439,65 @@ impl<T: Send + 'static> SyncChannel for EventSenderSync<T> {
 ///
 /// See [`Sync::event_receiver`] for more details.
 #[derive(Clone)]
-pub struct EventReceiver<T: Clone + Send + 'static> {
-    receiver: Receiver<T>,
+pub struct EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    receiver: Receiver<E::Args>,
 }
-impl<T: Clone + Send + 'static> EventReceiver<T> {
+impl<E> EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
     /// A blocking iterator over the updated received.
-    pub fn updates(&self) -> flume::Iter<T> {
+    pub fn updates(&self) -> flume::Iter<E::Args> {
         self.receiver.iter()
     }
 
     /// A non-blocking iterator over the updates received.
     #[inline]
-    pub fn try_updates(&self) -> flume::TryIter<T> {
+    pub fn try_updates(&self) -> flume::TryIter<E::Args> {
         self.receiver.try_iter()
     }
 
     /// Reference the underlying update receiver.
-    pub fn receiver(&self) -> &Receiver<T> {
+    pub fn receiver(&self) -> &Receiver<E::Args> {
         &self.receiver
     }
 }
-struct EventReceiverSync<T: Clone + Send + 'static> {
-    listener: EventListener<T>,
-    sender: Sender<T>,
+struct EventReceiverSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    sender: Sender<E::Args>,
 }
-impl<T: Clone + Send + 'static> EventReceiverSync<T> {
-    fn new(listener: EventListener<T>) -> (Self, EventReceiver<T>) {
+impl<E> EventReceiverSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn new() -> (Self, EventReceiver<E>) {
         let (sender, receiver) = flume::unbounded();
-        (EventReceiverSync { listener, sender }, EventReceiver { receiver })
+        (EventReceiverSync { sender }, EventReceiver { receiver })
     }
 }
-impl<T: Clone + Send + 'static> SyncChannel for EventReceiverSync<T> {
-    fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        for update in self.listener.updates(ctx.events) {
-            self.sender.send(update.clone()).expect("TODO");
+impl<E> SyncChannel for EventReceiverSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn on_event(&self, _: &mut AppSyncContext, update: AnyEventUpdate, args: &AnyEventArgs) -> Retain {
+        if let Some(args) = update.is::<E>(args) {
+            self.sender.send(args.clone()).expect("TODO");
         }
         !self.sender.is_disconnected()
+    }
+
+    fn update(&self, _: &mut AppSyncContext) -> Retain {
+        true
     }
 }
 
@@ -479,6 +538,10 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarSenderSync<T, V> {
             let _ = self.var.set(ctx.vars, new_value);
         }
         !self.receiver.is_disconnected()
+    }
+
+    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+        true
     }
 }
 
@@ -521,6 +584,10 @@ impl<T: VarValue, V: Var<T>> SyncChannel for VarModifySenderSync<T, V> {
             let _ = self.var.modify_boxed(ctx.vars, change);
         }
         !self.receiver.is_disconnected()
+    }
+
+    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+        true
     }
 }
 
@@ -576,6 +643,10 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
             let _ = self.sender.send(update.clone());
         }
         !self.sender.is_disconnected()
+    }
+
+    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+        true
     }
 }
 
@@ -665,5 +736,9 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarChannelSync<T, V> {
             let _ = self.var.set(ctx.vars, new_value);
         }
         !self.out_sender.is_disconnected()
+    }
+
+    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+        true
     }
 }

@@ -714,6 +714,7 @@ type Retain = bool;
 /// Declares new [`EventArgs`](crate::event::EventArgs) types.
 ///
 /// # Example
+///
 /// ```
 /// # use zero_ui_core::event::event_args;
 /// use zero_ui_core::render::WidgetPath;
@@ -738,89 +739,6 @@ type Retain = bool;
 ///     // pub struct MyOtherEventArgs { /**/ }
 /// }
 /// ```
-///
-/// Expands to:
-///
-/// ```
-/// # use zero_ui_core::event::event_args;
-/// # use zero_ui_core::render::WidgetPath;
-/// #
-/// /// My event arguments.
-/// #[derive(Debug, Clone)]
-/// pub struct MyEventArgs {
-///     /// When the event happened.
-///     pub timestamp: std::time::Instant,
-///     /// My argument.
-///     pub arg: String,
-///     /// My event target.
-///     pub target: WidgetPath,
-///
-///     stop_propagation: std::rc::Rc<std::cell::Cell<bool>>
-/// }
-///
-/// impl MyEventArgs {
-///     #[inline]
-///     pub fn new(
-///         timestamp: impl Into<std::time::Instant>,
-///         arg: impl Into<String>,
-///         target: impl Into<WidgetPath>,
-///     ) -> Self {
-///         MyEventArgs {
-///             timestamp: timestamp.into(),
-///             arg: arg.into(),
-///             target: target.into(),
-///             stop_propagation: std::rc::Rc::default()
-///         }
-///     }
-///
-///     /// Arguments for event that happened now (`Instant::now`).
-///     #[inline]
-///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
-///         Self::new(std::time::Instant::now(), arg, target)
-///     }
-///
-///     /// Requests that subsequent handlers skip this event.
-///     ///
-///     /// Cloned arguments signal stop for all clones.
-///     #[inline]
-///     pub fn stop_propagation(&self) {
-///         <Self as zero_ui_core::event::EventArgs>::stop_propagation(self)
-///     }
-///     
-///     /// If the handler must skip this event.
-///     ///
-///     /// Note that property level handlers don't need to check this, as those handlers are
-///     /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
-///     /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
-///     #[inline]
-///     pub fn stop_propagation_requested(&self) -> bool {
-///         <Self as zero_ui_core::event::EventArgs>::stop_propagation_requested(self)
-///     }
-/// }
-///
-/// impl zero_ui_core::event::EventArgs for MyEventArgs {
-///     #[inline]
-///     fn timestamp(&self) -> std::time::Instant {
-///         self.timestamp
-///     }
-///
-///     #[inline]
-///     /// If `ctx.path.widget_id()` is in the `self.target` path.
-///     fn concerns_widget(&self, ctx: &mut zero_ui_core::context::WidgetContext) -> bool {
-///         self.target.contains(ctx.path.widget_id())
-///     }
-///
-///     #[inline]
-///     fn stop_propagation(&self) {
-///         self.stop_propagation.set(true);
-///     }
-///     
-///     #[inline]
-///     fn stop_propagation_requested(&self) -> bool {
-///         self.stop_propagation.get()
-///     }
-/// }
-/// ```
 #[macro_export]
 macro_rules! event_args {
     ($(
@@ -839,7 +757,8 @@ macro_rules! event_args {
             pub timestamp: std::time::Instant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
 
-            stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
+            // Arc<AtomicBool> so we don't cause the $Args:!Send and block the user from creating event channels.
+            stop_propagation: std::sync::Arc<std::sync::atomic::AtomicBool>,
         }
         impl $Args {
             /// New args from values that convert [into](Into) the argument types.
@@ -849,7 +768,7 @@ macro_rules! event_args {
                 $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    stop_propagation: std::rc::Rc::default(),
+                    stop_propagation: std::sync::Arc::default(),
                 }
             }
 
@@ -892,12 +811,12 @@ macro_rules! event_args {
 
             #[inline]
             fn stop_propagation(&self) {
-                self.stop_propagation.set(true);
+                self.stop_propagation.store(true, std::sync::atomic::Ordering::Relaxed);
             }
 
             #[inline]
             fn stop_propagation_requested(&self) -> bool {
-                self.stop_propagation.get()
+                self.stop_propagation.load(std::sync::atomic::Ordering::Relaxed)
             }
         }
     )+};
@@ -934,6 +853,7 @@ pub use crate::event_args;
 /// Same syntax as [`event_args!`](macro.event_args.html) but the generated args is also cancelable.
 ///
 /// # Example
+///
 /// ```
 /// # use zero_ui_core::event::cancelable_event_args;
 /// # use zero_ui_core::render::WidgetPath;
@@ -957,89 +877,6 @@ pub use crate::event_args;
 ///     // pub struct MyOtherEventArgs { /**/ }
 /// }
 /// ```
-///
-/// Expands to:
-///
-/// ```
-/// # use zero_ui_core::event::event_args;
-/// # use zero_ui_core::render::WidgetPath;
-/// #
-/// /// My event arguments.
-/// #[derive(Debug, Clone)]
-/// pub struct MyEventArgs {
-///     /// When the event happened.
-///     pub timestamp: std::time::Instant,
-///     /// My argument.
-///     pub arg: String,
-///     /// My event target.
-///     pub target: WidgetPath,
-///
-///     cancel: std::rc::Rc<std::cell::Cell<bool>>,
-///     stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
-/// }
-///
-/// impl MyEventArgs {
-///     #[inline]
-///     pub fn new(
-///         timestamp: impl Into<std::time::Instant>,
-///         arg: impl Into<String>,
-///         target: impl Into<WidgetPath>,
-///     ) -> Self {
-///         MyEventArgs {
-///             timestamp: timestamp.into(),
-///             arg: arg.into(),
-///             target: target.into(),
-///             cancel: std::rc::Rc::default(),
-///             stop_propagation: std::rc::Rc::default(),
-///         }
-///     }
-///
-///     /// Arguments for event that happened now (`Instant::now`).
-///     #[inline]
-///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
-///         Self::new(std::time::Instant::now(), arg, target)
-///     }
-/// }
-///
-/// impl zero_ui_core::event::EventArgs for MyEventArgs {
-///     #[inline]
-///     fn timestamp(&self) -> std::time::Instant {
-///         self.timestamp
-///     }
-///
-///     #[inline]
-///     /// If `ctx.path.widget_id()` is in the `self.target` path.
-///     fn concerns_widget(&self, ctx: &mut zero_ui_core::context::WidgetContext) -> bool {
-///         self.target.contains(ctx.path.widget_id())
-///     }
-///
-///     #[inline]
-///     fn stop_propagation(&self) {
-///         self.stop_propagation.set(true);
-///     }
-///     
-///     #[inline]
-///     fn stop_propagation_requested(&self) -> bool {
-///         self.stop_propagation.get()
-///     }
-/// }
-///
-/// impl zero_ui_core::event::CancelableEventArgs for MyEventArgs {
-///     /// If a listener canceled the action.
-///     #[inline]
-///     fn cancel_requested(&self) -> bool {
-///         self.cancel.get()
-///     }
-///
-///     /// Cancel the action.
-///     ///
-///     /// Cloned args are still linked, canceling one will cancel the others.
-///     #[inline]
-///     fn cancel(&self) {
-///         self.cancel.set(true);
-///     }
-/// }
-/// ```
 #[macro_export]
 macro_rules! cancelable_event_args {
 
@@ -1058,8 +895,9 @@ macro_rules! cancelable_event_args {
             /// When the event happened.
             pub timestamp: std::time::Instant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
-            cancel: std::rc::Rc<std::cell::Cell<bool>>,
-            stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
+            // Arc<AtomicBool> so we don't cause the $Args:!Send and block the user from creating event channels.
+            stop_propagation: std::sync::Arc<std::sync::atomic::AtomicBool>,
+            cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         }
         impl $Args {
             /// New args from values that convert [into](Into) the argument types.
@@ -1069,8 +907,8 @@ macro_rules! cancelable_event_args {
                 $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    cancel: std::rc::Rc::default(),
-                    stop_propagation: std::rc::Rc::default(),
+                    stop_propagation: std::sync::Arc::default(),
+                    cancel: std::sync::Arc::default(),
                 }
             }
 
@@ -1127,23 +965,23 @@ macro_rules! cancelable_event_args {
 
             #[inline]
             fn stop_propagation(&self) {
-                self.stop_propagation.set(true);
+                self.stop_propagation.store(true, std::sync::atomic::Ordering::Relaxed);
             }
 
             #[inline]
             fn stop_propagation_requested(&self) -> bool {
-                self.stop_propagation.get()
+                self.stop_propagation.load(std::sync::atomic::Ordering::Relaxed)
             }
         }
         impl $crate::event::CancelableEventArgs for $Args {
             #[inline]
             fn cancel_requested(&self) -> bool {
-                self.cancel.get()
+                self.cancel.load(std::sync::atomic::Ordering::Relaxed)
             }
 
             #[inline]
             fn cancel(&self) {
-                self.cancel.set(true);
+                self.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
             }
         }
     )+};
