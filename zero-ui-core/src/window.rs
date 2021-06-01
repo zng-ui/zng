@@ -259,10 +259,10 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let mut closed = false;
 
         self.update_observe_event(
-            |_, update, args| {
-                if let Some(args) = update.is::<WindowCloseRequestedEvent>(args) {
+            |_, args| {
+                if let Some(args) = WindowCloseRequestedEvent::update(args) {
                     requested |= args.window_id == window_id;
-                } else if let Some(args) = update.is::<WindowCloseEvent>(args) {
+                } else if let Some(args) = WindowCloseEvent::update(args) {
                     closed |= args.window_id == window_id;
                 }
             },
@@ -533,7 +533,7 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn on_event_ui<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
+    fn on_event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let wn_ctxs: Vec<_> = ctx
             .services
             .req::<Windows>()
@@ -543,7 +543,7 @@ impl AppExtension for WindowManager {
             .collect();
 
         for wn_ctx in wn_ctxs {
-            wn_ctx.borrow_mut().event(ctx, update, args);
+            wn_ctx.borrow_mut().event(ctx, args);
         }
     }
 
@@ -552,10 +552,10 @@ impl AppExtension for WindowManager {
         self.update_pump(ctx);
     }
 
-    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
-        if let Some(args) = update.is::<WindowCloseRequestedEvent>(args) {
+    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = WindowCloseRequestedEvent::update(args) {
             self.update_closing(ctx, args);
-        } else if let Some(args) = update.is::<WindowCloseEvent>(args) {
+        } else if let Some(args) = WindowCloseEvent::update(args) {
             self.update_close(ctx, args);
         }
     }
@@ -2820,10 +2820,10 @@ impl OwnedWindowContext {
     }
 
     /// Call [`UiNode::event`] in all nodes.
-    pub fn event<EU: EventUpdate>(&mut self, ctx: &mut AppContext, update: EU, args: &EU::Args) {
+    pub fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
         profile_scope!("window::event");
 
-        let update = self.root_context(ctx, |root, ctx| root.event(ctx, update, args));
+        let update = self.root_context(ctx, |root, ctx| root.event(ctx, args));
         self.update |= update;
     }
 

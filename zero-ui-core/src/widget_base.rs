@@ -2,7 +2,7 @@
 
 use std::{fmt, ops};
 
-use crate::event::EventUpdate;
+use crate::event::EventUpdateArgs;
 use crate::var::{context_var, IntoVar, Vars};
 use crate::{
     context::RenderContext,
@@ -113,14 +113,14 @@ pub mod implicit_base {
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
             }
-            fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
                     log::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", std::any::type_name::<EU>(), self.id);
                 }
 
                 let child = &mut self.child;
-                ctx.widget_context(self.id, &mut self.state, |ctx| child.event(ctx, update, args));
+                ctx.widget_context(self.id, &mut self.state, |ctx| child.event(ctx, args));
             }
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
                 #[cfg(debug_assertions)]
@@ -367,11 +367,11 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.with_context(ctx.vars, |c| c.update(ctx));
         }
 
-        fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+        fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U)
         where
             Self: Sized,
         {
-            self.with_context(ctx.vars, |c| c.event(ctx, update, args));
+            self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -458,11 +458,11 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             }
         }
 
-        fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+        fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U)
         where
             Self: Sized,
         {
-            self.with_context(ctx.vars, |c| c.event(ctx, update, args));
+            self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -683,11 +683,11 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
             self.with_context(ctx.vars, |c| c.update(ctx));
         }
 
-        fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
         where
             Self: Sized,
         {
-            self.with_context(ctx.vars, |c| c.event(ctx, update, args));
+            self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

@@ -51,7 +51,7 @@ macro_rules! source_location {
 pub use crate::source_location;
 use crate::{
     context::RenderContext,
-    event::EventUpdate,
+    event::EventUpdateArgs,
     formatx,
     text::{Text, ToText},
     BoxedUiNode,
@@ -577,12 +577,12 @@ impl UiNode for PropertyInfoNode {
         }
     }
 
-    fn event<U: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: U, args: &U::Args)
+    fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U)
     where
         Self: Sized,
     {
         // TODO measure time and count
-        self.child.event(ctx, update, args);
+        self.child.event(ctx, args);
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {

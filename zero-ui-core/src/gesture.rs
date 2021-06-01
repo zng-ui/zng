@@ -722,13 +722,13 @@ impl AppExtension for GestureManager {
         }
     }
 
-    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
-        if let Some(args) = update.is::<MouseClickEvent>(args) {
+    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = MouseClickEvent::update(args) {
             // Generate click events from mouse clicks.
             if !args.stop_propagation_requested() {
                 ClickEvent::notify(ctx.events, args.clone().into());
             }
-        } else if let Some(args) = update.is::<KeyInputEvent>(args) {
+        } else if let Some(args) = KeyInputEvent::update(args) {
             // Generate shortcut events from keyboard input.
             if !args.stop_propagation_requested() {
                 if let Some(key) = args.key {
@@ -774,7 +774,7 @@ impl AppExtension for GestureManager {
                     self.pressed_modifier = None;
                 }
             }
-        } else if let Some(args) = update.is::<ShortcutEvent>(args) {
+        } else if let Some(args) = ShortcutEvent::update(args) {
             // Generate click events from shortcuts.
             if !args.stop_propagation_requested() {
                 let gestures = ctx.services.req::<Gestures>();

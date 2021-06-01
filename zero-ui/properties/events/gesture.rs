@@ -142,12 +142,12 @@ where
     C: UiNode,
     S: Var<Shortcuts>,
 {
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
     where
         Self: Sized,
     {
-        if let Some(args) = update.is::<ShortcutEvent>(args) {
-            self.child.event(ctx, ShortcutEvent, args);
+        if let Some(args) = ShortcutEvent::update(args) {
+            self.child.event(ctx, args);
             if !args.stop_propagation_requested() && self.shortcuts.get(ctx.vars).0.contains(&args.shortcut) {
                 // this request also focus the widget if the window is focused
                 // and the widget is focusable.
@@ -156,7 +156,7 @@ where
                     .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), self.kind, args.clone());
             }
         } else {
-            self.child.event(ctx, update, args);
+            self.child.event(ctx, args);
         }
     }
 }

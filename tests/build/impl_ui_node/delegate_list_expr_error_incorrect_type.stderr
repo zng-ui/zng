@@ -41,8 +41,8 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
    |
   ::: $WORKSPACE/zero-ui-core/src/ui_list.rs
    |
-   |     fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
-   |                      ----------- required by this bound in `zero_ui::core::UiNodeList::event_all`
+   |     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
+   |                      --------------- required by this bound in `zero_ui::core::UiNodeList::event_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
    --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:32

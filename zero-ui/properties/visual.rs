@@ -48,9 +48,9 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             self.child.deinit(ctx);
         }
 
-        fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-            self.background.event(ctx, update, args);
-            self.child.event(ctx, update, args);
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+            self.background.event(ctx, args);
+            self.child.event(ctx, args);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -168,9 +168,9 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
             self.foreground.deinit(ctx);
         }
 
-        fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-            self.child.event(ctx, update, args);
-            self.foreground.event(ctx, update, args);
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+            self.child.event(ctx, args);
+            self.foreground.event(ctx, args);
         }
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);

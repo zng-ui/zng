@@ -1,7 +1,7 @@
 //! Asynchronous tasks and communication.
 
 use crate::{
-    event::{AnyEventArgs, AnyEventUpdate, Event, EventUpdate},
+    event::{AnyEventUpdate, Event},
     var::{response_var, var, ForceReadOnlyVar, RcVar, ResponderVar, ResponseVar, Vars},
 };
 
@@ -391,7 +391,7 @@ trait SyncChannel {
     /// Sync events.
     ///
     /// Returns if this object should be retained.
-    fn on_event(&self, ctx: &mut AppSyncContext, event: AnyEventUpdate, args: &AnyEventArgs) -> Retain;
+    fn on_event(&self, ctx: &mut AppSyncContext, args: &AnyEventUpdate) -> Retain;
 
     /// Sync updates.
     ///
@@ -457,7 +457,7 @@ where
     E: Event,
     E::Args: Send,
 {
-    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
         true
     }
 
@@ -523,8 +523,8 @@ where
     E: Event,
     E::Args: Send,
 {
-    fn on_event(&self, _: &mut AppSyncContext, update: AnyEventUpdate, args: &AnyEventArgs) -> Retain {
-        if let Some(args) = update.is::<E>(args) {
+    fn on_event(&self, _: &mut AppSyncContext, args: &AnyEventUpdate) -> Retain {
+        if let Some(args) = E::update(args) {
             self.sender.send(args.clone()).expect("TODO");
         }
         !self.sender.is_disconnected()
@@ -574,7 +574,7 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarSenderSync<T, V> {
         !self.receiver.is_disconnected()
     }
 
-    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
         true
     }
 }
@@ -620,7 +620,7 @@ impl<T: VarValue, V: Var<T>> SyncChannel for VarModifySenderSync<T, V> {
         !self.receiver.is_disconnected()
     }
 
-    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
         true
     }
 }
@@ -679,7 +679,7 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
         !self.sender.is_disconnected()
     }
 
-    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
         true
     }
 }
@@ -772,7 +772,7 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarChannelSync<T, V> {
         !self.out_sender.is_disconnected()
     }
 
-    fn on_event(&self, _: &mut AppSyncContext, _: AnyEventUpdate, _: &AnyEventArgs) -> Retain {
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
         true
     }
 }

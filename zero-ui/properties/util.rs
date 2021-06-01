@@ -44,12 +44,9 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.update(ctx));
         }
-        fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
-        where
-            Self: Sized,
-        {
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.event(ctx, update, args));
+            ctx.vars.with_context_bind(self.var, &self.value, || child.event(ctx, args));
         }
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let child = &mut self.child;

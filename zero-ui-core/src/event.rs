@@ -1,10 +1,15 @@
 //! App event API.
 
+use unsafe_any::UnsafeAny;
+
 use crate::context::{AppContext, Updates, WidgetContext};
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
 use std::cell::RefCell;
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
+use std::marker::PhantomData;
+use std::mem;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Instant;
 use std::{any::*, collections::VecDeque};
@@ -45,92 +50,166 @@ pub trait Event: Debug + Clone + Copy + 'static {
     type Args: EventArgs;
 
     /// Schedule an event update.
-    fn notify(events: &Events, args: Self::Args);
+    #[doc(hidden)]
+    fn notify(events: &Events, args: Self::Args) {
+        events.notify::<Self>(args);
+    }
+
+    /// Gets the event arguments if the update is for `Self`.
+    #[inline(always)]
+    fn update<U: EventUpdateArgs>(args: &U) -> Option<&EventUpdate<Self>> {
+        args.args_for::<Self>()
+    }
 }
 
 mod protected {
-    use std::any::TypeId;
+    pub trait EventUpdateArgs {}
+}
 
-    pub trait EventUpdate {
-        fn event_type_id(self) -> TypeId;
+/// [`EventUpdateArgs`] for event `E`, dereferences to the argument.
+pub struct EventUpdate<E: Event>(E::Args);
+impl<E: Event> EventUpdate<E> {
+    /// Clone the arguments.
+    #[inline]
+    #[allow(clippy::should_implement_trait)] // that is what we want
+    pub fn clone(&self) -> E::Args {
+        self.0.clone()
+    }
+
+    fn boxed(self) -> BoxedEventUpdate {
+        BoxedEventUpdate {
+            event_type: TypeId::of::<E>(),
+            event_name: type_name::<E>(),
+            args: Box::new(self),
+        }
+    }
+}
+impl<E: Event> protected::EventUpdateArgs for EventUpdate<E> {}
+impl<E: Event> fmt::Debug for EventUpdate<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "EventUpdate<{}>({:#?})", type_name::<E>(), self.0)
+        } else {
+            write!(f, "EventUpdate<{}>({:?})", type_name::<E>(), self.0)
+        }
+    }
+}
+impl<E: Event> Deref for EventUpdate<E> {
+    type Target = E::Args;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-/// Represents an [`Event`] type during an update.
-pub trait EventUpdate: protected::EventUpdate + Clone + Copy + 'static {
-    /// The event update args type.
-    type Args;
-
-    /// Returns the event `E` args if the update is for the event.
-    fn is<E: Event>(self, args: &Self::Args) -> Option<&E::Args>;
+/// Boxed [`EventUpdateArgs`].
+pub struct BoxedEventUpdate {
+    event_type: TypeId,
+    event_name: &'static str,
+    args: Box<dyn UnsafeAny>,
 }
-impl<E: Event> protected::EventUpdate for E {
-    #[inline(always)]
-    fn event_type_id(self) -> TypeId {
-        TypeId::of::<E>()
+impl protected::EventUpdateArgs for BoxedEventUpdate {}
+impl fmt::Debug for BoxedEventUpdate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BoxedEventUpdate for {}", self.event_name)
     }
 }
-impl<EU: Event + protected::EventUpdate> EventUpdate for EU {
-    type Args = EU::Args;
+impl EventUpdateArgs for BoxedEventUpdate {
+    #[inline(always)]
+    fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>> {
+        if self.event_type == TypeId::of::<Q>() {
+            Some(unsafe {
+                // SAFETY: its the same type
+                self.args.downcast_ref_unchecked()
+            })
+        } else {
+            None
+        }
+    }
 
     #[inline(always)]
-    fn is<E: Event>(self, args: &Self::Args) -> Option<&E::Args> {
-        if TypeId::of::<EU>() == TypeId::of::<E>() {
+    fn as_any(&self) -> AnyEventUpdate {
+        AnyEventUpdate {
+            event_type: self.event_type,
+            event_name: self.event_name,
+            args: unsafe {
+                // SAFETY: no different then the EventUpdate::as_any()
+                self.args.downcast_ref_unchecked()
+            },
+        }
+    }
+}
+
+/// Type erased [`EventUpdateArgs`].
+pub struct AnyEventUpdate<'a> {
+    event_type: TypeId,
+    event_name: &'static str,
+    args: &'a (),
+}
+impl<'a> fmt::Debug for AnyEventUpdate<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AnyEventUpdate for {}", self.event_name)
+    }
+}
+impl<'a> protected::EventUpdateArgs for AnyEventUpdate<'a> {}
+impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
+    fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>> {
+        if self.event_type == TypeId::of::<Q>() {
             Some(unsafe {
                 // SAFETY: its the same type.
                 #[allow(clippy::transmute_ptr_to_ptr)]
-                std::mem::transmute(args)
+                mem::transmute(self.args)
             })
         } else {
             None
         }
     }
-}
 
-/// A type that represents an [`Event`] type  during an update without generics.
-#[derive(Clone, Copy)]
-pub struct AnyEventUpdate(TypeId);
-impl AnyEventUpdate {
-    /// Gets the `AnyEventUpdate` that represents `E`.
-    pub fn from<E: EventUpdate>(update: E, args: &E::Args) -> (Self, &AnyEventArgs) {
-        (Self(update.event_type_id()), unsafe {
-            // SAFETY: there is nothing you can do with a &AnyEventArgs and `AnyEventArgs` is 0 sized.
-            #[allow(clippy::transmute_ptr_to_ptr)]
-            std::mem::transmute(args)
-        })
-    }
-
-    /// Calls [`EventUpdate::is`].
-    #[inline(always)]
-    fn is<E: Event>(self, args: &AnyEventArgs) -> Option<&E::Args> {
-        EventUpdate::is::<E>(self, args)
+    fn as_any(&self) -> AnyEventUpdate {
+        AnyEventUpdate {
+            event_type: self.event_type,
+            event_name: self.event_name,
+            args: self.args,
+        }
     }
 }
-impl protected::EventUpdate for AnyEventUpdate {
-    #[inline(always)]
-    fn event_type_id(self) -> TypeId {
-        self.0
-    }
-}
-impl EventUpdate for AnyEventUpdate {
-    type Args = AnyEventArgs;
 
+/// Represents an event update.
+pub trait EventUpdateArgs: protected::EventUpdateArgs + fmt::Debug {
+    /// Gets the the update arguments if the event updating is `Q`.
+    fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>>;
+
+    /// Type erased event update.
+    fn as_any(&self) -> AnyEventUpdate;
+}
+impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     #[inline(always)]
-    fn is<E: Event>(self, args: &Self::Args) -> Option<&E::Args> {
-        if self.0 == TypeId::of::<E>() {
+    fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>> {
+        if TypeId::of::<E>() == TypeId::of::<Q>() {
             Some(unsafe {
-                // SAFETY: it was the same type before becoming &AnyEventArgs.
+                // SAFETY: its the same type.
                 #[allow(clippy::transmute_ptr_to_ptr)]
-                std::mem::transmute(args)
+                std::mem::transmute(&self)
             })
         } else {
             None
         }
     }
-}
 
-/// Type erased event args used by [`AnyEventUpdate`].
-pub enum AnyEventArgs {}
+    #[inline(always)]
+    fn as_any(&self) -> AnyEventUpdate {
+        AnyEventUpdate {
+            event_type: TypeId::of::<E>(),
+            event_name: type_name::<E>(),
+            args: unsafe {
+                // SAFETY: nothing will be done with it other then a validated restore in `args_for`.
+                #[allow(clippy::transmute_ptr_to_ptr)]
+                mem::transmute(self)
+            },
+        }
+    }
+}
 
 /// Identifies an event type for an action that can be canceled.
 ///
@@ -195,17 +274,17 @@ thread_singleton!(SingletonEvents);
 ///
 /// Only a single instance of this type exists at a time.
 pub struct Events {
-    updates: RefCell<Vec<Box<dyn OwnedAnyEventUpdate>>>,
+    updates: RefCell<Vec<BoxedEventUpdate>>,
 
     #[allow(clippy::type_complexity)]
-    buffers: RefCell<Vec<Box<dyn Fn(AnyEventUpdate, &AnyEventArgs) -> Retain>>>,
+    buffers: RefCell<Vec<Box<dyn Fn(&BoxedEventUpdate) -> Retain>>>,
     app_pre_handlers: AppHandlers,
     app_handlers: AppHandlers,
 
     _singleton: SingletonEvents,
 }
 
-type AppHandlerWeak = std::rc::Weak<RefCell<dyn FnMut(&mut AppContext, AnyEventUpdate, &AnyEventArgs)>>;
+type AppHandlerWeak = std::rc::Weak<RefCell<dyn FnMut(&mut AppContext, &BoxedEventUpdate)>>;
 
 #[derive(Default)]
 struct AppHandlers(RefCell<Vec<AppHandlerWeak>>);
@@ -214,7 +293,7 @@ impl AppHandlers {
         self.0.borrow_mut().push(Rc::downgrade(&handler.0));
     }
 
-    pub fn notify(&self, ctx: &mut AppContext, update: AnyEventUpdate, args: &AnyEventArgs) {
+    pub fn notify(&self, ctx: &mut AppContext, args: &BoxedEventUpdate) {
         let mut handlers = self.0.borrow_mut();
         let mut live_handlers = Vec::with_capacity(handlers.len());
         handlers.retain(|h| {
@@ -228,7 +307,7 @@ impl AppHandlers {
         drop(handlers);
 
         for handler in live_handlers {
-            handler.borrow_mut()(ctx, update, args);
+            handler.borrow_mut()(ctx, args);
         }
     }
 }
@@ -236,29 +315,12 @@ impl AppHandlers {
 /// A *global* event handler created by [`Events::on_event`].
 #[derive(Clone)]
 #[allow(clippy::type_complexity)]
-pub struct EventHandler(Rc<RefCell<dyn FnMut(&mut AppContext, AnyEventUpdate, &AnyEventArgs)>>);
+pub struct EventHandler(Rc<RefCell<dyn FnMut(&mut AppContext, &BoxedEventUpdate)>>);
 impl EventHandler {
-    pub(self) fn new(handler: impl FnMut(&mut AppContext, AnyEventUpdate, &AnyEventArgs) + 'static) -> Self {
+    pub(self) fn new(handler: impl FnMut(&mut AppContext, &BoxedEventUpdate) + 'static) -> Self {
         Self(Rc::new(RefCell::new(handler)))
     }
 }
-
-/// An [`AnyEventUpdate`] that also owns the event arguments.
-pub trait OwnedAnyEventUpdate {
-    /// Borrow the update and arguments.
-    fn borrow(&self) -> (AnyEventUpdate, &AnyEventArgs);
-}
-struct OwnedEventUpdate<A: 'static>(TypeId, A);
-impl<A: 'static> OwnedAnyEventUpdate for OwnedEventUpdate<A> {
-    fn borrow(&self) -> (AnyEventUpdate, &AnyEventArgs) {
-        (AnyEventUpdate(self.0), unsafe {
-            // SAFETY: there is nothing you can do with a &AnyEventArgs and `AnyEventArgs` is 0 sized.
-            #[allow(clippy::transmute_ptr_to_ptr)]
-            std::mem::transmute(&self.1)
-        })
-    }
-}
-
 impl Events {
     /// If an instance of `Events` already exists in the  current thread.
     #[inline]
@@ -280,10 +342,9 @@ impl Events {
         }
     }
 
-    #[doc(hidden)]
-    pub fn notify<E: Event>(&self, args: E::Args) {
-        let update = OwnedEventUpdate(TypeId::of::<E>(), args);
-        self.updates.borrow_mut().push(Box::new(update));
+    fn notify<E: Event>(&self, args: E::Args) {
+        let update = EventUpdate::<E>(args);
+        self.updates.borrow_mut().push(update.boxed());
     }
 
     /// Creates an event buffer for that listens to `E`.
@@ -292,10 +353,10 @@ impl Events {
     pub fn buffer<E: Event>(&self) -> EventBuffer<E::Args> {
         let buf = EventBuffer::never();
         let weak = Rc::downgrade(&buf.queue);
-        self.buffers.borrow_mut().push(Box::new(move |update, args| {
+        self.buffers.borrow_mut().push(Box::new(move |args| {
             let mut retain = false;
             if let Some(rc) = weak.upgrade() {
-                if let Some(args) = update.is::<E>(args) {
+                if let Some(args) = E::update(args) {
                     rc.borrow_mut().push_back(args.clone());
                 }
                 retain = true;
@@ -334,8 +395,8 @@ impl Events {
         E: Event,
         H: FnMut(&mut AppContext, &E::Args) + 'static,
     {
-        let handler = EventHandler::new(move |ctx, update, args| {
-            if let Some(args) = update.is::<E>(args) {
+        let handler = EventHandler::new(move |ctx, args| {
+            if let Some(args) = E::update(args) {
                 if !args.stop_propagation_requested() {
                     handler(ctx, args);
                 }
@@ -378,8 +439,8 @@ impl Events {
         E: Event,
         H: FnMut(&mut AppContext, &E::Args) + 'static,
     {
-        let handler = EventHandler::new(move |ctx, update, args| {
-            if let Some(args) = update.is::<E>(args) {
+        let handler = EventHandler::new(move |ctx, args| {
+            if let Some(args) = E::update(args) {
                 if !args.stop_propagation_requested() {
                     handler(ctx, args);
                 }
@@ -390,7 +451,7 @@ impl Events {
     }
 
     #[must_use]
-    pub(super) fn apply(&mut self, updates: &mut Updates) -> Vec<Box<dyn OwnedAnyEventUpdate>> {
+    pub(super) fn apply(&mut self, updates: &mut Updates) -> Vec<BoxedEventUpdate> {
         let r = std::mem::take(self.updates.get_mut());
         if !r.is_empty() {
             updates.update();
@@ -398,14 +459,13 @@ impl Events {
         r
     }
 
-    pub(super) fn on_pre_events(&self, ctx: &mut AppContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-        self.buffers.borrow_mut().retain(|buf| buf(update, args));
-
-        self.app_pre_handlers.notify(ctx, update, args);
+    pub(super) fn on_pre_events(&self, ctx: &mut AppContext, args: &BoxedEventUpdate) {
+        self.buffers.borrow_mut().retain(|buf| buf(args));
+        self.app_pre_handlers.notify(ctx, args);
     }
 
-    pub(super) fn on_events(&self, ctx: &mut AppContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-        self.app_handlers.notify(ctx, update, args);
+    pub(super) fn on_events(&self, ctx: &mut AppContext, args: &BoxedEventUpdate) {
+        self.app_handlers.notify(ctx, args);
     }
 }
 
@@ -735,6 +795,12 @@ macro_rules! event {
         #[derive(Clone, Copy, Debug)]
         $vis struct $Event;
         impl $Event {
+            /// Gets the event arguments if the update is for this event.
+            #[inline(always)]
+            pub fn update<U: $crate::event::EventUpdateArgs>(args: &U) -> Option<&$crate::event::EventUpdate<$Event>> {
+                <Self as $crate::event::Event>::update(args)
+            }
+
             /// Schedule an event update.
             #[inline]
             pub fn notify(events: &$crate::event::Events, args: $Args) {
@@ -743,11 +809,6 @@ macro_rules! event {
         }
         impl $crate::event::Event for $Event {
             type Args = $Args;
-
-            #[inline]
-            fn notify(events: &$crate::event::Events, args: $Args) {
-                events.notify::<$Event>(args);
-            }
         }
     )+};
 }
@@ -764,7 +825,7 @@ where
     H: FnMut(&mut WidgetContext, &E::Args),
 {
     child: C,
-    event: E,
+    _event: PhantomData<E>,
     filter: F,
     handler: H,
 }
@@ -776,14 +837,14 @@ where
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     H: FnMut(&mut WidgetContext, &E::Args) + 'static,
 {
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-        if let Some(args) = update.is::<E>(args) {
-            self.child.event(ctx, self.event, args);
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+        if let Some(args) = E::update(args) {
+            self.child.event(ctx, args);
             if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                 (self.handler)(ctx, args);
             }
         } else {
-            self.child.event(ctx, update, args);
+            self.child.event(ctx, args);
         }
     }
 }
@@ -796,7 +857,7 @@ where
     H: FnMut(&mut WidgetContext, &E::Args),
 {
     child: C,
-    event: E,
+    _event: PhantomData<E>,
     filter: F,
     handler: H,
 }
@@ -808,14 +869,14 @@ where
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     H: FnMut(&mut WidgetContext, &E::Args) + 'static,
 {
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-        if let Some(args) = update.is::<E>(args) {
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+        if let Some(args) = E::update(args) {
             if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                 (self.handler)(ctx, args);
             }
-            self.child.event(ctx, self.event, args);
+            self.child.event(ctx, args);
         } else {
-            self.child.event(ctx, update, args);
+            self.child.event(ctx, args);
         }
     }
 }
@@ -954,15 +1015,16 @@ pub use crate::event_property;
 /// The event `handler` is called after the [`on_pre_event`] equivalent at the same context level. If the event
 /// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
 #[inline]
-pub fn on_event<E: Event>(
-    child: impl UiNode,
-    event: E,
-    filter: impl FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-    handler: impl FnMut(&mut WidgetContext, &E::Args) + 'static,
-) -> impl UiNode {
+pub fn on_event<C, E, F, H>(child: C, _event: E, filter: F, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    H: FnMut(&mut WidgetContext, &E::Args) + 'static,
+{
     OnEventNode {
         child,
-        event,
+        _event: PhantomData::<E>,
         filter,
         handler,
     }
@@ -982,15 +1044,16 @@ pub fn on_event<E: Event>(
 ///
 /// The event `handler` is called before the [`on_event`] equivalent at the same context level. If the event
 /// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-pub fn on_pre_event<E: Event>(
-    child: impl UiNode,
-    event: E,
-    filter: impl FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-    handler: impl FnMut(&mut WidgetContext, &E::Args) + 'static,
-) -> impl UiNode {
+pub fn on_pre_event<C, E, F, H>(child: C, _event: E, filter: F, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    H: FnMut(&mut WidgetContext, &E::Args) + 'static,
+{
     OnPreviewEventNode {
         child,
-        event,
+        _event: PhantomData::<E>,
         filter,
         handler,
     }

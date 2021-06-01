@@ -182,7 +182,7 @@ macro_rules! state_key {
     )+};
 }
 
-use crate::event::OwnedAnyEventUpdate;
+use crate::event::BoxedEventUpdate;
 #[doc(inline)]
 pub use crate::state_key;
 use crate::{var::VarsRead, window::WindowMode};
@@ -1123,7 +1123,7 @@ impl TestWidgetContext {
 /// Updates that must be reacted by an app context owner.
 pub struct ContextUpdates {
     /// Events update to notify.
-    pub events: Vec<Box<dyn OwnedAnyEventUpdate>>,
+    pub events: Vec<BoxedEventUpdate>,
 
     /// Update to notify.
     pub update: UpdateRequest,

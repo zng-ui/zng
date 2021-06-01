@@ -503,13 +503,13 @@ impl AppExtension for FocusManager {
         ctx.services.register(Focus::new(ctx.updates.notifier().clone()));
     }
 
-    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
+    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let mut request = None;
 
-        if let Some(args) = update.is::<MouseDownEvent>(args) {
+        if let Some(args) = MouseDownEvent::update(args) {
             // click
             request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
-        } else if let Some(args) = update.is::<ShortcutEvent>(args) {
+        } else if let Some(args) = ShortcutEvent::update(args) {
             // keyboard
             if args.shortcut == shortcut!(Tab) {
                 request = Some(FocusRequest::next(true))
@@ -528,7 +528,7 @@ impl AppExtension for FocusManager {
             } else if args.shortcut == shortcut!(Left) {
                 request = Some(FocusRequest::left(true))
             }
-        } else if let Some(args) = update.is::<WindowFocusChangedEvent>(args) {
+        } else if let Some(args) = WindowFocusChangedEvent::update(args) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             if let Some(mut args) = focus.continue_focus(windows) {

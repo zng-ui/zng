@@ -6,13 +6,16 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use crate::render::{FrameBuilder, FrameUpdate};
 use crate::units::*;
 use crate::{
     context::*,
-    event::{AnyEventArgs, AnyEventUpdate, EventUpdate},
+    event::{AnyEventUpdate, Event},
 };
-use crate::{event::Event, impl_ui_node};
+use crate::{
+    event::EventUpdateArgs,
+    impl_ui_node,
+    render::{FrameBuilder, FrameUpdate},
+};
 
 unique_id! {
     /// Unique id of a widget.
@@ -45,7 +48,7 @@ pub trait UiNode: 'static {
     /// ```
     /// // TODO demonstrate how to pass call to children.
     /// ```
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
 
     /// Called every time an update is requested.
     ///
@@ -97,7 +100,7 @@ pub trait UiNodeBoxed: 'static {
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
     fn update_boxed(&mut self, ctx: &mut WidgetContext);
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs);
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &AnyEventUpdate);
     fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
     fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize);
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
@@ -117,8 +120,8 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.update(ctx);
     }
 
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: AnyEventUpdate, args: &AnyEventArgs) {
-        self.event(ctx, update, args);
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &AnyEventUpdate) {
+        self.event(ctx, args);
     }
 
     fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
@@ -154,12 +157,12 @@ impl UiNode for BoxedUiNode {
         self.as_mut().update_boxed(ctx);
     }
 
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
     where
         Self: Sized,
     {
-        let (update, args) = AnyEventUpdate::from(update, args);
-        self.as_mut().event_boxed(ctx, update, args);
+        let args = args.as_any();
+        self.as_mut().event_boxed(ctx, &args);
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
@@ -301,12 +304,12 @@ impl UiNode for BoxedWidget {
         self.as_mut().update_boxed(ctx);
     }
 
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
     where
         Self: Sized,
     {
-        let (update, args) = AnyEventUpdate::from(update, args);
-        self.as_mut().event_boxed(ctx, update, args);
+        let args = args.as_any();
+        self.as_mut().event_boxed(ctx, &args);
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
@@ -362,7 +365,7 @@ impl UiNode for FillUiNode {}
 pub mod impl_ui_node_util {
     use crate::{
         context::{LayoutContext, RenderContext, WidgetContext},
-        event::EventUpdate,
+        event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         units::LayoutSize,
         UiNode, UiNodeList,
@@ -399,7 +402,7 @@ pub mod impl_ui_node_util {
         fn init_all(self, ctx: &mut WidgetContext);
         fn deinit_all(self, ctx: &mut WidgetContext);
         fn update_all(self, ctx: &mut WidgetContext);
-        fn event_all<EU: EventUpdate>(self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
+        fn event_all<EU: EventUpdateArgs>(self, ctx: &mut WidgetContext, args: &EU);
         fn measure_all(self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
         fn arrange_all(self, ctx: &mut LayoutContext, final_size: LayoutSize);
     }
@@ -427,9 +430,9 @@ pub mod impl_ui_node_util {
             }
         }
 
-        fn event_all<EU: EventUpdate>(self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+        fn event_all<EU: EventUpdateArgs>(self, ctx: &mut WidgetContext, args: &EU) {
             for child in self {
-                child.event(ctx, update, args);
+                child.event(ctx, args);
             }
         }
 
@@ -555,8 +558,8 @@ pub trait RcNodeTakeSignal: 'static {
     }
 
     /// Returns `true` when the slot must take the node as its child.
-    fn event_take<E: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: E, args: &E::Args) -> bool {
-        let _ = (ctx, update, args);
+    fn event_take<E: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &E) -> bool {
+        let _ = (ctx, args);
         false
     }
 }
@@ -591,8 +594,8 @@ where
         E: Event,
         F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     {
-        fn event_take<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) -> bool {
-            update.is::<E>(args).map(|a| (self.1)(ctx, a)).unwrap_or_default()
+        fn event_take<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) -> bool {
+            E::update(args).map(|a| (self.1)(ctx, a)).unwrap_or_default()
         }
     }
     TakeOn(PhantomData::<E>, filter)
@@ -735,14 +738,14 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
     where
         Self: Sized,
     {
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().as_mut().unwrap().event(ctx, update, args);
+            rc.node.borrow_mut().as_mut().unwrap().event(ctx, args);
         } else if let SlotNodeState::Inactive(_) = &self.state {
-            if self.take_signal.event_take(ctx, update, args) {
+            if self.take_signal.event_take(ctx, args) {
                 self.event_signal = true;
             }
         }

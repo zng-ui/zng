@@ -248,14 +248,14 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
                 });
         }
 
-        fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
         where
             Self: Sized,
         {
             let child = &mut self.child;
             ctx.vars
                 .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
-                    child.event(ctx, update, args);
+                    child.event(ctx, args);
                 });
         }
 
@@ -371,13 +371,13 @@ where
                 });
         }
 
-        fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
         where
             Self: Sized,
         {
             let child = &mut self.child;
             ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
-                child.event(ctx, update, args);
+                child.event(ctx, args);
             });
         }
 

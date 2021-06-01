@@ -217,7 +217,7 @@ mod util {
 
     use crate::{
         context::{LayoutContext, RenderContext, WidgetContext},
-        event::EventUpdate,
+        event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::LayoutSize,
@@ -298,10 +298,7 @@ mod util {
             self.trace("update");
         }
 
-        fn event<U: EventUpdate>(&mut self, _: &mut WidgetContext, _: U, _: &U::Args)
-        where
-            Self: Sized,
-        {
+        fn event<U: EventUpdateArgs>(&mut self, _: &mut WidgetContext, _: &U) {
             self.trace("event");
         }
 

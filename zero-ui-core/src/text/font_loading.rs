@@ -14,14 +14,11 @@ use webrender::api::RenderApi;
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
-use crate::event::{event, event_args};
+use crate::context::{AppContext, AppInitContext, UpdateNotifier};
+use crate::event::{event, event_args, EventUpdateArgs};
 use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
 use crate::{app::AppExtension, render::TextAntiAliasing};
-use crate::{
-    context::{AppContext, AppInitContext, UpdateNotifier},
-    event::EventUpdate,
-};
 
 #[cfg(windows)]
 use crate::window::{WindowOpenEvent, Windows};
@@ -160,9 +157,9 @@ impl AppExtension for FontManager {
         }
     }
 
-    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
+    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         #[cfg(windows)]
-        if let Some(args) = update.is::<WindowOpenEvent>(args) {
+        if let Some(args) = WindowOpenEvent::update(args) {
             // attach subclass WM_FONTCHANGE monitor to new headed windows.
             let windows = ctx.services.req::<Windows>();
             if let Ok(w) = windows.window(args.window_id) {

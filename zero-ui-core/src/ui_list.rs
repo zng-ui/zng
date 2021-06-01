@@ -43,7 +43,7 @@ pub trait UiNodeList: 'static {
     fn update_all(&mut self, ctx: &mut WidgetContext);
 
     /// Calls [`UiNode::event`] in all widgets in the list, sequentially.
-    fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args);
+    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
 
     /// Calls [`UiNode::measure`] in all widgets in the list, sequentially.
     ///
@@ -271,9 +271,9 @@ impl<U: UiNode> UiNodeList for Vec<U> {
         }
     }
 
-    fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
         for node in self {
-            node.event(ctx, update, args);
+            node.event(ctx, args);
         }
     }
 
@@ -392,8 +392,8 @@ impl UiNodeList for WidgetVec {
         self.0.update_all(ctx)
     }
 
-    fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-        self.0.event_all(ctx, update, args);
+    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+        self.0.event_all(ctx, args);
     }
 
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
@@ -561,8 +561,8 @@ impl UiNodeList for UiNodeVec {
     fn update_all(&mut self, ctx: &mut WidgetContext) {
         self.0.update_all(ctx)
     }
-    fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-        self.0.event_all(ctx, update, args)
+    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+        self.0.event_all(ctx, args)
     }
 
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
@@ -636,7 +636,7 @@ macro_rules! widget_vec {
 }
 #[doc(inline)]
 pub use crate::widget_vec;
-use crate::{context::RenderContext, event::EventUpdate, BoxedUiNode, BoxedWidget};
+use crate::{context::RenderContext, event::EventUpdateArgs, BoxedUiNode, BoxedWidget};
 
 /// Creates a [`UiNodeVec`](crate::UiNodeVec) containing the arguments.
 ///
@@ -870,9 +870,9 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.update_all(ctx);
     }
 
-    fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-        self.0.event_all(ctx, update, args);
-        self.1.event_all(ctx, update, args);
+    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+        self.0.event_all(ctx, args);
+        self.1.event_all(ctx, args);
     }
 
     fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
@@ -1035,9 +1035,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.update_all(ctx);
     }
 
-    fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-        self.0.event_all(ctx, update, args);
-        self.1.event_all(ctx, update, args);
+    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+        self.0.event_all(ctx, args);
+        self.1.event_all(ctx, args);
     }
 
     fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
@@ -1207,8 +1207,8 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn event_all<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
-                $(self.$n.event(ctx, update, args);)+
+            fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+                $(self.$n.event(ctx, args);)+
             }
 
             fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
@@ -1331,7 +1331,7 @@ macro_rules! empty_node_list {
             fn update_all(&mut self, _: &mut WidgetContext) {}
 
             #[inline]
-            fn event_all<EU: EventUpdate>(&mut self, _: &mut WidgetContext, _: EU, _: &EU::Args) {}
+            fn event_all<EU: EventUpdateArgs>(&mut self, _: &mut WidgetContext, _: &EU) {}
 
             fn measure_all<A, D>(&mut self, _: &mut LayoutContext, _: A, _: D)
             where

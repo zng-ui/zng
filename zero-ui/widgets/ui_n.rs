@@ -1,6 +1,6 @@
 use crate::core::{
     context::{LayoutContext, RenderContext, WidgetContext},
-    event::EventUpdate,
+    event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::LayoutSize,
     UiNode,
@@ -32,9 +32,9 @@ macro_rules! ui_n {
                 }
             }
 
-            fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
+            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.event(ctx, update, args),)+
+                    $($UiEnum::$UiNode(ui) => ui.event(ctx, args),)+
                 }
             }
 

@@ -726,8 +726,8 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn on_event<EV: EventUpdate>(&mut self, ctx: &mut AppContext, update: EV, args: &EV::Args) {
-        if let Some(args) = update.is::<MouseCaptureEvent>(args) {
+    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = MouseCaptureEvent::update(args) {
             if let Some(hover_args) = self.hover_enter_args.take() {
                 let hover_args = MouseHoverArgs::now(
                     hover_args.window_id,
