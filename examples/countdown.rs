@@ -4,9 +4,14 @@ use zero_ui::prelude::*;
 fn main() {
     App::default().run_window(|ctx| {
         let mut count = 11;
-        let countdown = ctx.sync.update_every_secs(1).into_map(move |_| {
+        let countdown = ctx.sync.update_every_secs(1).into_map(move |t| {
             count -= 1;
-            let text = if count > 0 { formatx!("{}", count) } else { "Done!".to_text() };
+            let text = if count > 0 {
+                formatx!("{}", count)
+            } else {
+                t.stop();
+                "Done!".to_text()
+            };
             println!("{}", text);
             text
         });

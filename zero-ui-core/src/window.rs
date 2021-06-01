@@ -16,7 +16,12 @@ use app::AppEvent;
 
 use glutin::window::WindowBuilder;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::{cell::{Cell, RefCell}, fmt, mem, rc::Rc, sync::Arc};
+use std::{
+    cell::{Cell, RefCell},
+    fmt, mem,
+    rc::Rc,
+    sync::Arc,
+};
 use webrender::api::{Epoch, PipelineId, RenderApi};
 
 pub use glutin::{event::WindowEvent, window::CursorIcon};

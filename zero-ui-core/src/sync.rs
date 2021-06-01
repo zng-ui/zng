@@ -14,6 +14,7 @@ use retain_mut::*;
 use std::{
     fmt,
     future::Future,
+    sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
 
@@ -319,16 +320,43 @@ impl OnceTimer {
 }
 
 /// A variable that is set every time an [interval timer](Sync::update_every) elapses.
-pub type TimerVar = ForceReadOnlyVar<TimeElapsed, RcVar<TimeElapsed>>;
+pub type TimerVar = ForceReadOnlyVar<TimerArgs, RcVar<TimerArgs>>;
+
+/// Value of [`TimerVar`].
+#[derive(Clone, Debug)]
+pub struct TimerArgs {
+    /// Moment the timer notified.
+    pub timestamp: Instant,
+
+    stop: Arc<AtomicBool>,
+}
+impl TimerArgs {
+    fn now() -> Self {
+        Self {
+            timestamp: Instant::now(),
+            stop: Arc::default(),
+        }
+    }
+
+    /// Stop the timer.
+    #[inline]
+    pub fn stop(&self) {
+        self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn stop_requested(&self) -> bool {
+        self.stop.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
 
 struct IntervalTimer {
     due_time: Instant,
     interval: Duration,
-    responder: RcVar<TimeElapsed>,
+    responder: RcVar<TimerArgs>,
 }
 impl IntervalTimer {
     fn new(interval: Duration) -> (Self, TimerVar) {
-        let responder = var(TimeElapsed { timestamp: Instant::now() });
+        let responder = var(TimerArgs::now());
         let response = responder.clone().into_read_only();
         (
             IntervalTimer {
@@ -345,11 +373,11 @@ impl IntervalTimer {
     /// Returns if the timer is still active, interval timers deactivate
     /// when there are no more listeners alive.
     fn retain(&mut self, now: Instant, vars: &Vars) -> bool {
-        if self.responder.strong_count() == 1 {
+        if self.responder.strong_count() == 1 || self.responder.get(vars).stop_requested() {
             return false;
         }
         if self.due_time <= now {
-            self.responder.set(vars, TimeElapsed { timestamp: now });
+            self.responder.modify(vars, move |t| t.timestamp = now);
             self.due_time = now + self.interval;
         }
 
