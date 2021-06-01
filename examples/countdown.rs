@@ -3,9 +3,8 @@ use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|ctx| {
-        let mut count = 11;
+        let mut count = 10;
         let countdown = ctx.sync.update_every_secs(1).into_map(move |t| {
-            count -= 1;
             let text = if count > 0 {
                 formatx!("{}", count)
             } else {
@@ -13,6 +12,7 @@ fn main() {
                 "Done!".to_text()
             };
             println!("{}", text);
+            count -= 1;
             text
         });
         window! {

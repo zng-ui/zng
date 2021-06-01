@@ -48,14 +48,14 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             self.child.deinit(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.background.update(ctx);
-            self.child.update(ctx);
-        }
-
         fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) {
             self.background.event(ctx, update, args);
             self.child.event(ctx, update, args);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.background.update(ctx);
+            self.child.update(ctx);
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {

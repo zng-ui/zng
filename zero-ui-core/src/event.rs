@@ -728,24 +728,6 @@ pub use crate::cancelable_event_args;
 ///     pub DoubleClickEvent: ClickArgs;
 /// }
 /// ```
-///
-/// Expands to:
-///
-/// ```
-/// # use zero_ui_core::event::event;
-/// # use zero_ui_core::gesture::ClickArgs;
-/// /// Event docs
-/// pub struct ClickEvent;
-/// impl zero_ui_core::event::Event for ClickEvent {
-///     type Args = ClickArgs;
-/// }
-///
-/// /// Other event docs
-/// pub struct DoubleClickEvent;
-/// impl zero_ui_core::event::Event for DoubleClickEvent {
-///     type Args = ClickArgs;
-/// }
-/// ```
 #[macro_export]
 macro_rules! event {
     ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(

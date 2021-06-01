@@ -144,7 +144,7 @@ impl Sync {
     ///
     /// ```
     /// # use zero_ui_core::{context::WidgetContext, var::ResponseVar};
-    /// # struct SomeStruct { sum_listener: ResponseVar<usize> }
+    /// # struct SomeStruct { sum_response: ResponseVar<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
     ///     self.sum_response = ctx.sync.run(||{
@@ -153,7 +153,7 @@ impl Sync {
     /// }
     ///
     /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-    ///     if let Some(result) = self.sum_response.response_new(ctx.events) {
+    ///     if let Some(result) = self.sum_response.response_new(ctx.vars) {
     ///         println!("sum of 0..1000: {}", result);   
     ///     }
     /// }
@@ -177,7 +177,7 @@ impl Sync {
     ///
     /// ```
     /// # use zero_ui_core::{context::WidgetContext, var::ResponseVar};
-    /// # struct SomeStruct { file_listener: ResponseVar<Vec<u8>> }
+    /// # struct SomeStruct { file_response: ResponseVar<Vec<u8>> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
     ///     self.file_response = ctx.sync.run_async(async {
@@ -186,7 +186,7 @@ impl Sync {
     /// }
     ///
     /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-    ///     if let Some(result) = self.file_response.response_new(ctx.events) {
+    ///     if let Some(result) = self.file_response.response_new(ctx.vars) {
     ///         println!("file loaded: {} bytes", result.len());   
     ///     }
     /// }
