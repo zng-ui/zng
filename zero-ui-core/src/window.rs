@@ -16,18 +16,10 @@ use app::AppEvent;
 
 use glutin::window::WindowBuilder;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::{
-    cell::{Cell, RefCell},
-    fmt, mem,
-    num::NonZeroU16,
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::{Cell, RefCell}, fmt, mem, rc::Rc, sync::Arc};
 use webrender::api::{Epoch, PipelineId, RenderApi};
 
 pub use glutin::{event::WindowEvent, window::CursorIcon};
-
-type CloseTogetherGroup = Option<NonZeroU16>;
 
 unique_id! {
     /// Unique identifier of a headless window.
@@ -262,7 +254,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let mut closed = false;
 
         self.update_observe_event(
-            |ctx, update, args| {
+            |_, update, args| {
                 if let Some(args) = update.is::<WindowCloseRequestedEvent>(args) {
                     requested |= args.window_id == window_id;
                 } else if let Some(args) = update.is::<WindowCloseEvent>(args) {
@@ -366,7 +358,6 @@ cancelable_event_args! {
     pub struct WindowCloseRequestedArgs {
         /// Window ID.
         pub window_id: WindowId,
-        group: CloseTogetherGroup,
 
         ..
 
@@ -659,8 +650,8 @@ impl WindowManager {
             ctx.services.req::<Windows>().opening_windows.push(w);
         }
 
-        for (window_id, group) in close {
-            WindowCloseRequestedEvent::notify(ctx.events, WindowCloseRequestedArgs::now(window_id, group));
+        for window_id in close {
+            WindowCloseRequestedEvent::notify(ctx.events, WindowCloseRequestedArgs::now(window_id));
         }
     }
 
@@ -700,25 +691,26 @@ impl WindowManager {
         let wins = ctx.services.req::<Windows>();
         if let Ok(win) = wins.window(args.window_id) {
             if args.cancel_requested() {
-                // TODO cancel group
-                win.close_response
-                    .borrow_mut()
-                    .take()
-                    .unwrap()
-                    .respond(ctx.vars, CloseWindowResult::Cancel);
+                let responder = win.close_response.borrow_mut().take().unwrap();
+                // cancel, if is `close_together`, this sets cancel for all
+                // windows in the group, because they share the same responder.
+                responder.respond(ctx.vars, CloseWindowResult::Cancel);
+                win.close_canceled.borrow().set(true);
+            } else if win.close_canceled.borrow().get() {
+                // another window in `close_together` canceled.
+                let _ = win.close_response.borrow_mut().take();
             } else {
+                // close was success.
                 WindowCloseEvent::notify(ctx.events, WindowEventArgs::now(args.window_id, false));
-                win.close_response
-                    .borrow_mut()
-                    .take()
-                    .unwrap()
-                    .respond(ctx.vars, CloseWindowResult::Close);
+                let responder = win.close_response.borrow_mut().take().unwrap();
+                responder.respond(ctx.vars, CloseWindowResult::Close);
             }
         }
     }
 
     /// Respond to window_close events.
     fn update_close(&mut self, ctx: &mut AppContext, args: &WindowEventArgs) {
+        // remove the window.
         let window = {
             let wns = ctx.services.req::<Windows>();
             wns.windows
@@ -726,6 +718,8 @@ impl WindowManager {
                 .position(|w| w.id == args.window_id)
                 .map(|idx| wns.windows.remove(idx))
         };
+
+        // deinit and notify lost of focus.
         if let Some(w) = window {
             w.context.clone().borrow_mut().deinit(ctx);
             if w.is_focused {
@@ -734,6 +728,7 @@ impl WindowManager {
             }
         }
 
+        // does shutdown_on_last_close.
         let service = ctx.services.req::<Windows>();
         if service.shutdown_on_last_close && service.windows.is_empty() && service.opening_windows.is_empty() {
             ctx.services.req::<AppProcess>().shutdown();
@@ -761,7 +756,6 @@ pub struct Windows {
 
     open_requests: Vec<OpenWindowRequest>,
     opening_windows: Vec<OpenWindow>,
-    next_group: u16,
     update_notifier: UpdateNotifier,
 }
 
@@ -772,7 +766,6 @@ impl Windows {
             windows: Vec::with_capacity(1),
             open_requests: Vec::with_capacity(1),
             opening_windows: Vec::with_capacity(1),
-            next_group: 1,
             update_notifier,
         }
     }
@@ -826,7 +819,9 @@ impl Windows {
     /// Requests closing multiple windows together, the operation can be canceled by listeners of the
     /// [close requested event](WindowCloseRequestedEvent). If canceled none of the windows are closed.
     ///
-    /// Returns a response var that will update once with the result of the operation.
+    /// Returns a response var that will update once with the result of the operation. Returns
+    /// [`Cancel`](CloseWindowResult::Cancel) if `windows` is empty or contains a window that already
+    /// requested close during this update.
     pub fn close_together(
         &mut self,
         windows: impl IntoIterator<Item = WindowId>,
@@ -841,16 +836,19 @@ impl Windows {
                     .ok_or_else(|| self.get_window_error(window_id))?,
             );
         }
-        if all.is_empty() {
-            return Ok(response_done_var(CloseWindowResult::Close));
+        if all.is_empty() || all.iter().any(|a| a.close_response.borrow().is_some()) {
+            return Ok(response_done_var(CloseWindowResult::Cancel));
         }
 
-        let set_id = NonZeroU16::new(self.next_group).unwrap();
-        self.next_group += 1;
+        let (group_responder, response) = response_var();
+        let group_cancel = Rc::default();
 
-        let response = all[0].close_response.borrow().as_ref().unwrap().response_var();
+        for window in all {
+            *window.close_response.borrow_mut() = Some(group_responder.clone());
+            *window.close_canceled.borrow_mut() = Rc::clone(&group_cancel);
+        }
 
-        todo!()
+        Ok(response)
     }
 
     /// Reference an open window.
@@ -868,12 +866,11 @@ impl Windows {
         &self.windows
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<(WindowId, CloseTogetherGroup)>) {
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<WindowId>) {
         let mut close_requests = vec![];
         for w in self.windows.iter() {
             if w.close_response.borrow().is_some() {
-                // TODO group.
-                close_requests.push((w.id, w.close_group.take()));
+                close_requests.push(w.id);
             }
         }
         (mem::take(&mut self.open_requests), close_requests)
@@ -1768,7 +1765,7 @@ pub struct OpenWindow {
 
     open_response: Option<ResponderVar<WindowEventArgs>>,
     close_response: RefCell<Option<ResponderVar<CloseWindowResult>>>,
-    close_group: Cell<CloseTogetherGroup>,
+    close_canceled: RefCell<Rc<Cell<bool>>>,
     update_notifier: UpdateNotifier,
 }
 impl OpenWindow {
@@ -1919,7 +1916,7 @@ impl OpenWindow {
 
             open_response: Some(open_response),
             close_response: RefCell::default(),
-            close_group: Cell::new(None),
+            close_canceled: RefCell::default(),
             update_notifier,
 
             #[cfg(windows)]
@@ -1932,12 +1929,12 @@ impl OpenWindow {
     ///
     /// Returns a listener that will update once with the result of the operation.
     pub fn close(&self) -> ResponseVar<CloseWindowResult> {
-        self.close_group.set(None);
         if let Some(r) = &*self.close_response.borrow() {
             r.response_var()
         } else {
             let (responder, response) = response_var();
             *self.close_response.borrow_mut() = Some(responder);
+            *self.close_canceled.borrow_mut() = Rc::default();
             self.update_notifier.update();
             response
         }
