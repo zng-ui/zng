@@ -1,16 +1,18 @@
 use std::{
     cell::{Cell, RefCell},
     fmt,
+    marker::PhantomData,
+    mem,
     rc::{Rc, Weak},
 };
 
-use crate::impl_ui_node;
 use crate::render::{FrameBuilder, FrameUpdate};
 use crate::units::*;
 use crate::{
     context::*,
     event::{AnyEventArgs, AnyEventUpdate, EventUpdate},
 };
+use crate::{event::Event, impl_ui_node};
 
 unique_id! {
     /// Unique id of a widget.
@@ -486,7 +488,7 @@ impl<U: UiNode> RcNode<U> {
 
     /// New rc node that contains a weak reference to itself.
     ///
-    /// **Node** the weak reference cannot be updated during the call to `node`
+    /// **Note** the weak reference cannot be [upgraded](WeakNode::upgrade) during the call to `node`.
     pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
         // Note: Rewrite this method with `Rc::new_cyclic` when
         // https://github.com/rust-lang/rust/issues/75861 stabilizes
@@ -502,6 +504,7 @@ impl<U: UiNode> RcNode<U> {
         SlotNode {
             slot_id: self.0.next_id(),
             take_signal,
+            event_signal: false,
             state: if S::TAKE_ON_INIT {
                 SlotNodeState::TakeOnInit(Rc::clone(&self.0))
             } else {
@@ -546,14 +549,23 @@ pub trait RcNodeTakeSignal: 'static {
     const TAKE_ON_INIT: bool = false;
 
     /// Returns `true` when the slot must take the node as its child.
-    fn take(&mut self, ctx: &mut WidgetContext) -> bool;
+    fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
+        let _ = ctx;
+        false
+    }
+
+    /// Returns `true` when the slot must take the node as its child.
+    fn event_take<E: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: E, args: &E::Args) -> bool {
+        let _ = (ctx, update, args);
+        false
+    }
 }
 impl<V> RcNodeTakeSignal for V
 where
     V: crate::var::VarObj<bool>,
 {
     /// Takes the widget when the var value is `true`.
-    fn take(&mut self, ctx: &mut WidgetContext) -> bool {
+    fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
         *self.get(ctx.vars)
     }
 }
@@ -561,31 +573,35 @@ where
 pub fn take_if<F: FnMut(&mut WidgetContext) -> bool + 'static>(custom: F) -> impl RcNodeTakeSignal {
     struct TakeIf<F>(F);
     impl<F: FnMut(&mut WidgetContext) -> bool + 'static> RcNodeTakeSignal for TakeIf<F> {
-        fn take(&mut self, ctx: &mut WidgetContext) -> bool {
+        fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
             (self.0)(ctx)
         }
     }
     TakeIf(custom)
 }
-/// An [`RcNodeTakeSignal`] that takes the widget every time the `event` updates.
-pub fn take_on<E>(event: crate::event::EventListener<E>) -> impl RcNodeTakeSignal {
-    struct TakeOn<E: 'static>(crate::event::EventListener<E>);
-    impl<E> RcNodeTakeSignal for TakeOn<E> {
-        fn take(&mut self, ctx: &mut WidgetContext) -> bool {
-            self.0.has_updates(ctx.events)
+/// An [`RcNodeTakeSignal`] that takes the widget every time the `event` updates and passes the filter.
+pub fn take_on<E, F>(filter: F) -> impl RcNodeTakeSignal
+where
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+{
+    struct TakeOn<E, F>(PhantomData<E>, F);
+    impl<E, F> RcNodeTakeSignal for TakeOn<E, F>
+    where
+        E: Event,
+        F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    {
+        fn event_take<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args) -> bool {
+            update.is::<E>(args).map(|a| (self.1)(ctx, a)).unwrap_or_default()
         }
     }
-    TakeOn(event)
+    TakeOn(PhantomData::<E>, filter)
 }
 /// An [`RcNodeTakeSignal`] that takes the widget once on init.
 pub fn take_on_init() -> impl RcNodeTakeSignal {
     struct TakeOnInit;
     impl RcNodeTakeSignal for TakeOnInit {
         const TAKE_ON_INIT: bool = true;
-
-        fn take(&mut self, _: &mut WidgetContext) -> bool {
-            false
-        }
     }
     TakeOnInit
 }
@@ -646,6 +662,7 @@ impl<U: UiNode> fmt::Debug for SlotNodeState<U> {
 struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
     slot_id: u32,
     take_signal: S,
+    event_signal: bool,
     state: SlotNodeState<U>,
 }
 impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
@@ -665,7 +682,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                 }
             }
             SlotNodeState::Inactive(wk) => {
-                if self.take_signal.take(ctx) {
+                if self.take_signal.update_take(ctx) {
                     if let Some(rc) = wk.upgrade() {
                         if rc.inited.get() {
                             rc.waiting_deinit.set(true);
@@ -718,10 +735,23 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
+    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
+    where
+        Self: Sized,
+    {
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow_mut().as_mut().unwrap().event(ctx, update, args);
+        } else if let SlotNodeState::Inactive(_) = &self.state {
+            if self.take_signal.event_take(ctx, update, args) {
+                self.event_signal = true;
+            }
+        }
+    }
+
     fn update(&mut self, ctx: &mut WidgetContext) {
         match &self.state {
             SlotNodeState::Inactive(wk) => {
-                if self.take_signal.take(ctx) {
+                if mem::take(&mut self.event_signal) || self.take_signal.update_take(ctx) {
                     if let Some(rc) = wk.upgrade() {
                         if rc.inited.get() {
                             rc.waiting_deinit.set(true);
@@ -767,15 +797,6 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                 panic!("`SlotNode` in `TakeOnInit` state on update")
             }
             SlotNodeState::Dropped => {}
-        }
-    }
-
-    fn event<EU: EventUpdate>(&mut self, ctx: &mut WidgetContext, update: EU, args: &EU::Args)
-    where
-        Self: Sized,
-    {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().as_mut().unwrap().event(ctx, update, args);
         }
     }
 

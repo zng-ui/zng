@@ -8,7 +8,7 @@ use crate::{
     service::Service,
     text::{Text, ToText},
     units::*,
-    var::{var, IntoValue, RcVar, VarsRead},
+    var::{response_done_var, response_var, var, IntoValue, RcVar, ResponderVar, ResponseVar, VarsRead},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -177,12 +177,12 @@ pub trait HeadlessAppWindowExt {
 }
 impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
-        let listener = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window, None));
+        let response = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window, None));
         let mut window_id = None;
         while window_id.is_none() {
             self.update_observe(
-                |_, ctx| {
-                    if let Some(opened) = listener.updates(ctx.events).first() {
+                |ctx| {
+                    if let Some(opened) = response.response_new(ctx.vars) {
                         window_id = Some(opened.window_id);
                     }
                 },
@@ -226,7 +226,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let mut pixels = None;
         while pixels.is_none() {
             self.update_observe_frame(
-                |id, ctx| {
+                |ctx, id| {
                     if id == window_id {
                         let pxs = ctx
                             .services
@@ -255,25 +255,18 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
-        let (closing_ls, closed_ls) = self.with_context(|ctx| {
-            let cls = ctx.events.listen::<WindowCloseRequestedEvent>();
-            let cld = ctx.events.listen::<WindowCloseEvent>();
-            (cls, cld)
-        });
-
         let event = WindowEvent::CloseRequested;
         self.on_window_event(window_id, &event);
 
         let mut requested = false;
         let mut closed = false;
 
-        self.update_observe(
-            |_, ctx| {
-                for a in closing_ls.updates(ctx.events) {
-                    requested |= a.window_id == window_id;
-                }
-                for a in closed_ls.updates(ctx.events) {
-                    closed |= a.window_id == window_id;
+        self.update_observe_event(
+            |ctx, update, args| {
+                if let Some(args) = update.is::<WindowCloseRequestedEvent>(args) {
+                    requested |= args.window_id == window_id;
+                } else if let Some(args) = update.is::<WindowCloseEvent>(args) {
+                    closed |= args.window_id == window_id;
                 }
             },
             false,
@@ -506,7 +499,7 @@ impl AppExtension for WindowManager {
             }
             WindowEvent::CloseRequested => {
                 if let Some(win) = ctx.services.req::<Windows>().windows.iter().find(|w| w.id == window_id) {
-                    win.close_requested.set(true);
+                    *win.close_response.borrow_mut() = Some(response_var().0);
                     ctx.updates.update();
                 }
             }
@@ -605,7 +598,7 @@ impl AppExtension for WindowManager {
             debug_assert!(matches!(window.init_state, WindowInitState::Inited));
 
             let args = WindowEventArgs::now(window.id, true);
-            window.open_response.take().unwrap().notify(ctx.events, args.clone());
+            window.open_response.take().unwrap().respond(ctx.vars, args.clone());
             WindowOpenEvent::notify(ctx.events, args);
             wns.windows.push(window);
         }
@@ -656,7 +649,7 @@ impl WindowManager {
             let w = OpenWindow::new(
                 request.new,
                 request.force_headless,
-                request.notifier,
+                request.responder,
                 ctx,
                 ctx.event_loop,
                 self.event_loop_proxy.as_ref().unwrap().clone(),
@@ -708,10 +701,18 @@ impl WindowManager {
         if let Ok(win) = wins.window(args.window_id) {
             if args.cancel_requested() {
                 // TODO cancel group
-                win.close_response.notify(ctx.events, CloseWindowResult::Cancel);
+                win.close_response
+                    .borrow_mut()
+                    .take()
+                    .unwrap()
+                    .respond(ctx.vars, CloseWindowResult::Cancel);
             } else {
                 WindowCloseEvent::notify(ctx.events, WindowEventArgs::now(args.window_id, false));
-                win.close_response.notify(ctx.events, CloseWindowResult::Close);
+                win.close_response
+                    .borrow_mut()
+                    .take()
+                    .unwrap()
+                    .respond(ctx.vars, CloseWindowResult::Close);
             }
         }
     }
@@ -789,25 +790,24 @@ impl Windows {
         &mut self,
         new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
         force_headless: Option<WindowMode>,
-    ) -> EventListener<WindowEventArgs> {
+    ) -> ResponseVar<WindowEventArgs> {
+        let (responder, response) = response_var();
         let request = OpenWindowRequest {
             new: Box::new(new_window),
             force_headless,
-            notifier: EventEmitter::response(),
+            responder,
         };
-        let notice = request.notifier.listener();
         self.open_requests.push(request);
-
         self.update_notifier.update();
 
-        notice
+        response
     }
 
     /// Starts closing a window, the operation can be canceled by listeners of the
     /// [close requested event](WindowCloseRequestedEvent).
     ///
-    /// Returns a listener that will update once with the result of the operation.
-    pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, GetWindowError> {
+    /// Returns a response var that will update once with the result of the operation.
+    pub fn close(&mut self, window_id: WindowId) -> Result<ResponseVar<CloseWindowResult>, GetWindowError> {
         if let Some(w) = self.windows.iter().find(|w| w.id == window_id) {
             Ok(w.close())
         } else {
@@ -817,7 +817,7 @@ impl Windows {
 
     fn get_window_error(&self, window_id: WindowId) -> GetWindowError {
         if let Some(w) = self.opening_windows.iter().find(|w| w.id == window_id) {
-            GetWindowError::Opening(window_id, w.open_response.as_ref().unwrap().listener())
+            GetWindowError::Opening(window_id, w.open_response.as_ref().unwrap().response_var())
         } else {
             GetWindowError::NotFound(window_id)
         }
@@ -826,11 +826,11 @@ impl Windows {
     /// Requests closing multiple windows together, the operation can be canceled by listeners of the
     /// [close requested event](WindowCloseRequestedEvent). If canceled none of the windows are closed.
     ///
-    /// Returns a listener that will update once with the result of the operation.
+    /// Returns a response var that will update once with the result of the operation.
     pub fn close_together(
         &mut self,
         windows: impl IntoIterator<Item = WindowId>,
-    ) -> Result<EventListener<CloseWindowResult>, GetWindowError> {
+    ) -> Result<ResponseVar<CloseWindowResult>, GetWindowError> {
         let windows = windows.into_iter();
         let mut all = Vec::with_capacity(windows.size_hint().0);
         for window_id in windows {
@@ -842,21 +842,15 @@ impl Windows {
             );
         }
         if all.is_empty() {
-            return Ok(EventEmitter::response().into_listener());
+            return Ok(response_done_var(CloseWindowResult::Close));
         }
 
         let set_id = NonZeroU16::new(self.next_group).unwrap();
         self.next_group += 1;
 
-        let listener = all[0].close_response.listener();
-        for window in all {
-            window.close_requested.set(true);
-            window.close_group.set(Some(set_id));
-        }
+        let response = all[0].close_response.borrow().as_ref().unwrap().response_var();
 
-        self.update_notifier.update();
-
-        Ok(listener)
+        todo!()
     }
 
     /// Reference an open window.
@@ -877,7 +871,8 @@ impl Windows {
     fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<(WindowId, CloseTogetherGroup)>) {
         let mut close_requests = vec![];
         for w in self.windows.iter() {
-            if w.close_requested.take() {
+            if w.close_response.borrow().is_some() {
+                // TODO group.
                 close_requests.push((w.id, w.close_group.take()));
             }
         }
@@ -888,11 +883,11 @@ impl Windows {
 struct OpenWindowRequest {
     new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     force_headless: Option<WindowMode>,
-    notifier: EventEmitter<WindowEventArgs>,
+    responder: ResponderVar<WindowEventArgs>,
 }
 
 /// Response message of [`close`](Windows::close) and [`close_together`](Windows::close_together).
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CloseWindowResult {
     /// Operation completed, all requested windows closed.
     Close,
@@ -907,11 +902,11 @@ pub enum GetWindowError {
     NotFound(WindowId),
     /// Window is not available because it is still opening.
     ///
-    /// The associated values are the requested window ID and an event listener that will notify once when
+    /// The associated values are the requested window ID and a response var that will update once when
     /// the window finishes opening.
     ///
     /// **Note:** The window initial content is inited, updated, layout and rendered once before the window is open.
-    Opening(WindowId, EventListener<WindowEventArgs>),
+    Opening(WindowId, ResponseVar<WindowEventArgs>),
 }
 impl fmt::Debug for GetWindowError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1771,9 +1766,8 @@ pub struct OpenWindow {
 
     renderless_event_sender: Option<EventLoopProxy>,
 
-    open_response: Option<EventEmitter<WindowEventArgs>>,
-    close_response: EventEmitter<CloseWindowResult>,
-    close_requested: Cell<bool>,
+    open_response: Option<ResponderVar<WindowEventArgs>>,
+    close_response: RefCell<Option<ResponderVar<CloseWindowResult>>>,
     close_group: Cell<CloseTogetherGroup>,
     update_notifier: UpdateNotifier,
 }
@@ -1782,7 +1776,7 @@ impl OpenWindow {
     fn new(
         new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>,
         force_headless: Option<WindowMode>,
-        open_response: EventEmitter<WindowEventArgs>,
+        open_response: ResponderVar<WindowEventArgs>,
         ctx: &mut AppContext,
         event_loop: EventLoopWindowTarget,
         event_loop_proxy: EventLoopProxy,
@@ -1923,9 +1917,8 @@ impl OpenWindow {
             frame_info,
             renderless_event_sender,
 
-            close_requested: Cell::new(false),
             open_response: Some(open_response),
-            close_response: EventEmitter::response(),
+            close_response: RefCell::default(),
             close_group: Cell::new(None),
             update_notifier,
 
@@ -1938,11 +1931,16 @@ impl OpenWindow {
     /// [close requested event](WindowCloseRequestedEvent).
     ///
     /// Returns a listener that will update once with the result of the operation.
-    pub fn close(&self) -> EventListener<CloseWindowResult> {
-        self.close_requested.set(true);
+    pub fn close(&self) -> ResponseVar<CloseWindowResult> {
         self.close_group.set(None);
-        self.update_notifier.update();
-        self.close_response.listener()
+        if let Some(r) = &*self.close_response.borrow() {
+            r.response_var()
+        } else {
+            let (responder, response) = response_var();
+            *self.close_response.borrow_mut() = Some(responder);
+            self.update_notifier.update();
+            response
+        }
     }
 
     /// Window mode.

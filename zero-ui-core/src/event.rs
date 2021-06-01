@@ -1,9 +1,9 @@
 //! App event API.
 
-use crate::context::{AppContext, UpdateRequest, Updates, WidgetContext};
+use crate::context::{AppContext, Updates, WidgetContext};
 use crate::widget_base::IsEnabled;
-use crate::{impl_ui_node, AnyMap, UiNode};
-use std::cell::{Cell, RefCell, UnsafeCell};
+use crate::{impl_ui_node, UiNode};
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Instant;
@@ -99,6 +99,12 @@ impl AnyEventUpdate {
             std::mem::transmute(args)
         })
     }
+
+    /// Calls [`EventUpdate::is`].
+    #[inline(always)]
+    fn is<E: Event>(self, args: &AnyEventArgs) -> Option<&E::Args> {
+        EventUpdate::is::<E>(self, args)
+    }
 }
 impl protected::EventUpdate for AnyEventUpdate {
     #[inline(always)]
@@ -139,247 +145,19 @@ impl<A: CancelableEventArgs, E: Event<Args = A>> CancelableEvent for E {
     type CancelableArgs = A;
 }
 
-struct EventChannelInner<T> {
-    data: UnsafeCell<Vec<T>>,
-    listener_count: Cell<usize>,
-    last_update: Cell<u32>,
-}
-
-struct EventChannel<T: 'static> {
-    r: Rc<EventChannelInner<T>>,
-}
-impl<T: 'static> Clone for EventChannel<T> {
-    fn clone(&self) -> Self {
-        EventChannel { r: Rc::clone(&self.r) }
-    }
-}
-impl<T: 'static> EventChannel<T> {
-    pub(crate) fn notify(&self, events: &Events, new_update: T) {
-        let me = Rc::clone(&self.r);
-        events.push_change(Box::new(move |update_id, updates| {
-            // SAFETY: this is safe because Events requires a mutable reference to apply changes.
-            let data = unsafe { &mut *me.data.get() };
-
-            if me.last_update.get() != update_id {
-                data.clear();
-                me.last_update.set(update_id);
-            }
-
-            data.push(new_update);
-
-            updates.update = true;
-        }));
-    }
-
-    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
-    pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
-        if self.r.last_update.get() == events.update_id() {
-            // SAFETY: This is safe because we are bounding the value lifetime with
-            // the `Events` lifetime and we require a mutable reference to `Events` to
-            // modify the value.
-            unsafe { &*self.r.data.get() }.as_ref()
-        } else {
-            // SAFETY: same reason as the `if` case.
-            // `last_update` only changes during `push_change` also.
-            unsafe { &mut *self.r.data.get() }.clear();
-            &[]
-        }
-    }
-
-    pub fn listener_count(&self) -> usize {
-        self.r.listener_count.get()
-    }
-
-    pub fn has_listeners(&self) -> bool {
-        self.listener_count() > 0
-    }
-
-    pub fn on_new_listener(&self) {
-        self.r.listener_count.set(self.r.listener_count.get() + 1)
-    }
-
-    pub fn on_drop_listener(&self) {
-        self.r.listener_count.set(self.r.listener_count.get() - 1)
-    }
-}
-impl<T: Clone> EventChannel<T> {
-    pub fn buffered_listener(&self, events: &Events) -> BufEventListener<T> {
-        let buffer = BufEventListener { queue: Default::default() };
-        let buffer_ = buffer.clone();
-        let me = Rc::clone(&self.r);
-        events.push_buffer(Box::new(move |update_id| {
-            // we keep this buffer alive only if there is a copy of it alive out there.
-            let retain = Rc::strong_count(&buffer_.queue) > 1;
-            if retain {
-                // SAFETY: this is safe because Events requires a mutable reference to apply changes
-                // and is till borrowed as mutable but has finished applying changes.
-
-                if me.last_update.get() != update_id {
-                    unsafe { &mut *me.data.get() }.clear();
-                } else {
-                    let data = unsafe { &*me.data.get() };
-                    if !data.is_empty() {
-                        let mut buf = buffer_.queue.borrow_mut();
-                        for e in data {
-                            buf.push_back(e.clone());
-                        }
-                    }
-                }
-            }
-            retain
-        }));
-        buffer
-    }
-}
-
-/// Read-only reference to an event channel.
-pub struct EventListener<T: 'static> {
-    chan: EventChannel<T>,
-}
-impl<T: 'static> Clone for EventListener<T> {
-    fn clone(&self) -> Self {
-        EventListener::new(self.chan.clone())
-    }
-}
-impl<T: 'static> EventListener<T> {
-    fn new(chan: EventChannel<T>) -> Self {
-        chan.on_new_listener();
-        EventListener { chan }
-    }
-
-    fn never() -> Self {
-        EventEmitter::new().into_listener()
-    }
-
-    /// New [`response`](EventEmitter::response) that never updates.
-    pub fn response_never() -> Self {
-        EventListener::never()
-    }
-
-    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::UiNode::update).
-    pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
-        self.chan.updates(events)
-    }
-
-    /// If [`updates`](EventListener::updates) is not empty.
-    pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
-        !self.updates(events).is_empty()
-    }
-}
-impl<T: EventArgs> EventListener<T> {
-    /// Filters out updates that are flagged [`stop_propagation`](EventArgs::stop_propagation).
-    pub fn updates_filtered<'a>(&'a self, events: &'a Events) -> impl Iterator<Item = &'a T> {
-        self.updates(events).iter().filter(|a| !a.stop_propagation_requested())
-    }
-}
-impl<T: Clone> EventListener<T> {
-    /// Updates are only visible for one update cycle, this is very efficient but
-    /// you can miss updates if you are not checking updates for every update call.
-    ///
-    /// A buffered event listener avoids this by cloning every update and keeping it in a FILO queue
-    /// that can be drained any time, without the need for the `events` reference even.
-    ///
-    /// Every call to this method creates a new buffer, independent of any previous generated buffers,
-    /// the buffer objects can be cloned and clones all point to the same buffer.
-    pub fn make_buffered(&self, events: &Events) -> BufEventListener<T> {
-        self.chan.buffered_listener(events)
-    }
-}
-impl<T: 'static> Drop for EventListener<T> {
-    fn drop(&mut self) {
-        self.chan.on_drop_listener();
-    }
-}
-
-/// Read-write reference to an event channel.
-pub struct EventEmitter<T: 'static> {
-    chan: EventChannel<T>,
-}
-impl<T: 'static> Clone for EventEmitter<T> {
-    fn clone(&self) -> Self {
-        EventEmitter { chan: self.chan.clone() }
-    }
-}
-impl<T: 'static> EventEmitter<T> {
-    fn new() -> Self {
-        EventEmitter {
-            chan: EventChannel {
-                r: Rc::new(EventChannelInner {
-                    data: UnsafeCell::default(),
-                    listener_count: Cell::new(0),
-                    last_update: Cell::new(0),
-                }),
-            },
-        }
-    }
-
-    /// New emitter for a service request response.
-    ///
-    /// The emitter is expected to update only once so it is not high-pressure.
-    pub fn response() -> Self {
-        Self::new()
-    }
-
-    /// Number of listener to this event emitter.
-    pub fn listener_count(&self) -> usize {
-        self.chan.listener_count()
-    }
-
-    /// If this event emitter has any listeners.
-    pub fn has_listeners(&self) -> bool {
-        self.chan.has_listeners()
-    }
-
-    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::UiNode::update).
-    pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
-        self.chan.updates(events)
-    }
-
-    /// If [`updates`](EventEmitter::updates) is not empty.
-    pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
-        !self.updates(events).is_empty()
-    }
-
-    /// Schedules an update notification.
-    pub fn notify(&self, events: &Events, new_update: T) {
-        self.chan.notify(events, new_update);
-    }
-
-    /// Gets a new event listener linked with this emitter.
-    pub fn listener(&self) -> EventListener<T> {
-        EventListener::new(self.chan.clone())
-    }
-
-    /// Converts this emitter instance into a listener.
-    pub fn into_listener(self) -> EventListener<T> {
-        EventListener::new(self.chan)
-    }
-}
-impl<T: Clone> EventEmitter<T> {
-    /// Create a buffered event listener.
-    ///
-    /// See [`EventListener::make_buffered`] for more details.
-    pub fn buffered_listener(&self, events: &Events) -> BufEventListener<T> {
-        self.chan.buffered_listener(events)
-    }
-}
-
-/// A buffered [`EventListener`].
-///
-/// This `struct` can be created by calling [`EventListener::make_buffered`] or [`EventEmitter::buffered_listener`]
-/// the documentation of `make_buffered` contains more details.
+/// A buffered event listener.
 ///
 /// This `struct` is a refence to the buffer, clones of it point to the same buffer. This `struct`
 /// is not `Send`, you can use a [`Sync::event_receiver`](crate::sync::Sync::event_receiver) for that.
 #[derive(Clone)]
-pub struct BufEventListener<T: Clone> {
+pub struct EventBuffer<T: Clone> {
     queue: Rc<RefCell<VecDeque<T>>>,
 }
-impl<T: Clone> BufEventListener<T> {
+impl<T: Clone> EventBuffer<T> {
     /// If there are any updates in the buffer.
     #[inline]
     pub fn has_updates(&self) -> bool {
-        !self.queue.borrow().is_empty()
+        !RefCell::borrow(&self.queue).is_empty()
     }
 
     /// Take the oldest event in the buffer.
@@ -407,7 +185,7 @@ impl<T: Clone> BufEventListener<T> {
     /// Create an empty buffer that will always stay empty.
     #[inline]
     pub fn never() -> Self {
-        BufEventListener { queue: Default::default() }
+        EventBuffer { queue: Default::default() }
     }
 }
 
@@ -417,21 +195,17 @@ thread_singleton!(SingletonEvents);
 ///
 /// Only a single instance of this type exists at a time.
 pub struct Events {
-    events: AnyMap,
-
     updates: RefCell<Vec<Box<dyn OwnedAnyEventUpdate>>>,
 
-    update_id: u32,
     #[allow(clippy::type_complexity)]
-    pending: RefCell<Vec<Box<dyn FnOnce(u32, &mut UpdateRequest)>>>,
-    #[allow(clippy::type_complexity)]
-    buffers: RefCell<Vec<Box<dyn Fn(u32) -> Retain>>>,
+    buffers: RefCell<Vec<Box<dyn Fn(AnyEventUpdate, &AnyEventArgs) -> Retain>>>,
     app_pre_handlers: AppHandlers,
     app_handlers: AppHandlers,
+
     _singleton: SingletonEvents,
 }
 
-type AppHandlerWeak = std::rc::Weak<RefCell<dyn FnMut(&mut AppContext)>>;
+type AppHandlerWeak = std::rc::Weak<RefCell<dyn FnMut(&mut AppContext, AnyEventUpdate, &AnyEventArgs)>>;
 
 #[derive(Default)]
 struct AppHandlers(RefCell<Vec<AppHandlerWeak>>);
@@ -440,7 +214,7 @@ impl AppHandlers {
         self.0.borrow_mut().push(Rc::downgrade(&handler.0));
     }
 
-    pub fn notify(&self, ctx: &mut AppContext) {
+    pub fn notify(&self, ctx: &mut AppContext, update: AnyEventUpdate, args: &AnyEventArgs) {
         let mut handlers = self.0.borrow_mut();
         let mut live_handlers = Vec::with_capacity(handlers.len());
         handlers.retain(|h| {
@@ -454,16 +228,17 @@ impl AppHandlers {
         drop(handlers);
 
         for handler in live_handlers {
-            handler.borrow_mut()(ctx);
+            handler.borrow_mut()(ctx, update, args);
         }
     }
 }
 
 /// A *global* event handler created by [`Events::on_event`].
 #[derive(Clone)]
-pub struct EventHandler(Rc<RefCell<dyn FnMut(&mut AppContext)>>);
+#[allow(clippy::type_complexity)]
+pub struct EventHandler(Rc<RefCell<dyn FnMut(&mut AppContext, AnyEventUpdate, &AnyEventArgs)>>);
 impl EventHandler {
-    pub(self) fn new(handler: impl FnMut(&mut AppContext) + 'static) -> Self {
+    pub(self) fn new(handler: impl FnMut(&mut AppContext, AnyEventUpdate, &AnyEventArgs) + 'static) -> Self {
         Self(Rc::new(RefCell::new(handler)))
     }
 }
@@ -497,10 +272,7 @@ impl Events {
     #[inline]
     pub fn instance() -> Self {
         Events {
-            events: Default::default(),
             updates: RefCell::default(),
-            update_id: 0,
-            pending: RefCell::default(),
             buffers: RefCell::default(),
             app_pre_handlers: AppHandlers::default(),
             app_handlers: AppHandlers::default(),
@@ -514,84 +286,23 @@ impl Events {
         self.updates.borrow_mut().push(Box::new(update));
     }
 
-    /// Creates an event listener if the event is registered in the application.
-    pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
-        self.events.get(&TypeId::of::<E>()).map(|any| {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { any.downcast_ref_unchecked::<EventListener<E::Args>>().clone() }
-        })
-    }
-
-    /// Creates a buffered event listener if the event is registered in the application.
-    pub fn try_listen_buf<E: Event>(&self) -> Option<BufEventListener<E::Args>> {
-        self.try_listen::<E>().map(|l| l.make_buffered(self))
-    }
-
-    /// Creates an event listener.
+    /// Creates an event buffer for that listens to `E`.
     ///
-    /// # Panics
-    ///
-    /// If the event is not registered in the application.
-    pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
-        self.try_listen::<E>()
-            .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
-    }
-
-    /// Creates a buffered event listener.
-    ///
-    /// # Panics
-    ///
-    /// If the event is not registered in the application.
-    pub fn listen_buf<E: Event>(&self) -> BufEventListener<E::Args> {
-        self.listen::<E>().make_buffered(self)
-    }
-
-    /// Creates an event listener or returns [`E::never()`](Event::never).
-    pub fn listen_or_never<E: Event>(&self) -> EventListener<E::Args> {
-        self.try_listen::<E>().unwrap_or_else(EventListener::never)
-    }
-
-    /// Creates a buffered event listener or returns [`E::never()`](Event::never).
-    pub fn listen_or_never_buf<E: Event>(&self) -> BufEventListener<E::Args> {
-        self.listen_or_never::<E>().make_buffered(self)
-    }
-
-    /// Creates a preview event handler if the event is registered in the application.
-    ///
-    /// See [`on_pre_event`](Self::on_pre_event) for more details.
-    pub fn try_on_pre_event<E, H>(&self, mut handler: H) -> Option<EventHandler>
-    where
-        E: Event,
-        H: FnMut(&mut AppContext, &E::Args) + 'static,
-    {
-        self.try_listen::<E>().map(|l| {
-            let handler = EventHandler::new(move |ctx| {
-                for update in l.updates_filtered(ctx.events) {
-                    handler(ctx, update)
+    /// Drop the buffer to stop listening.
+    pub fn buffer<E: Event>(&self) -> EventBuffer<E::Args> {
+        let buf = EventBuffer::never();
+        let weak = Rc::downgrade(&buf.queue);
+        self.buffers.borrow_mut().push(Box::new(move |update, args| {
+            let mut retain = false;
+            if let Some(rc) = weak.upgrade() {
+                if let Some(args) = update.is::<E>(args) {
+                    rc.borrow_mut().push_back(args.clone());
                 }
-            });
-            self.app_pre_handlers.push(&handler);
-            handler
-        })
-    }
-
-    /// Creates an event handler if the event is registered in the application.
-    ///
-    /// See [`on_event`](Self::on_event) for more details.
-    pub fn try_on_event<E, H>(&self, mut handler: H) -> Option<EventHandler>
-    where
-        E: Event,
-        H: FnMut(&mut AppContext, &E::Args) + 'static,
-    {
-        self.try_listen::<E>().map(|l| {
-            let handler = EventHandler::new(move |ctx| {
-                for update in l.updates_filtered(ctx.events) {
-                    handler(ctx, update)
-                }
-            });
-            self.app_handlers.push(&handler);
-            handler
-        })
+                retain = true;
+            }
+            retain
+        }));
+        buf
     }
 
     /// Creates a preview event handler.
@@ -618,13 +329,20 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_pre_event<E, H>(&self, handler: H) -> EventHandler
+    pub fn on_pre_event<E, H>(&self, mut handler: H) -> EventHandler
     where
         E: Event,
         H: FnMut(&mut AppContext, &E::Args) + 'static,
     {
-        self.try_on_pre_event::<E, H>(handler)
-            .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
+        let handler = EventHandler::new(move |ctx, update, args| {
+            if let Some(args) = update.is::<E>(args) {
+                if !args.stop_propagation_requested() {
+                    handler(ctx, args);
+                }
+            }
+        });
+        self.app_pre_handlers.push(&handler);
+        handler
     }
 
     /// Creates an event handler.
@@ -655,57 +373,39 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_event<E, H>(&self, handler: H) -> EventHandler
+    pub fn on_event<E, H>(&self, mut handler: H) -> EventHandler
     where
         E: Event,
         H: FnMut(&mut AppContext, &E::Args) + 'static,
     {
-        self.try_on_event::<E, H>(handler)
-            .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
-    }
-
-    pub(super) fn update_id(&self) -> u32 {
-        self.update_id
-    }
-
-    pub(super) fn push_change(&self, change: Box<dyn FnOnce(u32, &mut UpdateRequest)>) {
-        self.pending.borrow_mut().push(change);
-    }
-
-    pub(super) fn push_buffer(&self, buffer: Box<dyn Fn(u32) -> Retain>) {
-        self.buffers.borrow_mut().push(buffer);
+        let handler = EventHandler::new(move |ctx, update, args| {
+            if let Some(args) = update.is::<E>(args) {
+                if !args.stop_propagation_requested() {
+                    handler(ctx, args);
+                }
+            }
+        });
+        self.app_handlers.push(&handler);
+        handler
     }
 
     #[must_use]
     pub(super) fn apply(&mut self, updates: &mut Updates) -> Vec<Box<dyn OwnedAnyEventUpdate>> {
-        self.update_id = self.update_id.wrapping_add(1);
-
-        let pending = self.pending.get_mut();
-        if !pending.is_empty() {
-            let mut ups = UpdateRequest::default();
-            for f in pending.drain(..) {
-                f(self.update_id, &mut ups);
-            }
-            updates.schedule_updates(ups);
-
-            self.buffers.borrow_mut().retain(|b| b(self.update_id));
-        }
-
         let r = std::mem::take(self.updates.get_mut());
-
         if !r.is_empty() {
             updates.update();
         }
-
         r
     }
 
-    pub(super) fn on_pre_events(&self, ctx: &mut AppContext) {
-        self.app_pre_handlers.notify(ctx);
+    pub(super) fn on_pre_events(&self, ctx: &mut AppContext, update: AnyEventUpdate, args: &AnyEventArgs) {
+        self.buffers.borrow_mut().retain(|buf| buf(update, args));
+
+        self.app_pre_handlers.notify(ctx, update, args);
     }
 
-    pub(super) fn on_events(&self, ctx: &mut AppContext) {
-        self.app_handlers.notify(ctx);
+    pub(super) fn on_events(&self, ctx: &mut AppContext, update: AnyEventUpdate, args: &AnyEventArgs) {
+        self.app_handlers.notify(ctx, update, args);
     }
 }
 

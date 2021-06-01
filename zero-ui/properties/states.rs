@@ -143,9 +143,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state: StateVar,
         is_down: bool,
         is_over: bool,
-        is_shortcut_press: bool,
-
-        shortcut_release: EventListener<TimeElapsed>,
+        shortcut_press: Option<ResponseVar<TimeElapsed>>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsPressedNode<C> {
@@ -153,10 +151,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.state.set_ne(ctx.vars, false);
             self.is_down = false;
             self.is_over = false;
-            if self.is_shortcut_press {
-                self.is_shortcut_press = false;
-                self.shortcut_release = EventListener::response_never();
-            }
+            self.shortcut_press = None;
             self.child.deinit(ctx);
         }
 
@@ -186,14 +181,13 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 }
             } else if let Some(args) = update.is::<ClickEvent>(args) {
                 if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) && args.shortcut().is_some() {
-                    if self.is_shortcut_press {
-                        self.is_shortcut_press = false;
-                        self.shortcut_release = EventListener::response_never();
-                    } else {
+                    // if a shortcut click happened, we show pressed for the duration of `shortcut_press`
+                    // unless we where already doing that, then we just stop showing pressed, this causes
+                    // a flickering effect when rapid clicks are happening.
+                    if self.shortcut_press.take().is_none() {
                         let duration = ctx.services.req::<Gestures>().shortcut_pressed_duration;
                         if duration != Duration::default() {
-                            self.is_shortcut_press = true;
-                            self.shortcut_release = ctx.sync.update_after(duration);
+                            self.shortcut_press = Some(ctx.sync.update_after(duration));
                         }
                     }
                 }
@@ -214,15 +208,14 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             if let Some(false) = IsEnabled::get_new(ctx.vars) {
                 self.is_down = false;
                 self.is_over = false;
-                if self.is_shortcut_press {
-                    self.is_shortcut_press = false;
-                    self.shortcut_release = EventListener::response_never();
+                self.shortcut_press = None;
+            } else if let Some(timer) = &self.shortcut_press {
+                if timer.is_new(ctx.vars) {
+                    self.shortcut_press = None;
                 }
-            } else if self.shortcut_release.has_updates(ctx.events) {
-                self.is_shortcut_press = false;
             }
             self.state
-                .set_ne(ctx.vars, (self.is_down && self.is_over) || self.is_shortcut_press);
+                .set_ne(ctx.vars, (self.is_down && self.is_over) || self.shortcut_press.is_some());
         }
     }
     IsPressedNode {
@@ -230,8 +223,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state,
         is_down: false,
         is_over: false,
-        is_shortcut_press: false,
-        shortcut_release: EventListener::response_never(),
+        shortcut_press: None,
     }
 }
 
@@ -246,9 +238,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state: StateVar,
         is_down: bool,
         is_captured: bool,
-        is_shortcut_press: bool,
-
-        shortcut_release: EventListener<TimeElapsed>,
+        shortcut_press: Option<ResponseVar<TimeElapsed>>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsCapPressedNode<C> {
@@ -256,10 +246,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.state.set_ne(ctx.vars, false);
             self.is_down = false;
             self.is_captured = false;
-            if self.is_shortcut_press {
-                self.is_shortcut_press = false;
-                self.shortcut_release = EventListener::response_never();
-            }
+            self.shortcut_press = None;
             self.child.deinit(ctx);
         }
 
@@ -290,14 +277,11 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 self.child.event(ctx, WindowBlurEvent, args);
             } else if let Some(args) = update.is::<ClickEvent>(args) {
                 if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) && args.shortcut().is_some() {
-                    if self.is_shortcut_press {
-                        self.is_shortcut_press = false;
-                        self.shortcut_release = EventListener::response_never();
-                    } else {
+                    // see `is_pressed` for details of what is happening here.
+                    if self.shortcut_press.take().is_none() {
                         let duration = ctx.services.req::<Gestures>().shortcut_pressed_duration;
                         if duration != Duration::default() {
-                            self.is_shortcut_press = true;
-                            self.shortcut_release = ctx.sync.update_after(duration);
+                            self.shortcut_press = Some(ctx.sync.update_after(duration));
                         }
                     }
                     self.child.event(ctx, ClickEvent, args);
@@ -313,15 +297,14 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             if let Some(false) = IsEnabled::get_new(ctx.vars) {
                 self.is_down = false;
                 self.is_captured = false;
-                if self.is_shortcut_press {
-                    self.is_shortcut_press = false;
-                    self.shortcut_release = EventListener::response_never();
+                self.shortcut_press = None;
+            } else if let Some(timer) = &self.shortcut_press {
+                if timer.is_new(ctx.vars) {
+                    self.shortcut_press = None;
                 }
-            } else if self.shortcut_release.has_updates(ctx.events) {
-                self.is_shortcut_press = false;
             }
             self.state
-                .set_ne(ctx.vars, self.is_down || self.is_captured || self.is_shortcut_press);
+                .set_ne(ctx.vars, self.is_down || self.is_captured || self.shortcut_press.is_some());
         }
     }
     IsCapPressedNode {
@@ -329,9 +312,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state,
         is_down: false,
         is_captured: false,
-        is_shortcut_press: false,
-
-        shortcut_release: EventListener::response_never(),
+        shortcut_press: None,
     }
 }
 

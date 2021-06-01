@@ -1,10 +1,12 @@
 //! Asynchronous tasks and communication.
 
-use crate::event::{AnyEventArgs, AnyEventUpdate, Event, EventUpdate};
+use crate::{
+    event::{AnyEventArgs, AnyEventUpdate, Event, EventUpdate},
+    var::{response_var, var, ForceReadOnlyVar, RcVar, ResponderVar, ResponseVar, Vars},
+};
 
 use super::{
     context::{AppSyncContext, UpdateNotifier},
-    event::{EventEmitter, EventListener, Events},
     var::{Var, VarValue},
 };
 use flume::{self, Receiver, Sender, TryRecvError};
@@ -42,11 +44,11 @@ impl Sync {
     }
 
     /// Update timers, gets next wakeup moment.
-    pub fn update_timers(&mut self, events: &Events) -> Option<Instant> {
+    pub fn update_timers(&mut self, vars: &Vars) -> Option<Instant> {
         let now = Instant::now();
 
-        self.once_timers.retain(|t| t.retain(now, events));
-        self.interval_timers.retain_mut(|t| t.retain(now, events));
+        self.once_timers.retain(|t| t.retain(now, vars));
+        self.interval_timers.retain_mut(|t| t.retain(now, vars));
 
         let mut wake_time = None;
 
@@ -140,30 +142,30 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, event::EventListener};
-    /// # struct SomeStruct { sum_listener: EventListener<usize> }
+    /// # use zero_ui_core::{context::WidgetContext, var::ResponseVar};
+    /// # struct SomeStruct { sum_listener: ResponseVar<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     self.sum_listener = ctx.sync.run(||{
+    ///     self.sum_response = ctx.sync.run(||{
     ///         (0..1000).sum()
     ///     });
     /// }
     ///
     /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-    ///     if let Some(result) = self.sum_listener.updates(ctx.events).last() {
+    ///     if let Some(result) = self.sum_response.response_new(ctx.events) {
     ///         println!("sum of 0..1000: {}", result);   
     ///     }
     /// }
     /// # }
     /// ```
-    pub fn run<R: Send + 'static, T: FnOnce() -> R + Send + 'static>(&mut self, _task: T) -> EventListener<R> {
-        //let (event, listener) = self.response();
-        //rayon::spawn(move || {
-        //    let r = task();
-        //    event.notify(r);
-        //});
-        //listener
-        todo!()
+    pub fn run<R: VarValue + Send, T: FnOnce() -> R + Send + 'static>(&mut self, task: T) -> ResponseVar<R> {
+        let (responder, response) = response_var();
+        let sender = self.var_sender(responder);
+        rayon::spawn(move || {
+            let r = task();
+            sender.set(crate::var::Response::Done(r));
+        });
+        response
     }
 
     /// Run an IO bound task.
@@ -173,32 +175,32 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, event::EventListener};
-    /// # struct SomeStruct { file_listener: EventListener<Vec<u8>> }
+    /// # use zero_ui_core::{context::WidgetContext, var::ResponseVar};
+    /// # struct SomeStruct { file_listener: ResponseVar<Vec<u8>> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     self.file_listener = ctx.sync.run_async(async {
+    ///     self.file_response = ctx.sync.run_async(async {
     ///         todo!("use async_std to read a file")     
     ///     });
     /// }
     ///
     /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-    ///     if let Some(result) = self.file_listener.updates(ctx.events).last() {
+    ///     if let Some(result) = self.file_response.response_new(ctx.events) {
     ///         println!("file loaded: {} bytes", result.len());   
     ///     }
     /// }
     /// # }
     /// ```
-    pub fn run_async<R: Send + 'static, T: Future<Output = R> + Send + 'static>(&mut self, _task: T) -> EventListener<R> {
-        //let (event, listener) = self.response();
-        //// TODO run block-on?
-        //async_global_executor::spawn(async move {
-        //    let r = task.await;
-        //    event.notify(r);
-        //})
-        //.detach();
-        //listener
-        todo!()
+    pub fn run_async<R: VarValue + Send, T: Future<Output = R> + Send + 'static>(&mut self, task: T) -> ResponseVar<R> {
+        let (responder, response) = response_var();
+        let sender = self.var_sender(responder);
+        // TODO run block-on?
+        async_global_executor::spawn(async move {
+            let r = task.await;
+            sender.set(crate::var::Response::Done(r));
+        })
+        .detach();
+        response
     }
 
     fn update_wake_time(&mut self, due_time: Instant) {
@@ -211,66 +213,64 @@ impl Sync {
         }
     }
 
-    /// Gets an event listener that updates once after the `duration`.
+    /// Gets a response var that updates once after the `duration`.
     ///
-    /// The listener will update once at the moment of now + duration or a little later.
+    /// The response will update once at the moment of now + duration or a little later.
     #[inline]
-    pub fn update_after(&mut self, duration: Duration) -> EventListener<TimeElapsed> {
+    pub fn update_after(&mut self, duration: Duration) -> ResponseVar<TimeElapsed> {
         self.update_when(Instant::now() + duration)
     }
 
-    /// Gets an event listener that updates once after the number of milliseconds.
+    /// Gets a response var that updates once after the number of milliseconds.
     ///
-    /// The listener will update once at the moment of now + duration or a little later.
+    /// The response will update once at the moment of now + duration or a little later.
     #[inline]
-    pub fn update_after_millis(&mut self, millis: u64) -> EventListener<TimeElapsed> {
+    pub fn update_after_millis(&mut self, millis: u64) -> ResponseVar<TimeElapsed> {
         self.update_after(Duration::from_millis(millis))
     }
 
-    /// Gets an event listener that updates once after the number of seconds.
+    /// Gets a response var that updates once after the number of seconds.
     ///
-    /// The listener will update once at the moment of now + duration or a little later.
+    /// The response will update once at the moment of now + duration or a little later.
     #[inline]
-    pub fn update_after_secs(&mut self, secs: u64) -> EventListener<TimeElapsed> {
+    pub fn update_after_secs(&mut self, secs: u64) -> ResponseVar<TimeElapsed> {
         self.update_after(Duration::from_secs(secs))
     }
 
-    /// Gets an event listener that updates every `interval`.
+    /// Gets a response var that updates every `interval`.
     ///
-    /// The listener will update after every interval or a litter later.
-    pub fn update_every(&mut self, interval: Duration) -> EventListener<TimeElapsed> {
-        let timer = IntervalTimer::new(interval);
+    /// The var will update after every interval elapse.
+    pub fn update_every(&mut self, interval: Duration) -> TimerVar {
+        let (timer, var) = IntervalTimer::new(interval);
         self.update_wake_time(timer.due_time);
-        let listener = timer.emitter.listener();
         self.interval_timers.push(timer);
-        listener
+        var
     }
 
-    /// Gets an event listener that updated every *n* seconds.
+    /// Gets a var that updated every *n* seconds.
     ///
-    /// The listener will update after every interval or a litter later.
+    // The var will update after every interval elapse.
     #[inline]
-    pub fn update_every_secs(&mut self, secs: u64) -> EventListener<TimeElapsed> {
+    pub fn update_every_secs(&mut self, secs: u64) -> TimerVar {
         self.update_every(Duration::from_secs(secs))
     }
 
-    /// Gets an event listener that updated every *n* milliseconds.
+    /// Gets a var that updated every *n* milliseconds.
     ///
-    /// The listener will update after every interval or a litter later.
+    // The var will update after every interval elapse.
     #[inline]
-    pub fn update_every_millis(&mut self, millis: u64) -> EventListener<TimeElapsed> {
+    pub fn update_every_millis(&mut self, millis: u64) -> TimerVar {
         self.update_every(Duration::from_millis(millis))
     }
 
-    /// Gets an event listener that updates once when `time` is reached.
+    /// Gets a response var that updates once when `time` is reached.
     ///
-    /// The listener will update once at the moment of now + duration or a little later.
-    pub fn update_when(&mut self, time: Instant) -> EventListener<TimeElapsed> {
-        let timer = OnceTimer::new(time);
+    /// The response will update once at the moment of now + duration or a little later.
+    pub fn update_when(&mut self, time: Instant) -> ResponseVar<TimeElapsed> {
+        let (timer, response) = OnceTimer::new(time);
         self.update_wake_time(timer.due_time);
-        let listener = timer.emitter.listener();
         self.once_timers.push(timer);
-        listener
+        response
     }
 }
 
@@ -292,58 +292,64 @@ impl fmt::Debug for TimeElapsed {
 
 struct OnceTimer {
     due_time: Instant,
-    emitter: EventEmitter<TimeElapsed>,
+    responder: ResponderVar<TimeElapsed>,
 }
 impl OnceTimer {
-    fn new(due_time: Instant) -> Self {
-        OnceTimer {
-            due_time,
-            emitter: EventEmitter::response(),
-        }
+    fn new(due_time: Instant) -> (Self, ResponseVar<TimeElapsed>) {
+        let (responder, response) = response_var();
+        (OnceTimer { due_time, responder }, response)
     }
 
     /// Notifies the listeners if the timer elapsed.
     ///
     /// Returns if the timer is still active, once timer deactivate
     /// when they elapse or when there are no more listeners alive.
-    fn retain(&self, now: Instant, events: &Events) -> bool {
-        if self.emitter.listener_count() == 0 {
+    fn retain(&self, now: Instant, vars: &Vars) -> bool {
+        if self.responder.strong_count() == 1 {
             return false;
         }
 
         let elapsed = self.due_time <= now;
         if elapsed {
-            self.emitter.notify(events, TimeElapsed { timestamp: now })
+            self.responder.respond(vars, TimeElapsed { timestamp: now });
         }
 
         !elapsed
     }
 }
 
+/// A variable that is set every time an [interval timer](Sync::update_every) elapses.
+pub type TimerVar = ForceReadOnlyVar<TimeElapsed, RcVar<TimeElapsed>>;
+
 struct IntervalTimer {
     due_time: Instant,
     interval: Duration,
-    emitter: EventEmitter<TimeElapsed>,
+    responder: RcVar<TimeElapsed>,
 }
 impl IntervalTimer {
-    fn new(interval: Duration) -> Self {
-        IntervalTimer {
-            due_time: Instant::now() + interval,
-            interval,
-            emitter: EventEmitter::response(),
-        }
+    fn new(interval: Duration) -> (Self, TimerVar) {
+        let responder = var(TimeElapsed { timestamp: Instant::now() });
+        let response = responder.clone().into_read_only();
+        (
+            IntervalTimer {
+                due_time: Instant::now() + interval,
+                interval,
+                responder,
+            },
+            response,
+        )
     }
 
     /// Notifier the listeners if the time elapsed and resets the timer.
     ///
     /// Returns if the timer is still active, interval timers deactivate
     /// when there are no more listeners alive.
-    fn retain(&mut self, now: Instant, events: &Events) -> bool {
-        if self.emitter.listener_count() == 0 {
+    fn retain(&mut self, now: Instant, vars: &Vars) -> bool {
+        if self.responder.strong_count() == 1 {
             return false;
         }
         if self.due_time <= now {
-            self.emitter.notify(events, TimeElapsed { timestamp: now });
+            self.responder.set(vars, TimeElapsed { timestamp: now });
             self.due_time = now + self.interval;
         }
 

@@ -4,7 +4,7 @@ use zero_ui::core::gesture::HeadlessAppGestureExt;
 use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
 use zero_ui::core::window::{HeadlessAppWindowExt, WindowId};
 use zero_ui::prelude::*;
-use zero_ui_core::event::BufEventListener;
+use zero_ui_core::event::EventBuffer;
 
 #[test]
 pub fn first_and_last_window_events() {
@@ -1506,8 +1506,8 @@ struct TestApp {
     app: HeadlessApp,
     pub window_id: WindowId,
 
-    focus_changed: BufEventListener<FocusChangedArgs>,
-    return_focus_changed: BufEventListener<ReturnFocusChangedArgs>,
+    focus_changed: EventBuffer<FocusChangedArgs>,
+    return_focus_changed: EventBuffer<ReturnFocusChangedArgs>,
 }
 impl TestApp {
     pub fn new(content: impl UiNode) -> Self {
@@ -1517,8 +1517,8 @@ impl TestApp {
         let mut app = App::default().run_headless();
 
         let (focus_changed, return_focus_changed) = app.with_context(|ctx| {
-            let fc = ctx.events.listen_buf::<zero_ui::core::focus::FocusChangedEvent>();
-            let rfc = ctx.events.listen_buf::<zero_ui::core::focus::ReturnFocusChangedEvent>();
+            let fc = ctx.events.buffer::<zero_ui::core::focus::FocusChangedEvent>();
+            let rfc = ctx.events.buffer::<zero_ui::core::focus::ReturnFocusChangedEvent>();
             (fc, rfc)
         });
 

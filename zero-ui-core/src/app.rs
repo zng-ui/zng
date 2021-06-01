@@ -1,8 +1,9 @@
 //! App startup and app extension API.
 
 use crate::context::*;
-use crate::event::{cancelable_event_args, AnyEventArgs, AnyEventUpdate, EventEmitter, EventListener, EventUpdate};
+use crate::event::{cancelable_event_args, AnyEventArgs, AnyEventUpdate, EventUpdate};
 use crate::profiler::*;
+use crate::var::{response_var, ResponderVar, ResponseVar};
 use crate::{
     focus::FocusManager,
     gesture::GestureManager,
@@ -439,14 +440,14 @@ impl fmt::Display for ShutdownCancelled {
 /// This is the only service that is registered without an application extension.
 #[derive(Service)]
 pub struct AppProcess {
-    shutdown_requests: Vec<EventEmitter<ShutdownCancelled>>,
+    shutdown_requests: Option<ResponderVar<ShutdownCancelled>>,
     update_notifier: UpdateNotifier,
 }
 impl AppProcess {
     /// New app process service
     pub fn new(update_notifier: UpdateNotifier) -> Self {
         AppProcess {
-            shutdown_requests: Vec::new(),
+            shutdown_requests: None,
             update_notifier,
         }
     }
@@ -455,30 +456,33 @@ impl AppProcess {
     ///
     /// Returns an event listener that is updated once with the unit value [`ShutdownCancelled`]
     /// if the shutdown operation is cancelled.
-    pub fn shutdown(&mut self) -> EventListener<ShutdownCancelled> {
-        let emitter = EventEmitter::response();
-        self.shutdown_requests.push(emitter.clone());
-        self.update_notifier.update();
-        emitter.into_listener()
+    pub fn shutdown(&mut self) -> ResponseVar<ShutdownCancelled> {
+        if let Some(r) = &self.shutdown_requests {
+            r.response_var()
+        } else {
+            let (responder, response) = response_var();
+            self.shutdown_requests = Some(responder);
+            self.update_notifier.update();
+            response
+        }
     }
 
-    fn take_requests(&mut self) -> Vec<EventEmitter<ShutdownCancelled>> {
-        mem::take(&mut self.shutdown_requests)
+    fn take_requests(&mut self) -> Option<ResponderVar<ShutdownCancelled>> {
+        self.shutdown_requests.take()
     }
 }
 ///Returns if should shutdown
-fn shutdown(shutdown_requests: Vec<EventEmitter<ShutdownCancelled>>, ctx: &mut AppContext, ext: &mut impl AppExtension) -> bool {
-    if shutdown_requests.is_empty() {
-        return false;
-    }
-    let args = ShutdownRequestedArgs::now();
-    ext.on_shutdown_requested(ctx, &args);
-    if args.cancel_requested() {
-        for c in shutdown_requests {
-            c.notify(ctx.events, ShutdownCancelled);
+fn shutdown(shutdown_requests: Option<ResponderVar<ShutdownCancelled>>, ctx: &mut AppContext, ext: &mut impl AppExtension) -> bool {
+    if let Some(r) = shutdown_requests {
+        let args = ShutdownRequestedArgs::now();
+        ext.on_shutdown_requested(ctx, &args);
+        if args.cancel_requested() {
+            r.respond(ctx.vars, ShutdownCancelled);
         }
+        !args.cancel_requested()
+    } else {
+        false
     }
-    !args.cancel_requested()
 }
 
 #[derive(Debug)]
@@ -718,7 +722,7 @@ impl<E: AppExtension> AppExtended<E> {
                     if let GEventStartCause::ResumeTimeReached { .. } = cause {
                         // we assume only timers set WaitUntil.
                         let ctx = owned_ctx.borrow(event_loop);
-                        if let Some(resume) = ctx.sync.update_timers(ctx.events) {
+                        if let Some(resume) = ctx.sync.update_timers(ctx.vars) {
                             *control_flow = ControlFlow::WaitUntil(resume);
                         } else {
                             *control_flow = ControlFlow::Wait;
@@ -770,8 +774,10 @@ impl<E: AppExtension> AppExtended<E> {
                 for event in u.events {
                     let (update, args) = event.borrow();
                     extensions.on_event_preview(&mut ctx, update, args);
+                    ctx.events.on_pre_events(&mut ctx, update, args);
                     extensions.on_event_ui(&mut ctx, update, args);
                     extensions.on_event(&mut ctx, update, args);
+                    ctx.events.on_events(&mut ctx, update, args);
                 }
 
                 let update = u.update | mem::take(&mut event_update);
@@ -789,10 +795,8 @@ impl<E: AppExtension> AppExtended<E> {
                             return;
                         }
                         extensions.update_preview(&mut ctx);
-                        ctx.events.on_pre_events(&mut ctx);
                         extensions.update_ui(&mut ctx);
                         extensions.update(&mut ctx);
-                        ctx.events.on_events(&mut ctx);
                     }
                 } else {
                     break;
@@ -964,37 +968,66 @@ impl HeadlessApp {
     /// if it is `false` only responds to app events already in the buffer.
     #[inline]
     pub fn update(&mut self, wait_app_event: bool) -> ControlFlow {
-        self.update_observe_all(|_, _| {}, |_, _| {}, |_, _| {}, |_, _| {}, wait_app_event)
+        struct ObserveNothing;
+        impl HeadlessUpdateObserver for ObserveNothing {}
+        self.update_observe_all(&mut ObserveNothing, wait_app_event)
     }
 
     /// Does updates with a callback called after the extensions update listeners.
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe(&mut self, on_update: impl FnMut(UpdateRequest, &mut AppContext), wait_app_event: bool) -> ControlFlow {
-        self.update_observe_all(|_, _| {}, |_, _| {}, |_, _| {}, on_update, wait_app_event)
+    pub fn update_observe(&mut self, on_update: impl FnMut(&mut AppContext), wait_app_event: bool) -> ControlFlow {
+        struct Observer<F>(F);
+        impl<F: FnMut(&mut AppContext)> HeadlessUpdateObserver for Observer<F> {
+            fn update(&mut self, ctx: &mut AppContext) {
+                (self.0)(ctx)
+            }
+        }
+        let mut observer = Observer(on_update);
+        self.update_observe_all(&mut observer, wait_app_event)
+    }
+
+    /// Does updates with a callback called after the extensions event listeners.
+    ///
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
+    /// if it is `false` only responds to app events already in the buffer.
+    pub fn update_observe_event(
+        &mut self,
+        on_event: impl FnMut(&mut AppContext, AnyEventUpdate, &AnyEventArgs),
+        wait_app_event: bool,
+    ) -> ControlFlow {
+        struct Observer<F>(F);
+        impl<F: FnMut(&mut AppContext, AnyEventUpdate, &AnyEventArgs)> HeadlessUpdateObserver for Observer<F> {
+            fn on_event<EU: EventUpdate>(&mut self, ctx: &mut AppContext, update: EU, args: &EU::Args) {
+                let (update, args) = AnyEventUpdate::from(update, args);
+                (self.0)(ctx, update, args);
+            }
+        }
+        let mut observer = Observer(on_event);
+        self.update_observe_all(&mut observer, wait_app_event)
     }
 
     /// Does updates with a callback called after the extensions respond to a new frame ready.
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe_frame(&mut self, on_new_frame_ready: impl FnMut(WindowId, &mut AppContext), wait_app_event: bool) -> ControlFlow {
-        self.update_observe_all(on_new_frame_ready, |_, _| {}, |_, _| {}, |_, _| {}, wait_app_event)
+    pub fn update_observe_frame(&mut self, on_new_frame_ready: impl FnMut(&mut AppContext, WindowId), wait_app_event: bool) -> ControlFlow {
+        struct Observer<F>(F);
+        impl<F: FnMut(&mut AppContext, WindowId)> HeadlessUpdateObserver for Observer<F> {
+            fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+                (self.0)(ctx, window_id)
+            }
+        }
+        let mut observer = Observer(on_new_frame_ready);
+        self.update_observe_all(&mut observer, wait_app_event)
     }
 
     /// Does updates injecting update listeners after the extension listeners.
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe_all(
-        &mut self,
-        mut on_new_frame_ready: impl FnMut(WindowId, &mut AppContext),
-        mut on_update_preview: impl FnMut(UpdateRequest, &mut AppContext),
-        mut on_update_ui: impl FnMut(UpdateRequest, &mut AppContext),
-        mut on_update: impl FnMut(UpdateRequest, &mut AppContext),
-        wait_app_event: bool,
-    ) -> ControlFlow {
+    pub fn update_observe_all(&mut self, observer: &mut impl HeadlessUpdateObserver, wait_app_event: bool) -> ControlFlow {
         if let ControlFlow::Exit = self.control_flow {
             return ControlFlow::Exit;
         }
@@ -1006,7 +1039,7 @@ impl HeadlessApp {
                 AppEvent::NewFrameReady(window_id) => {
                     let mut ctx = &mut self.owned_ctx.borrow(self.event_loop.window_target());
                     self.extensions.on_new_frame_ready(&mut ctx, window_id);
-                    on_new_frame_ready(window_id, &mut ctx)
+                    observer.on_new_frame_ready(&mut ctx, window_id);
                 }
                 AppEvent::Update => {
                     event_update |= self.owned_ctx.take_request();
@@ -1026,8 +1059,15 @@ impl HeadlessApp {
             for event in u.events {
                 let (update, args) = event.borrow();
                 self.extensions.on_event_preview(&mut ctx, update, args);
+                observer.on_event_preview(&mut ctx, update, args);
+                ctx.events.on_pre_events(&mut ctx, update, args);
+
                 self.extensions.on_event_ui(&mut ctx, update, args);
+                observer.on_event_ui(&mut ctx, update, args);
+
                 self.extensions.on_event(&mut ctx, update, args);
+                observer.on_event(&mut ctx, update, args);
+                ctx.events.on_events(&mut ctx, update, args);
             }
 
             let update = u.update | mem::take(&mut event_update);
@@ -1045,15 +1085,13 @@ impl HeadlessApp {
                         return ControlFlow::Exit;
                     }
                     self.extensions.update_preview(&mut ctx);
-                    on_update_preview(update, &mut ctx);
-                    ctx.events.on_pre_events(&mut ctx);
+                    observer.update_preview(&mut ctx);
 
                     self.extensions.update_ui(&mut ctx);
-                    on_update_ui(update, &mut ctx);
+                    observer.update_ui(&mut ctx);
 
                     self.extensions.update(&mut ctx);
-                    on_update(update, &mut ctx);
-                    ctx.events.on_events(&mut ctx);
+                    observer.update(&mut ctx);
                 }
             } else {
                 break;
@@ -1078,6 +1116,44 @@ impl HeadlessApp {
     #[inline]
     pub fn control_flow(&self) -> ControlFlow {
         self.control_flow // TODO better merge
+    }
+}
+
+/// Observer for [`HeadlessApp::update_observe_all`].
+pub trait HeadlessUpdateObserver {
+    /// Called just after [`AppExtension::on_event_preview`].
+    fn on_event_preview<EU: EventUpdate>(&mut self, ctx: &mut AppContext, update: EU, args: &EU::Args) {
+        let _ = (ctx, update, args);
+    }
+
+    /// Called just after [`AppExtension::on_event_ui`].
+    fn on_event_ui<EU: EventUpdate>(&mut self, ctx: &mut AppContext, update: EU, args: &EU::Args) {
+        let _ = (ctx, update, args);
+    }
+
+    /// Called just after [`AppExtension::on_event`].
+    fn on_event<EU: EventUpdate>(&mut self, ctx: &mut AppContext, update: EU, args: &EU::Args) {
+        let _ = (ctx, update, args);
+    }
+
+    /// Called just after [`AppExtension::update_preview`].
+    fn update_preview(&mut self, ctx: &mut AppContext) {
+        let _ = ctx;
+    }
+
+    /// Called just after [`AppExtension::update_ui`].
+    fn update_ui(&mut self, ctx: &mut AppContext) {
+        let _ = ctx;
+    }
+
+    /// Called just after [`AppExtension::update`].
+    fn update(&mut self, ctx: &mut AppContext) {
+        let _ = ctx;
+    }
+
+    /// Called just after [`AppExtension::on_new_frame_ready`].
+    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        let _ = (ctx, window_id);
     }
 }
 
