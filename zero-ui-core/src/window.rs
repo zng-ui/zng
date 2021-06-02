@@ -1934,11 +1934,12 @@ impl OpenWindow {
     ///
     /// Returns a listener that will update once with the result of the operation.
     pub fn close(&self) -> ResponseVar<CloseWindowResult> {
-        if let Some(r) = &*self.close_response.borrow() {
+        let mut close_response = self.close_response.borrow_mut();
+        if let Some(r) = &*close_response {
             r.response_var()
         } else {
             let (responder, response) = response_var();
-            *self.close_response.borrow_mut() = Some(responder);
+            *close_response = Some(responder);
             *self.close_canceled.borrow_mut() = Rc::default();
             self.update_notifier.update();
             response
