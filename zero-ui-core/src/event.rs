@@ -45,12 +45,15 @@ pub trait CancelableEventArgs: EventArgs {
 }
 
 /// Identifies an event type.
+///
+/// Use [`event!`](macro@event) to declare.
 pub trait Event: Debug + Clone + Copy + 'static {
     /// Event arguments type.
     type Args: EventArgs;
 
     /// Schedule an event update.
     #[doc(hidden)]
+    #[inline(always)]
     fn notify(events: &Events, args: Self::Args) {
         events.notify::<Self>(args);
     }
@@ -153,6 +156,7 @@ impl<'a> fmt::Debug for AnyEventUpdate<'a> {
 }
 impl<'a> protected::EventUpdateArgs for AnyEventUpdate<'a> {}
 impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
+    #[inline(always)]
     fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>> {
         if self.event_type == TypeId::of::<Q>() {
             Some(unsafe {
@@ -165,6 +169,7 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
         }
     }
 
+    #[inline(always)]
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
             event_type: self.event_type,
@@ -774,7 +779,7 @@ macro_rules! cancelable_event_args {
 #[doc(inline)]
 pub use crate::cancelable_event_args;
 
-/// Declares new low-pressure [`Event`](crate::event::Event) types.
+/// Declares new [`Event`](crate::event::Event) types.
 ///
 /// # Example
 ///
