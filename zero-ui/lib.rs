@@ -36,174 +36,6 @@
 //!     }
 //! }
 //! ```
-//!
-//! # Architecture
-//!
-//! Zero-Ui apps are organized in a hierarchy of contexts that represents the lifetime of components.
-//!
-//! ```text
-//! +----------------------------------------------------------------------+
-//! | # Level 0 - App                                                      |
-//! |                                                                      |
-//! |  App, AppExtension, AppContext, Services, Events                  |
-//! |                                                                      |
-//! | +------------------------------------------------------------------+ |
-//! | | # Level 1 - Window                                               | |
-//! | |                                                                  | |
-//! | |   Window, WindowContext, WindowId                                | |
-//! | |                                                                  | |
-//! | | +--------------------------------------------------------------+ | |
-//! | | | # Level 2 - Widget                                           | | |
-//! | | |                                                              | | |
-//! | | | UiNode, WidgetContext, widget!, #[property], WidgetId        | | |
-//! | | |                                                              | | |
-//! | | +--------------------------------------------------------------+ | |
-//! | +------------------------------------------------------------------+ |
-//! +----------------------------------------------------------------------+
-//! ```
-//!
-//! ## Level 0 - App
-//!
-//! Components at this level live for the duration of the application, the root type is [`App`](crate::core::app::App).
-//! An app is built from multiple extensions ([`AppExtension`](crate::core::app::AppExtension)) and then [`run`](crate::core::app::AppExtended::run).
-//!
-//! When the app is run, before the main loop starts, the extensions are [init](crate::core::app::AppExtension) with access to an especial context
-//! [`AppInitContext`](crate::core::context::AppInitContext). [Services](#services) and [events](#services) can only be registered with
-//! this context, they live for the duration of the application.
-//!
-//! After the app init, the main loop starts and the other extension methods are called with the [`AppContext`](crate::core::context::AppContext).
-//!
-//! ### Services
-//!
-//! Services are utilities that can be accessed by every component in every level, this includes [opening windows](crate::core::window::Windows)
-//! and [shutting down](crate::core::app::AppProcess) the app it-self. All services implement [`Service`](crate::core::service::Service)
-//! and can be requested from a [`Services`](crate::core::service::Services) that is provided by every context.
-//!
-//! ### Events
-//!
-//! Events are a list of [`EventArgs`](crate::core::event::EventArgs) that can be observed every update. New events can be generated from the
-//! app extension methods or from other events. All events implement [`Event`](crate::core::event::Event) and a listener can be requested from
-//! an [`Events`](crate::core::event::Events) that is provided by every context.
-//!
-//! Note that in [Level 2](#level-2-widget) events are abstracted further into a property that setups a listener and call a handler for every
-//! event update.
-//!
-//! ## Level 1 - Window
-//!
-//! Components at this level live for the duration of a window instance. A window owns instances [window services](window-services)
-//! and the root widget, it manages layout and rendering the widget tree.
-//!
-//! By default the [`WindowManager`](crate::core::window::WindowManager) extension sets-up the window contexts,
-//! but that is not a requirement, you can implement your own *windows*.
-//!
-//!
-//! ## Level 2 - Widget
-//!
-//! The UI tree is composed of types that implement [`UiNode`](crate::core::UiNode), they can own one or more child nodes
-//! that are also UI nodes, some special nodes introduce a new [`WidgetContext`](crate::core::context::WidgetContext) that
-//! defines that sub-tree branch as a widget.
-//!
-//! The behavior and appearance of a widget is defined in these nodes, a widget
-//! is usually composed of multiple nodes, one that defines the context, another that defines its unique behavior
-//! plus more nodes introduced by [properties](#properties) that modify the widget.
-//!
-//! ### Properties
-//!
-//! A property is in essence a function that takes an UI node and some other arguments and returns a new UI node.
-//! This is in fact the signature used for declaring one, see [`#[property]`](crate::core::property) for more details.
-//!
-//! Multiple properties are grouped together to form a widget.
-//!
-//! ### Widgets
-//!
-//! A widget is a bundle of preset properties plus two optional functions, see [`widget!`](crate::core::widget) for more details.
-//!
-//! During widget instantiation an UI node tree is build by feeding each property node to a subsequent property, in a debug build
-//! inspector nodes are inserted also, to monitor the properties. You can press `CTRL+SHIT+I` to inspect a window.
-//!
-//! The widget root node introduces a new [`WidgetContext`](crate::core::context::WidgetContext) that can be accessed by all
-//! widget properties.
-//!
-//! # State
-//!
-//! TODO how to keep state, and contextual states.
-//!
-//! ## Variables
-//!
-//! TODO
-//!
-//! # Updates
-//!
-//! TODO how the UI is updated.
-//!
-//! # Async
-//!
-//! TODO how to run async tasks that interact back with the UI.
-//!
-//! # Lifecycle Overview
-//!
-//!
-//! ```text
-//! +------------------------------------+
-//! | # Setup                            |
-//! |                  ↓↑                |
-//! | App::default().extend(CustomExt)   |
-//! |      ::empty()                     |
-//! +------------------------------------+
-//!    |
-//!    | .run(|ctx: &mut AppContext| { .. })
-//!    | .run_window(|ctx: &mut AppContext| { window! { .. } })
-//!    ↓
-//! +---------------------------------------+
-//! | # Run                                 |
-//! |                                       |
-//! | services.register(AppProcess)         |
-//! |    |                                  |
-//! |    ↓            ↓↑                    |
-//! | AppExtension::init(AppInitContext)    |
-//! |    |                                  |
-//! |    ↓     ↓OS  ↓timer  ↓UpdateNotifier |
-//! | +---------------------------------------------+
-//! | | # EventLoop                                 |
-//! | |                                             |
-//! | |  AppExtension ↓↑                            |
-//! | |      ::on_window_event(..)                  |
-//! | |      ::on_device_event(..)                  |
-//! | |      ::on_new_frame_ready(..)               |
-//! | |   |                                         |
-//! | |   ↓      ↓update                            |
-//! | | +-----------------------------------------------+
-//! | | | # Updates                                     |
-//! | | |                                               |
-//! | | |   ↓↑ sync - pending assign, notify requests   |
-//! | | |   ↓↑ vars - setup new values                  |
-//! | | |   ↓↑ events - setup update arguments          |
-//! | | |   ↓                                           |
-//! | | |   if any -> AppExtension::update(..) ↑        |
-//! | | |   |            UiNode::update(..)             |
-//! | | |   |            UiNode::update_hp(..)          |
-//! | | |   |               event handlers              |
-//! | | |   ↓                                           |
-//! | | +-----------------------------------------------+
-//! | |     ↓                                        |
-//! | | +-----------------------------------------------+
-//! | | | # Layout/Render                               |
-//! | | |                                               |
-//! | | | AppExtension::update_display(..)              |
-//! | | |           UiNode::measure(..)                 |
-//! | | |           UiNode::arrange(..)                 |
-//! | | |           UiNode::render(..)                  |
-//! | | |           UiNode::render_update(..)           |
-//! | | +-----------------------------------------------+
-//! | |     ↓                                       |
-//! | |   EventLoop                                 |
-//! | +---------------------------------------------+
-//! |   | AppProcess::shutdown()            |
-//! |   ↓                                   |
-//! |   0                                   |
-//! +---------------------------------------+
-//! ```
-
 /*!
 <script>
 // hide macros from doc root
@@ -299,9 +131,9 @@ pub mod core {
     /// to the same [`UiNode`](crate::core::UiNode) method on each node.
     ///
     /// ```
-    /// # use zero_ui::core::{impl_ui_node, UiNode};
+    /// # use zero_ui::core::{impl_ui_node, UiNode, BoxedUiNode};
     /// struct MyNode {
-    ///     children: Vec<Box<dyn UiNode>>
+    ///     children: Vec<BoxedUiNode>
     /// }
     /// #[impl_ui_node(
     ///     delegate_iter = self.children.iter(),
@@ -314,8 +146,8 @@ pub mod core {
     /// you can use this shorthand to the same effect:
     ///
     /// ```
-    /// # use zero_ui::core::{impl_ui_node, UiNode};
-    /// # struct MyNode { children: Vec<Box<dyn UiNode>> }
+    /// # use zero_ui::core::{impl_ui_node, UiNode, BoxedUiNode};
+    /// # struct MyNode { children: Vec<BoxedUiNode> }
     /// #[impl_ui_node(children_iter)]
     /// impl UiNode for MyNode { }
     /// ```
@@ -357,8 +189,8 @@ pub mod core {
     /// methods must be tagged with the `#[UiNode]` pseudo-attribute.
     ///
     /// ```
-    /// # use zero_ui::core::{impl_ui_node, UiNode, context::WidgetContext};
-    /// # struct MyNode { child: Box<dyn UiNode> }
+    /// # use zero_ui::core::{impl_ui_node, UiNode, BoxedUiNode, context::WidgetContext};
+    /// # struct MyNode { child: BoxedUiNode }
     /// #[impl_ui_node(child)]
     /// impl MyNode {
     ///     fn do_the_thing(&mut self, ctx: &mut WidgetContext) {

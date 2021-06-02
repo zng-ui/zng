@@ -5,7 +5,6 @@
 
 use super::event_property;
 use crate::core::context::WidgetContext;
-use crate::core::event::EventArgs;
 use crate::core::gesture::*;
 use crate::prelude::new_property::*;
 
@@ -116,7 +115,6 @@ pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
     ClickShortcutNode {
         child,
         shortcuts: shortcuts.into_var(),
-        shortcut_listener: ShortcutEvent::never(),
         kind: ShortcutClick::Primary,
     }
 }
@@ -129,44 +127,36 @@ pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortc
     ClickShortcutNode {
         child,
         shortcuts: shortcuts.into_var(),
-        shortcut_listener: ShortcutEvent::never(),
         kind: ShortcutClick::Context,
     }
 }
 struct ClickShortcutNode<C: UiNode, S: Var<Shortcuts>> {
     child: C,
     shortcuts: S,
-    shortcut_listener: EventListener<ShortcutArgs>,
     kind: ShortcutClick,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, S: Var<Shortcuts>> UiNode for ClickShortcutNode<C, S> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.child.init(ctx);
-        self.shortcut_listener = ctx.events.listen::<ShortcutEvent>();
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        self.child.deinit(ctx);
-        self.shortcut_listener = ShortcutEvent::never();
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
-
-        if self.shortcut_listener.has_updates(ctx.events) && IsEnabled::get(ctx.vars) {
-            let shortcuts = self.shortcuts.get(ctx.vars);
-
-            for args in self.shortcut_listener.updates(ctx.events) {
-                if !args.stop_propagation_requested() && shortcuts.0.contains(&args.shortcut) {
-                    // this request also focus the widget if the window is focused
-                    // and the widget is focusable.
-                    ctx.services
-                        .req::<Gestures>()
-                        .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), self.kind, args.clone());
-                    break;
-                }
+impl<C, S> UiNode for ClickShortcutNode<C, S>
+where
+    C: UiNode,
+    S: Var<Shortcuts>,
+{
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
+    where
+        Self: Sized,
+    {
+        if let Some(args) = ShortcutEvent::update(args) {
+            self.child.event(ctx, args);
+            if !args.stop_propagation_requested() && self.shortcuts.get(ctx.vars).0.contains(&args.shortcut) {
+                // this request also focus the widget if the window is focused
+                // and the widget is focusable.
+                ctx.services
+                    .req::<Gestures>()
+                    .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), self.kind, args.clone());
+                args.stop_propagation();
             }
+        } else {
+            self.child.event(ctx, args);
         }
     }
 }

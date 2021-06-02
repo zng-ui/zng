@@ -1,8 +1,12 @@
 //! Asynchronous tasks and communication.
 
+use crate::{
+    event::{AnyEventUpdate, Event},
+    var::{response_var, var, ForceReadOnlyVar, RcVar, ResponderVar, ResponseVar, Vars},
+};
+
 use super::{
     context::{AppSyncContext, UpdateNotifier},
-    event::{EventEmitter, EventListener, Events},
     var::{Var, VarValue},
 };
 use flume::{self, Receiver, Sender, TryRecvError};
@@ -10,6 +14,7 @@ use retain_mut::*;
 use std::{
     fmt,
     future::Future,
+    sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
 
@@ -40,11 +45,11 @@ impl Sync {
     }
 
     /// Update timers, gets next wakeup moment.
-    pub fn update_timers(&mut self, events: &Events) -> Option<Instant> {
+    pub fn update_timers(&mut self, vars: &Vars) -> Option<Instant> {
         let now = Instant::now();
 
-        self.once_timers.retain(|t| t.retain(now, events));
-        self.interval_timers.retain_mut(|t| t.retain(now, events));
+        self.once_timers.retain(|t| t.retain(now, vars));
+        self.interval_timers.retain_mut(|t| t.retain(now, vars));
 
         let mut wake_time = None;
 
@@ -109,25 +114,26 @@ impl Sync {
         channel
     }
 
-    /// Creates an event emitter that can be used from other threads.
-    pub fn event_sender<T: Send + 'static>(&mut self, event: EventEmitter<T>) -> EventSender<T> {
-        let (sync, sender) = EventSenderSync::new(event, self.notifier.clone());
+    /// Creates a channel that can raise an event from another thread.
+    pub fn event_sender<A, E>(&mut self) -> EventSender<E>
+    where
+        E: Event,
+        E::Args: Send,
+    {
+        let (sync, sender) = EventSenderSync::new(self.notifier.clone());
         self.channels.push(Box::new(sync));
         sender
     }
 
-    /// Creates an event listener that can be used from other threads.
-    pub fn event_receiver<T: Clone + Send + 'static>(&mut self, event: EventListener<T>) -> EventReceiver<T> {
-        let (sync, receiver) = EventReceiverSync::new(event);
+    /// Creates a channel that can listen to event from another thread.
+    pub fn event_receiver<E>(&mut self) -> EventReceiver<E>
+    where
+        E: Event,
+        E::Args: Send,
+    {
+        let (sync, receiver) = EventReceiverSync::new();
         self.channels.push(Box::new(sync));
         receiver
-    }
-
-    fn response<T: Send + 'static>(&mut self) -> (EventSender<T>, EventListener<T>) {
-        let event = EventEmitter::response();
-        let listener = event.listener();
-        let event = self.event_sender(event);
-        (event, listener)
     }
 
     /// Run a CPU bound task.
@@ -137,29 +143,30 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, event::EventListener};
-    /// # struct SomeStruct { sum_listener: EventListener<usize> }
+    /// # use zero_ui_core::{context::WidgetContext, var::ResponseVar};
+    /// # struct SomeStruct { sum_response: ResponseVar<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     self.sum_listener = ctx.sync.run(||{
+    ///     self.sum_response = ctx.sync.run(||{
     ///         (0..1000).sum()
     ///     });
     /// }
     ///
     /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-    ///     if let Some(result) = self.sum_listener.updates(ctx.events).last() {
+    ///     if let Some(result) = self.sum_response.response_new(ctx.vars) {
     ///         println!("sum of 0..1000: {}", result);   
     ///     }
     /// }
     /// # }
     /// ```
-    pub fn run<R: Send + 'static, T: FnOnce() -> R + Send + 'static>(&mut self, task: T) -> EventListener<R> {
-        let (event, listener) = self.response();
+    pub fn run<R: VarValue + Send, T: FnOnce() -> R + Send + 'static>(&mut self, task: T) -> ResponseVar<R> {
+        let (responder, response) = response_var();
+        let sender = self.var_sender(responder);
         rayon::spawn(move || {
             let r = task();
-            event.notify(r);
+            sender.set(crate::var::Response::Done(r));
         });
-        listener
+        response
     }
 
     /// Run an IO bound task.
@@ -169,31 +176,32 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, event::EventListener};
-    /// # struct SomeStruct { file_listener: EventListener<Vec<u8>> }
+    /// # use zero_ui_core::{context::WidgetContext, var::ResponseVar};
+    /// # struct SomeStruct { file_response: ResponseVar<Vec<u8>> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     self.file_listener = ctx.sync.run_async(async {
+    ///     self.file_response = ctx.sync.run_async(async {
     ///         todo!("use async_std to read a file")     
     ///     });
     /// }
     ///
     /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-    ///     if let Some(result) = self.file_listener.updates(ctx.events).last() {
+    ///     if let Some(result) = self.file_response.response_new(ctx.vars) {
     ///         println!("file loaded: {} bytes", result.len());   
     ///     }
     /// }
     /// # }
     /// ```
-    pub fn run_async<R: Send + 'static, T: Future<Output = R> + Send + 'static>(&mut self, task: T) -> EventListener<R> {
-        let (event, listener) = self.response();
+    pub fn run_async<R: VarValue + Send, T: Future<Output = R> + Send + 'static>(&mut self, task: T) -> ResponseVar<R> {
+        let (responder, response) = response_var();
+        let sender = self.var_sender(responder);
         // TODO run block-on?
         async_global_executor::spawn(async move {
             let r = task.await;
-            event.notify(r);
+            sender.set(crate::var::Response::Done(r));
         })
         .detach();
-        listener
+        response
     }
 
     fn update_wake_time(&mut self, due_time: Instant) {
@@ -206,66 +214,64 @@ impl Sync {
         }
     }
 
-    /// Gets an event listener that updates once after the `duration`.
+    /// Gets a response var that updates once after the `duration`.
     ///
-    /// The listener will update once at the moment of now + duration or a little later.
+    /// The response will update once at the moment of now + duration or a little later.
     #[inline]
-    pub fn update_after(&mut self, duration: Duration) -> EventListener<TimeElapsed> {
+    pub fn update_after(&mut self, duration: Duration) -> ResponseVar<TimeElapsed> {
         self.update_when(Instant::now() + duration)
     }
 
-    /// Gets an event listener that updates once after the number of milliseconds.
+    /// Gets a response var that updates once after the number of milliseconds.
     ///
-    /// The listener will update once at the moment of now + duration or a little later.
+    /// The response will update once at the moment of now + duration or a little later.
     #[inline]
-    pub fn update_after_millis(&mut self, millis: u64) -> EventListener<TimeElapsed> {
+    pub fn update_after_millis(&mut self, millis: u64) -> ResponseVar<TimeElapsed> {
         self.update_after(Duration::from_millis(millis))
     }
 
-    /// Gets an event listener that updates once after the number of seconds.
+    /// Gets a response var that updates once after the number of seconds.
     ///
-    /// The listener will update once at the moment of now + duration or a little later.
+    /// The response will update once at the moment of now + duration or a little later.
     #[inline]
-    pub fn update_after_secs(&mut self, secs: u64) -> EventListener<TimeElapsed> {
+    pub fn update_after_secs(&mut self, secs: u64) -> ResponseVar<TimeElapsed> {
         self.update_after(Duration::from_secs(secs))
     }
 
-    /// Gets an event listener that updates every `interval`.
+    /// Gets a response var that updates every `interval`.
     ///
-    /// The listener will update after every interval or a litter later.
-    pub fn update_every(&mut self, interval: Duration) -> EventListener<TimeElapsed> {
-        let timer = IntervalTimer::new(interval);
+    /// The var will update after every interval elapse.
+    pub fn update_every(&mut self, interval: Duration) -> TimerVar {
+        let (timer, var) = IntervalTimer::new(interval);
         self.update_wake_time(timer.due_time);
-        let listener = timer.emitter.listener();
         self.interval_timers.push(timer);
-        listener
+        var
     }
 
-    /// Gets an event listener that updated every *n* seconds.
+    /// Gets a var that updated every *n* seconds.
     ///
-    /// The listener will update after every interval or a litter later.
+    // The var will update after every interval elapse.
     #[inline]
-    pub fn update_every_secs(&mut self, secs: u64) -> EventListener<TimeElapsed> {
+    pub fn update_every_secs(&mut self, secs: u64) -> TimerVar {
         self.update_every(Duration::from_secs(secs))
     }
 
-    /// Gets an event listener that updated every *n* milliseconds.
+    /// Gets a var that updated every *n* milliseconds.
     ///
-    /// The listener will update after every interval or a litter later.
+    // The var will update after every interval elapse.
     #[inline]
-    pub fn update_every_millis(&mut self, millis: u64) -> EventListener<TimeElapsed> {
+    pub fn update_every_millis(&mut self, millis: u64) -> TimerVar {
         self.update_every(Duration::from_millis(millis))
     }
 
-    /// Gets an event listener that updates once when `time` is reached.
+    /// Gets a response var that updates once when `time` is reached.
     ///
-    /// The listener will update once at the moment of now + duration or a little later.
-    pub fn update_when(&mut self, time: Instant) -> EventListener<TimeElapsed> {
-        let timer = OnceTimer::new(time);
+    /// The response will update once at the moment of now + duration or a little later.
+    pub fn update_when(&mut self, time: Instant) -> ResponseVar<TimeElapsed> {
+        let (timer, response) = OnceTimer::new(time);
         self.update_wake_time(timer.due_time);
-        let listener = timer.emitter.listener();
         self.once_timers.push(timer);
-        listener
+        response
     }
 }
 
@@ -287,58 +293,91 @@ impl fmt::Debug for TimeElapsed {
 
 struct OnceTimer {
     due_time: Instant,
-    emitter: EventEmitter<TimeElapsed>,
+    responder: ResponderVar<TimeElapsed>,
 }
 impl OnceTimer {
-    fn new(due_time: Instant) -> Self {
-        OnceTimer {
-            due_time,
-            emitter: EventEmitter::response(),
-        }
+    fn new(due_time: Instant) -> (Self, ResponseVar<TimeElapsed>) {
+        let (responder, response) = response_var();
+        (OnceTimer { due_time, responder }, response)
     }
 
     /// Notifies the listeners if the timer elapsed.
     ///
     /// Returns if the timer is still active, once timer deactivate
     /// when they elapse or when there are no more listeners alive.
-    fn retain(&self, now: Instant, events: &Events) -> bool {
-        if self.emitter.listener_count() == 0 {
+    fn retain(&self, now: Instant, vars: &Vars) -> bool {
+        if self.responder.strong_count() == 1 {
             return false;
         }
 
         let elapsed = self.due_time <= now;
         if elapsed {
-            self.emitter.notify(events, TimeElapsed { timestamp: now })
+            self.responder.respond(vars, TimeElapsed { timestamp: now });
         }
 
         !elapsed
     }
 }
 
+/// A variable that is set every time an [interval timer](Sync::update_every) elapses.
+pub type TimerVar = ForceReadOnlyVar<TimerArgs, RcVar<TimerArgs>>;
+
+/// Value of [`TimerVar`].
+#[derive(Clone, Debug)]
+pub struct TimerArgs {
+    /// Moment the timer notified.
+    pub timestamp: Instant,
+
+    stop: Arc<AtomicBool>,
+}
+impl TimerArgs {
+    fn now() -> Self {
+        Self {
+            timestamp: Instant::now(),
+            stop: Arc::default(),
+        }
+    }
+
+    /// Stop the timer.
+    #[inline]
+    pub fn stop(&self) {
+        self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn stop_requested(&self) -> bool {
+        self.stop.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
 struct IntervalTimer {
     due_time: Instant,
     interval: Duration,
-    emitter: EventEmitter<TimeElapsed>,
+    responder: RcVar<TimerArgs>,
 }
 impl IntervalTimer {
-    fn new(interval: Duration) -> Self {
-        IntervalTimer {
-            due_time: Instant::now() + interval,
-            interval,
-            emitter: EventEmitter::response(),
-        }
+    fn new(interval: Duration) -> (Self, TimerVar) {
+        let responder = var(TimerArgs::now());
+        let response = responder.clone().into_read_only();
+        (
+            IntervalTimer {
+                due_time: Instant::now() + interval,
+                interval,
+                responder,
+            },
+            response,
+        )
     }
 
     /// Notifier the listeners if the time elapsed and resets the timer.
     ///
     /// Returns if the timer is still active, interval timers deactivate
     /// when there are no more listeners alive.
-    fn retain(&mut self, now: Instant, events: &Events) -> bool {
-        if self.emitter.listener_count() == 0 {
+    fn retain(&mut self, now: Instant, vars: &Vars) -> bool {
+        if self.responder.strong_count() == 1 || self.responder.get(vars).stop_requested() {
             return false;
         }
         if self.due_time <= now {
-            self.emitter.notify(events, TimeElapsed { timestamp: now });
+            self.responder.modify(vars, move |t| t.timestamp = now);
             self.due_time = now + self.interval;
         }
 
@@ -349,21 +388,33 @@ impl IntervalTimer {
 type Retain = bool;
 
 trait SyncChannel {
+    /// Sync events.
+    ///
+    /// Returns if this object should be retained.
+    fn on_event(&self, ctx: &mut AppSyncContext, args: &AnyEventUpdate) -> Retain;
+
     /// Sync updates.
     ///
     /// Returns if this object should be retained.
     fn update(&self, ctx: &mut AppSyncContext) -> Retain;
 }
 
-/// Represents an [`EventEmitter`] that can be updated from other threads.
+/// Represents an [`Event`] that can be updated from other threads.
 ///
 /// See [`Sync::event_sender`] for more details.
-
-pub struct EventSender<T: Send + 'static> {
+pub struct EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
     notifier: UpdateNotifier,
-    sender: Sender<T>,
+    sender: Sender<E::Args>,
 }
-impl<T: Send + 'static> Clone for EventSender<T> {
+impl<E> Clone for EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
     fn clone(&self) -> Self {
         EventSender {
             notifier: self.notifier.clone(),
@@ -371,74 +422,116 @@ impl<T: Send + 'static> Clone for EventSender<T> {
         }
     }
 }
-impl<T: Send + 'static> EventSender<T> {
+impl<E> EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
     /// Pushes an update notification.
     ///
-    /// This will generate an event update.
-    pub fn notify(&self, args: T) {
+    /// This will generate an event update in the UI thread.
+    pub fn notify(&self, args: E::Args) {
         self.sender.send(args).expect("TODO can this fail?");
-        self.notifier.update(); // TODO high-pressure?
+        self.notifier.update();
     }
 }
-struct EventSenderSync<T: Send + 'static> {
-    event: EventEmitter<T>,
-    receiver: Receiver<T>,
+struct EventSenderSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    receiver: Receiver<E::Args>,
 }
-impl<T: Send + 'static> EventSenderSync<T> {
-    fn new(event: EventEmitter<T>, notifier: UpdateNotifier) -> (Self, EventSender<T>) {
+impl<E> EventSenderSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn new(notifier: UpdateNotifier) -> (Self, EventSender<E>) {
         let (sender, receiver) = flume::unbounded();
-        (EventSenderSync { event, receiver }, EventSender { notifier, sender })
+        (EventSenderSync { receiver }, EventSender { notifier, sender })
     }
 }
-impl<T: Send + 'static> SyncChannel for EventSenderSync<T> {
+impl<E> SyncChannel for EventSenderSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
+        true
+    }
+
     fn update(&self, ctx: &mut AppSyncContext) -> Retain {
         for args in self.receiver.try_iter() {
-            self.event.notify(ctx.events, args);
+            E::notify(ctx.events, args);
         }
         !self.receiver.is_disconnected()
     }
 }
 
-/// Represents an [`EventListener`] that can receive updates from other threads.
+/// Represents an [`Event`] that can receive updates from other threads.
 ///
 /// See [`Sync::event_receiver`] for more details.
 #[derive(Clone)]
-pub struct EventReceiver<T: Clone + Send + 'static> {
-    receiver: Receiver<T>,
+pub struct EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    receiver: Receiver<E::Args>,
 }
-impl<T: Clone + Send + 'static> EventReceiver<T> {
+impl<E> EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
     /// A blocking iterator over the updated received.
-    pub fn updates(&self) -> flume::Iter<T> {
+    pub fn updates(&self) -> flume::Iter<E::Args> {
         self.receiver.iter()
     }
 
     /// A non-blocking iterator over the updates received.
     #[inline]
-    pub fn try_updates(&self) -> flume::TryIter<T> {
+    pub fn try_updates(&self) -> flume::TryIter<E::Args> {
         self.receiver.try_iter()
     }
 
     /// Reference the underlying update receiver.
-    pub fn receiver(&self) -> &Receiver<T> {
+    pub fn receiver(&self) -> &Receiver<E::Args> {
         &self.receiver
     }
 }
-struct EventReceiverSync<T: Clone + Send + 'static> {
-    listener: EventListener<T>,
-    sender: Sender<T>,
+struct EventReceiverSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    sender: Sender<E::Args>,
 }
-impl<T: Clone + Send + 'static> EventReceiverSync<T> {
-    fn new(listener: EventListener<T>) -> (Self, EventReceiver<T>) {
+impl<E> EventReceiverSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn new() -> (Self, EventReceiver<E>) {
         let (sender, receiver) = flume::unbounded();
-        (EventReceiverSync { listener, sender }, EventReceiver { receiver })
+        (EventReceiverSync { sender }, EventReceiver { receiver })
     }
 }
-impl<T: Clone + Send + 'static> SyncChannel for EventReceiverSync<T> {
-    fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        for update in self.listener.updates(ctx.events) {
-            self.sender.send(update.clone()).expect("TODO");
+impl<E> SyncChannel for EventReceiverSync<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn on_event(&self, _: &mut AppSyncContext, args: &AnyEventUpdate) -> Retain {
+        if let Some(args) = E::update(args) {
+            self.sender.send(args.clone()).expect("TODO");
         }
         !self.sender.is_disconnected()
+    }
+
+    fn update(&self, _: &mut AppSyncContext) -> Retain {
+        true
     }
 }
 
@@ -479,6 +572,10 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarSenderSync<T, V> {
             let _ = self.var.set(ctx.vars, new_value);
         }
         !self.receiver.is_disconnected()
+    }
+
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
+        true
     }
 }
 
@@ -521,6 +618,10 @@ impl<T: VarValue, V: Var<T>> SyncChannel for VarModifySenderSync<T, V> {
             let _ = self.var.modify_boxed(ctx.vars, change);
         }
         !self.receiver.is_disconnected()
+    }
+
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
+        true
     }
 }
 
@@ -576,6 +677,10 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
             let _ = self.sender.send(update.clone());
         }
         !self.sender.is_disconnected()
+    }
+
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
+        true
     }
 }
 
@@ -665,5 +770,9 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarChannelSync<T, V> {
             let _ = self.var.set(ctx.vars, new_value);
         }
         !self.out_sender.is_disconnected()
+    }
+
+    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
+        true
     }
 }

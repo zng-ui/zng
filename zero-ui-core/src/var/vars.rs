@@ -68,6 +68,7 @@ impl VarsRead {
     /// Calls `f` with the context var value.
     ///
     /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
+    #[inline(always)]
     pub fn with_context_var<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, f: F) -> R
     where
         C: ContextVar,
@@ -75,6 +76,7 @@ impl VarsRead {
     {
         self.with_context_var_impl(context_var, value, false, version, f)
     }
+    #[inline(always)]
     fn with_context_var_impl<C, R, F>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) -> R
     where
         C: ContextVar,
@@ -100,6 +102,7 @@ impl VarsRead {
     ///
     /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
     /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
+    #[inline(always)]
     pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, f: F) -> R
     where
         C: ContextVar,
@@ -107,6 +110,7 @@ impl VarsRead {
     {
         self.with_context_var_wgt_only_impl(context_var, value, false, version, f)
     }
+    #[inline(always)]
     fn with_context_var_wgt_only_impl<C, R, F>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) -> R
     where
         C: ContextVar,
@@ -136,6 +140,7 @@ impl VarsRead {
     }
 
     /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
+    #[inline(always)]
     pub fn with_context_bind<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
     where
         C: ContextVar,
@@ -146,6 +151,7 @@ impl VarsRead {
     }
 
     /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
+    #[inline(always)]
     pub fn with_context_bind_wgt_only<C: ContextVar, R, F: FnOnce() -> R, V: VarObj<C::Type>>(
         &self,
         context_var: C,
@@ -156,6 +162,7 @@ impl VarsRead {
     }
 
     /// Clears widget only context var values, calls `f` and restores widget only context var values.
+    #[inline(always)]
     pub(crate) fn with_widget_clear<R, F: FnOnce() -> R>(&self, f: F) -> R {
         let wgt_clear = std::mem::take(&mut *self.widget_clear.borrow_mut());
         for clear in &wgt_clear {
@@ -211,6 +218,7 @@ impl Vars {
     /// Calls `f` with the context var value.
     ///
     /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
+    #[inline(always)]
     pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
         self.with_context_var_impl(context_var, value, is_new, version, f)
     }
@@ -221,16 +229,19 @@ impl Vars {
     ///
     /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
     /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
+    #[inline(always)]
     pub fn with_context_var_wgt_only<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
         self.with_context_var_wgt_only_impl(context_var, value, is_new, version, f)
     }
 
     /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
+    #[inline(always)]
     pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
         self.with_context_var_impl(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }
 
     /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
+    #[inline(always)]
     pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
         self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }

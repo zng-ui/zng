@@ -223,7 +223,7 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
             let child = &mut self.child;
             ctx.vars
                 .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
-                    child.update_hp(ctx);
+                    child.deinit(ctx);
                 });
         }
 
@@ -248,11 +248,14 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
                 });
         }
 
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
+        where
+            Self: Sized,
+        {
             let child = &mut self.child;
             ctx.vars
                 .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
-                    child.update_hp(ctx);
+                    child.event(ctx, args);
                 });
         }
 
@@ -343,7 +346,7 @@ where
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
             ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
-                child.init(ctx);
+                child.deinit(ctx);
             });
         }
 
@@ -368,10 +371,13 @@ where
                 });
         }
 
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
+        where
+            Self: Sized,
+        {
             let child = &mut self.child;
             ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
-                child.init(ctx);
+                child.event(ctx, args);
             });
         }
 

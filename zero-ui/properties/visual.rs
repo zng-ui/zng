@@ -48,13 +48,14 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             self.child.deinit(ctx);
         }
 
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+            self.background.event(ctx, args);
+            self.child.event(ctx, args);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.background.update(ctx);
             self.child.update(ctx);
-        }
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            self.background.update_hp(ctx);
-            self.child.update_hp(ctx);
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
@@ -167,13 +168,13 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
             self.foreground.deinit(ctx);
         }
 
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+            self.child.event(ctx, args);
+            self.foreground.event(ctx, args);
+        }
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             self.foreground.update(ctx);
-        }
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            self.child.update_hp(ctx);
-            self.foreground.update_hp(ctx);
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {

@@ -2,6 +2,7 @@
 
 use std::{fmt, ops};
 
+use crate::event::EventUpdateArgs;
 use crate::var::{context_var, IntoVar, Vars};
 use crate::{
     context::RenderContext,
@@ -65,7 +66,7 @@ pub mod implicit_base {
     /// [`WidgetContext::widget_context`](crate::context::WidgetContext::widget_context) and
     /// [`FrameBuilder::push_widget`](crate::render::FrameBuilder::push_widget) to define the widget.
     pub fn new(child: impl UiNode, id: WidgetId) -> impl Widget {
-        struct WidgetNode<T: UiNode> {
+        struct WidgetNode<T> {
             id: WidgetId,
             transform_key: WidgetTransformKey,
             state: OwnedStateMap,
@@ -74,8 +75,8 @@ pub mod implicit_base {
             #[cfg(debug_assertions)]
             inited: bool,
         }
-        #[impl_ui_node(child)]
         impl<T: UiNode> UiNode for WidgetNode<T> {
+            #[inline(always)]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if self.inited {
@@ -90,10 +91,11 @@ pub mod implicit_base {
                     self.inited = true;
                 }
             }
+            #[inline(always)]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::deinit` called in already deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
@@ -104,29 +106,32 @@ pub mod implicit_base {
                     self.inited = false;
                 }
             }
+            #[inline(always)]
             fn update(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::update` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", self.id);
                 }
 
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
             }
-            fn update_hp(&mut self, ctx: &mut WidgetContext) {
+            #[inline(always)]
+            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::update_hp` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", std::any::type_name::<EU>(), self.id);
                 }
 
                 let child = &mut self.child;
-                ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
+                ctx.widget_context(self.id, &mut self.state, |ctx| child.event(ctx, args));
             }
+            #[inline(always)]
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
-                        log::error!(target: "widget_base", "`UiNode::measure` called in deinited widget {:?}", self.id);
+                        log::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
                     }
 
                     fn valid_measure(f: f32) -> bool {
@@ -165,13 +170,14 @@ pub mod implicit_base {
 
                 child_size
             }
+            #[inline(always)]
             fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
                 self.size = final_size;
 
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
-                        log::error!(target: "widget_base", "`UiNode::arrange` called in deinited widget {:?}", self.id);
+                        log::error!(target: "widget_base", "`UiNode::arrange` called in not inited widget {:?}", self.id);
                     }
 
                     if !final_size.width.is_finite() || !final_size.height.is_finite() {
@@ -199,20 +205,22 @@ pub mod implicit_base {
                     child.arrange(ctx, final_size);
                 });
             }
+            #[inline(always)]
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::render` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", self.id);
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
                     frame.push_widget(self.id, self.transform_key, self.size, &self.child, ctx);
                 });
             }
+            #[inline(always)]
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    log::error!(target: "widget_base", "`UiNode::render_update` called in deinited widget {:?}", self.id);
+                    log::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
@@ -293,8 +301,15 @@ impl<'a> WidgetEnabledExt for WidgetInfo<'a> {
 pub struct IsEnabled;
 impl IsEnabled {
     /// Gets the enabled state in the current `vars` context.
+    #[inline]
     pub fn get(vars: &VarsRead) -> bool {
         *IsEnabledVar::get(vars)
+    }
+
+    /// Gets the new enabled state in the current `vars` context.
+    #[inline]
+    pub fn get_new(vars: &Vars) -> Option<bool> {
+        IsEnabledVar::get_new(vars).copied()
     }
 }
 
@@ -360,8 +375,11 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.with_context(ctx.vars, |c| c.update(ctx));
         }
 
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            self.with_context(ctx.vars, |c| c.update_hp(ctx));
+        fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U)
+        where
+            Self: Sized,
+        {
+            self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -435,10 +453,6 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.with_context(ctx.vars, |c| c.update(ctx));
         }
 
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            self.with_context(ctx.vars, |c| c.update_hp(ctx));
-        }
-
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             match *self.visibility.get(ctx.vars) {
                 Visibility::Visible | Visibility::Hidden => self.child.measure(ctx, available_size),
@@ -450,6 +464,13 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             if let Visibility::Visible = self.visibility.get(ctx.vars) {
                 self.child.arrange(ctx, final_size)
             }
+        }
+
+        fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U)
+        where
+            Self: Sized,
+        {
+            self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -670,8 +691,11 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
             self.with_context(ctx.vars, |c| c.update(ctx));
         }
 
-        fn update_hp(&mut self, ctx: &mut WidgetContext) {
-            self.with_context(ctx.vars, |c| c.update_hp(ctx));
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
+        where
+            Self: Sized,
+        {
+            self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

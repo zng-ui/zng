@@ -76,16 +76,12 @@ impl std::cmp::Ord for UpdateDisplayRequest {
 pub struct UpdateRequest {
     /// If should notify all that variables or events change occurred.
     pub update: bool,
-    /// If should notify all that variables or events change occurred using
-    /// the high-pressure band when applicable.
-    pub update_hp: bool,
 }
 
 impl std::ops::BitOrAssign for UpdateRequest {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         self.update |= rhs.update;
-        self.update_hp |= rhs.update_hp;
     }
 }
 
@@ -131,7 +127,6 @@ impl UpdateNotifier {
     }
 
     const UPDATE: u8 = 0b01;
-    const UPDATE_HP: u8 = 0b11;
 
     #[inline]
     fn set(&self, update: u8) {
@@ -146,13 +141,6 @@ impl UpdateNotifier {
     #[inline]
     pub fn update(&self) {
         self.set(Self::UPDATE);
-    }
-
-    /// Flags an update request(high-pressure) and sends an update event
-    /// if none was sent since the last one was consumed.
-    #[inline]
-    pub fn update_hp(&self) {
-        self.set(Self::UPDATE_HP);
     }
 }
 
@@ -194,6 +182,7 @@ macro_rules! state_key {
     )+};
 }
 
+use crate::event::BoxedEventUpdate;
 #[doc(inline)]
 pub use crate::state_key;
 use crate::{var::VarsRead, window::WindowMode};
@@ -459,11 +448,9 @@ impl OwnedUpdates {
         let request = self.0.notifier.request.swap(0, atomic::Ordering::Relaxed);
 
         const UPDATE: u8 = UpdateNotifier::UPDATE;
-        const UPDATE_HP: u8 = UpdateNotifier::UPDATE_HP;
 
         UpdateRequest {
             update: request & UPDATE == UPDATE,
-            update_hp: request & UPDATE_HP == UPDATE_HP,
         }
     }
 
@@ -514,18 +501,6 @@ impl Updates {
     #[inline]
     pub fn update_requested(&self) -> bool {
         self.update.update
-    }
-
-    /// Schedules a high-pressure update.
-    #[inline]
-    pub fn update_hp(&mut self) {
-        self.update.update_hp = true;
-    }
-
-    /// Gets `true` if a high-pressure update was requested.
-    #[inline]
-    pub fn update_hp_requested(&self) -> bool {
-        self.update.update_hp
     }
 
     /// Schedules the `updates`.
@@ -673,15 +648,24 @@ impl OwnedAppContext {
     ///
     /// Returns the update requests and a time for the loop wake back and call
     /// [`Sync::update_timers`].
-    pub fn apply_updates(&mut self) -> ((UpdateRequest, UpdateDisplayRequest), Option<Instant>) {
-        let wake = self.sync.update(&mut AppSyncContext {
+    #[must_use]
+    pub fn apply_updates(&mut self) -> ContextUpdates {
+        let wake_time = self.sync.update(&mut AppSyncContext {
             vars: &mut self.vars,
             events: &mut self.events,
             updates: &mut self.updates.0,
         });
         self.vars.apply(&mut self.updates.0);
-        self.events.apply(&mut self.updates.0);
-        (self.updates.take_updates(), wake)
+        let events = self.events.apply(&mut self.updates.0);
+
+        let (update, display_update) = self.updates.take_updates();
+
+        ContextUpdates {
+            events,
+            update,
+            display_update,
+            wake_time,
+        }
     }
 }
 
@@ -793,6 +777,7 @@ pub(super) struct AppSyncContext<'a> {
 
 impl<'a> AppContext<'a> {
     /// Runs a function `f` in the context of a window.
+    #[inline(always)]
     pub fn window_context<R>(
         &mut self,
         window_id: WindowId,
@@ -823,6 +808,7 @@ impl<'a> AppContext<'a> {
     }
 
     /// Run a function `f` in the layout context of the monitor that contains a window.
+    #[inline(always)]
     pub fn outer_layout_context<R>(
         &mut self,
         screen_size: LayoutSize,
@@ -890,6 +876,7 @@ pub struct WindowContext<'a> {
 }
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` in the context of a widget.
+    #[inline(always)]
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
@@ -915,6 +902,7 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
+    #[inline(always)]
     pub fn layout_context<R>(
         &mut self,
         font_size: f32,
@@ -944,6 +932,7 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the render context of a widget.
+    #[inline(always)]
     pub fn render_context<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         f(&mut RenderContext {
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
@@ -1118,16 +1107,37 @@ impl TestWidgetContext {
     ///
     /// Returns the update requests and a time for the loop wake back and call
     /// [`Sync::update_timers`].
-    pub fn apply_updates(&mut self) -> ((UpdateRequest, UpdateDisplayRequest), Option<Instant>) {
-        let wake = self.sync.update(&mut AppSyncContext {
+    pub fn apply_updates(&mut self) -> ContextUpdates {
+        let wake_time = self.sync.update(&mut AppSyncContext {
             vars: &mut self.vars,
             events: &mut self.events,
             updates: &mut self.updates.0,
         });
         self.vars.apply(&mut self.updates.0);
-        self.events.apply(&mut self.updates.0);
-        (self.updates.take_updates(), wake)
+        let events = self.events.apply(&mut self.updates.0);
+        let (update, display_update) = self.updates.take_updates();
+        ContextUpdates {
+            events,
+            update,
+            display_update,
+            wake_time,
+        }
     }
+}
+
+/// Updates that must be reacted by an app context owner.
+pub struct ContextUpdates {
+    /// Events update to notify.
+    pub events: Vec<BoxedEventUpdate>,
+
+    /// Update to notify.
+    pub update: UpdateRequest,
+
+    /// Display update to notify.
+    pub display_update: UpdateDisplayRequest,
+
+    /// Time for the loop to wake.
+    pub wake_time: Option<Instant>,
 }
 
 /// A widget context.
@@ -1166,6 +1176,7 @@ pub struct WidgetContext<'a> {
 }
 impl<'a> WidgetContext<'a> {
     /// Runs a function `f` in the context of a widget.
+    #[inline(always)]
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
@@ -1324,6 +1335,7 @@ pub struct LayoutContext<'a> {
 }
 impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.
+    #[inline(always)]
     pub fn with_font_size<R>(&mut self, new_font_size: f32, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
             font_size: &new_font_size,
@@ -1345,6 +1357,7 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
+    #[inline(always)]
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut OwnedStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         self.path.push(widget_id);
 
@@ -1400,6 +1413,7 @@ pub struct RenderContext<'a> {
 }
 impl<'a> RenderContext<'a> {
     /// Runs a function `f` in the render context of a widget.
+    #[inline(always)]
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         self.path.push(widget_id);
         let r = f(&mut RenderContext {

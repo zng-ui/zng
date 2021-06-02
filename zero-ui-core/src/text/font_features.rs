@@ -1808,7 +1808,7 @@ impl fmt::Debug for FontVariations {
 #[macro_export]
 macro_rules! font_variations {
     [$(
-        ($name:tt : $value: expr)
+        $name:tt : $value: expr
     ),* $(,)?] => {
         $crate::text::font_features::FontVariations::from_pairs(&[
             $(
@@ -1824,28 +1824,3 @@ pub use font_variations;
 ///
 /// This is a vec of [rustybuzz variations](rustybuzz::Variation).
 pub type RFontVariations = Vec<rustybuzz::Variation>;
-
-/// A builder for [`FontVariations`].
-///
-/// # Example
-///
-/// ```
-/// # use zero_ui_core::text::font_features::FontVariations;
-/// let features = FontVariations::builder().variation(b"BLDB", 1000.0).build();
-/// ```
-#[derive(Default)]
-pub struct FontVariationsBuilder(FontVariations);
-impl FontVariationsBuilder {
-    /// Finish building.
-    #[inline]
-    pub fn build(self) -> FontVariations {
-        self.0
-    }
-
-    /// Set the variation value.
-    #[inline]
-    pub fn variation(mut self, name: FontVariationName, value: impl Into<f32>) -> Self {
-        self.0.insert(name, value.into());
-        self
-    }
-}

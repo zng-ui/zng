@@ -1,53 +1,24 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
-use zero_ui::properties::events::widget::on_update;
 
 fn main() {
     App::default().run_window(|ctx| {
-        let count = var(10u32);
-        let mut every1s = Some(ctx.sync.update_every_secs(1));
+        let mut count = 10;
+        let countdown = ctx.sync.update_every_secs(1).into_map(move |t| {
+            let text = if count > 0 {
+                formatx!("{}", count)
+            } else {
+                t.stop();
+                "Done!".to_text()
+            };
+            println!("{}", text);
+            count -= 1;
+            text
+        });
         window! {
             title = "Countdown Example";
-            on_update = clone_move!(count, |ctx| {
-                println!("on_update");
-
-                // if timer still running.
-                if let Some(l) = &every1s {
-                    match l.updates(ctx.events).len() {
-                        1 => {
-                            // timer updated once since last update
-                            let new_count = count.get(ctx.vars).saturating_sub(1);
-                            count.set(ctx.vars, new_count);
-                            println!("count set to {}", new_count);
-
-                            if new_count == 0 {
-                                every1s = None;// stop timer
-                                println!("timer stopped");
-                            }
-                        }
-                        0 => {
-                            // timer did not update, ok
-                        }
-                        _ => {
-                            panic!("timer updated twice in single update call")
-                        }
-                    }
-                }
-            });
-            content = example(count);
+            font_size = 32.pt();
+            content = text(countdown);
         }
     })
-}
-
-fn example(count: RcVar<u32>) -> impl Widget {
-    text! {
-        text = count.into_map(|&n| {
-            if n > 0 {
-                formatx!("{}", n)
-            } else {
-                "Done!".into()
-            }
-        });
-        font_size = 32.pt();
-    }
 }

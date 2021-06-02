@@ -6,7 +6,6 @@
 //! [`on_click`](fn@super::gesture::on_click) event.
 
 use super::event_property;
-use crate::core::event::EventArgs;
 use crate::core::mouse::*;
 
 event_property! {

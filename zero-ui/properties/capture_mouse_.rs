@@ -1,4 +1,4 @@
-use crate::core::mouse::{CaptureMode, Mouse, MouseDownEvent, MouseInputArgs};
+use crate::core::mouse::{CaptureMode, Mouse, MouseDownEvent};
 use crate::prelude::new_property::*;
 
 /// Capture mouse for the widget on mouse down.
@@ -30,44 +30,45 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     struct CaptureMouseNode<C: UiNode, M: Var<CaptureMode>> {
         child: C,
         mode: M,
-        mouse_down: EventListener<MouseInputArgs>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_down = ctx.events.listen::<MouseDownEvent>();
-            self.child.init(ctx);
-        }
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+            if let Some(args) = MouseDownEvent::update(args) {
+                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                    let mouse = ctx.services.req::<Mouse>();
+                    let widget_id = ctx.path.widget_id();
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_down = MouseDownEvent::never();
-            self.child.deinit(ctx);
+                    match *self.mode.get(ctx.vars) {
+                        CaptureMode::Widget => {
+                            mouse.capture_widget(widget_id);
+                        }
+                        CaptureMode::Subtree => {
+                            mouse.capture_subtree(widget_id);
+                        }
+                        CaptureMode::Window => (),
+                    }
+                }
+
+                self.child.event(ctx, args);
+            } else {
+                self.child.event(ctx, args);
+            }
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-                let mouse = ctx.services.req::<Mouse>();
-                let widget_id = ctx.path.widget_id();
-
-                match *self.mode.get(ctx.vars) {
-                    CaptureMode::Widget => {
-                        mouse.capture_widget(widget_id);
-                    }
-                    CaptureMode::Subtree => {
-                        mouse.capture_subtree(widget_id);
-                    }
-                    CaptureMode::Window => (),
-                }
-            } else if let Some(&new_mode) = self.mode.get_new(ctx.vars) {
-                let mouse = ctx.services.req::<Mouse>();
-                let widget_id = ctx.path.widget_id();
-                if let Some((current, _)) = mouse.current_capture() {
-                    if current.widget_id() == widget_id {
-                        // If mode updated and we are capturing the mouse:
-                        match new_mode {
-                            CaptureMode::Widget => mouse.capture_widget(widget_id),
-                            CaptureMode::Subtree => mouse.capture_subtree(widget_id),
-                            CaptureMode::Window => mouse.release_capture(),
+            if let Some(&new_mode) = self.mode.get_new(ctx.vars) {
+                if IsEnabled::get(ctx.vars) {
+                    let mouse = ctx.services.req::<Mouse>();
+                    let widget_id = ctx.path.widget_id();
+                    if let Some((current, _)) = mouse.current_capture() {
+                        if current.widget_id() == widget_id {
+                            // If mode updated and we are capturing the mouse:
+                            match new_mode {
+                                CaptureMode::Widget => mouse.capture_widget(widget_id),
+                                CaptureMode::Subtree => mouse.capture_subtree(widget_id),
+                                CaptureMode::Window => mouse.release_capture(),
+                            }
                         }
                     }
                 }
@@ -78,6 +79,5 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     CaptureMouseNode {
         child,
         mode: mode.into_var(),
-        mouse_down: MouseDownEvent::never(),
     }
 }

@@ -8,8 +8,8 @@ use crate::{
     service::Service,
     text::{Text, ToText},
     units::*,
-    var::{var, IntoValue, RcVar, VarsRead},
-    UiNode, WidgetId,
+    var::{response_done_var, response_var, var, IntoValue, RcVar, ResponderVar, ResponseVar, VarsRead},
+    BoxedUiNode, UiNode, WidgetId,
 };
 
 use app::AppEvent;
@@ -19,15 +19,12 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     cell::{Cell, RefCell},
     fmt, mem,
-    num::NonZeroU16,
     rc::Rc,
     sync::Arc,
 };
 use webrender::api::{Epoch, PipelineId, RenderApi};
 
 pub use glutin::{event::WindowEvent, window::CursorIcon};
-
-type CloseTogetherGroup = Option<NonZeroU16>;
 
 unique_id! {
     /// Unique identifier of a headless window.
@@ -177,12 +174,12 @@ pub trait HeadlessAppWindowExt {
 }
 impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
-        let listener = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window, None));
+        let response = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window, None));
         let mut window_id = None;
         while window_id.is_none() {
             self.update_observe(
-                |_, ctx| {
-                    if let Some(opened) = listener.updates(ctx.events).first() {
+                |ctx| {
+                    if let Some(opened) = response.response_new(ctx.vars) {
                         window_id = Some(opened.window_id);
                     }
                 },
@@ -209,16 +206,16 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         if let Some(focused) = focused {
             // blur_window
             let event = WindowEvent::Focused(false);
-            self.on_window_event(focused, &event);
+            self.window_event(focused, &event);
         }
         let event = WindowEvent::Focused(true);
-        self.on_window_event(window_id, &event);
+        self.window_event(window_id, &event);
         self.update(false);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
         let event = WindowEvent::Focused(false);
-        self.on_window_event(window_id, &event);
+        self.window_event(window_id, &event);
         self.update(false);
     }
 
@@ -226,7 +223,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let mut pixels = None;
         while pixels.is_none() {
             self.update_observe_frame(
-                |id, ctx| {
+                |ctx, id| {
                     if id == window_id {
                         let pxs = ctx
                             .services
@@ -255,25 +252,18 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
-        let (closing_ls, closed_ls) = self.with_context(|ctx| {
-            let cls = ctx.events.listen::<WindowCloseRequestedEvent>();
-            let cld = ctx.events.listen::<WindowCloseEvent>();
-            (cls, cld)
-        });
-
         let event = WindowEvent::CloseRequested;
-        self.on_window_event(window_id, &event);
+        self.window_event(window_id, &event);
 
         let mut requested = false;
         let mut closed = false;
 
-        self.update_observe(
-            |_, ctx| {
-                for a in closing_ls.updates(ctx.events) {
-                    requested |= a.window_id == window_id;
-                }
-                for a in closed_ls.updates(ctx.events) {
-                    closed |= a.window_id == window_id;
+        self.update_observe_event(
+            |_, args| {
+                if let Some(args) = WindowCloseRequestedEvent::update(args) {
+                    requested |= args.window_id == window_id;
+                } else if let Some(args) = WindowCloseEvent::update(args) {
+                    closed |= args.window_id == window_id;
                 }
             },
             false,
@@ -373,7 +363,6 @@ cancelable_event_args! {
     pub struct WindowCloseRequestedArgs {
         /// Window ID.
         pub window_id: WindowId,
-        group: CloseTogetherGroup,
 
         ..
 
@@ -384,15 +373,13 @@ cancelable_event_args! {
     }
 }
 
-event_hp! {
+event! {
     /// Window resized event.
     pub WindowResizeEvent: WindowResizeArgs;
 
     /// Window moved event.
     pub WindowMoveEvent: WindowMoveArgs;
-}
 
-event! {
     /// New window event.
     pub WindowOpenEvent: WindowEventArgs;
 
@@ -439,15 +426,6 @@ event! {
 pub struct WindowManager {
     event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
-    window_open: EventEmitter<WindowEventArgs>,
-    window_focus_changed: EventEmitter<WindowIsFocusedArgs>,
-    window_focus: EventEmitter<WindowIsFocusedArgs>,
-    window_blur: EventEmitter<WindowIsFocusedArgs>,
-    window_resize: EventEmitter<WindowResizeArgs>,
-    window_move: EventEmitter<WindowMoveArgs>,
-    window_scale_changed: EventEmitter<WindowScaleChangedArgs>,
-    window_closing: EventEmitter<WindowCloseRequestedArgs>,
-    window_close: EventEmitter<WindowEventArgs>,
 }
 
 impl Default for WindowManager {
@@ -466,15 +444,6 @@ impl Default for WindowManager {
         WindowManager {
             event_loop_proxy: None,
             ui_threads,
-            window_open: WindowOpenEvent::emitter(),
-            window_focus_changed: WindowFocusChangedEvent::emitter(),
-            window_focus: WindowFocusEvent::emitter(),
-            window_blur: WindowBlurEvent::emitter(),
-            window_resize: WindowResizeEvent::emitter(),
-            window_move: WindowMoveEvent::emitter(),
-            window_scale_changed: WindowScaleChangedEvent::emitter(),
-            window_closing: WindowCloseRequestedEvent::emitter(),
-            window_close: WindowCloseEvent::emitter(),
         }
     }
 }
@@ -483,19 +452,9 @@ impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.updates.notifier().clone()));
-
-        r.events.register::<WindowOpenEvent>(self.window_open.listener());
-        r.events.register::<WindowFocusChangedEvent>(self.window_focus_changed.listener());
-        r.events.register::<WindowFocusEvent>(self.window_focus.listener());
-        r.events.register::<WindowBlurEvent>(self.window_blur.listener());
-        r.events.register::<WindowResizeEvent>(self.window_resize.listener());
-        r.events.register::<WindowMoveEvent>(self.window_move.listener());
-        r.events.register::<WindowScaleChangedEvent>(self.window_scale_changed.listener());
-        r.events.register::<WindowCloseRequestedEvent>(self.window_closing.listener());
-        r.events.register::<WindowCloseEvent>(self.window_close.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         match event {
             WindowEvent::Focused(focused) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
@@ -517,7 +476,7 @@ impl AppExtension for WindowManager {
                         window.resize_renderer();
 
                         // raise window_resize
-                        self.window_resize.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
+                        WindowResizeEvent::notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
                     }
                 }
             }
@@ -531,12 +490,12 @@ impl AppExtension for WindowManager {
                     window.vars.position().set_ne(ctx.vars, new_position.into());
 
                     // raise window_move
-                    self.window_move.notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
+                    WindowMoveEvent::notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
                 }
             }
             WindowEvent::CloseRequested => {
                 if let Some(win) = ctx.services.req::<Windows>().windows.iter().find(|w| w.id == window_id) {
-                    win.close_requested.set(true);
+                    *win.close_response.borrow_mut() = Some(response_var().0);
                     ctx.updates.update();
                 }
             }
@@ -567,22 +526,41 @@ impl AppExtension for WindowManager {
                         window.resize_renderer();
                     }
 
-                    self.window_scale_changed
-                        .notify(ctx.events, WindowScaleChangedArgs::now(window_id, scale_factor, new_size));
+                    WindowScaleChangedEvent::notify(ctx.events, WindowScaleChangedArgs::now(window_id, scale_factor, new_size));
                 }
             }
             _ => {}
         }
     }
 
-    fn update_ui(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        self.update_open_close(ctx);
-        self.update_pump(update, ctx);
-        self.update_closing(update, ctx);
-        self.update_close(update, ctx);
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        let wn_ctxs: Vec<_> = ctx
+            .services
+            .req::<Windows>()
+            .windows
+            .iter_mut()
+            .map(|w| w.context.clone())
+            .collect();
+
+        for wn_ctx in wn_ctxs {
+            wn_ctx.borrow_mut().event(ctx, args);
+        }
     }
 
-    fn update_display(&mut self, _: UpdateDisplayRequest, ctx: &mut AppContext) {
+    fn update_ui(&mut self, ctx: &mut AppContext) {
+        self.update_open_close(ctx);
+        self.update_pump(ctx);
+    }
+
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = WindowCloseRequestedEvent::update(args) {
+            self.update_closing(ctx, args);
+        } else if let Some(args) = WindowCloseEvent::update(args) {
+            self.update_close(ctx, args);
+        }
+    }
+
+    fn update_display(&mut self, ctx: &mut AppContext, _: UpdateDisplayRequest) {
         // Pump layout and render in all windows.
         // The windows don't do a layout update unless they recorded
         // an update request for layout or render.
@@ -605,7 +583,7 @@ impl AppExtension for WindowManager {
         wns.opening_windows = opening;
     }
 
-    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let wns = ctx.services.req::<Windows>();
         if let Some(window) = wns.windows.iter_mut().find(|w| w.id == window_id) {
             window.request_redraw(ctx.vars);
@@ -616,19 +594,19 @@ impl AppExtension for WindowManager {
             debug_assert!(matches!(window.init_state, WindowInitState::Inited));
 
             let args = WindowEventArgs::now(window.id, true);
-            window.open_response.take().unwrap().notify(ctx.events, args.clone());
-            self.window_open.notify(ctx.events, args);
+            window.open_response.take().unwrap().respond(ctx.vars, args.clone());
+            WindowOpenEvent::notify(ctx.events, args);
             wns.windows.push(window);
         }
     }
 
-    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
             window.redraw();
         }
     }
 
-    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
+    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
         if !args.cancel_requested() {
             let service = ctx.services.req::<Windows>();
             if service.shutdown_on_last_close {
@@ -667,7 +645,7 @@ impl WindowManager {
             let w = OpenWindow::new(
                 request.new,
                 request.force_headless,
-                request.notifier,
+                request.responder,
                 ctx,
                 ctx.event_loop,
                 self.event_loop_proxy.as_ref().unwrap().clone(),
@@ -677,115 +655,85 @@ impl WindowManager {
             ctx.services.req::<Windows>().opening_windows.push(w);
         }
 
-        for (window_id, group) in close {
-            self.window_closing
-                .notify(ctx.events, WindowCloseRequestedArgs::now(window_id, group));
+        for window_id in close {
+            WindowCloseRequestedEvent::notify(ctx.events, WindowCloseRequestedArgs::now(window_id));
         }
     }
 
     /// Pump the requested update methods.
-    fn update_pump(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        if update.update_hp || update.update {
-            // detach context part so we can let a window content access its own window.
-            let mut wn_ctxs: Vec<_> = ctx
-                .services
-                .req::<Windows>()
-                .windows
-                .iter_mut()
-                .map(|w| w.context.clone())
-                .collect();
+    fn update_pump(&mut self, ctx: &mut AppContext) {
+        // detach context part so we can let a window content access its own window.
+        let wn_ctxs: Vec<_> = ctx
+            .services
+            .req::<Windows>()
+            .windows
+            .iter_mut()
+            .map(|w| w.context.clone())
+            .collect();
 
-            // high-pressure pump.
-            if update.update_hp {
-                for wn_ctx in wn_ctxs.iter_mut() {
-                    wn_ctx.borrow_mut().update_hp(ctx);
-                }
-            }
-
-            // low-pressure pump.
-            if update.update {
-                for wn_ctx in wn_ctxs.iter_mut() {
-                    wn_ctx.borrow_mut().update(ctx);
-                }
-            }
-
-            if update.update {
-                // do window vars update.
-                let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
-                for window in windows.iter_mut() {
-                    window.update_window(ctx);
-                }
-                ctx.services.req::<Windows>().windows = windows;
-
-                // do preload updates.
-                let mut opening = mem::take(&mut ctx.services.req::<Windows>().opening_windows);
-                for window in &mut opening {
-                    debug_assert!(!matches!(window.init_state, WindowInitState::Inited));
-                    window.preload_update_window(ctx);
-                }
-                ctx.services.req::<Windows>().opening_windows = opening;
-            }
+        for wn_ctx in &wn_ctxs {
+            wn_ctx.borrow_mut().update(ctx);
         }
+
+        // do window vars update.
+        let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
+        for window in windows.iter_mut() {
+            window.update_window(ctx);
+        }
+        ctx.services.req::<Windows>().windows = windows;
+
+        // do preload updates.
+        let mut opening = mem::take(&mut ctx.services.req::<Windows>().opening_windows);
+        for window in &mut opening {
+            debug_assert!(!matches!(window.init_state, WindowInitState::Inited));
+            window.preload_update_window(ctx);
+        }
+        ctx.services.req::<Windows>().opening_windows = opening;
     }
 
     /// Respond to window_closing events.
-    fn update_closing(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        if !update.update {
-            return;
-        }
-
-        // close_together are canceled together
-        let canceled_groups: Vec<_> = self
-            .window_closing
-            .updates(ctx.events)
-            .iter()
-            .filter_map(|c| {
-                if c.cancel_requested() && c.group.is_some() {
-                    Some(c.group)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let service = ctx.services.req::<Windows>();
-
-        for closing in self.window_closing.updates(ctx.events) {
-            if let Ok(win) = service.window(closing.window_id) {
-                let r = if !closing.cancel_requested() && !canceled_groups.contains(&closing.group) {
-                    self.window_close.notify(ctx.events, WindowEventArgs::now(closing.window_id, false));
-                    CloseWindowResult::Close
-                } else {
-                    CloseWindowResult::Cancel
-                };
-                win.close_response.notify(ctx.events, r);
+    fn update_closing(&mut self, ctx: &mut AppContext, args: &WindowCloseRequestedArgs) {
+        let wins = ctx.services.req::<Windows>();
+        if let Ok(win) = wins.window(args.window_id) {
+            if args.cancel_requested() {
+                let responder = win.close_response.borrow_mut().take().unwrap();
+                // cancel, if is `close_together`, this sets cancel for all
+                // windows in the group, because they share the same responder.
+                responder.respond(ctx.vars, CloseWindowResult::Cancel);
+                win.close_canceled.borrow().set(true);
+            } else if win.close_canceled.borrow().get() {
+                // another window in `close_together` canceled.
+                let _ = win.close_response.borrow_mut().take();
+            } else {
+                // close was success.
+                WindowCloseEvent::notify(ctx.events, WindowEventArgs::now(args.window_id, false));
+                let responder = win.close_response.borrow_mut().take().unwrap();
+                responder.respond(ctx.vars, CloseWindowResult::Close);
             }
         }
     }
 
     /// Respond to window_close events.
-    fn update_close(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        if !update.update {
-            return;
-        }
+    fn update_close(&mut self, ctx: &mut AppContext, args: &WindowEventArgs) {
+        // remove the window.
+        let window = {
+            let wns = ctx.services.req::<Windows>();
+            wns.windows
+                .iter()
+                .position(|w| w.id == args.window_id)
+                .map(|idx| wns.windows.remove(idx))
+        };
 
-        for close in self.window_close.updates(ctx.events) {
-            let window = {
-                let wns = ctx.services.req::<Windows>();
-                wns.windows
-                    .iter()
-                    .position(|w| w.id == close.window_id)
-                    .map(|idx| wns.windows.remove(idx))
-            };
-            if let Some(w) = window {
-                w.context.clone().borrow_mut().deinit(ctx);
-                if w.is_focused {
-                    let args = WindowIsFocusedArgs::now(w.id, false, true);
-                    self.notify_focus(args, ctx.events);
-                }
+        // deinit and notify lost of focus.
+        if let Some(w) = window {
+            w.context.clone().borrow_mut().deinit(ctx);
+            if w.is_focused {
+                let args = WindowIsFocusedArgs::now(w.id, false, true);
+                self.notify_focus(args, ctx.events);
             }
         }
 
+        // does shutdown_on_last_close.
         let service = ctx.services.req::<Windows>();
         if service.shutdown_on_last_close && service.windows.is_empty() && service.opening_windows.is_empty() {
             ctx.services.req::<AppProcess>().shutdown();
@@ -795,9 +743,11 @@ impl WindowManager {
     fn notify_focus(&self, args: WindowIsFocusedArgs, events: &Events) {
         debug_assert!(!args.closed || (args.closed && !args.focused));
 
-        self.window_focus_changed.notify(events, args.clone());
-        let specif_event = if args.focused { &self.window_focus } else { &self.window_blur };
-        specif_event.notify(events, args);
+        WindowFocusChangedEvent::notify(events, args.clone());
+        if args.focused {
+        } else {
+            WindowBlurEvent::notify(events, args);
+        }
     }
 }
 
@@ -811,7 +761,6 @@ pub struct Windows {
 
     open_requests: Vec<OpenWindowRequest>,
     opening_windows: Vec<OpenWindow>,
-    next_group: u16,
     update_notifier: UpdateNotifier,
 }
 
@@ -822,7 +771,6 @@ impl Windows {
             windows: Vec::with_capacity(1),
             open_requests: Vec::with_capacity(1),
             opening_windows: Vec::with_capacity(1),
-            next_group: 1,
             update_notifier,
         }
     }
@@ -840,25 +788,24 @@ impl Windows {
         &mut self,
         new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
         force_headless: Option<WindowMode>,
-    ) -> EventListener<WindowEventArgs> {
+    ) -> ResponseVar<WindowEventArgs> {
+        let (responder, response) = response_var();
         let request = OpenWindowRequest {
             new: Box::new(new_window),
             force_headless,
-            notifier: EventEmitter::response(),
+            responder,
         };
-        let notice = request.notifier.listener();
         self.open_requests.push(request);
-
         self.update_notifier.update();
 
-        notice
+        response
     }
 
     /// Starts closing a window, the operation can be canceled by listeners of the
     /// [close requested event](WindowCloseRequestedEvent).
     ///
-    /// Returns a listener that will update once with the result of the operation.
-    pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, GetWindowError> {
+    /// Returns a response var that will update once with the result of the operation.
+    pub fn close(&mut self, window_id: WindowId) -> Result<ResponseVar<CloseWindowResult>, GetWindowError> {
         if let Some(w) = self.windows.iter().find(|w| w.id == window_id) {
             Ok(w.close())
         } else {
@@ -868,7 +815,7 @@ impl Windows {
 
     fn get_window_error(&self, window_id: WindowId) -> GetWindowError {
         if let Some(w) = self.opening_windows.iter().find(|w| w.id == window_id) {
-            GetWindowError::Opening(window_id, w.open_response.as_ref().unwrap().listener())
+            GetWindowError::Opening(window_id, w.open_response.as_ref().unwrap().response_var())
         } else {
             GetWindowError::NotFound(window_id)
         }
@@ -877,11 +824,13 @@ impl Windows {
     /// Requests closing multiple windows together, the operation can be canceled by listeners of the
     /// [close requested event](WindowCloseRequestedEvent). If canceled none of the windows are closed.
     ///
-    /// Returns a listener that will update once with the result of the operation.
+    /// Returns a response var that will update once with the result of the operation. Returns
+    /// [`Cancel`](CloseWindowResult::Cancel) if `windows` is empty or contains a window that already
+    /// requested close during this update.
     pub fn close_together(
         &mut self,
         windows: impl IntoIterator<Item = WindowId>,
-    ) -> Result<EventListener<CloseWindowResult>, GetWindowError> {
+    ) -> Result<ResponseVar<CloseWindowResult>, GetWindowError> {
         let windows = windows.into_iter();
         let mut all = Vec::with_capacity(windows.size_hint().0);
         for window_id in windows {
@@ -892,22 +841,19 @@ impl Windows {
                     .ok_or_else(|| self.get_window_error(window_id))?,
             );
         }
-        if all.is_empty() {
-            return Ok(EventEmitter::response().into_listener());
+        if all.is_empty() || all.iter().any(|a| a.close_response.borrow().is_some()) {
+            return Ok(response_done_var(CloseWindowResult::Cancel));
         }
 
-        let set_id = NonZeroU16::new(self.next_group).unwrap();
-        self.next_group += 1;
+        let (group_responder, response) = response_var();
+        let group_cancel = Rc::default();
 
-        let listener = all[0].close_response.listener();
         for window in all {
-            window.close_requested.set(true);
-            window.close_group.set(Some(set_id));
+            *window.close_response.borrow_mut() = Some(group_responder.clone());
+            *window.close_canceled.borrow_mut() = Rc::clone(&group_cancel);
         }
 
-        self.update_notifier.update();
-
-        Ok(listener)
+        Ok(response)
     }
 
     /// Reference an open window.
@@ -925,11 +871,11 @@ impl Windows {
         &self.windows
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<(WindowId, CloseTogetherGroup)>) {
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<WindowId>) {
         let mut close_requests = vec![];
         for w in self.windows.iter() {
-            if w.close_requested.take() {
-                close_requests.push((w.id, w.close_group.take()));
+            if w.close_response.borrow().is_some() {
+                close_requests.push(w.id);
             }
         }
         (mem::take(&mut self.open_requests), close_requests)
@@ -939,11 +885,11 @@ impl Windows {
 struct OpenWindowRequest {
     new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     force_headless: Option<WindowMode>,
-    notifier: EventEmitter<WindowEventArgs>,
+    responder: ResponderVar<WindowEventArgs>,
 }
 
 /// Response message of [`close`](Windows::close) and [`close_together`](Windows::close_together).
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CloseWindowResult {
     /// Operation completed, all requested windows closed.
     Close,
@@ -958,11 +904,11 @@ pub enum GetWindowError {
     NotFound(WindowId),
     /// Window is not available because it is still opening.
     ///
-    /// The associated values are the requested window ID and an event listener that will notify once when
+    /// The associated values are the requested window ID and a response var that will update once when
     /// the window finishes opening.
     ///
     /// **Note:** The window initial content is inited, updated, layout and rendered once before the window is open.
-    Opening(WindowId, EventListener<WindowEventArgs>),
+    Opening(WindowId, ResponseVar<WindowEventArgs>),
 }
 impl fmt::Debug for GetWindowError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -987,7 +933,7 @@ impl fmt::Display for GetWindowError {
 impl std::error::Error for GetWindowError {}
 
 // We don't use Rc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderIcon = Rc<Box<dyn Fn(&mut WindowContext) -> Box<dyn UiNode>>>;
+type RenderIcon = Rc<Box<dyn Fn(&mut WindowContext) -> BoxedUiNode>>;
 
 /// Window icon.
 #[derive(Clone)]
@@ -1543,7 +1489,7 @@ pub struct Window {
     headless_screen: HeadlessScreen,
     on_pre_redraw: Box<dyn FnMut(&mut RedrawArgs)>,
     on_redraw: Box<dyn FnMut(&mut RedrawArgs)>,
-    child: Box<dyn UiNode>,
+    child: BoxedUiNode,
 }
 impl Window {
     /// New window configuration.
@@ -1822,10 +1768,9 @@ pub struct OpenWindow {
 
     renderless_event_sender: Option<EventLoopProxy>,
 
-    open_response: Option<EventEmitter<WindowEventArgs>>,
-    close_response: EventEmitter<CloseWindowResult>,
-    close_requested: Cell<bool>,
-    close_group: Cell<CloseTogetherGroup>,
+    open_response: Option<ResponderVar<WindowEventArgs>>,
+    close_response: RefCell<Option<ResponderVar<CloseWindowResult>>>,
+    close_canceled: RefCell<Rc<Cell<bool>>>,
     update_notifier: UpdateNotifier,
 }
 impl OpenWindow {
@@ -1833,7 +1778,7 @@ impl OpenWindow {
     fn new(
         new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>,
         force_headless: Option<WindowMode>,
-        open_response: EventEmitter<WindowEventArgs>,
+        open_response: ResponderVar<WindowEventArgs>,
         ctx: &mut AppContext,
         event_loop: EventLoopWindowTarget,
         event_loop_proxy: EventLoopProxy,
@@ -1974,10 +1919,9 @@ impl OpenWindow {
             frame_info,
             renderless_event_sender,
 
-            close_requested: Cell::new(false),
             open_response: Some(open_response),
-            close_response: EventEmitter::response(),
-            close_group: Cell::new(None),
+            close_response: RefCell::default(),
+            close_canceled: RefCell::default(),
             update_notifier,
 
             #[cfg(windows)]
@@ -1989,11 +1933,17 @@ impl OpenWindow {
     /// [close requested event](WindowCloseRequestedEvent).
     ///
     /// Returns a listener that will update once with the result of the operation.
-    pub fn close(&self) -> EventListener<CloseWindowResult> {
-        self.close_requested.set(true);
-        self.close_group.set(None);
-        self.update_notifier.update();
-        self.close_response.listener()
+    pub fn close(&self) -> ResponseVar<CloseWindowResult> {
+        let mut close_response = self.close_response.borrow_mut();
+        if let Some(r) = &*close_response {
+            r.response_var()
+        } else {
+            let (responder, response) = response_var();
+            *close_response = Some(responder);
+            *self.close_canceled.borrow_mut() = Rc::default();
+            self.update_notifier.update();
+            response
+        }
     }
 
     /// Window mode.
@@ -2814,7 +2764,7 @@ struct OwnedWindowContext {
     update: UpdateDisplayRequest,
 }
 impl OwnedWindowContext {
-    fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext)) -> UpdateDisplayRequest {
+    fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut BoxedUiNode, &mut WidgetContext)) -> UpdateDisplayRequest {
         let root = &mut self.root;
 
         ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
@@ -2831,7 +2781,7 @@ impl OwnedWindowContext {
         ctx: &mut AppContext,
         window_size: LayoutSize,
         scale_factor: f32,
-        f: impl FnOnce(&mut Box<dyn UiNode>, &mut LayoutContext) -> R,
+        f: impl FnOnce(&mut BoxedUiNode, &mut LayoutContext) -> R,
     ) -> R {
         let root = &mut self.root;
         ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
@@ -2843,7 +2793,7 @@ impl OwnedWindowContext {
         .0
     }
 
-    fn root_render(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut RenderContext)) {
+    fn root_render(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut BoxedUiNode, &mut RenderContext)) {
         let root = &mut self.root;
         ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
             let child = &mut root.child;
@@ -2851,7 +2801,7 @@ impl OwnedWindowContext {
         });
     }
 
-    /// Call [`UiNode::init`](UiNode::init) in all nodes.
+    /// Call [`UiNode::init`] in all nodes.
     pub fn init(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::init");
 
@@ -2861,20 +2811,20 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
-    /// Call [`UiNode::update_hp`](UiNode::update_hp) in all nodes.
-    pub fn update_hp(&mut self, ctx: &mut AppContext) {
-        profile_scope!("window::update_hp");
-
-        let update = self.root_context(ctx, |root, ctx| root.update_hp(ctx));
-        self.update |= update;
-    }
-
-    /// Call [`UiNode::update`](UiNode::update) in all nodes.
+    /// Call [`UiNode::update`] in all nodes.
     pub fn update(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::update");
 
         // do UiNode updates
         let update = self.root_context(ctx, |root, ctx| root.update(ctx));
+        self.update |= update;
+    }
+
+    /// Call [`UiNode::event`] in all nodes.
+    pub fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
+        profile_scope!("window::event");
+
+        let update = self.root_context(ctx, |root, ctx| root.event(ctx, args));
         self.update |= update;
     }
 

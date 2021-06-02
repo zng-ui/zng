@@ -1073,7 +1073,7 @@ impl FrameHitInfo {
     #[inline]
     pub fn new(window_id: WindowId, frame_id: FrameId, point: LayoutPoint, hits: HitTestResult) -> Self {
         let mut candidates = Vec::default();
-        let mut actual_hits = fnv::FnvHashMap::default();
+        let mut actual_hits = FnvHashMap::default();
 
         for hit in hits.items {
             if let Some(widget_id) = WidgetId::new(hit.tag.0) {
@@ -1325,7 +1325,7 @@ pub struct FrameInfo {
     window_id: WindowId,
     frame_id: FrameId,
     tree: Tree<WidgetInfoInner>,
-    lookup: fnv::FnvHashMap<WidgetId, ego_tree::NodeId>,
+    lookup: FnvHashMap<WidgetId, ego_tree::NodeId>,
 }
 impl FrameInfo {
     /// Blank window frame that contains only the root widget taking no space.

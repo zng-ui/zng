@@ -51,8 +51,10 @@ macro_rules! source_location {
 pub use crate::source_location;
 use crate::{
     context::RenderContext,
+    event::EventUpdateArgs,
     formatx,
     text::{Text, ToText},
+    BoxedUiNode,
 };
 
 /// Debug information about a property of a widget instance.
@@ -166,8 +168,6 @@ pub struct UiNodeDurations {
     pub deinit: Duration,
     /// Duration of [`UiNode::update`] call.
     pub update: Duration,
-    /// Duration of [`UiNode::update_hp`] call.
-    pub update_hp: Duration,
     /// Duration of [`UiNode::measure`] call.
     pub measure: Duration,
     /// Duration of [`UiNode::arrange`] call.
@@ -189,8 +189,6 @@ pub struct UiNodeCounts {
     pub deinit: usize,
     /// Count of calls to [`UiNode::update`].
     pub update: usize,
-    /// Count of calls to [`UiNode::update_hp`].
-    pub update_hp: usize,
     /// Count of calls to [`UiNode::measure`].
     pub measure: usize,
     /// Count of calls to [`UiNode::arrange`].
@@ -294,7 +292,7 @@ context_var! {
 // It registers the `WidgetInstanceInfo` metadata.
 #[doc(hidden)]
 pub struct WidgetInstanceInfoNode {
-    child: Box<dyn UiNode>,
+    child: BoxedUiNode,
     info: WidgetInstance,
     // debug vars per property.
     debug_vars: Box<[Box<[BoxedVar<ValueInfo>]>]>,
@@ -320,7 +318,7 @@ pub struct WhenInfoV1 {
 #[allow(missing_docs)] // this is all hidden
 impl WidgetInstanceInfoNode {
     pub fn new_v1(
-        node: Box<dyn UiNode>,
+        node: BoxedUiNode,
         widget_name: &'static str,
         decl_location: SourceLocation,
         instance_location: SourceLocation,
@@ -477,7 +475,7 @@ impl UiNode for WidgetInstanceInfoNode {
 // and registers the property in the widget metadata in a frame.
 #[doc(hidden)]
 pub struct PropertyInfoNode {
-    child: Box<dyn UiNode>,
+    child: BoxedUiNode,
     arg_debug_vars: Box<[BoxedVar<ValueInfo>]>,
     info: PropertyInstance,
 }
@@ -485,7 +483,7 @@ pub struct PropertyInfoNode {
 impl PropertyInfoNode {
     #[allow(clippy::too_many_arguments)]
     pub fn new_v1(
-        node: Box<dyn UiNode>,
+        node: BoxedUiNode,
 
         priority: PropertyPriority,
         child: bool,
@@ -578,8 +576,13 @@ impl UiNode for PropertyInfoNode {
             }
         }
     }
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        ctx_mtd!(self.update_hp, ctx, mut info);
+
+    fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U)
+    where
+        Self: Sized,
+    {
+        // TODO measure time and count
+        self.child.event(ctx, args);
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
@@ -623,11 +626,11 @@ impl UiNode for PropertyInfoNode {
 
 #[doc(hidden)]
 pub struct NewChildMarkerNode {
-    child: Box<dyn UiNode>,
+    child: BoxedUiNode,
 }
 #[allow(missing_docs)] // this is hidden
 impl NewChildMarkerNode {
-    pub fn new_v1(child: Box<dyn UiNode>) -> Self {
+    pub fn new_v1(child: BoxedUiNode) -> Self {
         NewChildMarkerNode { child }
     }
 }

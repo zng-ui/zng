@@ -96,9 +96,6 @@ fn test_trace(node: impl UiNode) {
     wgt.test_update(&mut ctx);
     assert_only_traced!(wgt.state(), "update");
 
-    wgt.test_update_hp(&mut ctx);
-    assert_only_traced!(wgt.state(), "update_hp");
-
     let l_size = LayoutSize::new(1000.0, 800.0);
 
     wgt.test_measure(&mut ctx, l_size);
@@ -175,12 +172,12 @@ pub fn default_no_child() {
     // we expect defaults to do nothing with the WidgetContext.
     wgt.test_init(&mut ctx);
     wgt.test_update(&mut ctx);
-    wgt.test_update_hp(&mut ctx);
     wgt.test_deinit(&mut ctx);
-    let ((updates, display_updates), wake_time) = ctx.apply_updates();
-    assert_eq!(updates, UpdateRequest::default());
-    assert_eq!(display_updates, UpdateDisplayRequest::None);
-    assert!(wake_time.is_none());
+    let u = ctx.apply_updates();
+    assert!(u.events.is_empty());
+    assert_eq!(u.update, UpdateRequest::default());
+    assert_eq!(u.display_update, UpdateDisplayRequest::None);
+    assert!(u.wake_time.is_none());
 
     wgt.test_init(&mut ctx);
 
@@ -220,6 +217,7 @@ mod util {
 
     use crate::{
         context::{LayoutContext, RenderContext, WidgetContext},
+        event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::LayoutSize,
@@ -300,8 +298,8 @@ mod util {
             self.trace("update");
         }
 
-        fn update_hp(&mut self, _: &mut WidgetContext) {
-            self.trace("update_hp");
+        fn event<U: EventUpdateArgs>(&mut self, _: &mut WidgetContext, _: &U) {
+            self.trace("event");
         }
 
         fn measure(&mut self, _: &mut LayoutContext, _: LayoutSize) -> LayoutSize {

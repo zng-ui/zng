@@ -246,7 +246,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
+        [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) { }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) { }]
 
@@ -271,6 +271,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 }
 
 fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+    let child = ident_spanned!(borrow_mut.span()=> "child");
     let borrow = quote_spanned! {borrow.span()=>
         #crate_::impl_ui_node_util::delegate(#borrow)
     };
@@ -280,48 +281,49 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
     make_absents! { user_mtds
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let child = {#borrow_mut};
-            child.init(ctx)
+            let #child = {#borrow_mut};
+            #crate_::UiNode::init(#child, ctx);
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let child = {#borrow_mut};
-            child.deinit(ctx)
+            let #child = {#borrow_mut};
+            #crate_::UiNode::deinit(#child, ctx);
         }]
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let child = {#borrow_mut};
-            child.update(ctx)
+            let #child = {#borrow_mut};
+            #crate_::UiNode::update(#child, ctx);
         }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let child = {#borrow_mut};
-            child.update_hp(ctx)
+        [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {
+            let #child = {#borrow_mut};
+            #crate_::UiNode::event::<__EU>(#child, ctx, args);
         }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
-            let child = {#borrow};
-            child.render(ctx, frame)
+            let #child = {#borrow};
+            #crate_::UiNode::render(#child, ctx, frame);
         }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
-            let child = {#borrow};
-            child.render_update(ctx, update)
+            let #child = {#borrow};
+            #crate_::UiNode::render_update(#child, ctx, update);
         }]
 
         [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, final_size: #crate_::units::LayoutSize) {
-            let child = {#borrow_mut};
-            child.arrange(ctx, final_size)
+            let #child = {#borrow_mut};
+            #crate_::UiNode::arrange(#child, ctx, final_size);
         }]
 
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::LayoutSize) -> #crate_::units::LayoutSize {
-            let child = {#borrow_mut};
-            child.measure(ctx, available_size)
+            let #child = {#borrow_mut};
+            #crate_::UiNode::measure(#child, ctx, available_size)
         }]
     }
 }
 
 fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+    let children = ident_spanned!(borrow_mut.span()=> "children");
     let borrow = quote_spanned! {borrow.span()=>
         #crate_::impl_ui_node_util::delegate_list(#borrow)
     };
@@ -331,44 +333,44 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
     make_absents! { user_mtds
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#borrow_mut};
-            #crate_::UiNodeList::init_all(children, ctx)
+            let #children = {#borrow_mut};
+            #crate_::UiNodeList::init_all(#children, ctx)
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#borrow_mut};
-            #crate_::UiNodeList::deinit_all(children, ctx)
+            let #children = {#borrow_mut};
+            #crate_::UiNodeList::deinit_all(#children, ctx)
         }]
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#borrow_mut};
-            #crate_::UiNodeList::update_all(children, ctx)
+            let #children = {#borrow_mut};
+            #crate_::UiNodeList::update_all(#children, ctx)
         }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#borrow_mut};
-            #crate_::UiNodeList::update_hp_all(children, ctx)
+        [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {
+            let #children = {#borrow_mut};
+            #crate_::UiNodeList::event_all::<__EU>(#children, ctx, args);
         }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
-            let children = {#borrow};
-            #crate_::UiNodeList::render_all(children, |_|#crate_::units::LayoutPoint::zero(), ctx, frame)
+            let #children = {#borrow};
+            #crate_::UiNodeList::render_all(#children, |_|#crate_::units::LayoutPoint::zero(), ctx, frame)
         }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
-            let children = {#borrow};
-            #crate_::UiNodeList::render_update_all(children, ctx, update)
+            let #children = {#borrow};
+            #crate_::UiNodeList::render_update_all(#children, ctx, update)
         }]
 
         [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, final_size: #crate_::units::LayoutSize) {
-            let children = {#borrow_mut};
-            #crate_::UiNodeList::arrange_all(children, ctx, |_, _|final_size)
+            let #children = {#borrow_mut};
+            #crate_::UiNodeList::arrange_all(#children, ctx, |_, _|final_size)
         }]
 
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::LayoutSize) -> #crate_::units::LayoutSize {
-            let children = {#borrow_mut};
+            let #children = {#borrow_mut};
             let mut size = #crate_::units::LayoutSize::zero();
-            #crate_::UiNodeList::measure_all(children, ctx, |_, _|available_size, |_, desired_size, _| {
+            #crate_::UiNodeList::measure_all(#children, ctx, |_, _|available_size, |_, desired_size, _| {
                 size = size.max(desired_size);
             });
             size
@@ -377,6 +379,7 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
 }
 
 fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) -> Vec<ImplItem> {
+    let children = ident_spanned!(iter_mut.span()=> "children");
     let iter = quote_spanned! {iter.span()=>
         #crate_::impl_ui_node_util::delegate_iter(#iter)
     };
@@ -386,43 +389,43 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
     make_absents! { user_mtds
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::init_all(children, ctx);
+            let #children = {#iter_mut};
+            #crate_::impl_ui_node_util::IterMutImpl::init_all(#children, ctx);
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::deinit_all(children, ctx);
+            let #children = {#iter_mut};
+            #crate_::impl_ui_node_util::IterMutImpl::deinit_all(#children, ctx);
         }]
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::update_all(children, ctx);
+            let #children = {#iter_mut};
+            #crate_::impl_ui_node_util::IterMutImpl::update_all(#children, ctx);
         }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let children = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::update_hp_all(children, ctx);
+        [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {
+            let #children = {#iter_mut};
+            #crate_::impl_ui_node_util::IterMutImpl::event_all::<__EU>(#children, ctx, args);
         }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
-            let children = {#iter};
-            #crate_::impl_ui_node_util::IterImpl::render_all(children, ctx, frame);
+            let #children = {#iter};
+            #crate_::impl_ui_node_util::IterImpl::render_all(#children, ctx, frame);
         }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
-            let children = {#iter};
-            #crate_::impl_ui_node_util::IterImpl::render_update_all(children, ctx, update);
+            let #children = {#iter};
+            #crate_::impl_ui_node_util::IterImpl::render_update_all(#children, ctx, update);
         }]
 
         [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, final_size: #crate_::units::LayoutSize) {
-            let children = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::arrange_all(children, ctx, final_size);
+            let #children = {#iter_mut};
+            #crate_::impl_ui_node_util::IterMutImpl::arrange_all(#children, ctx, final_size);
         }]
 
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::LayoutSize) -> #crate_::units::LayoutSize {
-            let children = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::measure_all(children, ctx, available_size)
+            let #children = {#iter_mut};
+            #crate_::impl_ui_node_util::IterMutImpl::measure_all(#children, ctx, available_size)
         }]
     }
 }

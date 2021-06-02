@@ -1,3 +1,5 @@
+use std::fmt;
+
 use super::*;
 
 /// A [`Var`] that can be shared.
@@ -28,6 +30,12 @@ impl<T: VarValue> RcVar<T> {
             last_updated: Cell::new(0),
             version: Cell::new(0),
         }))
+    }
+
+    /// Number of references to this variable.
+    #[inline]
+    pub fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
     }
 
     /// References the current value.
@@ -344,6 +352,7 @@ pub fn var_from<V: VarValue, I: Into<V>>(value: I) -> RcVar<V> {
 }
 
 /// New [`StateVar`].
+#[inline]
 pub fn state_var() -> StateVar {
     var(false)
 }
@@ -351,4 +360,102 @@ pub fn state_var() -> StateVar {
 /// Variable type of state properties (`is_*`).
 ///
 /// State variables are `bool` probes that are set by the property.
+///
+/// Use [`state_var`] to init.
 pub type StateVar = RcVar<bool>;
+
+/// New [`ResponderVar`] and [`ResponseVar`] in the waiting state.
+#[inline]
+pub fn response_var<T: VarValue>() -> (ResponderVar<T>, ResponseVar<T>) {
+    let responder = var(Response::Waiting::<T>);
+    let response = responder.clone().into_read_only();
+    (responder, response)
+}
+
+/// New [`ResponseVar`] in the done state.
+#[inline]
+pub fn response_done_var<T: VarValue>(response: T) -> ResponseVar<T> {
+    var(Response::Done(response)).into_read_only()
+}
+
+/// Variable used to notify the completion of an UI operation.
+///
+/// Use [`response_var`] to init.
+pub type ResponderVar<T> = RcVar<Response<T>>;
+
+/// Variable used to listen to a one time signal that an UI operation has completed.
+///
+/// Use [`response_var`] or [`response_done_var`] to init.
+pub type ResponseVar<T> = ForceReadOnlyVar<Response<T>, RcVar<Response<T>>>;
+
+/// Raw value in a [`ResponseVar`].
+#[derive(Clone, Copy)]
+pub enum Response<T: VarValue> {
+    /// Responder has not set the response yet.
+    Waiting,
+    /// Responder has set the response.
+    Done(T),
+}
+impl<T: VarValue> fmt::Debug for Response<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            match self {
+                Response::Waiting => {
+                    write!(f, "Response::Waiting")
+                }
+                Response::Done(v) => f.debug_tuple("Response::Done").field(v).finish(),
+            }
+        } else {
+            match self {
+                Response::Waiting => {
+                    write!(f, "Waiting")
+                }
+                Response::Done(v) => fmt::Debug::fmt(v, f),
+            }
+        }
+    }
+}
+
+impl<T: VarValue> ResponseVar<T> {
+    /// References the response value if a response was set.
+    #[inline]
+    pub fn response<'a>(&'a self, vars: &'a VarsRead) -> Option<&'a T> {
+        match self.get(vars) {
+            Response::Waiting => None,
+            Response::Done(r) => Some(r),
+        }
+    }
+
+    /// References the response value if a response was set for this update.
+    pub fn response_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        if let Some(new) = self.get_new(vars) {
+            match new {
+                Response::Waiting => None,
+                Response::Done(r) => Some(r),
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl<T: VarValue> ResponderVar<T> {
+    /// Sets the one time response.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the variable is already in the done state.
+    #[inline]
+    pub fn respond<'a>(&'a self, vars: &'a Vars, response: T) {
+        if let Response::Done(_) = self.get(vars) {
+            panic!("already responded");
+        }
+        self.set(vars, Response::Done(response));
+    }
+
+    /// Creates a [`ResponseVar`] linked to this responder.
+    #[inline]
+    pub fn response_var(&self) -> ResponseVar<T> {
+        self.clone().into_read_only()
+    }
+}

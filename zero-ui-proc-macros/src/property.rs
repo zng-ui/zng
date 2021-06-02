@@ -1005,7 +1005,7 @@ mod output {
                         ) -> #crate_core::debug::PropertyInfoNode {
                             #arg_debug_vars
 
-                            fn box_fix(node: impl #crate_core::UiNode) -> Box<dyn #crate_core::UiNode> {
+                            fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
                                 #crate_core::UiNode::boxed(node)
                             }
                             let node = box_fix(#set_ident(self_, #child_arg_use));
