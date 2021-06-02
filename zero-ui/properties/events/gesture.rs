@@ -153,6 +153,7 @@ where
                 ctx.services
                     .req::<Gestures>()
                     .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), self.kind, args.clone());
+                args.stop_propagation();
             }
         } else {
             self.child.event(ctx, args);
