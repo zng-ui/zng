@@ -712,7 +712,7 @@ impl AppExtension for MouseManager {
         r.services.register(Mouse::new(r.updates.notifier().clone()));
     }
 
-    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
+    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         match *event {
             WindowEvent::CursorMoved { device_id, position, .. } => self.on_cursor_moved(window_id, device_id, position, ctx),
             WindowEvent::MouseInput {
@@ -726,7 +726,7 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = MouseCaptureEvent::update(args) {
             if let Some(hover_args) = self.hover_enter_args.take() {
                 let hover_args = MouseHoverArgs::now(
@@ -753,7 +753,7 @@ impl AppExtension for MouseManager {
         mouse.fulfill_requests(windows, ctx.events);
     }
 
-    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         // update hovered
         if self.pos_window == Some(window_id) {
             let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();

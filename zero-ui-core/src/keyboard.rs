@@ -173,7 +173,7 @@ impl AppExtension for KeyboardManager {
         r.services.register(Keyboard::default());
     }
 
-    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
+    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         match *event {
             WindowEvent::KeyboardInput {
                 device_id,
@@ -745,12 +745,12 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
             is_synthetic: false,
         };
 
-        self.on_window_event(window_id, &raw_event);
+        self.window_event(window_id, &raw_event);
     }
 
     fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState) {
         let raw_event = WindowEvent::ModifiersChanged(modifiers);
-        self.on_window_event(window_id, &raw_event);
+        self.window_event(window_id, &raw_event);
     }
 
     fn press_key(&mut self, window_id: WindowId, key: Key) {

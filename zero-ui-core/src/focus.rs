@@ -503,7 +503,7 @@ impl AppExtension for FocusManager {
         ctx.services.register(Focus::new(ctx.updates.notifier().clone()));
     }
 
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let mut request = None;
 
         if let Some(args) = MouseDownEvent::update(args) {
@@ -569,13 +569,13 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn on_device_event(&mut self, _: &mut AppContext, _: DeviceId, event: &DeviceEvent) {
+    fn device_event(&mut self, _: &mut AppContext, _: DeviceId, event: &DeviceEvent) {
         if let DeviceEvent::Key(_) = event {
             self.last_keyboard_event = Instant::now();
         }
     }
 
-    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
 
         if self.focused.as_ref().map(|f| f.window_id() == window_id).unwrap_or_default() {

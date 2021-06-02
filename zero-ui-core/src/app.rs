@@ -48,13 +48,13 @@ pub trait AppExtension: 'static {
 
     /// Called when the OS sends a global device event.
     #[inline]
-    fn on_device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
+    fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
         let _ = (ctx, device_id, event);
     }
 
     /// Called when the OS sends an event to a window.
     #[inline]
-    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
+    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         let _ = (ctx, window_id, event);
     }
 
@@ -87,31 +87,31 @@ pub trait AppExtension: 'static {
         let _ = ctx;
     }
 
-    /// Called just before [`on_event_ui`](Self::on_event_ui).
+    /// Called just before [`event_ui`](Self::event_ui).
     ///
     /// Extensions can handle this method to to intersect event updates before the UI.
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `on_event_ui`.
     #[inline]
-    fn on_event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let _ = (ctx, args);
     }
 
-    /// Called just before [`on_event`](Self::on_event).
+    /// Called just before [`event`](Self::event).
     ///
     /// Only extensions that generate windows must handle this method. The [`UiNode::event`](super::UiNode::event)
     /// method is called here.
     #[inline]
-    fn on_event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let _ = (ctx, args);
     }
 
-    /// Called after every [`on_event_ui`](Self::on_event_ui).
+    /// Called after every [`event_ui`](Self::event_ui).
     ///
     /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
     #[inline]
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let _ = (ctx, args);
     }
 
@@ -123,19 +123,19 @@ pub trait AppExtension: 'static {
 
     /// Called when a new frame is ready to be presented.
     #[inline]
-    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let _ = (ctx, window_id);
     }
 
     /// Called when the OS sends a request for re-drawing the last frame.
     #[inline]
-    fn on_redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let _ = (ctx, window_id);
     }
 
     /// Called when a shutdown was requested.
     #[inline]
-    fn on_shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
+    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
         let _ = (ctx, args);
     }
 
@@ -162,18 +162,18 @@ pub trait AppExtensionBoxed: 'static {
     fn id_boxed(&self) -> TypeId;
     fn is_or_contain_boxed(&self, app_extension_id: TypeId) -> bool;
     fn init_boxed(&mut self, ctx: &mut AppInitContext);
-    fn on_device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent);
-    fn on_window_event_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent);
+    fn device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent);
+    fn window_event_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent);
     fn update_preview_boxed(&mut self, ctx: &mut AppContext);
     fn update_ui_boxed(&mut self, ctx: &mut AppContext);
     fn update_boxed(&mut self, ctx: &mut AppContext);
-    fn on_event_preview_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
-    fn on_event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
-    fn on_event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
+    fn event_preview_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
+    fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
+    fn event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn update_display_boxed(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest);
-    fn on_new_frame_ready_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
-    fn on_redraw_requested_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
-    fn on_shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs);
+    fn new_frame_ready_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
+    fn redraw_requested_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
+    fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs);
     fn deinit_boxed(&mut self, ctx: &mut AppContext);
 }
 impl<T: AppExtension> AppExtensionBoxed for T {
@@ -189,12 +189,12 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.init(ctx);
     }
 
-    fn on_device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
-        self.on_device_event(ctx, device_id, event);
+    fn device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
+        self.device_event(ctx, device_id, event);
     }
 
-    fn on_window_event_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        self.on_window_event(ctx, window_id, event);
+    fn window_event_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
+        self.window_event(ctx, window_id, event);
     }
 
     fn update_preview_boxed(&mut self, ctx: &mut AppContext) {
@@ -209,32 +209,32 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.update(ctx);
     }
 
-    fn on_event_preview_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.on_event_preview(ctx, args);
+    fn event_preview_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
+        self.event_preview(ctx, args);
     }
 
-    fn on_event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.on_event_ui(ctx, args);
+    fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
+        self.event_ui(ctx, args);
     }
 
-    fn on_event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.on_event(ctx, args);
+    fn event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
+        self.event(ctx, args);
     }
 
     fn update_display_boxed(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
         self.update_display(ctx, update);
     }
 
-    fn on_new_frame_ready_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.on_new_frame_ready(ctx, window_id);
+    fn new_frame_ready_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.new_frame_ready(ctx, window_id);
     }
 
-    fn on_redraw_requested_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.on_redraw_requested(ctx, window_id);
+    fn redraw_requested_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.redraw_requested(ctx, window_id);
     }
 
-    fn on_shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
-        self.on_shutdown_requested(ctx, args);
+    fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
+        self.shutdown_requested(ctx, args);
     }
 
     fn deinit_boxed(&mut self, ctx: &mut AppContext) {
@@ -254,12 +254,12 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().init_boxed(ctx);
     }
 
-    fn on_device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
-        self.as_mut().on_device_event_boxed(ctx, device_id, event);
+    fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
+        self.as_mut().device_event_boxed(ctx, device_id, event);
     }
 
-    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        self.as_mut().on_window_event_boxed(ctx, window_id, event);
+    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
+        self.as_mut().window_event_boxed(ctx, window_id, event);
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
@@ -274,35 +274,35 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().update_boxed(ctx);
     }
 
-    fn on_event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let args = args.as_any();
-        self.as_mut().on_event_preview_boxed(ctx, &args);
+        self.as_mut().event_preview_boxed(ctx, &args);
     }
 
-    fn on_event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let args = args.as_any();
-        self.as_mut().on_event_ui_boxed(ctx, &args);
+        self.as_mut().event_ui_boxed(ctx, &args);
     }
 
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let args = args.as_any();
-        self.as_mut().on_event_boxed(ctx, &args);
+        self.as_mut().event_boxed(ctx, &args);
     }
 
     fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
         self.as_mut().update_display_boxed(ctx, update);
     }
 
-    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.as_mut().on_new_frame_ready_boxed(ctx, window_id);
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.as_mut().new_frame_ready_boxed(ctx, window_id);
     }
 
-    fn on_redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.as_mut().on_redraw_requested_boxed(ctx, window_id);
+    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.as_mut().redraw_requested_boxed(ctx, window_id);
     }
 
-    fn on_shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
-        self.as_mut().on_shutdown_requested_boxed(ctx, args);
+    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
+        self.as_mut().shutdown_requested_boxed(ctx, args);
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {
@@ -475,7 +475,7 @@ impl AppProcess {
 fn shutdown(shutdown_requests: Option<ResponderVar<ShutdownCancelled>>, ctx: &mut AppContext, ext: &mut impl AppExtension) -> bool {
     if let Some(r) = shutdown_requests {
         let args = ShutdownRequestedArgs::now();
-        ext.on_shutdown_requested(ctx, &args);
+        ext.shutdown_requested(ctx, &args);
         if args.cancel_requested() {
             r.respond(ctx.vars, ShutdownCancelled);
         }
@@ -732,19 +732,19 @@ impl<E: AppExtension> AppExtended<E> {
                 }
 
                 GEvent::WindowEvent { window_id, event } => {
-                    profile_scope!("app::on_window_event");
-                    extensions.on_window_event(&mut owned_ctx.borrow(event_loop), window_id.into(), &event);
+                    profile_scope!("app::window_event");
+                    extensions.window_event(&mut owned_ctx.borrow(event_loop), window_id.into(), &event);
                 }
                 GEvent::UserEvent(AppEvent::NewFrameReady(window_id)) => {
                     profile_scope!("app::on_new_frame_ready");
-                    extensions.on_new_frame_ready(&mut owned_ctx.borrow(event_loop), window_id);
+                    extensions.new_frame_ready(&mut owned_ctx.borrow(event_loop), window_id);
                 }
                 GEvent::UserEvent(AppEvent::Update) => {
                     event_update = owned_ctx.take_request();
                 }
                 GEvent::DeviceEvent { device_id, event } => {
-                    profile_scope!("app::on_device_event");
-                    extensions.on_device_event(&mut owned_ctx.borrow(event_loop), device_id, &event);
+                    profile_scope!("app::device_event");
+                    extensions.device_event(&mut owned_ctx.borrow(event_loop), device_id, &event);
                 }
 
                 GEvent::MainEventsCleared => {
@@ -753,7 +753,7 @@ impl<E: AppExtension> AppExtended<E> {
 
                 GEvent::RedrawRequested(window_id) => {
                     profile_scope!("app::on_redraw_requested");
-                    extensions.on_redraw_requested(&mut owned_ctx.borrow(event_loop), window_id.into())
+                    extensions.redraw_requested(&mut owned_ctx.borrow(event_loop), window_id.into())
                 }
 
                 #[cfg(feature = "app_profiler")]
@@ -772,10 +772,10 @@ impl<E: AppExtension> AppExtended<E> {
                 let mut ctx = owned_ctx.borrow(event_loop);
 
                 for args in u.events {
-                    extensions.on_event_preview(&mut ctx, &args);
+                    extensions.event_preview(&mut ctx, &args);
                     ctx.events.on_pre_events(&mut ctx, &args);
-                    extensions.on_event_ui(&mut ctx, &args);
-                    extensions.on_event(&mut ctx, &args);
+                    extensions.event_ui(&mut ctx, &args);
+                    extensions.event(&mut ctx, &args);
                     ctx.events.on_events(&mut ctx, &args);
                 }
 
@@ -936,17 +936,17 @@ impl HeadlessApp {
     }
 
     /// Notifies extensions of a [device event](DeviceEvent).
-    pub fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent) {
-        profile_scope!("headless_app::on_device_event");
+    pub fn device_event(&mut self, device_id: DeviceId, event: &DeviceEvent) {
+        profile_scope!("headless_app::device_event");
         self.extensions
-            .on_device_event(&mut self.owned_ctx.borrow(self.event_loop.window_target()), device_id, event);
+            .device_event(&mut self.owned_ctx.borrow(self.event_loop.window_target()), device_id, event);
     }
 
     /// Notifies extensions of a [window event](WindowEvent).
-    pub fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent) {
-        profile_scope!("headless_app::on_device_event");
+    pub fn window_event(&mut self, window_id: WindowId, event: &WindowEvent) {
+        profile_scope!("headless_app::device_event");
         self.extensions
-            .on_window_event(&mut self.owned_ctx.borrow(self.event_loop.window_target()), window_id, event);
+            .window_event(&mut self.owned_ctx.borrow(self.event_loop.window_target()), window_id, event);
     }
 
     /// Pushes an [app event](AppEvent).
@@ -994,7 +994,7 @@ impl HeadlessApp {
     pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &AnyEventUpdate), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
         impl<F: FnMut(&mut AppContext, &AnyEventUpdate)> HeadlessUpdateObserver for Observer<F> {
-            fn on_event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
+            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
                 let args = args.as_any();
                 (self.0)(ctx, &args);
             }
@@ -1010,7 +1010,7 @@ impl HeadlessApp {
     pub fn update_observe_frame(&mut self, on_new_frame_ready: impl FnMut(&mut AppContext, WindowId), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
         impl<F: FnMut(&mut AppContext, WindowId)> HeadlessUpdateObserver for Observer<F> {
-            fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+            fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
                 (self.0)(ctx, window_id)
             }
         }
@@ -1033,8 +1033,8 @@ impl HeadlessApp {
             match event {
                 AppEvent::NewFrameReady(window_id) => {
                     let mut ctx = &mut self.owned_ctx.borrow(self.event_loop.window_target());
-                    self.extensions.on_new_frame_ready(&mut ctx, window_id);
-                    observer.on_new_frame_ready(&mut ctx, window_id);
+                    self.extensions.new_frame_ready(&mut ctx, window_id);
+                    observer.new_frame_ready(&mut ctx, window_id);
                 }
                 AppEvent::Update => {
                     event_update |= self.owned_ctx.take_request();
@@ -1052,15 +1052,15 @@ impl HeadlessApp {
             let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
 
             for args in u.events {
-                self.extensions.on_event_preview(&mut ctx, &args);
-                observer.on_event_preview(&mut ctx, &args);
+                self.extensions.event_preview(&mut ctx, &args);
+                observer.event_preview(&mut ctx, &args);
                 ctx.events.on_pre_events(&mut ctx, &args);
 
-                self.extensions.on_event_ui(&mut ctx, &args);
-                observer.on_event_ui(&mut ctx, &args);
+                self.extensions.event_ui(&mut ctx, &args);
+                observer.event_ui(&mut ctx, &args);
 
-                self.extensions.on_event(&mut ctx, &args);
-                observer.on_event(&mut ctx, &args);
+                self.extensions.event(&mut ctx, &args);
+                observer.event(&mut ctx, &args);
                 ctx.events.on_events(&mut ctx, &args);
             }
 
@@ -1115,18 +1115,18 @@ impl HeadlessApp {
 
 /// Observer for [`HeadlessApp::update_observe_all`].
 pub trait HeadlessUpdateObserver {
-    /// Called just after [`AppExtension::on_event_preview`].
-    fn on_event_preview<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
+    /// Called just after [`AppExtension::event_preview`].
+    fn event_preview<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
         let _ = (ctx, args);
     }
 
-    /// Called just after [`AppExtension::on_event_ui`].
-    fn on_event_ui<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
+    /// Called just after [`AppExtension::event_ui`].
+    fn event_ui<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
         let _ = (ctx, args);
     }
 
-    /// Called just after [`AppExtension::on_event`].
-    fn on_event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
+    /// Called just after [`AppExtension::event`].
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
         let _ = (ctx, args);
     }
 
@@ -1145,8 +1145,8 @@ pub trait HeadlessUpdateObserver {
         let _ = ctx;
     }
 
-    /// Called just after [`AppExtension::on_new_frame_ready`].
-    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    /// Called just after [`AppExtension::new_frame_ready`].
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let _ = (ctx, window_id);
     }
 }
@@ -1177,21 +1177,21 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn on_device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
-        self.0.on_device_event(ctx, device_id, event);
-        self.1.on_device_event(ctx, device_id, event);
+    fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
+        self.0.device_event(ctx, device_id, event);
+        self.1.device_event(ctx, device_id, event);
     }
 
     #[inline]
-    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        self.0.on_window_event(ctx, window_id, event);
-        self.1.on_window_event(ctx, window_id, event);
+    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
+        self.0.window_event(ctx, window_id, event);
+        self.1.window_event(ctx, window_id, event);
     }
 
     #[inline]
-    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.0.on_new_frame_ready(ctx, window_id);
-        self.1.on_new_frame_ready(ctx, window_id);
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.0.new_frame_ready(ctx, window_id);
+        self.1.new_frame_ready(ctx, window_id);
     }
 
     #[inline]
@@ -1219,33 +1219,33 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn on_event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.0.on_event_preview(ctx, args);
-        self.1.on_event_preview(ctx, args);
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        self.0.event_preview(ctx, args);
+        self.1.event_preview(ctx, args);
     }
 
     #[inline]
-    fn on_event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.0.on_event_ui(ctx, args);
-        self.1.on_event_ui(ctx, args);
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        self.0.event_ui(ctx, args);
+        self.1.event_ui(ctx, args);
     }
 
     #[inline]
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.0.on_event(ctx, args);
-        self.1.on_event(ctx, args);
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        self.0.event(ctx, args);
+        self.1.event(ctx, args);
     }
 
     #[inline]
-    fn on_redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.0.on_redraw_requested(ctx, window_id);
-        self.1.on_redraw_requested(ctx, window_id);
+    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.0.redraw_requested(ctx, window_id);
+        self.1.redraw_requested(ctx, window_id);
     }
 
     #[inline]
-    fn on_shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
-        self.0.on_shutdown_requested(ctx, args);
-        self.1.on_shutdown_requested(ctx, args);
+    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
+        self.0.shutdown_requested(ctx, args);
+        self.1.shutdown_requested(ctx, args);
     }
 
     #[inline]
@@ -1272,21 +1272,21 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         false
     }
 
-    fn on_device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
+    fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
         for ext in self {
-            ext.on_device_event(ctx, device_id, event);
+            ext.device_event(ctx, device_id, event);
         }
     }
 
-    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
+    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         for ext in self {
-            ext.on_window_event(ctx, window_id, event);
+            ext.window_event(ctx, window_id, event);
         }
     }
 
-    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         for ext in self {
-            ext.on_new_frame_ready(ctx, window_id);
+            ext.new_frame_ready(ctx, window_id);
         }
     }
 
@@ -1314,33 +1314,33 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn on_event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         for ext in self {
-            ext.on_event_preview(ctx, args);
+            ext.event_preview(ctx, args);
         }
     }
 
-    fn on_event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         for ext in self {
-            ext.on_event_ui(ctx, args);
+            ext.event_ui(ctx, args);
         }
     }
 
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         for ext in self {
-            ext.on_event(ctx, args);
+            ext.event(ctx, args);
         }
     }
 
-    fn on_redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         for ext in self {
-            ext.on_redraw_requested(ctx, window_id);
+            ext.redraw_requested(ctx, window_id);
         }
     }
 
-    fn on_shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
+    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
         for ext in self {
-            ext.on_shutdown_requested(ctx, args);
+            ext.shutdown_requested(ctx, args);
         }
     }
 

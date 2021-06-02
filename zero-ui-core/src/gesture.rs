@@ -716,13 +716,13 @@ impl AppExtension for GestureManager {
         r.services.register(Gestures::new());
     }
 
-    fn on_window_event(&mut self, _: &mut AppContext, _: WindowId, event: &WindowEvent) {
+    fn window_event(&mut self, _: &mut AppContext, _: WindowId, event: &WindowEvent) {
         if let WindowEvent::Focused(false) = event {
             self.pressed_modifier = None;
         }
     }
 
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = MouseClickEvent::update(args) {
             // Generate click events from mouse clicks.
             if !args.stop_propagation_requested() {

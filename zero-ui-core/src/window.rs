@@ -206,16 +206,16 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         if let Some(focused) = focused {
             // blur_window
             let event = WindowEvent::Focused(false);
-            self.on_window_event(focused, &event);
+            self.window_event(focused, &event);
         }
         let event = WindowEvent::Focused(true);
-        self.on_window_event(window_id, &event);
+        self.window_event(window_id, &event);
         self.update(false);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
         let event = WindowEvent::Focused(false);
-        self.on_window_event(window_id, &event);
+        self.window_event(window_id, &event);
         self.update(false);
     }
 
@@ -253,7 +253,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
         let event = WindowEvent::CloseRequested;
-        self.on_window_event(window_id, &event);
+        self.window_event(window_id, &event);
 
         let mut requested = false;
         let mut closed = false;
@@ -454,7 +454,7 @@ impl AppExtension for WindowManager {
         r.services.register(Windows::new(r.updates.notifier().clone()));
     }
 
-    fn on_window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
+    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         match event {
             WindowEvent::Focused(focused) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
@@ -533,7 +533,7 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn on_event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let wn_ctxs: Vec<_> = ctx
             .services
             .req::<Windows>()
@@ -552,7 +552,7 @@ impl AppExtension for WindowManager {
         self.update_pump(ctx);
     }
 
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = WindowCloseRequestedEvent::update(args) {
             self.update_closing(ctx, args);
         } else if let Some(args) = WindowCloseEvent::update(args) {
@@ -583,7 +583,7 @@ impl AppExtension for WindowManager {
         wns.opening_windows = opening;
     }
 
-    fn on_new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let wns = ctx.services.req::<Windows>();
         if let Some(window) = wns.windows.iter_mut().find(|w| w.id == window_id) {
             window.request_redraw(ctx.vars);
@@ -600,13 +600,13 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn on_redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
             window.redraw();
         }
     }
 
-    fn on_shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
+    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
         if !args.cancel_requested() {
             let service = ctx.services.req::<Windows>();
             if service.shutdown_on_last_close {

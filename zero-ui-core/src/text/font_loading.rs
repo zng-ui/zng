@@ -157,7 +157,7 @@ impl AppExtension for FontManager {
         }
     }
 
-    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         #[cfg(windows)]
         if let Some(args) = WindowOpenEvent::update(args) {
             // attach subclass WM_FONTCHANGE monitor to new headed windows.
