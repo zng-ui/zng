@@ -70,8 +70,7 @@ mod protected {
 pub struct EventUpdate<E: Event>(E::Args);
 impl<E: Event> EventUpdate<E> {
     /// Clone the arguments.
-    #[inline]
-    #[allow(clippy::should_implement_trait)] // that is what we want
+    #[allow(clippy::should_implement_trait)] // that is what we want.
     pub fn clone(&self) -> E::Args {
         self.0.clone()
     }
@@ -372,7 +371,7 @@ impl Events {
     /// The handler is called before UI handlers and [`on_event`](Self::on_event) handlers, it is called after all previous registered
     /// preview handlers.
     ///
-    /// Drop all clones of the [`EventHandler`] object to unsubscribe.
+    /// Drop the [`EventHandler`] object to unsubscribe.
     ///
     /// # Example
     ///
@@ -411,10 +410,6 @@ impl Events {
     /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
     /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
     /// registered before this one.
-    ///
-    /// Creating a [listener](Events::listen) is slightly more efficient then this and also gives you access to args marked
-    /// with [`stop_propagation`](EventArgs::stop_propagation), this method exists for the convenience of listening on
-    /// an event at the app level without having to declare an [`AppExtension`](crate::app::AppExtension) or a weird property.
     ///
     /// Drop all clones of the [`EventHandler`] object to unsubscribe.
     ///
@@ -555,6 +550,12 @@ macro_rules! event_args {
             #[inline]
             pub fn stop_propagation_requested(&self) -> bool {
                 <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
+            }
+
+            /// If the event described by these arguments is relevant in the given widget context.
+            #[inline]
+            pub fn concerns_widget(&self, ctx: &mut $crate::context::WidgetContext) -> bool {
+                <Self as $crate::event::EventArgs>::concerns_widget(self, ctx)
             }
         }
         impl $crate::event::EventArgs for $Args {

@@ -41,8 +41,8 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
    |
   ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
    |
-   |     fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
-   |                  --------------- required by this bound in `event`
+   |     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A);
+   |                 --------------- required by this bound in `event`
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
    --> $DIR/delegate_expr_error_incorrect_type.rs:9:27

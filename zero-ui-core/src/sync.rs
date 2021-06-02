@@ -399,7 +399,7 @@ trait SyncChannel {
     fn update(&self, ctx: &mut AppSyncContext) -> Retain;
 }
 
-/// Represents an [`EventEmitter`] that can be updated from other threads.
+/// Represents an [`Event`] that can be updated from other threads.
 ///
 /// See [`Sync::event_sender`] for more details.
 pub struct EventSender<E>
@@ -469,7 +469,7 @@ where
     }
 }
 
-/// Represents an [`EventListener`] that can receive updates from other threads.
+/// Represents an [`Event`] that can receive updates from other threads.
 ///
 /// See [`Sync::event_receiver`] for more details.
 #[derive(Clone)]

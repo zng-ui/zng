@@ -5,7 +5,6 @@
 
 use super::event_property;
 use crate::core::context::WidgetContext;
-use crate::core::event::EventArgs;
 use crate::core::gesture::*;
 use crate::prelude::new_property::*;
 

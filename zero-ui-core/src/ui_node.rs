@@ -43,17 +43,56 @@ pub trait UiNode: 'static {
 
     /// Called every time an event updates.
     ///
+    /// Every call to this method is for a single update of a single event type, you can listen to events
+    /// using [`Event::update`]. This method is called even if [`stop_propagation`](crate::event::EventArgs::stop_propagation) 
+    /// was requested, or a parent widget is disabled, and it must always propagate to descendent nodes.
+    ///
+    /// Event propagation can be statically or dynamically typed, the way to listen to both is the same, `A` can be an
+    /// [`AnyEventUpdate`] instance that is resolved dynamically or an [`EventUpdate`](crate::event::EventUpdate) instance
+    /// that is resolved statically in the [`Event::update`] call. If an event matches you should **use the returned args**
+    /// in the call the descendant nodes, **this upgrades from dynamic to static resolution** in descendant nodes increasing
+    /// performance.
+    ///
+    /// If the event is handled before the call in descendant nodes it is called a *preview*, this behavior matches what
+    /// happens in the [`on_pre_event`](crate::event::on_pre_event) node.
+    ///
     /// # Example
     ///
     /// ```
-    /// // TODO demonstrate how to pass call to children.
+    /// # use zero_ui_core::{UiNode, impl_ui_node, context::WidgetContext, widget_base::IsEnabled, event::EventUpdateArgs, gesture::ClickEvent};
+    /// struct MyNode<C> {
+    ///     child: C,
+    ///     click_count: usize
+    /// }
+    /// #[impl_ui_node(child)]
+    /// impl<C: UiNode> UiNode for MyNode<C> {
+    ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) { 
+    ///         if let Some(args) = ClickEvent::update(args) {
+    ///             if args.concerns_widget(ctx) && IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() {
+    ///                 self.click_count += 1;
+    ///                 args.stop_propagation();
+    ///                 println!("clicks blocked {}", self.click_count);
+    ///             }
+    ///             self.child.event(ctx, args);
+    ///         }
+    ///         else {
+    ///             self.child.event(ctx, args);
+    ///         }
+    ///     }
+    /// }
     /// ```
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
+    ///
+    /// In the example the `ClickEvent` event is handled in *preview* style (before child), but only if 
+    /// the parent widget was clicked and the widget is enabled and stop propagation was not requested. The event
+    /// is then propagated to the `child` node, `self.child.event` appears to be called twice but if the `if` call
+    /// we ensured that the descendant nodes will resolve the event statically, which can not be the case in the `else`
+    /// call where `A` can be the dynamic resolver.
+    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A);
 
     /// Called every time an update is requested.
     ///
     /// An update happens every time after a sequence of [`event`](Self::event), they also happen
-    /// when variables update and any other context or service structure that can be observed update.
+    /// when variables update and any other context or service structure that can be observed updates.
     fn update(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time a layout update is needed.
