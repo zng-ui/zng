@@ -1,4 +1,4 @@
-//! Asynchronous tasks and communication.
+//! Asynchronous task running, timers, event and variable channels.
 
 use crate::{
     event::{AnyEventUpdate, Event},
@@ -18,7 +18,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// Asynchronous tasks controller.
+/// Asynchronous task running, timers, event and variable channels.
 pub struct Sync {
     notifier: UpdateNotifier,
     channels: Vec<Box<dyn SyncChannel>>,

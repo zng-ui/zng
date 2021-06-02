@@ -118,6 +118,17 @@ impl Rgba {
     pub fn to_hsva(self) -> Hsva {
         self.into()
     }
+
+    /// Convert a copy to [R, G, B, A] bytes.
+    #[inline]
+    pub fn to_bytes(self) -> [u8; 4] {
+        [
+            (self.red * 255.0) as u8,
+            (self.green * 255.0) as u8,
+            (self.blue * 255.0) as u8,
+            (self.alpha * 255.0) as u8,
+        ]
+    }
 }
 impl fmt::Debug for Rgba {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

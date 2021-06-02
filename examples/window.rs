@@ -114,18 +114,35 @@ fn set_var_btn<T: zero_ui::core::var::VarValue>(var: &RcVar<T>, new_value: T, co
 
 fn screenshot() -> impl Widget {
     use std::time::Instant;
+    let enabled = var(true);
     button! {
-        content = text("screenshot");
-        on_click = |ctx, _| {
+        content = text(enabled.map(|&enabled| {
+            if enabled {
+                "screenshot".to_text()
+            } else {
+                "saving..".to_text()
+            }
+        }));
+        enabled = enabled.clone();
+        on_click = move |ctx, _| {
+            // disable button until screenshot is saved.
+            enabled.set(ctx.vars, false);
+
             println!("taking `screenshot.png`..");
 
             let t = Instant::now();
             let img = ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().screenshot();
-            println!("taken in {:?}", t.elapsed());
+            println!("taken in {:?}, saving..", t.elapsed());
 
-            let t = Instant::now();
-            img.save("screenshot.png").unwrap();
-            println!("saved in {:?}", t.elapsed());
+            let enabled_sender = ctx.sync.var_sender(enabled.clone());
+            ctx.sync.run(move || {
+                let t = Instant::now();
+                img.save("screenshot.png").unwrap();
+                println!("saved in {:?}", t.elapsed());
+
+                // re-enable button.
+                enabled_sender.set(true);
+            });
         };
     }
 }

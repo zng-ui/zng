@@ -4,20 +4,31 @@ use zero_ui::prelude::*;
 fn main() {
     App::default().run_window(|ctx| {
         let mut count = 10;
-        let countdown = ctx.sync.update_every_secs(1).into_map(move |t| {
-            let text = if count > 0 {
-                formatx!("{}", count)
-            } else {
-                t.stop();
-                "Done!".to_text()
-            };
-            println!("{}", text);
+        let count = ctx.sync.update_every_secs(1).into_map(move |t| {
+            let r = count;
+            if r == 0 {
+                t.stop()
+            }
             count -= 1;
-            text
+            r
+        });
+        let countdown = count.map(move |&n| {
+            let r = if n > 0 { formatx!("{}", n) } else { "Done!".to_text() };
+            println!("{}", r);
+            r
+        });
+        let background_color = count.into_map(|&n| {
+            let angle = (n + 3) as f32 / 10.0 * 360.0;
+            hsl(angle.deg(), 80.pct(), 30.pct()).to_rgba()
         });
         window! {
             title = "Countdown Example";
-            font_size = 32.pt();
+            size = (280, 120);
+            start_position = StartPosition::CenterScreen;
+            resizable = false;
+
+            font_size = 42.pt();
+            background_color;
             content = text(countdown);
         }
     })
