@@ -32,35 +32,43 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
         C: ContextVar<Type = T>,
         V: Var<T>,
     {
+        #[inline(always)]
         fn init(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.init(ctx));
         }
+        #[inline(always)]
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.deinit(ctx));
         }
+        #[inline(always)]
         fn update(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.update(ctx));
         }
+        #[inline(always)]
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.event(ctx, args));
         }
+        #[inline(always)]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let child = &mut self.child;
             ctx.vars
                 .with_context_bind(self.var, &self.value, || child.measure(ctx, available_size))
         }
+        #[inline(always)]
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.arrange(ctx, final_size));
         }
+        #[inline(always)]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let child = &self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.render(ctx, frame));
         }
+        #[inline(always)]
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             let child = &self.child;
             ctx.vars

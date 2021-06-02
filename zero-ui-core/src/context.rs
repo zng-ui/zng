@@ -777,6 +777,7 @@ pub(super) struct AppSyncContext<'a> {
 
 impl<'a> AppContext<'a> {
     /// Runs a function `f` in the context of a window.
+    #[inline(always)]
     pub fn window_context<R>(
         &mut self,
         window_id: WindowId,
@@ -807,6 +808,7 @@ impl<'a> AppContext<'a> {
     }
 
     /// Run a function `f` in the layout context of the monitor that contains a window.
+    #[inline(always)]
     pub fn outer_layout_context<R>(
         &mut self,
         screen_size: LayoutSize,
@@ -874,6 +876,7 @@ pub struct WindowContext<'a> {
 }
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` in the context of a widget.
+    #[inline(always)]
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
@@ -899,6 +902,7 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
+    #[inline(always)]
     pub fn layout_context<R>(
         &mut self,
         font_size: f32,
@@ -928,6 +932,7 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the render context of a widget.
+    #[inline(always)]
     pub fn render_context<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         f(&mut RenderContext {
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
@@ -1171,6 +1176,7 @@ pub struct WidgetContext<'a> {
 }
 impl<'a> WidgetContext<'a> {
     /// Runs a function `f` in the context of a widget.
+    #[inline(always)]
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
@@ -1329,6 +1335,7 @@ pub struct LayoutContext<'a> {
 }
 impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.
+    #[inline(always)]
     pub fn with_font_size<R>(&mut self, new_font_size: f32, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
             font_size: &new_font_size,
@@ -1350,6 +1357,7 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
+    #[inline(always)]
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut OwnedStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         self.path.push(widget_id);
 
@@ -1405,6 +1413,7 @@ pub struct RenderContext<'a> {
 }
 impl<'a> RenderContext<'a> {
     /// Runs a function `f` in the render context of a widget.
+    #[inline(always)]
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         self.path.push(widget_id);
         let r = f(&mut RenderContext {

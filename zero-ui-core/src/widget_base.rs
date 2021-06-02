@@ -76,6 +76,7 @@ pub mod implicit_base {
             inited: bool,
         }
         impl<T: UiNode> UiNode for WidgetNode<T> {
+            #[inline(always)]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if self.inited {
@@ -90,6 +91,7 @@ pub mod implicit_base {
                     self.inited = true;
                 }
             }
+            #[inline(always)]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
@@ -104,6 +106,7 @@ pub mod implicit_base {
                     self.inited = false;
                 }
             }
+            #[inline(always)]
             fn update(&mut self, ctx: &mut WidgetContext) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
@@ -113,6 +116,7 @@ pub mod implicit_base {
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
             }
+            #[inline(always)]
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
@@ -122,6 +126,7 @@ pub mod implicit_base {
                 let child = &mut self.child;
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.event(ctx, args));
             }
+            #[inline(always)]
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
                 #[cfg(debug_assertions)]
                 {
@@ -165,6 +170,7 @@ pub mod implicit_base {
 
                 child_size
             }
+            #[inline(always)]
             fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
                 self.size = final_size;
 
@@ -199,6 +205,7 @@ pub mod implicit_base {
                     child.arrange(ctx, final_size);
                 });
             }
+            #[inline(always)]
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
@@ -209,6 +216,7 @@ pub mod implicit_base {
                     frame.push_widget(self.id, self.transform_key, self.size, &self.child, ctx);
                 });
             }
+            #[inline(always)]
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
