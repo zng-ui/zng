@@ -44,7 +44,7 @@ pub trait UiNode: 'static {
     /// Called every time an event updates.
     ///
     /// Every call to this method is for a single update of a single event type, you can listen to events
-    /// using [`Event::update`]. This method is called even if [`stop_propagation`](crate::event::EventArgs::stop_propagation) 
+    /// using [`Event::update`]. This method is called even if [`stop_propagation`](crate::event::EventArgs::stop_propagation)
     /// was requested, or a parent widget is disabled, and it must always propagate to descendent nodes.
     ///
     /// Event propagation can be statically or dynamically typed, the way to listen to both is the same, `A` can be an
@@ -66,7 +66,7 @@ pub trait UiNode: 'static {
     /// }
     /// #[impl_ui_node(child)]
     /// impl<C: UiNode> UiNode for MyNode<C> {
-    ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) { 
+    ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
     ///         if let Some(args) = ClickEvent::update(args) {
     ///             if args.concerns_widget(ctx) && IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() {
     ///                 self.click_count += 1;
@@ -82,7 +82,7 @@ pub trait UiNode: 'static {
     /// }
     /// ```
     ///
-    /// In the example the `ClickEvent` event is handled in *preview* style (before child), but only if 
+    /// In the example the `ClickEvent` event is handled in *preview* style (before child), but only if
     /// the parent widget was clicked and the widget is enabled and stop propagation was not requested. The event
     /// is then propagated to the `child` node, `self.child.event` appears to be called twice but if the `if` call
     /// we ensured that the descendant nodes will resolve the event statically, which can not be the case in the `else`

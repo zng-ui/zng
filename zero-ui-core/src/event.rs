@@ -194,7 +194,7 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
             Some(unsafe {
                 // SAFETY: its the same type.
                 #[allow(clippy::transmute_ptr_to_ptr)]
-                std::mem::transmute(&self)
+                std::mem::transmute(self)
             })
         } else {
             None
