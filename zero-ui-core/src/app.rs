@@ -17,7 +17,6 @@ use glutin::event::Event as GEvent;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
-use std::mem;
 use std::{
     any::{type_name, TypeId},
     fmt,
@@ -47,7 +46,19 @@ pub trait AppExtension: 'static {
         let _ = ctx;
     }
 
+    /// If the application should listen to device events.
+    ///
+    /// This is called zero or one times after [`init`](Self::init).
+    ///
+    /// This is `false` by default.
+    #[inline]
+    fn enable_device_events(&self) -> bool {
+        false
+    }
+
     /// Called when the OS sends a global device event.
+    ///
+    /// This is only called is [`enable_device_events`](Self::enable_device_events) is `true`.
     #[inline]
     fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
         let _ = (ctx, device_id, event);
@@ -163,6 +174,7 @@ pub trait AppExtensionBoxed: 'static {
     fn id_boxed(&self) -> TypeId;
     fn is_or_contain_boxed(&self, app_extension_id: TypeId) -> bool;
     fn init_boxed(&mut self, ctx: &mut AppInitContext);
+    fn enable_device_events_boxed(&self) -> bool;
     fn device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent);
     fn window_event_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent);
     fn update_preview_boxed(&mut self, ctx: &mut AppContext);
@@ -188,6 +200,10 @@ impl<T: AppExtension> AppExtensionBoxed for T {
 
     fn init_boxed(&mut self, ctx: &mut AppInitContext) {
         self.init(ctx);
+    }
+
+    fn enable_device_events_boxed(&self) -> bool {
+        self.enable_device_events()
     }
 
     fn device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
@@ -253,6 +269,10 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
 
     fn init(&mut self, ctx: &mut AppInitContext) {
         self.as_mut().init_boxed(ctx);
+    }
+
+    fn enable_device_events(&self) -> bool {
+        self.as_ref().enable_device_events_boxed()
     }
 
     fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
@@ -393,7 +413,7 @@ impl App {
 // in the stack-trace and compile more quickly.
 #[cfg(debug_assertions)]
 impl App {
-    /// Application without any extension.
+    /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         DebugLogger::init();
         AppExtended { extensions: vec![] }
@@ -725,10 +745,11 @@ impl<E: AppExtension> AppExtended<E> {
 /// Represents a running app controlled by an external event loop.
 pub struct RunningApp<E: AppExtension> {
     extensions: E,
+    device_events: bool,
     owned_ctx: OwnedAppContext,
 
-    updates: ContextUpdates,
-    skip_update: bool,
+    maybe_has_updates: bool,
+    wake_time: Option<Instant>,
     exiting: bool,
 }
 impl<E: AppExtension> RunningApp<E> {
@@ -748,10 +769,11 @@ impl<E: AppExtension> RunningApp<E> {
         extensions.init(&mut init_ctx);
 
         RunningApp {
+            device_events: extensions.enable_device_events(),
             extensions,
             owned_ctx,
-            updates: ContextUpdates::default(),
-            skip_update: false,
+            maybe_has_updates: true,
+            wake_time: None,
             exiting: false,
         }
     }
@@ -767,20 +789,19 @@ impl<E: AppExtension> RunningApp<E> {
             let app = app.as_mut().expect("app already shutdown");
 
             match event {
-                GEvent::NewEvents(_) => {}
+                GEvent::NewEvents(c) => {
+                    if let glutin::event::StartCause::ResumeTimeReached { .. } = c {
+                        app.wait_until_elapsed();
+                    }
+                }
                 GEvent::WindowEvent { window_id, event } => app.window_event(event_loop, window_id.into(), &event),
                 GEvent::DeviceEvent { device_id, event } => app.device_event(event_loop, device_id, &event),
                 GEvent::UserEvent(app_event) => app.app_event(event_loop, &app_event),
                 GEvent::Suspended => app.suspended(event_loop),
                 GEvent::Resumed => app.resumed(event_loop),
                 GEvent::MainEventsCleared => {
-                    loop {
-                        *control_flow = app.update(event_loop, &mut ());
-                        if *control_flow != ControlFlow::Poll {
-                            break;
-                        }
-                    }
-                },
+                    *control_flow = app.update(event_loop, &mut ());
+                }
                 GEvent::RedrawRequested(window_id) => app.redraw_requested(event_loop, window_id.into()),
                 GEvent::RedrawEventsCleared => {}
                 GEvent::LoopDestroyed => unreachable!(),
@@ -793,18 +814,25 @@ impl<E: AppExtension> RunningApp<E> {
         self.owned_ctx.borrow(event_loop)
     }
 
+    /// Event loop has awakened because [`WaitUntil`](ControlFlow::WaitUntil) was requested.
+    pub fn wait_until_elapsed(&mut self) {
+        self.maybe_has_updates = true;
+    }
+
     /// Process window event.
     pub fn window_event(&mut self, event_loop: EventLoopWindowTarget, window_id: WindowId, event: &WindowEvent) {
         let mut ctx = self.owned_ctx.borrow(event_loop);
         self.extensions.window_event(&mut ctx, window_id, event);
-        self.skip_update = false;
+        self.maybe_has_updates = true;
     }
 
     /// Process device event.
     pub fn device_event(&mut self, event_loop: EventLoopWindowTarget, device_id: DeviceId, event: &DeviceEvent) {
-        let mut ctx = self.owned_ctx.borrow(event_loop);
-        self.extensions.device_event(&mut ctx, device_id, event);
-        self.skip_update = false;
+        if self.device_events {
+            let mut ctx = self.owned_ctx.borrow(event_loop);
+            self.extensions.device_event(&mut ctx, device_id, event);
+            self.maybe_has_updates = true;
+        }
     }
 
     /// Process an [`AppEvent`].
@@ -816,7 +844,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
             AppEvent::Update => {
                 // awake sleep already makes this work.
-                self.skip_update = false;
+                self.maybe_has_updates = true;
             }
         }
     }
@@ -831,74 +859,87 @@ impl<E: AppExtension> RunningApp<E> {
         log::error!(target: "app", "TODO resumed");
     }
 
-    /// Does one update if the app is awake, if more updates where requested during the call returns
-    /// [`Poll`](ControlFlow::Poll), otherwise it returns [`WaitUntil`](ControlFlow::WaitUntil) if
-    /// there are timers running or it returns [`Wait`](ControlFlow::WaitUntil) to sleep until the next event.
+    /// Does pending event and updates until there is no more updates generated, then returns
+    /// [`WaitUntil`](ControlFlow::WaitUntil) are timers running or returns [`Wait`](ControlFlow::WaitUntil)
+    /// if there aren't.
     ///
     /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
     pub fn update<O: AppUpdateObserver>(&mut self, event_loop: EventLoopWindowTarget, observer: &mut O) -> ControlFlow {
-        let mut ctx = self.owned_ctx.borrow(event_loop);
+        if self.maybe_has_updates {
+            self.maybe_has_updates = false;
 
-        if mem::take(&mut self.updates.update) {
-            // check shutdown.
-            if let Some(r) = ctx.services.req::<AppProcess>().take_requests() {
-                let args = ShutdownRequestedArgs::now();
-                self.extensions.shutdown_requested(&mut ctx, &args);
-                if args.cancel_requested() {
-                    r.respond(ctx.vars, ShutdownCancelled);
+            let mut display_update = UpdateDisplayRequest::None;
+
+            let mut limit = 100_000;
+            loop {
+                limit -= 1;
+                if limit == 0 {
+                    panic!("update loop polled 100,000 times, probably stuck in an infinite loop");
                 }
-                self.exiting = !args.cancel_requested();
-                if self.exiting {
-                    return ControlFlow::Exit;
+
+                let u = self.owned_ctx.apply_updates();
+
+                self.wake_time = u.wake_time;
+                display_update |= u.display_update;
+
+                if u.update {
+                    let mut ctx = self.owned_ctx.borrow(event_loop);
+
+                    // check shutdown.
+                    if let Some(r) = ctx.services.req::<AppProcess>().take_requests() {
+                        let args = ShutdownRequestedArgs::now();
+                        self.extensions.shutdown_requested(&mut ctx, &args);
+                        if args.cancel_requested() {
+                            r.respond(ctx.vars, ShutdownCancelled);
+                        }
+                        self.exiting = !args.cancel_requested();
+                        if self.exiting {
+                            return ControlFlow::Exit;
+                        }
+                    }
+
+                    // does `Event` notifications.
+                    for event in u.events {
+                        self.extensions.event_preview(&mut ctx, &event);
+                        observer.event_preview(&mut ctx, &event);
+                        ctx.events.on_pre_events(&mut ctx, &event);
+
+                        self.extensions.event_ui(&mut ctx, &event);
+                        observer.event_ui(&mut ctx, &event);
+
+                        self.extensions.event(&mut ctx, &event);
+                        observer.event(&mut ctx, &event);
+                        ctx.events.on_events(&mut ctx, &event);
+                    }
+
+                    // does general updates.
+                    self.extensions.update_preview(&mut ctx);
+                    observer.update_preview(&mut ctx);
+
+                    self.extensions.update_ui(&mut ctx);
+                    observer.update_ui(&mut ctx);
+
+                    self.extensions.update(&mut ctx);
+                    observer.update(&mut ctx);
+                } else if display_update != UpdateDisplayRequest::None {
+                    display_update = UpdateDisplayRequest::None;
+
+                    let mut ctx = self.owned_ctx.borrow(event_loop);
+    
+                    self.extensions.update_display(&mut ctx, display_update);
+                    observer.update_display(&mut ctx, display_update);
+                } else {
+                    break;
                 }
-            }
-
-            // does `Event` notifications.
-            for event in mem::take(&mut self.updates.events) {
-                self.extensions.event_preview(&mut ctx, &event);
-                observer.event_preview(&mut ctx, &event);
-                ctx.events.on_pre_events(&mut ctx, &event);
-
-                self.extensions.event_ui(&mut ctx, &event);
-                observer.event_ui(&mut ctx, &event);
-
-                self.extensions.event(&mut ctx, &event);
-                observer.event(&mut ctx, &event);
-                ctx.events.on_events(&mut ctx, &event);
-            }
-
-            // does general updates.
-            self.extensions.update_preview(&mut ctx);
-            observer.update_preview(&mut ctx);
-
-            self.extensions.update_ui(&mut ctx);
-            observer.update_ui(&mut ctx);
-
-            self.extensions.update(&mut ctx);
-            observer.update(&mut ctx);
-        } else if self.updates.display_update != UpdateDisplayRequest::None {
-            let display_update = mem::take(&mut self.updates.display_update);
-            self.extensions.update_display(&mut ctx, display_update);
-            observer.update_display(&mut ctx, display_update);
+            }            
         }
 
         if self.exiting {
             ControlFlow::Exit
+        } else if let Some(wake) = self.wake_time {
+            ControlFlow::WaitUntil(wake)
         } else {
-            self.updates |= self.owned_ctx.apply_updates();
-            println!("{:?}", self.updates);
-            if self.updates.has_updates() {
-                ControlFlow::Poll
-            } else if let Some(t) = self.updates.wake_time {
-                if t <= Instant::now() {
-                    self.updates.wake_time = None;
-                    ControlFlow::Poll
-                } else {
-                    ControlFlow::WaitUntil(t)
-                }
-            } else {
-                ControlFlow::Wait
-            }
+            ControlFlow::Wait
         }
     }
 
@@ -1056,21 +1097,17 @@ impl HeadlessApp {
     /// Does updates until there are no more updates to do, returns [`Exit`](ControlFlow::Exit) if app has shutdown,
     /// or returns [`WaitUntil`](ControlFlow::WaitUntil) if a timer is running or returns [`Wait`](ControlFlow::Wait)
     /// if the app is sleeping.
-    pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> ControlFlow {
+    pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
         let event_loop = self.event_loop.window_target();
 
-        loop {
-            for event in self.event_loop.take_headless_app_events(wait_app_event) {
-                self.app.app_event(event_loop, &event);
-            }
-
-            wait_app_event = false;
-
-            match self.app.update(event_loop, observer) {
-                ControlFlow::Poll => continue,
-                r => return r,
-            }
+        for event in self.event_loop.take_headless_app_events(wait_app_event) {
+            self.app.app_event(event_loop, &event);
         }
+
+        let r = self.app.update(event_loop, observer);
+        debug_assert!(r != ControlFlow::Poll);
+
+        r
     }
 }
 
@@ -1137,6 +1174,11 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     #[inline]
     fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
         self.0.is_or_contain(app_extension_id) || self.1.is_or_contain(app_extension_id)
+    }
+
+    #[inline]
+    fn enable_device_events(&self) -> bool {
+        self.0.enable_device_events() || self.1.enable_device_events()
     }
 
     #[inline]
@@ -1233,6 +1275,10 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
             }
         }
         false
+    }
+
+    fn enable_device_events(&self) -> bool {
+        self.iter().any(|e|e.enable_device_events())
     }
 
     fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
