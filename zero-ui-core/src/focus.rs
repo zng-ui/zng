@@ -591,7 +591,7 @@ impl AppExtension for FocusManager {
     }
 }
 impl FocusManager {
-    fn notify(&mut self, args: Option<FocusChangedArgs>, focus: &mut Focus, windows: &mut Windows, events: &Events) {
+    fn notify(&mut self, args: Option<FocusChangedArgs>, focus: &mut Focus, windows: &mut Windows, events: &mut Events) {
         if let Some(args) = args {
             let reverse = args.cause.is_prev_request();
             let prev_focus = args.prev_focus.clone();

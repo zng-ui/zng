@@ -739,7 +739,7 @@ impl WindowManager {
         }
     }
 
-    fn notify_focus(&self, args: WindowIsFocusedArgs, events: &Events) {
+    fn notify_focus(&self, args: WindowIsFocusedArgs, events: &mut Events) {
         debug_assert!(!args.closed || (args.closed && !args.focused));
 
         WindowFocusChangedEvent::notify(events, args.clone());

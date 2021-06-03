@@ -1,5 +1,6 @@
 //! App event API.
 
+use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::context::{AppContext, Updates, WidgetContext};
@@ -54,7 +55,7 @@ pub trait Event: Debug + Clone + Copy + 'static {
     /// Schedule an event update.
     #[doc(hidden)]
     #[inline(always)]
-    fn notify(events: &Events, args: Self::Args) {
+    fn notify(events: &mut Events, args: Self::Args) {
         events.notify::<Self>(args);
     }
 
@@ -278,10 +279,10 @@ thread_singleton!(SingletonEvents);
 ///
 /// Only a single instance of this type exists at a time.
 pub struct Events {
-    updates: RefCell<Vec<BoxedEventUpdate>>,
+    updates: Vec<BoxedEventUpdate>,
 
     #[allow(clippy::type_complexity)]
-    buffers: RefCell<Vec<Box<dyn Fn(&BoxedEventUpdate) -> Retain>>>,
+    buffers: Vec<Box<dyn Fn(&BoxedEventUpdate) -> Retain>>,
     app_pre_handlers: AppHandlers,
     app_handlers: AppHandlers,
 
@@ -291,28 +292,25 @@ pub struct Events {
 type AppHandlerWeak = std::rc::Weak<RefCell<dyn FnMut(&mut AppContext, &BoxedEventUpdate)>>;
 
 #[derive(Default)]
-struct AppHandlers(RefCell<Vec<AppHandlerWeak>>);
+struct AppHandlers(Vec<AppHandlerWeak>);
 impl AppHandlers {
-    pub fn push(&self, handler: &EventHandler) {
-        self.0.borrow_mut().push(Rc::downgrade(&handler.0));
+    pub fn push(&mut self, handler: &EventHandler) {
+        self.0.push(Rc::downgrade(&handler.0));
     }
 
-    pub fn notify(&self, ctx: &mut AppContext, args: &BoxedEventUpdate) {
-        let mut handlers = self.0.borrow_mut();
-        let mut live_handlers = Vec::with_capacity(handlers.len());
-        handlers.retain(|h| {
+    pub fn notify(&mut self, ctx: &mut AppContext, args: &BoxedEventUpdate) {
+        self.0.retain_mut(|h| {
             if let Some(handler) = h.upgrade() {
-                live_handlers.push(handler);
+                handler.borrow_mut()(ctx, args);
                 true
             } else {
                 false
             }
         });
-        drop(handlers);
+    }
 
-        for handler in live_handlers {
-            handler.borrow_mut()(ctx, args);
-        }
+    pub fn extend(&mut self, other: AppHandlers) {
+        self.0.extend(other.0)
     }
 }
 
@@ -338,26 +336,26 @@ impl Events {
     #[inline]
     pub fn instance() -> Self {
         Events {
-            updates: RefCell::default(),
-            buffers: RefCell::default(),
+            updates: vec![],
+            buffers: vec![],
             app_pre_handlers: AppHandlers::default(),
             app_handlers: AppHandlers::default(),
             _singleton: SingletonEvents::assert_new("Events"),
         }
     }
 
-    fn notify<E: Event>(&self, args: E::Args) {
+    fn notify<E: Event>(&mut self, args: E::Args) {
         let update = EventUpdate::<E>(args);
-        self.updates.borrow_mut().push(update.boxed());
+        self.updates.push(update.boxed());
     }
 
     /// Creates an event buffer for that listens to `E`.
     ///
     /// Drop the buffer to stop listening.
-    pub fn buffer<E: Event>(&self) -> EventBuffer<E::Args> {
+    pub fn buffer<E: Event>(&mut self) -> EventBuffer<E::Args> {
         let buf = EventBuffer::never();
         let weak = Rc::downgrade(&buf.queue);
-        self.buffers.borrow_mut().push(Box::new(move |args| {
+        self.buffers.push(Box::new(move |args| {
             let mut retain = false;
             if let Some(rc) = weak.upgrade() {
                 if let Some(args) = E::update(args) {
@@ -369,6 +367,15 @@ impl Events {
         }));
         buf
     }
+
+    /////
+    //pub fn sender<E: Event>(&mut self) -> EventSender<E> {
+    //    todo!()
+    //}
+    //
+    //pub fn receiver<E: Event>(&mut self) -> EventReceiver<E> {
+    //    todo!()
+    //}
 
     /// Creates a preview event handler.
     ///
@@ -394,7 +401,7 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_pre_event<E, H>(&self, mut handler: H) -> EventHandler
+    pub fn on_pre_event<E, H>(&mut self, mut handler: H) -> EventHandler
     where
         E: Event,
         H: FnMut(&mut AppContext, &E::Args) + 'static,
@@ -434,7 +441,7 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_event<E, H>(&self, mut handler: H) -> EventHandler
+    pub fn on_event<E, H>(&mut self, mut handler: H) -> EventHandler
     where
         E: Event,
         H: FnMut(&mut AppContext, &E::Args) + 'static,
@@ -452,20 +459,26 @@ impl Events {
 
     #[must_use]
     pub(super) fn apply(&mut self, updates: &mut Updates) -> Vec<BoxedEventUpdate> {
-        let r = std::mem::take(self.updates.get_mut());
-        if !r.is_empty() {
+        if !self.updates.is_empty() {
             updates.update();
         }
-        r
+        self.updates.drain(..).collect()
     }
 
-    pub(super) fn on_pre_events(&self, ctx: &mut AppContext, args: &BoxedEventUpdate) {
-        self.buffers.borrow_mut().retain(|buf| buf(args));
-        self.app_pre_handlers.notify(ctx, args);
+    pub(super) fn on_pre_events(ctx: &mut AppContext, args: &BoxedEventUpdate) {
+        ctx.events.buffers.retain(|buf| buf(args));
+        let mut handlers = mem::take(&mut ctx.events.app_pre_handlers);
+        handlers.notify(ctx, args);
+        handlers.extend(mem::take(&mut ctx.events.app_pre_handlers));
+        ctx.events.app_pre_handlers = handlers;
     }
 
-    pub(super) fn on_events(&self, ctx: &mut AppContext, args: &BoxedEventUpdate) {
-        self.app_handlers.notify(ctx, args);
+    pub(super) fn on_events(ctx: &mut AppContext, args: &BoxedEventUpdate) {
+        ctx.events.buffers.retain(|buf| buf(args));
+        let mut handlers = mem::take(&mut ctx.events.app_handlers);
+        handlers.notify(ctx, args);
+        handlers.extend(mem::take(&mut ctx.events.app_handlers));
+        ctx.events.app_handlers = handlers;
     }
 }
 
@@ -809,7 +822,7 @@ macro_rules! event {
 
             /// Schedule an event update.
             #[inline]
-            pub fn notify(events: &$crate::event::Events, args: $Args) {
+            pub fn notify(events: &mut $crate::event::Events, args: $Args) {
                 <Self as $crate::event::Event>::notify(events, args);
             }
         }

@@ -1,7 +1,7 @@
 //! App startup and app extension API.
 
 use crate::context::*;
-use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdateArgs};
+use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdateArgs, Events};
 use crate::profiler::*;
 use crate::var::{response_var, ResponderVar, ResponseVar};
 use crate::{
@@ -902,14 +902,14 @@ impl<E: AppExtension> RunningApp<E> {
                     for event in u.events {
                         self.extensions.event_preview(&mut ctx, &event);
                         observer.event_preview(&mut ctx, &event);
-                        ctx.events.on_pre_events(&mut ctx, &event);
+                        Events::on_pre_events(&mut ctx, &event);
 
                         self.extensions.event_ui(&mut ctx, &event);
                         observer.event_ui(&mut ctx, &event);
 
                         self.extensions.event(&mut ctx, &event);
                         observer.event(&mut ctx, &event);
-                        ctx.events.on_events(&mut ctx, &event);
+                        Events::on_events(&mut ctx, &event);
                     }
 
                     // does general updates.
@@ -925,13 +925,13 @@ impl<E: AppExtension> RunningApp<E> {
                     display_update = UpdateDisplayRequest::None;
 
                     let mut ctx = self.owned_ctx.borrow(event_loop);
-    
+
                     self.extensions.update_display(&mut ctx, display_update);
                     observer.update_display(&mut ctx, display_update);
                 } else {
                     break;
                 }
-            }            
+            }
         }
 
         if self.exiting {
@@ -1278,7 +1278,7 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
     }
 
     fn enable_device_events(&self) -> bool {
-        self.iter().any(|e|e.enable_device_events())
+        self.iter().any(|e| e.enable_device_events())
     }
 
     fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {

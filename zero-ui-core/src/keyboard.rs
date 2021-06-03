@@ -223,7 +223,7 @@ pub struct Keyboard {
 impl Keyboard {
     /// Process a software keyboard input.
     #[inline]
-    pub fn input(&mut self, key: Key, state: ElementState, target: WidgetPath, events: &Events) {
+    pub fn input(&mut self, key: Key, state: ElementState, target: WidgetPath, events: &mut Events) {
         self.do_input(None, key as ScanCode, Some(key), state, target, events);
     }
 
@@ -236,13 +236,13 @@ impl Keyboard {
         key: Option<Key>,
         state: ElementState,
         target: WidgetPath,
-        events: &Events,
+        events: &mut Events,
     ) {
         self.do_input(Some(device_id), scan_code, key, state, target, events);
     }
 
     /// Set the keyboard modifiers state.
-    pub fn set_modifiers(&mut self, modifiers: ModifiersState, target: WidgetPath, events: &Events) {
+    pub fn set_modifiers(&mut self, modifiers: ModifiersState, target: WidgetPath, events: &mut Events) {
         if self.modifiers != modifiers {
             let prev_modifiers = std::mem::replace(&mut self.modifiers, modifiers);
             let args = ModifiersChangedArgs::now(prev_modifiers, modifiers, target);
@@ -251,7 +251,7 @@ impl Keyboard {
     }
 
     /// Character input.
-    pub fn char_input(&mut self, character: char, target: WidgetPath, events: &Events) {
+    pub fn char_input(&mut self, character: char, target: WidgetPath, events: &mut Events) {
         let args = CharInputArgs::now(target.window_id(), character, target);
         CharInputEvent::notify(events, args);
     }
@@ -269,7 +269,7 @@ impl Keyboard {
         key: Option<Key>,
         state: ElementState,
         target: WidgetPath,
-        events: &Events,
+        events: &mut Events,
     ) {
         let mut repeat = false;
         if state == ElementState::Pressed {

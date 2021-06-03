@@ -630,7 +630,7 @@ impl MouseManager {
         device_id: Option<DeviceId>,
         hits: FrameHitInfo,
         new_target: Option<WidgetPath>,
-        events: &Events,
+        events: &mut Events,
         mouse: &Mouse,
     ) {
         if let Some(new_target) = new_target {
@@ -658,7 +658,7 @@ impl MouseManager {
         device_id: Option<DeviceId>,
         old_target: WidgetPath,
         hits: FrameHitInfo,
-        events: &Events,
+        events: &mut Events,
         mouse: &Mouse,
     ) {
         let capture = mouse.current_capture().map(|(path, mode)| CaptureInfo {
@@ -675,7 +675,7 @@ impl MouseManager {
         device_id: Option<DeviceId>,
         new_target: WidgetPath,
         hits: FrameHitInfo,
-        events: &Events,
+        events: &mut Events,
         mouse: &Mouse,
     ) {
         let capture = mouse.current_capture().map(|(path, mode)| CaptureInfo {
@@ -931,7 +931,7 @@ impl Mouse {
     }
 
     /// Call when the mouse starts pressing on the window.
-    fn start_window_capture(&mut self, mouse_down: WidgetPath, events: &Events) {
+    fn start_window_capture(&mut self, mouse_down: WidgetPath, events: &mut Events) {
         self.release_requested = false;
 
         if let Some((target, mode)) = self.capture_request.take() {
@@ -946,7 +946,7 @@ impl Mouse {
     }
 
     /// Call after UI update.
-    fn fulfill_requests(&mut self, windows: &Windows, events: &Events) {
+    fn fulfill_requests(&mut self, windows: &Windows, events: &mut Events) {
         if let Some((current_target, current_mode)) = &self.current_capture {
             if let Some((widget_id, mode)) = self.capture_request.take() {
                 if let Ok(window) = windows.window(current_target.window_id()) {
@@ -967,7 +967,7 @@ impl Mouse {
     }
 
     /// Call after a frame is generated.
-    fn continue_capture(&mut self, frame: &FrameInfo, events: &Events) {
+    fn continue_capture(&mut self, frame: &FrameInfo, events: &mut Events) {
         if let Some((target, mode)) = &self.current_capture {
             if frame.window_id() == target.window_id() {
                 // is a frame from the capturing window.
@@ -986,13 +986,13 @@ impl Mouse {
     }
 
     /// Call when the mouse stops pressing on the window, or the window loses focus or is closed.
-    fn end_window_capture(&mut self, events: &Events) {
+    fn end_window_capture(&mut self, events: &mut Events) {
         self.release_requested = false;
         self.capture_request = None;
         self.unset_capture(events);
     }
 
-    fn set_capture(&mut self, target: WidgetPath, mode: CaptureMode, events: &Events) {
+    fn set_capture(&mut self, target: WidgetPath, mode: CaptureMode, events: &mut Events) {
         let new = Some((target, mode));
         if new != self.current_capture {
             let prev = self.current_capture.take();
@@ -1001,7 +1001,7 @@ impl Mouse {
         }
     }
 
-    fn unset_capture(&mut self, events: &Events) {
+    fn unset_capture(&mut self, events: &mut Events) {
         if self.current_capture.is_some() {
             let prev = self.current_capture.take();
             MouseCaptureEvent::notify(events, MouseCaptureArgs::now(prev, None));

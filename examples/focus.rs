@@ -117,7 +117,7 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widg
     }
 }
 
-fn trace_focus(events: &Events) {
+fn trace_focus(events: &mut Events) {
     let handler = events.on_pre_event::<FocusChangedEvent, _>(|ctx, args| {
         if args.is_hightlight_changed() {
             println!("highlight: {}", args.highlight);

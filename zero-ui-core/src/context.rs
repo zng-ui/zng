@@ -585,7 +585,7 @@ impl OwnedAppContext {
             app_state: &mut self.app_state,
             headless: HeadlessInfo::new(self.headless_state.as_mut()),
             vars: &self.vars,
-            events: &self.events,
+            events: &mut self.events,
             services: self.services.services(),
             sync: &mut self.sync,
             updates: &mut self.updates.0,
@@ -595,8 +595,7 @@ impl OwnedAppContext {
 
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
     ///
-    /// Returns the update requests and a time for the loop wake back and call
-    /// [`Sync::update_timers`].
+    /// Returns the update requests and a time for the loop to awake and update.
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
         let wake_time = self.sync.update(&mut AppSyncContext {
@@ -699,7 +698,7 @@ pub struct AppContext<'a> {
     /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
-    pub events: &'a Events,
+    pub events: &'a mut Events,
     /// Access to application services.
     pub services: &'a mut Services,
 
@@ -718,7 +717,7 @@ pub(super) struct AppSyncContext<'a> {
     /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
-    pub events: &'a Events,
+    pub events: &'a mut Events,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -813,7 +812,7 @@ pub struct WindowContext<'a> {
     /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
-    pub events: &'a Events,
+    pub events: &'a mut Events,
     /// Access to application services.
     pub services: &'a mut Services,
 
@@ -1007,7 +1006,7 @@ impl TestWidgetContext {
             widget_state: &mut self.widget_state.0,
             update_state: &mut self.update_state.0,
             vars: &mut self.vars,
-            events: &self.events,
+            events: &mut self.events,
             services: self.services.services(),
             sync: &mut self.sync,
             updates: self.updates.updates(),
@@ -1054,8 +1053,7 @@ impl TestWidgetContext {
 
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
     ///
-    /// Returns the update requests and a time for the loop wake back and call
-    /// [`Sync::update_timers`].
+    /// Returns the [`ContextUpdates`] a full app would use to update the application.
     pub fn apply_updates(&mut self) -> ContextUpdates {
         let wake_time = self.sync.update(&mut AppSyncContext {
             vars: &mut self.vars,
@@ -1088,7 +1086,7 @@ pub struct ContextUpdates {
     /// Display update to notify.
     pub display_update: UpdateDisplayRequest,
 
-    /// Time for the loop to wake.
+    /// Time for the loop to awake and update.
     pub wake_time: Option<Instant>,
 }
 impl ContextUpdates {
@@ -1145,7 +1143,7 @@ pub struct WidgetContext<'a> {
     /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
-    pub events: &'a Events,
+    pub events: &'a mut Events,
     /// Access to application services.
     pub services: &'a mut Services,
 
