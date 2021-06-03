@@ -17,12 +17,12 @@ use glutin::event::Event as GEvent;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
-use std::time::Instant;
 use std::{
     any::{type_name, TypeId},
+    fmt,
     sync::atomic::AtomicBool,
+    time::Instant,
 };
-use std::{fmt, mem};
 
 pub use glutin::event::{DeviceEvent, DeviceId, ElementState};
 
@@ -730,9 +730,6 @@ pub struct RunningApp<E: AppExtension> {
     timer: Option<Instant>,
 
     awake: bool,
-    update: bool,
-    display_update: UpdateDisplayRequest,
-
     exiting: bool,
 }
 impl<E: AppExtension> RunningApp<E> {
@@ -748,8 +745,6 @@ impl<E: AppExtension> RunningApp<E> {
             owned_ctx,
             timer: None,
             awake: false,
-            update: false,
-            display_update: UpdateDisplayRequest::None,
             exiting: false,
         }
     }
@@ -838,7 +833,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.extensions.new_frame_ready(&mut ctx, *window_id);
             }
             AppEvent::Update => {
-                self.update |= self.owned_ctx.take_request();
+                // awake sleep already makes this work.
             }
         }
     }
@@ -864,6 +859,9 @@ impl<E: AppExtension> RunningApp<E> {
         self.awake = false;
 
         let mut limit = UPDATE_LIMIT;
+
+        let mut display_update = UpdateDisplayRequest::None;
+
         loop {
             limit -= 1;
             if limit == 0 {
@@ -872,27 +870,23 @@ impl<E: AppExtension> RunningApp<E> {
 
             let u = self.owned_ctx.apply_updates();
 
-            self.display_update |= u.display_update;
-
             if let Some(timer) = u.wake_time {
                 self.timer = Some(timer);
             }
 
-            self.update |= u.update;
-            let events = u.events;
+            display_update |= u.display_update;
 
             let mut ctx = self.owned_ctx.borrow(event_loop);
 
-            if !self.update {
-                debug_assert!(events.is_empty(), "pending events but update was not requested");
+            if !u.update {
+                debug_assert!(u.events.is_empty(), "pending events but update was not requested");
 
                 // does display updates only after there is no more `Event` and var updates.
-                if self.display_update != UpdateDisplayRequest::None {
-                    let update = mem::take(&mut self.display_update);
-                    self.extensions.update_display(&mut ctx, update);
-                    observer.update_display(&mut ctx, update);
+                if display_update != UpdateDisplayRequest::None {
+                    self.extensions.update_display(&mut ctx, display_update);
+                    observer.update_display(&mut ctx, display_update);
+                    display_update = UpdateDisplayRequest::None;
                     // continue because display updates can generate `Event` and var updates.
-                    self.update = false;
                     continue;
                 } else {
                     // finished updates.
@@ -910,7 +904,7 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             }
 
-            for event in events {
+            for event in u.events {
                 self.extensions.event_preview(&mut ctx, &event);
                 observer.event_preview(&mut ctx, &event);
                 ctx.events.on_pre_events(&mut ctx, &event);
@@ -931,8 +925,6 @@ impl<E: AppExtension> RunningApp<E> {
 
             self.extensions.update(&mut ctx);
             observer.update(&mut ctx);
-
-            self.update = false;
         }
     }
 
