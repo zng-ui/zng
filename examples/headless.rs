@@ -15,7 +15,7 @@ fn main() {
     let window_id = app.open_window(|_| image());
 
     // sleep until the frame is rendered.
-    let frame = app.screenshot(window_id);
+    let frame = app.frame_pixels(window_id);
 
     // save the frame.
     print!("saving ./screenshot.png ... ");

@@ -164,7 +164,7 @@ pub trait HeadlessAppWindowExt {
     fn blur_window(&mut self, window_id: WindowId);
 
     /// Copy the current frame pixels of the window.
-    fn screenshot(&mut self, window_id: WindowId) -> FramePixels;
+    fn frame_pixels(&mut self, window_id: WindowId) -> FramePixels;
 
     /// Sleeps until the next window frame is rendered, then returns the frame pixels.
     fn wait_frame(&mut self, window_id: WindowId) -> FramePixels;
@@ -174,7 +174,7 @@ pub trait HeadlessAppWindowExt {
 }
 impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
-        let response = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window, None));
+        let response = self.ctx().services.req::<Windows>().open(new_window, None);
         let mut window_id = None;
         while window_id.is_none() {
             self.update_observe(
@@ -194,14 +194,14 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     }
 
     fn focus_window(&mut self, window_id: WindowId) {
-        let focused = self.with_context(|ctx| {
-            ctx.services
-                .req::<Windows>()
-                .windows()
-                .iter()
-                .find(|w| w.is_focused())
-                .map(|w| w.id())
-        });
+        let focused = self
+            .ctx()
+            .services
+            .req::<Windows>()
+            .windows()
+            .iter()
+            .find(|w| w.is_focused())
+            .map(|w| w.id());
 
         if let Some(focused) = focused {
             // blur_window
@@ -220,35 +220,34 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     }
 
     fn wait_frame(&mut self, window_id: WindowId) -> FramePixels {
-        let mut pixels = None;
-        while pixels.is_none() {
-            self.update_observe_frame(
-                |ctx, id| {
-                    if id == window_id {
-                        let pxs = ctx
-                            .services
-                            .req::<Windows>()
-                            .window(window_id)
-                            .expect("window not found")
-                            .screenshot();
+        // the current frame for comparison.
+        let frame_id = self
+            .ctx()
+            .services
+            .req::<Windows>()
+            .window(window_id)
+            .ok()
+            .map(|w| w.frame_info().frame_id());
 
-                        pixels = Some(pxs);
-                    }
-                },
-                true,
-            );
+        loop {
+            self.update(true);
+
+            if let Ok(w) = self.ctx().services.req::<Windows>().window(window_id) {
+                if Some(w.frame_info().frame_id()) != frame_id {
+                    // is a new frame, get the pixels.
+                    return w.frame_pixels();
+                }
+            }
         }
-        pixels.unwrap()
     }
 
-    fn screenshot(&mut self, window_id: WindowId) -> FramePixels {
-        self.with_context(|ctx| {
-            ctx.services
-                .req::<Windows>()
-                .window(window_id)
-                .expect("window not found")
-                .screenshot()
-        })
+    fn frame_pixels(&mut self, window_id: WindowId) -> FramePixels {
+        self.ctx()
+            .services
+            .req::<Windows>()
+            .window(window_id)
+            .expect("window not found")
+            .frame_pixels()
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
@@ -2073,12 +2072,12 @@ impl OpenWindow {
         &self.frame_info
     }
 
-    /// Take a screenshot of the full window area.
+    /// Read the current frame pixels.
     ///
     /// # Panics
     ///
     /// Panics if running in [renderless mode](Self::mode).
-    pub fn screenshot(&self) -> FramePixels {
+    pub fn frame_pixels(&self) -> FramePixels {
         if let Some(renderer) = &self.renderer {
             renderer.borrow_mut().frame_pixels().expect("failed to read pixels")
         } else {
@@ -2086,12 +2085,12 @@ impl OpenWindow {
         }
     }
 
-    /// Take a screenshot of a window area.
+    /// Read a rectangle of pixels from the current frame.
     ///
     /// # Panics
     ///
     /// Panics if running in [renderless mode](Self::mode).
-    pub fn screenshot_rect(&self, rect: LayoutRect) -> FramePixels {
+    pub fn frame_pixels_rect(&self, rect: LayoutRect) -> FramePixels {
         if let Some(renderer) = &self.renderer {
             renderer.borrow_mut().frame_pixels_l_rect(rect).expect("failed to read pixels")
         } else {
@@ -2846,9 +2845,7 @@ mod headless_tests {
         let mut app = App::default().run_headless();
         assert!(!app.renderer_enabled());
 
-        app.with_context(|ctx| {
-            ctx.services.req::<Windows>().open(test_window, None);
-        });
+        app.ctx().services.req::<Windows>().open(test_window, None);
 
         app.update(false);
     }
@@ -2860,9 +2857,7 @@ mod headless_tests {
         app.enable_renderer(true);
         assert!(app.renderer_enabled());
 
-        app.with_context(|ctx| {
-            ctx.services.req::<Windows>().open(test_window, None);
-        });
+        app.ctx().services.req::<Windows>().open(test_window, None);
 
         app.update(false);
     }
@@ -2871,30 +2866,24 @@ mod headless_tests {
     pub fn query_frame() {
         let mut app = App::default().run_headless();
 
-        app.with_context(|ctx| {
-            ctx.services.req::<Windows>().open(test_window, None);
-        });
+        app.ctx().services.req::<Windows>().open(test_window, None);
+
         app.update(false); // process open request.
+        app.update(true); // process first render.
 
-        let mut got_new_frame = false;
-        app.update_observe_frame(|_, _| got_new_frame = true, false);
-        assert!(got_new_frame);
+        let wn = &app.ctx().services.req::<Windows>().windows()[0];
 
-        app.with_context(|ctx| {
-            let wn = &ctx.services.req::<Windows>().windows()[0];
+        assert_eq!(wn.id(), wn.frame_info().window_id());
 
-            assert_eq!(wn.id(), wn.frame_info().window_id());
+        let root = wn.frame_info().root();
 
-            let root = wn.frame_info().root();
+        let expected = Some(true);
+        let actual = root.meta().get::<FooMetaKey>().copied();
+        assert_eq!(expected, actual);
 
-            let expected = Some(true);
-            let actual = root.meta().get::<FooMetaKey>().copied();
-            assert_eq!(expected, actual);
-
-            let expected = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(520.0, 510.0));
-            let actual = *root.bounds();
-            assert_eq!(expected, actual);
-        })
+        let expected = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(520.0, 510.0));
+        let actual = *root.bounds();
+        assert_eq!(expected, actual);
     }
 
     fn test_window(ctx: &mut WindowContext) -> Window {

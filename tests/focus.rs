@@ -1516,11 +1516,12 @@ impl TestApp {
     pub fn new_w(window: Window) -> Self {
         let mut app = App::default().run_headless();
 
-        let (focus_changed, return_focus_changed) = app.with_context(|ctx| {
+        let (focus_changed, return_focus_changed) = {
+            let ctx = app.ctx();
             let fc = ctx.events.buffer::<zero_ui::core::focus::FocusChangedEvent>();
             let rfc = ctx.events.buffer::<zero_ui::core::focus::ReturnFocusChangedEvent>();
             (fc, rfc)
-        });
+        };
 
         let window_id = app.open_window(move |_| window);
         TestApp {
@@ -1532,18 +1533,14 @@ impl TestApp {
     }
 
     pub fn set_vars(&mut self, set: impl FnOnce(&Vars)) {
-        self.app.with_context(|ctx| {
-            set(ctx.vars);
-        });
+        set(self.app.ctx().vars);
         self.app.update(false); // notify vars.
         self.app.update(false); // respond to new frame.
     }
 
     pub fn set_shutdown_on_last_close(&mut self, shutdown: bool) {
-        self.app.with_context(|ctx| {
-            let w = ctx.services.req::<zero_ui::core::window::Windows>();
-            w.shutdown_on_last_close = shutdown;
-        });
+        let w = self.app.ctx().services.req::<zero_ui::core::window::Windows>();
+        w.shutdown_on_last_close = shutdown;
     }
 
     pub fn close_main_window(&mut self) {
@@ -1577,8 +1574,7 @@ impl TestApp {
     }
 
     pub fn focused(&mut self) -> Option<WidgetId> {
-        self.app
-            .with_context(|ctx| ctx.services.req::<Focus>().focused().map(|w| w.widget_id()))
+        self.app.ctx().services.req::<Focus>().focused().map(|w| w.widget_id())
     }
 
     pub fn press_tab(&mut self) {
@@ -1614,20 +1610,17 @@ impl TestApp {
     }
 
     pub fn focus(&mut self, widget_id: WidgetId) {
-        self.app
-            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget(widget_id, true));
+        self.app.ctx().services.req::<Focus>().focus_widget(widget_id, true);
         self.app.update(false);
     }
 
     pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
-        self.app
-            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_exit(widget_id, true));
+        self.app.ctx().services.req::<Focus>().focus_widget_or_exit(widget_id, true);
         self.app.update(false);
     }
 
     pub fn focus_or_child(&mut self, widget_id: WidgetId) {
-        self.app
-            .with_context(|ctx| ctx.services.req::<Focus>().focus_widget_or_enter(widget_id, true));
+        self.app.ctx().services.req::<Focus>().focus_widget_or_enter(widget_id, true);
         self.app.update(false);
     }
 

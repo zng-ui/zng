@@ -131,7 +131,7 @@ fn screenshot() -> impl Widget {
             println!("taking `screenshot.png`..");
 
             let t = Instant::now();
-            let img = ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().screenshot();
+            let img = ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().frame_pixels();
             println!("taken in {:?}, saving..", t.elapsed());
 
             let enabled_sender = ctx.sync.var_sender(enabled.clone());

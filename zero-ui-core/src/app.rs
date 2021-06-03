@@ -14,10 +14,10 @@ use crate::{
     window::{WindowEvent, WindowId, WindowManager},
 };
 use glutin::event::Event as GEvent;
-use glutin::event::StartCause as GEventStartCause;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
+use std::time::Instant;
 use std::{
     any::{type_name, TypeId},
     sync::atomic::AtomicBool,
@@ -141,7 +141,7 @@ pub trait AppExtension: 'static {
 
     /// Called when the application is shutting down.
     ///
-    /// Update requests generated during this call are ignored.
+    /// Update requests and event notifications generated during this call are ignored.
     #[inline]
     fn deinit(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
@@ -471,19 +471,6 @@ impl AppProcess {
         self.shutdown_requests.take()
     }
 }
-///Returns if should shutdown
-fn shutdown(shutdown_requests: Option<ResponderVar<ShutdownCancelled>>, ctx: &mut AppContext, ext: &mut impl AppExtension) -> bool {
-    if let Some(r) = shutdown_requests {
-        let args = ShutdownRequestedArgs::now();
-        ext.shutdown_requested(ctx, &args);
-        if args.cancel_requested() {
-            r.respond(ctx.vars, ShutdownCancelled);
-        }
-        !args.cancel_requested()
-    } else {
-        false
-    }
-}
 
 #[derive(Debug)]
 enum EventLoopInner {
@@ -693,126 +680,11 @@ impl<E: AppExtension> AppExtended<E> {
 
         let event_loop = EventLoop::new(false);
 
-        let mut extensions = self.extensions;
+        let mut app = RunningApp::start(self.extensions, event_loop.create_proxy());
 
-        let mut owned_ctx = OwnedAppContext::instance(event_loop.create_proxy());
+        start(&mut app.ctx(event_loop.window_target()));
 
-        let mut init_ctx = owned_ctx.borrow_init();
-        init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
-        extensions.init(&mut init_ctx);
-
-        let mut in_sequence = false;
-        let mut sequence_update = UpdateDisplayRequest::None;
-
-        start(&mut owned_ctx.borrow(event_loop.window_target()));
-
-        event_loop.run_headed(move |event, event_loop, control_flow| {
-            profile_scope!("app::event");
-
-            if let ControlFlow::Poll = &control_flow {
-                // Poll is the initial value but we want to use
-                // Wait by default. This should only happen once
-                // because we don't use Poll at all.
-                *control_flow = ControlFlow::Wait;
-            }
-
-            let mut event_update = UpdateRequest::default();
-            match event {
-                GEvent::NewEvents(cause) => {
-                    if let GEventStartCause::ResumeTimeReached { .. } = cause {
-                        // we assume only timers set WaitUntil.
-                        let ctx = owned_ctx.borrow(event_loop);
-                        if let Some(resume) = ctx.sync.update_timers(ctx.vars) {
-                            *control_flow = ControlFlow::WaitUntil(resume);
-                        } else {
-                            *control_flow = ControlFlow::Wait;
-                        }
-                    }
-                    in_sequence = true;
-                }
-
-                GEvent::WindowEvent { window_id, event } => {
-                    profile_scope!("app::window_event");
-                    extensions.window_event(&mut owned_ctx.borrow(event_loop), window_id.into(), &event);
-                }
-                GEvent::UserEvent(AppEvent::NewFrameReady(window_id)) => {
-                    profile_scope!("app::on_new_frame_ready");
-                    extensions.new_frame_ready(&mut owned_ctx.borrow(event_loop), window_id);
-                }
-                GEvent::UserEvent(AppEvent::Update) => {
-                    event_update = owned_ctx.take_request();
-                }
-                GEvent::DeviceEvent { device_id, event } => {
-                    profile_scope!("app::device_event");
-                    extensions.device_event(&mut owned_ctx.borrow(event_loop), device_id, &event);
-                }
-
-                GEvent::MainEventsCleared => {
-                    in_sequence = false;
-                }
-
-                GEvent::RedrawRequested(window_id) => {
-                    profile_scope!("app::on_redraw_requested");
-                    extensions.redraw_requested(&mut owned_ctx.borrow(event_loop), window_id.into())
-                }
-
-                #[cfg(feature = "app_profiler")]
-                GEvent::LoopDestroyed => {
-                    crate::profiler::write_profile("app_profile.json", true);
-                }
-
-                _ => {}
-            }
-
-            // changes to this loop must be copied to the `HeadlessApp::update` loop.
-            let mut limit = UPDATE_LIMIT;
-            loop {
-                let u = owned_ctx.apply_updates();
-
-                let mut ctx = owned_ctx.borrow(event_loop);
-
-                for args in u.events {
-                    extensions.event_preview(&mut ctx, &args);
-                    ctx.events.on_pre_events(&mut ctx, &args);
-                    extensions.event_ui(&mut ctx, &args);
-                    extensions.event(&mut ctx, &args);
-                    ctx.events.on_events(&mut ctx, &args);
-                }
-
-                let update = u.update | mem::take(&mut event_update);
-                sequence_update |= u.display_update;
-                if let Some(until) = u.wake_time {
-                    *control_flow = ControlFlow::WaitUntil(until);
-                }
-
-                if update.update {
-                    {
-                        profile_scope!("app::update");
-                        let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
-                        if shutdown(shutdown_requests, &mut ctx, &mut extensions) {
-                            *control_flow = ControlFlow::Exit;
-                            return;
-                        }
-                        extensions.update_preview(&mut ctx);
-                        extensions.update_ui(&mut ctx);
-                        extensions.update(&mut ctx);
-                    }
-                } else {
-                    break;
-                }
-
-                limit -= 1;
-                if limit == 0 {
-                    panic!("immediate update loop reached limit of `{}` repeats", UPDATE_LIMIT)
-                }
-            }
-
-            if !in_sequence && sequence_update.is_some() {
-                profile_scope!("app::update_display");
-                extensions.update_display(&mut owned_ctx.borrow(event_loop), sequence_update);
-                sequence_update = UpdateDisplayRequest::None;
-            }
-        })
+        app.run_headed(event_loop)
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
@@ -839,23 +711,239 @@ impl<E: AppExtension> AppExtended<E> {
 
         let event_loop = EventLoop::new(true);
 
-        let mut owned_ctx = OwnedAppContext::instance(event_loop.create_proxy());
+        let app = RunningApp::start(self.extensions.boxed(), event_loop.create_proxy());
 
-        let mut extensions = self.extensions;
+        HeadlessApp {
+            event_loop,
+            app,
+
+            #[cfg(feature = "app_profiler")]
+            _pf: profile_scope,
+        }
+    }
+}
+
+/// Represents a running app controlled by an external event loop.
+pub struct RunningApp<E: AppExtension> {
+    extensions: E,
+    owned_ctx: OwnedAppContext,
+    timer: Option<Instant>,
+
+    awake: bool,
+    update: UpdateRequest,
+    display_update: UpdateDisplayRequest,
+
+    exiting: bool,
+}
+impl<E: AppExtension> RunningApp<E> {
+    fn start(mut extensions: E, event_loop: EventLoopProxy) -> Self {
+        let mut owned_ctx = OwnedAppContext::instance(event_loop);
 
         let mut init_ctx = owned_ctx.borrow_init();
         init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
         extensions.init(&mut init_ctx);
 
-        HeadlessApp {
-            event_loop,
-            extensions: Box::new(extensions),
+        RunningApp {
+            extensions,
             owned_ctx,
-            control_flow: ControlFlow::Wait,
-
-            #[cfg(feature = "app_profiler")]
-            _pf: profile_scope,
+            timer: None,
+            awake: false,
+            update: UpdateRequest::default(),
+            display_update: UpdateDisplayRequest::None,
+            exiting: false,
         }
+    }
+
+    fn run_headed(self, event_loop: EventLoop) -> ! {
+        let mut app = Some(self);
+        event_loop.run_headed(move |event, event_loop, control_flow| {
+            if let GEvent::LoopDestroyed = &event {
+                app.take().unwrap().shutdown(event_loop);
+                return;
+            }
+
+            let app = app.as_mut().expect("app already shutdown");
+
+            match event {
+                GEvent::NewEvents(_) => app.wake(event_loop),
+                GEvent::WindowEvent { window_id, event } => app.window_event(event_loop, window_id.into(), &event),
+                GEvent::DeviceEvent { device_id, event } => app.device_event(event_loop, device_id, &event),
+                GEvent::UserEvent(app_event) => app.app_event(event_loop, &app_event),
+                GEvent::Suspended => app.suspended(event_loop),
+                GEvent::Resumed => app.resumed(event_loop),
+                GEvent::MainEventsCleared => app.update(event_loop, &mut ()),
+                GEvent::RedrawRequested(window_id) => app.redraw_requested(event_loop, window_id.into()),
+                GEvent::RedrawEventsCleared => {}
+                GEvent::LoopDestroyed => unreachable!(),
+            }
+
+            *control_flow = app.control_flow();
+        })
+    }
+
+    /// Exclusive borrow the app context.
+    pub fn ctx<'a>(&'a mut self, event_loop: EventLoopWindowTarget<'a>) -> AppContext<'a> {
+        self.owned_ctx.borrow(event_loop)
+    }
+
+    /// The app's desired behavior for an external event loop.
+    pub fn control_flow(&self) -> ControlFlow {
+        if self.exiting {
+            ControlFlow::Exit
+        } else if let Some(t) = self.timer {
+            ControlFlow::WaitUntil(t)
+        } else {
+            ControlFlow::Wait
+        }
+    }
+
+    /// Start taking events.
+    pub fn wake(&mut self, event_loop: EventLoopWindowTarget) {
+        if self.awake {
+            return;
+        }
+        self.awake = true;
+
+        if let Some(timer) = self.timer {
+            if timer <= Instant::now() {
+                let ctx = self.owned_ctx.borrow(event_loop);
+                self.timer = ctx.sync.update_timers(ctx.vars);
+            }
+        }
+    }
+
+    /// Process window event.
+    pub fn window_event(&mut self, event_loop: EventLoopWindowTarget, window_id: WindowId, event: &WindowEvent) {
+        self.wake(event_loop);
+
+        let mut ctx = self.owned_ctx.borrow(event_loop);
+        self.extensions.window_event(&mut ctx, window_id, event);
+    }
+
+    /// Process device event.
+    pub fn device_event(&mut self, event_loop: EventLoopWindowTarget, device_id: DeviceId, event: &DeviceEvent) {
+        self.wake(event_loop);
+
+        let mut ctx = self.owned_ctx.borrow(event_loop);
+        self.extensions.device_event(&mut ctx, device_id, event);
+    }
+
+    /// Process an [`AppEvent`].
+    pub fn app_event(&mut self, event_loop: EventLoopWindowTarget, app_event: &AppEvent) {
+        self.wake(event_loop);
+
+        match app_event {
+            AppEvent::NewFrameReady(window_id) => {
+                let mut ctx = self.owned_ctx.borrow(event_loop);
+                self.extensions.new_frame_ready(&mut ctx, *window_id);
+            }
+            AppEvent::Update => {
+                self.update |= self.owned_ctx.take_request();
+            }
+        }
+    }
+
+    /// Process application suspension.
+    pub fn suspended(&mut self, _event_loop: EventLoopWindowTarget) {
+        log::error!(target: "app", "TODO suspended");
+    }
+
+    /// Process application resume from suspension.
+    pub fn resumed(&mut self, _event_loop: EventLoopWindowTarget) {
+        log::error!(target: "app", "TODO resumed");
+    }
+
+    /// Does pending event notifications, updates and display updates until there is no
+    /// more updates requested, then sleeps and returns.
+    ///
+    /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
+    pub fn update<O: AppUpdateObserver>(&mut self, event_loop: EventLoopWindowTarget, observer: &mut O) {
+        if !self.awake {
+            return;
+        }
+        self.awake = false;
+
+        let mut limit = UPDATE_LIMIT;
+        loop {
+            limit -= 1;
+            if limit == 0 {
+                panic!("update loop reached limit of `{}` repeats", UPDATE_LIMIT)
+            }
+
+            let u = self.owned_ctx.apply_updates();
+            self.display_update |= u.display_update;
+
+            if let Some(timer) = u.wake_time {
+                self.timer = Some(timer);
+            }
+
+            self.update |= u.update;
+            let events = u.events;
+
+            let mut ctx = self.owned_ctx.borrow(event_loop);
+
+            if !self.update.update {
+                debug_assert!(events.is_empty(), "pending events but update was not requested");
+
+                // does display updates only after there is no more `Event` and var updates.
+                if self.display_update != UpdateDisplayRequest::None {
+                    let update = mem::take(&mut self.display_update);
+                    self.extensions.update_display(&mut ctx, update);
+                    observer.update_display(&mut ctx, update);
+                    // continue because display updates can generate `Event` and var updates.
+                    continue;
+                } else {
+                    // finished updates.
+                    break;
+                }
+            } else if let Some(r) = ctx.services.req::<AppProcess>().take_requests() {
+                let args = ShutdownRequestedArgs::now();
+                self.extensions.shutdown_requested(&mut ctx, &args);
+                if args.cancel_requested() {
+                    r.respond(ctx.vars, ShutdownCancelled);
+                }
+                self.exiting = !args.cancel_requested();
+                if self.exiting {
+                    return;
+                }
+            }
+
+            for event in events {
+                self.extensions.event_preview(&mut ctx, &event);
+                observer.event_preview(&mut ctx, &event);
+                ctx.events.on_pre_events(&mut ctx, &event);
+
+                self.extensions.event_ui(&mut ctx, &event);
+                observer.event_ui(&mut ctx, &event);
+
+                self.extensions.event(&mut ctx, &event);
+                observer.event(&mut ctx, &event);
+                ctx.events.on_events(&mut ctx, &event);
+            }
+
+            self.extensions.update_preview(&mut ctx);
+            observer.update_preview(&mut ctx);
+
+            self.extensions.update_ui(&mut ctx);
+            observer.update_ui(&mut ctx);
+
+            self.extensions.update(&mut ctx);
+            observer.update(&mut ctx);
+
+            self.update = UpdateRequest::default();
+        }
+    }
+
+    /// OS requested a redraw.
+    pub fn redraw_requested(&mut self, event_loop: EventLoopWindowTarget, window_id: WindowId) {
+        let mut ctx = self.owned_ctx.borrow(event_loop);
+        self.extensions.redraw_requested(&mut ctx, window_id);
+    }
+
+    /// De-initializes extensions and drops.
+    pub fn shutdown(mut self, event_loop: EventLoopWindowTarget) {
+        let mut ctx = self.owned_ctx.borrow(event_loop);
+        self.extensions.deinit(&mut ctx);
     }
 }
 
@@ -876,9 +964,7 @@ pub enum AppEvent {
 /// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
 pub struct HeadlessApp {
     event_loop: EventLoop,
-    extensions: Box<dyn AppExtensionBoxed>,
-    owned_ctx: OwnedAppContext,
-    control_flow: ControlFlow,
+    app: RunningApp<Box<dyn AppExtensionBoxed>>,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
 }
@@ -887,22 +973,22 @@ impl HeadlessApp {
     ///
     /// Can be accessed in a context using [`HeadlessInfo`].
     pub fn headless_state(&self) -> &StateMap {
-        self.owned_ctx.headless_state().unwrap()
+        self.app.owned_ctx.headless_state().unwrap()
     }
 
     /// Mutable headless state.
     pub fn headless_state_mut(&mut self) -> &mut StateMap {
-        self.owned_ctx.headless_state_mut().unwrap()
+        self.app.owned_ctx.headless_state_mut().unwrap()
     }
 
     /// App state.
     pub fn app_state(&self) -> &StateMap {
-        self.owned_ctx.app_state()
+        self.app.owned_ctx.app_state()
     }
 
     /// Mutable app state.
     pub fn app_state_mut(&mut self) -> &mut StateMap {
-        self.owned_ctx.app_state_mut()
+        self.app.owned_ctx.app_state_mut()
     }
 
     /// If headless rendering is enabled.
@@ -919,7 +1005,7 @@ impl HeadlessApp {
 
     /// Enable or disable headless rendering.
     ///
-    /// When enabled windows are still not visible but you can request [screenshots](crate::window::OpenWindow::screenshot)
+    /// When enabled windows are still not visible but you can request [frame pixels](crate::window::OpenWindow::frame_pixels)
     /// to get the frame image. Renderer is disabled by default in a headless app.
     ///
     /// Only windows opened after enabling have a renderer. Already open windows are not changed by this method. When enabled
@@ -938,27 +1024,25 @@ impl HeadlessApp {
     /// Notifies extensions of a [device event](DeviceEvent).
     pub fn device_event(&mut self, device_id: DeviceId, event: &DeviceEvent) {
         profile_scope!("headless_app::device_event");
-        self.extensions
-            .device_event(&mut self.owned_ctx.borrow(self.event_loop.window_target()), device_id, event);
+        self.app.device_event(self.event_loop.window_target(), device_id, event);
     }
 
     /// Notifies extensions of a [window event](WindowEvent).
     pub fn window_event(&mut self, window_id: WindowId, event: &WindowEvent) {
         profile_scope!("headless_app::device_event");
-        self.extensions
-            .window_event(&mut self.owned_ctx.borrow(self.event_loop.window_target()), window_id, event);
+        self.app.window_event(self.event_loop.window_target(), window_id, event);
     }
 
-    /// Pushes an [app event](AppEvent).
-    pub fn on_app_event(&mut self, event: AppEvent) {
+    /// Sends an [app event](AppEvent).
+    pub fn app_event(&mut self, event: AppEvent) {
         profile_scope!("headless_app::on_app_event");
         self.event_loop.create_proxy().send_event(event);
     }
 
     /// Runs a custom action in the headless app context.
-    pub fn with_context<R>(&mut self, action: impl FnOnce(&mut AppContext) -> R) -> R {
+    pub fn ctx(&mut self) -> AppContext {
         profile_scope!("headless_app::with_context");
-        action(&mut self.owned_ctx.borrow(self.event_loop.window_target()))
+        self.app.ctx(self.event_loop.window_target())
     }
 
     /// Does updates until no more updates are requested.
@@ -966,155 +1050,64 @@ impl HeadlessApp {
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
     #[inline]
-    pub fn update(&mut self, wait_app_event: bool) -> ControlFlow {
-        struct ObserveNothing;
-        impl HeadlessUpdateObserver for ObserveNothing {}
-        self.update_observe_all(&mut ObserveNothing, wait_app_event)
+    pub fn update(&mut self, wait_app_event: bool) {
+        self.update_observe_all(&mut (), wait_app_event);
     }
 
     /// Does updates with a callback called after the extensions update listeners.
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe(&mut self, on_update: impl FnMut(&mut AppContext), wait_app_event: bool) -> ControlFlow {
+    pub fn update_observe(&mut self, on_update: impl FnMut(&mut AppContext), wait_app_event: bool) {
         struct Observer<F>(F);
-        impl<F: FnMut(&mut AppContext)> HeadlessUpdateObserver for Observer<F> {
+        impl<F: FnMut(&mut AppContext)> AppUpdateObserver for Observer<F> {
             fn update(&mut self, ctx: &mut AppContext) {
                 (self.0)(ctx)
             }
         }
         let mut observer = Observer(on_update);
-        self.update_observe_all(&mut observer, wait_app_event)
+        self.update_observe_all(&mut observer, wait_app_event);
     }
 
     /// Does updates with a callback called after the extensions event listeners.
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &AnyEventUpdate), wait_app_event: bool) -> ControlFlow {
+    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &AnyEventUpdate), wait_app_event: bool) {
         struct Observer<F>(F);
-        impl<F: FnMut(&mut AppContext, &AnyEventUpdate)> HeadlessUpdateObserver for Observer<F> {
+        impl<F: FnMut(&mut AppContext, &AnyEventUpdate)> AppUpdateObserver for Observer<F> {
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
                 let args = args.as_any();
                 (self.0)(ctx, &args);
             }
         }
         let mut observer = Observer(on_event);
-        self.update_observe_all(&mut observer, wait_app_event)
-    }
-
-    /// Does updates with a callback called after the extensions respond to a new frame ready.
-    ///
-    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
-    /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe_frame(&mut self, on_new_frame_ready: impl FnMut(&mut AppContext, WindowId), wait_app_event: bool) -> ControlFlow {
-        struct Observer<F>(F);
-        impl<F: FnMut(&mut AppContext, WindowId)> HeadlessUpdateObserver for Observer<F> {
-            fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-                (self.0)(ctx, window_id)
-            }
-        }
-        let mut observer = Observer(on_new_frame_ready);
-        self.update_observe_all(&mut observer, wait_app_event)
+        self.update_observe_all(&mut observer, wait_app_event);
     }
 
     /// Does updates injecting update listeners after the extension listeners.
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe_all(&mut self, observer: &mut impl HeadlessUpdateObserver, wait_app_event: bool) -> ControlFlow {
-        if let ControlFlow::Exit = self.control_flow {
-            return ControlFlow::Exit;
-        }
+    pub fn update_observe_all<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) {
+        let event_loop = self.event_loop.window_target();
 
-        let mut event_update = UpdateRequest::default();
-
+        self.app.wake(event_loop);
         for event in self.event_loop.take_headless_app_events(wait_app_event) {
-            match event {
-                AppEvent::NewFrameReady(window_id) => {
-                    let mut ctx = &mut self.owned_ctx.borrow(self.event_loop.window_target());
-                    self.extensions.new_frame_ready(&mut ctx, window_id);
-                    observer.new_frame_ready(&mut ctx, window_id);
-                }
-                AppEvent::Update => {
-                    event_update |= self.owned_ctx.take_request();
-                }
-            }
+            self.app.app_event(event_loop, &event);
         }
-
-        let mut sequence_update = UpdateDisplayRequest::None;
-
-        // this loop implementation is kept in sync with the one in `AppExtended::run`.
-        let mut limit = UPDATE_LIMIT;
-        loop {
-            let u = self.owned_ctx.apply_updates();
-
-            let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
-
-            for args in u.events {
-                self.extensions.event_preview(&mut ctx, &args);
-                observer.event_preview(&mut ctx, &args);
-                ctx.events.on_pre_events(&mut ctx, &args);
-
-                self.extensions.event_ui(&mut ctx, &args);
-                observer.event_ui(&mut ctx, &args);
-
-                self.extensions.event(&mut ctx, &args);
-                observer.event(&mut ctx, &args);
-                ctx.events.on_events(&mut ctx, &args);
-            }
-
-            let update = u.update | mem::take(&mut event_update);
-            sequence_update |= u.display_update;
-            if let Some(until) = u.wake_time {
-                self.control_flow = ControlFlow::WaitUntil(until);
-            }
-
-            if update.update {
-                {
-                    profile_scope!("headless_app::update");
-                    let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
-                    if shutdown(shutdown_requests, &mut ctx, &mut self.extensions) {
-                        self.control_flow = ControlFlow::Exit;
-                        return ControlFlow::Exit;
-                    }
-                    self.extensions.update_preview(&mut ctx);
-                    observer.update_preview(&mut ctx);
-
-                    self.extensions.update_ui(&mut ctx);
-                    observer.update_ui(&mut ctx);
-
-                    self.extensions.update(&mut ctx);
-                    observer.update(&mut ctx);
-                }
-            } else {
-                break;
-            }
-
-            limit -= 1;
-            if limit == 0 {
-                panic!("immediate update loop reached limit of `{}` repeats", UPDATE_LIMIT)
-            }
-        }
-
-        if sequence_update.is_some() {
-            profile_scope!("headless_app::update_display");
-            self.extensions
-                .update_display(&mut self.owned_ctx.borrow(self.event_loop.window_target()), sequence_update);
-        }
-
-        self.control_flow
+        self.app.update(event_loop, observer);
     }
 
     /// [`ControlFlow`] after the last update.
     #[inline]
     pub fn control_flow(&self) -> ControlFlow {
-        self.control_flow // TODO better merge
+        self.app.control_flow()
     }
 }
 
 /// Observer for [`HeadlessApp::update_observe_all`].
-pub trait HeadlessUpdateObserver {
+pub trait AppUpdateObserver {
     /// Called just after [`AppExtension::event_preview`].
     fn event_preview<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
         let _ = (ctx, args);
@@ -1145,11 +1138,13 @@ pub trait HeadlessUpdateObserver {
         let _ = ctx;
     }
 
-    /// Called just after [`AppExtension::new_frame_ready`].
-    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        let _ = (ctx, window_id);
+    /// Called just after [`AppExtension::update_display`].
+    fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
+        let _ = (ctx, update);
     }
 }
+/// Nil observer, does nothing.
+impl AppUpdateObserver for () {}
 
 state_key! {
     /// If render is enabled in [headless mode](AppExtended::run_headless).
@@ -1372,15 +1367,14 @@ mod headless_tests {
         let mut app = App::default().run_headless();
         assert!(!app.renderer_enabled());
 
-        app.with_context(|ctx| {
-            let render_enabled = ctx
-                .headless
-                .state()
-                .and_then(|s| s.get::<HeadlessRendererEnabledKey>().copied())
-                .unwrap_or_default();
+        let render_enabled = app
+            .ctx()
+            .headless
+            .state()
+            .and_then(|s| s.get::<HeadlessRendererEnabledKey>().copied())
+            .unwrap_or_default();
 
-            assert!(!render_enabled);
-        });
+        assert!(!render_enabled);
 
         app.update(false);
     }
@@ -1391,16 +1385,14 @@ mod headless_tests {
         app.enable_renderer(true);
         assert!(app.renderer_enabled());
 
-        app.with_context(|ctx| {
-            let render_enabled = ctx
-                .headless
-                .state()
-                .and_then(|s| s.get::<HeadlessRendererEnabledKey>().copied())
-                .unwrap_or_default();
+        let render_enabled = app
+            .ctx()
+            .headless
+            .state()
+            .and_then(|s| s.get::<HeadlessRendererEnabledKey>().copied())
+            .unwrap_or_default();
 
-            assert!(render_enabled);
-        });
-
+        assert!(render_enabled);
         app.update(false);
     }
 
