@@ -115,7 +115,7 @@ pub struct BoxedEventUpdate {
 impl protected::EventUpdateArgs for BoxedEventUpdate {}
 impl fmt::Debug for BoxedEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "BoxedEventUpdate for {}", self.event_name)
+        write!(f, "boxed {}", self.event_name)
     }
 }
 impl EventUpdateArgs for BoxedEventUpdate {
@@ -152,7 +152,7 @@ pub struct AnyEventUpdate<'a> {
 }
 impl<'a> fmt::Debug for AnyEventUpdate<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "AnyEventUpdate for {}", self.event_name)
+        write!(f, "any {}", self.event_name)
     }
 }
 impl<'a> protected::EventUpdateArgs for AnyEventUpdate<'a> {}

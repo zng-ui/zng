@@ -841,10 +841,11 @@ impl<E: AppExtension> RunningApp<E> {
             AppEvent::NewFrameReady(window_id) => {
                 let mut ctx = self.owned_ctx.borrow(event_loop);
                 self.extensions.new_frame_ready(&mut ctx, *window_id);
+                self.maybe_has_updates = true;
             }
             AppEvent::Update => {
-                self.maybe_has_updates = true;
                 self.owned_ctx.borrow(event_loop).updates.update();
+                self.maybe_has_updates = true;
             }
         }
     }
@@ -1102,7 +1103,7 @@ impl HeadlessApp {
         for event in self.event_loop.take_headless_app_events(wait_app_event) {
             self.app.app_event(event_loop, &event);
         }
-        
+
         let r = self.app.update(event_loop, observer);
         debug_assert!(r != ControlFlow::Poll);
 
