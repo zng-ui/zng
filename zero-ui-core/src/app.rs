@@ -730,7 +730,7 @@ pub struct RunningApp<E: AppExtension> {
     timer: Option<Instant>,
 
     awake: bool,
-    update: UpdateRequest,
+    update: bool,
     display_update: UpdateDisplayRequest,
 
     exiting: bool,
@@ -748,7 +748,7 @@ impl<E: AppExtension> RunningApp<E> {
             owned_ctx,
             timer: None,
             awake: false,
-            update: UpdateRequest::default(),
+            update: false,
             display_update: UpdateDisplayRequest::None,
             exiting: false,
         }
@@ -882,7 +882,7 @@ impl<E: AppExtension> RunningApp<E> {
 
             let mut ctx = self.owned_ctx.borrow(event_loop);
 
-            if !self.update.update {
+            if !self.update {
                 debug_assert!(events.is_empty(), "pending events but update was not requested");
 
                 // does display updates only after there is no more `Event` and var updates.
@@ -891,6 +891,7 @@ impl<E: AppExtension> RunningApp<E> {
                     self.extensions.update_display(&mut ctx, update);
                     observer.update_display(&mut ctx, update);
                     // continue because display updates can generate `Event` and var updates.
+                    self.update = false;
                     continue;
                 } else {
                     // finished updates.
@@ -930,7 +931,7 @@ impl<E: AppExtension> RunningApp<E> {
             self.extensions.update(&mut ctx);
             observer.update(&mut ctx);
 
-            self.update = UpdateRequest::default();
+            self.update = false;
         }
     }
 

@@ -5,7 +5,7 @@
 use util::{assert_did_not_trace, assert_only_traced, TraceNode};
 
 use crate::{
-    context::{TestWidgetContext, UpdateDisplayRequest, UpdateRequest, WidgetContext},
+    context::{TestWidgetContext, UpdateDisplayRequest, WidgetContext},
     impl_ui_node, node_vec, nodes,
     render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
     units::LayoutSize,
@@ -175,7 +175,7 @@ pub fn default_no_child() {
     wgt.test_deinit(&mut ctx);
     let u = ctx.apply_updates();
     assert!(u.events.is_empty());
-    assert_eq!(u.update, UpdateRequest::default());
+    assert!(!u.update);
     assert_eq!(u.display_update, UpdateDisplayRequest::None);
     assert!(u.wake_time.is_none());
 
