@@ -661,16 +661,12 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
-    #[inline]
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
         if !is_main_thread::is_main_thread().unwrap_or(true) {
             panic!("can only init headed app in the main thread")
         }
         if HEADED_APP_RUNNING.swap(true, std::sync::atomic::Ordering::AcqRel) {
             panic!("only one headed app is allowed per process")
-        }
-        if App::is_running() {
-            panic!("only one app is allowed per thread")
         }
 
         #[cfg(feature = "app_profiler")]
@@ -693,16 +689,7 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// If called in a test (`cfg(test)`) this blocks until no other instance of [`HeadlessApp`] and
     /// [`TestWidgetContext`] are running in the current thread.
-    #[inline]
     pub fn run_headless(self) -> HeadlessApp {
-        if App::is_running() {
-            if cfg!(any(test, doc, feature = "pub_test")) {
-                panic!("only one app or `TestWidgetContext` is allowed per thread")
-            } else {
-                panic!("only one app is allowed per thread")
-            }
-        }
-
         #[cfg(feature = "app_profiler")]
         let profile_scope = {
             register_thread_with_profiler();
@@ -721,6 +708,17 @@ impl<E: AppExtension> AppExtended<E> {
             _pf: profile_scope,
         }
     }
+
+    /// Start a [`RunningApp`] that will be controlled by an external event loop.
+    pub fn run_client(self, event_loop: EventLoopProxy) -> RunningApp<E> {
+        RunningApp::start(self.extensions, event_loop)
+    }
+
+    /// Start a [`RunningApp`] that will be controlled by an external event loop, the app extensions
+    /// are boxed making the app type more manageable.
+    pub fn run_client_boxed(self, event_loop: EventLoopProxy) -> RunningApp<Box<dyn AppExtensionBoxed>> {
+        RunningApp::start(self.extensions.boxed(), event_loop)
+    }
 }
 
 /// Represents a running app controlled by an external event loop.
@@ -734,6 +732,14 @@ pub struct RunningApp<E: AppExtension> {
 }
 impl<E: AppExtension> RunningApp<E> {
     fn start(mut extensions: E, event_loop: EventLoopProxy) -> Self {
+        if App::is_running() {
+            if cfg!(any(test, doc, feature = "pub_test")) {
+                panic!("only one app or `TestWidgetContext` is allowed per thread")
+            } else {
+                panic!("only one app is allowed per thread")
+            }
+        }
+
         let mut owned_ctx = OwnedAppContext::instance(event_loop);
 
         let mut init_ctx = owned_ctx.borrow_init();
@@ -1045,7 +1051,7 @@ impl HeadlessApp {
     /// if it is `false` only responds to app events already in the buffer.
     #[inline]
     pub fn update(&mut self, wait_app_event: bool) {
-        self.update_observe_all(&mut (), wait_app_event);
+        self.update_observed(&mut (), wait_app_event);
     }
 
     /// Does updates with a callback called after the extensions update listeners.
@@ -1060,7 +1066,7 @@ impl HeadlessApp {
             }
         }
         let mut observer = Observer(on_update);
-        self.update_observe_all(&mut observer, wait_app_event);
+        self.update_observed(&mut observer, wait_app_event);
     }
 
     /// Does updates with a callback called after the extensions event listeners.
@@ -1076,14 +1082,14 @@ impl HeadlessApp {
             }
         }
         let mut observer = Observer(on_event);
-        self.update_observe_all(&mut observer, wait_app_event);
+        self.update_observed(&mut observer, wait_app_event);
     }
 
-    /// Does updates injecting update listeners after the extension listeners.
+    /// Does updates injecting an [`AppUpdateObserver`].
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe_all<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) {
+    pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) {
         let event_loop = self.event_loop.window_target();
 
         self.app.wake(event_loop);
@@ -1100,7 +1106,7 @@ impl HeadlessApp {
     }
 }
 
-/// Observer for [`HeadlessApp::update_observe_all`].
+/// Observer for [`HeadlessApp::update_observed`] and [`RunningApp::update`].
 pub trait AppUpdateObserver {
     /// Called just after [`AppExtension::event_preview`].
     fn event_preview<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
