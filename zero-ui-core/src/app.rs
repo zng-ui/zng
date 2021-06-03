@@ -871,6 +871,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             let u = self.owned_ctx.apply_updates();
+
             self.display_update |= u.display_update;
 
             if let Some(timer) = u.wake_time {

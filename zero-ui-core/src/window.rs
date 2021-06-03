@@ -2114,7 +2114,7 @@ impl OpenWindow {
                 self.init_state = WindowInitState::ContentInited;
             }
             WindowInitState::ContentInited => {
-                self.context.borrow_mut().update(ctx); // TODO _hp?
+                self.context.borrow_mut().update(ctx);
                 self.update_window(ctx);
                 ctx.updates.layout();
                 self.expect_layout_update();
@@ -2378,7 +2378,7 @@ impl OpenWindow {
             } else {
                 self.headless_size = size;
             }
-            self.vars.size().set(ctx.vars, size.into());
+            self.vars.size().set_ne(ctx.vars, self.size().into());
             self.resize_renderer();
         }
 
@@ -2402,7 +2402,6 @@ impl OpenWindow {
                 let x = c.origin.x + ((c.size.width - size.width) / 2.0);
                 let y = c.origin.y + ((c.size.height - size.height) / 2.0);
                 let pos = LayoutPoint::new(x, y);
-                self.vars.position().set_ne(ctx.vars, pos.into());
                 if let Some(wn) = &self.window {
                     let factor = self.scale_factor();
                     let pos = glutin::dpi::PhysicalPosition::new((x * factor) as i32, (y * factor) as i32);
@@ -2410,9 +2409,12 @@ impl OpenWindow {
                 } else {
                     self.headless_position = pos;
                 }
+                self.vars.position().set_ne(ctx.vars, self.position().into());
             }
 
-            self.resize_renderer();
+            if auto_size == AutoSize::DISABLED {
+                self.resize_renderer();
+            }
         }
     }
 
