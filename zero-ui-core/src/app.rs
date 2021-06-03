@@ -843,8 +843,8 @@ impl<E: AppExtension> RunningApp<E> {
                 self.extensions.new_frame_ready(&mut ctx, *window_id);
             }
             AppEvent::Update => {
-                // awake sleep already makes this work.
                 self.maybe_has_updates = true;
+                self.owned_ctx.borrow(event_loop).updates.update();
             }
         }
     }
@@ -1099,11 +1099,10 @@ impl HeadlessApp {
     /// if the app is sleeping.
     pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
         let event_loop = self.event_loop.window_target();
-
         for event in self.event_loop.take_headless_app_events(wait_app_event) {
             self.app.app_event(event_loop, &event);
         }
-
+        
         let r = self.app.update(event_loop, observer);
         debug_assert!(r != ControlFlow::Poll);
 

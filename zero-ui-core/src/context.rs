@@ -9,7 +9,6 @@ use super::var::Vars;
 use super::window::WindowId;
 use super::AnyMap;
 use super::WidgetId;
-use std::sync::atomic::{self, AtomicBool};
 use std::{any::type_name, fmt, mem};
 use std::{any::TypeId, time::Instant};
 use std::{marker::PhantomData, sync::Arc};
@@ -88,27 +87,17 @@ impl UpdateDisplayRequest {
 ///
 /// Use this to cause an update cycle without direct access to a context.
 #[derive(Clone)]
-pub struct UpdateNotifier {
-    event_loop: EventLoopProxy,
-    request: Arc<AtomicBool>,
-}
+pub struct UpdateNotifier(EventLoopProxy);
 impl UpdateNotifier {
     #[inline]
     fn new(event_loop: EventLoopProxy) -> Self {
-        UpdateNotifier {
-            event_loop,
-            request: Arc::default(),
-        }
+        UpdateNotifier(event_loop)
     }
 
-    /// Flags an update request and sends an update event
-    /// if none was sent since the last one was consumed.
+    /// Sends an update request, awakes the app loop if needed.
     #[inline]
     pub fn update(&self) {
-        if !self.request.swap(true, atomic::Ordering::Relaxed) {
-            // if we changed to `true`.
-            self.event_loop.send_event(AppEvent::Update);
-        }
+        self.0.send_event(AppEvent::Update);
     }
 }
 
@@ -410,13 +399,9 @@ impl OwnedUpdates {
     }
 
     /// Take what update methods must be pumped.
+    #[inline]
     pub fn take_updates(&mut self) -> (bool, UpdateDisplayRequest) {
-        let update = mem::take(&mut self.0.update);
-        let notifier_update = self.0.notifier.request.swap(false, atomic::Ordering::Relaxed);
-
-        let display_update = mem::take(&mut self.0.display_update);
-
-        (update || notifier_update, display_update)
+        (mem::take(&mut self.0.update), mem::take(&mut self.0.display_update))
     }
 
     /// Reference the [`Updates`].
