@@ -828,6 +828,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     }
                     ctx.updates.update(); // notify the other slot to activate.
                     self.state = SlotNodeState::Inactive(Rc::downgrade(rc));
+                    ctx.updates.layout();
                 } else {
                     rc.node.borrow_mut().as_mut().unwrap().update(ctx);
                 }
