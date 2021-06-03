@@ -1075,9 +1075,11 @@ impl TestWidgetContext {
 }
 
 /// Updates that must be reacted by an app context owner.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ContextUpdates {
     /// Events update to notify.
+    ///
+    /// When this is not empty [`update`](Self::update) is `true`.
     pub events: Vec<BoxedEventUpdate>,
 
     /// Update requested.
@@ -1088,6 +1090,35 @@ pub struct ContextUpdates {
 
     /// Time for the loop to wake.
     pub wake_time: Option<Instant>,
+}
+impl ContextUpdates {
+    /// If [`update`](Self::update) or [`display_update`](Self::display_update) where requested.
+    #[inline]
+    pub fn has_updates(&self) -> bool {
+        self.update || self.display_update.is_some()
+    }
+}
+impl std::ops::BitOrAssign for ContextUpdates {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.events.extend(rhs.events);
+        self.update |= rhs.update;
+        self.display_update = rhs.display_update;
+        self.wake_time = match (self.wake_time, rhs.wake_time) {
+            (None, None) => None,
+            (None, Some(t)) | (Some(t), None) => Some(t),
+            (Some(a), Some(b)) => Some(a.min(b)),
+        };
+    }
+}
+impl std::ops::BitOr for ContextUpdates {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(mut self, rhs: Self) -> Self {
+        self |= rhs;
+        self
+    }
 }
 
 /// A widget context.

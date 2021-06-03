@@ -17,6 +17,7 @@ use glutin::event::Event as GEvent;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
+use std::mem;
 use std::{
     any::{type_name, TypeId},
     fmt,
@@ -725,9 +726,9 @@ impl<E: AppExtension> AppExtended<E> {
 pub struct RunningApp<E: AppExtension> {
     extensions: E,
     owned_ctx: OwnedAppContext,
-    timer: Option<Instant>,
 
-    awake: bool,
+    updates: ContextUpdates,
+    skip_update: bool,
     exiting: bool,
 }
 impl<E: AppExtension> RunningApp<E> {
@@ -749,8 +750,8 @@ impl<E: AppExtension> RunningApp<E> {
         RunningApp {
             extensions,
             owned_ctx,
-            timer: None,
-            awake: false,
+            updates: ContextUpdates::default(),
+            skip_update: false,
             exiting: false,
         }
     }
@@ -766,19 +767,24 @@ impl<E: AppExtension> RunningApp<E> {
             let app = app.as_mut().expect("app already shutdown");
 
             match event {
-                GEvent::NewEvents(_) => app.wake(event_loop),
+                GEvent::NewEvents(_) => {}
                 GEvent::WindowEvent { window_id, event } => app.window_event(event_loop, window_id.into(), &event),
                 GEvent::DeviceEvent { device_id, event } => app.device_event(event_loop, device_id, &event),
                 GEvent::UserEvent(app_event) => app.app_event(event_loop, &app_event),
                 GEvent::Suspended => app.suspended(event_loop),
                 GEvent::Resumed => app.resumed(event_loop),
-                GEvent::MainEventsCleared => app.update(event_loop, &mut ()),
+                GEvent::MainEventsCleared => {
+                    loop {
+                        *control_flow = app.update(event_loop, &mut ());
+                        if *control_flow != ControlFlow::Poll {
+                            break;
+                        }
+                    }
+                },
                 GEvent::RedrawRequested(window_id) => app.redraw_requested(event_loop, window_id.into()),
                 GEvent::RedrawEventsCleared => {}
                 GEvent::LoopDestroyed => unreachable!(),
             }
-
-            *control_flow = app.control_flow();
         })
     }
 
@@ -787,52 +793,22 @@ impl<E: AppExtension> RunningApp<E> {
         self.owned_ctx.borrow(event_loop)
     }
 
-    /// The app's desired behavior for an external event loop.
-    pub fn control_flow(&self) -> ControlFlow {
-        if self.exiting {
-            ControlFlow::Exit
-        } else if let Some(t) = self.timer {
-            ControlFlow::WaitUntil(t)
-        } else {
-            ControlFlow::Wait
-        }
-    }
-
-    /// Start taking events.
-    pub fn wake(&mut self, event_loop: EventLoopWindowTarget) {
-        if self.awake {
-            return;
-        }
-        self.awake = true;
-
-        if let Some(timer) = self.timer {
-            if timer <= Instant::now() {
-                let ctx = self.owned_ctx.borrow(event_loop);
-                self.timer = ctx.sync.update_timers(ctx.vars);
-            }
-        }
-    }
-
     /// Process window event.
     pub fn window_event(&mut self, event_loop: EventLoopWindowTarget, window_id: WindowId, event: &WindowEvent) {
-        self.wake(event_loop);
-
         let mut ctx = self.owned_ctx.borrow(event_loop);
         self.extensions.window_event(&mut ctx, window_id, event);
+        self.skip_update = false;
     }
 
     /// Process device event.
     pub fn device_event(&mut self, event_loop: EventLoopWindowTarget, device_id: DeviceId, event: &DeviceEvent) {
-        self.wake(event_loop);
-
         let mut ctx = self.owned_ctx.borrow(event_loop);
         self.extensions.device_event(&mut ctx, device_id, event);
+        self.skip_update = false;
     }
 
     /// Process an [`AppEvent`].
     pub fn app_event(&mut self, event_loop: EventLoopWindowTarget, app_event: &AppEvent) {
-        self.wake(event_loop);
-
         match app_event {
             AppEvent::NewFrameReady(window_id) => {
                 let mut ctx = self.owned_ctx.borrow(event_loop);
@@ -840,6 +816,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
             AppEvent::Update => {
                 // awake sleep already makes this work.
+                self.skip_update = false;
             }
         }
     }
@@ -854,51 +831,17 @@ impl<E: AppExtension> RunningApp<E> {
         log::error!(target: "app", "TODO resumed");
     }
 
-    /// Does pending event notifications, updates and display updates until there is no
-    /// more updates requested, then sleeps and returns.
+    /// Does one update if the app is awake, if more updates where requested during the call returns
+    /// [`Poll`](ControlFlow::Poll), otherwise it returns [`WaitUntil`](ControlFlow::WaitUntil) if
+    /// there are timers running or it returns [`Wait`](ControlFlow::WaitUntil) to sleep until the next event.
     ///
     /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
-    pub fn update<O: AppUpdateObserver>(&mut self, event_loop: EventLoopWindowTarget, observer: &mut O) {
-        if !self.awake {
-            return;
-        }
-        self.awake = false;
+    pub fn update<O: AppUpdateObserver>(&mut self, event_loop: EventLoopWindowTarget, observer: &mut O) -> ControlFlow {
+        let mut ctx = self.owned_ctx.borrow(event_loop);
 
-        let mut limit = UPDATE_LIMIT;
-
-        let mut display_update = UpdateDisplayRequest::None;
-
-        loop {
-            limit -= 1;
-            if limit == 0 {
-                panic!("update loop reached limit of `{}` repeats", UPDATE_LIMIT)
-            }
-
-            let u = self.owned_ctx.apply_updates();
-
-            if let Some(timer) = u.wake_time {
-                self.timer = Some(timer);
-            }
-
-            display_update |= u.display_update;
-
-            let mut ctx = self.owned_ctx.borrow(event_loop);
-
-            if !u.update {
-                debug_assert!(u.events.is_empty(), "pending events but update was not requested");
-
-                // does display updates only after there is no more `Event` and var updates.
-                if display_update != UpdateDisplayRequest::None {
-                    self.extensions.update_display(&mut ctx, display_update);
-                    observer.update_display(&mut ctx, display_update);
-                    display_update = UpdateDisplayRequest::None;
-                    // continue because display updates can generate `Event` and var updates.
-                    continue;
-                } else {
-                    // finished updates.
-                    break;
-                }
-            } else if let Some(r) = ctx.services.req::<AppProcess>().take_requests() {
+        if mem::take(&mut self.updates.update) {
+            // check shutdown.
+            if let Some(r) = ctx.services.req::<AppProcess>().take_requests() {
                 let args = ShutdownRequestedArgs::now();
                 self.extensions.shutdown_requested(&mut ctx, &args);
                 if args.cancel_requested() {
@@ -906,11 +849,12 @@ impl<E: AppExtension> RunningApp<E> {
                 }
                 self.exiting = !args.cancel_requested();
                 if self.exiting {
-                    return;
+                    return ControlFlow::Exit;
                 }
             }
 
-            for event in u.events {
+            // does `Event` notifications.
+            for event in mem::take(&mut self.updates.events) {
                 self.extensions.event_preview(&mut ctx, &event);
                 observer.event_preview(&mut ctx, &event);
                 ctx.events.on_pre_events(&mut ctx, &event);
@@ -923,6 +867,7 @@ impl<E: AppExtension> RunningApp<E> {
                 ctx.events.on_events(&mut ctx, &event);
             }
 
+            // does general updates.
             self.extensions.update_preview(&mut ctx);
             observer.update_preview(&mut ctx);
 
@@ -931,6 +876,29 @@ impl<E: AppExtension> RunningApp<E> {
 
             self.extensions.update(&mut ctx);
             observer.update(&mut ctx);
+        } else if self.updates.display_update != UpdateDisplayRequest::None {
+            let display_update = mem::take(&mut self.updates.display_update);
+            self.extensions.update_display(&mut ctx, display_update);
+            observer.update_display(&mut ctx, display_update);
+        }
+
+        if self.exiting {
+            ControlFlow::Exit
+        } else {
+            self.updates |= self.owned_ctx.apply_updates();
+            println!("{:?}", self.updates);
+            if self.updates.has_updates() {
+                ControlFlow::Poll
+            } else if let Some(t) = self.updates.wake_time {
+                if t <= Instant::now() {
+                    self.updates.wake_time = None;
+                    ControlFlow::Poll
+                } else {
+                    ControlFlow::WaitUntil(t)
+                }
+            } else {
+                ControlFlow::Wait
+            }
         }
     }
 
@@ -946,8 +914,6 @@ impl<E: AppExtension> RunningApp<E> {
         self.extensions.deinit(&mut ctx);
     }
 }
-
-const UPDATE_LIMIT: u32 = 100_000;
 
 /// Raw events generated by the app.
 #[derive(Debug)]
@@ -1045,20 +1011,18 @@ impl HeadlessApp {
         self.app.ctx(self.event_loop.window_target())
     }
 
-    /// Does updates until no more updates are requested.
+    /// Does updates unobserved.
     ///
-    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
-    /// if it is `false` only responds to app events already in the buffer.
+    /// See [`update_observed`](Self::update_observed) for more details.
     #[inline]
-    pub fn update(&mut self, wait_app_event: bool) {
-        self.update_observed(&mut (), wait_app_event);
+    pub fn update(&mut self, wait_app_event: bool) -> ControlFlow {
+        self.update_observed(&mut (), wait_app_event)
     }
 
-    /// Does updates with a callback called after the extensions update listeners.
+    /// Does updates observing [`update`](AppUpdateObserver::update) only.
     ///
-    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
-    /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe(&mut self, on_update: impl FnMut(&mut AppContext), wait_app_event: bool) {
+    /// See [`update_observed`](Self::update_observed) for more details.
+    pub fn update_observe(&mut self, on_update: impl FnMut(&mut AppContext), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
         impl<F: FnMut(&mut AppContext)> AppUpdateObserver for Observer<F> {
             fn update(&mut self, ctx: &mut AppContext) {
@@ -1066,14 +1030,13 @@ impl HeadlessApp {
             }
         }
         let mut observer = Observer(on_update);
-        self.update_observed(&mut observer, wait_app_event);
+        self.update_observed(&mut observer, wait_app_event)
     }
 
-    /// Does updates with a callback called after the extensions event listeners.
+    /// Does updates observing [`event`](AppUpdateObserver::event) only.
     ///
-    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
-    /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &AnyEventUpdate), wait_app_event: bool) {
+    /// See [`update_observed`](Self::update_observed) for more details.
+    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &AnyEventUpdate), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
         impl<F: FnMut(&mut AppContext, &AnyEventUpdate)> AppUpdateObserver for Observer<F> {
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
@@ -1082,27 +1045,32 @@ impl HeadlessApp {
             }
         }
         let mut observer = Observer(on_event);
-        self.update_observed(&mut observer, wait_app_event);
+        self.update_observed(&mut observer, wait_app_event)
     }
 
-    /// Does updates injecting an [`AppUpdateObserver`].
+    /// Does updates with an [`AppUpdateObserver`].
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) {
+    ///
+    /// Does updates until there are no more updates to do, returns [`Exit`](ControlFlow::Exit) if app has shutdown,
+    /// or returns [`WaitUntil`](ControlFlow::WaitUntil) if a timer is running or returns [`Wait`](ControlFlow::Wait)
+    /// if the app is sleeping.
+    pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> ControlFlow {
         let event_loop = self.event_loop.window_target();
 
-        self.app.wake(event_loop);
-        for event in self.event_loop.take_headless_app_events(wait_app_event) {
-            self.app.app_event(event_loop, &event);
-        }
-        self.app.update(event_loop, observer);
-    }
+        loop {
+            for event in self.event_loop.take_headless_app_events(wait_app_event) {
+                self.app.app_event(event_loop, &event);
+            }
 
-    /// [`ControlFlow`] after the last update.
-    #[inline]
-    pub fn control_flow(&self) -> ControlFlow {
-        self.app.control_flow()
+            wait_app_event = false;
+
+            match self.app.update(event_loop, observer) {
+                ControlFlow::Poll => continue,
+                r => return r,
+            }
+        }
     }
 }
 

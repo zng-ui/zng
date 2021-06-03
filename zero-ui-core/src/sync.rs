@@ -41,15 +41,11 @@ impl Sync {
 
     pub(super) fn update(&mut self, ctx: &mut AppSyncContext) -> Option<Instant> {
         self.channels.retain(|t| t.update(ctx));
-        self.new_wake_time.take()
-    }
 
-    /// Update timers, gets next wakeup moment.
-    pub fn update_timers(&mut self, vars: &Vars) -> Option<Instant> {
         let now = Instant::now();
 
-        self.once_timers.retain(|t| t.retain(now, vars));
-        self.interval_timers.retain_mut(|t| t.retain(now, vars));
+        self.once_timers.retain(|t| t.retain(now, ctx.vars));
+        self.interval_timers.retain_mut(|t| t.retain(now, ctx.vars));
 
         let mut wake_time = None;
 
