@@ -394,7 +394,7 @@ impl OwnedStateMap {
 pub struct OwnedUpdates(Updates);
 
 impl OwnedUpdates {
-    /// New `OwnedUpdates`, the `event_loop` reference is used to create an [`UpdateNotifier`].
+    /// New `OwnedUpdates`, the `event_loop` reference is used to create an [`UpdateSender`].
     pub fn new(event_loop: EventLoopProxy) -> Self {
         Self(Updates::new(event_loop))
     }

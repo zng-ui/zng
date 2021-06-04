@@ -295,7 +295,7 @@ impl<A: CancelableEventArgs, E: Event<Args = A>> CancelableEvent for E {
 /// A buffered event listener.
 ///
 /// This `struct` is a refence to the buffer, clones of it point to the same buffer. This `struct`
-/// is not `Send`, you can use a [`Sync::event_receiver`](crate::sync::Sync::event_receiver) for that.
+/// is not `Send`, you can use an [`Events::receiver`] for that.
 #[derive(Clone)]
 pub struct EventBuffer<E: Event> {
     queue: Rc<RefCell<VecDeque<E::Args>>>,
