@@ -431,7 +431,7 @@ where
         self.receiver.recv().map_err(|_| AppShutdown(()))
     }
 
-    /// Tries to receive the oldest send update in the buffer, returns `Ok(args)` if there was at least
+    /// Tries to receive the oldest sent update not received, returns `Ok(args)` if there was at least
     /// one update, or returns `Err(None)` if there was no update or returns `Err(AppHasShutdown)` if the connected
     /// app has shutdown.
     #[inline]
@@ -466,7 +466,7 @@ where
         self.receiver.into_recv_async().into()
     }
 
-    /// Creates a blocking iterator over event updates, if there are no updates in the buffer the iterator blocks,
+    /// Creates a blocking iterator over event updates, if there are no updates sent the iterator blocks,
     /// the iterator only finishes when the app shuts-down.
     #[inline]
     pub fn iter(&self) -> flume::Iter<E::Args> {
@@ -474,7 +474,7 @@ where
     }
 
     /// Create a non-blocking iterator over event updates, the iterator finishes if
-    /// there are no more updates in the buffer.
+    /// there are no more updates sent.
     #[inline]
     pub fn try_iter(&self) -> flume::TryIter<E::Args> {
         self.receiver.try_iter()
@@ -637,7 +637,7 @@ impl Events {
         buf
     }
 
-    /// Creates a sender that can raise an event from another thread.
+    /// Creates a sender that can raise an event from other threads and without access to [`Events`].
     pub fn sender<A, E>(&mut self) -> EventSender<E>
     where
         E: Event,

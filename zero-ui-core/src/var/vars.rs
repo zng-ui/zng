@@ -1,15 +1,26 @@
 use super::*;
-use crate::context::Updates;
-use std::{fmt, ops::Deref};
+use crate::{
+    app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShutdown},
+    context::Updates,
+};
+use std::{
+    any::type_name,
+    fmt,
+    ops::Deref,
+    time::{Duration, Instant},
+};
 
 thread_singleton!(SingletonVars);
+
+type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
+type Retain = bool;
 
 /// Read-only access to [`Vars`].
 ///
 /// In some contexts variables can be set, so a full [`Vars`] reference if given, in other contexts
 /// variables can only be read, so a [`VarsRead`] reference is given.
 ///
-/// [`Vars`] auto-dereferences to to this type
+/// [`Vars`] auto-dereferences to to this type.
 ///
 /// # Examples
 ///
@@ -35,6 +46,10 @@ pub struct VarsRead {
     update_id: u32,
     #[allow(clippy::type_complexity)]
     widget_clear: RefCell<Vec<Box<dyn Fn(bool)>>>,
+
+    event_loop: EventLoopProxy,
+    senders: RefCell<Vec<SyncEntry>>,
+    receivers: RefCell<Vec<SyncEntry>>,
 }
 impl fmt::Debug for VarsRead {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -178,6 +193,38 @@ impl VarsRead {
 
         f()
     }
+
+    /// Creates a channel that can receive `var` updates from another thread.
+    ///
+    /// Every time the variable updates a clone of the value is send to the receiver. The current value is send immediately.
+    ///
+    /// Drop the receiver to release one reference to `var`.
+    pub fn receiver<T, V>(&self, var: &V) -> VarReceiver<T>
+    where
+        T: VarValue + Send,
+        V: Var<T>,
+    {
+        let (sender, receiver) = flume::unbounded();
+        let _ = sender.send(var.get(self).clone());
+
+        if var.always_read_only() {
+            self.senders.borrow_mut().push(Box::new(move |_| {
+                // retain if not disconnected.
+                !sender.is_disconnected()
+            }));
+        } else {
+            let var = var.clone();
+            self.senders.borrow_mut().push(Box::new(move |vars| {
+                if let Some(new) = var.get_new(vars) {
+                    sender.send(new.clone()).is_ok()
+                } else {
+                    !sender.is_disconnected()
+                }
+            }));
+        }
+
+        VarReceiver { receiver }
+    }
 }
 
 /// Access to application variables.
@@ -204,12 +251,15 @@ impl Vars {
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
     #[inline]
-    pub fn instance() -> Self {
+    pub fn instance(event_loop: EventLoopProxy) -> Self {
         Vars {
             read: VarsRead {
                 _singleton: SingletonVars::assert_new("Vars"),
                 update_id: 0,
+                event_loop,
                 widget_clear: Default::default(),
+                senders: RefCell::default(),
+                receivers: RefCell::default(),
             },
             pending: Default::default(),
         }
@@ -258,7 +308,78 @@ impl Vars {
             for f in pending.drain(..) {
                 f(self.read.update_id);
             }
+            self.senders.borrow_mut().retain(|f| f(self));
             updates.update();
+        }
+    }
+
+    pub(crate) fn sync(&self) {
+        self.receivers.borrow_mut().retain(|f| f(self));
+    }
+
+    /// Creates a sender that can set `var` from other threads and without access to [`Vars`].
+    ///
+    /// If the variable is read-only when a value is received it is silently dropped.
+    ///
+    /// Drop the sender to release one reference to `var`.
+    pub fn sender<T, V>(&self, var: &V) -> VarSender<T>
+    where
+        T: VarValue + Send,
+        V: Var<T>,
+    {
+        let (sender, receiver) = flume::unbounded();
+
+        if var.always_read_only() {
+            self.receivers.borrow_mut().push(Box::new(move |_| {
+                receiver.drain();
+                !receiver.is_disconnected()
+            }));
+        } else {
+            let var = var.clone();
+            self.receivers.borrow_mut().push(Box::new(move |vars| {
+                if let Some(new_value) = receiver.try_iter().last() {
+                    let _ = var.set(vars, new_value);
+                }
+                !receiver.is_disconnected()
+            }));
+        };
+
+        VarSender {
+            wake: self.event_loop.clone(),
+            sender,
+        }
+    }
+
+    /// Creates a sender that modify `var` from other threads and without access to [`Vars`].
+    ///
+    /// If the variable is read-only when a modification is received it is silently dropped.
+    ///
+    /// Drop the sender to release one reference to `var`.
+    pub fn modify_sender<T, V>(&self, var: &V) -> VarModifySender<T>
+    where
+        T: VarValue,
+        V: Var<T>,
+    {
+        let (sender, receiver) = flume::unbounded::<Box<dyn FnOnce(&mut T) + Send>>();
+
+        if var.always_read_only() {
+            self.receivers.borrow_mut().push(Box::new(move |_| {
+                receiver.drain();
+                !receiver.is_disconnected()
+            }));
+        } else {
+            let var = var.clone();
+            self.receivers.borrow_mut().push(Box::new(move |vars| {
+                for modify in receiver.try_iter() {
+                    let _ = var.modify_boxed(vars, modify);
+                }
+                !receiver.is_disconnected()
+            }));
+        }
+
+        VarModifySender {
+            wake: self.event_loop.clone(),
+            sender,
         }
     }
 }
@@ -281,5 +402,179 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
         if let Some(clean) = self.0.take() {
             clean();
         }
+    }
+}
+
+/// A variable update receiver that can be used from any thread and without access to [`Vars`].
+///
+/// Use [`VarsRead::receiver`] to create a receiver, drop to stop listening.
+pub struct VarReceiver<T: VarValue + Send> {
+    receiver: flume::Receiver<T>,
+}
+impl<T: VarValue + Send> Clone for VarReceiver<T> {
+    fn clone(&self) -> Self {
+        VarReceiver {
+            receiver: self.receiver.clone(),
+        }
+    }
+}
+impl<T: VarValue + Send> Debug for VarReceiver<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VarReceiver<{}>", type_name::<T>())
+    }
+}
+impl<T: VarValue + Send> VarReceiver<T> {
+    /// Receives the oldest sent update not received, blocks until the variable updates.
+    #[inline]
+    pub fn recv(&self) -> Result<T, AppShutdown<()>> {
+        self.receiver.recv().map_err(|_| AppShutdown(()))
+    }
+
+    /// Tries to receive the oldest sent update, returns `Ok(args)` if there was at least
+    /// one update, or returns `Err(None)` if there was no update or returns `Err(AppHasShutdown)` if the connected
+    /// app has shutdown.
+    #[inline]
+    pub fn try_recv(&self) -> Result<T, Option<AppShutdown<()>>> {
+        self.receiver.try_recv().map_err(|e| match e {
+            flume::TryRecvError::Empty => None,
+            flume::TryRecvError::Disconnected => Some(AppShutdown(())),
+        })
+    }
+
+    /// Receives the oldest sent update, blocks until the event updates or until the `deadline` is reached.
+    #[inline]
+    pub fn recv_deadline(&self, deadline: Instant) -> Result<T, TimeoutOrAppShutdown> {
+        self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppShutdown::from)
+    }
+
+    /// Receives the oldest send update, blocks until the event updates or until timeout.
+    #[inline]
+    pub fn recv_timeout(&self, dur: Duration) -> Result<T, TimeoutOrAppShutdown> {
+        self.receiver.recv_timeout(dur).map_err(TimeoutOrAppShutdown::from)
+    }
+
+    /// Returns a future that receives the oldest send update, awaits until an event update occurs.
+    #[inline]
+    pub fn recv_async(&self) -> RecvFut<T> {
+        self.receiver.recv_async().into()
+    }
+
+    /// Turns into a future that receives the oldest send update, awaits until an event update occurs.
+    #[inline]
+    pub fn into_recv_async(self) -> RecvFut<'static, T> {
+        self.receiver.into_recv_async().into()
+    }
+
+    /// Creates a blocking iterator over event updates, if there are no updates in the buffer the iterator blocks,
+    /// the iterator only finishes when the app shuts-down.
+    #[inline]
+    pub fn iter(&self) -> flume::Iter<T> {
+        self.receiver.iter()
+    }
+
+    /// Create a non-blocking iterator over event updates, the iterator finishes if
+    /// there are no more updates in the buffer.
+    #[inline]
+    pub fn try_iter(&self) -> flume::TryIter<T> {
+        self.receiver.try_iter()
+    }
+}
+impl<T: VarValue + Send> From<VarReceiver<T>> for flume::Receiver<T> {
+    fn from(e: VarReceiver<T>) -> Self {
+        e.receiver
+    }
+}
+impl<'a, T: VarValue + Send> IntoIterator for &'a VarReceiver<T> {
+    type Item = T;
+
+    type IntoIter = flume::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.receiver.iter()
+    }
+}
+impl<T: VarValue + Send> IntoIterator for VarReceiver<T> {
+    type Item = T;
+
+    type IntoIter = flume::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.receiver.into_iter()
+    }
+}
+
+/// A variable update sender that can set a variable from any thread and without access to [`Vars`].
+///
+/// Use [`Vars::sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
+pub struct VarSender<T>
+where
+    T: VarValue + Send,
+{
+    wake: EventLoopProxy,
+    sender: flume::Sender<T>,
+}
+impl<T: VarValue + Send> Clone for VarSender<T> {
+    fn clone(&self) -> Self {
+        VarSender {
+            wake: self.wake.clone(),
+            sender: self.sender.clone(),
+        }
+    }
+}
+impl<T: VarValue + Send> Debug for VarSender<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VarSender<{}>", type_name::<T>())
+    }
+}
+impl<T> VarSender<T>
+where
+    T: VarValue + Send,
+{
+    /// Sends a new value for the variable, unless the connected app has shutdown.
+    ///
+    /// If the variable is read-only when the `new_value` is received it is silently dropped, if more then one
+    /// value is send before the app can process then, only the last value shows as an update in the UI thread.
+    pub fn send(&self, new_value: T) -> Result<(), AppShutdown<T>> {
+        self.sender.send(new_value).map_err(AppShutdown::from)?;
+        let _ = self.wake.send_event(AppEvent::Var);
+        Ok(())
+    }
+}
+
+/// A variable modification sender that can be used to modify a variable from any thread and without access to [`Vars`].
+///
+/// Use [`Vars::modify_sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
+pub struct VarModifySender<T>
+where
+    T: VarValue,
+{
+    wake: EventLoopProxy,
+    sender: flume::Sender<Box<dyn FnOnce(&mut T) + Send>>,
+}
+impl<T: VarValue> Clone for VarModifySender<T> {
+    fn clone(&self) -> Self {
+        VarModifySender {
+            wake: self.wake.clone(),
+            sender: self.sender.clone(),
+        }
+    }
+}
+impl<T: VarValue> Debug for VarModifySender<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VarModifySender<{}>", type_name::<T>())
+    }
+}
+impl<T> VarModifySender<T>
+where
+    T: VarValue,
+{
+    /// Sends a modification for the variable, unless the connected app has shutdown.
+    ///
+    /// If the variable is read-only when the `modify` is received it is silently dropped, if more then one
+    /// modification is send before the app can process then, they all are applied in order sent.
+    pub fn send<F: FnOnce(&mut T) + Send + 'static>(&self, modify: F) -> Result<(), AppShutdown<()>> {
+        self.sender.send(Box::new(modify)).map_err(|_| AppShutdown(()))?;
+        let _ = self.wake.send_event(AppEvent::Var);
+        Ok(())
     }
 }

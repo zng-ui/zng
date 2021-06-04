@@ -517,10 +517,10 @@ impl OwnedAppContext {
         OwnedAppContext {
             app_state: StateMap::new(),
             headless_state: if event_loop.is_headless() { Some(StateMap::new()) } else { None },
-            vars: Vars::instance(),
+            vars: Vars::instance(event_loop.clone()),
             events: Events::instance(event_loop.clone()),
             services: ServicesInit::default(),
-            sync: Sync::new(updates.0.sender.clone()),
+            sync: Sync::new(),
             updates,
             event_loop,
         }
@@ -965,8 +965,6 @@ impl TestWidgetContext {
         }
 
         let event_loop = crate::app::EventLoop::new(true);
-        let updates = OwnedUpdates::new(event_loop.create_proxy());
-        let update_sender = updates.0.sender().clone();
         Self {
             window_id: WindowId::new_unique(),
             root_id: WidgetId::new_unique(),
@@ -976,10 +974,10 @@ impl TestWidgetContext {
             update_state: OwnedStateMap::new(),
             services: ServicesInit::default(),
             events: Events::instance(event_loop.create_proxy()),
+            vars: Vars::instance(event_loop.create_proxy()),
+            updates: OwnedUpdates::new(event_loop.create_proxy()),
             event_loop,
-            updates,
-            vars: Vars::instance(),
-            sync: Sync::new(update_sender),
+            sync: Sync::new(),
         }
     }
 

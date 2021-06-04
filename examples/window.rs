@@ -134,14 +134,14 @@ fn screenshot() -> impl Widget {
             let img = ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().frame_pixels();
             println!("taken in {:?}, saving..", t.elapsed());
 
-            let enabled_sender = ctx.sync.var_sender(enabled.clone());
+            let enabled_sender = ctx.vars.sender(&enabled);
             ctx.sync.run(move || {
                 let t = Instant::now();
                 img.save("screenshot.png").unwrap();
                 println!("saved in {:?}", t.elapsed());
 
                 // re-enable button.
-                enabled_sender.set(true);
+                let _ = enabled_sender.send(true);
             });
         };
     }

@@ -1,15 +1,8 @@
 //! Asynchronous task running, timers, event and variable channels.
 
-use crate::{
-    event::AnyEventUpdate,
-    var::{response_var, var, ForceReadOnlyVar, RcVar, ResponderVar, ResponseVar, Vars},
-};
+use crate::var::{response_var, var, ForceReadOnlyVar, RcVar, ResponderVar, ResponseVar, Vars};
 
-use super::{
-    context::{AppSyncContext, UpdateSender},
-    var::{Var, VarValue},
-};
-use flume::{self, Receiver, Sender, TryRecvError};
+use super::{context::AppSyncContext, var::Var};
 use retain_mut::*;
 use std::{
     fmt,
@@ -20,19 +13,14 @@ use std::{
 
 /// Asynchronous task running, timers, event and variable channels.
 pub struct Sync {
-    notifier: UpdateSender,
-    channels: Vec<Box<dyn SyncChannel>>,
-
     once_timers: Vec<OnceTimer>,
     interval_timers: Vec<IntervalTimer>,
 
     new_wake_time: Option<Instant>,
 }
 impl Sync {
-    pub(super) fn new(notifier: UpdateSender) -> Self {
+    pub(super) fn new() -> Self {
         Sync {
-            notifier,
-            channels: vec![],
             once_timers: vec![],
             interval_timers: vec![],
             new_wake_time: None,
@@ -40,8 +28,6 @@ impl Sync {
     }
 
     pub(super) fn update(&mut self, ctx: &mut AppSyncContext) -> Option<Instant> {
-        self.channels.retain(|t| t.update(ctx));
-
         let now = Instant::now();
 
         self.once_timers.retain(|t| t.retain(now, ctx.vars));
@@ -71,45 +57,6 @@ impl Sync {
         wake_time
     }
 
-    /// Create a variable update listener that can be used from other threads.
-    ///
-    /// The variable current value is send during this call.
-    ///
-    /// Context variables are evaluated in the app root context.
-    pub fn var_receiver<T: VarValue + Send, V: Var<T>>(&mut self, var: V) -> VarReceiver<T> {
-        let (sync, sender) = VarReceiverSync::new(var);
-        self.channels.push(Box::new(sync));
-        sender
-    }
-
-    /// Create a variable setter that can be used from other threads.
-    ///
-    /// Context variables are set in the app root context.
-    pub fn var_sender<T: VarValue + Send, V: Var<T>>(&mut self, var: V) -> VarSender<T> {
-        let (sync, sender) = VarSenderSync::new(var, self.notifier.clone());
-        self.channels.push(Box::new(sync));
-        sender
-    }
-
-    /// Create a variable setter that can be used from other threads.
-    ///
-    /// Instead of sending a new full value this sends a `impl FnOnce(&mut T) + Send + 'static`
-    /// that is evaluated in the app thread.
-    ///
-    /// Context variables are modified in the app root context.
-    pub fn var_modify_sender<T: VarValue, V: Var<T>>(&mut self, var: V) -> VarModifySender<T> {
-        let (sync, sender) = VarModifySenderSync::new(var, self.notifier.clone());
-        self.channels.push(Box::new(sync));
-        sender
-    }
-
-    /// Variable sender/receiver dual-channel.
-    pub fn var_channel<T: VarValue + Send, V: Var<T>>(&mut self, var: V) -> VarChannel<T> {
-        let (sync, channel) = VarChannelSync::new(var, self.notifier.clone());
-        self.channels.push(Box::new(sync));
-        channel
-    }
-
     /// Run a CPU bound task.
     ///
     /// The task runs in a [`rayon`] thread-pool, this function is not blocking.
@@ -117,12 +64,16 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, var::ResponseVar};
+    /// # use zero_ui_core::{context::WidgetContext, var::{ResponseVar, response_var}};
     /// # struct SomeStruct { sum_response: ResponseVar<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     self.sum_response = ctx.sync.run(||{
-    ///         (0..1000).sum()
+    ///     let (responder, response) = response_var();
+    ///     self.sum_response = response;
+    ///     let sender = ctx.vars.sender(responder);
+    ///     self.sum_response = ctx.sync.run(move ||{
+    ///         let r = (0..1000).sum();
+    ///         sender.send_response(r);
     ///     });
     /// }
     ///
@@ -133,14 +84,8 @@ impl Sync {
     /// }
     /// # }
     /// ```
-    pub fn run<R: VarValue + Send, T: FnOnce() -> R + Send + 'static>(&mut self, task: T) -> ResponseVar<R> {
-        let (responder, response) = response_var();
-        let sender = self.var_sender(responder);
-        rayon::spawn(move || {
-            let r = task();
-            sender.set(crate::var::Response::Done(r));
-        });
-        response
+    pub fn run<T: FnOnce() + Send + 'static>(&mut self, task: T) {
+        rayon::spawn(task);
     }
 
     /// Run an IO bound task.
@@ -150,12 +95,17 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, var::ResponseVar};
+    /// # use zero_ui_core::{context::WidgetContext, var::{ResponseVar, response_var}};
     /// # struct SomeStruct { file_response: ResponseVar<Vec<u8>> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     self.file_response = ctx.sync.run_async(async {
-    ///         todo!("use async_std to read a file")     
+    ///     let (responder, response) = response_var();
+    ///     self.file_response = response;
+    ///     let sender = ctx.vars.sender(responder);
+    ///     self.file_response = ctx.sync.run_async(async move {
+    ///         todo!("use async_std to read a file");
+    ///         let file = vec![];
+    ///         sender.send(file);    
     ///     });
     /// }
     ///
@@ -166,16 +116,9 @@ impl Sync {
     /// }
     /// # }
     /// ```
-    pub fn run_async<R: VarValue + Send, T: Future<Output = R> + Send + 'static>(&mut self, task: T) -> ResponseVar<R> {
-        let (responder, response) = response_var();
-        let sender = self.var_sender(responder);
+    pub fn run_async<T: Future<Output = ()> + Send + 'static>(&mut self, task: T) {
         // TODO run block-on?
-        async_global_executor::spawn(async move {
-            let r = task.await;
-            sender.set(crate::var::Response::Done(r));
-        })
-        .detach();
-        response
+        async_global_executor::spawn(task).detach();
     }
 
     fn update_wake_time(&mut self, due_time: Instant) {
@@ -355,262 +298,6 @@ impl IntervalTimer {
             self.due_time = now + self.interval;
         }
 
-        true
-    }
-}
-
-type Retain = bool;
-
-trait SyncChannel {
-    /// Sync events.
-    ///
-    /// Returns if this object should be retained.
-    fn on_event(&self, ctx: &mut AppSyncContext, args: &AnyEventUpdate) -> Retain;
-
-    /// Sync updates.
-    ///
-    /// Returns if this object should be retained.
-    fn update(&self, ctx: &mut AppSyncContext) -> Retain;
-}
-
-/// See [`Sync::var_sender`] for more details.
-pub struct VarSender<T: VarValue + Send> {
-    notifier: UpdateSender,
-    sender: Sender<T>,
-}
-impl<T: VarValue + Send> Clone for VarSender<T> {
-    fn clone(&self) -> Self {
-        VarSender {
-            notifier: self.notifier.clone(),
-            sender: self.sender.clone(),
-        }
-    }
-}
-impl<T: VarValue + Send> VarSender<T> {
-    /// Send the variable a new value.
-    #[inline]
-    pub fn set(&self, new_value: T) {
-        self.sender.send(new_value).expect("TODO");
-        self.notifier.send().expect("TODO");
-    }
-}
-struct VarSenderSync<T: VarValue + Send, V: Var<T>> {
-    var: V,
-    receiver: Receiver<T>,
-}
-impl<T: VarValue + Send, V: Var<T>> VarSenderSync<T, V> {
-    fn new(var: V, notifier: UpdateSender) -> (Self, VarSender<T>) {
-        let (sender, receiver) = flume::unbounded();
-        (VarSenderSync { var, receiver }, VarSender { notifier, sender })
-    }
-}
-impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarSenderSync<T, V> {
-    fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        if let Some(new_value) = self.receiver.try_iter().last() {
-            let _ = self.var.set(ctx.vars, new_value);
-        }
-        !self.receiver.is_disconnected()
-    }
-
-    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
-        true
-    }
-}
-
-/// See [`Sync::var_modify_sender`] for more details.
-pub struct VarModifySender<T: VarValue> {
-    notifier: UpdateSender,
-    sender: Sender<Box<dyn FnOnce(&mut T) + Send>>,
-}
-impl<T: VarValue + Send> Clone for VarModifySender<T> {
-    fn clone(&self) -> Self {
-        VarModifySender {
-            notifier: self.notifier.clone(),
-            sender: self.sender.clone(),
-        }
-    }
-}
-impl<T: VarValue> VarModifySender<T> {
-    /// Send the variable an update.
-    pub fn modify<U>(&self, update: U)
-    where
-        U: FnOnce(&mut T) + Send + 'static,
-    {
-        self.sender.send(Box::new(update)).expect("TODO");
-        self.notifier.send().expect("TODO");
-    }
-}
-struct VarModifySenderSync<T: VarValue, V: Var<T>> {
-    var: V,
-    receiver: Receiver<Box<dyn FnOnce(&mut T) + Send>>,
-}
-impl<T: VarValue, V: Var<T>> VarModifySenderSync<T, V> {
-    fn new(var: V, notifier: UpdateSender) -> (Self, VarModifySender<T>) {
-        let (sender, receiver) = flume::unbounded();
-        (VarModifySenderSync { var, receiver }, VarModifySender { notifier, sender })
-    }
-}
-impl<T: VarValue, V: Var<T>> SyncChannel for VarModifySenderSync<T, V> {
-    fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        for change in self.receiver.try_iter() {
-            let _ = self.var.modify_boxed(ctx.vars, change);
-        }
-        !self.receiver.is_disconnected()
-    }
-
-    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
-        true
-    }
-}
-
-/// See [`Sync::var_receiver`] for more details.
-pub struct VarReceiver<T: VarValue + Send> {
-    receiver: Receiver<T>,
-}
-impl<T: VarValue + Send> Clone for VarReceiver<T> {
-    fn clone(&self) -> Self {
-        VarReceiver {
-            receiver: self.receiver.clone(),
-        }
-    }
-}
-impl<T: VarValue + Send> VarReceiver<T> {
-    /// Wait for a value update.
-    #[inline]
-    pub fn get(&self) -> Result<T, flume::RecvError> {
-        self.receiver.recv()
-    }
-
-    /// Try to fetch a value update.
-    #[inline]
-    pub fn try_get(&self) -> Result<T, TryRecvError> {
-        self.receiver.try_recv()
-    }
-
-    /// Wait for a value update until the timeout duration.
-    #[inline]
-    pub fn get_timeout(&self, dur: Duration) -> Result<T, flume::RecvTimeoutError> {
-        self.receiver.recv_timeout(dur)
-    }
-
-    /// Reference the underlying update receiver.
-    #[inline]
-    pub fn receiver(&self) -> &Receiver<T> {
-        &self.receiver
-    }
-}
-struct VarReceiverSync<T: VarValue + Send, V: Var<T>> {
-    var: V,
-    sender: Sender<T>,
-}
-impl<T: VarValue + Send, V: Var<T>> VarReceiverSync<T, V> {
-    fn new(var: V) -> (Self, VarReceiver<T>) {
-        let (sender, receiver) = flume::unbounded();
-        (VarReceiverSync { var, sender }, VarReceiver { receiver })
-    }
-}
-impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
-    fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        if let Some(update) = self.var.get_new(ctx.vars) {
-            let _ = self.sender.send(update.clone());
-        }
-        !self.sender.is_disconnected()
-    }
-
-    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
-        true
-    }
-}
-
-/// Represents a [`Var`](crate::var::Var) that can be read and updated from other threads.
-///
-/// See [`Sync::var_channel`] for more details.
-///
-/// ### Initial Value
-///
-/// The first value in the channel is the variable value when the channel was created, so this
-/// method returns immediately on the first call.
-
-pub struct VarChannel<T: VarValue + Send> {
-    notifier: UpdateSender,
-    sender: Sender<T>,
-    receiver: Receiver<T>,
-}
-impl<T: VarValue + Send> Clone for VarChannel<T> {
-    fn clone(&self) -> Self {
-        VarChannel {
-            notifier: self.notifier.clone(),
-            sender: self.sender.clone(),
-            receiver: self.receiver.clone(),
-        }
-    }
-}
-impl<T: VarValue + Send> VarChannel<T> {
-    /// Send the variable a new value.
-    #[inline]
-    pub fn set(&self, new_value: T) {
-        self.sender.send(new_value).expect("TODO")
-    }
-
-    /// Reference the underlying update receiver.
-    #[inline]
-    pub fn receiver(&self) -> &Receiver<T> {
-        &self.receiver
-    }
-
-    /// Wait for a value update.
-    #[inline]
-    pub fn get(&self) -> Result<T, flume::RecvError> {
-        self.receiver.recv()
-    }
-
-    /// Try to fetch a value update.
-    #[inline]
-    pub fn try_get(&self) -> Result<T, TryRecvError> {
-        self.receiver.try_recv()
-    }
-
-    /// Wait for a value update until the timeout duration.
-    #[inline]
-    pub fn get_timeout(&self, dur: Duration) -> Result<T, flume::RecvTimeoutError> {
-        self.receiver.recv_timeout(dur)
-    }
-}
-struct VarChannelSync<T: VarValue + Send, V: Var<T>> {
-    var: V,
-    out_sender: Sender<T>,
-    in_receiver: Receiver<T>,
-}
-impl<T: VarValue + Send, V: Var<T>> VarChannelSync<T, V> {
-    fn new(var: V, notifier: UpdateSender) -> (Self, VarChannel<T>) {
-        let (out_sender, out_receiver) = flume::unbounded();
-        let (in_sender, in_receiver) = flume::unbounded();
-        (
-            VarChannelSync {
-                var,
-                out_sender,
-                in_receiver,
-            },
-            VarChannel {
-                notifier,
-                sender: in_sender,
-                receiver: out_receiver,
-            },
-        )
-    }
-}
-impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarChannelSync<T, V> {
-    fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        if let Some(new_value) = self.var.get_new(ctx.vars) {
-            let _ = self.out_sender.send(new_value.clone());
-        }
-        if let Some(new_value) = self.in_receiver.try_iter().last() {
-            let _ = self.var.set(ctx.vars, new_value);
-        }
-        !self.out_sender.is_disconnected()
-    }
-
-    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
         true
     }
 }
