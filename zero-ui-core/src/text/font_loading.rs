@@ -14,7 +14,7 @@ use webrender::api::RenderApi;
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
-use crate::context::{AppContext, AppInitContext, UpdateNotifier};
+use crate::context::{AppContext, AppInitContext, UpdateSender};
 use crate::event::{event, event_args, EventUpdateArgs};
 use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
@@ -125,7 +125,7 @@ impl Default for FontManager {
 }
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
-        let fonts = Fonts::new(ctx.updates.notifier().clone());
+        let fonts = Fonts::new(ctx.updates.sender().clone());
         self.current_text_aa = fonts.system_text_aa();
         ctx.services.register(fonts);
     }
@@ -164,20 +164,20 @@ impl AppExtension for FontManager {
             let windows = ctx.services.req::<Windows>();
             if let Ok(w) = windows.window(args.window_id) {
                 if w.mode().is_headed() {
-                    let notifier = ctx.updates.notifier().clone();
+                    let update_sender = ctx.updates.sender().clone();
                     let system_fonts_changed = Rc::clone(&self.system_fonts_changed);
                     let system_text_aa_changed = Rc::clone(&self.system_text_aa_changed);
                     let ok = w.set_raw_windows_event_handler(move |_, msg, wparam, _| {
                         if msg == winapi::um::winuser::WM_FONTCHANGE {
                             system_fonts_changed.set(true);
-                            notifier.update();
+                            let _ = update_sender.send();
                             Some(0)
                         } else if msg == winapi::um::winuser::WM_SETTINGCHANGE {
                             if wparam == winapi::um::winuser::SPI_GETFONTSMOOTHING as usize
                                 || wparam == winapi::um::winuser::SPI_GETFONTSMOOTHINGTYPE as usize
                             {
                                 system_text_aa_changed.set(true);
-                                notifier.update();
+                                let _ = update_sender.send();
                                 Some(0)
                             } else {
                                 None
@@ -203,7 +203,7 @@ pub struct Fonts {
     prune_requested: bool,
 }
 impl Fonts {
-    fn new(notifier: UpdateNotifier) -> Self {
+    fn new(notifier: UpdateSender) -> Self {
         Fonts {
             loader: FontFaceLoader::new(),
             generics: GenericFonts::new(notifier),
@@ -241,7 +241,7 @@ impl Fonts {
     pub fn prune(&mut self) {
         if !self.prune_requested {
             self.prune_requested = true;
-            self.generics.notifier.update();
+            let _ = self.generics.update_sender.send();
         }
     }
 
@@ -1381,11 +1381,11 @@ pub struct GenericFonts {
     cursive: FnvHashMap<Script, FontName>,
     fantasy: FnvHashMap<Script, FontName>,
     fallback: FnvHashMap<Script, FontName>,
-    notifier: UpdateNotifier,
+    update_sender: UpdateSender,
     updates: Vec<FontChangedArgs>,
 }
 impl GenericFonts {
-    fn new(notifier: UpdateNotifier) -> Self {
+    fn new(update_sender: UpdateSender) -> Self {
         fn default(name: impl Into<FontName>) -> FnvHashMap<Script, FontName> {
             let mut f = FnvHashMap::with_capacity_and_hasher(1, fnv::FnvBuildHasher::default());
             f.insert(Script::Unknown, name.into());
@@ -1401,7 +1401,7 @@ impl GenericFonts {
             #[cfg(not(target_family = "windows"))]
             fantasy: default("Papyrus"),
             fallback: default("Segoe UI Symbol"),
-            notifier,
+            update_sender,
             updates: vec![],
         }
     }
@@ -1462,7 +1462,7 @@ impl GenericFonts {
 
     fn notify(&mut self, change: FontChange) {
         if self.updates.is_empty() {
-            self.notifier.update();
+            let _ = self.update_sender.send();
         }
         self.updates.push(FontChangedArgs::now(change));
     }

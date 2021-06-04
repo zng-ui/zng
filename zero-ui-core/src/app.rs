@@ -17,6 +17,7 @@ use glutin::event::Event as GEvent;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
+use std::future::Future;
 use std::{
     any::{type_name, TypeId},
     fmt,
@@ -25,6 +26,86 @@ use std::{
 };
 
 pub use glutin::event::{DeviceEvent, DeviceId, ElementState};
+
+/// Error when the app connected to a sender/receiver channel has shutdown.
+///
+/// Contains the value that could not be send or `()` for receiver errors.
+pub struct AppShutdown<T>(pub T);
+impl<T> From<glutin::event_loop::EventLoopClosed<T>> for AppShutdown<T> {
+    fn from(e: glutin::event_loop::EventLoopClosed<T>) -> Self {
+        AppShutdown(e.0)
+    }
+}
+impl From<flume::RecvError> for AppShutdown<()> {
+    fn from(_: flume::RecvError) -> Self {
+        AppShutdown(())
+    }
+}
+impl<T> fmt::Debug for AppShutdown<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AppHasShutdown")
+    }
+}
+impl<T> fmt::Display for AppShutdown<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "cannot send/receive because the app has shutdown")
+    }
+}
+impl<T> std::error::Error for AppShutdown<T> {}
+
+/// Error when the app connected to a sender channel has shutdown or taken to long to respond.
+pub enum TimeoutOrAppShutdown {
+    /// Connected app has not responded.
+    Timeout,
+    /// Connected app has shutdown.
+    AppShutdown,
+}
+impl From<flume::RecvTimeoutError> for TimeoutOrAppShutdown {
+    fn from(e: flume::RecvTimeoutError) -> Self {
+        match e {
+            flume::RecvTimeoutError::Timeout => TimeoutOrAppShutdown::Timeout,
+            flume::RecvTimeoutError::Disconnected => TimeoutOrAppShutdown::AppShutdown,
+        }
+    }
+}
+impl fmt::Debug for TimeoutOrAppShutdown {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "AppHasNotRespondedOrShutdown::")?;
+        }
+        match self {
+            TimeoutOrAppShutdown::Timeout => write!(f, "Timeout"),
+            TimeoutOrAppShutdown::AppShutdown => write!(f, "AppShutdown"),
+        }
+    }
+}
+impl fmt::Display for TimeoutOrAppShutdown {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TimeoutOrAppShutdown::Timeout => write!(f, "failed send, timeout"),
+            TimeoutOrAppShutdown::AppShutdown => write!(f, "cannot send because the app has shutdown"),
+        }
+    }
+}
+impl std::error::Error for TimeoutOrAppShutdown {}
+
+/// A future that receives a single message from a running [app](App).
+pub struct RecvFut<'a, M>(flume::r#async::RecvFut<'a, M>);
+impl<'a, M> From<flume::r#async::RecvFut<'a, M>> for RecvFut<'a, M> {
+    fn from(f: flume::r#async::RecvFut<'a, M>) -> Self {
+        Self(f)
+    }
+}
+impl<'a, M> Future for RecvFut<'a, M> {
+    type Output = Result<M, AppShutdown<()>>;
+
+    fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+        match std::pin::Pin::new(&mut self.0).poll(cx) {
+            std::task::Poll::Ready(r) => std::task::Poll::Ready(r.map_err(|_| AppShutdown(()))),
+            std::task::Poll::Pending => std::task::Poll::Pending,
+        }
+    }
+}
 
 /// An [`App`] extension.
 pub trait AppExtension: 'static {
@@ -462,14 +543,14 @@ impl fmt::Display for ShutdownCancelled {
 #[derive(Service)]
 pub struct AppProcess {
     shutdown_requests: Option<ResponderVar<ShutdownCancelled>>,
-    update_notifier: UpdateNotifier,
+    update_sender: UpdateSender,
 }
 impl AppProcess {
     /// New app process service
-    pub fn new(update_notifier: UpdateNotifier) -> Self {
+    pub fn new(update_sender: UpdateSender) -> Self {
         AppProcess {
             shutdown_requests: None,
-            update_notifier,
+            update_sender,
         }
     }
 
@@ -483,7 +564,7 @@ impl AppProcess {
         } else {
             let (responder, response) = response_var();
             self.shutdown_requests = Some(responder);
-            self.update_notifier.update();
+            let _ = self.update_sender.send();
             response
         }
     }
@@ -621,10 +702,10 @@ impl EventLoopProxy {
     }
 
     /// Send an [`AppEvent`] to the app.
-    pub fn send_event(&self, event: AppEvent) {
+    pub fn send_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
         match &self.0 {
-            EventLoopProxyInner::Glutin(elp) => elp.send_event(event).unwrap(),
-            EventLoopProxyInner::Headless(sender) => sender.send(event).unwrap(),
+            EventLoopProxyInner::Glutin(elp) => elp.send_event(event).map_err(|e| e.into()),
+            EventLoopProxyInner::Headless(sender) => sender.send(event).map_err(|e| AppShutdown(e.0)),
         }
     }
 }
@@ -765,7 +846,7 @@ impl<E: AppExtension> RunningApp<E> {
         let mut owned_ctx = OwnedAppContext::instance(event_loop);
 
         let mut init_ctx = owned_ctx.borrow_init();
-        init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
+        init_ctx.services.register(AppProcess::new(init_ctx.updates.sender().clone()));
         extensions.init(&mut init_ctx);
 
         RunningApp {
@@ -796,7 +877,7 @@ impl<E: AppExtension> RunningApp<E> {
                 }
                 GEvent::WindowEvent { window_id, event } => app.window_event(event_loop, window_id.into(), &event),
                 GEvent::DeviceEvent { device_id, event } => app.device_event(event_loop, device_id, &event),
-                GEvent::UserEvent(app_event) => app.app_event(event_loop, &app_event),
+                GEvent::UserEvent(app_event) => app.app_event(event_loop, app_event),
                 GEvent::Suspended => app.suspended(event_loop),
                 GEvent::Resumed => app.resumed(event_loop),
                 GEvent::MainEventsCleared => {
@@ -836,18 +917,20 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Process an [`AppEvent`].
-    pub fn app_event(&mut self, event_loop: EventLoopWindowTarget, app_event: &AppEvent) {
+    pub fn app_event(&mut self, event_loop: EventLoopWindowTarget, app_event: AppEvent) {
         match app_event {
             AppEvent::NewFrameReady(window_id) => {
                 let mut ctx = self.owned_ctx.borrow(event_loop);
-                self.extensions.new_frame_ready(&mut ctx, *window_id);
-                self.maybe_has_updates = true;
+                self.extensions.new_frame_ready(&mut ctx, window_id);
             }
             AppEvent::Update => {
                 self.owned_ctx.borrow(event_loop).updates.update();
-                self.maybe_has_updates = true;
+            }
+            AppEvent::Event(e) => {
+                self.owned_ctx.borrow(event_loop).events.notify_app_event(e);
             }
         }
+        self.maybe_has_updates = true;
     }
 
     /// Process application suspension.
@@ -960,6 +1043,8 @@ impl<E: AppExtension> RunningApp<E> {
 /// Raw events generated by the app.
 #[derive(Debug)]
 pub enum AppEvent {
+    /// An [`Event`] update.
+    Event(crate::event::BoxedSendEventUpdate),
     /// A window frame is ready to be shown.
     NewFrameReady(WindowId),
     /// An update was requested.
@@ -1044,7 +1129,7 @@ impl HeadlessApp {
     /// Sends an [app event](AppEvent).
     pub fn app_event(&mut self, event: AppEvent) {
         profile_scope!("headless_app::on_app_event");
-        self.event_loop.create_proxy().send_event(event);
+        let _ = self.event_loop.create_proxy().send_event(event);
     }
 
     /// Runs a custom action in the headless app context.
@@ -1101,7 +1186,7 @@ impl HeadlessApp {
     pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
         let event_loop = self.event_loop.window_target();
         for event in self.event_loop.take_headless_app_events(wait_app_event) {
-            self.app.app_event(event_loop, &event);
+            self.app.app_event(event_loop, event);
         }
 
         let r = self.app.update(event_loop, observer);

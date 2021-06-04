@@ -5,6 +5,7 @@ use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
 use zero_ui::core::window::{HeadlessAppWindowExt, WindowId};
 use zero_ui::prelude::*;
 use zero_ui_core::event::EventBuffer;
+use zero_ui_core::focus::{FocusChangedEvent, ReturnFocusChangedEvent};
 
 #[test]
 pub fn first_and_last_window_events() {
@@ -1506,8 +1507,8 @@ struct TestApp {
     app: HeadlessApp,
     pub window_id: WindowId,
 
-    focus_changed: EventBuffer<FocusChangedArgs>,
-    return_focus_changed: EventBuffer<ReturnFocusChangedArgs>,
+    focus_changed: EventBuffer<FocusChangedEvent>,
+    return_focus_changed: EventBuffer<ReturnFocusChangedEvent>,
 }
 impl TestApp {
     pub fn new(content: impl UiNode) -> Self {

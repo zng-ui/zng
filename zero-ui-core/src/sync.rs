@@ -1,12 +1,12 @@
 //! Asynchronous task running, timers, event and variable channels.
 
 use crate::{
-    event::{AnyEventUpdate, Event},
+    event::AnyEventUpdate,
     var::{response_var, var, ForceReadOnlyVar, RcVar, ResponderVar, ResponseVar, Vars},
 };
 
 use super::{
-    context::{AppSyncContext, UpdateNotifier},
+    context::{AppSyncContext, UpdateSender},
     var::{Var, VarValue},
 };
 use flume::{self, Receiver, Sender, TryRecvError};
@@ -20,7 +20,7 @@ use std::{
 
 /// Asynchronous task running, timers, event and variable channels.
 pub struct Sync {
-    notifier: UpdateNotifier,
+    notifier: UpdateSender,
     channels: Vec<Box<dyn SyncChannel>>,
 
     once_timers: Vec<OnceTimer>,
@@ -29,7 +29,7 @@ pub struct Sync {
     new_wake_time: Option<Instant>,
 }
 impl Sync {
-    pub(super) fn new(notifier: UpdateNotifier) -> Self {
+    pub(super) fn new(notifier: UpdateSender) -> Self {
         Sync {
             notifier,
             channels: vec![],
@@ -108,28 +108,6 @@ impl Sync {
         let (sync, channel) = VarChannelSync::new(var, self.notifier.clone());
         self.channels.push(Box::new(sync));
         channel
-    }
-
-    /// Creates a channel that can raise an event from another thread.
-    pub fn event_sender<A, E>(&mut self) -> EventSender<E>
-    where
-        E: Event,
-        E::Args: Send,
-    {
-        let (sync, sender) = EventSenderSync::new(self.notifier.clone());
-        self.channels.push(Box::new(sync));
-        sender
-    }
-
-    /// Creates a channel that can listen to event from another thread.
-    pub fn event_receiver<E>(&mut self) -> EventReceiver<E>
-    where
-        E: Event,
-        E::Args: Send,
-    {
-        let (sync, receiver) = EventReceiverSync::new();
-        self.channels.push(Box::new(sync));
-        receiver
     }
 
     /// Run a CPU bound task.
@@ -395,145 +373,9 @@ trait SyncChannel {
     fn update(&self, ctx: &mut AppSyncContext) -> Retain;
 }
 
-/// Represents an [`Event`] that can be updated from other threads.
-///
-/// See [`Sync::event_sender`] for more details.
-pub struct EventSender<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    notifier: UpdateNotifier,
-    sender: Sender<E::Args>,
-}
-impl<E> Clone for EventSender<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    fn clone(&self) -> Self {
-        EventSender {
-            notifier: self.notifier.clone(),
-            sender: self.sender.clone(),
-        }
-    }
-}
-impl<E> EventSender<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    /// Pushes an update notification.
-    ///
-    /// This will generate an event update in the UI thread.
-    pub fn notify(&self, args: E::Args) {
-        self.sender.send(args).expect("TODO can this fail?");
-        self.notifier.update();
-    }
-}
-struct EventSenderSync<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    receiver: Receiver<E::Args>,
-}
-impl<E> EventSenderSync<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    fn new(notifier: UpdateNotifier) -> (Self, EventSender<E>) {
-        let (sender, receiver) = flume::unbounded();
-        (EventSenderSync { receiver }, EventSender { notifier, sender })
-    }
-}
-impl<E> SyncChannel for EventSenderSync<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    fn on_event(&self, _: &mut AppSyncContext, _: &AnyEventUpdate) -> Retain {
-        true
-    }
-
-    fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        for args in self.receiver.try_iter() {
-            E::notify(ctx.events, args);
-        }
-        !self.receiver.is_disconnected()
-    }
-}
-
-/// Represents an [`Event`] that can receive updates from other threads.
-///
-/// See [`Sync::event_receiver`] for more details.
-#[derive(Clone)]
-pub struct EventReceiver<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    receiver: Receiver<E::Args>,
-}
-impl<E> EventReceiver<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    /// A blocking iterator over the updated received.
-    pub fn updates(&self) -> flume::Iter<E::Args> {
-        self.receiver.iter()
-    }
-
-    /// A non-blocking iterator over the updates received.
-    #[inline]
-    pub fn try_updates(&self) -> flume::TryIter<E::Args> {
-        self.receiver.try_iter()
-    }
-
-    /// Reference the underlying update receiver.
-    pub fn receiver(&self) -> &Receiver<E::Args> {
-        &self.receiver
-    }
-}
-struct EventReceiverSync<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    sender: Sender<E::Args>,
-}
-impl<E> EventReceiverSync<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    fn new() -> (Self, EventReceiver<E>) {
-        let (sender, receiver) = flume::unbounded();
-        (EventReceiverSync { sender }, EventReceiver { receiver })
-    }
-}
-impl<E> SyncChannel for EventReceiverSync<E>
-where
-    E: Event,
-    E::Args: Send,
-{
-    fn on_event(&self, _: &mut AppSyncContext, args: &AnyEventUpdate) -> Retain {
-        if let Some(args) = E::update(args) {
-            self.sender.send(args.clone()).expect("TODO");
-        }
-        !self.sender.is_disconnected()
-    }
-
-    fn update(&self, _: &mut AppSyncContext) -> Retain {
-        true
-    }
-}
-
 /// See [`Sync::var_sender`] for more details.
 pub struct VarSender<T: VarValue + Send> {
-    notifier: UpdateNotifier,
+    notifier: UpdateSender,
     sender: Sender<T>,
 }
 impl<T: VarValue + Send> Clone for VarSender<T> {
@@ -549,7 +391,7 @@ impl<T: VarValue + Send> VarSender<T> {
     #[inline]
     pub fn set(&self, new_value: T) {
         self.sender.send(new_value).expect("TODO");
-        self.notifier.update();
+        self.notifier.send().expect("TODO");
     }
 }
 struct VarSenderSync<T: VarValue + Send, V: Var<T>> {
@@ -557,7 +399,7 @@ struct VarSenderSync<T: VarValue + Send, V: Var<T>> {
     receiver: Receiver<T>,
 }
 impl<T: VarValue + Send, V: Var<T>> VarSenderSync<T, V> {
-    fn new(var: V, notifier: UpdateNotifier) -> (Self, VarSender<T>) {
+    fn new(var: V, notifier: UpdateSender) -> (Self, VarSender<T>) {
         let (sender, receiver) = flume::unbounded();
         (VarSenderSync { var, receiver }, VarSender { notifier, sender })
     }
@@ -577,7 +419,7 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarSenderSync<T, V> {
 
 /// See [`Sync::var_modify_sender`] for more details.
 pub struct VarModifySender<T: VarValue> {
-    notifier: UpdateNotifier,
+    notifier: UpdateSender,
     sender: Sender<Box<dyn FnOnce(&mut T) + Send>>,
 }
 impl<T: VarValue + Send> Clone for VarModifySender<T> {
@@ -595,7 +437,7 @@ impl<T: VarValue> VarModifySender<T> {
         U: FnOnce(&mut T) + Send + 'static,
     {
         self.sender.send(Box::new(update)).expect("TODO");
-        self.notifier.update();
+        self.notifier.send().expect("TODO");
     }
 }
 struct VarModifySenderSync<T: VarValue, V: Var<T>> {
@@ -603,7 +445,7 @@ struct VarModifySenderSync<T: VarValue, V: Var<T>> {
     receiver: Receiver<Box<dyn FnOnce(&mut T) + Send>>,
 }
 impl<T: VarValue, V: Var<T>> VarModifySenderSync<T, V> {
-    fn new(var: V, notifier: UpdateNotifier) -> (Self, VarModifySender<T>) {
+    fn new(var: V, notifier: UpdateSender) -> (Self, VarModifySender<T>) {
         let (sender, receiver) = flume::unbounded();
         (VarModifySenderSync { var, receiver }, VarModifySender { notifier, sender })
     }
@@ -690,7 +532,7 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
 /// method returns immediately on the first call.
 
 pub struct VarChannel<T: VarValue + Send> {
-    notifier: UpdateNotifier,
+    notifier: UpdateSender,
     sender: Sender<T>,
     receiver: Receiver<T>,
 }
@@ -740,7 +582,7 @@ struct VarChannelSync<T: VarValue + Send, V: Var<T>> {
     in_receiver: Receiver<T>,
 }
 impl<T: VarValue + Send, V: Var<T>> VarChannelSync<T, V> {
-    fn new(var: V, notifier: UpdateNotifier) -> (Self, VarChannel<T>) {
+    fn new(var: V, notifier: UpdateSender) -> (Self, VarChannel<T>) {
         let (out_sender, out_receiver) = flume::unbounded();
         let (in_sender, in_receiver) = flume::unbounded();
         (

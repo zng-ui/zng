@@ -83,21 +83,21 @@ impl UpdateDisplayRequest {
     }
 }
 
-/// Out-of-band update request sender.
+/// App update sender.
 ///
-/// Use this to cause an update cycle without direct access to a context.
+/// This awakes the app and causes the same effect as [`Updates::update`].
 #[derive(Clone)]
-pub struct UpdateNotifier(EventLoopProxy);
-impl UpdateNotifier {
+pub struct UpdateSender(EventLoopProxy);
+impl UpdateSender {
     #[inline]
     fn new(event_loop: EventLoopProxy) -> Self {
-        UpdateNotifier(event_loop)
+        UpdateSender(event_loop)
     }
 
     /// Sends an update request, awakes the app loop if needed.
     #[inline]
-    pub fn update(&self) {
-        self.0.send_event(AppEvent::Update);
+    pub fn send(&self) -> Result<(), AppShutdown<()>> {
+        self.0.send_event(AppEvent::Update).map_err(|_| AppShutdown(()))
     }
 }
 
@@ -139,6 +139,7 @@ macro_rules! state_key {
     )+};
 }
 
+use crate::app::AppShutdown;
 use crate::event::BoxedEventUpdate;
 #[doc(inline)]
 pub use crate::state_key;
@@ -414,7 +415,7 @@ impl OwnedUpdates {
 ///
 /// An instance of this struct can be built by [`OwnedUpdates`].
 pub struct Updates {
-    notifier: UpdateNotifier,
+    sender: UpdateSender,
     update: bool,
     display_update: UpdateDisplayRequest,
     win_display_update: UpdateDisplayRequest,
@@ -423,17 +424,17 @@ pub struct Updates {
 impl Updates {
     fn new(event_loop: EventLoopProxy) -> Self {
         Updates {
-            notifier: UpdateNotifier::new(event_loop),
+            sender: UpdateSender::new(event_loop),
             update: false,
             display_update: UpdateDisplayRequest::None,
             win_display_update: UpdateDisplayRequest::None,
         }
     }
 
-    /// Cloneable out-of-band notification sender.
+    /// Cloneable [`update`](Self::update) sender.
     #[inline]
-    pub fn notifier(&self) -> &UpdateNotifier {
-        &self.notifier
+    pub fn sender(&self) -> &UpdateSender {
+        &self.sender
     }
 
     /// Schedules a low-pressure update.
@@ -517,9 +518,9 @@ impl OwnedAppContext {
             app_state: StateMap::new(),
             headless_state: if event_loop.is_headless() { Some(StateMap::new()) } else { None },
             vars: Vars::instance(),
-            events: Events::instance(),
+            events: Events::instance(event_loop.clone()),
             services: ServicesInit::default(),
-            sync: Sync::new(updates.0.notifier.clone()),
+            sync: Sync::new(updates.0.sender.clone()),
             updates,
             event_loop,
         }
@@ -965,7 +966,7 @@ impl TestWidgetContext {
 
         let event_loop = crate::app::EventLoop::new(true);
         let updates = OwnedUpdates::new(event_loop.create_proxy());
-        let update_notifier = updates.0.notifier().clone();
+        let update_sender = updates.0.sender().clone();
         Self {
             window_id: WindowId::new_unique(),
             root_id: WidgetId::new_unique(),
@@ -974,11 +975,11 @@ impl TestWidgetContext {
             widget_state: OwnedStateMap::new(),
             update_state: OwnedStateMap::new(),
             services: ServicesInit::default(),
+            events: Events::instance(event_loop.create_proxy()),
             event_loop,
             updates,
             vars: Vars::instance(),
-            events: Events::instance(),
-            sync: Sync::new(update_notifier),
+            sync: Sync::new(update_sender),
         }
     }
 

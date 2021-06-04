@@ -450,7 +450,7 @@ impl Default for WindowManager {
 impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
-        r.services.register(Windows::new(r.updates.notifier().clone()));
+        r.services.register(Windows::new(r.updates.sender().clone()));
     }
 
     fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
@@ -649,7 +649,7 @@ impl WindowManager {
                 ctx.event_loop,
                 self.event_loop_proxy.as_ref().unwrap().clone(),
                 Arc::clone(&self.ui_threads),
-                ctx.updates.notifier().clone(),
+                ctx.updates.sender().clone(),
             );
             ctx.services.req::<Windows>().opening_windows.push(w);
         }
@@ -760,17 +760,17 @@ pub struct Windows {
 
     open_requests: Vec<OpenWindowRequest>,
     opening_windows: Vec<OpenWindow>,
-    update_notifier: UpdateNotifier,
+    update_sender: UpdateSender,
 }
 
 impl Windows {
-    fn new(update_notifier: UpdateNotifier) -> Self {
+    fn new(update_sender: UpdateSender) -> Self {
         Windows {
             shutdown_on_last_close: true,
             windows: Vec::with_capacity(1),
             open_requests: Vec::with_capacity(1),
             opening_windows: Vec::with_capacity(1),
-            update_notifier,
+            update_sender,
         }
     }
 
@@ -795,7 +795,7 @@ impl Windows {
             responder,
         };
         self.open_requests.push(request);
-        self.update_notifier.update();
+        let _ = self.update_sender.send();
 
         response
     }
@@ -1770,7 +1770,7 @@ pub struct OpenWindow {
     open_response: Option<ResponderVar<WindowEventArgs>>,
     close_response: RefCell<Option<ResponderVar<CloseWindowResult>>>,
     close_canceled: RefCell<Rc<Cell<bool>>>,
-    update_notifier: UpdateNotifier,
+    update_sender: UpdateSender,
 }
 impl OpenWindow {
     #[allow(clippy::too_many_arguments)]
@@ -1782,7 +1782,7 @@ impl OpenWindow {
         event_loop: EventLoopWindowTarget,
         event_loop_proxy: EventLoopProxy,
         ui_threads: Arc<ThreadPool>,
-        update_notifier: UpdateNotifier,
+        update_sender: UpdateSender,
     ) -> Self {
         // get mode.
         let mut mode = if let Some(headless) = ctx.headless.state() {
@@ -1841,7 +1841,7 @@ impl OpenWindow {
                 let event_loop = event_loop.headed_target().expect("AppContext is not headless but event_loop is");
 
                 let r = Renderer::new_with_glutin(window_, &event_loop, renderer_config, move |args: NewFrameArgs| {
-                    event_loop_proxy.send_event(AppEvent::NewFrameReady(args.window_id.unwrap()))
+                    let _ = event_loop_proxy.send_event(AppEvent::NewFrameReady(args.window_id.unwrap()));
                 })
                 .expect("failed to create a window renderer");
 
@@ -1868,7 +1868,9 @@ impl OpenWindow {
                         RenderSize::zero(),
                         1.0,
                         renderer_config,
-                        move |args: NewFrameArgs| event_loop_proxy.send_event(AppEvent::NewFrameReady(args.window_id.unwrap())),
+                        move |args: NewFrameArgs| {
+                            let _ = event_loop_proxy.send_event(AppEvent::NewFrameReady(args.window_id.unwrap()));
+                        },
                         Some(id),
                     )
                     .expect("failed to create a headless renderer");
@@ -1921,7 +1923,7 @@ impl OpenWindow {
             open_response: Some(open_response),
             close_response: RefCell::default(),
             close_canceled: RefCell::default(),
-            update_notifier,
+            update_sender,
 
             #[cfg(windows)]
             subclass_id: std::cell::Cell::new(0),
@@ -1940,7 +1942,7 @@ impl OpenWindow {
             let (responder, response) = response_var();
             *close_response = Some(responder);
             *self.close_canceled.borrow_mut() = Rc::default();
-            self.update_notifier.update();
+            let _ = self.update_sender.send();
             response
         }
     }
@@ -2481,7 +2483,8 @@ impl OpenWindow {
             renderer.get_mut().render(display_list_data, frame_id);
         } else {
             // in renderless mode we only have the frame_info.
-            self.renderless_event_sender
+            let _ = self
+                .renderless_event_sender
                 .as_ref()
                 .unwrap()
                 .send_event(AppEvent::NewFrameReady(self.id));
@@ -2513,7 +2516,8 @@ impl OpenWindow {
                 renderer.get_mut().render_update(update);
             } else {
                 // in renderless mode we only have the frame_info.
-                self.renderless_event_sender
+                let _ = self
+                    .renderless_event_sender
                     .as_ref()
                     .unwrap()
                     .send_event(AppEvent::NewFrameReady(self.id));

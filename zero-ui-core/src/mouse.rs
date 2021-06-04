@@ -709,7 +709,7 @@ impl MouseManager {
 
 impl AppExtension for MouseManager {
     fn init(&mut self, r: &mut AppInitContext) {
-        r.services.register(Mouse::new(r.updates.notifier().clone()));
+        r.services.register(Mouse::new(r.updates.sender().clone()));
     }
 
     fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
@@ -815,15 +815,15 @@ pub struct Mouse {
     current_capture: Option<(WidgetPath, CaptureMode)>,
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
-    notifier: UpdateNotifier,
+    update_sender: UpdateSender,
 }
 impl Mouse {
-    fn new(notifier: UpdateNotifier) -> Self {
+    fn new(update_sender: UpdateSender) -> Self {
         Mouse {
             current_capture: None,
             capture_request: None,
             release_requested: false,
-            notifier,
+            update_sender,
         }
     }
 
@@ -839,7 +839,7 @@ impl Mouse {
     #[inline]
     pub fn capture_widget(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Widget));
-        self.notifier.update();
+        let _ = self.update_sender.send();
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -851,7 +851,7 @@ impl Mouse {
     #[inline]
     pub fn capture_subtree(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Subtree));
-        self.notifier.update();
+        let _ = self.update_sender.send();
     }
 
     /// Release the current mouse capture back to window.
@@ -861,7 +861,7 @@ impl Mouse {
     #[inline]
     pub fn release_capture(&mut self) {
         self.release_requested = true;
-        self.notifier.update();
+        let _ = self.update_sender.send();
     }
 
     /// The current cursor lock active.

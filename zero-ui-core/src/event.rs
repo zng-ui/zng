@@ -3,6 +3,7 @@
 use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
+use crate::app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShutdown};
 use crate::context::{AppContext, Updates, WidgetContext};
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
@@ -12,7 +13,7 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{any::*, collections::VecDeque};
 
 /// [`Event`] arguments.
@@ -71,7 +72,7 @@ mod protected {
 }
 
 /// [`EventUpdateArgs`] for event `E`, dereferences to the argument.
-pub struct EventUpdate<E: Event>(E::Args);
+pub struct EventUpdate<E: Event>(pub E::Args);
 impl<E: Event> EventUpdate<E> {
     /// Clone the arguments.
     #[allow(clippy::should_implement_trait)] // that is what we want.
@@ -81,6 +82,17 @@ impl<E: Event> EventUpdate<E> {
 
     fn boxed(self) -> BoxedEventUpdate {
         BoxedEventUpdate {
+            event_type: TypeId::of::<E>(),
+            event_name: type_name::<E>(),
+            args: Box::new(self),
+        }
+    }
+
+    fn boxed_send(self) -> BoxedSendEventUpdate
+    where
+        E::Args: Send,
+    {
+        BoxedSendEventUpdate {
             event_type: TypeId::of::<E>(),
             event_name: type_name::<E>(),
             args: Box::new(self),
@@ -112,6 +124,19 @@ pub struct BoxedEventUpdate {
     event_name: &'static str,
     args: Box<dyn UnsafeAny>,
 }
+impl BoxedEventUpdate {
+    /// Unbox the arguments for `Q` if the update is for `Q`.
+    pub fn unbox_for<Q: Event>(self) -> Result<Q::Args, Self> {
+        if self.event_type == TypeId::of::<Q>() {
+            Ok(unsafe {
+                // SAFETY: its the same type
+                *self.args.downcast_unchecked()
+            })
+        } else {
+            Err(self)
+        }
+    }
+}
 impl protected::EventUpdateArgs for BoxedEventUpdate {}
 impl fmt::Debug for BoxedEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -141,6 +166,44 @@ impl EventUpdateArgs for BoxedEventUpdate {
                 self.args.downcast_ref_unchecked()
             },
         }
+    }
+}
+
+/// A [`BoxedEventUpdate`] that is [`Send`].
+pub struct BoxedSendEventUpdate {
+    event_type: TypeId,
+    event_name: &'static str,
+    args: Box<dyn UnsafeAny + Send>,
+}
+impl BoxedSendEventUpdate {
+    /// Unbox the arguments for `Q` if the update is for `Q`.
+    pub fn unbox_for<Q: Event>(self) -> Result<Q::Args, Self>
+    where
+        Q::Args: Send,
+    {
+        if self.event_type == TypeId::of::<Q>() {
+            Ok(unsafe {
+                // SAFETY: its the same type
+                *<dyn UnsafeAny>::downcast_unchecked(self.args)
+            })
+        } else {
+            Err(self)
+        }
+    }
+
+    /// Convert to [`BoxedEventUpdate`].
+    pub fn forget_send(self) -> BoxedEventUpdate {
+        BoxedEventUpdate {
+            event_type: self.event_type,
+            event_name: self.event_name,
+            args: self.args,
+        }
+    }
+}
+impl protected::EventUpdateArgs for BoxedSendEventUpdate {}
+impl fmt::Debug for BoxedSendEventUpdate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "boxed send {}", self.event_name)
     }
 }
 
@@ -234,10 +297,10 @@ impl<A: CancelableEventArgs, E: Event<Args = A>> CancelableEvent for E {
 /// This `struct` is a refence to the buffer, clones of it point to the same buffer. This `struct`
 /// is not `Send`, you can use a [`Sync::event_receiver`](crate::sync::Sync::event_receiver) for that.
 #[derive(Clone)]
-pub struct EventBuffer<T: Clone> {
-    queue: Rc<RefCell<VecDeque<T>>>,
+pub struct EventBuffer<E: Event> {
+    queue: Rc<RefCell<VecDeque<E::Args>>>,
 }
-impl<T: Clone> EventBuffer<T> {
+impl<E: Event> EventBuffer<E> {
     /// If there are any updates in the buffer.
     #[inline]
     pub fn has_updates(&self) -> bool {
@@ -246,7 +309,7 @@ impl<T: Clone> EventBuffer<T> {
 
     /// Take the oldest event in the buffer.
     #[inline]
-    pub fn pop_oldest(&self) -> Option<T> {
+    pub fn pop_oldest(&self) -> Option<E::Args> {
         self.queue.borrow_mut().pop_front()
     }
 
@@ -254,7 +317,7 @@ impl<T: Clone> EventBuffer<T> {
     ///
     /// The result is sorted from oldest to newer.
     #[inline]
-    pub fn pop_oldest_n(&self, n: usize) -> Vec<T> {
+    pub fn pop_oldest_n(&self, n: usize) -> Vec<E::Args> {
         self.queue.borrow_mut().drain(..n).collect()
     }
 
@@ -262,7 +325,7 @@ impl<T: Clone> EventBuffer<T> {
     ///
     /// The result is sorted from oldest to newest.
     #[inline]
-    pub fn pop_all(&self) -> Vec<T> {
+    pub fn pop_all(&self) -> Vec<E::Args> {
         self.queue.borrow_mut().drain(..).collect()
     }
 
@@ -273,20 +336,184 @@ impl<T: Clone> EventBuffer<T> {
     }
 }
 
-thread_singleton!(SingletonEvents);
-
-/// Access to application events.
+/// An event update sender that can be used from any thread and without access to [`Events`].
 ///
-/// Only a single instance of this type exists at a time.
-pub struct Events {
-    updates: Vec<BoxedEventUpdate>,
+/// Use [`Events::sender`] to create a sender.
+pub struct EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    event_loop: EventLoopProxy,
+    _event: PhantomData<E>,
+}
+impl<E> Clone for EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn clone(&self) -> Self {
+        EventSender {
+            event_loop: self.event_loop.clone(),
+            _event: PhantomData,
+        }
+    }
+}
+impl<E> fmt::Debug for EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "EventSender<{}>", type_name::<E>())
+    }
+}
+impl<E> EventSender<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    /// Send an event update.
+    pub fn send(&self, args: E::Args) -> Result<(), AppShutdown<E::Args>> {
+        let update = EventUpdate::<E>(args).boxed_send();
+        self.event_loop.send_event(AppEvent::Event(update)).map_err(|e| {
+            if let AppEvent::Event(e) = e.0 {
+                if let Ok(e) = e.unbox_for::<E>() {
+                    AppShutdown(e)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                unreachable!()
+            }
+        })
+    }
+}
 
-    #[allow(clippy::type_complexity)]
-    buffers: Vec<Box<dyn Fn(&BoxedEventUpdate) -> Retain>>,
-    app_pre_handlers: AppHandlers,
-    app_handlers: AppHandlers,
+/// An event update receiver that can be used from any thread and without access to [`Events`].
+///
+/// Use [`Events::receiver`] to create a receiver, drop to stop listening.
+pub struct EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    receiver: flume::Receiver<E::Args>,
+}
+impl<E> Clone for EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn clone(&self) -> Self {
+        EventReceiver {
+            receiver: self.receiver.clone(),
+        }
+    }
+}
+impl<E> Debug for EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "EventReceiver<{}>", type_name::<E>())
+    }
+}
+impl<E> EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    /// Receives the oldest send update, blocks until the event updates.
+    #[inline]
+    pub fn recv(&self) -> Result<E::Args, AppShutdown<()>> {
+        self.receiver.recv().map_err(|_| AppShutdown(()))
+    }
 
-    _singleton: SingletonEvents,
+    /// Tries to receive the oldest send update in the buffer, returns `Ok(args)` if there was at least
+    /// one update, or returns `Err(None)` if there was no update or returns `Err(AppHasShutdown)` if the connected
+    /// app has shutdown.
+    #[inline]
+    pub fn try_recv(&self) -> Result<E::Args, Option<AppShutdown<()>>> {
+        self.receiver.try_recv().map_err(|e| match e {
+            flume::TryRecvError::Empty => None,
+            flume::TryRecvError::Disconnected => Some(AppShutdown(())),
+        })
+    }
+
+    /// Receives the oldest send update, blocks until the event updates or until the `deadline` is reached.
+    #[inline]
+    pub fn recv_deadline(&self, deadline: Instant) -> Result<E::Args, TimeoutOrAppShutdown> {
+        self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppShutdown::from)
+    }
+
+    /// Receives the oldest send update, blocks until the event updates or until timeout.
+    #[inline]
+    pub fn recv_timeout(&self, dur: Duration) -> Result<E::Args, TimeoutOrAppShutdown> {
+        self.receiver.recv_timeout(dur).map_err(TimeoutOrAppShutdown::from)
+    }
+
+    /// Returns a future that receives the oldest send update, awaits until an event update occurs.
+    #[inline]
+    pub fn recv_async(&self) -> RecvFut<E::Args> {
+        self.receiver.recv_async().into()
+    }
+
+    /// Turns into a future that receives the oldest send update, awaits until an event update occurs.
+    #[inline]
+    pub fn into_recv_async(self) -> RecvFut<'static, E::Args> {
+        self.receiver.into_recv_async().into()
+    }
+
+    /// Creates a blocking iterator over event updates, if there are no updates in the buffer the iterator blocks,
+    /// the iterator only finishes when the app shuts-down.
+    #[inline]
+    pub fn iter(&self) -> flume::Iter<E::Args> {
+        self.receiver.iter()
+    }
+
+    /// Create a non-blocking iterator over event updates, the iterator finishes if
+    /// there are no more updates in the buffer.
+    #[inline]
+    pub fn try_iter(&self) -> flume::TryIter<E::Args> {
+        self.receiver.try_iter()
+    }
+}
+impl<E> From<EventReceiver<E>> for flume::Receiver<E::Args>
+where
+    E: Event,
+    E::Args: Send,
+{
+    fn from(e: EventReceiver<E>) -> Self {
+        e.receiver
+    }
+}
+impl<'a, E> IntoIterator for &'a EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    type Item = E::Args;
+
+    type IntoIter = flume::Iter<'a, E::Args>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.receiver.iter()
+    }
+}
+impl<E> IntoIterator for EventReceiver<E>
+where
+    E: Event,
+    E::Args: Send,
+{
+    type Item = E::Args;
+
+    type IntoIter = flume::IntoIter<E::Args>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.receiver.into_iter()
+    }
 }
 
 type AppHandlerWeak = std::rc::Weak<RefCell<dyn FnMut(&mut AppContext, &BoxedEventUpdate)>>;
@@ -314,7 +541,9 @@ impl AppHandlers {
     }
 }
 
-/// A *global* event handler created by [`Events::on_event`].
+/// A *global* event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
+///
+/// Drop this to unsubscribe.
 #[derive(Clone)]
 #[allow(clippy::type_complexity)]
 pub struct EventHandler(Rc<RefCell<dyn FnMut(&mut AppContext, &BoxedEventUpdate)>>);
@@ -322,6 +551,24 @@ impl EventHandler {
     pub(self) fn new(handler: impl FnMut(&mut AppContext, &BoxedEventUpdate) + 'static) -> Self {
         Self(Rc::new(RefCell::new(handler)))
     }
+}
+
+thread_singleton!(SingletonEvents);
+
+/// Access to application events.
+///
+/// Only a single instance of this type exists at a time.
+pub struct Events {
+    event_loop: EventLoopProxy,
+
+    updates: Vec<BoxedEventUpdate>,
+
+    #[allow(clippy::type_complexity)]
+    buffers: Vec<Box<dyn Fn(&BoxedEventUpdate) -> Retain>>,
+    app_pre_handlers: AppHandlers,
+    app_handlers: AppHandlers,
+
+    _singleton: SingletonEvents,
 }
 impl Events {
     /// If an instance of `Events` already exists in the  current thread.
@@ -334,8 +581,9 @@ impl Events {
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
     #[inline]
-    pub fn instance() -> Self {
+    pub fn instance(event_loop: EventLoopProxy) -> Self {
         Events {
+            event_loop,
             updates: vec![],
             buffers: vec![],
             app_pre_handlers: AppHandlers::default(),
@@ -349,10 +597,14 @@ impl Events {
         self.updates.push(update.boxed());
     }
 
+    pub(crate) fn notify_app_event(&mut self, update: BoxedSendEventUpdate) {
+        self.updates.push(update.forget_send());
+    }
+
     /// Creates an event buffer for that listens to `E`.
     ///
     /// Drop the buffer to stop listening.
-    pub fn buffer<E: Event>(&mut self) -> EventBuffer<E::Args> {
+    pub fn buffer<E: Event>(&mut self) -> EventBuffer<E> {
         let buf = EventBuffer::never();
         let weak = Rc::downgrade(&buf.queue);
         self.buffers.push(Box::new(move |args| {
@@ -368,14 +620,36 @@ impl Events {
         buf
     }
 
-    /////
-    //pub fn sender<E: Event>(&mut self) -> EventSender<E> {
-    //    todo!()
-    //}
-    //
-    //pub fn receiver<E: Event>(&mut self) -> EventReceiver<E> {
-    //    todo!()
-    //}
+    /// Creates a channel that can raise an event from another thread.
+    pub fn sender<A, E>(&mut self) -> EventSender<E>
+    where
+        E: Event,
+        E::Args: Send,
+    {
+        EventSender {
+            event_loop: self.event_loop.clone(),
+            _event: PhantomData,
+        }
+    }
+
+    /// Creates a channel that can listen to event from another thread.
+    pub fn receiver<E>(&mut self) -> EventReceiver<E>
+    where
+        E: Event,
+        E::Args: Send,
+    {
+        let (sender, receiver) = flume::unbounded();
+
+        self.buffers.push(Box::new(move |e| {
+            let mut retain = true;
+            if let Some(args) = E::update(e) {
+                retain = sender.send(args.clone()).is_ok();
+            }
+            retain
+        }));
+
+        EventReceiver { receiver }
+    }
 
     /// Creates a preview event handler.
     ///
