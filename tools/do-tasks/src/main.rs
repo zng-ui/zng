@@ -193,6 +193,8 @@ fn test(mut args: Vec<&str>) {
 //        Runs the "some_example" in release mode with the "app_profiler" feature.
 //     run some_example --trace
 //        Runs the "some_example" with `RUST_BACKTRACE=1`.
+//     run * [--release] [-t, --trace]
+//        Builds all examples then runs them one by one.
 fn run(mut args: Vec<&str>) {
     let trace = if take_flag(&mut args, &["-t", "--trace"]) {
         ("RUST_BACKTRACE", "1")
@@ -210,6 +212,17 @@ fn run(mut args: Vec<&str>) {
             &args,
             rust_flags,
         );
+    } else if let Some(&"*") = args.first() {
+        args.remove(0);
+        let release = args.contains(&"--release");
+        let rust_flags = release_rust_flags(release);
+        let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];
+
+        let release = if release { "--release" } else { "" };
+        cmd_env("cargo", &["build", "--examples", release], &[], rust_flags);
+        for example in examples() {
+            cmd_env("cargo", &["run", "--example", &example, release], &[], rust_flags);
+        }
     } else {
         let rust_flags = release_rust_flags(args.contains(&"--release"));
         let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];

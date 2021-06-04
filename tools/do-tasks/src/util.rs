@@ -216,6 +216,25 @@ pub fn all_rs(dir: &str) -> Vec<String> {
     glob(&format!("{}/**/*.rs", dir))
 }
 
+// Get all `examples/*.rs` file names.
+pub fn examples() -> Vec<String> {
+    match glob::glob("examples/*.rs") {
+        Ok(iter) => iter
+            .filter_map(|r| match r {
+                Ok(p) => p.file_name().map(|n| n.to_string_lossy().trim_end_matches(".rs").to_owned()),
+                Err(e) => {
+                    error(e);
+                    None
+                }
+            })
+            .collect(),
+        Err(e) => {
+            error(e);
+            return vec![];
+        }
+    }
+}
+
 // [[bin]] names for build tests last run ("bin-name", "test_file_path").
 pub fn build_test_cases() -> Vec<(String, String)> {
     match std::fs::read_to_string("target/tests/zero-ui/Cargo.toml") {
