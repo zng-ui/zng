@@ -601,7 +601,7 @@ impl Events {
         self.updates.push(update.forget_send());
     }
 
-    /// Creates an event buffer for that listens to `E`.
+    /// Creates an event buffer that listens to `E`.
     ///
     /// Drop the buffer to stop listening.
     pub fn buffer<E: Event>(&mut self) -> EventBuffer<E> {
