@@ -555,6 +555,8 @@ impl EventHandler {
 
 thread_singleton!(SingletonEvents);
 
+type BufferEntry = Box<dyn Fn(&BoxedEventUpdate) -> Retain>;
+
 /// Access to application events.
 ///
 /// Only a single instance of this type exists at a time.
@@ -564,7 +566,8 @@ pub struct Events {
     updates: Vec<BoxedEventUpdate>,
 
     #[allow(clippy::type_complexity)]
-    buffers: Vec<Box<dyn Fn(&BoxedEventUpdate) -> Retain>>,
+    pre_buffers: Vec<BufferEntry>,
+    buffers: Vec<BufferEntry>,
     app_pre_handlers: AppHandlers,
     app_handlers: AppHandlers,
 
@@ -585,6 +588,7 @@ impl Events {
         Events {
             event_loop,
             updates: vec![],
+            pre_buffers: vec![],
             buffers: vec![],
             app_pre_handlers: AppHandlers::default(),
             app_handlers: AppHandlers::default(),
@@ -601,13 +605,26 @@ impl Events {
         self.updates.push(update.forget_send());
     }
 
-    /// Creates an event buffer that listens to `E`.
+    /// Creates an event buffer that listens to `E`. The event updates are pushed as soon as possible, before
+    /// the UI and [`on_event`](Self::on_event) are notified.
+    ///
+    /// Drop the buffer to stop listening.
+    pub fn pre_buffer<E: Event>(&mut self) -> EventBuffer<E> {
+        Self::push_buffer::<E>(&mut self.pre_buffers)
+    }
+
+    /// Creates an event buffer that listens to `E`. The event updates are pushed only after
+    /// the UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the buffer to stop listening.
     pub fn buffer<E: Event>(&mut self) -> EventBuffer<E> {
+        Self::push_buffer::<E>(&mut self.buffers)
+    }
+
+    fn push_buffer<E: Event>(buffers: &mut Vec<BufferEntry>) -> EventBuffer<E> {
         let buf = EventBuffer::never();
         let weak = Rc::downgrade(&buf.queue);
-        self.buffers.push(Box::new(move |args| {
+        buffers.push(Box::new(move |args| {
             let mut retain = false;
             if let Some(rc) = weak.upgrade() {
                 if let Some(args) = E::update(args) {
@@ -620,7 +637,7 @@ impl Events {
         buf
     }
 
-    /// Creates a channel that can raise an event from another thread.
+    /// Creates a sender that can raise an event from another thread.
     pub fn sender<A, E>(&mut self) -> EventSender<E>
     where
         E: Event,
@@ -632,15 +649,38 @@ impl Events {
         }
     }
 
-    /// Creates a channel that can listen to event from another thread.
+    /// Creates a channel that can listen to event from another thread. The event updates are send as soon as possible, before
+    /// the UI and [`on_event`](Self::on_event) are notified.
+    ///
+    /// Drop the receiver to stop listening.
+    pub fn pre_receiver<E>(&mut self) -> EventReceiver<E>
+    where
+        E: Event,
+        E::Args: Send,
+    {
+        Self::push_receiver::<E>(&mut self.pre_buffers)
+    }
+
+    /// Creates a channel that can listen to event from another thread. The event updates are send only after the
+    /// UI and [`on_event`](Self::on_event) are notified.
+    ///
+    /// Drop the receiver to stop listening.
     pub fn receiver<E>(&mut self) -> EventReceiver<E>
+    where
+        E: Event,
+        E::Args: Send,
+    {
+        Self::push_receiver::<E>(&mut self.buffers)
+    }
+
+    fn push_receiver<E>(buffers: &mut Vec<BufferEntry>) -> EventReceiver<E>
     where
         E: Event,
         E::Args: Send,
     {
         let (sender, receiver) = flume::unbounded();
 
-        self.buffers.push(Box::new(move |e| {
+        buffers.push(Box::new(move |e| {
             let mut retain = true;
             if let Some(args) = E::update(e) {
                 retain = sender.send(args.clone()).is_ok();
@@ -740,7 +780,7 @@ impl Events {
     }
 
     pub(super) fn on_pre_events(ctx: &mut AppContext, args: &BoxedEventUpdate) {
-        ctx.events.buffers.retain(|buf| buf(args));
+        ctx.events.pre_buffers.retain(|buf| buf(args));
         let mut handlers = mem::take(&mut ctx.events.app_pre_handlers);
         handlers.notify(ctx, args);
         handlers.extend(mem::take(&mut ctx.events.app_pre_handlers));
@@ -748,11 +788,11 @@ impl Events {
     }
 
     pub(super) fn on_events(ctx: &mut AppContext, args: &BoxedEventUpdate) {
-        ctx.events.buffers.retain(|buf| buf(args));
         let mut handlers = mem::take(&mut ctx.events.app_handlers);
         handlers.notify(ctx, args);
         handlers.extend(mem::take(&mut ctx.events.app_handlers));
         ctx.events.app_handlers = handlers;
+        ctx.events.buffers.retain(|buf| buf(args));
     }
 }
 
