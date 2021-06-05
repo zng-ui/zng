@@ -364,7 +364,7 @@ pub fn state_var() -> StateVar {
 /// Use [`state_var`] to init.
 pub type StateVar = RcVar<bool>;
 
-/// New [`ResponderVar`] and [`ResponseVar`] in the waiting state.
+/// New paired [`ResponderVar`] and [`ResponseVar`] in the waiting state.
 #[inline]
 pub fn response_var<T: VarValue>() -> (ResponderVar<T>, ResponseVar<T>) {
     let responder = var(Response::Waiting::<T>);
@@ -388,7 +388,7 @@ pub type ResponderVar<T> = RcVar<Response<T>>;
 /// Use [`response_var`] or [`response_done_var`] to init.
 pub type ResponseVar<T> = ForceReadOnlyVar<Response<T>, RcVar<Response<T>>>;
 
-/// Raw value in a [`ResponseVar`].
+/// Raw value in a [`ResponseVar`] or [`ResponseSender`].
 #[derive(Clone, Copy)]
 pub enum Response<T: VarValue> {
     /// Responder has not set the response yet.

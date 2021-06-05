@@ -64,14 +64,13 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, var::{ResponseVar, response_var}};
+    /// # use zero_ui_core::{context::WidgetContext, var::{ResponseVar, response_channel}};
     /// # struct SomeStruct { sum_response: ResponseVar<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     let (responder, response) = response_var();
+    ///     let (sender, response) = response_channel(ctx.vars);
     ///     self.sum_response = response;
-    ///     let sender = ctx.vars.sender(responder);
-    ///     self.sum_response = ctx.sync.run(move ||{
+    ///     ctx.sync.run(move ||{
     ///         let r = (0..1000).sum();
     ///         sender.send_response(r);
     ///     });
@@ -95,17 +94,16 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, var::{ResponseVar, response_var}};
+    /// # use zero_ui_core::{context::WidgetContext, var::{ResponseVar, response_channel}};
     /// # struct SomeStruct { file_response: ResponseVar<Vec<u8>> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     let (responder, response) = response_var();
+    ///     let (sender, response) = response_channel(ctx.vars);
     ///     self.file_response = response;
-    ///     let sender = ctx.vars.sender(responder);
-    ///     self.file_response = ctx.sync.run_async(async move {
+    ///     ctx.sync.run_async(async move {
     ///         todo!("use async_std to read a file");
     ///         let file = vec![];
-    ///         sender.send(file);    
+    ///         sender.send_response(file);    
     ///     });
     /// }
     ///

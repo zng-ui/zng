@@ -578,3 +578,27 @@ where
         Ok(())
     }
 }
+
+/// Variable sender used to notify the completion of an operation from any thread.
+///
+/// Use [`response_channel`] to init.
+pub type ResponseSender<T> = VarSender<Response<T>>;
+
+impl<T: VarValue + Send> ResponseSender<T> {
+    /// Send the one time response.
+    pub fn send_response(&self, response: T) -> Result<(), AppShutdown<T>> {
+        self.send(Response::Done(response)).map_err(|e| {
+            if let Response::Done(r) = e.0 {
+                AppShutdown(r)
+            } else {
+                unreachable!()
+            }
+        })
+    }
+}
+
+/// New paired [`ResponseSender`] and [`ResponseVar`] in the waiting state.
+pub fn response_channel<T: VarValue + Send>(vars: &Vars) -> (ResponseSender<T>, ResponseVar<T>) {
+    let (responder, response) = response_var();
+    (vars.sender(&responder), response)
+}
