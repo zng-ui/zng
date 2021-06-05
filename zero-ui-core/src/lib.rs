@@ -38,6 +38,7 @@ pub mod render;
 pub mod service;
 pub mod sync;
 pub mod text;
+pub mod timer;
 pub mod units;
 pub mod var;
 pub mod widget_base;
