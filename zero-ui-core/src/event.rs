@@ -565,7 +565,6 @@ pub struct Events {
 
     updates: Vec<BoxedEventUpdate>,
 
-    #[allow(clippy::type_complexity)]
     pre_buffers: Vec<BufferEntry>,
     buffers: Vec<BufferEntry>,
     app_pre_handlers: AppHandlers,
@@ -649,7 +648,7 @@ impl Events {
         }
     }
 
-    /// Creates a channel that can listen to event from another thread. The event updates are send as soon as possible, before
+    /// Creates a channel that can listen to event from another thread. The event updates are sent as soon as possible, before
     /// the UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the receiver to stop listening.
@@ -661,7 +660,7 @@ impl Events {
         Self::push_receiver::<E>(&mut self.pre_buffers)
     }
 
-    /// Creates a channel that can listen to event from another thread. The event updates are send only after the
+    /// Creates a channel that can listen to event from another thread. The event updates are sent only after the
     /// UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the receiver to stop listening.

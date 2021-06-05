@@ -196,7 +196,7 @@ impl VarsRead {
 
     /// Creates a channel that can receive `var` updates from another thread.
     ///
-    /// Every time the variable updates a clone of the value is send to the receiver. The current value is send immediately.
+    /// Every time the variable updates a clone of the value is sent to the receiver. The current value is sent immediately.
     ///
     /// Drop the receiver to release one reference to `var`.
     pub fn receiver<T, V>(&self, var: &V) -> VarReceiver<T>
@@ -447,19 +447,19 @@ impl<T: VarValue + Send> VarReceiver<T> {
         self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppShutdown::from)
     }
 
-    /// Receives the oldest send update, blocks until the event updates or until timeout.
+    /// Receives the oldest sent update, blocks until the event updates or until timeout.
     #[inline]
     pub fn recv_timeout(&self, dur: Duration) -> Result<T, TimeoutOrAppShutdown> {
         self.receiver.recv_timeout(dur).map_err(TimeoutOrAppShutdown::from)
     }
 
-    /// Returns a future that receives the oldest send update, awaits until an event update occurs.
+    /// Returns a future that receives the oldest sent update, awaits until an event update occurs.
     #[inline]
     pub fn recv_async(&self) -> RecvFut<T> {
         self.receiver.recv_async().into()
     }
 
-    /// Turns into a future that receives the oldest send update, awaits until an event update occurs.
+    /// Turns into a future that receives the oldest sent update, awaits until an event update occurs.
     #[inline]
     pub fn into_recv_async(self) -> RecvFut<'static, T> {
         self.receiver.into_recv_async().into()
@@ -533,7 +533,7 @@ where
     /// Sends a new value for the variable, unless the connected app has shutdown.
     ///
     /// If the variable is read-only when the `new_value` is received it is silently dropped, if more then one
-    /// value is send before the app can process then, only the last value shows as an update in the UI thread.
+    /// value is sent before the app can process then, only the last value shows as an update in the UI thread.
     pub fn send(&self, new_value: T) -> Result<(), AppShutdown<T>> {
         self.sender.send(new_value).map_err(AppShutdown::from)?;
         let _ = self.wake.send_event(AppEvent::Var);
@@ -571,7 +571,7 @@ where
     /// Sends a modification for the variable, unless the connected app has shutdown.
     ///
     /// If the variable is read-only when the `modify` is received it is silently dropped, if more then one
-    /// modification is send before the app can process then, they all are applied in order sent.
+    /// modification is sent before the app can process then, they all are applied in order sent.
     pub fn send<F: FnOnce(&mut T) + Send + 'static>(&self, modify: F) -> Result<(), AppShutdown<()>> {
         self.sender.send(Box::new(modify)).map_err(|_| AppShutdown(()))?;
         let _ = self.wake.send_event(AppEvent::Var);

@@ -1,8 +1,15 @@
 //! App timers.
 
-use std::{cell::Cell, time::{Duration, Instant}};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+    time::{Duration, Instant},
+};
 
-use crate::var::{var, ForceReadOnlyVar, RcVar, Var};
+use crate::{
+    context::AppContext,
+    var::{var, ForceReadOnlyVar, RcVar, Var},
+};
 
 /// App timers.
 pub struct Timers {
@@ -13,7 +20,7 @@ impl Timers {
     ///
     /// If the `deadline` is in the past the variable will still update once in the next app update.
     #[inline]
-    pub fn deadline(&mut self, deadline: Instant) -> OnceTimerVar {
+    pub fn deadline(&mut self, deadline: Instant) -> TimeoutVar {
         let timer = var(OnceTimerInfo { deadline, elapsed: false });
         self.deadlines.push(timer.clone());
         timer.into_read_only()
@@ -21,14 +28,26 @@ impl Timers {
 
     /// Returns a variable that will update once when the `duration` has elapsed.
     #[inline]
-    pub fn once(&mut self, duration: Duration) -> OnceTimerVar {
-        self.deadline(Instant::now() + duration)
+    pub fn timeout(&mut self, timeout: Duration) -> TimeoutVar {
+        self.deadline(Instant::now() + timeout)
     }
 
     pub fn interval(&mut self, duration: Duration) -> TimerVar {
         todo!()
     }
+
+    pub fn on_timeout<F: FnOnce(&mut AppContext) + 'static>(&mut self, run: F) -> TimeoutHandler {
+        TimeoutHandler(Rc::new(Box::new(run)))
+    }
+
+    pub fn on_interval<F: FnMut(&mut AppContext, &IntervalTimerInfo) + 'static>(&mut self, run: F) -> IntervalHandler {
+        IntervalHandler(Rc::new(RefCell::new(Box::new(run))))
+    }
 }
+
+pub struct TimeoutHandler(Rc<dyn FnOnce(&mut AppContext)>);
+#[allow(clippy::type_complexity)]
+pub struct IntervalHandler(Rc<RefCell<Box<dyn FnMut(&mut AppContext, &IntervalTimerInfo)>>>);
 
 /// Represents the state of a [`TimerVar`].
 #[derive(Debug, Clone)]
@@ -39,7 +58,7 @@ pub struct OnceTimerInfo {
     pub elapsed: bool,
 }
 
-pub type OnceTimerVar = ForceReadOnlyVar<OnceTimerInfo, RcVar<OnceTimerInfo>>;
+pub type TimeoutVar = ForceReadOnlyVar<OnceTimerInfo, RcVar<OnceTimerInfo>>;
 
 #[derive(Debug, Clone)]
 pub struct IntervalTimerInfo {
