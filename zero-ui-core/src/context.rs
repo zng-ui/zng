@@ -3,7 +3,6 @@
 use super::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use super::event::Events;
 use super::service::{Services, ServicesInit};
-use super::sync::Sync;
 use super::units::{LayoutSize, PixelGrid};
 use super::var::Vars;
 use super::window::WindowId;
@@ -143,6 +142,8 @@ use crate::app::AppShutdown;
 use crate::event::BoxedEventUpdate;
 #[doc(inline)]
 pub use crate::state_key;
+use crate::task::Tasks;
+use crate::timer::Timers;
 use crate::{var::VarsRead, window::WindowMode};
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for
@@ -506,7 +507,8 @@ pub struct OwnedAppContext {
     vars: Vars,
     events: Events,
     services: ServicesInit,
-    sync: Sync,
+    tasks: Tasks,
+    timers: Timers,
     updates: OwnedUpdates,
 }
 
@@ -520,7 +522,8 @@ impl OwnedAppContext {
             vars: Vars::instance(event_loop.clone()),
             events: Events::instance(event_loop.clone()),
             services: ServicesInit::default(),
-            sync: Sync::new(),
+            tasks: Tasks::new(),
+            timers: Timers::new(),
             updates,
             event_loop,
         }
@@ -560,7 +563,8 @@ impl OwnedAppContext {
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
-            sync: &mut self.sync,
+            tasks: &mut self.tasks,
+            timers: &mut self.timers,
             updates: &mut self.updates.0,
         }
     }
@@ -573,7 +577,8 @@ impl OwnedAppContext {
             vars: &self.vars,
             events: &mut self.events,
             services: self.services.services(),
-            sync: &mut self.sync,
+            tasks: &mut self.tasks,
+            timers: &mut self.timers,
             updates: &mut self.updates.0,
             event_loop,
         }
@@ -584,11 +589,7 @@ impl OwnedAppContext {
     /// Returns the update requests and a time for the loop to awake and update.
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
-        let wake_time = self.sync.update(&mut AppSyncContext {
-            vars: &mut self.vars,
-            events: &mut self.events,
-            updates: &mut self.updates.0,
-        });
+        let wake_time = self.timers.apply_updates(&self.vars);
         self.vars.apply(&mut self.updates.0);
         let events = self.events.apply(&mut self.updates.0);
 
@@ -661,10 +662,10 @@ pub struct AppInitContext<'a> {
     pub services: &'a mut ServicesInit,
 
     /// Async tasks.
-    ///
-    /// ### Note
-    /// Tasks will not be completed during this initialization.
-    pub sync: &'a mut Sync,
+    pub tasks: &'a mut Tasks,
+
+    /// Event loop based timers.
+    pub timers: &'a mut Timers,
 
     /// Changes to be applied after initialization.
     ///
@@ -689,7 +690,10 @@ pub struct AppContext<'a> {
     pub services: &'a mut Services,
 
     /// Async tasks.
-    pub sync: &'a mut Sync,
+    pub tasks: &'a mut Tasks,
+
+    /// Event loop based timers.
+    pub timers: &'a mut Timers,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -697,18 +701,6 @@ pub struct AppContext<'a> {
     /// Reference to raw event loop.
     pub event_loop: EventLoopWindowTarget<'a>,
 }
-
-/// App context view for tasks synchronization.
-pub(super) struct AppSyncContext<'a> {
-    /// Access to variables.
-    pub vars: &'a Vars,
-    /// Access to application events.
-    pub events: &'a mut Events,
-
-    /// Schedule of actions to apply after this update.
-    pub updates: &'a mut Updates,
-}
-
 impl<'a> AppContext<'a> {
     /// Runs a function `f` in the context of a window.
     #[inline(always)]
@@ -734,7 +726,8 @@ impl<'a> AppContext<'a> {
             vars: self.vars,
             events: self.events,
             services: self.services,
-            sync: self.sync,
+            timers: self.timers,
+            tasks: self.tasks,
             updates: self.updates,
         });
 
@@ -803,7 +796,10 @@ pub struct WindowContext<'a> {
     pub services: &'a mut Services,
 
     /// Async tasks.
-    pub sync: &'a mut Sync,
+    pub tasks: &'a mut Tasks,
+
+    /// Event loop based timers.
+    pub timers: &'a mut Timers,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -829,7 +825,8 @@ impl<'a> WindowContext<'a> {
             events: self.events,
             services: self.services,
 
-            sync: self.sync,
+            timers: self.timers,
+            tasks: self.tasks,
 
             updates: self.updates,
         })
@@ -943,10 +940,13 @@ pub struct TestWidgetContext {
     /// instance after registering an event.
     pub events: Events,
 
-    /// The [`sync`](WidgetContext::sync) instance.
+    /// Asynchronous tasks runner.
+    pub tasks: Tasks,
+
+    /// Event loop bases timers.
     ///
-    /// TODO: Implement a timers pump for this.
-    pub sync: Sync,
+    /// TODO testable timers.
+    pub timers: Timers,
 }
 #[cfg(any(test, doc, feature = "pub_test"))]
 impl Default for TestWidgetContext {
@@ -976,8 +976,9 @@ impl TestWidgetContext {
             events: Events::instance(event_loop.create_proxy()),
             vars: Vars::instance(event_loop.create_proxy()),
             updates: OwnedUpdates::new(event_loop.create_proxy()),
+            tasks: Tasks::new(),
+            timers: Timers::new(),
             event_loop,
-            sync: Sync::new(),
         }
     }
 
@@ -989,10 +990,11 @@ impl TestWidgetContext {
             window_state: &mut self.window_state.0,
             widget_state: &mut self.widget_state.0,
             update_state: &mut self.update_state.0,
-            vars: &mut self.vars,
+            vars: &self.vars,
             events: &mut self.events,
             services: self.services.services(),
-            sync: &mut self.sync,
+            tasks: &mut self.tasks,
+            timers: &mut self.timers,
             updates: self.updates.updates(),
         })
     }
@@ -1039,11 +1041,7 @@ impl TestWidgetContext {
     ///
     /// Returns the [`ContextUpdates`] a full app would use to update the application.
     pub fn apply_updates(&mut self) -> ContextUpdates {
-        let wake_time = self.sync.update(&mut AppSyncContext {
-            vars: &mut self.vars,
-            events: &mut self.events,
-            updates: &mut self.updates.0,
-        });
+        let wake_time = self.timers.apply_updates(&self.vars);
         self.vars.apply(&mut self.updates.0);
         let events = self.events.apply(&mut self.updates.0);
         let (update, display_update) = self.updates.take_updates();
@@ -1132,7 +1130,10 @@ pub struct WidgetContext<'a> {
     pub services: &'a mut Services,
 
     /// Async tasks.
-    pub sync: &'a mut Sync,
+    pub tasks: &'a mut Tasks,
+
+    /// Event loop based timers.
+    pub timers: &'a mut Timers,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -1161,7 +1162,8 @@ impl<'a> WidgetContext<'a> {
                 events: self.events,
                 services: self.services,
 
-                sync: self.sync,
+                timers: self.timers,
+                tasks: self.tasks,
 
                 updates: self.updates,
             })

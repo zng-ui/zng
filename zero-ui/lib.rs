@@ -942,7 +942,6 @@ pub mod prelude {
         node_vec, nodes,
         render::WidgetPath,
         service::Services,
-        sync::Sync,
         take_if, take_on, take_on_init,
         text::{
             font_features::{

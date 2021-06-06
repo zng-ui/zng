@@ -135,7 +135,7 @@ fn screenshot() -> impl Widget {
             println!("taken in {:?}, saving..", t.elapsed());
 
             let enabled_sender = ctx.vars.sender(&enabled);
-            ctx.sync.run(move || {
+            ctx.tasks.run(move || {
                 let t = Instant::now();
                 img.save("screenshot.png").unwrap();
                 println!("saved in {:?}", t.elapsed());

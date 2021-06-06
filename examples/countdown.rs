@@ -4,10 +4,10 @@ use zero_ui::prelude::*;
 fn main() {
     App::default().run_window(|ctx| {
         let mut count = 10;
-        let count = ctx.sync.update_every_secs(1).into_map(move |t| {
+        let count = ctx.timers.interval(1.secs()).into_map(move |t| {
             let r = count;
             if r == 0 {
-                t.stop()
+                t.destroy();
             }
             count -= 1;
             r

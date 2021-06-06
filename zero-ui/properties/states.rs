@@ -2,10 +2,10 @@
 
 use std::time::Duration;
 
+use zero_ui_core::timer::TimeoutVar;
 use zero_ui_core::widget_base::{IsHitTestable, WidgetHitTestableExt};
 
 use crate::core::mouse::*;
-use crate::core::sync::TimeElapsed;
 use crate::core::window::WindowBlurEvent;
 use crate::prelude::new_property::*;
 
@@ -143,7 +143,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state: StateVar,
         is_down: bool,
         is_over: bool,
-        shortcut_press: Option<ResponseVar<TimeElapsed>>,
+        shortcut_press: Option<TimeoutVar>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsPressedNode<C> {
@@ -187,7 +187,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                     if self.shortcut_press.take().is_none() {
                         let duration = ctx.services.req::<Gestures>().shortcut_pressed_duration;
                         if duration != Duration::default() {
-                            self.shortcut_press = Some(ctx.sync.update_after(duration));
+                            self.shortcut_press = Some(ctx.timers.timeout(duration));
                         }
                     }
                 }
@@ -238,7 +238,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state: StateVar,
         is_down: bool,
         is_captured: bool,
-        shortcut_press: Option<ResponseVar<TimeElapsed>>,
+        shortcut_press: Option<TimeoutVar>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsCapPressedNode<C> {
@@ -281,7 +281,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                     if self.shortcut_press.take().is_none() {
                         let duration = ctx.services.req::<Gestures>().shortcut_pressed_duration;
                         if duration != Duration::default() {
-                            self.shortcut_press = Some(ctx.sync.update_after(duration));
+                            self.shortcut_press = Some(ctx.timers.timeout(duration));
                         }
                     }
                     self.child.event(ctx, args);
