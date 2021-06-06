@@ -3,6 +3,7 @@
 use crate::context::*;
 use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdateArgs, Events};
 use crate::profiler::*;
+use crate::timer::Timers;
 use crate::var::{response_var, ResponderVar, ResponseVar};
 use crate::{
     focus::FocusManager,
@@ -994,6 +995,9 @@ impl<E: AppExtension> RunningApp<E> {
                             return ControlFlow::Exit;
                         }
                     }
+
+                    // does `Timers::on_*` notifications.
+                    Timers::notify(&mut ctx);
 
                     // does `Event` notifications.
                     for event in u.events {
