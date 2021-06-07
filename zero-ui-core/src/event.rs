@@ -7,7 +7,7 @@ use crate::app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShu
 use crate::context::{AppContext, Updates, WidgetContext};
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 use std::mem;
@@ -516,45 +516,51 @@ where
     }
 }
 
-type AppHandlerWeak = std::rc::Weak<RefCell<dyn FnMut(&mut AppContext, &BoxedEventUpdate)>>;
+struct OnEventHandler {
+    handle: OnEventHandle,
+    handler: Box<dyn FnMut(&mut AppContext, &BoxedEventUpdate) -> Retain>,
+}
 
-#[derive(Default)]
-struct AppHandlers(Vec<AppHandlerWeak>);
-impl AppHandlers {
-    pub fn push(&mut self, handler: &EventHandler) {
-        self.0.push(Rc::downgrade(&handler.0));
+/// Event arguments for an [`on_event`](Events::on_event) or [`on_pre_event`](Events::on_pre_event) handler.
+pub struct AppEventArgs<'a, E: EventArgs> {
+    /// The actual event arguments, this `struct` dereferences to this value.
+    pub args: &'a E,
+    unsubscribe: Cell<bool>,
+}
+impl<'a, E: EventArgs> AppEventArgs<'a, E> {
+    /// Drops the event handler.
+    #[inline]
+    pub fn unsubscribe(&self) {
+        self.unsubscribe.set(true)
     }
+}
+impl<'a, E: EventArgs> Deref for AppEventArgs<'a, E> {
+    type Target = E;
 
-    pub fn notify(&mut self, ctx: &mut AppContext, args: &BoxedEventUpdate) {
-        self.0.retain_mut(|h| {
-            if let Some(handler) = h.upgrade() {
-                handler.borrow_mut()(ctx, args);
-                true
-            } else {
-                false
-            }
-        });
-    }
-
-    pub fn extend(&mut self, other: AppHandlers) {
-        self.0.extend(other.0)
+    fn deref(&self) -> &Self::Target {
+        self.args
     }
 }
 
-/// A *global* event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
+/// Represents an app context event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
 ///
-/// Drop this to unsubscribe.
+/// Drop all clones of this handle to drop the handler, or call [`forget`](Self::forget) to drop the handle
+/// without dropping the handler.
 #[derive(Clone)]
-#[allow(clippy::type_complexity)]
-pub struct EventHandler(Rc<RefCell<dyn FnMut(&mut AppContext, &BoxedEventUpdate)>>);
-impl EventHandler {
-    pub(self) fn new(handler: impl FnMut(&mut AppContext, &BoxedEventUpdate) + 'static) -> Self {
-        Self(Rc::new(RefCell::new(handler)))
-    }
-
+#[must_use = "the event handler unsubscribes if the handle is dropped"]
+pub struct OnEventHandle(Rc<OnEventHandleData>);
+impl OnEventHandle {
+    /// Drops the handle but does **not** drop the handler closure.
+    ///
+    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
+    /// memory is released immediately and the handler memory is released when application shuts-down.
+    #[inline]
     pub fn forget(self) {
-        todo!("like timer handlers");
+        self.0.forget.set(true);
     }
+}
+struct OnEventHandleData {
+    forget: Cell<bool>,
 }
 
 thread_singleton!(SingletonEvents);
@@ -571,8 +577,8 @@ pub struct Events {
 
     pre_buffers: Vec<BufferEntry>,
     buffers: Vec<BufferEntry>,
-    app_pre_handlers: AppHandlers,
-    app_handlers: AppHandlers,
+    pre_handlers: Vec<OnEventHandler>,
+    pos_handlers: Vec<OnEventHandler>,
 
     _singleton: SingletonEvents,
 }
@@ -593,8 +599,8 @@ impl Events {
             updates: vec![],
             pre_buffers: vec![],
             buffers: vec![],
-            app_pre_handlers: AppHandlers::default(),
-            app_handlers: AppHandlers::default(),
+            pre_handlers: vec![],
+            pos_handlers: vec![],
             _singleton: SingletonEvents::assert_new("Events"),
         }
     }
@@ -700,7 +706,8 @@ impl Events {
     /// The handler is called before UI handlers and [`on_event`](Self::on_event) handlers, it is called after all previous registered
     /// preview handlers.
     ///
-    /// Drop the [`EventHandler`] object to unsubscribe.
+    /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`AppEventArgs::unsubscribe`].
     ///
     /// # Example
     ///
@@ -708,7 +715,7 @@ impl Events {
     /// # use zero_ui_core::event::*;
     /// # use zero_ui_core::focus::FocusChangedEvent;
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handler = ctx.events.on_pre_event::<FocusChangedEvent, _>(|_ctx, args| {
+    /// let handle = ctx.events.on_pre_event::<FocusChangedEvent, _>(|_ctx, args| {
     ///     println!("focused: {:?}", args.new_focus);
     /// });
     /// # }
@@ -718,20 +725,12 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_pre_event<E, H>(&mut self, mut handler: H) -> EventHandler
+    pub fn on_pre_event<E, H>(&mut self, handler: H) -> OnEventHandle
     where
         E: Event,
-        H: FnMut(&mut AppContext, &E::Args) + 'static,
+        H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
     {
-        let handler = EventHandler::new(move |ctx, args| {
-            if let Some(args) = E::update(args) {
-                if !args.stop_propagation_requested() {
-                    handler(ctx, args);
-                }
-            }
-        });
-        self.app_pre_handlers.push(&handler);
-        handler
+        Self::push_event_handler::<E, H>(&mut self.pre_handlers, handler)
     }
 
     /// Creates an event handler.
@@ -740,7 +739,8 @@ impl Events {
     /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
     /// registered before this one.
     ///
-    /// Drop all clones of the [`EventHandler`] object to unsubscribe.
+    /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`AppEventArgs::unsubscribe`].
     ///
     /// # Example
     ///
@@ -748,7 +748,7 @@ impl Events {
     /// # use zero_ui_core::event::*;
     /// # use zero_ui_core::focus::FocusChangedEvent;
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handler = ctx.events.on_event::<FocusChangedEvent, _>(|_ctx, args| {
+    /// let handle = ctx.events.on_event::<FocusChangedEvent, _>(|_ctx, args| {
     ///     println!("focused: {:?}", args.new_focus);
     /// });
     /// # }
@@ -758,20 +758,39 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_event<E, H>(&mut self, mut handler: H) -> EventHandler
+    pub fn on_event<E, H>(&mut self, handler: H) -> OnEventHandle
     where
         E: Event,
-        H: FnMut(&mut AppContext, &E::Args) + 'static,
+        H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
     {
-        let handler = EventHandler::new(move |ctx, args| {
+        Self::push_event_handler::<E, H>(&mut self.pos_handlers, handler)
+    }
+
+    fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, mut handler: H) -> OnEventHandle
+    where
+        E: Event,
+        H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
+    {
+        let handle = OnEventHandle(Rc::new(OnEventHandleData { forget: Cell::new(false) }));
+        let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
+            let mut retain = true;
             if let Some(args) = E::update(args) {
                 if !args.stop_propagation_requested() {
-                    handler(ctx, args);
+                    let args = AppEventArgs {
+                        args: &args.0,
+                        unsubscribe: Cell::new(false),
+                    };
+                    handler(ctx, &args);
+                    retain = !args.unsubscribe.get();
                 }
             }
+            retain
+        };
+        handlers.push(OnEventHandler {
+            handle: handle.clone(),
+            handler: Box::new(handler),
         });
-        self.app_handlers.push(&handler);
-        handler
+        handle
     }
 
     #[must_use]
@@ -784,18 +803,30 @@ impl Events {
 
     pub(super) fn on_pre_events(ctx: &mut AppContext, args: &BoxedEventUpdate) {
         ctx.events.pre_buffers.retain(|buf| buf(args));
-        let mut handlers = mem::take(&mut ctx.events.app_pre_handlers);
-        handlers.notify(ctx, args);
-        handlers.extend(mem::take(&mut ctx.events.app_pre_handlers));
-        ctx.events.app_pre_handlers = handlers;
+
+        let mut handlers = mem::take(&mut ctx.events.pre_handlers);
+        Self::notify_retain(&mut handlers, ctx, args);
+        handlers.extend(mem::take(&mut ctx.events.pre_handlers));
+        ctx.events.pre_handlers = handlers;
     }
 
     pub(super) fn on_events(ctx: &mut AppContext, args: &BoxedEventUpdate) {
-        let mut handlers = mem::take(&mut ctx.events.app_handlers);
-        handlers.notify(ctx, args);
-        handlers.extend(mem::take(&mut ctx.events.app_handlers));
-        ctx.events.app_handlers = handlers;
+        let mut handlers = mem::take(&mut ctx.events.pos_handlers);
+        Self::notify_retain(&mut handlers, ctx, args);
+        handlers.extend(mem::take(&mut ctx.events.pos_handlers));
+        ctx.events.pos_handlers = handlers;
+
         ctx.events.buffers.retain(|buf| buf(args));
+    }
+
+    fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, args: &BoxedEventUpdate) {
+        handlers.retain_mut(|e| {
+            let mut retain = e.handle.0.forget.get() || Rc::strong_count(&e.handle.0) > 1;
+            if retain {
+                retain = (e.handler)(ctx, args);
+            }
+            retain
+        });
     }
 }
 

@@ -459,7 +459,7 @@ timer_methods!(Timer, self => &self.state);
 
 /// Represents a [`on_timeout`](Timers::on_timeout) or [`on_deadline`](Timers::on_deadline) handler.
 ///
-/// Drop all clones of this handler to cancel the timer, or call [`forget`](Self::forget) to drop the handler
+/// Drop all clones of this handle to cancel the timer, or call [`forget`](Self::forget) to drop the handle
 /// without cancelling the timer.
 #[derive(Clone)]
 #[must_use = "the timer is canceled if the handler is dropped"]
@@ -469,10 +469,10 @@ struct TimeoutHandleData {
     forget: Cell<bool>,
 }
 impl TimeoutHandle {
-    /// Drops the handler but does **not** drop the timeout handler closure.
+    /// Drops the handle but does **not** drop the timeout handler closure.
     ///
     /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
-    /// memory is released immediately and the handler memory is released when the time elapses or 
+    /// memory is released immediately and the handler memory is released when the time elapses or
     /// application shuts-down.
     #[inline]
     pub fn forget(self) {
@@ -485,6 +485,7 @@ impl TimeoutHandle {
 /// Drop all clones of this handler to cancel the timer, or call [`forget`](Self::forget) to drop the handler
 /// without cancelling the timer.
 #[derive(Clone)]
+#[must_use = "the timer is stopped if the handler is dropped"]
 pub struct TimerHandle(Rc<TimerHandleData>);
 struct TimerHandleData {
     args: TimerArgs,
@@ -494,7 +495,7 @@ impl TimerHandle {
     /// Drops the handler but does **not** drop the timer handler closure.
     ///
     /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
-    /// memory is released immediately and the handler memory is released when the timer is stopped or 
+    /// memory is released immediately and the handler memory is released when the timer is stopped or
     /// application shuts-down.
     #[inline]
     pub fn forget(self) {

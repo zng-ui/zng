@@ -71,12 +71,10 @@ impl Tasks {
         async_global_executor::spawn(task).detach();
     }
 
-    /// Run a task in the UI thread.
-    pub fn run_async_ui<R, T: Future<Output = R> + 'static>(&mut self, task: T) -> UiTaskExecutor {
-        todo!()
-    }
+    ///// Run a task in the UI thread.
+    //pub fn run_async_ui<R, T: Future<Output = R> + 'static>(&mut self, task: T) -> UiTaskExecutor {
+    //    todo!()
+    //}
 }
 
-pub struct UiTaskExecutor {
-
-}
+//pub struct UiTaskExecutor {}

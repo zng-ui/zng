@@ -417,12 +417,13 @@ impl OwnedUpdates {
 
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
 ///
-/// The update handler is dropped when every handle dropped, unless a handle is dropped using
+/// The update handler is dropped when every handle is dropped, unless a handle called
 /// [`forget`](OnUpdateHandle::forget).
 #[derive(Clone)]
+#[must_use = "dropping the handle unsubscribes update handler"]
 pub struct OnUpdateHandle(Rc<OnUpdateHandleData>);
 impl OnUpdateHandle {
-    /// Drops this connection to the handler without dropping the handler.
+    /// Drops this handle without dropping the handler.
     ///
     /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
     /// memory is released immediately and the handler memory is released when the application shuts-down.
@@ -442,13 +443,13 @@ struct UpdateHandler {
 /// Arguments for an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
 #[derive(Debug)]
 pub struct UpdateArgs {
-    stop_listening: Cell<bool>,
+    unsubscribe: Cell<bool>,
 }
 impl UpdateArgs {
     /// Causes the update handler to drop.
     #[inline]
-    pub fn stop_listening(&self) {
-        self.stop_listening.set(true);
+    pub fn unsubscribe(&self) {
+        self.unsubscribe.set(true);
     }
 }
 
@@ -545,7 +546,8 @@ impl Updates {
     ///
     /// The `handler` is called every time the app updates, just before the UI updates.
     ///
-    /// TODO about drop.
+    /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`UpdateArgs::unsubscribe`].
     pub fn on_pre_update<F>(&mut self, handler: F) -> OnUpdateHandle
     where
         F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
@@ -557,7 +559,8 @@ impl Updates {
     ///
     /// The `handler` is called every time the app updates, just after the UI updates.
     ///
-    /// TODO about drop.
+    /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`UpdateArgs::unsubscribe`].
     pub fn on_update<F>(&mut self, handler: F) -> OnUpdateHandle
     where
         F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
@@ -596,10 +599,10 @@ impl Updates {
             let mut retain = e.handle.0.forget.get() || Rc::strong_count(&e.handle.0) > 1;
             if retain {
                 let args = UpdateArgs {
-                    stop_listening: Cell::new(false),
+                    unsubscribe: Cell::new(false),
                 };
                 (e.handler)(ctx, &args);
-                retain = args.stop_listening.get();
+                retain = args.unsubscribe.get();
             }
             retain
         });
