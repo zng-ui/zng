@@ -1016,12 +1016,14 @@ impl<E: AppExtension> RunningApp<E> {
                     // does general updates.
                     self.extensions.update_preview(&mut ctx);
                     observer.update_preview(&mut ctx);
+                    Updates::on_pre_updates(&mut ctx);
 
                     self.extensions.update_ui(&mut ctx);
                     observer.update_ui(&mut ctx);
 
                     self.extensions.update(&mut ctx);
                     observer.update(&mut ctx);
+                    Updates::on_updates(&mut ctx);
                 } else if display_update != UpdateDisplayRequest::None {
                     display_update = UpdateDisplayRequest::None;
 

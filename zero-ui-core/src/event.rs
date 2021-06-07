@@ -551,6 +551,10 @@ impl EventHandler {
     pub(self) fn new(handler: impl FnMut(&mut AppContext, &BoxedEventUpdate) + 'static) -> Self {
         Self(Rc::new(RefCell::new(handler)))
     }
+
+    pub fn forget(self) {
+        todo!("like timer handlers");
+    }
 }
 
 thread_singleton!(SingletonEvents);

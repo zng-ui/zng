@@ -8,6 +8,9 @@ use super::var::Vars;
 use super::window::WindowId;
 use super::AnyMap;
 use super::WidgetId;
+use retain_mut::RetainMut;
+use std::cell::Cell;
+use std::rc::Rc;
 use std::{any::type_name, fmt, mem};
 use std::{any::TypeId, time::Instant};
 use std::{marker::PhantomData, sync::Arc};
@@ -412,6 +415,43 @@ impl OwnedUpdates {
     }
 }
 
+/// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
+///
+/// The update handler is dropped when every handle dropped, unless a handle is dropped using
+/// [`forget`](OnUpdateHandle::forget).
+#[derive(Clone)]
+pub struct OnUpdateHandle(Rc<OnUpdateHandleData>);
+impl OnUpdateHandle {
+    /// Drops this connection to the handler without dropping the handler.
+    ///
+    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
+    /// memory is released immediately and the handler memory is released when the application shuts-down.
+    #[inline]
+    pub fn forget(self) {
+        self.0.forget.set(true);
+    }
+}
+struct OnUpdateHandleData {
+    forget: Cell<bool>,
+}
+struct UpdateHandler {
+    handle: OnUpdateHandle,
+    handler: Box<dyn FnMut(&mut AppContext, &UpdateArgs)>,
+}
+
+/// Arguments for an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
+#[derive(Debug)]
+pub struct UpdateArgs {
+    stop_listening: Cell<bool>,
+}
+impl UpdateArgs {
+    /// Causes the update handler to drop.
+    #[inline]
+    pub fn stop_listening(&self) {
+        self.stop_listening.set(true);
+    }
+}
+
 /// Schedule of actions to apply after an update.
 ///
 /// An instance of this struct can be built by [`OwnedUpdates`].
@@ -420,8 +460,10 @@ pub struct Updates {
     update: bool,
     display_update: UpdateDisplayRequest,
     win_display_update: UpdateDisplayRequest,
-}
 
+    pre_handlers: Vec<UpdateHandler>,
+    pos_handlers: Vec<UpdateHandler>,
+}
 impl Updates {
     fn new(event_loop: EventLoopProxy) -> Self {
         Updates {
@@ -429,6 +471,9 @@ impl Updates {
             update: false,
             display_update: UpdateDisplayRequest::None,
             win_display_update: UpdateDisplayRequest::None,
+
+            pre_handlers: vec![],
+            pos_handlers: vec![],
         }
     }
 
@@ -494,6 +539,70 @@ impl Updates {
     pub fn schedule_display_updates(&mut self, updates: UpdateDisplayRequest) {
         self.win_display_update |= updates;
         self.display_update |= updates;
+    }
+
+    /// Create a preview update handler.
+    ///
+    /// The `handler` is called every time the app updates, just before the UI updates.
+    ///
+    /// TODO about drop.
+    pub fn on_pre_update<F>(&mut self, handler: F) -> OnUpdateHandle
+    where
+        F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
+    {
+        Self::push_handler(&mut self.pre_handlers, handler)
+    }
+
+    /// Create an update handler.
+    ///
+    /// The `handler` is called every time the app updates, just after the UI updates.
+    ///
+    /// TODO about drop.
+    pub fn on_update<F>(&mut self, handler: F) -> OnUpdateHandle
+    where
+        F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
+    {
+        Self::push_handler(&mut self.pos_handlers, handler)
+    }
+
+    fn push_handler<F>(entries: &mut Vec<UpdateHandler>, handler: F) -> OnUpdateHandle
+    where
+        F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
+    {
+        let handle = OnUpdateHandle(Rc::new(OnUpdateHandleData { forget: Cell::new(false) }));
+        entries.push(UpdateHandler {
+            handle: handle.clone(),
+            handler: Box::new(handler),
+        });
+        handle
+    }
+
+    pub(crate) fn on_pre_updates(ctx: &mut AppContext) {
+        let mut handlers = mem::take(&mut ctx.updates.pre_handlers);
+        Self::retain_updates(ctx, &mut handlers);
+        handlers.extend(ctx.updates.pre_handlers.drain(..));
+        ctx.updates.pre_handlers = handlers;
+    }
+
+    pub(crate) fn on_updates(ctx: &mut AppContext) {
+        let mut handlers = mem::take(&mut ctx.updates.pos_handlers);
+        Self::retain_updates(ctx, &mut handlers);
+        handlers.extend(ctx.updates.pos_handlers.drain(..));
+        ctx.updates.pos_handlers = handlers;
+    }
+
+    fn retain_updates(ctx: &mut AppContext, handlers: &mut Vec<UpdateHandler>) {
+        handlers.retain_mut(|e| {
+            let mut retain = e.handle.0.forget.get() || Rc::strong_count(&e.handle.0) > 1;
+            if retain {
+                let args = UpdateArgs {
+                    stop_listening: Cell::new(false),
+                };
+                (e.handler)(ctx, &args);
+                retain = args.stop_listening.get();
+            }
+            retain
+        });
     }
 }
 

@@ -1,7 +1,12 @@
 //! App timers.
 
 use core::fmt;
-use std::{cell::Cell, mem, rc::Rc, time::{Duration, Instant}};
+use std::{
+    cell::Cell,
+    mem,
+    rc::Rc,
+    time::{Duration, Instant},
+};
 
 use retain_mut::RetainMut;
 
@@ -11,13 +16,13 @@ use crate::{
 };
 
 struct DeadlineHandlerEntry {
-    handle: TimeoutHandler,
+    handle: TimeoutHandle,
     handler: Option<Box<dyn FnOnce(&mut AppContext)>>,
     pending: bool,
 }
 
 struct TimerHandlerEntry {
-    handle: TimerHandler,
+    handle: TimerHandle,
     handler: Box<dyn FnMut(&mut AppContext, &TimerArgs)>,
     pending: bool,
 }
@@ -91,7 +96,7 @@ impl Timers {
 
     fn timer_state(interval: Duration) -> TimerState {
         TimerState {
-            status: Cell::new(TimerStatus::Enabled),
+            status: Cell::new(TimerStatus::Enable),
             deadline: Cell::new(Instant::now() + interval),
             interval: Cell::new(interval),
             count: Cell::new(0),
@@ -101,8 +106,8 @@ impl Timers {
     /// Register a `handler` that will be called once when the `deadline` is reached.
     ///
     /// If the `deadline` is in the past the `handler` will be called in the next app update.
-    pub fn on_deadline<F: FnOnce(&mut AppContext) + 'static>(&mut self, deadline: Instant, handler: F) -> TimeoutHandler {
-        let h = TimeoutHandler(Rc::new(TimeoutHandlerInfo {
+    pub fn on_deadline<F: FnOnce(&mut AppContext) + 'static>(&mut self, deadline: Instant, handler: F) -> TimeoutHandle {
+        let h = TimeoutHandle(Rc::new(TimeoutHandleData {
             deadline,
             forget: Cell::new(false),
         }));
@@ -115,14 +120,16 @@ impl Timers {
     }
 
     /// Register a `handler` that will be called once when `timeout` elapses.
-    pub fn on_timeout<F: FnOnce(&mut AppContext) + 'static>(&mut self, timeout: Duration, handler: F) -> TimeoutHandler {
+    pub fn on_timeout<F: FnOnce(&mut AppContext) + 'static>(&mut self, timeout: Duration, handler: F) -> TimeoutHandle {
         self.on_deadline(Instant::now() + timeout, handler)
     }
 
     /// Register a `handler` that will be called every time the `interval` elapses.
-    pub fn on_interval<F: FnMut(&mut AppContext, &TimerArgs) + 'static>(&mut self, interval: Duration, handler: F) -> TimerHandler {
-        let h = TimerHandler(Rc::new(TimerHandlerInfo {
-            args: TimerArgs { state: Self::timer_state(interval) },
+    pub fn on_interval<F: FnMut(&mut AppContext, &TimerArgs) + 'static>(&mut self, interval: Duration, handler: F) -> TimerHandle {
+        let h = TimerHandle(Rc::new(TimerHandleData {
+            args: TimerArgs {
+                state: Self::timer_state(interval),
+            },
             forget: Cell::new(false),
         }));
         self.timer_handlers.push(TimerHandlerEntry {
@@ -155,7 +162,7 @@ impl Timers {
 
         self.timers.retain(|t| {
             let info = t.get(vars);
-            let retain = t.strong_count() > 1 && !info.destroyed();
+            let retain = t.strong_count() > 1 && !info.stopped();
             if retain && info.enabled() && info.enabled() {
                 if info.deadline() <= now {
                     info.state.deadline.set(now + info.interval());
@@ -165,7 +172,7 @@ impl Timers {
                 min_next_some = true;
                 min_next = min_next.min(info.state.deadline.get());
             } else {
-                info.destroy();
+                info.stop();
             }
             retain
         });
@@ -183,7 +190,7 @@ impl Timers {
         });
 
         self.timer_handlers.retain_mut(|e| {
-            let retain = !e.handle.0.args.state.destroyed() && (e.handle.0.forget.get() || Rc::strong_count(&e.handle.0) > 1);
+            let retain = !e.handle.0.args.state.stopped() && (e.handle.0.forget.get() || Rc::strong_count(&e.handle.0) > 1);
             if retain {
                 let state = &e.handle.0.args.state;
                 e.pending = state.deadline.get() <= now;
@@ -221,7 +228,7 @@ impl Timers {
                 (h.handler)(ctx, &h.handle.0.args);
                 h.pending = false;
             }
-            !h.handle.0.args.state.destroyed()
+            !h.handle.0.args.state.stopped()
         });
         handlers.extend(ctx.timers.timer_handlers.drain(..));
         ctx.timers.timer_handlers = handlers;
@@ -261,7 +268,7 @@ macro_rules! timer_methods {
 
             /// Change the timer interval.
             #[inline]
-            pub fn set_interval(&$self, interval: Duration) -> Result<(), TimerDestroyed> {
+            pub fn set_interval(&$self, interval: Duration) -> Result<(), TimerStopped> {
                 let state = $state;
                 state.set_interval(interval)
             }
@@ -273,52 +280,50 @@ macro_rules! timer_methods {
                 state.deadline.get()
             }
 
-            /// Number of times the timer elapsed since it was created or [`restart`](Self::restart).
+            /// Number of times the timer elapsed since it was created or reset.
             #[inline]
             pub fn count(&$self) -> usize {
                 let state = $state;
                 state.count.get()
             }
 
-            /// If the timer was destroyed.
+            /// If the timer is permanently stopped.
             #[inline]
-            pub fn destroyed(&$self) -> bool {
+            pub fn stopped(&$self) -> bool {
                 let state = $state;
-                state.destroyed()
+                state.stopped()
             }
 
             /// Permanently stop the timer.
             ///
-            /// This unregisters the timer in [`Timers`], the same as if all clones of the timer are dropped.
+            /// This drops the timer in [`Timers`].
             #[inline]
-            pub fn destroy(&$self) {
+            pub fn stop(&$self) {
                 let state = $state;
-                state.status.set(TimerStatus::Destroyed);
+                state.status.set(TimerStatus::Stop);
             }
 
             /// Stop the timer but keep it registered.
             #[inline]
-            pub fn stop(&$self) -> Result<(), TimerDestroyed> {
+            pub fn disable(&$self) -> Result<(), TimerStopped> {
                 let state = $state;
-                state.stop()
+                state.disable()
             }
 
-            /// Starts the timer.
-            ///
-            /// This resets the [`deadline`](Self::deadline) but continues the [`count`](Self::count).
+            /// Starts the timer again.
             #[inline]
-            pub fn start(&$self) -> Result<(), TimerDestroyed> {
+            pub fn enable(&$self) -> Result<(), TimerStopped> {
                 let state = $state;
-                state.start()
+                state.enable()
             }
 
-            /// Restarts the timer.
+            /// Reset the timer.
             ///
             /// This restarts the [`deadline`](Self::deadline) and the [`count`](Self::count).
             #[inline]
-            pub fn restart(&$self) -> Result<(), TimerDestroyed> {
+            pub fn reset(&$self) -> Result<(), TimerStopped> {
                 let state = $state;
-                state.restart()
+                state.reset()
             }
 
             /// If the timer is not stopped nor destroyed.
@@ -326,6 +331,16 @@ macro_rules! timer_methods {
             pub fn enabled(&$self) -> bool {
                 let state = $state;
                 state.enabled()
+            }
+
+            /// Enable or disable the timer.
+            #[inline]
+            pub fn set_enabled(&$self, enabled: bool) -> Result<(), TimerStopped> {
+                if enabled {
+                    $self.enable()
+                } else {
+                    $self.disable()
+                }
             }
         }
     };
@@ -340,39 +355,38 @@ struct TimerState {
     count: Cell<usize>,
 }
 impl TimerState {
-    pub fn stop(&self) -> Result<(), TimerDestroyed> {
-        if let TimerStatus::Destroyed = self.status.get() {
-            Err(TimerDestroyed)
+    fn disable(&self) -> Result<(), TimerStopped> {
+        if let TimerStatus::Stop = self.status.get() {
+            Err(TimerStopped)
         } else {
-            self.status.set(TimerStatus::Disabled);
+            self.status.set(TimerStatus::Disable);
             Ok(())
         }
     }
 
-    fn start(&self) -> Result<(), TimerDestroyed> {
-        if let TimerStatus::Destroyed = self.status.get() {
-            Err(TimerDestroyed)
+    fn enable(&self) -> Result<(), TimerStopped> {
+        if let TimerStatus::Stop = self.status.get() {
+            Err(TimerStopped)
         } else {
-            self.status.set(TimerStatus::Enabled);
-            self.deadline.set(Instant::now() + self.interval.get());
+            self.status.set(TimerStatus::Enable);
             Ok(())
         }
     }
 
-    fn restart(&self) -> Result<(), TimerDestroyed> {
-        if let TimerStatus::Destroyed = self.status.get() {
-            Err(TimerDestroyed)
+    fn reset(&self) -> Result<(), TimerStopped> {
+        if let TimerStatus::Stop = self.status.get() {
+            Err(TimerStopped)
         } else {
-            self.status.set(TimerStatus::Enabled);
+            self.status.set(TimerStatus::Enable);
             self.deadline.set(Instant::now() + self.interval.get());
             self.count.set(0);
             Ok(())
         }
     }
 
-    fn set_interval(&self, interval: Duration) -> Result<(), TimerDestroyed> {
-        if let TimerStatus::Destroyed = self.status.get() {
-            Err(TimerDestroyed)
+    fn set_interval(&self, interval: Duration) -> Result<(), TimerStopped> {
+        if let TimerStatus::Stop = self.status.get() {
+            Err(TimerStopped)
         } else {
             self.interval.set(interval);
             Ok(())
@@ -380,29 +394,29 @@ impl TimerState {
     }
 
     fn enabled(&self) -> bool {
-        matches!(self.status.get(), TimerStatus::Enabled)
+        matches!(self.status.get(), TimerStatus::Enable)
     }
 
-    fn destroyed(&self) -> bool {
-        matches!(self.status.get(), TimerStatus::Destroyed)
+    fn stopped(&self) -> bool {
+        matches!(self.status.get(), TimerStatus::Stop)
     }
 }
 #[derive(Clone, Copy, Debug)]
 enum TimerStatus {
-    Enabled,
-    Disabled,
-    Destroyed,
+    Enable,
+    Disable,
+    Stop,
 }
 
-/// Error when an attempt is made to modify a destroyed [`Timer`] or [`TimerVar`].
+/// Error when an attempt is made to modify a permanently stopped [`Timer`] or [`TimerVar`].
 #[derive(Debug, Clone, Copy)]
-pub struct TimerDestroyed;
-impl fmt::Display for TimerDestroyed {
+pub struct TimerStopped;
+impl fmt::Display for TimerStopped {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "cannot change timer because it its destroyed")
+        write!(f, "cannot change timer because it its permanently stopped")
     }
 }
-impl std::error::Error for TimerDestroyed {}
+impl std::error::Error for TimerStopped {}
 
 /// An [`interval`](Timers::interval) timer.
 ///
@@ -443,51 +457,54 @@ impl Timer {
 }
 timer_methods!(Timer, self => &self.state);
 
-/// A [`on_timeout`](Timers::on_timeout) or [`on_deadline`](Timers::on_deadline) handler.
+/// Represents a [`on_timeout`](Timers::on_timeout) or [`on_deadline`](Timers::on_deadline) handler.
 ///
 /// Drop all clones of this handler to cancel the timer, or call [`forget`](Self::forget) to drop the handler
 /// without cancelling the timer.
 #[derive(Clone)]
 #[must_use = "the timer is canceled if the handler is dropped"]
-pub struct TimeoutHandler(Rc<TimeoutHandlerInfo>);
-struct TimeoutHandlerInfo {
+pub struct TimeoutHandle(Rc<TimeoutHandleData>);
+struct TimeoutHandleData {
     deadline: Instant,
     forget: Cell<bool>,
 }
-impl TimeoutHandler {
-    /// Drops the handler but does **not** cancel the timer and will still call the handler function when the timer elapses.
+impl TimeoutHandle {
+    /// Drops the handler but does **not** drop the timeout handler closure.
     ///
-    /// The handler function is still dropped after the timer elapses, this does not work like [`std::mem::forget`].
+    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
+    /// memory is released immediately and the handler memory is released when the time elapses or 
+    /// application shuts-down.
     #[inline]
     pub fn forget(self) {
         self.0.forget.set(true);
     }
 }
 
-/// A [`on_interval`](Timers::on_interval) handler.
+/// Represents a [`on_interval`](Timers::on_interval) handler.
 ///
 /// Drop all clones of this handler to cancel the timer, or call [`forget`](Self::forget) to drop the handler
 /// without cancelling the timer.
 #[derive(Clone)]
-pub struct TimerHandler(Rc<TimerHandlerInfo>);
-struct TimerHandlerInfo {
+pub struct TimerHandle(Rc<TimerHandleData>);
+struct TimerHandleData {
     args: TimerArgs,
     forget: Cell<bool>,
 }
-impl TimerHandler {
-    /// Drops the handler but does **not** destroy the timer and will still call the handler function every time the timer elapses.
+impl TimerHandle {
+    /// Drops the handler but does **not** drop the timer handler closure.
     ///
-    /// The handler function is still dropped if the timer is destroyed, this does not work like [`std::mem::forget`]. To destroy
-    /// the timer from within the function call [`TimerInfo::destroy`].
+    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
+    /// memory is released immediately and the handler memory is released when the timer is stopped or 
+    /// application shuts-down.
     #[inline]
     pub fn forget(self) {
         self.0.forget.set(true);
     }
 }
-timer_methods!(TimerHandler, self => &self.0.args.state);
+timer_methods!(TimerHandle, self => &self.0.args.state);
 
 /// Arguments for a [`on_interval`](Timers::on_interval) handler.
 pub struct TimerArgs {
-    state: TimerState
+    state: TimerState,
 }
 timer_methods!(TimerArgs, self => &self.state);

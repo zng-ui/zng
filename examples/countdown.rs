@@ -7,7 +7,7 @@ fn main() {
         let count = ctx.timers.interval(1.secs()).into_map(move |t| {
             let r = count;
             if r == 0 {
-                t.destroy();
+                t.stop();
             }
             count -= 1;
             r
