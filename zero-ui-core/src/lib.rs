@@ -36,7 +36,7 @@ pub mod mouse;
 pub mod profiler;
 pub mod render;
 pub mod service;
-mod task;
+pub mod task;
 pub mod text;
 pub mod timer;
 pub mod units;

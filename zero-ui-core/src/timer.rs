@@ -106,7 +106,10 @@ impl Timers {
     /// Register a `handler` that will be called once when the `deadline` is reached.
     ///
     /// If the `deadline` is in the past the `handler` will be called in the next app update.
-    pub fn on_deadline<F: FnOnce(&mut AppContext) + 'static>(&mut self, deadline: Instant, handler: F) -> TimeoutHandle {
+    pub fn on_deadline<F>(&mut self, deadline: Instant, handler: F) -> TimeoutHandle
+    where
+        F: FnOnce(&mut AppContext) + 'static,
+    {
         let h = TimeoutHandle(Rc::new(TimeoutHandleData {
             deadline,
             forget: Cell::new(false),
@@ -120,12 +123,18 @@ impl Timers {
     }
 
     /// Register a `handler` that will be called once when `timeout` elapses.
-    pub fn on_timeout<F: FnOnce(&mut AppContext) + 'static>(&mut self, timeout: Duration, handler: F) -> TimeoutHandle {
+    pub fn on_timeout<F>(&mut self, timeout: Duration, handler: F) -> TimeoutHandle
+    where
+        F: FnOnce(&mut AppContext) + 'static,
+    {
         self.on_deadline(Instant::now() + timeout, handler)
     }
 
     /// Register a `handler` that will be called every time the `interval` elapses.
-    pub fn on_interval<F: FnMut(&mut AppContext, &TimerArgs) + 'static>(&mut self, interval: Duration, handler: F) -> TimerHandle {
+    pub fn on_interval<F>(&mut self, interval: Duration, handler: F) -> TimerHandle
+    where
+        F: FnMut(&mut AppContext, &TimerArgs) + 'static,
+    {
         let h = TimerHandle(Rc::new(TimerHandleData {
             args: TimerArgs {
                 state: Self::timer_state(interval),

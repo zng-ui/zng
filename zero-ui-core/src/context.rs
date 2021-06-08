@@ -1285,6 +1285,52 @@ impl<'a> WidgetContext<'a> {
 
         r
     }
+
+    pub(crate) fn as_unsafe(&mut self) -> UnsafeWidgetContext {
+        UnsafeWidgetContext {
+            path: self.path,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+            vars: self.vars,
+            events: self.events,
+            services: self.services,
+            tasks: self.tasks,
+            timers: self.timers,
+            updates: self.updates,
+        }
+    }
+}
+pub(crate) struct UnsafeWidgetContext {
+    path: *mut WidgetContextPath,
+    app_state: *mut StateMap,
+    window_state: *mut StateMap,
+    widget_state: *mut StateMap,
+    update_state: *mut StateMap,
+    vars: *const Vars,
+    events: *mut Events,
+    services: *mut Services,
+    tasks: *mut Tasks,
+    timers: *mut Timers,
+    updates: *mut Updates,
+}
+impl UnsafeWidgetContext {
+    pub(crate) unsafe fn ctx(&self) -> WidgetContext {
+        WidgetContext {
+            path: &mut *self.path,
+            app_state: &mut *self.app_state,
+            window_state: &mut *self.window_state,
+            widget_state: &mut *self.widget_state,
+            update_state: &mut *self.update_state,
+            vars: &*self.vars,
+            events: &mut *self.events,
+            services: &mut *self.services,
+            tasks: &mut *self.tasks,
+            timers: &mut *self.timers,
+            updates: &mut *self.updates,
+        }
+    }
 }
 
 /// Current widget context path.
