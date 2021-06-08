@@ -1,26 +1,34 @@
 mod build_tests {
+    use trybuild::TestCases;
+
     #[test]
     fn impl_ui_node() {
-        let t = trybuild::TestCases::new();
+        let t = TestCases::new();
         t.compile_fail("tests/build/impl_ui_node/*.rs");
     }
 
     #[test]
     fn property() {
-        let t = trybuild::TestCases::new();
+        let t = TestCases::new();
         t.compile_fail("tests/build/property/*.rs");
     }
 
     #[test]
     fn widget_and_widget_mixin() {
-        let t = trybuild::TestCases::new();
+        let t = TestCases::new();
         t.compile_fail("tests/build/widget/*.rs");
     }
 
     #[test]
     fn widget_new() {
-        let t = trybuild::TestCases::new();
+        let t = TestCases::new();
         t.compile_fail("tests/build/widget_new/*.rs");
+    }
+
+    #[test]
+    fn misc() {
+        let t = TestCases::new();
+        t.compile_fail("tests/build/misc/*.rs");
     }
 }
 

@@ -19,6 +19,7 @@ use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
 use std::future::Future;
+use std::sync::Mutex;
 use std::{
     any::{type_name, TypeId},
     fmt,
@@ -666,7 +667,7 @@ impl EventLoop {
     /// Creates an [`EventLoopProxy`] that can be used to dispatch user events to the main event loop.
     pub fn create_proxy(&self) -> EventLoopProxy {
         match &self.0 {
-            EventLoopInner::Glutin(el) => EventLoopProxy(EventLoopProxyInner::Glutin(el.create_proxy())),
+            EventLoopInner::Glutin(el) => EventLoopProxy(EventLoopProxyInner::Winit(el.create_proxy())),
             EventLoopInner::Headless((s, _)) => EventLoopProxy(EventLoopProxyInner::Headless(s.clone())),
         }
     }
@@ -690,29 +691,113 @@ impl<'a> EventLoopWindowTarget<'a> {
 
 #[derive(Debug, Clone)]
 enum EventLoopProxyInner {
-    Glutin(GEventLoopProxy<AppEvent>),
+    Winit(GEventLoopProxy<AppEvent>),
     Headless(flume::Sender<AppEvent>),
 }
 
 /// Used to send custom events to [`EventLoop`].
 #[derive(Debug, Clone)]
 pub struct EventLoopProxy(EventLoopProxyInner);
-
 impl EventLoopProxy {
     /// If this event loop is from a [headless app](HeadlessApp).
     pub fn is_headless(&self) -> bool {
         match &self.0 {
             EventLoopProxyInner::Headless(_) => true,
-            EventLoopProxyInner::Glutin(_) => false,
+            EventLoopProxyInner::Winit(_) => false,
         }
     }
 
     /// Send an [`AppEvent`] to the app.
+    #[inline]
     pub fn send_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
         match &self.0 {
-            EventLoopProxyInner::Glutin(elp) => elp.send_event(event).map_err(|e| e.into()),
+            EventLoopProxyInner::Winit(elp) => elp.send_event(event).map_err(|e| e.into()),
             EventLoopProxyInner::Headless(sender) => sender.send(event).map_err(|e| AppShutdown(e.0)),
         }
+    }
+
+    /// Convert the loop proxy to a version that implements [`Sync`].
+    #[inline]
+    pub fn into_sync(self) -> EventLoopProxySync {
+        EventLoopProxySync(match self.0 {
+            EventLoopProxyInner::Winit(l) => EventLoopProxyInnerSync::Winit(Mutex::new(l)),
+            EventLoopProxyInner::Headless(l) => EventLoopProxyInnerSync::Headless(l),
+        })
+    }
+}
+
+#[derive(Debug)]
+enum EventLoopProxyInnerSync {
+    Winit(Mutex<GEventLoopProxy<AppEvent>>),
+    Headless(flume::Sender<AppEvent>),
+}
+impl Clone for EventLoopProxyInnerSync {
+    fn clone(&self) -> Self {
+        match self {
+            EventLoopProxyInnerSync::Winit(l) => EventLoopProxyInnerSync::Winit(Mutex::new(l.lock().unwrap().clone())),
+            EventLoopProxyInnerSync::Headless(l) => EventLoopProxyInnerSync::Headless(l.clone()),
+        }
+    }
+}
+
+/// Alternative of [`EventLoopProxy`] that implements [`Sync`].
+///
+/// The headless event loop is naturally `Sync`, the headed `winit` event loop proxy is wrapped in a [`Mutex`].
+#[derive(Debug, Clone)]
+pub struct EventLoopProxySync(EventLoopProxyInnerSync);
+impl EventLoopProxySync {
+    /// If this event loop is from a [headless app](HeadlessApp).
+    pub fn is_headless(&self) -> bool {
+        match &self.0 {
+            EventLoopProxyInnerSync::Headless(_) => true,
+            EventLoopProxyInnerSync::Winit(_) => false,
+        }
+    }
+
+    /// Send an [`AppEvent`] to the app.
+    #[inline]
+    pub fn send_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
+        match &self.0 {
+            EventLoopProxyInnerSync::Winit(el) => match el.lock() {
+                Ok(el) => el.send_event(event).map_err(|e| e.into()),
+                Err(e) => {
+                    // if the winit channel is corrupted the whole app is F because not all
+                    // proxy senders know about this mutex, so we log the error and hope the channel is ok.
+                    log::error!("sending message using poisoned `EventLoopProxySync`");
+                    e.into_inner().send_event(event).map_err(|e| e.into())
+                }
+            },
+            EventLoopProxyInnerSync::Headless(sender) => sender.send(event).map_err(|e| AppShutdown(e.0)),
+        }
+    }
+}
+impl std::task::Wake for EventLoopProxySync {
+    /// Sends an [`AppEvent::Update`].
+    fn wake(self: std::sync::Arc<Self>) {
+        if let Err(e) = self.send_event(AppEvent::Update) {
+            log::error!("failed to wake using `EventLoopProxySync`, {}", e);
+        }
+    }
+}
+impl From<EventLoopProxy> for EventLoopProxySync {
+    fn from(el: EventLoopProxy) -> Self {
+        el.into_sync()
+    }
+}
+impl From<EventLoopProxySync> for EventLoopProxy {
+    fn from(el: EventLoopProxySync) -> Self {
+        Self(match el.0 {
+            EventLoopProxyInnerSync::Winit(el) => EventLoopProxyInner::Winit(match el.into_inner() {
+                Ok(el) => el,
+                Err(e) => {
+                    // if the winit channel is corrupted the whole app is F because not all
+                    // proxy senders know about this mutex, so we log the error and hope the channel is ok.
+                    log::error!("converting poisoned `EventLoopProxySync` to `EventLoopProxy`");
+                    e.into_inner()
+                }
+            }),
+            EventLoopProxyInnerSync::Headless(el) => EventLoopProxyInner::Headless(el),
+        })
     }
 }
 

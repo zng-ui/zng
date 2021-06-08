@@ -634,7 +634,7 @@ impl OwnedAppContext {
             vars: Vars::instance(event_loop.clone()),
             events: Events::instance(event_loop.clone()),
             services: ServicesInit::default(),
-            tasks: Tasks::new(),
+            tasks: Tasks::new(event_loop.clone().into_sync()),
             timers: Timers::new(),
             updates,
             event_loop,
@@ -1088,7 +1088,7 @@ impl TestWidgetContext {
             events: Events::instance(event_loop.create_proxy()),
             vars: Vars::instance(event_loop.create_proxy()),
             updates: OwnedUpdates::new(event_loop.create_proxy()),
-            tasks: Tasks::new(),
+            tasks: Tasks::new(event_loop.create_proxy().into_sync()),
             timers: Timers::new(),
             event_loop,
         }

@@ -1,0 +1,29 @@
+error[E0277]: `*mut winapi::shared::windef::HWND__` cannot be shared between threads safely
+ --> $DIR/event_loop_proxy_sync.rs:6:5
+  |
+4 |     fn expected_error<T: Sync>(_: T) {}
+  |                          ---- required by this bound in `expected_error`
+5 |
+6 |     expected_error(el); // expect error here, otherwise we don't need the `EventLoopProxySync`.
+  |     ^^^^^^^^^^^^^^ `*mut winapi::shared::windef::HWND__` cannot be shared between threads safely
+  |
+  = help: within `EventLoopProxy`, the trait `Sync` is not implemented for `*mut winapi::shared::windef::HWND__`
+  = note: required because it appears within the type `winit::platform_impl::platform::event_loop::EventLoopProxy<AppEvent>`
+  = note: required because it appears within the type `winit::event_loop::EventLoopProxy<AppEvent>`
+  = note: required because it appears within the type `app::EventLoopProxyInner`
+  = note: required because it appears within the type `EventLoopProxy`
+
+error[E0277]: `Sender<AppEvent>` cannot be shared between threads safely
+ --> $DIR/event_loop_proxy_sync.rs:6:5
+  |
+4 |     fn expected_error<T: Sync>(_: T) {}
+  |                          ---- required by this bound in `expected_error`
+5 |
+6 |     expected_error(el); // expect error here, otherwise we don't need the `EventLoopProxySync`.
+  |     ^^^^^^^^^^^^^^ `Sender<AppEvent>` cannot be shared between threads safely
+  |
+  = help: within `EventLoopProxy`, the trait `Sync` is not implemented for `Sender<AppEvent>`
+  = note: required because it appears within the type `winit::platform_impl::platform::event_loop::EventLoopProxy<AppEvent>`
+  = note: required because it appears within the type `winit::event_loop::EventLoopProxy<AppEvent>`
+  = note: required because it appears within the type `app::EventLoopProxyInner`
+  = note: required because it appears within the type `EventLoopProxy`
