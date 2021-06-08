@@ -2,6 +2,7 @@ use super::*;
 use crate::{
     app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShutdown},
     context::Updates,
+    crate_util::RunOnDrop,
 };
 use std::{
     any::type_name,
@@ -388,20 +389,6 @@ impl Deref for Vars {
 
     fn deref(&self) -> &Self::Target {
         &self.read
-    }
-}
-
-struct RunOnDrop<F: FnOnce()>(Option<F>);
-impl<F: FnOnce()> RunOnDrop<F> {
-    fn new(clean: F) -> Self {
-        RunOnDrop(Some(clean))
-    }
-}
-impl<F: FnOnce()> Drop for RunOnDrop<F> {
-    fn drop(&mut self) {
-        if let Some(clean) = self.0.take() {
-            clean();
-        }
     }
 }
 

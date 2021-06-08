@@ -16,7 +16,7 @@ extern crate bitflags;
 extern crate self as zero_ui_core;
 
 #[macro_use]
-mod crate_macros;
+mod crate_util;
 
 #[doc(hidden)]
 pub use paste::paste;
