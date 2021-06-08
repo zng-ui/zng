@@ -10,6 +10,7 @@ use super::AnyMap;
 use super::WidgetId;
 use retain_mut::RetainMut;
 use std::cell::Cell;
+use std::ptr;
 use std::rc::Rc;
 use std::{any::type_name, fmt, mem};
 use std::{any::TypeId, time::Instant};
@@ -142,6 +143,7 @@ macro_rules! state_key {
 }
 
 use crate::app::AppShutdown;
+use crate::crate_util::RunOnDrop;
 use crate::event::BoxedEventUpdate;
 #[doc(inline)]
 pub use crate::state_key;
@@ -1285,51 +1287,56 @@ impl<'a> WidgetContext<'a> {
 
         r
     }
+}
 
-    pub(crate) fn as_unsafe(&mut self) -> UnsafeWidgetContext {
-        UnsafeWidgetContext {
-            path: self.path,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state,
-            vars: self.vars,
-            events: self.events,
-            services: self.services,
-            tasks: self.tasks,
-            timers: self.timers,
-            updates: self.updates,
+/// Represents a *contextual* reference to [`WidgetContext`].
+///
+/// This type exist to provide access to a [`WidgetContext`] inside [`UiTask`](crate::task::UiTask) futures.
+/// Every time the task updates the executor must load an widget context using the paired [`WidgetContextMutEnv`]
+/// to provide the context for that update.
+pub struct WidgetContextMut {
+    ctx: Rc<Cell<*mut ()>>,
+}
+impl WidgetContextMut {
+    /// Gets the exclusive borrow to a [`WidgetContext`].
+    ///
+    /// In a [future](std::future) event handler you can call this after each `await` to get
+    /// the context of that update.
+    ///
+    /// ## Panics
+    ///
+    /// Panics if not called inside the paired [`WidgetContextMutEnv::with_ctx`]. If you got this type as an argument you
+    /// should expect this method to always work, the onus of safety is on the caller.
+    #[inline]
+    pub fn get(&mut self) -> &mut WidgetContext {
+        let ptr = self.ctx.get();
+        if ptr.is_null() {
+            panic!("no `&mut WidgetContext` loaded in a `WidgetContextMut`");
         }
+        unsafe { &mut *(ptr as *mut WidgetContext) }
     }
 }
-pub(crate) struct UnsafeWidgetContext {
-    path: *mut WidgetContextPath,
-    app_state: *mut StateMap,
-    window_state: *mut StateMap,
-    widget_state: *mut StateMap,
-    update_state: *mut StateMap,
-    vars: *const Vars,
-    events: *mut Events,
-    services: *mut Services,
-    tasks: *mut Tasks,
-    timers: *mut Timers,
-    updates: *mut Updates,
+
+/// Pair of [`WidgetContextMut`] that can setup its reference.
+pub struct WidgetContextMutEnv {
+    ctx: Rc<Cell<*mut ()>>,
 }
-impl UnsafeWidgetContext {
-    pub(crate) unsafe fn ctx(&self) -> WidgetContext {
-        WidgetContext {
-            path: &mut *self.path,
-            app_state: &mut *self.app_state,
-            window_state: &mut *self.window_state,
-            widget_state: &mut *self.widget_state,
-            update_state: &mut *self.update_state,
-            vars: &*self.vars,
-            events: &mut *self.events,
-            services: &mut *self.services,
-            tasks: &mut *self.tasks,
-            timers: &mut *self.timers,
-            updates: &mut *self.updates,
-        }
+impl WidgetContextMutEnv {
+    /// Create a new [`WidgetContextMutEnv`], [`WidgetContextMut`] pair.
+    pub fn new() -> (WidgetContextMutEnv, WidgetContextMut) {
+        let ctx = Rc::new(Cell::new(ptr::null_mut()));
+
+        (WidgetContextMutEnv { ctx: Rc::clone(&ctx) }, WidgetContextMut { ctx })
+    }
+
+    /// Runs `action` while the paired [`WidgetContextMut`] points to `ctx`.
+    pub fn with_ctx<R, F>(&mut self, ctx: &mut WidgetContext, action: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        self.ctx.set(ctx as *mut WidgetContext as *mut ());
+        let _r = RunOnDrop::new(|| self.ctx.set(ptr::null_mut()));
+        action()
     }
 }
 

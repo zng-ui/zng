@@ -4,11 +4,13 @@ use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShutdown};
-use crate::context::{AppContext, Updates, WidgetContext};
+use crate::context::{AppContext, Updates, WidgetContext, WidgetContextMut, WidgetContextMutEnv};
+use crate::task::UiTask;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
+use std::future::Future;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
@@ -1184,13 +1186,7 @@ pub use crate::event;
 
 /* Event Property */
 
-struct OnEventNode<C, E, F, H>
-where
-    C: UiNode,
-    E: Event,
-    F: FnMut(&mut WidgetContext, &E::Args) -> bool,
-    H: FnMut(&mut WidgetContext, &E::Args),
-{
+struct OnEventNode<C, E, F, H> {
     child: C,
     _event: PhantomData<E>,
     filter: F,
@@ -1207,6 +1203,7 @@ where
     fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
         if let Some(args) = E::update(args) {
             self.child.event(ctx, args);
+
             if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                 (self.handler)(ctx, args);
             }
@@ -1216,13 +1213,7 @@ where
     }
 }
 
-struct OnPreviewEventNode<C, E, F, H>
-where
-    C: UiNode,
-    E: Event,
-    F: FnMut(&mut WidgetContext, &E::Args) -> bool,
-    H: FnMut(&mut WidgetContext, &E::Args),
-{
+struct OnPreviewEventNode<C, E, F, H> {
     child: C,
     _event: PhantomData<E>,
     filter: F,
@@ -1248,6 +1239,103 @@ where
     }
 }
 
+struct AsyncEventTask {
+    ctx: WidgetContextMutEnv,
+    task: UiTask<()>,
+}
+impl AsyncEventTask {
+    fn update(&mut self, ctx: &mut WidgetContext) -> Retain {
+        let task = &mut self.task;
+        self.ctx.with_ctx(ctx, || task.update().is_none())
+    }
+}
+
+struct OnEventAsyncNode<C, E, F, H> {
+    child: C,
+    _event: PhantomData<E>,
+    filter: F,
+    handler: H,
+    tasks: Vec<AsyncEventTask>,
+}
+#[impl_ui_node(child)]
+impl<C, E, F, R, H> UiNode for OnEventAsyncNode<C, E, F, H>
+where
+    C: UiNode,
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    R: Future<Output = ()> + 'static,
+    H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
+{
+    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        if let Some(args) = E::update(args) {
+            self.child.event(ctx, args);
+
+            if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                let (outer_ctx, inner_ctx) = WidgetContextMutEnv::new();
+                let t = (self.handler)(inner_ctx, args.clone());
+                let mut t = AsyncEventTask {
+                    ctx: outer_ctx,
+                    task: ctx.tasks.ui_task(t),
+                };
+                if t.update(ctx) {
+                    self.tasks.push(t);
+                }
+            }
+        } else {
+            self.child.event(ctx, args);
+        }
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+
+        self.tasks.retain_mut(|t| t.update(ctx));
+    }
+}
+
+struct OnPreviewEventAsyncNode<C, E, F, H> {
+    child: C,
+    _event: PhantomData<E>,
+    filter: F,
+    handler: H,
+    tasks: Vec<AsyncEventTask>,
+}
+#[impl_ui_node(child)]
+impl<C, E, F, R, H> UiNode for OnPreviewEventAsyncNode<C, E, F, H>
+where
+    C: UiNode,
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    R: Future<Output = ()> + 'static,
+    H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
+{
+    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        if let Some(args) = E::update(args) {
+            if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                let (outer_ctx, inner_ctx) = WidgetContextMutEnv::new();
+                let t = (self.handler)(inner_ctx, args.clone());
+                let mut t = AsyncEventTask {
+                    ctx: outer_ctx,
+                    task: ctx.tasks.ui_task(t),
+                };
+                if t.update(ctx) {
+                    self.tasks.push(t);
+                }
+            }
+
+            self.child.event(ctx, args);
+        } else {
+            self.child.event(ctx, args);
+        }
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.tasks.retain_mut(|t| t.update(ctx));
+
+        self.child.update(ctx);
+    }
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __event_property {
@@ -1261,9 +1349,13 @@ macro_rules! __event_property {
     ) => { $crate::paste! {
         $(#[$on_event_attrs])*
         ///
-        /// # Preview Event
+        /// # Preview
         ///
-        #[doc = "You can preview this event using [`on_pre_" $event "`]."]
+        #[doc = "You can preview this event using [`on_pre_" $event "`](fn.on_pre_"$event".html)."]
+        ///
+        /// # Async
+        ///
+        #[doc = "You can use `await` in a handler by  using [`on_" $event "_async`](fn.on_"$event"_async.html)."]
         #[$crate::property(event, default(|_, _|{}))]
         $vis fn [<on_ $event>](
             child: impl $crate::UiNode,
@@ -1272,18 +1364,69 @@ macro_rules! __event_property {
             $crate::event::on_event(child, $Event, $filter, handler)
         }
 
-        #[doc = "Preview [on_" $event "] event."]
+        #[doc = "Preview [`on_" $event "`](fn.on_"$event".html) event."]
         ///
-        /// # Preview Events
+        /// # Async
         ///
-        /// Preview events are fired before the main event, if you stop the propagation of a preview event
-        /// the main event does not run. See [`on_pre_event`](crate::properties::events::on_pre_event) for more details.
+        #[doc = "You can use `await` in a handler by using [`on_pre_" $event "_async`](fn.on_"$event"_async.html)."]
+        ///
+        /// # Preview Handlers
+        ///
+        /// Preview event handlers are called before the main handlers, if you stop the propagation of a preview event
+        /// the main event handler is not called. See [`on_pre_event`](zero_ui::core::event::on_pre_event) for more details.
         #[$crate::property(event, default(|_, _|{}))]
         $vis fn [<on_pre_ $event>](
             child: impl $crate::UiNode,
             handler: impl FnMut(&mut $crate::context::WidgetContext, &$Args) + 'static
         ) -> impl $crate::UiNode {
             $crate::event::on_pre_event(child, $Event, $filter, handler)
+        }
+
+        #[doc = "Async [`on_" $event "`](fn.on_"$event".html) event."]
+        ///
+        /// # Async Handlers
+        ///
+        /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
+        /// runs during UI updates, they are asynchronous but not parallel, you can use `ctx.get().tasks` to run CPU intensive
+        /// work in parallel and await for the result in the handler. See [`on_event_async`](zero_ui::core::event::on_event_async)
+        /// for more details.
+        #[$crate::property(event, default(|_, _| { std::future::ready(()) }))]
+        $vis fn [<on_ $event _async>]<C, F, H>(
+            child: C,
+            handler: H
+        ) -> impl $crate::UiNode
+        where
+            C: $crate::UiNode,
+            F: std::future::Future<Output=()> + 'static,
+            H: FnMut($crate::context::WidgetContextMut, $Args) -> F + 'static
+        {
+            $crate::event::on_event_async(child, $Event, $filter, handler)
+        }
+
+        #[doc = "Async [`on_pre_" $event "`](fn.on_pre_"$event".html) event."]
+        ///
+        /// # Async Handlers
+        ///
+        /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
+        /// runs during UI updates, they are asynchronous but not parallel, you can use `ctx.get().tasks` to run CPU intensive
+        /// work in parallel and await for the result in the handler. See [`on_pre_event_async`](zero_ui::core::event::on_pre_event_async)
+        /// for more details.
+        ///
+        /// ## Async Preview
+        ///
+        /// Because only the code before the first `await` runs immediately, that is where you need to stop propagation if
+        /// you want subsequent handlers to not be called for this event. After the first `await` the  code is **not** preview.
+        #[$crate::property(event, default(|_, _| { std::future::ready(()) }))]
+        $vis fn [<on_pre_ $event _async>]<C, F, H>(
+            child: C,
+            handler: H
+        ) -> impl $crate::UiNode
+        where
+            C: $crate::UiNode,
+            F: std::future::Future<Output=()> + 'static,
+            H: FnMut($crate::context::WidgetContextMut, $Args) -> F + 'static
+        {
+            $crate::event::on_pre_event_async(child, $Event, $filter, handler)
         }
     } };
     (
@@ -1305,9 +1448,9 @@ macro_rules! __event_property {
 }
 /// Declare one or more event properties.
 ///
-/// Each declaration expands to a pair of properties `on_$event` and `on_pre_$event`. The preview property
-/// calls [`on_pre_event`](crate::event::on_pre_event),
-/// the main event property calls [`on_event`](crate::event::on_event).
+/// Each declaration expands to four properties `on_$event`, `on_pre_$event`, `on_$event_async` and `on_pre_$event_async`.
+/// The preview properties call [`on_pre_event`](crate::event::on_pre_event) or [`on_pre_event_async`](crate::event::on_pre_event_async),
+/// the main event properties call [`on_event`](crate::event::on_event) or [`on_event_async`](crate::event::on_event_async).
 ///
 /// # Example
 ///
@@ -1344,6 +1487,12 @@ macro_rules! __event_property {
 ///
 /// If you don't provide a filter predicate the default [`args.concerns_widget(ctx)`](EventArgs::concerns_widget) is used.
 /// So if you want to extend the filter and not fully replace it you must call `args.concerns_widget(ctx)` in your custom filter.
+///
+/// # Async
+///
+/// The async properties create [`UiTask`](crate::task::UiTask) future executors for every call of the handler, at a time there
+/// can be more then one *handler future* executing asynchrony. The arguments are [`WidgetContextMut`](crate::context::WidgetContextMut)
+/// and a clone of the event args.
 #[macro_export]
 macro_rules! event_property {
     ($(
@@ -1397,7 +1546,7 @@ where
     }
 }
 
-/// Helper for declaring preview event properties with a custom filter.
+/// Helper for declaring preview event properties.
 ///
 /// This function is used by the [`event_property!`] macro.
 ///
@@ -1423,5 +1572,71 @@ where
         _event: PhantomData::<E>,
         filter,
         handler,
+    }
+}
+
+/// Helper for declaring async event properties.
+///
+/// This function is used by the [`event_property!`] macro.
+///
+/// # Filter
+///
+/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested and the
+/// widget is [enabled](IsEnabled). It must return `true` if the event arguments are relevant in the context of the
+/// widget. If it returns `true` the `handler` closure is called and starts executing the future.
+///
+/// # Route
+///
+/// The event `handler` is called after the [`on_pre_event`] equivalent at the same context level. If the event
+/// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
+///
+/// Code before the first `await` point is executed immediately, code after `await` points are executed in subsequent updates.
+pub fn on_event_async<C, E, F, R, H>(child: C, _event: E, filter: F, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    R: Future<Output = ()> + 'static,
+    H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
+{
+    OnEventAsyncNode {
+        child,
+        _event: PhantomData::<E>,
+        filter,
+        handler,
+        tasks: Vec::with_capacity(1),
+    }
+}
+
+/// Helper for declaring async preview event properties.
+///
+/// This function is used by the [`event_property!`] macro.
+///
+/// # Filter
+///
+/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested and the
+/// widget is [enabled](IsEnabled). It must return `true` if the event arguments are relevant in the context of the
+/// widget. If it returns `true` the `handler` closure is called and starts executing the future.
+///
+/// # Route
+///
+/// The event `handler` is called before the [`on_event`] equivalent at the same context level. If the event
+/// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
+///
+/// Code before the first `await` point is executed immediately, code after `await` points are executed in subsequent updates.
+pub fn on_pre_event_async<C, E, F, R, H>(child: C, _event: E, filter: F, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    R: Future<Output = ()> + 'static,
+    H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
+{
+    OnEventAsyncNode {
+        child,
+        _event: PhantomData::<E>,
+        filter,
+        handler,
+        tasks: Vec::with_capacity(1),
     }
 }

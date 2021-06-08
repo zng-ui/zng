@@ -186,9 +186,13 @@ mod tests;
 /// };
 /// assert_eq!(foo.len(), 3);
 /// ```
+///
+/// # Async
+///
+/// See [`async_clone_move!`](macro@crate::async_clone_move) for creating `async` closures.
 #[macro_export]
 macro_rules! clone_move {
-    ($($tt:tt)+) => { $crate::__clone_move!{[][][] $($tt)+} }
+    ($($tt:tt)+) => { $crate::__clone_move! { [][][] $($tt)+ } }
 }
 #[doc(hidden)]
 #[macro_export]
@@ -241,4 +245,279 @@ macro_rules! __clone_move {
             move || $($rest)+
         }
     };
+}
+
+/// Cloning async closure.
+///
+/// This macro syntax is exactly the same as [`clone_move!`](macro@crate::clone_move), but it expands to an *async closure* that
+/// captures a clone of zero or more variables and moves another clone of these variables into the returned future for each call.
+///
+/// # Example
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{widget, property, async_clone_move, UiNode, NilUiNode, var::{var, IntoVar}, text::{Text, ToText}, context::WidgetContextMut};
+/// # use std::future::Future;
+/// #
+/// # #[property(event)]
+/// # fn on_click_async<C: UiNode, F: Future<Output=()>, H: FnMut(WidgetContextMut, ()) -> F>(child: C, handler: H) -> impl UiNode { child }
+/// #
+/// # #[widget($crate::window)]
+/// # pub mod window {
+/// #     use super::*;
+/// #
+/// #     properties! {
+/// #         #[allowed_in_when = false]
+/// #         title(impl IntoVar<Text>);
+/// #     }
+/// #
+/// #     fn new_child(title: impl IntoVar<Text>) -> NilUiNode {
+/// #         NilUiNode
+/// #     }
+/// # }
+/// # async fn delay() {
+/// #   std::future::ready(true).await;
+/// # }
+/// #
+/// # fn demo() {
+/// let title = var("Click Me!".to_text());
+/// window! {
+///     on_click_async = async_clone_move!(title, |mut ctx, _| {
+///         title.set(ctx.get().vars, "Clicked!".into());
+///         delay().await;
+///         title.set(ctx.get().vars, "Async Update!".into());
+///     });
+///     title;
+/// }
+/// # ;
+/// # }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{widget, property, async_clone_move, UiNode, NilUiNode, var::{var, IntoVar}, text::{Text, ToText}, context::WidgetContextMut};
+/// # use std::future::Future;
+/// #
+/// # #[property(event)]
+/// # fn on_click_async<C: UiNode, F: Future<Output=()>, H: FnMut(WidgetContextMut, ()) -> F>(child: C, handler: H) -> impl UiNode { child }
+/// #
+/// # #[widget($crate::window)]
+/// # pub mod window {
+/// #     use super::*;
+/// #
+/// #     properties! {
+/// #         #[allowed_in_when = false]
+/// #         title(impl IntoVar<Text>);
+/// #     }
+/// #
+/// #     fn new_child(title: impl IntoVar<Text>) -> NilUiNode {
+/// #         NilUiNode
+/// #     }
+/// # }
+/// # async fn delay() {
+/// #   std::future::ready(true).await;
+/// # }
+/// #
+/// # fn demo() {
+/// let title = var("Click Me!".to_text());
+/// window! {
+///     on_click_async = {
+///         let title = title.clone();
+///         move |mut ctx, _| {
+///             let title = title.clone();
+///             async move {
+///                 title.set(ctx.get().vars, "Clicked!".into());
+///                 delay().await;
+///                 title.set(ctx.get().vars, "Async Update!".into());
+///             }
+///         }
+///     };
+///     title;
+/// }
+/// # ;
+/// # }
+/// ```
+#[macro_export]
+macro_rules! async_clone_move {
+    ($($tt:tt)+) => { $crate::__async_clone_move! { [{}{}][][] $($tt)+ } }
+}
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __async_clone_move {
+    // match start of mut var
+    ([$($done:tt)*][][] mut $($rest:tt)+) => {
+        $crate::__async_clone_move! {
+            [$($done)*]
+            [mut]
+            []
+            $($rest)+
+        }
+    };
+
+    // match one var deref (*)
+    ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
+        $crate::__async_clone_move! {
+            [$($done)*]
+            [$($mut:tt)?]
+            [$($deref)* *]
+            $($rest)+
+        }
+    };
+
+    // match end of a variable
+    ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] $var:ident, $($rest:tt)+) => {
+        $crate::__async_clone_move! {
+            @var
+            [$($done)*]
+            [$($mut)?]
+            [$($deref)*]
+            $var,
+            $($rest)+
+        }
+    };
+
+    // include one var
+    (@var [ { $($closure_clones:tt)* }{ $($async_clones:tt)* } ][$($mut:tt)?][$($deref:tt)*] $var:ident, $($rest:tt)+) => {
+        $crate::__async_clone_move! {
+            [
+                {
+                    $($closure_clones)*
+                    let $var = ( $($deref)* $var ).clone();
+                }
+                {
+                    $($async_clones)*
+                    let $($mut)? $var = $var.clone();
+                }
+            ]
+            []
+            []
+            $($rest)+
+        }
+    };
+
+    // match start of closure inputs
+    ([$($done:tt)*][][] | $($rest:tt)+) => {
+        $crate::__async_clone_move! {
+            @args
+            [$($done)*]
+            []
+            $($rest)+
+        }
+    };
+
+    // match start of closure without input, the closure body is in a block
+    ([ { $($closure_clones:tt)* }{ $($async_clones:tt)* } ][][] || { $($rest:tt)+ }) => {
+        {
+            $($closure_clones)*
+            move || {
+                $($async_clones)*
+                async move {
+                    $($rest)+
+                }
+            }
+        }
+    };
+    // match start of closure without input, the closure body is **not** in a block
+    ([ { $($closure_clones:tt)* }{ $($async_clones:tt)* } ][][] || $($rest:tt)+ ) => {
+        {
+            $($closure_clones)*
+            move || {
+                $($async_clones)*
+                async move {
+                    $($rest)+
+                }
+            }
+        }
+    };
+
+    // match end of closure inputs, the closure body is in a block
+    (@args [  { $($closure_clones:tt)* }{ $($async_clones:tt)* } ] [$($args:tt)*] | { $($rest:tt)+ }) => {
+        {
+            $($closure_clones)*
+            move |$($args)*| {
+                $($async_clones)*
+                async move {
+                    $($rest)+
+                }
+            }
+        }
+    };
+    // match end of closure inputs, the closure body is in a block
+    (@args [  { $($closure_clones:tt)* }{ $($async_clones:tt)* } ] [$($args:tt)*] | $($rest:tt)+) => {
+        {
+            $($closure_clones)*
+            move |$($args)*| {
+                $($async_clones)*
+                async move {
+                    $($rest)+
+                }
+            }
+        }
+    };
+
+    // match a token in closure inputs
+    (@args [$($done:tt)*] [$($args:tt)*] $arg_tt:tt $($rest:tt)+) => {
+        $crate::__async_clone_move! {
+            @args
+            [$($done)*]
+            [$($args)* $arg_tt]
+            $($rest)+
+        }
+    };
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+#[allow(clippy::ptr_arg)]
+mod async_clone_move_tests {
+    // if it build it passes
+
+    use std::{future::ready, rc::Rc};
+
+    fn no_clones_no_input() {
+        let _ = async_clone_move!(|| ready(true).await);
+    }
+
+    fn one_clone_no_input(a: &String) {
+        let _ = async_clone_move!(a, || {
+            let _: String = a;
+            ready(true).await
+        });
+        let _ = a;
+    }
+
+    fn one_clone_with_derefs_no_input(a: &Rc<String>) {
+        let _ = async_clone_move!(**a, || {
+            let _: String = a;
+            ready(true).await
+        });
+        let _ = a;
+    }
+
+    fn two_derefs_no_input(a: &String, b: Rc<String>) {
+        let _ = async_clone_move!(a, b, || {
+            let _: String = a;
+            let _: Rc<String> = b;
+            ready(true).await
+        });
+        let _ = (a, b);
+    }
+
+    fn one_input(a: &String) {
+        let _ = async_clone_move!(a, |_ctx: u32| {
+            let _: String = a;
+            ready(true).await
+        });
+        let _ = a;
+    }
+
+    fn two_inputs(a: &String) {
+        let _ = async_clone_move!(a, |_b: u32, _c: Box<dyn std::fmt::Debug>| {
+            let _: String = a;
+            ready(true).await
+        });
+        let _ = a;
+    }
 }

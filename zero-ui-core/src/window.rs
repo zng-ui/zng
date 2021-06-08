@@ -753,7 +753,7 @@ impl WindowManager {
 /// Windows service.
 #[derive(Service)]
 pub struct Windows {
-    /// If shutdown is requested when there are no more windows open, `true` by default.
+    /// If shutdown is requested when a window closes and there are no more windows open, `true` by default.
     pub shutdown_on_last_close: bool,
 
     windows: Vec<OpenWindow>,
