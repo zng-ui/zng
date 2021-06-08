@@ -944,6 +944,7 @@ pub mod prelude {
         render::WidgetPath,
         service::Services,
         take_if, take_on, take_on_init,
+        task::Tasks,
         text::{
             font_features::{
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
@@ -1034,6 +1035,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
+        pub use crate::core::task::*;
+        #[doc(no_inline)]
         pub use crate::core::text::Text;
         #[doc(no_inline)]
         pub use crate::core::units::{self, *};
@@ -1077,6 +1080,8 @@ pub mod prelude {
         pub use crate::core::context::*;
         #[doc(no_inline)]
         pub use crate::core::render::*;
+        #[doc(no_inline)]
+        pub use crate::core::task::*;
         #[doc(no_inline)]
         pub use crate::core::text::*;
         #[doc(no_inline)]

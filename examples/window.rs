@@ -123,29 +123,25 @@ fn screenshot() -> impl Widget {
                 "saving..".to_text()
             }
         }));
-        on_click_async = async_clone_move!(enabled, |mut ctx, _| {
-            let save_task = {
-                let ctx = ctx.get();
+        on_click_async = async_clone_move!(enabled, |ctx, _| {
+            // disable button until screenshot is saved.
+            ctx.with(|ctx| enabled.set(ctx.vars, false));
 
-                // disable button until screenshot is saved.
-                enabled.set(ctx.vars, false);
+            println!("taking `screenshot.png`..");
 
-                println!("taking `screenshot.png`..");
+            let t = Instant::now();
+            let img = ctx.with(|ctx|{
+                ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().frame_pixels()
+            });
+            println!("taken in {:?}, saving..", t.elapsed());
 
+            Tasks::run_async(move || {
                 let t = Instant::now();
-                let img = ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().frame_pixels();
-                println!("taken in {:?}, saving..", t.elapsed());
+                img.save("screenshot.png").unwrap();
+                println!("saved in {:?}", t.elapsed());
+            }).await;
 
-                ctx.tasks.run_async(move || {
-                    let t = Instant::now();
-                    img.save("screenshot.png").unwrap();
-                    println!("saved in {:?}", t.elapsed());
-                })
-            };
-
-            save_task.await;
-
-            enabled.set(ctx.get().vars, true);
+            ctx.with(|ctx| enabled.set(ctx.vars, true));
         });
         enabled;
     }

@@ -282,10 +282,10 @@ macro_rules! __clone_move {
 /// # fn demo() {
 /// let title = var("Click Me!".to_text());
 /// window! {
-///     on_click_async = async_clone_move!(title, |mut ctx, _| {
-///         title.set(ctx.get().vars, "Clicked!".into());
+///     on_click_async = async_clone_move!(title, |ctx, _| {
+///         ctx.with(|ctx| title.set(ctx.vars, "Clicked!".into()));
 ///         delay().await;
-///         title.set(ctx.get().vars, "Async Update!".into());
+///         ctx.with(|ctx| title.set(ctx.vars, "Async Update!".into()));
 ///     });
 ///     title;
 /// }
@@ -325,12 +325,12 @@ macro_rules! __clone_move {
 /// window! {
 ///     on_click_async = {
 ///         let title = title.clone();
-///         move |mut ctx, _| {
+///         move |ctx, _| {
 ///             let title = title.clone();
 ///             async move {
-///                 title.set(ctx.get().vars, "Clicked!".into());
+///                 ctx.with(|ctx| title.set(ctx.vars, "Clicked!".into()));
 ///                 delay().await;
-///                 title.set(ctx.get().vars, "Async Update!".into());
+///                 ctx.with(|ctx| title.set(ctx.vars, "Async Update!".into()));
 ///             }
 ///         }
 ///     };

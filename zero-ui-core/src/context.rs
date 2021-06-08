@@ -1298,22 +1298,23 @@ pub struct WidgetContextMut {
     ctx: Rc<Cell<*mut ()>>,
 }
 impl WidgetContextMut {
-    /// Gets the exclusive borrow to a [`WidgetContext`].
-    ///
-    /// In a [future](std::future) event handler you can call this after each `await` to get
-    /// the context of that update.
+    /// Runs an action with an exclusive borrow to a [`WidgetContext`].
     ///
     /// ## Panics
     ///
     /// Panics if not called inside the paired [`WidgetContextMutEnv::with_ctx`]. If you got this type as an argument you
     /// should expect this method to always work, the onus of safety is on the caller.
     #[inline]
-    pub fn get(&mut self) -> &mut WidgetContext {
+    pub fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&mut WidgetContext) -> R,
+    {
         let ptr = self.ctx.get();
         if ptr.is_null() {
-            panic!("no `&mut WidgetContext` loaded in a `WidgetContextMut`");
+            panic!("no `&mut WidgetContext` loaded for `WidgetContextMut`");
         }
-        unsafe { &mut *(ptr as *mut WidgetContext) }
+        let ctx = unsafe { &mut *(ptr as *mut WidgetContext) };
+        action(ctx)
     }
 }
 

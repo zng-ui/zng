@@ -30,13 +30,13 @@ impl Tasks {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, var::{ResponseVar, response_channel}};
+    /// # use zero_ui_core::{context::WidgetContext, task::Tasks, var::{ResponseVar, response_channel}};
     /// # struct SomeStruct { sum_response: ResponseVar<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
     ///     let (sender, response) = response_channel(ctx.vars);
     ///     self.sum_response = response;
-    ///     ctx.tasks.run(move ||{
+    ///     Tasks::run(move ||{
     ///         let r = (0..1000).sum();
     ///         sender.send_response(r);
     ///     });
@@ -50,7 +50,7 @@ impl Tasks {
     /// # }
     /// ```
     #[inline]
-    pub fn run<F>(&mut self, task: F)
+    pub fn run<F>(task: F)
     where
         F: FnOnce() + Send + 'static,
     {
@@ -64,13 +64,13 @@ impl Tasks {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, var::{ResponseVar, response_channel}};
+    /// # use zero_ui_core::{context::WidgetContext, task::Tasks, var::{ResponseVar, response_channel}};
     /// # struct SomeStruct { file_response: ResponseVar<Vec<u8>> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
     ///     let (sender, response) = response_channel(ctx.vars);
     ///     self.file_response = response;
-    ///     ctx.tasks.run_fut(async move {
+    ///     Tasks::run_fut(async move {
     ///         todo!("use async_std to read a file");
     ///         let file = vec![];
     ///         sender.send_response(file);    
@@ -85,7 +85,7 @@ impl Tasks {
     /// # }
     /// ```
     #[inline]
-    pub fn run_fut<F>(&mut self, task: F)
+    pub fn run_fut<F>(task: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
@@ -98,14 +98,14 @@ impl Tasks {
     ///
     /// This is like [`run`](Tasks::run) but with an awaitable result.
     #[inline]
-    pub async fn run_async<R, T>(&mut self, task: T) -> R
+    pub async fn run_async<R, T>(task: T) -> R
     where
         R: Send + 'static,
         T: FnOnce() -> R + Send + 'static,
     {
         let (sender, receiver) = flume::bounded(1);
 
-        self.run(move || {
+        Tasks::run(move || {
             let r = task();
             let _ = sender.send(r);
         });
@@ -117,14 +117,14 @@ impl Tasks {
     ///
     /// This is like [`run`](Tasks::run) but with a response var result.
     #[inline]
-    pub fn run_respond<R, F>(&mut self, vars: &Vars, task: F) -> ResponseVar<R>
+    pub fn run_respond<R, F>(vars: &Vars, task: F) -> ResponseVar<R>
     where
         R: VarValue + Send + 'static,
         F: FnOnce() -> R + Send + 'static,
     {
         let (sender, response) = response_channel(vars);
 
-        self.run(move || {
+        Tasks::run(move || {
             let r = task();
             let _ = sender.send_response(r);
         });
@@ -137,7 +137,7 @@ impl Tasks {
     ///
     /// This is like [`run_async`](Tasks::run_async) but with an awaitable result.
     #[inline]
-    pub async fn run_fut_async<R, F>(&mut self, task: F) -> R
+    pub async fn run_fut_async<R, F>(task: F) -> R
     where
         R: Send + 'static,
         F: Future<Output = R> + Send + 'static,
@@ -150,14 +150,14 @@ impl Tasks {
     ///
     /// This is like [`run_async`](Tasks::run_async) but with a response var result.
     #[inline]
-    pub fn run_fut_respond<R, F>(&mut self, vars: &Vars, task: F) -> ResponseVar<R>
+    pub fn run_fut_respond<R, F>(vars: &Vars, task: F) -> ResponseVar<R>
     where
         R: VarValue + Send + 'static,
         F: Future<Output = R> + Send + 'static,
     {
         let (sender, response) = response_channel(vars);
 
-        self.run_fut(async move {
+        Tasks::run_fut(async move {
             let r = task.await;
             let _ = sender.send_response(r);
         });

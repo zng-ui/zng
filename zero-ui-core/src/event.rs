@@ -1387,7 +1387,7 @@ macro_rules! __event_property {
         /// # Async Handlers
         ///
         /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-        /// runs during UI updates, they are asynchronous but not parallel, you can use `ctx.get().tasks` to run CPU intensive
+        /// runs during UI updates, they are asynchronous but not parallel, you can use `Tasks` to run CPU intensive
         /// work in parallel and await for the result in the handler. See [`on_event_async`](zero_ui::core::event::on_event_async)
         /// for more details.
         #[$crate::property(event, default(|_, _| { std::future::ready(()) }))]
@@ -1408,7 +1408,7 @@ macro_rules! __event_property {
         /// # Async Handlers
         ///
         /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-        /// runs during UI updates, they are asynchronous but not parallel, you can use `ctx.get().tasks` to run CPU intensive
+        /// runs during UI updates, they are asynchronous but not parallel, you can use `Tasks` to run CPU intensive
         /// work in parallel and await for the result in the handler. See [`on_pre_event_async`](zero_ui::core::event::on_pre_event_async)
         /// for more details.
         ///
