@@ -1289,58 +1289,6 @@ impl<'a> WidgetContext<'a> {
     }
 }
 
-/// Represents a *contextual* reference to [`WidgetContext`].
-///
-/// This type exist to provide access to a [`WidgetContext`] inside [`UiTask`](crate::task::UiTask) futures.
-/// Every time the task updates the executor must load an widget context using the paired [`WidgetContextMutEnv`]
-/// to provide the context for that update.
-pub struct WidgetContextMut {
-    ctx: Rc<Cell<*mut ()>>,
-}
-impl WidgetContextMut {
-    /// Runs an action with an exclusive borrow to a [`WidgetContext`].
-    ///
-    /// ## Panics
-    ///
-    /// Panics if not called inside the paired [`WidgetContextMutEnv::with_ctx`]. If you got this type as an argument you
-    /// should expect this method to always work, the onus of safety is on the caller.
-    #[inline]
-    pub fn with<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&mut WidgetContext) -> R,
-    {
-        let ptr = self.ctx.get();
-        if ptr.is_null() {
-            panic!("no `&mut WidgetContext` loaded for `WidgetContextMut`");
-        }
-        let ctx = unsafe { &mut *(ptr as *mut WidgetContext) };
-        action(ctx)
-    }
-}
-
-/// Pair of [`WidgetContextMut`] that can setup its reference.
-pub struct WidgetContextMutEnv {
-    ctx: Rc<Cell<*mut ()>>,
-}
-impl WidgetContextMutEnv {
-    /// Create a new [`WidgetContextMutEnv`], [`WidgetContextMut`] pair.
-    pub fn new() -> (WidgetContextMutEnv, WidgetContextMut) {
-        let ctx = Rc::new(Cell::new(ptr::null_mut()));
-
-        (WidgetContextMutEnv { ctx: Rc::clone(&ctx) }, WidgetContextMut { ctx })
-    }
-
-    /// Runs `action` while the paired [`WidgetContextMut`] points to `ctx`.
-    pub fn with_ctx<R, F>(&mut self, ctx: &mut WidgetContext, action: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        self.ctx.set(ctx as *mut WidgetContext as *mut ());
-        let _r = RunOnDrop::new(|| self.ctx.set(ptr::null_mut()));
-        action()
-    }
-}
-
 /// Current widget context path.
 pub struct WidgetContextPath {
     window_id: WindowId,
@@ -1572,3 +1520,62 @@ impl fmt::Display for AlreadyRegistered {
     }
 }
 impl std::error::Error for AlreadyRegistered {}
+
+macro_rules! contextual_ctx {
+    ($($Context:ident),+ $(,)?) => {$(paste::paste! {
+
+#[doc = " Represents a *contextual* reference to [`" $Context "`]."]
+///
+#[doc = "This type exist to provide access to a [`" $Context "`] inside [`UiTask`](crate::task::UiTask) futures."]
+#[doc = "Every time the task updates the executor must load an widget context using the paired [`" $Context "Scope`]"]
+/// to provide the context for that update.
+pub struct [<$Context Mut>] {
+    ctx: Rc<Cell<*mut ()>>,
+}
+impl [<$Context Mut>] {
+    #[doc = "Runs an action with the *contextual* exclusive borrow to a [`"$Context"`]."]
+    ///
+    /// ## Panics
+    ///
+    #[doc = "Panics if not called inside the paired [`"$Context"Scope::with_ctx`]. You"]
+    /// should expect this method to always work, the onus of safety is on the caller.
+    #[inline]
+    pub fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&mut $Context) -> R,
+    {
+        let ptr = self.ctx.get();
+        if ptr.is_null() {
+            panic!("no `&mut {0}` loaded for `{0}Mut`", stringify!($Context));
+        }
+        let ctx = unsafe { &mut *(ptr as *mut $Context) };
+        action(ctx)
+    }
+}
+
+#[doc = "Pair of [`"$Context"Mut`] that can setup its reference."]
+pub struct [<$Context Scope>] {
+    ctx: Rc<Cell<*mut ()>>,
+}
+impl [<$Context Scope>] {
+    #[doc = "Create a new [`"$Context"Scope`], [`"$Context"Mut`] pair."]
+    pub fn new() -> (Self, [<$Context Mut>]) {
+        let ctx = Rc::new(Cell::new(ptr::null_mut()));
+
+        (Self { ctx: Rc::clone(&ctx) }, [<$Context Mut>] { ctx })
+    }
+
+    #[doc = "Runs `action` while the paired [`"$Context"Mut`] points to `ctx`."]
+    pub fn with_ctx<R, F>(&self, ctx: &mut $Context, action: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        self.ctx.set(ctx as *mut $Context as *mut ());
+        let _r = RunOnDrop::new(|| self.ctx.set(ptr::null_mut()));
+        action()
+    }
+}
+
+    })+};
+}
+contextual_ctx!(AppContext, WindowContext, WidgetContext);

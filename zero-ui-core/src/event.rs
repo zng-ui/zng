@@ -4,8 +4,8 @@ use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShutdown};
-use crate::context::{AppContext, Updates, WidgetContext, WidgetContextMut, WidgetContextMutEnv};
-use crate::task::UiTask;
+use crate::context::{AppContext, Updates, WidgetContext, WidgetContextMut};
+use crate::task::WidgetTask;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
 use std::cell::{Cell, RefCell};
@@ -1239,23 +1239,12 @@ where
     }
 }
 
-struct AsyncEventTask {
-    ctx: WidgetContextMutEnv,
-    task: UiTask<()>,
-}
-impl AsyncEventTask {
-    fn update(&mut self, ctx: &mut WidgetContext) -> Retain {
-        let task = &mut self.task;
-        self.ctx.with_ctx(ctx, || task.update().is_none())
-    }
-}
-
 struct OnEventAsyncNode<C, E, F, H> {
     child: C,
     _event: PhantomData<E>,
     filter: F,
     handler: H,
-    tasks: Vec<AsyncEventTask>,
+    tasks: Vec<WidgetTask<()>>,
 }
 #[impl_ui_node(child)]
 impl<C, E, F, R, H> UiNode for OnEventAsyncNode<C, E, F, H>
@@ -1271,14 +1260,9 @@ where
             self.child.event(ctx, args);
 
             if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                let (outer_ctx, inner_ctx) = WidgetContextMutEnv::new();
-                let t = (self.handler)(inner_ctx, args.clone());
-                let mut t = AsyncEventTask {
-                    ctx: outer_ctx,
-                    task: ctx.tasks.ui_task(t),
-                };
-                if t.update(ctx) {
-                    self.tasks.push(t);
+                let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, args.clone()));
+                if task.update(ctx).is_none() {
+                    self.tasks.push(task);
                 }
             }
         } else {
@@ -1289,7 +1273,7 @@ where
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        self.tasks.retain_mut(|t| t.update(ctx));
+        self.tasks.retain_mut(|t| t.update(ctx).is_none());
     }
 }
 
@@ -1298,7 +1282,7 @@ struct OnPreviewEventAsyncNode<C, E, F, H> {
     _event: PhantomData<E>,
     filter: F,
     handler: H,
-    tasks: Vec<AsyncEventTask>,
+    tasks: Vec<WidgetTask<()>>,
 }
 #[impl_ui_node(child)]
 impl<C, E, F, R, H> UiNode for OnPreviewEventAsyncNode<C, E, F, H>
@@ -1312,14 +1296,9 @@ where
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
         if let Some(args) = E::update(args) {
             if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                let (outer_ctx, inner_ctx) = WidgetContextMutEnv::new();
-                let t = (self.handler)(inner_ctx, args.clone());
-                let mut t = AsyncEventTask {
-                    ctx: outer_ctx,
-                    task: ctx.tasks.ui_task(t),
-                };
-                if t.update(ctx) {
-                    self.tasks.push(t);
+                let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, args.clone()));
+                if task.update(ctx).is_none() {
+                    self.tasks.push(task);
                 }
             }
 
@@ -1330,7 +1309,7 @@ where
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        self.tasks.retain_mut(|t| t.update(ctx));
+        self.tasks.retain_mut(|t| t.update(ctx).is_none());
 
         self.child.update(ctx);
     }

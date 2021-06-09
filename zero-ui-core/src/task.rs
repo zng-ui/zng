@@ -11,6 +11,7 @@ use std::{
 
 use crate::{
     app::EventLoopProxySync,
+    context::*,
     var::{response_channel, ResponseVar, VarValue, Vars},
 };
 
@@ -164,7 +165,9 @@ impl Tasks {
 
         response
     }
+}
 
+impl Tasks {
     /// Create a app thread bound future executor.
     ///
     /// The `task` is inert and must be polled using [`UiTask::update`] to start, and it must be polled every
@@ -176,9 +179,66 @@ impl Tasks {
     {
         UiTask::new(task, self.event_loop.clone())
     }
+
+    /// Create an app thread bound future executor that executes in the context of a widget.
+    ///
+    /// The `task` closure is called immediately with the [`WidgetContextMut`] that is paired with the task, it
+    /// should return the task future `F` in an inert state. Calls to [`WidgetTask::update`] exclusive borrow a
+    /// [`WidgetContext`] that is made available inside `F` using the [`WidgetContextMut::with`] method.
+    pub fn widget_task<R, F, T>(&mut self, task: T) -> WidgetTask<R>
+    where
+        R: 'static,
+        F: Future<Output = R> + 'static,
+        T: FnOnce(WidgetContextMut) -> F,
+    {
+        let (scope, mut_) = WidgetContextScope::new();
+
+        WidgetTask {
+            task: self.ui_task(task(mut_)),
+            scope,
+        }
+    }
+
+    /// Create an app thread bound future executor that executes in the context of a window.
+    ///
+    /// The `task` closure is called immediately with the [`WindowContextMut`] that is paired with the task, it
+    /// should return the task future `F` in an inert state. Calls to [`WindowTask::update`] exclusive borrow a
+    /// [`WindowContext`] that is made available inside `F` using the [`WindowContextMut::with`] method.
+    pub fn window_task<R, F, T>(&mut self, task: T) -> WindowTask<R>
+    where
+        R: 'static,
+        F: Future<Output = R> + 'static,
+        T: FnOnce(WindowContextMut) -> F,
+    {
+        let (scope, mut_) = WindowContextScope::new();
+
+        WindowTask {
+            task: self.ui_task(task(mut_)),
+            scope,
+        }
+    }
+
+    /// Create an app thread bound future executor that executes in the app context.
+    ///
+    /// The `task` closure is called immediately with the [`AppContextMut`] that is paired with the task, it
+    /// should return the task future `F` in an inert state. Calls to [`AppTask::update`] exclusive borrow the
+    /// [`AppContext`] that is made available inside `F` using the [`AppContextMut::with`] method.
+    pub fn app_task<R, F, T>(&mut self, task: T) -> AppTask<R>
+    where
+        R: 'static,
+        F: Future<Output = R> + 'static,
+        T: FnOnce(AppContextMut) -> F,
+    {
+        let (scope, mut_) = AppContextScope::new();
+
+        AppTask {
+            task: self.ui_task(task(mut_)),
+            scope,
+        }
+    }
 }
 
-/// Represents a [`Future`] running in the UI thread in the context of a widget.
+/// Represents a [`Future`] running in the UI thread.
 ///
 /// The future [`Waker`](std::task::Waker), wakes the app event loop and causes an update, in a update handler
 /// [`update`](UiTask::update) must be called, if this task waked the app the future is polled once.
@@ -226,9 +286,111 @@ impl<R> UiTask<R> {
     /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
     /// then call this method to take ownership of the result.
     #[inline]
-    pub fn into_result(self) -> Result<R, UiTask<R>> {
+    pub fn into_result(self) -> Result<R, Self> {
         if self.result.is_some() {
             Ok(self.result.unwrap())
+        } else {
+            Err(self)
+        }
+    }
+}
+
+/// Represents a [`Future`] running in the UI thread in a widget context.
+///
+/// The future [`Waker`](std::task::Waker), wakes the app event loop and causes an update, the widget that is running this task
+/// calls [`update`](Self::update) and if this task waked the app the future is polled once.
+///
+/// Use the [`Tasks::widget_task`] method to create a widget task.
+pub struct WidgetTask<R> {
+    task: UiTask<R>,
+    scope: WidgetContextScope,
+}
+impl<R> WidgetTask<R> {
+    /// Polls the future if needed, returns a reference to the result if the task is done.
+    ///
+    /// This does not poll the future if the task is done, it also only polls the future if it requested poll.
+    #[inline]
+    pub fn update(&mut self, ctx: &mut WidgetContext) -> Option<&R> {
+        let task = &mut self.task;
+        self.scope.with_ctx(ctx, move || task.update())
+    }
+
+    /// Returns the result if the task is completed.
+    ///
+    /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
+    /// then call this method to take ownership of the result.
+    #[inline]
+    pub fn into_result(self) -> Result<R, Self> {
+        if self.task.result.is_some() {
+            Ok(self.task.result.unwrap())
+        } else {
+            Err(self)
+        }
+    }
+}
+
+/// Represents a [`Future`] running in the UI thread in a window context.
+///
+/// The future [`Waker`](std::task::Waker), wakes the app event loop and causes an update, the window that is running this task
+/// calls [`update`](Self::update) and if this task waked the app the future is polled once.
+///
+/// Use the [`Tasks::window_task`] method to create a window task.
+pub struct WindowTask<R> {
+    task: UiTask<R>,
+    scope: WindowContextScope,
+}
+impl<R> WindowTask<R> {
+    /// Polls the future if needed, returns a reference to the result if the task is done.
+    ///
+    /// This does not poll the future if the task is done, it also only polls the future if it requested poll.
+    #[inline]
+    pub fn update(&mut self, ctx: &mut WindowContext) -> Option<&R> {
+        let task = &mut self.task;
+        self.scope.with_ctx(ctx, move || task.update())
+    }
+
+    /// Returns the result if the task is completed.
+    ///
+    /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
+    /// then call this method to take ownership of the result.
+    #[inline]
+    pub fn into_result(self) -> Result<R, Self> {
+        if self.task.result.is_some() {
+            Ok(self.task.result.unwrap())
+        } else {
+            Err(self)
+        }
+    }
+}
+
+/// Represents a [`Future`] running in the UI thread in the app context.
+///
+/// The future [`Waker`](std::task::Waker), wakes the app event loop and causes an update, a update handler
+/// then calls [`update`](Self::update) and if this task waked the app the future is polled once.
+///
+/// Use the [`Tasks::app_task`] method to create an app task.
+pub struct AppTask<R> {
+    task: UiTask<R>,
+    scope: AppContextScope,
+}
+impl<R> AppTask<R> {
+    /// Polls the future if needed, returns a reference to the result if the task is done.
+    ///
+    /// This does not poll the future if the task is done, it also only polls the future if it requested poll.
+    #[inline]
+    pub fn update(&mut self, ctx: &mut AppContext) -> Option<&R> {
+        let task = &mut self.task;
+        self.scope.with_ctx(ctx, move || task.update())
+    }
+
+    /// Returns the result if the task is completed.
+    ///
+    /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
+    /// then call this method to take ownership of the result.
+    #[inline]
+    pub fn into_result(self) -> Result<R, Self> {
+        if self.task.result.is_some() {
+            Ok(self.task.result.unwrap())
         } else {
             Err(self)
         }
