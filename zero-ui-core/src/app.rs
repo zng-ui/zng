@@ -876,6 +876,14 @@ impl<E: AppExtension> AppExtended<E> {
         app.run_headed(event_loop)
     }
 
+    pub fn run_async<F, S>(self, start: S) -> !
+    where
+        F: Future<Output = ()> + 'static,
+        S: FnOnce(AppContextMut) -> F,
+    {
+        todo!()
+    }
+
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
     ///
     /// # Tests

@@ -4,7 +4,7 @@ use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShutdown};
-use crate::context::{AppContext, Updates, WidgetContext, WidgetContextMut};
+use crate::context::{AppContext, AppContextMut, Updates, WidgetContext, WidgetContextMut};
 use crate::task::WidgetTask;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
@@ -735,6 +735,15 @@ impl Events {
         Self::push_event_handler::<E, H>(&mut self.pre_handlers, handler)
     }
 
+    pub fn on_pre_event_async<E, F, H>(&mut self, handler: H) -> OnEventHandle
+    where
+        E: Event,
+        F: Future<Output = ()> + 'static,
+        H: FnMut(AppContextMut, E::Args) -> F + 'static,
+    {
+        todo!()
+    }
+
     /// Creates an event handler.
     ///
     /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
@@ -766,6 +775,15 @@ impl Events {
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
     {
         Self::push_event_handler::<E, H>(&mut self.pos_handlers, handler)
+    }
+
+    pub fn on_event_async<E, F, H>(&mut self, handler: H) -> OnEventHandle
+    where
+        E: Event,
+        F: Future<Output = ()> + 'static,
+        H: FnMut(AppContextMut, E::Args) -> F + 'static,
+    {
+        todo!()
     }
 
     fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, mut handler: H) -> OnEventHandle
