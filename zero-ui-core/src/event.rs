@@ -15,6 +15,8 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{any::*, collections::VecDeque};
 
@@ -544,13 +546,37 @@ impl<'a, E: EventArgs> Deref for AppEventArgs<'a, E> {
     }
 }
 
+/// Event arguments for an [`on_event_async`](Events::on_event_async) or [`on_pre_event_async`](Events::on_event_async) handler.
+#[derive(Clone)]
+pub struct AppAsyncEventArgs<E: EventArgs> {
+    /// The actual event arguments, this `struct` dereferences to this value.
+    pub args: E,
+    unsubscribe: std::sync::Weak<OnEventHandleData>,
+}
+impl<E: EventArgs> AppAsyncEventArgs<E> {
+    /// Flags the event handler and any running async tasks for dropping.
+    #[inline]
+    pub fn unsubscribe(&self) {
+        if let Some(handle) = self.unsubscribe.upgrade() {
+            handle.unsubscribe.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+impl<E: EventArgs> Deref for AppAsyncEventArgs<E> {
+    type Target = E;
+
+    fn deref(&self) -> &Self::Target {
+        &self.args
+    }
+}
+
 /// Represents an app context event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
 ///
 /// Drop all clones of this handle to drop the handler, or call [`forget`](Self::forget) to drop the handle
 /// without dropping the handler.
 #[derive(Clone)]
 #[must_use = "the event handler unsubscribes if the handle is dropped"]
-pub struct OnEventHandle(Rc<OnEventHandleData>);
+pub struct OnEventHandle(Arc<OnEventHandleData>);
 impl OnEventHandle {
     /// Drops the handle but does **not** drop the handler closure.
     ///
@@ -558,11 +584,34 @@ impl OnEventHandle {
     /// memory is released immediately and the handler memory is released when application shuts-down.
     #[inline]
     pub fn forget(self) {
-        self.0.forget.set(true);
+        self.0.forget.store(true, Ordering::Relaxed);
+    }
+
+    /// Drops the handle and flags the handler closure to drop even if there are other handles alive.
+    #[inline]
+    pub fn unsubscribe(self) {
+        self.0.unsubscribe.store(true, Ordering::Relaxed);
+    }
+
+    fn retain(&self, min_count: usize) -> bool {
+        self.0.retain(min_count)
+    }
+
+    fn new() -> Self {
+        OnEventHandle(Arc::new(OnEventHandleData {
+            forget: AtomicBool::new(false),
+            unsubscribe: AtomicBool::new(false),
+        }))
     }
 }
 struct OnEventHandleData {
-    forget: Cell<bool>,
+    forget: AtomicBool,
+    unsubscribe: AtomicBool,
+}
+impl OnEventHandleData {
+    fn retain(self: &Arc<Self>, min_count: usize) -> bool {
+        !self.unsubscribe.load(Ordering::Relaxed) && (self.forget.load(Ordering::Relaxed) || Arc::strong_count(self) > min_count)
+    }
 }
 
 thread_singleton!(SingletonEvents);
@@ -717,7 +766,7 @@ impl Events {
     /// # use zero_ui_core::event::*;
     /// # use zero_ui_core::focus::FocusChangedEvent;
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handle = ctx.events.on_pre_event::<FocusChangedEvent, _>(|_ctx, args| {
+    /// let handle = ctx.events.on_pre_event(FocusChangedEvent, |_ctx, args| {
     ///     println!("focused: {:?}", args.new_focus);
     /// });
     /// # }
@@ -727,7 +776,7 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_pre_event<E, H>(&mut self, handler: H) -> OnEventHandle
+    pub fn on_pre_event<E, H>(&mut self, _: E, handler: H) -> OnEventHandle
     where
         E: Event,
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
@@ -735,13 +784,21 @@ impl Events {
         Self::push_event_handler::<E, H>(&mut self.pre_handlers, handler)
     }
 
+    /// Creates an async preview event handler.
+    ///
+    /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
+    /// The handler is called before UI handlers and [`on_event`](Self::on_event) handlers, it is called after all previous registered
+    /// preview handlers. Only the code up to the first `await` is executed immediately the code afterwards is executed in app updates.
+    ///
+    /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`AppEventArgs::unsubscribe`]. Unsubscribe using the handle also cancels running async tasks.
     pub fn on_pre_event_async<E, F, H>(&mut self, handler: H) -> OnEventHandle
     where
         E: Event,
         F: Future<Output = ()> + 'static,
-        H: FnMut(AppContextMut, E::Args) -> F + 'static,
+        H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
     {
-        todo!()
+        Self::push_async_event_handler::<E, F, H>(&mut self.pre_handlers, handler)
     }
 
     /// Creates an event handler.
@@ -759,7 +816,7 @@ impl Events {
     /// # use zero_ui_core::event::*;
     /// # use zero_ui_core::focus::FocusChangedEvent;
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handle = ctx.events.on_event::<FocusChangedEvent, _>(|_ctx, args| {
+    /// let handle = ctx.events.on_event(FocusChangedEvent, |_ctx, args| {
     ///     println!("focused: {:?}", args.new_focus);
     /// });
     /// # }
@@ -769,7 +826,7 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_event<E, H>(&mut self, handler: H) -> OnEventHandle
+    pub fn on_event<E, H>(&mut self, _: E, handler: H) -> OnEventHandle
     where
         E: Event,
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
@@ -777,13 +834,21 @@ impl Events {
         Self::push_event_handler::<E, H>(&mut self.pos_handlers, handler)
     }
 
-    pub fn on_event_async<E, F, H>(&mut self, handler: H) -> OnEventHandle
+    /// Creates an async event handler.
+    ///
+    /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
+    /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
+    /// registered before this one. Only the code up to the first `await` is executed immediately the code afterwards is executed in app updates.
+    ///
+    /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`AppEventArgs::unsubscribe`]. Unsubscribe using the handle also cancels running async tasks.
+    pub fn on_event_async<E, F, H>(&mut self, _: E, handler: H) -> OnEventHandle
     where
         E: Event,
         F: Future<Output = ()> + 'static,
-        H: FnMut(AppContextMut, E::Args) -> F + 'static,
+        H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
     {
-        todo!()
+        Self::push_async_event_handler::<E, F, H>(&mut self.pos_handlers, handler)
     }
 
     fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, mut handler: H) -> OnEventHandle
@@ -791,7 +856,7 @@ impl Events {
         E: Event,
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
     {
-        let handle = OnEventHandle(Rc::new(OnEventHandleData { forget: Cell::new(false) }));
+        let handle = OnEventHandle::new();
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
             let mut retain = true;
             if let Some(args) = E::update(args) {
@@ -802,6 +867,72 @@ impl Events {
                     };
                     handler(ctx, &args);
                     retain = !args.unsubscribe.get();
+                }
+            }
+            retain
+        };
+        handlers.push(OnEventHandler {
+            handle: handle.clone(),
+            handler: Box::new(handler),
+        });
+        handle
+    }
+
+    fn push_async_event_handler<E, F, H>(handlers: &mut Vec<OnEventHandler>, mut handler: H) -> OnEventHandle
+    where
+        E: Event,
+        F: Future<Output = ()> + 'static,
+        H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
+    {
+        let handle = OnEventHandle::new();
+        let weak_handle = Arc::downgrade(&handle.0);
+        let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
+            let mut retain = true;
+            if let Some(args) = E::update(args) {
+                if !args.stop_propagation_requested() {
+                    // event matches, will notify causing an async task to start.
+
+                    let args = AppAsyncEventArgs {
+                        args: args.clone(),
+                        unsubscribe: weak_handle.clone(),
+                    };
+                    let call = &mut handler;
+                    let mut task = ctx.tasks.app_task(move |ctx| call(ctx, args));
+
+                    if task.update(ctx).is_none() {
+                        // executed the task up to the first `.await` and it did not complete.
+
+                        // check if unsubscribe was requested.
+                        if let Some(handle) = weak_handle.upgrade() {
+                            retain = handle.retain(2);
+                        } else {
+                            retain = false;
+                        }
+                        if retain {
+                            // did not unsubscribe, schedule an `on_pre_update` handler to execute the task.
+
+                            let weak_handle = weak_handle.clone();
+                            ctx.updates
+                                .on_pre_update(move |ctx, args| {
+                                    // check if the event unsubscribe was requested.
+                                    if let Some(handle) = weak_handle.upgrade() {
+                                        if handle.retain(2) {
+                                            // task still active, do update.
+                                            if task.update(ctx).is_none() && handle.retain(2) {
+                                                // task updated and did not request event unsubscribe.
+                                                return;
+                                            }
+                                        }
+                                    }
+
+                                    // unsubscribe the task executor.
+                                    // can be a cancel if the event unsubscribed
+                                    // or can be because the task is finished.
+                                    args.unsubscribe();
+                                })
+                                .forget();
+                        }
+                    }
                 }
             }
             retain
@@ -841,7 +972,7 @@ impl Events {
 
     fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, args: &BoxedEventUpdate) {
         handlers.retain_mut(|e| {
-            let mut retain = e.handle.0.forget.get() || Rc::strong_count(&e.handle.0) > 1;
+            let mut retain = e.handle.retain(1);
             if retain {
                 retain = (e.handler)(ctx, args);
             }
@@ -1204,135 +1335,6 @@ pub use crate::event;
 
 /* Event Property */
 
-struct OnEventNode<C, E, F, H> {
-    child: C,
-    _event: PhantomData<E>,
-    filter: F,
-    handler: H,
-}
-#[impl_ui_node(child)]
-impl<C, E, F, H> UiNode for OnEventNode<C, E, F, H>
-where
-    C: UiNode,
-    E: Event,
-    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-    H: FnMut(&mut WidgetContext, &E::Args) + 'static,
-{
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-        if let Some(args) = E::update(args) {
-            self.child.event(ctx, args);
-
-            if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                (self.handler)(ctx, args);
-            }
-        } else {
-            self.child.event(ctx, args);
-        }
-    }
-}
-
-struct OnPreviewEventNode<C, E, F, H> {
-    child: C,
-    _event: PhantomData<E>,
-    filter: F,
-    handler: H,
-}
-#[impl_ui_node(child)]
-impl<C, E, F, H> UiNode for OnPreviewEventNode<C, E, F, H>
-where
-    C: UiNode,
-    E: Event,
-    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-    H: FnMut(&mut WidgetContext, &E::Args) + 'static,
-{
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-        if let Some(args) = E::update(args) {
-            if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                (self.handler)(ctx, args);
-            }
-            self.child.event(ctx, args);
-        } else {
-            self.child.event(ctx, args);
-        }
-    }
-}
-
-struct OnEventAsyncNode<C, E, F, H> {
-    child: C,
-    _event: PhantomData<E>,
-    filter: F,
-    handler: H,
-    tasks: Vec<WidgetTask<()>>,
-}
-#[impl_ui_node(child)]
-impl<C, E, F, R, H> UiNode for OnEventAsyncNode<C, E, F, H>
-where
-    C: UiNode,
-    E: Event,
-    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-    R: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
-{
-    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-        if let Some(args) = E::update(args) {
-            self.child.event(ctx, args);
-
-            if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, args.clone()));
-                if task.update(ctx).is_none() {
-                    self.tasks.push(task);
-                }
-            }
-        } else {
-            self.child.event(ctx, args);
-        }
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
-
-        self.tasks.retain_mut(|t| t.update(ctx).is_none());
-    }
-}
-
-struct OnPreviewEventAsyncNode<C, E, F, H> {
-    child: C,
-    _event: PhantomData<E>,
-    filter: F,
-    handler: H,
-    tasks: Vec<WidgetTask<()>>,
-}
-#[impl_ui_node(child)]
-impl<C, E, F, R, H> UiNode for OnPreviewEventAsyncNode<C, E, F, H>
-where
-    C: UiNode,
-    E: Event,
-    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-    R: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
-{
-    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-        if let Some(args) = E::update(args) {
-            if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, args.clone()));
-                if task.update(ctx).is_none() {
-                    self.tasks.push(task);
-                }
-            }
-
-            self.child.event(ctx, args);
-        } else {
-            self.child.event(ctx, args);
-        }
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.tasks.retain_mut(|t| t.update(ctx).is_none());
-
-        self.child.update(ctx);
-    }
-}
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __event_property {
@@ -1384,9 +1386,13 @@ macro_rules! __event_property {
         /// # Async Handlers
         ///
         /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-        /// runs during UI updates, they are asynchronous but not parallel, you can use `Tasks` to run CPU intensive
-        /// work in parallel and await for the result in the handler. See [`on_event_async`](zero_ui::core::event::on_event_async)
-        /// for more details.
+        /// runs during updates of the widget they are bound too, if the widget does not update the task does not advance and
+        /// if the widget is dropped the task is canceled (dropped).
+        ///
+        /// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
+        /// to run CPU intensive work in parallel and await for the result in the handler.
+        ///
+        /// See [`on_event_async`](zero_ui::core::event::on_event_async) for more details.
         #[$crate::property(event, default(|_, _| { std::future::ready(()) }))]
         $vis fn [<on_ $event _async>]<C, F, H>(
             child: C,
@@ -1405,9 +1411,13 @@ macro_rules! __event_property {
         /// # Async Handlers
         ///
         /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-        /// runs during UI updates, they are asynchronous but not parallel, you can use `Tasks` to run CPU intensive
-        /// work in parallel and await for the result in the handler. See [`on_pre_event_async`](zero_ui::core::event::on_pre_event_async)
-        /// for more details.
+        /// runs during updates of the widget they are bound too, if the widget does not update the task does not advance and
+        /// if the widget is dropped the task is canceled (dropped).
+        ///
+        /// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
+        /// to run CPU intensive work in parallel and await for the result in the handler.
+        ///
+        /// See [`on_event_async`](zero_ui::core::event::on_event_async) for more details.
         ///
         /// ## Async Preview
         ///
@@ -1535,6 +1545,32 @@ where
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     H: FnMut(&mut WidgetContext, &E::Args) + 'static,
 {
+    struct OnEventNode<C, E, F, H> {
+        child: C,
+        _event: PhantomData<E>,
+        filter: F,
+        handler: H,
+    }
+    #[impl_ui_node(child)]
+    impl<C, E, F, H> UiNode for OnEventNode<C, E, F, H>
+    where
+        C: UiNode,
+        E: Event,
+        F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+        H: FnMut(&mut WidgetContext, &E::Args) + 'static,
+    {
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+            if let Some(args) = E::update(args) {
+                self.child.event(ctx, args);
+
+                if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                    (self.handler)(ctx, args);
+                }
+            } else {
+                self.child.event(ctx, args);
+            }
+        }
+    }
     OnEventNode {
         child,
         _event: PhantomData::<E>,
@@ -1564,6 +1600,31 @@ where
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     H: FnMut(&mut WidgetContext, &E::Args) + 'static,
 {
+    struct OnPreviewEventNode<C, E, F, H> {
+        child: C,
+        _event: PhantomData<E>,
+        filter: F,
+        handler: H,
+    }
+    #[impl_ui_node(child)]
+    impl<C, E, F, H> UiNode for OnPreviewEventNode<C, E, F, H>
+    where
+        C: UiNode,
+        E: Event,
+        F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+        H: FnMut(&mut WidgetContext, &E::Args) + 'static,
+    {
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+            if let Some(args) = E::update(args) {
+                if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                    (self.handler)(ctx, args);
+                }
+                self.child.event(ctx, args);
+            } else {
+                self.child.event(ctx, args);
+            }
+        }
+    }
     OnPreviewEventNode {
         child,
         _event: PhantomData::<E>,
@@ -1596,6 +1657,43 @@ where
     R: Future<Output = ()> + 'static,
     H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
 {
+    struct OnEventAsyncNode<C, E, F, H> {
+        child: C,
+        _event: PhantomData<E>,
+        filter: F,
+        handler: H,
+        tasks: Vec<WidgetTask<()>>,
+    }
+    #[impl_ui_node(child)]
+    impl<C, E, F, R, H> UiNode for OnEventAsyncNode<C, E, F, H>
+    where
+        C: UiNode,
+        E: Event,
+        F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+        R: Future<Output = ()> + 'static,
+        H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
+    {
+        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            if let Some(args) = E::update(args) {
+                self.child.event(ctx, args);
+
+                if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                    let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, args.clone()));
+                    if task.update(ctx).is_none() {
+                        self.tasks.push(task);
+                    }
+                }
+            } else {
+                self.child.event(ctx, args);
+            }
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            self.tasks.retain_mut(|t| t.update(ctx).is_none());
+        }
+    }
     OnEventAsyncNode {
         child,
         _event: PhantomData::<E>,
@@ -1629,7 +1727,45 @@ where
     R: Future<Output = ()> + 'static,
     H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
 {
-    OnEventAsyncNode {
+    struct OnPreviewEventAsyncNode<C, E, F, H> {
+        child: C,
+        _event: PhantomData<E>,
+        filter: F,
+        handler: H,
+        tasks: Vec<WidgetTask<()>>,
+    }
+    #[impl_ui_node(child)]
+    impl<C, E, F, R, H> UiNode for OnPreviewEventAsyncNode<C, E, F, H>
+    where
+        C: UiNode,
+        E: Event,
+        F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+        R: Future<Output = ()> + 'static,
+        H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
+    {
+        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            if let Some(args) = E::update(args) {
+                if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                    let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, args.clone()));
+                    if task.update(ctx).is_none() {
+                        self.tasks.push(task);
+                    }
+                }
+
+                self.child.event(ctx, args);
+            } else {
+                self.child.event(ctx, args);
+            }
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.tasks.retain_mut(|t| t.update(ctx).is_none());
+
+            self.child.update(ctx);
+        }
+    }
+
+    OnPreviewEventAsyncNode {
         child,
         _event: PhantomData::<E>,
         filter,

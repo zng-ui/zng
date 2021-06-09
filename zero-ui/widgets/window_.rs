@@ -2,6 +2,7 @@ use crate::core::focus::*;
 use crate::core::gesture::*;
 use crate::core::window::{HeadlessScreen, RedrawArgs, StartPosition, Window};
 use crate::prelude::new_widget::*;
+use crate::properties::events::window::*;
 
 /// A window container.
 ///
@@ -218,6 +219,17 @@ pub mod window {
         #[allowed_in_when = false]
         kiosk(bool) = false;
 
+        /// Event just after the window opens.
+        ///
+        /// This event notifies once per window, after the window content is inited and the first frame is rendered.
+        ///
+        /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
+        on_pre_window_open as on_open;
+        /// Async [`on_open`](#wp-on_open).
+        ///
+        /// This property is the [`on_pre_window_open_async`](fn@on_pre_window_open_async) so window handlers see it first.
+        on_pre_window_open_async as on_open_async;
+
         /// Event just before the window frame is redraw.
         #[allowed_in_when = false]
         on_pre_redraw(impl FnMut(&mut RedrawArgs) + 'static) = |_| {};
@@ -225,6 +237,12 @@ pub mod window {
         /// Event just after the window frame is redraw.
         #[allowed_in_when = false]
         on_redraw(impl FnMut(&mut RedrawArgs) + 'static) = |_| {};
+
+        /// On window close requested.
+        ///
+        /// This event notifies every time the user or the app tries to close the window, you can call
+        /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
+        on_window_close_requested as on_close_requested;
 
         remove {
             // replaced with `root_id` to more clearly indicate that it is not the window ID.

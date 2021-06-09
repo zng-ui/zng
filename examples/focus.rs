@@ -119,7 +119,7 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widg
 
 fn trace_focus(events: &mut Events) {
     events
-        .on_pre_event::<FocusChangedEvent, _>(|ctx, args| {
+        .on_pre_event(FocusChangedEvent, |ctx, args| {
             if args.is_hightlight_changed() {
                 println!("highlight: {}", args.highlight);
             } else if args.is_widget_move() {

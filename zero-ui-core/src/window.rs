@@ -18,9 +18,7 @@ use glutin::window::WindowBuilder;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     cell::{Cell, RefCell},
-    fmt,
-    future::Future,
-    mem,
+    fmt, mem,
     rc::Rc,
     sync::Arc,
 };
@@ -142,25 +140,12 @@ pub trait AppRunWindowExt {
     /// })   
     /// ```
     fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> !;
-
-    fn run_window_async<F, N>(self, new_window: N) -> !
-    where
-        F: Future<Output = Window> + 'static,
-        N: FnOnce(WindowContextMut) -> F;
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> ! {
         self.run(|ctx| {
             ctx.services.req::<Windows>().open(new_window, None);
         })
-    }
-
-    fn run_window_async<F, N>(self, new_window: N) -> !
-    where
-        F: Future<Output = Window> + 'static,
-        N: FnOnce(WindowContextMut) -> F,
-    {
-        todo!()
     }
 }
 

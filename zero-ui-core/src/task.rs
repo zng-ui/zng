@@ -194,7 +194,7 @@ impl Tasks {
         let (scope, mut_) = WidgetContextScope::new();
 
         WidgetTask {
-            task: self.ui_task(task(mut_)),
+            task: self.ui_task(task(mut_)), // TODO, mut_ is not available here.
             scope,
         }
     }
@@ -393,6 +393,20 @@ impl<R> AppTask<R> {
             Ok(self.task.result.unwrap())
         } else {
             Err(self)
+        }
+    }
+}
+impl AppTask<()> {
+    /// Schedule the app task to run to completion.
+    pub fn run(mut self, updates: &mut Updates) {
+        if self.task.result.is_none() {
+            updates
+                .on_pre_update(move |ctx, args| {
+                    if self.update(ctx).is_some() {
+                        args.unsubscribe();
+                    }
+                })
+                .forget();
         }
     }
 }

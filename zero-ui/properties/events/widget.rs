@@ -3,7 +3,13 @@
 //! These events map very close to the [`UiNode`] methods. The event handler have non-standard signatures
 //! and the event does not respects widget [`enabled`](crate::core::widget_base::IsEnabled) status.
 
+use std::future::Future;
+
+use retain_mut::RetainMut;
+
 use zero_ui_core::context::RenderContext;
+use zero_ui_core::context::WidgetContextMut;
+use zero_ui_core::task::WidgetTask;
 
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;
@@ -12,30 +18,42 @@ use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::FrameUpdate,
 };
-
 macro_rules! widget_context_handler_events {
-    ($($Ident:ident),+) => {$(paste::paste!{
+    ($($Ident:ident),+) => {$(paste::paste! {
+        #[doc = "Arguments for the [`on_"$Ident:snake"`](fn@on_"$Ident:snake") event."]
+        #[derive(Clone, Debug, Copy)]
+        pub struct [<On $Ident Args>] {
+            /// Number of time the handler was called.
+            ///
+            /// The number is `1` for the first call.
+            pub count: usize,
+        }
+
         #[doc = "Event fired during the widget [`" $Ident:snake "`](UiNode::" $Ident:snake ")."]
         ///
         #[doc = "The `handler` is called after the [preview event](on_pre_" $Ident:snake ") and after the widget children."]
         ///
         /// The `handler` is called even when the widget is [disabled](IsEnabled).
-        #[property(event, default(|_|{}))]
-        pub fn [<on_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
+        #[property(event, default(|_, _|{}))]
+        pub fn [<on_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext, [<On $Ident Args>]) + 'static) -> impl UiNode {
             struct [<On $Ident Node>]<C, F> {
                 child: C,
                 handler: F,
+                count: usize,
             }
             #[impl_ui_node(child)]
-            impl<C: UiNode, F: FnMut(&mut WidgetContext) + 'static> UiNode for [<On $Ident Node>]<C, F> {
+            impl<C: UiNode, F: FnMut(&mut WidgetContext, [<On $Ident Args>]) + 'static> UiNode for [<On $Ident Node>]<C, F> {
                 fn [<$Ident:snake>](&mut self, ctx: &mut WidgetContext) {
                     self.child.[<$Ident:snake>](ctx);
-                    (self.handler)(ctx);
+                    self.count = self.count.wrapping_add(1);
+                    let args = [<On $Ident Args>] { count: self.count };
+                    (self.handler)(ctx, args);
                 }
             }
             [<On $Ident Node>] {
                 child,
-                handler
+                handler,
+                count: 0
             }
         }
 
@@ -44,28 +62,152 @@ macro_rules! widget_context_handler_events {
         /// The `handler` is called before the main event and before the widget children.
         ///
         /// The `handler` is called even when the widget is [disabled](IsEnabled).
-        #[property(event, default(|_|{}))]
-        pub fn [<on_pre_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
+        #[property(event, default(|_, _|{}))]
+        pub fn [<on_pre_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext, [<On $Ident Args>]) + 'static) -> impl UiNode {
             struct [<OnPreview $Ident Node>]<C, F> {
                 child: C,
                 handler: F,
+                count: usize,
             }
             #[impl_ui_node(child)]
-            impl<C: UiNode, F: FnMut(&mut WidgetContext) + 'static> UiNode for [<OnPreview $Ident Node>]<C, F> {
+            impl<C: UiNode, F: FnMut(&mut WidgetContext, [<On $Ident Args>]) + 'static> UiNode for [<OnPreview $Ident Node>]<C, F> {
                 fn [<$Ident:snake>](&mut self, ctx: &mut WidgetContext) {
-                    (self.handler)(ctx);
+                    self.count = self.count.wrapping_add(1);
+                    let args = [<On $Ident Args>] { count: self.count };
+                    (self.handler)(ctx, args);
                     self.child.[<$Ident:snake>](ctx);
                 }
             }
             [<OnPreview $Ident Node>] {
                 child,
-                handler
+                handler,
+                count: 0,
             }
         }
     })+}
 }
 widget_context_handler_events! {
     Init, Deinit, Update
+}
+
+/// Async [`on_init`] event.
+///
+/// Note that widgets can be deinited an reinited, so its possible for multiple init tasks to be running.
+///
+/// # Async Handlers
+///
+/// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
+/// runs during updates of the widget they are bound too, if the widget does not update the task does not advance and
+/// if the widget is dropped the task is canceled (dropped).
+///
+/// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
+/// to run CPU intensive work in parallel and await for the result in the handler.
+///
+/// See [`on_event_async`](zero_ui::core::event::on_event_async) for more details.
+#[property(event)]
+pub fn on_init_async<C, F, H>(child: C, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    F: Future<Output = ()> + 'static,
+    H: FnMut(WidgetContextMut, OnInitArgs) -> F + 'static,
+{
+    struct OnInitAsyncNode<C, H> {
+        child: C,
+        handler: H,
+        count: usize,
+        tasks: Vec<WidgetTask<()>>,
+    }
+    #[impl_ui_node(child)]
+    impl<C, F, H> UiNode for OnInitAsyncNode<C, H>
+    where
+        C: UiNode,
+        F: Future<Output = ()> + 'static,
+        H: FnMut(WidgetContextMut, OnInitArgs) -> F + 'static,
+    {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+
+            self.count = self.count.wrapping_add(1);
+
+            let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, OnInitArgs { count: self.count }));
+            if task.update(ctx).is_none() {
+                self.tasks.push(task);
+            }
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            self.tasks.retain_mut(|t| t.update(ctx).is_none());
+        }
+    }
+    OnInitAsyncNode {
+        child,
+        handler,
+        count: 0,
+        tasks: Vec::with_capacity(1),
+    }
+}
+
+/// Async [`on_pre_init`] event.
+///
+/// # Async Handlers
+///
+/// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
+/// runs during updates of the widget they are bound too, if the widget does not update the task does not advance and
+/// if the widget is dropped the task is canceled (dropped).
+///
+/// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
+/// to run CPU intensive work in parallel and await for the result in the handler.
+///
+/// See [`on_event_async`](zero_ui::core::event::on_event_async) for more details.
+///
+/// ## Async Preview
+///
+/// Only the code before the first `await` runs immediately so only that code is *preview*.
+#[property(event)]
+pub fn on_pre_init_async<C, F, H>(child: C, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    F: Future<Output = ()> + 'static,
+    H: FnMut(WidgetContextMut, OnInitArgs) -> F + 'static,
+{
+    struct OnPreInitAsyncNode<C, H> {
+        child: C,
+        handler: H,
+        count: usize,
+        tasks: Vec<WidgetTask<()>>,
+    }
+    #[impl_ui_node(child)]
+    impl<C, F, H> UiNode for OnPreInitAsyncNode<C, H>
+    where
+        C: UiNode,
+        F: Future<Output = ()> + 'static,
+        H: FnMut(WidgetContextMut, OnInitArgs) -> F + 'static,
+    {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.count = self.count.wrapping_add(1);
+
+            let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, OnInitArgs { count: self.count }));
+            if task.update(ctx).is_none() {
+                self.tasks.push(task);
+            }
+
+            self.child.init(ctx);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.tasks.retain_mut(|t| t.update(ctx).is_none());
+
+            self.child.update(ctx);
+        }
+    }
+    OnPreInitAsyncNode {
+        child,
+        handler,
+        count: 0,
+        tasks: Vec::with_capacity(1),
+    }
 }
 
 /// Arguments of the [`on_measure`](fn@on_measure) event.

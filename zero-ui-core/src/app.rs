@@ -848,7 +848,7 @@ impl<E: AppExtension> AppExtended<E> {
         self.extensions.is_or_contain(TypeId::of::<F>())
     }
 
-    /// Runs the application event loop calling `start` once at the beginning.
+    /// Runs the application calling `start` once at the beginning.
     ///
     /// # Panics
     ///
@@ -876,12 +876,26 @@ impl<E: AppExtension> AppExtended<E> {
         app.run_headed(event_loop)
     }
 
+    /// Runs the application with an async `start` function.
+    ///
+    /// The `start` future is executed in the app thread only (the main thread), it runs up to the first `await` immediately
+    /// and subsequent polls happen in app updates, it is async but not parallel. You can use [`Tasks`](crate::task::Tasks)
+    /// to start parallel tasks that can be awaited in the app thread.
+    ///
+    /// # Panics
+    ///
+    /// Panics if not called by the main thread. The same caveats of [`run`](Self::run) apply to this method.
     pub fn run_async<F, S>(self, start: S) -> !
     where
         F: Future<Output = ()> + 'static,
         S: FnOnce(AppContextMut) -> F,
     {
-        todo!()
+        self.run(move |ctx| {
+            let mut task = ctx.tasks.app_task(start);
+            if task.update(ctx).is_none() {
+                task.run(ctx.updates);
+            }
+        })
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
