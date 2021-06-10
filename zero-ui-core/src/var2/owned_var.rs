@@ -58,6 +58,13 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         self
     }
 }
+impl<T: VarValue> IntoVar<T> for OwnedVar<T> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
 impl<T: VarValue> VarLocal<T> for OwnedVar<T> {
     fn get_local(&self) -> &T {
         &self.0
@@ -69,40 +76,5 @@ impl<T: VarValue> VarLocal<T> for OwnedVar<T> {
 
     fn update_local<'a>(&'a mut self, _: &'a Vars) -> Option<&'a T> {
         None
-    }
-}
-
-impl<A, B, M> VarMap<A, B, M> for OwnedVar<A>
-where
-    A: VarValue,
-    B: VarValue,
-    M: FnMut(&A) -> B + 'static,
-{
-    type MapVar = OwnedVar<B>;
-
-    fn map_impl(&self, mut map: M) -> Self::MapVar {
-        OwnedVar(map(&self.0))
-    }
-
-    fn into_map_impl(self, map: M) -> Self::MapVar {
-        self.map_impl(map)
-    }
-}
-
-impl<A, B, M, N> VarMapBidi<A, B, M, N> for OwnedVar<A>
-where
-    A: VarValue,
-    B: VarValue,
-    M: FnMut(&A) -> B + 'static,
-    N: FnMut(&B) -> A + 'static,
-{
-    type MapBidiVar = OwnedVar<B>;
-
-    fn map_bidi_impl(&self, map: M, _: N) -> Self::MapBidiVar {
-        self.map_impl(map)
-    }
-
-    fn into_map_bidi_impl(self, map: M, _: N) -> Self::MapBidiVar {
-        self.map_impl(map)
     }
 }

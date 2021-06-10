@@ -80,6 +80,13 @@ impl<T: VarValue, V: Var<T>> Var<T> for CloningLocalVar<T, V> {
         self
     }
 }
+impl<T: VarValue, V: Var<T>> IntoVar<T> for CloningLocalVar<T, V> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
 impl<T: VarValue, V: Var<T>> VarLocal<T> for CloningLocalVar<T, V> {
     fn get_local(&self) -> &T {
         self.local.as_ref().expect("local var not initialized")
@@ -106,42 +113,5 @@ impl<T: VarValue, V: Var<T>> VarLocal<T> for CloningLocalVar<T, V> {
         } else {
             None
         }
-    }
-}
-
-impl<A, B, M, V> VarMap<A, B, M> for CloningLocalVar<A, V>
-where
-    A: VarValue,
-    B: VarValue,
-    M: FnMut(&A) -> B + 'static,
-    V: Var<A> + VarMap<A, B, M>,
-{
-    type MapVar = V::MapVar;
-
-    fn map_impl(&self, map: M) -> Self::MapVar {
-        self.source.map(map)
-    }
-
-    fn into_map_impl(self, map: M) -> Self::MapVar {
-        self.source.into_map(map)
-    }
-}
-
-impl<A, B, M, N, V> VarMapBidi<A, B, M, N> for CloningLocalVar<A, V>
-where
-    A: VarValue,
-    B: VarValue,
-    M: FnMut(&A) -> B + 'static,
-    N: FnMut(&B) -> A + 'static,
-    V: Var<A> + VarMap<A, B, M>,
-{
-    type MapBidiVar = V::MapVar;
-
-    fn map_bidi_impl(&self, map: M, _: N) -> Self::MapBidiVar {
-        self.source.map(map)
-    }
-
-    fn into_map_bidi_impl(self, map: M, _: N) -> Self::MapBidiVar {
-        self.source.into_map(map)
     }
 }

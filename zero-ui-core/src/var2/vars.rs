@@ -362,7 +362,7 @@ impl Vars {
         T: VarValue,
         V: Var<T>,
     {
-        let (sender, receiver) = flume::unbounded::<Box<dyn FnOnce(&mut T) + Send>>();
+        let (sender, receiver) = flume::unbounded::<Box<dyn FnOnce(&mut VarModify<T>) + Send>>();
 
         if var.always_read_only() {
             self.receivers.borrow_mut().push(Box::new(move |_| {
@@ -373,7 +373,7 @@ impl Vars {
             let var = var.clone();
             self.receivers.borrow_mut().push(Box::new(move |vars| {
                 for modify in receiver.try_iter() {
-                    let _ = var.modify_boxed(vars, modify);
+                    let _ = var.modify(vars, modify);
                 }
                 !receiver.is_disconnected()
             }));
@@ -537,7 +537,7 @@ where
     T: VarValue,
 {
     wake: EventLoopProxy,
-    sender: flume::Sender<Box<dyn FnOnce(&mut T) + Send>>,
+    sender: flume::Sender<Box<dyn FnOnce(&mut VarModify<T>) + Send>>,
 }
 impl<T: VarValue> Clone for VarModifySender<T> {
     fn clone(&self) -> Self {
@@ -560,7 +560,10 @@ where
     ///
     /// If the variable is read-only when the `modify` is received it is silently dropped, if more then one
     /// modification is sent before the app can process then, they all are applied in order sent.
-    pub fn send<F: FnOnce(&mut T) + Send + 'static>(&self, modify: F) -> Result<(), AppShutdown<()>> {
+    pub fn send<F>(&self, modify: F) -> Result<(), AppShutdown<()>>
+    where
+        F: FnOnce(&mut VarModify<T>) + Send + 'static,
+    {
         self.sender.send(Box::new(modify)).map_err(|_| AppShutdown(()))?;
         let _ = self.wake.send_event(AppEvent::Var);
         Ok(())
