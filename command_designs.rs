@@ -1,3 +1,9 @@
+//
+// //
+// // Initial Design
+// //
+//
+
 // 
 // How to declare
 //
@@ -107,4 +113,72 @@ fn main() {
   App::default().run(|ctx| {
     CopyCommand::shortcuts().set(ctx.vars, shortcut![Ctrl+C]);
   })
+}
+
+
+//
+// //
+// // New Design (current sketch)
+// //
+//
+
+fn button_click(ctx: &mut WidgetContext) {
+  CopyCommand::notify(ctx.events, args);
+}
+
+fn text_box_on_event(ctx: &mut WidgetContext, args: EventUpdateArgs) {
+  if let Some(args) = CopyCommand::update(args) {
+    ctx.services.req::<ClipBoard>().set_text("selected text")
+  }
+}
+
+Struct! {
+  impl CopyCommand {
+    fn meta -> std::thread::LocalKey
+    fn label -> RcVar<Text>
+    fn enabled -> ReadOnlyVar<bool>
+    fn active -> ReadOnlyVar<bool>
+  }  
+}
+
+button!{
+  content = text(CopyCommand::label());
+  enabled = CopyCommand::enabled();
+  visible = CopyCommand::has_handlers();
+  command = CopyCommand;
+}
+
+command_button!{
+  //            content = text(CopyCommand::label());
+  // default =  enabled = CopyCommand::enabled();
+  //            visible = CopyCommand::has_handlers();
+  command = CopyCommand;
+}
+
+fn text_box_on_init(&mut self, ctx: &mut WidgetContext) {
+  self.copy_handle = CopyCommand::handle(ctx);
+}
+
+fn text_box_on_update(&mut self, ctx: &mut WidgetContext) {
+  self.copy_handle.set_enabled(self.text_selected.is_some())
+}
+
+
+struct CommandHandle(Rc<Cell<usize>>, bool);
+impl CommandHandle {
+  fn set_enabled(&mut self, enabled: bool) {
+    if self.1 != enabled {
+      self.1 = enabled;
+      if enabled {
+        self.0.set(self.0.get() + 1)
+      } else {
+        self.0.set(self.0.get() - 1)
+      }
+    }
+  }
+}
+impl Drop for CommandHandle {
+  fn drop(&mut self) {
+    self.set_enabled(false)
+  }
 }
