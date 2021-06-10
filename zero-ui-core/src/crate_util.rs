@@ -120,7 +120,7 @@ macro_rules! impl_from_and_into_var {
 macro_rules! thread_singleton {
     ($Singleton:ident) => {
         struct $Singleton {
-            _not_send: std::marker::PhantomData<Rc<()>>,
+            _not_send: std::marker::PhantomData<std::rc::Rc<()>>,
         }
         impl $Singleton {
             std::thread_local! {

@@ -41,6 +41,7 @@ pub mod text;
 pub mod timer;
 pub mod units;
 pub mod var;
+pub mod var2;
 pub mod widget_base;
 pub mod window;
 
