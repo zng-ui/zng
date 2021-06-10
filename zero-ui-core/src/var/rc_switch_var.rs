@@ -1,5 +1,9 @@
 use super::*;
 
+use std::cell::Cell;
+use std::marker::PhantomData;
+use std::rc::Rc;
+
 /// Initializes a new switch var.
 ///
 /// A switch var updates when the *index* var updates or when the *indexed* var updates.  
@@ -9,7 +13,7 @@ use super::*;
 /// All arguments are separated by comma like a function call.
 ///
 /// * `$index`: A positive integer that is the initial switch index.
-/// * `$v0..$vn`: A list of [vars](crate::var::VarObj), minimal 2.
+/// * `$v0..$vn`: A list of [vars](crate::var::Var), minimal 2.
 ///
 /// [`RcSwitchVar`](crate::var::RcSwitchVar) is used for more then 8 variables.
 ///
@@ -93,8 +97,8 @@ macro_rules! impl_rc_switch_var {
         n: $($n:tt),+;
     ) => {
         #[doc(hidden)]
-        pub struct $RcSwitchVar<O: VarValue, $($V: VarObj<O>,)+ VI: VarObj<usize>>(Rc<$RcSwitchVarData<O, $($V,)+ VI>>);
-        struct $RcSwitchVarData<O: VarValue, $($V: VarObj<O>,)+ VI: VarObj<usize>> {
+        pub struct $RcSwitchVar<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>(Rc<$RcSwitchVarData<O, $($V,)+ VI>>);
+        struct $RcSwitchVarData<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>> {
             _o: PhantomData<O>,
             vars: ($($V),+),
             versions: [Cell<u32>; $len],
@@ -111,7 +115,7 @@ macro_rules! impl_rc_switch_var {
         }
 
         #[allow(missing_docs)] // this is hidden
-        impl<O: VarValue, $($V: VarObj<O>,)+ VI: VarObj<usize>> $RcSwitchVar<O, $($V,)+ VI> {
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>> $RcSwitchVar<O, $($V,)+ VI> {
             pub fn from_vars(index: VI, vars: ($($V),+)) -> Self {
                 Self(Rc::new($RcSwitchVarData {
                     _o: PhantomData,
@@ -124,18 +128,19 @@ macro_rules! impl_rc_switch_var {
             }
         }
 
-        impl<O: VarValue, $($V: VarObj<O>,)+ VI: VarObj<usize>>
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         Clone for $RcSwitchVar<O, $($V,)+ VI> {
             fn clone(&self) -> Self {
                 Self(Rc::clone(&self.0))
             }
         }
 
-        impl<O: VarValue, $($V: VarObj<O>,)+ VI: VarObj<usize>>
-        protected::Var for $RcSwitchVar<O, $($V,)+ VI> { }
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
+        Var<O> for $RcSwitchVar<O, $($V,)+ VI> {
+            type AsReadOnly = ReadOnlyVar<O, Self>;
 
-        impl<O: VarValue, $($V: VarObj<O>,)+ VI: VarObj<usize>>
-        VarObj<O> for $RcSwitchVar<O, $($V,)+ VI> {
+            type AsLocal = CloningLocalVar<O, Self>;
+
             fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.get(vars),)+
@@ -195,92 +200,30 @@ macro_rules! impl_rc_switch_var {
                 }
             }
 
-            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly> where O : PartialEq {
+            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> where O : PartialEq {
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.set_ne(vars, new_value),)+
                     _ => panic!("switch_var index out of range")
                 }
             }
 
-            fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
-                match *self.0.index.get(vars) {
-                    $($n => self.0.vars.$n.modify_boxed(vars, change),)+
-                    _ => panic!("switch_var index out of range"),
-                }
-            }
-        }
-
-        impl<O: VarValue, $($V: Var<O>,)+ VI: VarObj<usize>>
-        Var<O> for $RcSwitchVar<O, $($V,)+ VI> {
-            type AsReadOnly = ForceReadOnlyVar<O, Self>;
-
-            type AsLocal = CloningLocalVar<O, Self>;
-
-                        fn into_local(self) -> Self::AsLocal {
-                            CloningLocalVar::new(self)
-                        }
-
-            fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
+            fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.modify(vars, change),)+
                     _ => panic!("switch_var index out of range"),
                 }
             }
 
+            fn into_local(self) -> Self::AsLocal {
+                CloningLocalVar::new(self)
+            }
+
             fn into_read_only(self) -> Self::AsReadOnly {
-                ForceReadOnlyVar::new(self)
-            }
-
-            fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {
-                self.clone().into_map(map)
-            }
-
-            fn map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(&self, map: F) -> MapRefVar<O, O2, Self, F> {
-                self.clone().into_map_ref(map)
-            }
-
-            fn map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-                &self,
-                map: F,
-                map_back: G,
-            ) -> RcMapBidiVar<O, O2, Self, F, G> {
-                self.clone().into_map_bidi(map, map_back)
-            }
-
-            fn into_map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(self, map: F) -> RcMapVar<O, O2, Self, F> {
-                RcMapVar::new(self, map)
-            }
-
-            fn into_map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-                self,
-                map: F,
-                map_back: G,
-            ) -> RcMapBidiVar<O, O2, Self, F, G> {
-                RcMapBidiVar::new(self, map, map_back)
-            }
-
-            fn into_map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(self, map: F) -> MapRefVar<O, O2, Self, F> {
-                MapRefVar::new(self, map)
-            }
-
-            fn map_bidi_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static, G2: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-                &self,
-                map: F2,
-                map_mut: G2,
-            ) -> MapBidiRefVar<O, O2, Self, F2, G2> {
-                self.clone().into_map_bidi_ref(map, map_mut)
-            }
-
-            fn into_map_bidi_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static, G2: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-                self,
-                map: F2,
-                map_mut: G2,
-            ) -> MapBidiRefVar<O, O2, Self, F2, G2> {
-                MapBidiRefVar::new(self, map, map_mut)
+                ReadOnlyVar::new(self)
             }
         }
 
-        impl<O: VarValue, $($V: Var<O>,)+ VI: VarObj<usize>>
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         IntoVar<O> for $RcSwitchVar<O, $($V,)+ VI> {
             type Var = Self;
             fn into_var(self) -> Self {
@@ -306,8 +249,8 @@ impl_rc_switch_var! {
 /// it implements the full [`Var`] read and write methods.
 ///
 /// Don't use this type directly use the [macro](switch_var!) instead.
-pub struct RcSwitchVar<O: VarValue, VI: VarObj<usize>>(Rc<RcSwitchVarData<O, VI>>);
-struct RcSwitchVarData<O: VarValue, VI: VarObj<usize>> {
+pub struct RcSwitchVar<O: VarValue, VI: Var<usize>>(Rc<RcSwitchVarData<O, VI>>);
+struct RcSwitchVarData<O: VarValue, VI: Var<usize>> {
     vars: Box<[BoxedVar<O>]>,
     var_versions: Box<[Cell<u32>]>,
 
@@ -316,7 +259,7 @@ struct RcSwitchVarData<O: VarValue, VI: VarObj<usize>> {
 
     self_version: Cell<u32>,
 }
-impl<O: VarValue, VI: VarObj<usize>> RcSwitchVar<O, VI> {
+impl<O: VarValue, VI: Var<usize>> RcSwitchVar<O, VI> {
     #[doc(hidden)]
     pub fn from_vars(index: VI, vars: Box<[BoxedVar<O>]>) -> Self {
         assert!(vars.len() >= 2);
@@ -331,12 +274,12 @@ impl<O: VarValue, VI: VarObj<usize>> RcSwitchVar<O, VI> {
 
     /// Gets the indexed variable value.
     pub fn get<'a>(&'a self, vars: &'a Vars) -> &O {
-        <Self as VarObj<O>>::get(self, vars)
+        <Self as Var<O>>::get(self, vars)
     }
 
     /// Gets if the index is new or the indexed variable value is new.
     pub fn is_new(&self, vars: &Vars) -> bool {
-        <Self as VarObj<O>>::is_new(self, vars)
+        <Self as Var<O>>::is_new(self, vars)
     }
 
     /// Gets the version.
@@ -344,43 +287,47 @@ impl<O: VarValue, VI: VarObj<usize>> RcSwitchVar<O, VI> {
     /// The version is new when the index variable changes
     /// or when the indexed variable changes.
     pub fn version(&self, vars: &Vars) -> u32 {
-        <Self as VarObj<O>>::version(self, vars)
+        <Self as Var<O>>::version(self, vars)
     }
 
     /// Gets if the indexed variable is read-only.
     pub fn is_read_only(&self, vars: &Vars) -> bool {
-        <Self as VarObj<O>>::is_read_only(self, vars)
+        <Self as Var<O>>::is_read_only(self, vars)
     }
 
     /// Gets if all alternate variables are always read-only.
     pub fn always_read_only(&self) -> bool {
-        <Self as VarObj<O>>::always_read_only(self)
+        <Self as Var<O>>::always_read_only(self)
     }
 
     /// Tries to set the indexed variable.
     pub fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
-        <Self as VarObj<O>>::set(self, vars, new_value)
+        <Self as Var<O>>::set(self, vars, new_value)
     }
 
-    /// Tries to set the indexed variable.
-    pub fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
-        <Self as VarObj<O>>::modify_boxed(self, vars, change)
+    /// Tries to set the indexed variable, but only sets if the value is not equal.
+    pub fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly>
+    where
+        O: PartialEq,
+    {
+        <Self as Var<O>>::set_ne(self, vars, new_value)
     }
 
-    /// Calls [`modify_boxed`](Self::modify_boxed).
-    ///
-    /// This is because the alternate variables are boxed.
-    pub fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
+    /// Modify the indexed variable.
+    pub fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
         <Self as Var<O>>::modify(self, vars, change)
     }
 }
-impl<O: VarValue, VI: VarObj<usize>> protected::Var for RcSwitchVar<O, VI> {}
-impl<O: VarValue, VI: VarObj<usize>> Clone for RcSwitchVar<O, VI> {
+impl<O: VarValue, VI: Var<usize>> Clone for RcSwitchVar<O, VI> {
     fn clone(&self) -> Self {
-        Self(Rc::clone(&self.0))
+        RcSwitchVar(Rc::clone(&self.0))
     }
 }
-impl<O: VarValue, VI: VarObj<usize>> VarObj<O> for RcSwitchVar<O, VI> {
+impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
+    type AsReadOnly = ReadOnlyVar<O, Self>;
+
+    type AsLocal = CloningLocalVar<O, Self>;
+
     fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
         self.0.vars[*self.0.index.get(vars)].get(vars)
     }
@@ -436,85 +383,26 @@ impl<O: VarValue, VI: VarObj<usize>> VarObj<O> for RcSwitchVar<O, VI> {
         self.0.vars[*self.0.index.get(vars)].set(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
+    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly>
     where
         O: PartialEq,
     {
         self.0.vars[*self.0.index.get(vars)].set_ne(vars, new_value)
     }
 
-    fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
-        self.0.vars[*self.0.index.get(vars)].modify_boxed(vars, change)
+    fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
+        self.0.vars[*self.0.index.get(vars)].modify(vars, change)
     }
-}
-
-impl<O: VarValue, VI: VarObj<usize>> Var<O> for RcSwitchVar<O, VI> {
-    type AsReadOnly = ForceReadOnlyVar<O, Self>;
-
-    type AsLocal = CloningLocalVar<O, Self>;
 
     fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
 
-    fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-        self.0.vars[*self.0.index.get(vars)].modify_boxed(vars, Box::new(change))
-    }
-
     fn into_read_only(self) -> Self::AsReadOnly {
-        ForceReadOnlyVar::new(self)
-    }
-
-    fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {
-        self.clone().into_map(map)
-    }
-
-    fn map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(&self, map: F) -> MapRefVar<O, O2, Self, F> {
-        self.clone().into_map_ref(map)
-    }
-
-    fn map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-        &self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<O, O2, Self, F, G> {
-        self.clone().into_map_bidi(map, map_back)
-    }
-
-    fn into_map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(self, map: F) -> RcMapVar<O, O2, Self, F> {
-        RcMapVar::new(self, map)
-    }
-
-    fn into_map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-        self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<O, O2, Self, F, G> {
-        RcMapBidiVar::new(self, map, map_back)
-    }
-
-    fn into_map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(self, map: F) -> MapRefVar<O, O2, Self, F> {
-        MapRefVar::new(self, map)
-    }
-
-    fn map_bidi_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static, G2: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-        &self,
-        map: F2,
-        map_mut: G2,
-    ) -> MapBidiRefVar<O, O2, Self, F2, G2> {
-        self.clone().into_map_bidi_ref(map, map_mut)
-    }
-
-    fn into_map_bidi_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static, G2: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-        self,
-        map: F2,
-        map_mut: G2,
-    ) -> MapBidiRefVar<O, O2, Self, F2, G2> {
-        MapBidiRefVar::new(self, map, map_mut)
+        ReadOnlyVar::new(self)
     }
 }
-
-impl<O: VarValue, VI: VarObj<usize>> IntoVar<O> for RcSwitchVar<O, VI> {
+impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {

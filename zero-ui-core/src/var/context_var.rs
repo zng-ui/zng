@@ -1,3 +1,5 @@
+use std::{cell::Cell, marker::PhantomData, thread::LocalKey};
+
 use super::*;
 
 /// A [`Var`] that represents a [`ContextVar`].
@@ -21,21 +23,26 @@ impl<C: ContextVar> ContextVarProxy<C> {
         &ContextVarProxy(PhantomData)
     }
 }
-impl<C: ContextVar> protected::Var for ContextVarProxy<C> {}
+
 impl<C: ContextVar> Default for ContextVarProxy<C> {
     fn default() -> Self {
         ContextVarProxy(PhantomData)
     }
 }
-impl<C: ContextVar> VarObj<C::Type> for ContextVarProxy<C> {
+
+impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
+    type AsReadOnly = Self;
+
+    type AsLocal = CloningLocalVar<C::Type, Self>;
+
     fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a C::Type {
         vars.context_var::<C>().0
     }
 
     fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a C::Type> {
-        let (value, is_new, _) = vars.context_var::<C>();
-        if is_new {
-            Some(value)
+        let info = vars.context_var::<C>();
+        if info.1 {
+            Some(info.0)
         } else {
             None
         }
@@ -61,84 +68,30 @@ impl<C: ContextVar> VarObj<C::Type> for ContextVarProxy<C> {
         true
     }
 
+    fn modify<M>(&self, _: &Vars, _: M) -> Result<(), VarIsReadOnly>
+    where
+        M: FnOnce(&mut VarModify<C::Type>) + 'static,
+    {
+        Err(VarIsReadOnly)
+    }
+
     fn set(&self, _: &Vars, _: C::Type) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }
 
-    fn set_ne(&self, _: &Vars, _: C::Type) -> Result<bool, VarIsReadOnly>
+    fn set_ne(&self, _: &Vars, _: C::Type) -> Result<(), VarIsReadOnly>
     where
         C::Type: PartialEq,
     {
         Err(VarIsReadOnly)
     }
 
-    fn modify_boxed(&self, _: &Vars, _: Box<dyn FnOnce(&mut C::Type)>) -> Result<(), VarIsReadOnly> {
-        Err(VarIsReadOnly)
-    }
-}
-impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
-    type AsReadOnly = Self;
-
-    type AsLocal = CloningLocalVar<C::Type, Self>;
-
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
-    }
-
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
-    fn modify<F: FnOnce(&mut C::Type) + 'static>(&self, _: &Vars, _: F) -> Result<(), VarIsReadOnly> {
-        Err(VarIsReadOnly)
-    }
-
-    fn map<O: VarValue, F: FnMut(&C::Type) -> O>(&self, map: F) -> RcMapVar<C::Type, O, Self, F> {
-        self.clone().into_map(map)
-    }
-
-    fn map_ref<O: VarValue, F: Fn(&C::Type) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<C::Type, O, Self, F> {
-        self.clone().into_map_ref(map)
-    }
-
-    fn map_bidi<O: VarValue, F: FnMut(&C::Type) -> O + 'static, G: FnMut(O) -> C::Type + 'static>(
-        &self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<C::Type, O, Self, F, G> {
-        self.clone().into_map_bidi(map, map_back)
-    }
-
-    fn into_map<O: VarValue, F: FnMut(&C::Type) -> O>(self, map: F) -> RcMapVar<C::Type, O, Self, F> {
-        RcMapVar::new(self, map)
-    }
-
-    fn into_map_bidi<O: VarValue, F: FnMut(&C::Type) -> O + 'static, G: FnMut(O) -> C::Type + 'static>(
-        self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<C::Type, O, Self, F, G> {
-        RcMapBidiVar::new(self, map, map_back)
-    }
-
-    fn into_map_ref<O: VarValue, F: Fn(&C::Type) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<C::Type, O, Self, F> {
-        MapRefVar::new(self, map)
-    }
-
-    fn map_bidi_ref<O: VarValue, F: Fn(&C::Type) -> &O + Clone + 'static, G: Fn(&mut C::Type) -> &mut O + Clone + 'static>(
-        &self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<C::Type, O, Self, F, G> {
-        self.clone().into_map_bidi_ref(map, map_mut)
-    }
-
-    fn into_map_bidi_ref<O: VarValue, F: Fn(&C::Type) -> &O + Clone + 'static, G: Fn(&mut C::Type) -> &mut O + Clone + 'static>(
-        self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<C::Type, O, Self, F, G> {
-        MapBidiRefVar::new(self, map, map_mut)
+    fn into_local(self) -> Self::AsLocal {
+        CloningLocalVar::new(self)
     }
 }
 
@@ -149,6 +102,7 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
         self
     }
 }
+
 /// See `ContextVar::thread_local_value`.
 #[doc(hidden)]
 pub struct ContextVarValue<V: ContextVar> {
@@ -254,28 +208,28 @@ macro_rules! __context_var_inner {
             #[inline]
             #[allow(unused)]
             pub fn get<'a>(vars: &'a $crate::var::VarsRead) -> &'a $type {
-                $crate::var::VarObj::get($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+                $crate::var::Var::get($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// References the value in the current `vars` context if it is marked as new.
             #[inline]
             #[allow(unused)]
             pub fn get_new<'a>(vars: &'a $crate::var::Vars) -> Option<&'a $type> {
-                $crate::var::VarObj::get_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+                $crate::var::Var::get_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// If the value in the current `vars` context is marked as new.
             #[inline]
             #[allow(unused)]
             pub fn is_new(vars: & $crate::var::Vars) -> bool {
-                $crate::var::VarObj::is_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+                $crate::var::Var::is_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// Gets the version of the value in the current `vars` context.
             #[inline]
             #[allow(unused)]
             pub fn version(vars: & $crate::var::VarsRead) -> u32 {
-                $crate::var::VarObj::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+                $crate::var::Var::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
         }
 

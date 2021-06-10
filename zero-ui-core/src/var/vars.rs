@@ -6,6 +6,7 @@ use crate::{
 };
 use std::{
     any::type_name,
+    cell::RefCell,
     fmt,
     ops::Deref,
     time::{Duration, Instant},
@@ -25,11 +26,11 @@ type Retain = bool;
 ///
 /// # Examples
 ///
-/// You can [`get`](VarObj::get) a value using a [`VarsRead`] reference.
+/// You can [`get`](Var::get) a value using a [`VarsRead`] reference.
 ///
 /// ```
-/// # use zero_ui_core::var::{VarObj, VarsRead};
-/// fn read_only(var: &impl VarObj<bool>, vars: &VarsRead) -> bool {
+/// # use zero_ui_core::var::{Var, VarsRead};
+/// fn read_only(var: &impl Var<bool>, vars: &VarsRead) -> bool {
 ///     *var.get(vars)
 /// }
 /// ```
@@ -37,8 +38,8 @@ type Retain = bool;
 /// And because of auto-dereference you can can the same method using a full [`Vars`] reference.
 ///
 /// ```
-/// # use zero_ui_core::var::{VarObj, Vars};
-/// fn read_write(var: &impl VarObj<bool>, vars: &Vars) -> bool {
+/// # use zero_ui_core::var::{Var, Vars};
+/// fn read_write(var: &impl Var<bool>, vars: &Vars) -> bool {
 ///     *var.get(vars)
 /// }
 /// ```
@@ -161,14 +162,14 @@ impl VarsRead {
     where
         C: ContextVar,
         F: FnOnce() -> R,
-        V: VarObj<C::Type>,
+        V: Var<C::Type>,
     {
         self.with_context_var_impl(context_var, other_var.get(self), false, other_var.version(self), f)
     }
 
     /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
     #[inline(always)]
-    pub fn with_context_bind_wgt_only<C: ContextVar, R, F: FnOnce() -> R, V: VarObj<C::Type>>(
+    pub fn with_context_bind_wgt_only<C: ContextVar, R, F: FnOnce() -> R, V: Var<C::Type>>(
         &self,
         context_var: C,
         other_var: &V,
@@ -287,13 +288,13 @@ impl Vars {
 
     /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
     #[inline(always)]
-    pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+    pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: Var<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
         self.with_context_var_impl(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }
 
     /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
     #[inline(always)]
-    pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+    pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: Var<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
         self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }
 
@@ -361,7 +362,7 @@ impl Vars {
         T: VarValue,
         V: Var<T>,
     {
-        let (sender, receiver) = flume::unbounded::<Box<dyn FnOnce(&mut T) + Send>>();
+        let (sender, receiver) = flume::unbounded::<Box<dyn FnOnce(&mut VarModify<T>) + Send>>();
 
         if var.always_read_only() {
             self.receivers.borrow_mut().push(Box::new(move |_| {
@@ -372,7 +373,7 @@ impl Vars {
             let var = var.clone();
             self.receivers.borrow_mut().push(Box::new(move |vars| {
                 for modify in receiver.try_iter() {
-                    let _ = var.modify_boxed(vars, modify);
+                    let _ = var.modify(vars, modify);
                 }
                 !receiver.is_disconnected()
             }));
@@ -405,7 +406,7 @@ impl<T: VarValue + Send> Clone for VarReceiver<T> {
         }
     }
 }
-impl<T: VarValue + Send> Debug for VarReceiver<T> {
+impl<T: VarValue + Send> fmt::Debug for VarReceiver<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "VarReceiver<{}>", type_name::<T>())
     }
@@ -508,7 +509,7 @@ impl<T: VarValue + Send> Clone for VarSender<T> {
         }
     }
 }
-impl<T: VarValue + Send> Debug for VarSender<T> {
+impl<T: VarValue + Send> fmt::Debug for VarSender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "VarSender<{}>", type_name::<T>())
     }
@@ -536,7 +537,7 @@ where
     T: VarValue,
 {
     wake: EventLoopProxy,
-    sender: flume::Sender<Box<dyn FnOnce(&mut T) + Send>>,
+    sender: flume::Sender<Box<dyn FnOnce(&mut VarModify<T>) + Send>>,
 }
 impl<T: VarValue> Clone for VarModifySender<T> {
     fn clone(&self) -> Self {
@@ -546,7 +547,7 @@ impl<T: VarValue> Clone for VarModifySender<T> {
         }
     }
 }
-impl<T: VarValue> Debug for VarModifySender<T> {
+impl<T: VarValue> fmt::Debug for VarModifySender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "VarModifySender<{}>", type_name::<T>())
     }
@@ -559,7 +560,10 @@ where
     ///
     /// If the variable is read-only when the `modify` is received it is silently dropped, if more then one
     /// modification is sent before the app can process then, they all are applied in order sent.
-    pub fn send<F: FnOnce(&mut T) + Send + 'static>(&self, modify: F) -> Result<(), AppShutdown<()>> {
+    pub fn send<F>(&self, modify: F) -> Result<(), AppShutdown<()>>
+    where
+        F: FnOnce(&mut VarModify<T>) + Send + 'static,
+    {
         self.sender.send(Box::new(modify)).map_err(|_| AppShutdown(()))?;
         let _ = self.wake.send_event(AppEvent::Var);
         Ok(())

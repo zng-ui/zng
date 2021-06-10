@@ -1,158 +1,117 @@
 use super::*;
 
-/// A [`VarLocal`] that keeps a cloned copy of the value locally.
-#[doc(hidden)]
-#[derive(Clone)]
+/// A [`VarLocal`] that keeps a clone of the value locally.
 pub struct CloningLocalVar<T: VarValue, V: Var<T>> {
-    var: V,
+    source: V,
     local_version: u32,
     local: Option<T>,
 }
-impl<T: VarValue, V: Var<T>> protected::Var for CloningLocalVar<T, V> {}
 impl<T: VarValue, V: Var<T>> CloningLocalVar<T, V> {
-    pub(super) fn new(var: V) -> Self {
-        CloningLocalVar {
-            var,
+    /// New uninitialized.
+    pub fn new(source: V) -> Self {
+        Self {
+            source,
             local_version: 0,
             local: None,
         }
     }
 }
-impl<T: VarValue, V: Var<T>> VarObj<T> for CloningLocalVar<T, V> {
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
-        self.var.get(vars)
-    }
-
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
-        self.var.get_new(vars)
-    }
-
-    fn is_new(&self, vars: &Vars) -> bool {
-        self.var.is_new(vars)
-    }
-
-    fn version(&self, vars: &VarsRead) -> u32 {
-        self.var.version(vars)
-    }
-
-    fn is_read_only(&self, vars: &Vars) -> bool {
-        self.var.is_read_only(vars)
-    }
-
-    fn always_read_only(&self) -> bool {
-        self.var.always_read_only()
-    }
-
-    fn can_update(&self) -> bool {
-        self.var.can_update()
-    }
-
-    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
-        self.var.set(vars, new_value)
-    }
-
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
-    where
-        T: PartialEq,
-    {
-        self.var.set_ne(vars, new_value)
-    }
-
-    fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly> {
-        self.var.modify_boxed(vars, change)
+impl<T: VarValue, V: Var<T> + Clone> Clone for CloningLocalVar<T, V> {
+    fn clone(&self) -> Self {
+        CloningLocalVar {
+            source: self.source.clone(),
+            local_version: self.local_version,
+            local: self.local.clone(),
+        }
     }
 }
 impl<T: VarValue, V: Var<T>> Var<T> for CloningLocalVar<T, V> {
-    type AsReadOnly = ForceReadOnlyVar<T, Self>;
+    type AsReadOnly = V::AsReadOnly;
+
     type AsLocal = Self;
 
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
+        self.source.get(vars)
+    }
+
+    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        self.source.get_new(vars)
+    }
+
+    fn version(&self, vars: &VarsRead) -> u32 {
+        self.source.version(vars)
+    }
+
+    fn is_read_only(&self, vars: &Vars) -> bool {
+        self.source.is_read_only(vars)
+    }
+
+    fn always_read_only(&self) -> bool {
+        self.source.always_read_only()
+    }
+
+    fn can_update(&self) -> bool {
+        self.source.can_update()
+    }
+
+    fn modify<M>(&self, vars: &Vars, modify: M) -> Result<(), VarIsReadOnly>
+    where
+        M: FnOnce(&mut VarModify<T>) + 'static,
+    {
+        self.source.modify(vars, modify)
+    }
+
+    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
+        self.source.set(vars, new_value)
+    }
+
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>
+    where
+        T: PartialEq,
+    {
+        self.source.set_ne(vars, new_value)
+    }
+
     fn into_read_only(self) -> Self::AsReadOnly {
-        ForceReadOnlyVar::new(self)
+        self.source.into_read_only()
     }
 
     fn into_local(self) -> Self::AsLocal {
         self
     }
-
-    fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-        self.var.modify(vars, change)
-    }
-
-    fn map<O: VarValue, F: FnMut(&T) -> O>(&self, map: F) -> RcMapVar<T, O, Self, F> {
-        self.clone().into_map(map)
-    }
-
-    fn map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<T, O, Self, F> {
-        self.clone().into_map_ref(map)
-    }
-
-    fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
-        &self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<T, O, Self, F, G> {
-        self.clone().into_map_bidi(map, map_back)
-    }
-
-    fn into_map<O: VarValue, F: FnMut(&T) -> O>(self, map: F) -> RcMapVar<T, O, Self, F> {
-        RcMapVar::new(self, map)
-    }
-
-    fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
-        self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<T, O, Self, F, G> {
-        RcMapBidiVar::new(self, map, map_back)
-    }
-
-    fn into_map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<T, O, Self, F> {
-        MapRefVar::new(self, map)
-    }
-
-    fn map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
-        &self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<T, O, Self, F, G> {
-        self.clone().into_map_bidi_ref(map, map_mut)
-    }
-
-    fn into_map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
-        self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<T, O, Self, F, G> {
-        MapBidiRefVar::new(self, map, map_mut)
-    }
 }
-impl<T: VarValue, V: Var<T>> VarLocal<T> for CloningLocalVar<T, V> {
-    fn get_local(&self) -> &T {
-        self.local.as_ref().expect("local variable not initialized")
-    }
-
-    fn init_local(&mut self, vars: &Vars) -> &T {
-        self.local_version = self.var.version(vars);
-        self.local = Some(self.var.get(vars).clone());
-        self.local.as_ref().unwrap()
-    }
-
-    fn update_local(&mut self, vars: &Vars) -> Option<&T> {
-        let var_version = self.var.version(vars);
-        if var_version != self.local_version {
-            self.local_version = var_version;
-            self.local = Some(self.var.get(vars).clone());
-            self.local.as_ref()
-        } else {
-            None
-        }
-    }
-}
-
 impl<T: VarValue, V: Var<T>> IntoVar<T> for CloningLocalVar<T, V> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
         self
+    }
+}
+impl<T: VarValue, V: Var<T>> VarLocal<T> for CloningLocalVar<T, V> {
+    fn get_local(&self) -> &T {
+        self.local.as_ref().expect("local var not initialized")
+    }
+
+    fn init_local<'a>(&'a mut self, vars: &'a Vars) -> &'a T {
+        let version = self.source.version(vars);
+        let value = self.source.get(vars);
+        if self.local_version != version || self.local.is_none() {
+            self.local = Some(value.clone());
+            self.local_version = version;
+        }
+        value
+    }
+
+    fn update_local<'a>(&'a mut self, vars: &'a Vars) -> Option<&'a T> {
+        if let Some(new_value) = self.source.get_new(vars) {
+            let version = self.source.version(vars);
+            if version != self.local_version {
+                self.local = Some(new_value.clone());
+                self.local_version = version;
+            }
+            Some(new_value)
+        } else {
+            None
+        }
     }
 }

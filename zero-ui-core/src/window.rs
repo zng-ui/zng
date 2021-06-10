@@ -468,8 +468,10 @@ impl AppExtension for WindowManager {
                     let new_size = window.size();
 
                     // set the window size variable.
-                    if window.vars.size().set_ne(ctx.vars, new_size.into()) {
+                    let new_size_l = Size::from(new_size);
+                    if window.vars.size().get(ctx.vars) != &new_size_l {
                         // is new size:
+                        window.vars.size().set(ctx.vars, new_size_l);
                         ctx.updates.layout();
                         window.expect_layout_update();
                         window.resize_renderer();

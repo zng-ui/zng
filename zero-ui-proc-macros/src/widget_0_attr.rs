@@ -704,7 +704,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 let var = self::#ident(#(#input_idents),*);
                 when_infos.push(#crate_core::debug::WhenInfoV1 {
                     condition_expr: #expr_str,
-                    condition_var: Some(#crate_core::var::VarObj::boxed(std::clone::Clone::clone(&var))),
+                    condition_var: Some(#crate_core::var::Var::boxed(std::clone::Clone::clone(&var))),
                     properties: std::vec![
                         #(#assign_names),*
                     ],

@@ -1,17 +1,24 @@
 //! Variables.
 
 use std::{
-    cell::RefCell,
-    cell::{Cell, UnsafeCell},
-    fmt::Debug,
-    marker::PhantomData,
-    mem::MaybeUninit,
-    rc::Rc,
-    thread::LocalKey,
+    fmt,
+    ops::{Deref, DerefMut},
 };
+
+mod vars;
+pub use vars::*;
 
 mod boxed_var;
 pub use boxed_var::*;
+
+mod cloning_local_var;
+pub use cloning_local_var::*;
+
+mod context_var;
+pub use context_var::*;
+
+mod read_only_var;
+pub use read_only_var::*;
 
 mod owned_var;
 pub use owned_var::*;
@@ -19,26 +26,8 @@ pub use owned_var::*;
 mod rc_var;
 pub use rc_var::*;
 
-mod force_read_only_var;
-pub use force_read_only_var::*;
-
-mod cloning_local_var;
-pub use cloning_local_var::*;
-
-mod rc_map_var;
-pub use rc_map_var::*;
-
-mod map_ref_var;
-pub use map_ref_var::*;
-
-mod map_bidi_ref_var;
-pub use map_bidi_ref_var::*;
-
-mod rc_map_bidi_var;
-pub use rc_map_bidi_var::*;
-
-mod context_var;
-pub use context_var::*;
+mod map_ref;
+pub use map_ref::*;
 
 mod rc_merge_var;
 pub use rc_merge_var::*;
@@ -49,17 +38,14 @@ pub use rc_switch_var::*;
 mod rc_when_var;
 pub use rc_when_var::*;
 
-mod vars;
-pub use vars::*;
-
-/// A type that can be a [`Var`](crate::var::Var) value.
+/// A type that can be a [`Var`] value.
 ///
 /// # Trait Alias
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
-pub trait VarValue: Debug + Clone + 'static {}
-impl<T: Debug + Clone + 'static> VarValue for T {}
+pub trait VarValue: fmt::Debug + Clone + 'static {}
+impl<T: fmt::Debug + Clone + 'static> VarValue for T {}
 
 /// Represents a context variable.
 ///
@@ -97,210 +83,6 @@ impl std::fmt::Display for VarIsReadOnly {
     }
 }
 
-mod protected {
-    /// Ensures that only `zero-ui` can implement var types.
-    pub trait Var {}
-}
-/// Part of [`Var`] that can be boxed.
-pub trait VarObj<T: VarValue>: protected::Var + 'static {
-    /// References the current value.
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
-
-    /// References the current value if it [is new](Self::is_new).
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
-
-    /// If [`set`](Self::set) or [`modify`](Var::modify) where called in the previous update.
-    ///
-    /// When you set the variable, the new value is only applied after the UI tree finishes
-    /// the current update. The value is then applied causing a new update to happen, in the new
-    /// update this method returns `true`. After the new update it returns `false` again.
-    ///
-    /// The new value can still be equal to the previous value, the variable does not check equality on assign.
-    fn is_new(&self, vars: &Vars) -> bool;
-
-    /// Version of the current value.
-    ///
-    /// The version number changes every update where [`set`](Self::set) or [`modify`](Var::modify) are called.
-    fn version(&self, vars: &VarsRead) -> u32;
-
-    /// If the variable cannot be set.
-    ///
-    /// Variables can still change if [`can_update`](Self::can_update) is `true`.
-    ///
-    /// Some variables can stop being read-only after an update, see also [`always_read_only`](Self::always_read_only).
-    fn is_read_only(&self, vars: &Vars) -> bool;
-
-    /// If the variable type is read-only, unlike [`is_read_only`](Self::is_read_only) this never changes.
-    fn always_read_only(&self) -> bool;
-
-    /// If the variable type allows the value to change.
-    ///
-    /// Some variables can change even if they are read-only, for example mapping variables.
-    fn can_update(&self) -> bool;
-
-    /// Schedules an assign for after the current update.
-    ///
-    /// Variables are not changed immediately, the full UI tree gets a chance to see the current value,
-    /// after the current UI update, the values set here are applied.
-    ///
-    /// If the result is `Ok` the variable will be flagged as [new](Self::is_new) in the next update. Value
-    /// equality is not checked, setting to an equal value still flags a *new*.
-    ///
-    /// ### Error
-    ///
-    /// Returns [`VarIsReadOnly`] if [`is_read_only`](Self::is_read_only) is `true`.
-    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>;
-
-    /// Does [`set`](VarObj::set) if the variable is not read-only and the `new_value` is not equal to the current value.
-    ///
-    /// Returns `true` if the variable was set.
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
-    where
-        T: PartialEq;
-
-    /// Boxed version of the [`modify`](Var::modify) method.
-    fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly>;
-
-    /// Boxes `self`.
-    ///
-    /// A boxed var is also a var, that implementation just returns `self`.
-    fn boxed(self) -> BoxedVar<T>
-    where
-        Self: Sized,
-    {
-        Box::new(self)
-    }
-}
-
-/// Represents a variable that has a value that can be accessed directly.
-///
-/// For the normal variables you need a reference to [`Vars`] to access the value,
-/// this reference is not available in all [`UiNode`](crate::UiNode) methods.
-///
-/// Some variable types are safe to reference the inner value at any moment, other variables
-/// can be wrapped in a type that makes a local clone of the current value. You can get any
-/// variable as a local variable by calling [`Var::into_local`].
-pub trait VarLocal<T: VarValue>: VarObj<T> {
-    /// Reference the value.
-    fn get_local(&self) -> &T;
-
-    /// Initializes local clone of the value, if needed.
-    ///
-    /// This must be called in the [`UiNode::init`](crate::UiNode::init) method.
-    ///
-    /// Returns a reference to the local value for convenience.
-    fn init_local(&mut self, vars: &Vars) -> &T;
-
-    /// Updates the local clone of the value, if needed.
-    ///
-    /// This must be called in the [`UiNode::update`](crate::UiNode::update) method.
-    ///
-    /// Returns a reference to the local value if the value is new.
-    fn update_local(&mut self, vars: &Vars) -> Option<&T>;
-
-    /// Boxes `self`.
-    fn boxed_local(self) -> BoxedLocalVar<T>
-    where
-        Self: Sized,
-    {
-        Box::new(self)
-    }
-}
-
-/// Represents a variable.
-///
-/// Most of the methods are declared in the [`VarObj`] trait to support boxing.
-pub trait Var<T: VarValue>: VarObj<T> + Clone + IntoVar<T> {
-    /// Return type of [`into_read_only`](Var::into_read_only).
-    type AsReadOnly: Var<T>;
-
-    /// Return type of [`into_local`](Var::into_local).
-    type AsLocal: VarLocal<T>;
-
-    /// Schedules a closure to modify the value after the current update.
-    ///
-    /// This is a variation of the [`set`](VarObj::set) method that does not require
-    /// an entire new value to be instantiated.
-    ///
-    /// If the result is `Ok` the variable will be flagged as [new](VarObj::is_new) in the next update,
-    /// even if `change` does not do anything.
-    fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly>;
-
-    /// Returns the variable as a type that is [`always_read_only`](VarObj::always_read_only).
-    fn into_read_only(self) -> Self::AsReadOnly;
-
-    /// Returns the variable as a type that implements [`VarLocal`].
-    fn into_local(self) -> Self::AsLocal;
-
-    /// Returns a variable with value generated from `self`.
-    ///
-    /// The value is new when the `self` value is new, `map` is only called once per new value.
-    ///
-    /// The variable is read-only, use [`map_bidi`](Self::map_bidi) to propagate changes back to `self`.
-    ///
-    /// Use [`map_ref`](Self::map_ref) if you don't need to generate a new value.
-    ///
-    /// Use [`into_map`](Self::into_map) if you will not use this copy of `self` anymore.
-    fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F>;
-
-    /// Returns a variable with value referenced from `self`.
-    ///
-    /// The value is new when the `self` value is new, `map` is called every time [`get`](VarObj::get) is called.
-    ///
-    /// The variable is read-only.
-    ///
-    /// Use [`into_map_ref`](Self::into_map_ref) if you will not use this copy of `self` anymore.
-    fn map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<T, O, Self, F>;
-
-    /// Returns a variable whos value is mapped to and from `self`.
-    ///
-    /// The value is new when the `self` value is new, `map` is only called once per new value.
-    ///
-    /// The variable can be set if `self` is not read-only, when set `map_back` is called to generate
-    /// a new value for `self`.
-    ///
-    /// Use [`map_bidi_ref`](Self::map_bidi_ref) if you don't need to generate a new value.
-    ///
-    /// Use [`into_map_bidi`](Self::into_map_bidi) if you will not use this copy of `self` anymore.
-    fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
-        &self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<T, O, Self, F, G>;
-
-    /// Returns a variable with value mapped to and from `self` using references.
-    ///
-    /// The value is new when the `self` value is new, `map` is called every time [`get`](VarObj::get) is called,
-    /// `map_mut` is called every time the value is set or modified.
-    ///
-    /// Use [`into_map`](Self::into_map) if you will not use this copy of `self` anymore.
-    fn map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
-        &self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<T, O, Self, F, G>;
-
-    /// Taking variant of [`map`](Self::map).
-    fn into_map<O: VarValue, F: FnMut(&T) -> O + 'static>(self, map: F) -> RcMapVar<T, O, Self, F>;
-
-    /// Taking variant of [`map_ref`](Self::map_ref).
-    fn into_map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<T, O, Self, F>;
-
-    /// Taking variant of [`map_bidi`](Self::map_bidi).
-    fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
-        self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<T, O, Self, F, G>;
-
-    /// Taking variant of [`map_bidi_ref`](Self::map_bidi_ref).
-    fn into_map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
-        self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<T, O, Self, F, G>;
-}
-
 /// A value-to-[var](Var) conversion that consumes the value.
 pub trait IntoVar<T: VarValue>: Clone {
     /// Variable type that will wrap the `T` value.
@@ -329,6 +111,295 @@ pub trait IntoVar<T: VarValue>: Clone {
 /// Like [`IntoVar`], but for values that don't change.
 pub trait IntoValue<T: VarValue>: Into<T> + Clone {}
 impl<T: VarValue> IntoValue<T> for T {}
+
+/// Represents an observable value.
+pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
+    /// The variable type that represents a read-only version of this type.
+    type AsReadOnly: Var<T>;
+    /// The variable type that represents a version of this type that provides direct access
+    /// to its value without a [`VarsRead`] reference.
+    type AsLocal: VarLocal<T>;
+
+    // TODO when GATs are stable:
+    // type Map<B: VarValue, M: FnMut(&T) -> B> : Var<B>;
+    // type MapBidi<B: VarValue, M: FnMut(&T) -> B, N: FnMut(&B) -> T> : Var<B>;
+
+    /// References the value.
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
+
+    /// References the value if [`is_new`](Self::is_new).
+    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
+
+    /// If the variable value changed in this update.
+    ///
+    /// When the variable value changes this stays `true` for one app update cycle.
+    #[inline]
+    fn is_new(&self, vars: &Vars) -> bool {
+        self.get_new(vars).is_some()
+    }
+
+    /// Gets the variable value version.
+    ///
+    /// The version is a different number every time the value is modified, you can use this to monitor
+    /// variable change outside of the window of opportunity of [`is_new`](Self::is_new).
+    fn version(&self, vars: &VarsRead) -> u32;
+
+    /// If the variable cannot be set or modified right now.
+    ///
+    /// **Note** this can change unless the variable is [`always_read_only`](Self::always_read_only).
+    fn is_read_only(&self, vars: &Vars) -> bool;
+
+    /// If the variable can never be set or modified.
+    ///
+    /// **Note** the value still be new by an internal change if [`can_update`](Self::can_update) is `true`.
+    fn always_read_only(&self) -> bool;
+
+    /// If the variable value can change.
+    ///
+    /// **Note** this can be `true` even if the variable is [`always_read_only`](Self::always_read_only).
+    fn can_update(&self) -> bool;
+
+    /// Schedule a modification of the variable value.
+    ///
+    /// The variable is marked as *new* only if the closure input is dereferenced as `mut`.
+    fn modify<M>(&self, vars: &Vars, modify: M) -> Result<(), VarIsReadOnly>
+    where
+        M: FnOnce(&mut VarModify<T>) + 'static;
+
+    /// Schedule a new value for the variable.
+    #[inline]
+    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
+        self.modify(vars, move |v| **v = new_value)
+    }
+
+    /// Schedule a new value for the variable, the value is checked for equality before assign
+    /// and the variable is flagged as *new* only if the value is actually different.
+    #[inline]
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>
+    where
+        T: PartialEq,
+    {
+        self.modify(vars, move |v| {
+            if !v.eq(&new_value) {
+                **v = new_value;
+            }
+        })
+    }
+
+    /// Convert this variable to one that cannot be set or modified.
+    fn into_read_only(self) -> Self::AsReadOnly;
+
+    /// Convert this variable to one that provides direct access to the current value.
+    fn into_local(self) -> Self::AsLocal;
+
+    /// Create a variable who's value is always generated by this variable's value.
+    ///
+    /// Every time the output variable probes the value and its version is not the same as this variables version `map` is
+    /// called to generate a new value.
+    ///
+    /// The output variable is always read-only.
+    #[inline]
+    fn map<O, M>(&self, map: M) -> RcMapVar<T, O, M, Self>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + 'static,
+    {
+        self.clone().into_map(map)
+    }
+
+    /// Create a variable who's value is always a mapped reference to this variable's value.
+    ///
+    /// Every time the output variable probes the value, `map` is called to project the reference.
+    ///
+    /// The output variable is always read-only.
+    #[inline]
+    fn map_ref<O, M>(&self, map: M) -> MapRefVar<T, O, M, Self>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Clone + 'static,
+    {
+        self.clone().into_map_ref(map)
+    }
+
+    /// Create a [map](Self::map) variable consuming this variable.
+    ///
+    /// If `self` is a *reference* var line `RcVar` this can avoid a clone.
+    ///
+    /// The output variable is always read-only.
+    #[inline]
+    fn into_map<O, M>(self, map: M) -> RcMapVar<T, O, M, Self>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + 'static,
+    {
+        RcMapVar::new(self, map)
+    }
+
+    /// Create a [reference map](Self::map_ref) variable consuming this variable.
+    ///
+    /// If `self` is a *reference* var line `RcVar` this can avoid a clone.
+    ///
+    /// The output variable is always read-only.
+    #[inline]
+    fn into_map_ref<O, M>(self, map: M) -> MapRefVar<T, O, M, Self>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Clone + 'static,
+    {
+        MapRefVar::new(self, map)
+    }
+
+    /// Create a variable who's value is always generated by this variable's value and that sets this variable
+    /// back when it is set or modified (bidirectional).
+    ///
+    /// Every time the output variable probes the value and its version is not the same as this variables version `map` is
+    /// called to generate a new value; and every time the output value is set or modified `map_back` is called to generate
+    /// a new value that is set in the input variable(`self`).
+    ///
+    /// The output variable can be read-only if `self` is read-only.
+    #[inline]
+    fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> RcMapBidiVar<T, O, M, N, Self>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + 'static,
+        N: FnMut(O) -> T + 'static,
+    {
+        self.clone().into_map_bidi(map, map_back)
+    }
+
+    /// Create a variable who's value is always a mapped reference to this variable's value.
+    ///
+    /// Every time the output variable probes the value, `map` is called to project the reference and
+    /// every time the output variable is assigned or modified, `map_mut` is called to project a mutable reference.
+    ///
+    /// Modifying the value in `map_mut` is a logic error, see [`VarModify::map_ref`] for details.
+    #[inline]
+    fn map_bidi_ref<O, M, N>(&self, map: M, map_mut: N) -> MapBidiRefVar<T, O, M, N, Self>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Clone + 'static,
+        N: Fn(&mut T) -> &mut O + Clone + 'static,
+    {
+        self.clone().into_map_bidi_ref(map, map_mut)
+    }
+
+    /// Create a [bidirectional map](Self::map_bidi) variable consuming this variable.
+    ///
+    /// If `self` is a *reference* var line `RcVar` this can avoid a clone.
+    #[inline]
+    fn into_map_bidi<O, M, N>(self, map: M, map_back: N) -> RcMapBidiVar<T, O, M, N, Self>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + 'static,
+        N: FnMut(O) -> T + 'static,
+    {
+        RcMapBidiVar::new(self, map, map_back)
+    }
+
+    /// Create a [bidirectional reference map](Self::map_bidi_ref) variable consuming this variable.
+    ///
+    /// If `self` is a *reference* var line `RcVar` this can avoid a clone.
+    #[inline]
+    fn into_map_bidi_ref<O, M, N>(self, map: M, map_mut: N) -> MapBidiRefVar<T, O, M, N, Self>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Clone + 'static,
+        N: Fn(&mut T) -> &mut O + Clone + 'static,
+    {
+        MapBidiRefVar::new(self, map, map_mut)
+    }
+
+    /// Box this var.
+    #[inline]
+    fn boxed(self) -> BoxedVar<T>
+    where
+        Self: VarBoxed<T> + Sized,
+    {
+        Box::new(self)
+    }
+}
+
+/// Argument for [`Var::modify`]. This is a wrapper around a mutable reference to the variable value, if
+/// [`DerefMut`] is used to get the variable value the variable value is flagged as *new*.
+pub struct VarModify<'a, T: VarValue> {
+    value: &'a mut T,
+    touched: bool,
+}
+impl<'a, T: VarValue> VarModify<'a, T> {
+    /// New wrapper.
+    pub fn new(value: &'a mut T) -> Self {
+        VarModify { value, touched: false }
+    }
+
+    /// If `deref_mut` was used or [`touch`](Self::touch) was called.
+    #[inline]
+    pub fn touched(&self) -> bool {
+        self.touched
+    }
+
+    /// Flags the value as modified.
+    #[inline]
+    pub fn touch(&mut self) {
+        self.touched = true;
+    }
+
+    /// Runs `modify` with a mutable reference `B` derived from `T` using `map`.
+    /// Only flag touched if `modify` touches the the value.
+    ///
+    /// This method does permit modifying the value without flagging the value as new, this is not `unsafe`
+    /// but is an error that will the variable dependents to go out of sync.
+    pub fn map_ref<B, M, Mo>(&mut self, map: M, modify: Mo)
+    where
+        B: VarValue,
+        M: Fn(&mut T) -> &mut B,
+        Mo: FnOnce(&mut VarModify<B>),
+    {
+        let mut mapped = VarModify {
+            value: map(self.value),
+            touched: false,
+        };
+
+        modify(&mut mapped);
+
+        self.touched |= mapped.touched;
+    }
+}
+impl<'a, T: VarValue> Deref for VarModify<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.value
+    }
+}
+impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.touched = true;
+        self.value
+    }
+}
+
+/// A [`Var`] that provide direct access to its value without holding a [`Vars`] reference.
+///
+/// This is only possible if the value is local, so variable with shared values
+/// will keep a clone of the value locally if converted to [`VarLocal`].
+pub trait VarLocal<T: VarValue>: Var<T> {
+    /// Reference the current value.
+    fn get_local(&self) -> &T;
+
+    /// Initializes local clone of the value, if needed.
+    ///
+    /// This must be called in the [`UiNode::init`](crate::UiNode::init) method.
+    ///
+    /// Returns a reference to the local value for convenience.
+    fn init_local<'a>(&'a mut self, vars: &'a Vars) -> &'a T;
+
+    /// Updates the local clone of the value, if needed.
+    ///
+    /// This must be called in the [`UiNode::update`](crate::UiNode::update) method.
+    ///
+    /// Returns a reference to the local value if the value is new.
+    fn update_local<'a>(&'a mut self, vars: &'a Vars) -> Option<&'a T>;
+}
 
 /// New [`impl Var<T>`](Var) from an expression with interpolated *vars*.
 ///
@@ -367,7 +438,7 @@ impl<T: VarValue> IntoValue<T> for T {}
 /// The `<var-expr>` is evaluated before *capturing* starts so if you interpolate `#{var_a.clone()}` `var_a`
 /// will still be available after the `var_expr` call. Equal `<var-expr>` only evaluate once.
 ///
-/// The interpolation result value is the [`VarObj::get`] return value.
+/// The interpolation result value is the [`Var::get`] return value.
 ///
 /// # Expansion
 ///

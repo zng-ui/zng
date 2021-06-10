@@ -1,5 +1,9 @@
 use super::*;
 
+use std::cell::Cell;
+use std::marker::PhantomData;
+use std::rc::Rc;
+
 /// Initializes a new conditional var.
 ///
 /// A condition var updates when the first `true` condition changes or the mapped var for the current condition changes.
@@ -90,8 +94,8 @@ macro_rules! impl_rc_when_var {
         n: $($n:tt),+;
     ) => {
         #[doc(hidden)]
-        pub struct $RcMergeVar<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+>(Rc<$RcMergeVarData<O, D, $($C),+ , $($V),+>>);
-        struct $RcMergeVarData<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+> {
+        pub struct $RcMergeVar<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+>(Rc<$RcMergeVarData<O, D, $($C),+ , $($V),+>>);
+        struct $RcMergeVarData<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> {
             _o: PhantomData<O>,
 
             default_value: D,
@@ -126,16 +130,18 @@ macro_rules! impl_rc_when_var {
                 )
             }
         }
-        impl<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+> protected::Var for $RcMergeVar<O, D, $($C),+ , $($V),+> {
-        }
 
-        impl<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+> Clone for $RcMergeVar<O, D, $($C),+ , $($V),+> {
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Clone for $RcMergeVar<O, D, $($C),+ , $($V),+> {
             fn clone(&self) -> Self {
                 Self(Rc::clone(&self.0))
             }
         }
 
-        impl<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+> VarObj<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Var<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
+            type AsReadOnly = ReadOnlyVar<O, Self>;
+
+            type AsLocal = CloningLocalVar<O, Self>;
+
             fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
                 $(
                     if *self.0.conditions.$n.get(vars) {
@@ -233,7 +239,7 @@ macro_rules! impl_rc_when_var {
                     self.0.default_value.set(vars, new_value)
                 }
             }
-            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly> where O: PartialEq {
+            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> where O: PartialEq {
                 $(
                     if *self.0.conditions.$n.get(vars) {
                         self.0.values.$n.set_ne(vars, new_value)
@@ -243,27 +249,8 @@ macro_rules! impl_rc_when_var {
                     self.0.default_value.set_ne(vars, new_value)
                 }
             }
-            fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
-                $(
-                    if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.modify_boxed(vars, change)
-                    }
-                )else+
-                else {
-                    self.0.default_value.modify_boxed(vars, change)
-                }
-            }
-        }
-        impl<O: VarValue, D: Var<O>, $($C: VarObj<bool>),+ , $($V: Var<O>),+> Var<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
-            type AsReadOnly = ForceReadOnlyVar<O, Self>;
 
-            type AsLocal = CloningLocalVar<O, Self>;
-
-                        fn into_local(self) -> Self::AsLocal {
-                            CloningLocalVar::new(self)
-                        }
-
-            fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
+            fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
                 $(
                     if *self.0.conditions.$n.get(vars) {
                         self.0.values.$n.modify(vars, change)
@@ -274,60 +261,16 @@ macro_rules! impl_rc_when_var {
                 }
             }
 
+            fn into_local(self) -> Self::AsLocal {
+                CloningLocalVar::new(self)
+            }
+
             fn into_read_only(self) -> Self::AsReadOnly {
-               ForceReadOnlyVar::new(self)
-            }
-
-            fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {
-                self.clone().into_map(map)
-            }
-
-            fn map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(&self, map: F) -> MapRefVar<O, O2, Self, F> {
-                self.clone().into_map_ref(map)
-            }
-
-            fn map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-                &self,
-                map: F,
-                map_back: G,
-            ) -> RcMapBidiVar<O, O2, Self, F, G> {
-                self.clone().into_map_bidi(map, map_back)
-            }
-
-            fn map_bidi_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static, G: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-                &self,
-                map: F,
-                map_mut: G,
-            ) -> MapBidiRefVar<O, O2, Self, F, G> {
-                self.clone().into_map_bidi_ref(map, map_mut)
-            }
-
-            fn into_map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(self, map: F) -> RcMapVar<O, O2, Self, F> {
-                RcMapVar::new(self, map)
-            }
-
-            fn into_map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(self, map: F) -> MapRefVar<O, O2, Self, F> {
-                MapRefVar::new(self, map)
-            }
-
-            fn into_map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-                self,
-                map: F,
-                map_back: G,
-            ) -> RcMapBidiVar<O, O2, Self, F, G> {
-                RcMapBidiVar::new(self, map, map_back)
-            }
-
-            fn into_map_bidi_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static, G: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-                self,
-                map: F,
-                map_mut: G,
-            ) -> MapBidiRefVar<O, O2, Self, F, G> {
-                MapBidiRefVar::new(self, map, map_mut)
+               ReadOnlyVar::new(self)
             }
         }
 
-        impl<O: VarValue, D: Var<O>, $($C: VarObj<bool>),+ , $($V: Var<O>),+> IntoVar<O> for $RcMergeVar<O, D, $($C),+ , $($V),+>  {
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> IntoVar<O> for $RcMergeVar<O, D, $($C),+ , $($V),+>  {
             type Var = Self;
 
             fn into_var(self) -> Self::Var {
@@ -377,13 +320,15 @@ impl<O: VarValue> RcWhenVar<O> {
         }))
     }
 }
-impl<O: VarValue> protected::Var for RcWhenVar<O> {}
 impl<O: VarValue> Clone for RcWhenVar<O> {
     fn clone(&self) -> Self {
         Self(Rc::clone(&self.0))
     }
 }
-impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
+impl<O: VarValue> Var<O> for RcWhenVar<O> {
+    type AsReadOnly = ReadOnlyVar<O, Self>;
+    type AsLocal = CloningLocalVar<O, Self>;
+
     /// Gets the the first variable with `true` condition or the default variable.
     fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
         for (c, v) in self.0.whens.iter() {
@@ -498,7 +443,7 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
         self.0.default_.set(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
+    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly>
     where
         O: PartialEq,
     {
@@ -511,77 +456,21 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
     }
 
     /// Modify the [current value variable](Self::get).
-    fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
+    fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
         for (c, v) in self.0.whens.iter() {
             if *c.get(vars) {
-                return v.modify_boxed(vars, change);
+                return v.modify(vars, change);
             }
         }
-        self.0.default_.modify_boxed(vars, change)
+        self.0.default_.modify(vars, change)
     }
-}
-impl<O: VarValue> Var<O> for RcWhenVar<O> {
-    type AsReadOnly = ForceReadOnlyVar<O, Self>;
-    type AsLocal = CloningLocalVar<O, Self>;
 
     fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
 
-    fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-        self.modify_boxed(vars, Box::new(change))
-    }
-
     fn into_read_only(self) -> Self::AsReadOnly {
-        ForceReadOnlyVar::new(self)
-    }
-
-    fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {
-        self.clone().into_map(map)
-    }
-
-    fn map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(&self, map: F) -> MapRefVar<O, O2, Self, F> {
-        self.clone().into_map_ref(map)
-    }
-
-    fn map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-        &self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<O, O2, Self, F, G> {
-        self.clone().into_map_bidi(map, map_back)
-    }
-
-    fn map_bidi_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static, G: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-        &self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<O, O2, Self, F, G> {
-        self.clone().into_map_bidi_ref(map, map_mut)
-    }
-
-    fn into_map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(self, map: F) -> RcMapVar<O, O2, Self, F> {
-        RcMapVar::new(self, map)
-    }
-
-    fn into_map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(self, map: F) -> MapRefVar<O, O2, Self, F> {
-        MapRefVar::new(self, map)
-    }
-
-    fn into_map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-        self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<O, O2, Self, F, G> {
-        RcMapBidiVar::new(self, map, map_back)
-    }
-
-    fn into_map_bidi_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static, G: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-        self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<O, O2, Self, F, G> {
-        MapBidiRefVar::new(self, map, map_mut)
+        ReadOnlyVar::new(self)
     }
 }
 impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {

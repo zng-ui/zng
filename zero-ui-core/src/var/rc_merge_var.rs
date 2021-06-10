@@ -1,5 +1,10 @@
 use super::*;
 
+use std::cell::{Cell, RefCell, UnsafeCell};
+use std::marker::PhantomData;
+use std::mem::MaybeUninit;
+use std::rc::Rc;
+
 /// Initializes a new [`Var`](crate::var::Var) with value made
 /// by merging multiple other variables.
 ///
@@ -78,22 +83,22 @@ macro_rules! impl_rc_merge_var {
         n: $($n:tt),+;
     ) => {
         #[doc(hidden)]
-        pub struct $RcMergeVar<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>(
+        pub struct $RcMergeVar<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>(
             Rc<$RcMergeVarData<$($I,)+ O, $($V,)+ F>>,
         );
 
-        struct $RcMergeVarData<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> {
+        struct $RcMergeVarData<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> {
             _i: PhantomData<($($I),+)>,
             vars: ($($V),+),
             f: RefCell<F>,
             versions: [Cell<u32>; $len],
             output_version: Cell<u32>,
-            output: UnsafeCell<MaybeUninit<O>>, // TODO: Need to manually drop?
+            output: UnsafeCell<MaybeUninit<O>>, // TODO: we are leaking memory here (drop not called), change to new RcVar method.
             last_update_id: Cell<Option<u32>>,
         }
 
         #[allow(missing_docs)]// this is all hidden.
-        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> $RcMergeVar<$($I,)+ O, $($V,)+ F> {
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             pub fn new(vars: ($($V),+), f: F) -> Self {
                 Self(Rc::new($RcMergeVarData {
                     _i: PhantomData,
@@ -107,23 +112,23 @@ macro_rules! impl_rc_merge_var {
             }
 
             pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
-                <Self as VarObj<O>>::get(self, vars)
+                <Self as Var<O>>::get(self, vars)
             }
 
             pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
-                <Self as VarObj<O>>::get_new(self, vars)
+                <Self as Var<O>>::get_new(self, vars)
             }
 
             pub fn is_new(&self, vars: &Vars) -> bool {
-                <Self as VarObj<O>>::is_new(self, vars)
+                <Self as Var<O>>::is_new(self, vars)
             }
 
             pub fn version(&self, vars: &Vars) -> u32 {
-                <Self as VarObj<O>>::version(self, vars)
+                <Self as Var<O>>::version(self, vars)
             }
 
             pub fn can_update(&self) -> bool {
-                <Self as VarObj<O>>::can_update(self)
+                <Self as Var<O>>::can_update(self)
             }
 
             fn output_uninit(&self) -> bool {
@@ -153,18 +158,19 @@ macro_rules! impl_rc_merge_var {
             }
         }
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         Clone for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             fn clone(&self) -> Self {
                 $RcMergeVar(Rc::clone(&self.0))
             }
         }
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
-        protected::Var for $RcMergeVar<$($I,)+ O, $($V,)+ F> { }
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        Var<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
+            type AsReadOnly = ReadOnlyVar<O, Self>;
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
-        VarObj<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
+            type AsLocal = CloningLocalVar<O, Self>;
+
             fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
                 self.update_output(vars);
 
@@ -209,84 +215,24 @@ macro_rules! impl_rc_merge_var {
                 Err(VarIsReadOnly)
             }
 
-            fn set_ne(&self, _: &Vars, _: O) -> Result<bool, VarIsReadOnly>  where O: PartialEq {
+            fn set_ne(&self, _: &Vars, _: O) -> Result<(), VarIsReadOnly>  where O: PartialEq {
                 Err(VarIsReadOnly)
             }
 
-            fn modify_boxed(&self, _: &Vars, _: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
+            fn modify<F2: FnOnce(&mut VarModify<O>) + 'static>(&self, _: &Vars, _: F2) -> Result<(), VarIsReadOnly> {
                 Err(VarIsReadOnly)
             }
-        }
-
-        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
-        Var<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
-            type AsReadOnly = ForceReadOnlyVar<O, Self>;
-
-            type AsLocal = CloningLocalVar<O, Self>;
 
             fn into_local(self) -> Self::AsLocal {
                 CloningLocalVar::new(self)
             }
 
-            fn modify<F2: FnOnce(&mut O) + 'static>(&self, _: &Vars, _: F2) -> Result<(), VarIsReadOnly> {
-                Err(VarIsReadOnly)
-            }
-
             fn into_read_only(self) -> Self::AsReadOnly {
-                ForceReadOnlyVar::new(self)
-            }
-
-
-            fn map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {
-                self.clone().into_map(map)
-            }
-
-            fn map_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static>(&self, map: F2) -> MapRefVar<O, O2, Self, F2> {
-                self.clone().into_map_ref(map)
-            }
-
-            fn map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-                &self,
-                map: F2,
-                map_back: G,
-            ) -> RcMapBidiVar<O, O2, Self, F2, G> {
-                self.clone().into_map_bidi(map, map_back)
-            }
-
-            fn into_map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(self, map: F2) -> RcMapVar<O, O2, Self, F2> {
-                RcMapVar::new(self, map)
-            }
-
-            fn into_map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
-                self,
-                map: F2,
-                map_back: G,
-            ) -> RcMapBidiVar<O, O2, Self, F2, G> {
-                RcMapBidiVar::new(self, map, map_back)
-            }
-
-            fn into_map_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static>(self, map: F2) -> MapRefVar<O, O2, Self, F2> {
-                MapRefVar::new(self, map)
-            }
-
-            fn map_bidi_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static, G2: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-                &self,
-                map: F2,
-                map_mut: G2,
-            ) -> MapBidiRefVar<O, O2, Self, F2, G2> {
-                self.clone().into_map_bidi_ref(map, map_mut)
-            }
-
-            fn into_map_bidi_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static, G2: Fn(&mut O) -> &mut O2 + Clone + 'static>(
-                self,
-                map: F2,
-                map_mut: G2,
-            ) -> MapBidiRefVar<O, O2, Self, F2, G2> {
-                MapBidiRefVar::new(self, map, map_mut)
+                ReadOnlyVar::new(self)
             }
         }
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         IntoVar<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             type Var = Self;
             fn into_var(self) -> Self {

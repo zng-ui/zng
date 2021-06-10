@@ -12,7 +12,7 @@ use retain_mut::RetainMut;
 
 use crate::{
     context::AppContext,
-    var::{var, ForceReadOnlyVar, RcVar, Var, VarObj, Vars, VarsRead},
+    var::{var, RcVar, ReadOnlyVar, Var, Vars, VarsRead},
 };
 
 struct DeadlineHandlerEntry {
@@ -258,7 +258,7 @@ pub struct TimeoutInfo {
 /// This is a variable of type [`TimeoutInfo`], it will update once when the timer elapses.
 ///
 /// Drop all clones of this variable to cancel the timer.
-pub type TimeoutVar = ForceReadOnlyVar<TimeoutInfo, RcVar<TimeoutInfo>>;
+pub type TimeoutVar = ReadOnlyVar<TimeoutInfo, RcVar<TimeoutInfo>>;
 
 /// Represents the state of a [`TimerVar`].
 #[derive(Debug, Clone)]
@@ -433,7 +433,7 @@ impl std::error::Error for TimerStopped {}
 ///
 /// Drop all clones of this variable to stop the timer, you can also control the timer
 /// with methods in the [timer value](TimerInfo).
-pub type TimerVar = ForceReadOnlyVar<TimerInfo, RcVar<TimerInfo>>;
+pub type TimerVar = ReadOnlyVar<TimerInfo, RcVar<TimerInfo>>;
 
 /// A controller for a [`TimerVar`].
 ///

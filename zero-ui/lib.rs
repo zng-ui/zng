@@ -957,7 +957,7 @@ pub mod prelude {
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight,
             Point, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
         },
-        var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, VarObj, Vars},
+        var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, Vars},
         widget_base::Visibility,
         widget_vec, widgets,
         window::{AppRunWindowExt, AutoSize, CursorIcon, StartPosition, Window, WindowChrome, WindowIcon, WindowState, Windows},

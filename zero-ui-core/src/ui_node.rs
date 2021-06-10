@@ -604,7 +604,7 @@ pub trait RcNodeTakeSignal: 'static {
 }
 impl<V> RcNodeTakeSignal for V
 where
-    V: crate::var::VarObj<bool>,
+    V: crate::var::Var<bool>,
 {
     /// Takes the widget when the var value is `true`.
     fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {

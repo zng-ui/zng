@@ -503,7 +503,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #cfg
                 when_infos__.push(#module::__core::WhenInfoV1 {
                     condition_expr: #expr_str,
-                    condition_var: Some(#module::__core::var::VarObj::boxed(std::clone::Clone::clone(&#ident))),
+                    condition_var: Some(#module::__core::var::Var::boxed(std::clone::Clone::clone(&#ident))),
                     properties: std::vec![
                         #(#assign_names),*
                     ],

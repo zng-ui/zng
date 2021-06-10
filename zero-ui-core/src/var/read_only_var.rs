@@ -47,7 +47,7 @@ where
         self.0.version(vars)
     }
 
-    fn is_read_only(&self, _: &VarsRead) -> bool {
+    fn is_read_only(&self, _: &Vars) -> bool {
         true
     }
 

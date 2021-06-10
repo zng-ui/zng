@@ -7,7 +7,7 @@ use super::{
     impl_ui_node,
     render::{FrameBuilder, FrameInfo, FrameUpdate, WidgetInfo},
     units::LayoutSize,
-    var::{context_var, BoxedVar, VarObj},
+    var::{context_var, BoxedVar, Var},
     UiNode,
 };
 use std::{
@@ -121,7 +121,7 @@ pub struct PropertyArgInfo {
     pub value: ValueInfo,
     /// Value version from the source variable.
     pub value_version: u32,
-    /// If the arg is a [`can_update` var](crate::var::VarObj::can_update).
+    /// If the arg is a [`can_update` var](crate::var::Var::can_update).
     pub can_update: bool,
 }
 
@@ -698,7 +698,7 @@ impl PartialEq for ValueInfo {
 pub mod debug_var_util {
     use std::fmt::Debug;
 
-    use crate::var::{BoxedVar, IntoValue, IntoVar, OwnedVar, Var, VarObj, VarValue};
+    use crate::var::{BoxedVar, IntoValue, IntoVar, OwnedVar, Var, VarValue};
 
     use super::ValueInfo;
 
@@ -765,6 +765,8 @@ pub mod debug_var_util {
 
     #[cfg(test)]
     mod tests {
+        use crate::var::Var;
+
         macro_rules! debug_var_util_trick {
             ($value:expr) => {{
                 use $crate::debug::debug_var_util::*;

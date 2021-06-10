@@ -192,7 +192,7 @@ fn always_on_top() -> impl Widget {
                     content = button!{
                         content = text("toggle always_on_top");
                         on_click = clone_move!(always_on_top, |ctx, _| {
-                            always_on_top.modify(ctx.vars, |b| *b = !*b)
+                            always_on_top.modify(ctx.vars, |b| **b = !**b)
                         })
                     };
                     size = (400, 300);
@@ -214,7 +214,7 @@ fn taskbar_visible() -> impl Widget {
                     content = button!{
                         content = text("toggle taskbar_visible");
                         on_click = clone_move!(taskbar_visible, |ctx, _| {
-                            taskbar_visible.modify(ctx.vars, |b| *b = !*b)
+                            taskbar_visible.modify(ctx.vars, |b| **b = !**b)
                         })
                     };
                     size = (400, 300);

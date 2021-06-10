@@ -1,214 +1,178 @@
-use std::fmt;
+use std::{
+    cell::{Cell, RefCell, UnsafeCell},
+    marker::PhantomData,
+    rc::{Rc, Weak},
+};
 
 use super::*;
 
-/// A [`Var`] that can be shared.
-///
-/// This type is a reference-counted pointer ([`Rc`]),
-/// it implements the full [`Var`] read and write methods.
-///
-/// This is the variable type to use for binding two properties to the same value,
-/// or changing a property value during runtime.
-///
-/// # New and Share
-///
-/// Use [`var`] to create a new variable, use `RcVar::clone` to create another reference
-/// to the same variable.
-pub struct RcVar<T: VarValue>(Rc<RcVarData<T>>);
-struct RcVarData<T> {
-    data: UnsafeCell<T>,
-    last_updated: Cell<u32>,
+/// A [`Var`] that is a [`Rc`] pointer to its value.
+pub struct RcVar<T: VarValue>(Rc<Data<T>>);
+struct Data<T> {
+    value: UnsafeCell<T>,
+    last_update_id: Cell<u32>,
     version: Cell<u32>,
 }
-impl<T: VarValue> protected::Var for RcVar<T> {}
 impl<T: VarValue> RcVar<T> {
-    pub(super) fn new(value: T) -> Self {
-        RcVar(Rc::new(RcVarData {
-            data: UnsafeCell::new(value),
-            last_updated: Cell::new(0),
+    /// New [`RcVar`].
+    ///
+    /// You can also use the [`var`] function to initialize.
+    pub fn new(initial_value: T) -> Self {
+        RcVar(Rc::new(Data {
+            value: UnsafeCell::new(initial_value),
+            last_update_id: Cell::new(0),
             version: Cell::new(0),
         }))
     }
 
-    /// Number of references to this variable.
+    /// Reference the current value.
     #[inline]
-    pub fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
-
-    /// References the current value.
     pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
-        <Self as VarObj<T>>::get(self, vars)
+        let _ = vars;
+        // SAFETY: this is safe because we are tying the `Vars` lifetime to the value
+        // and we require `&mut Vars` to modify the value.
+        unsafe { &*self.0.value.get() }
     }
 
-    /// References the current value if it is new.
+    /// Reference the current value if it [is new](Self::is_new).
+    #[inline]
     pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
-        <Self as VarObj<T>>::get_new(self, vars)
-    }
-
-    /// If [`set`](Self::set) or [`modify`](Var::modify) was called in the previous update.
-    pub fn is_new(&self, vars: &Vars) -> bool {
-        <Self as VarObj<T>>::is_new(self, vars)
-    }
-
-    /// Version of the current value.
-    ///
-    /// The version is incremented every update
-    /// that [`set`](Self::set) or [`modify`](Var::modify) are called.
-    pub fn version(&self, vars: &VarsRead) -> u32 {
-        <Self as VarObj<T>>::version(self, vars)
-    }
-
-    /// Schedules an assign for after the current update.
-    ///
-    /// The value is not changed immediately, the full UI tree gets a chance to see the current value,
-    /// after the current UI update, the value is updated.
-    pub fn set(&self, vars: &Vars, new_value: T) {
-        let _ = <Self as VarObj<T>>::set(self, vars, new_value);
-    }
-
-    /// Does `set` if `new_value` is not equal to the current value.
-    pub fn set_ne(&self, vars: &Vars, new_value: T) -> bool
-    where
-        T: PartialEq,
-    {
-        let ne = self.get(vars) != &new_value;
-        if ne {
-            self.set(vars, new_value);
-        }
-        ne
-    }
-
-    /// Schedules a closure to modify the value after the current update.
-    ///
-    /// This is a variation of the [`set`](Self::set) method that does not require
-    /// an entire new value to be instantiated.
-    pub fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) {
-        let _ = <Self as Var<T>>::modify(self, vars, change);
-    }
-
-    /// Returns `true` if both are the same variable.
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-
-    /// Returns the number of pointers to this same var.
-    pub fn ptr_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
-
-    /// Returns a variable with value generated from `self`.
-    ///
-    /// The value is new when the `self` value is new, `map` is only called once per new value.
-    ///
-    /// The variable is read-only, use [`map_bidi`](Self::map_bidi) to propagate changes back to `self`.
-    ///
-    /// Use [`map_ref`](Self::map_ref) if you don't need to generate a new value.
-    ///
-    /// Use [`into_map`](Self::into_map) if you will not use this copy of `self` anymore.
-    pub fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F> {
-        <Self as Var<T>>::map(self, map)
-    }
-
-    /// Returns a variable with value referenced from `self`.
-    ///
-    /// The value is new when the `self` value is new, `map` is called every time [`get`](VarObj::get) is called.
-    ///
-    /// The variable is read-only.
-    ///
-    /// Use [`into_map_ref`](Self::into_map_ref) if you will not use this copy of `self` anymore.
-    pub fn map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<T, O, Self, F> {
-        <Self as Var<T>>::map_ref(self, map)
-    }
-
-    /// Returns a variable whos value is mapped to and from `self`.
-    ///
-    /// The value is new when the `self` value is new, `map` is only called once per new value.
-    ///
-    /// The variable can be set if `self` is not read-only, when set `map_back` is called to generate
-    /// a new value for `self`.
-    ///
-    /// Use [`map_bidi_ref`](Self::map_bidi_ref) if you don't need to generate a new value.
-    ///
-    /// Use [`into_map_bidi`](Self::into_map_bidi) if you will not use this copy of `self` anymore.
-    pub fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
-        &self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<T, O, Self, F, G> {
-        <Self as Var<T>>::map_bidi(self, map, map_back)
-    }
-
-    /// Returns a variable with value mapped to and from `self` using references.
-    ///
-    /// The value is new when the `self` value is new, `map` is called every time [`get`](VarObj::get) is called,
-    /// `map_mut` is called every time the value is set or modified.
-    ///
-    /// Use [`into_map`](Self::into_map) if you will not use this copy of `self` anymore.
-    pub fn map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
-        &self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<T, O, Self, F, G> {
-        <Self as Var<T>>::map_bidi_ref(self, map, map_mut)
-    }
-
-    /// Taking variant of [`map`](Self::map).
-    pub fn into_map<O: VarValue, F: FnMut(&T) -> O + 'static>(self, map: F) -> RcMapVar<T, O, Self, F> {
-        <Self as Var<T>>::into_map(self, map)
-    }
-
-    /// Taking variant of [`map_ref`](Self::map_ref).
-    pub fn into_map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<T, O, Self, F> {
-        <Self as Var<T>>::into_map_ref(self, map)
-    }
-
-    /// Taking variant of [`map_bidi`](Self::map_bidi).
-    pub fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
-        self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<T, O, Self, F, G> {
-        <Self as Var<T>>::into_map_bidi(self, map, map_back)
-    }
-
-    /// Taking variant of [`map_bidi_ref`](Self::map_bidi_ref).
-    pub fn into_map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
-        self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<T, O, Self, F, G> {
-        <Self as Var<T>>::into_map_bidi_ref(self, map, map_mut)
-    }
-}
-impl<T: VarValue> Clone for RcVar<T> {
-    /// Clone the variable reference.
-    fn clone(&self) -> Self {
-        RcVar(Rc::clone(&self.0))
-    }
-}
-impl<T: VarValue> VarObj<T> for RcVar<T> {
-    fn get<'a>(&'a self, _: &'a VarsRead) -> &'a T {
-        // SAFETY: This is safe because we are bounding the value lifetime with
-        // the `Vars` lifetime and we require a mutable reference to `Vars` to
-        // modify the value.
-        unsafe { &*self.0.data.get() }
-    }
-
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
-        if self.is_new(vars) {
+        let _ = vars;
+        if self.0.last_update_id.get() == vars.update_id() {
             Some(self.get(vars))
         } else {
             None
         }
     }
 
-    fn is_new(&self, vars: &Vars) -> bool {
-        self.0.last_updated.get() == vars.update_id()
+    /// If the current value changed in the last update.
+    #[inline]
+    pub fn is_new(&self, vars: &Vars) -> bool {
+        self.0.last_update_id.get() == vars.update_id()
     }
 
-    fn version(&self, _: &VarsRead) -> u32 {
+    /// Gets the current value version.
+    #[inline]
+    pub fn version(&self, vars: &VarsRead) -> u32 {
+        let _ = vars;
         self.0.version.get()
+    }
+
+    /// Schedule a value modification for this variable.
+    #[inline]
+    pub fn modify<M>(&self, vars: &Vars, modify: M)
+    where
+        M: FnOnce(&mut VarModify<T>) + 'static,
+    {
+        let self_ = self.clone();
+        vars.push_change(Box::new(move |update_id| {
+            // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
+            let mut guard = VarModify::new(unsafe { &mut *self_.0.value.get() });
+            modify(&mut guard);
+            if guard.touched() {
+                self_.0.last_update_id.set(update_id);
+                self_.0.version.set(self_.0.version.get().wrapping_add(1));
+            }
+        }));
+    }
+
+    /// Schedule a new value for this variable.
+    #[inline]
+    pub fn set(&self, vars: &Vars, new_value: T) {
+        self.modify(vars, move |v| **v = new_value)
+    }
+
+    /// Schedule a new value for this variable, the variable will only be set if
+    /// the value is not equal to `new_value`.
+    #[inline]
+    pub fn set_ne(&self, vars: &Vars, new_value: T)
+    where
+        T: PartialEq,
+    {
+        self.modify(vars, move |v| {
+            if !v.eq(&new_value) {
+                **v = new_value;
+            }
+        })
+    }
+
+    /// Gets the number of [`RcVar`] that point to this same variable.
+    #[inline]
+    pub fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    ///Gets the number of [`WeakVar`] that point to this variable.
+    #[inline]
+    pub fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    /// Returns `true` if `self` and `other` are the same variable.
+    #[inline]
+    pub fn ptr_eq(&self, other: &RcVar<T>) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+
+    /// Creates a new [`WeakVar`] that points to this variable.
+    #[inline]
+    pub fn downgrade(&self) -> WeakVar<T> {
+        WeakVar(Rc::downgrade(&self.0))
+    }
+}
+impl<T: VarValue> Clone for RcVar<T> {
+    fn clone(&self) -> Self {
+        RcVar(Rc::clone(&self.0))
+    }
+}
+
+/// New [`RcVar`].
+#[inline]
+pub fn var<T: VarValue>(value: T) -> RcVar<T> {
+    RcVar::new(value)
+}
+
+/// New [`RcVar`] from any value that converts to `T`.
+#[inline]
+pub fn var_from<T: VarValue, I: Into<T>>(value: I) -> RcVar<T> {
+    RcVar::new(value.into())
+}
+
+/// A weak reference to a [`RcVar`].
+pub struct WeakVar<T: VarValue>(Weak<Data<T>>);
+
+impl<T: VarValue> Clone for WeakVar<T> {
+    fn clone(&self) -> Self {
+        WeakVar(self.0.clone())
+    }
+}
+
+impl<T: VarValue> WeakVar<T> {
+    /// Attempts to upgrade to an [`RcVar`], returns `None` if the variable no longer exists.
+    pub fn updgrade(&self) -> Option<RcVar<T>> {
+        self.0.upgrade().map(RcVar)
+    }
+}
+
+impl<T: VarValue> Var<T> for RcVar<T> {
+    type AsReadOnly = ReadOnlyVar<T, Self>;
+
+    type AsLocal = CloningLocalVar<T, Self>;
+
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
+        self.get(vars)
+    }
+
+    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        self.get_new(vars)
+    }
+
+    fn is_new(&self, vars: &Vars) -> bool {
+        self.is_new(vars)
+    }
+
+    fn version(&self, vars: &VarsRead) -> u32 {
+        self.version(vars)
     }
 
     fn is_read_only(&self, _: &Vars) -> bool {
@@ -223,114 +187,27 @@ impl<T: VarValue> VarObj<T> for RcVar<T> {
         true
     }
 
-    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
-        let self2 = self.clone();
-        vars.push_change(Box::new(move |update_id: u32| {
-            // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
-            unsafe {
-                *self2.0.data.get() = new_value;
-            }
-            self2.0.last_updated.set(update_id);
-            self2.0.version.set(self2.0.version.get().wrapping_add(1));
-        }));
-        Ok(())
-    }
-
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    fn modify<M>(&self, vars: &Vars, modify: M) -> Result<(), VarIsReadOnly>
     where
-        T: PartialEq,
+        M: FnOnce(&mut VarModify<T>) + 'static,
     {
-        let ne = self.get(vars) != &new_value;
-        if ne {
-            self.set(vars, new_value);
-        }
-        Ok(ne)
-    }
-
-    fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly> {
-        let self2 = self.clone();
-        vars.push_change(Box::new(move |update_id| {
-            // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
-            change(unsafe { &mut *self2.0.data.get() });
-            self2.0.last_updated.set(update_id);
-            self2.0.version.set(self2.0.version.get().wrapping_add(1));
-        }));
+        self.modify(vars, modify);
         Ok(())
     }
-}
-impl<T: VarValue> Var<T> for RcVar<T> {
-    type AsReadOnly = ForceReadOnlyVar<T, Self>;
 
-    type AsLocal = CloningLocalVar<T, Self>;
+    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
+        self.set(vars, new_value);
+        Ok(())
+    }
+
+    fn into_read_only(self) -> Self::AsReadOnly {
+        ReadOnlyVar::new(self)
+    }
 
     fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
-
-    fn into_read_only(self) -> Self::AsReadOnly {
-        ForceReadOnlyVar::new(self)
-    }
-
-    fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-        let me = self.clone();
-        vars.push_change(Box::new(move |update_id: u32| {
-            // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
-            change(unsafe { &mut *me.0.data.get() });
-            me.0.last_updated.set(update_id);
-            me.0.version.set(me.0.version.get().wrapping_add(1));
-        }));
-        Ok(())
-    }
-
-    fn map<O: VarValue, F: FnMut(&T) -> O>(&self, map: F) -> RcMapVar<T, O, Self, F> {
-        self.clone().into_map(map)
-    }
-
-    fn map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<T, O, Self, F> {
-        self.clone().into_map_ref(map)
-    }
-
-    fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
-        &self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<T, O, Self, F, G> {
-        self.clone().into_map_bidi(map, map_back)
-    }
-
-    fn into_map<O: VarValue, F: FnMut(&T) -> O>(self, map: F) -> RcMapVar<T, O, Self, F> {
-        RcMapVar::new(self, map)
-    }
-
-    fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
-        self,
-        map: F,
-        map_back: G,
-    ) -> RcMapBidiVar<T, O, Self, F, G> {
-        RcMapBidiVar::new(self, map, map_back)
-    }
-
-    fn into_map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<T, O, Self, F> {
-        MapRefVar::new(self, map)
-    }
-
-    fn map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
-        &self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<T, O, Self, F, G> {
-        self.clone().into_map_bidi_ref(map, map_mut)
-    }
-
-    fn into_map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
-        self,
-        map: F,
-        map_mut: G,
-    ) -> MapBidiRefVar<T, O, Self, F, G> {
-        MapBidiRefVar::new(self, map, map_mut)
-    }
 }
-
 impl<T: VarValue> IntoVar<T> for RcVar<T> {
     type Var = Self;
 
@@ -339,14 +216,437 @@ impl<T: VarValue> IntoVar<T> for RcVar<T> {
     }
 }
 
-/// New [`RcVar`].
-pub fn var<V: VarValue>(value: V) -> RcVar<V> {
-    RcVar::new(value)
+/// A [`Var`] that maps from another var and is a [`Rc`] pointer to its value.
+pub struct RcMapVar<A, B, M, S>(Rc<MapData<A, B, M, S>>)
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    S: Var<A>;
+struct MapData<A, B, M, S> {
+    _a: PhantomData<A>,
+
+    source: S,
+    map: RefCell<M>,
+
+    value: UnsafeCell<Option<B>>,
+    version: Cell<u32>,
 }
 
-/// New [`RcVar`] using conversion.
-pub fn var_from<V: VarValue, I: Into<V>>(value: I) -> RcVar<V> {
-    RcVar::new(value.into())
+impl<A, B, M, S> RcMapVar<A, B, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    S: Var<A>,
+{
+    /// New mapping var.
+    #[inline]
+    pub fn new(source: S, map: M) -> Self {
+        RcMapVar(Rc::new(MapData {
+            _a: PhantomData,
+            source,
+            map: RefCell::new(map),
+            value: UnsafeCell::new(None),
+            version: Cell::new(0),
+        }))
+    }
+
+    /// Get the value, applies the mapping if the value is out of sync.
+    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a B {
+        // SAFETY: access to value is safe because `source` needs a `&mut Vars` to change its version
+        // and we change the value only in the first call to `get` with the new source version.
+
+        let version = self.0.source.version(vars);
+        let first = unsafe { &*self.0.value.get() }.is_none();
+
+        if first || version != self.0.version.get() {
+            let new_value = self.0.map.borrow_mut()(self.0.source.get(vars));
+
+            // SAFETY: see return value.
+            unsafe {
+                *self.0.value.get() = Some(new_value);
+            }
+
+            self.0.version.set(version);
+        }
+
+        unsafe { &*self.0.value.get() }.as_ref().unwrap()
+    }
+
+    /// Get the value if the source var updated in the last update.
+    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
+        if self.0.source.is_new(vars) {
+            Some(self.get(vars))
+        } else {
+            None
+        }
+    }
+
+    /// Gets if the source var updated in the last update.
+    #[inline]
+    pub fn is_new(&self, vars: &Vars) -> bool {
+        self.0.source.is_new(vars)
+    }
+
+    /// Gets the source var value version.
+    #[inline]
+    pub fn version(&self, vars: &VarsRead) -> u32 {
+        self.0.source.version(vars)
+    }
+
+    /// Gets the number of [`RcMapBidiVar`] that point to this same variable.
+    #[inline]
+    pub fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    /// Returns `true` if `self` and `other` are the same variable.
+    #[inline]
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl<A, B, M, S> Clone for RcMapVar<A, B, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    S: Var<A>,
+{
+    fn clone(&self) -> Self {
+        RcMapVar(Rc::clone(&self.0))
+    }
+}
+
+impl<A, B, M, S> Var<B> for RcMapVar<A, B, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    S: Var<A>,
+{
+    type AsReadOnly = Self;
+
+    type AsLocal = CloningLocalVar<B, Self>;
+
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a B {
+        self.get(vars)
+    }
+
+    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
+        self.get_new(vars)
+    }
+
+    fn is_new(&self, vars: &Vars) -> bool {
+        self.is_new(vars)
+    }
+
+    fn version(&self, vars: &VarsRead) -> u32 {
+        self.version(vars)
+    }
+
+    fn is_read_only(&self, _: &Vars) -> bool {
+        true
+    }
+
+    fn always_read_only(&self) -> bool {
+        true
+    }
+
+    fn can_update(&self) -> bool {
+        self.0.source.can_update()
+    }
+
+    fn modify<Mo>(&self, _: &Vars, _: Mo) -> Result<(), VarIsReadOnly>
+    where
+        Mo: FnOnce(&mut VarModify<B>) + 'static,
+    {
+        Err(VarIsReadOnly)
+    }
+
+    fn set(&self, _: &Vars, _: B) -> Result<(), VarIsReadOnly> {
+        Err(VarIsReadOnly)
+    }
+
+    fn set_ne(&self, _: &Vars, _: B) -> Result<(), VarIsReadOnly>
+    where
+        B: PartialEq,
+    {
+        Err(VarIsReadOnly)
+    }
+
+    fn into_read_only(self) -> Self::AsReadOnly {
+        self
+    }
+
+    fn into_local(self) -> Self::AsLocal {
+        CloningLocalVar::new(self)
+    }
+}
+impl<A, B, M, S> IntoVar<B> for RcMapVar<A, B, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    S: Var<A>,
+{
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
+
+/// A [`Var`] that maps from-and-to another var and is a [`Rc`] pointer to its value.
+pub struct RcMapBidiVar<A, B, M, N, S>(Rc<MapBidiData<A, B, M, N, S>>)
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    N: FnMut(B) -> A + 'static,
+    S: Var<A>;
+
+struct MapBidiData<A, B, M, N, S> {
+    _a: PhantomData<A>,
+
+    source: S,
+    map: RefCell<M>,
+    map_back: RefCell<N>,
+
+    value: UnsafeCell<Option<B>>,
+    version: Cell<u32>,
+}
+
+impl<A, B, M, N, S> RcMapBidiVar<A, B, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    N: FnMut(B) -> A + 'static,
+    S: Var<A>,
+{
+    /// New bidirectional mapping var.
+    #[inline]
+    pub fn new(source: S, map: M, map_back: N) -> Self {
+        RcMapBidiVar(Rc::new(MapBidiData {
+            _a: PhantomData,
+            source,
+            map: RefCell::new(map),
+            map_back: RefCell::new(map_back),
+            value: UnsafeCell::new(None),
+            version: Cell::new(0),
+        }))
+    }
+
+    /// Get the value, applies the mapping if the value is out of sync.
+    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a B {
+        // SAFETY: access to value is safe because `source` needs a `&mut Vars` to change its version
+        // and we change the value only in the first call to `get` with the new source version.
+
+        let version = self.0.source.version(vars);
+        let first = unsafe { &*self.0.value.get() }.is_none();
+
+        if first || version != self.0.version.get() {
+            let new_value = self.0.map.borrow_mut()(self.0.source.get(vars));
+
+            // SAFETY: see return value.
+            unsafe {
+                *self.0.value.get() = Some(new_value);
+            }
+
+            self.0.version.set(version);
+        }
+
+        unsafe { &*self.0.value.get() }.as_ref().unwrap()
+    }
+
+    /// Get the value if the source var updated in the last update.
+    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
+        if self.0.source.is_new(vars) {
+            Some(self.get(vars))
+        } else {
+            None
+        }
+    }
+
+    /// Gets if the source var updated in the last update.
+    #[inline]
+    pub fn is_new(&self, vars: &Vars) -> bool {
+        self.0.source.is_new(vars)
+    }
+
+    /// Gets the source var value version.
+    #[inline]
+    pub fn version(&self, vars: &VarsRead) -> u32 {
+        self.0.source.version(vars)
+    }
+
+    /// If the source variable is currently read-only. You can only map-back when the source is read-write.
+    #[inline]
+    pub fn is_read_only(&self, vars: &Vars) -> bool {
+        self.0.source.is_read_only(vars)
+    }
+
+    /// If the source variable is always read-only. If `true` you can never map-back a value so this variable
+    /// is equivalent to a [`RcMapVar`].
+    #[inline]
+    pub fn always_read_only(&self) -> bool {
+        self.0.source.always_read_only()
+    }
+
+    /// If the source variable value can change.
+    #[inline]
+    pub fn can_update(&self) -> bool {
+        self.0.source.can_update()
+    }
+
+    /// Schedules a `map -> modify -> map_back -> set` chain.
+    fn modify<Mo>(&self, vars: &Vars, modify: Mo) -> Result<(), VarIsReadOnly>
+    where
+        Mo: FnOnce(&mut VarModify<B>) + 'static,
+    {
+        let self_ = self.clone();
+        self.0.source.modify(vars, move |source_value| {
+            let mut mapped_value = self_.0.map.borrow_mut()(source_value);
+            let mut guard = VarModify::new(&mut mapped_value);
+            modify(&mut guard);
+            if guard.touched() {
+                **source_value = self_.0.map_back.borrow_mut()(mapped_value);
+            }
+        })
+    }
+
+    /// Map back the value and schedules a `set` in the source variable.
+    fn set(&self, vars: &Vars, new_value: B) -> Result<(), VarIsReadOnly> {
+        let new_value = self.0.map_back.borrow_mut()(new_value);
+        self.0.source.set(vars, new_value)
+    }
+
+    /// Map back the value and schedules a `set_ne` in the source variable.
+    fn set_ne(&self, vars: &Vars, new_value: B) -> Result<(), VarIsReadOnly>
+    where
+        B: PartialEq,
+    {
+        let new_value = self.0.map_back.borrow_mut()(new_value);
+        self.0.source.set(vars, new_value)
+    }
+
+    /// Convert to a [`RcMapVar`] if `self` is the only reference.
+    #[inline]
+    pub fn into_map(self) -> Result<RcMapVar<A, B, M, S>, Self> {
+        match Rc::try_unwrap(self.0) {
+            Ok(data) => Ok(RcMapVar::new(data.source, data.map.into_inner())),
+            Err(rc) => Err(Self(rc)),
+        }
+    }
+
+    /// Gets the number of [`RcMapBidiVar`] that point to this same variable.
+    #[inline]
+    pub fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    /// Returns `true` if `self` and `other` are the same variable.
+    #[inline]
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl<A, B, M, N, S> Clone for RcMapBidiVar<A, B, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    N: FnMut(B) -> A + 'static,
+    S: Var<A>,
+{
+    fn clone(&self) -> Self {
+        RcMapBidiVar(Rc::clone(&self.0))
+    }
+}
+
+impl<A, B, M, N, S> Var<B> for RcMapBidiVar<A, B, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    N: FnMut(B) -> A + 'static,
+    S: Var<A>,
+{
+    type AsReadOnly = ReadOnlyVar<B, Self>;
+
+    type AsLocal = CloningLocalVar<B, Self>;
+
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a B {
+        self.get(vars)
+    }
+
+    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
+        self.get_new(vars)
+    }
+
+    fn is_new(&self, vars: &Vars) -> bool {
+        self.is_new(vars)
+    }
+
+    fn version(&self, vars: &VarsRead) -> u32 {
+        self.version(vars)
+    }
+
+    fn is_read_only(&self, vars: &Vars) -> bool {
+        self.is_read_only(vars)
+    }
+
+    fn always_read_only(&self) -> bool {
+        self.always_read_only()
+    }
+
+    fn can_update(&self) -> bool {
+        self.can_update()
+    }
+
+    fn modify<Mo>(&self, vars: &Vars, modify: Mo) -> Result<(), VarIsReadOnly>
+    where
+        Mo: FnOnce(&mut VarModify<B>) + 'static,
+    {
+        self.modify(vars, modify)
+    }
+
+    fn set(&self, vars: &Vars, new_value: B) -> Result<(), VarIsReadOnly> {
+        self.set(vars, new_value)
+    }
+
+    fn set_ne(&self, vars: &Vars, new_value: B) -> Result<(), VarIsReadOnly>
+    where
+        B: PartialEq,
+    {
+        self.set_ne(vars, new_value)
+    }
+
+    fn into_read_only(self) -> Self::AsReadOnly {
+        ReadOnlyVar::new(self)
+    }
+
+    fn into_local(self) -> Self::AsLocal {
+        CloningLocalVar::new(self)
+    }
+}
+impl<A, B, M, N, S> IntoVar<B> for RcMapBidiVar<A, B, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    N: FnMut(B) -> A + 'static,
+    S: Var<A>,
+{
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
 }
 
 /// New [`StateVar`].
@@ -384,7 +684,7 @@ pub type ResponderVar<T> = RcVar<Response<T>>;
 /// Variable used to listen to a one time signal that an UI operation has completed.
 ///
 /// Use [`response_var`] or [`response_done_var`] to init.
-pub type ResponseVar<T> = ForceReadOnlyVar<Response<T>, RcVar<Response<T>>>;
+pub type ResponseVar<T> = ReadOnlyVar<Response<T>, RcVar<Response<T>>>;
 
 /// Raw value in a [`ResponseVar`] or [`ResponseSender`].
 #[derive(Clone, Copy)]
