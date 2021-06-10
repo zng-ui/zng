@@ -23,6 +23,8 @@ bencher = "0.1"
 meval = "0.2"
 trybuild = "1"
 log = "0.4"
+# enable test util
+zero-ui-core = { path = "zero-ui-core", features = ["pub_test"] }
 
 [workspace]
 members = ["zero-ui-proc-macros", "zero-ui-core"]
