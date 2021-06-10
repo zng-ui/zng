@@ -1386,14 +1386,14 @@ macro_rules! __event_property {
         /// # Async Handlers
         ///
         /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-        /// runs during updates of the widget they are bound too, if the widget does not update the task does not advance and
+        /// runs during updates of the widget they are bound to, if the widget does not update the task does not advance and
         /// if the widget is dropped the task is canceled (dropped).
         ///
         /// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
         /// to run CPU intensive work in parallel and await for the result in the handler.
         ///
         /// See [`on_event_async`](zero_ui::core::event::on_event_async) for more details.
-        #[$crate::property(event, default(|_, _| { std::future::ready(()) }))]
+        #[$crate::property(event, default(|_, _| async {}))]
         $vis fn [<on_ $event _async>]<C, F, H>(
             child: C,
             handler: H
@@ -1411,7 +1411,7 @@ macro_rules! __event_property {
         /// # Async Handlers
         ///
         /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-        /// runs during updates of the widget they are bound too, if the widget does not update the task does not advance and
+        /// runs during updates of the widget they are bound to, if the widget does not update the task does not advance and
         /// if the widget is dropped the task is canceled (dropped).
         ///
         /// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
@@ -1423,7 +1423,7 @@ macro_rules! __event_property {
         ///
         /// Because only the code before the first `await` runs immediately, that is where you need to stop propagation if
         /// you want subsequent handlers to not be called for this event. After the first `await` the  code is **not** preview.
-        #[$crate::property(event, default(|_, _| { std::future::ready(()) }))]
+        #[$crate::property(event, default(|_, _| async {}))]
         $vis fn [<on_pre_ $event _async>]<C, F, H>(
             child: C,
             handler: H
