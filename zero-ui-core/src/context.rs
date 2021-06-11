@@ -305,8 +305,8 @@ where
 /// Private [`StateMap`].
 ///
 /// The owner of a state map has full access including to the `remove` and `clear` function that is not
-/// provided in the [`StateMap`] type..
-pub struct OwnedStateMap(pub(crate) StateMap);
+/// provided in the [`StateMap`] type.
+pub struct OwnedStateMap(pub(crate) StateMap); // TODO deref StateMap?
 impl Default for OwnedStateMap {
     fn default() -> Self {
         OwnedStateMap(StateMap::new())
