@@ -97,14 +97,14 @@ widget_context_handler_events! {
 /// # Async Handlers
 ///
 /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-/// runs during updates of the widget they are bound too, if the widget does not update the task does not advance and
+/// runs during updates of the widget they are bound to, if the widget does not update the task does not advance and
 /// if the widget is dropped the task is canceled (dropped).
 ///
 /// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
 /// to run CPU intensive work in parallel and await for the result in the handler.
 ///
 /// See [`on_event_async`](zero_ui::core::event::on_event_async) for more details.
-#[property(event)]
+#[property(event, default(|_, _| async {}))]
 pub fn on_init_async<C, F, H>(child: C, handler: H) -> impl UiNode
 where
     C: UiNode,
@@ -154,7 +154,7 @@ where
 /// # Async Handlers
 ///
 /// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-/// runs during updates of the widget they are bound too, if the widget does not update the task does not advance and
+/// runs during updates of the widget they are bound to, if the widget does not update the task does not advance and
 /// if the widget is dropped the task is canceled (dropped).
 ///
 /// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
@@ -165,7 +165,7 @@ where
 /// ## Async Preview
 ///
 /// Only the code before the first `await` runs immediately so only that code is *preview*.
-#[property(event)]
+#[property(event, default(|_, _| async {}))]
 pub fn on_pre_init_async<C, F, H>(child: C, handler: H) -> impl UiNode
 where
     C: UiNode,
