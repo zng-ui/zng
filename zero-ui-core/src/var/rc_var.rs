@@ -73,7 +73,14 @@ impl<T: VarValue> RcVar<T> {
                 self_.0.last_update_id.set(update_id);
                 self_.0.version.set(self_.0.version.get().wrapping_add(1));
             }
+            guard.touched()
         }));
+    }
+
+    /// Causes the variable to notify update without changing the value.
+    #[inline]
+    pub fn touch(&self, vars: &Vars) {
+        self.modify(vars, |v| v.touch());
     }
 
     /// Schedule a new value for this variable.
@@ -197,6 +204,14 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 
     fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
         self.set(vars, new_value);
+        Ok(())
+    }
+
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>
+    where
+        T: PartialEq,
+    {
+        self.set_ne(vars, new_value);
         Ok(())
     }
 

@@ -229,13 +229,15 @@ impl VarsRead {
     }
 }
 
+type PendingUpdate = Box<dyn FnOnce(u32) -> bool>;
+
 /// Access to application variables.
 ///
 /// Only a single instance of this type exists at a time.
 pub struct Vars {
     read: VarsRead,
     #[allow(clippy::type_complexity)]
-    pending: RefCell<Vec<Box<dyn FnOnce(u32)>>>,
+    pending: RefCell<Vec<PendingUpdate>>,
 }
 impl fmt::Debug for Vars {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -298,7 +300,7 @@ impl Vars {
         self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }
 
-    pub(super) fn push_change(&self, change: Box<dyn FnOnce(u32)>) {
+    pub(super) fn push_change(&self, change: PendingUpdate) {
         self.pending.borrow_mut().push(change);
     }
 
@@ -307,11 +309,15 @@ impl Vars {
 
         let pending = self.pending.get_mut();
         if !pending.is_empty() {
+            let mut modified = false;
             for f in pending.drain(..) {
-                f(self.read.update_id);
+                modified |= f(self.read.update_id);
             }
-            self.senders.borrow_mut().retain(|f| f(self));
-            updates.update();
+
+            if modified {
+                self.senders.borrow_mut().retain(|f| f(self));
+                updates.update();
+            }
         }
     }
 

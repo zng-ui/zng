@@ -176,7 +176,7 @@ impl Timers {
                 if info.deadline() <= now {
                     info.state.deadline.set(now + info.interval());
                     info.state.count.set(info.state.count.get().wrapping_add(1));
-                    t.modify(vars, |_| {});
+                    t.touch(vars);
                 }
                 min_next_some = true;
                 min_next = min_next.min(info.state.deadline.get());

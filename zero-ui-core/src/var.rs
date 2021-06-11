@@ -166,6 +166,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     where
         M: FnOnce(&mut VarModify<T>) + 'static;
 
+    /// Causes the variable to notify update without changing the value.
+    fn touch(&self, vars: &Vars) -> Result<(), VarIsReadOnly> {
+        self.modify(vars, |v| v.touch())
+    }
+
     /// Schedule a new value for the variable.
     #[inline]
     fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {

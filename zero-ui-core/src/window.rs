@@ -1241,23 +1241,23 @@ impl WindowVars {
 
     /// Update all variables with the same value.
     fn refresh_all(&self, vars: &crate::var::Vars) {
-        self.chrome().modify(vars, |_| {});
-        self.icon().modify(vars, |_| {});
-        self.title().modify(vars, |_| {});
-        self.state().modify(vars, |_| {});
-        self.position().modify(vars, |_| {});
-        self.size().modify(vars, |_| {});
-        self.min_size().modify(vars, |_| {});
-        self.max_size().modify(vars, |_| {});
-        self.auto_size().modify(vars, |_| {});
-        self.resizable().modify(vars, |_| {});
-        self.movable().modify(vars, |_| {});
-        self.always_on_top().modify(vars, |_| {});
-        self.visible().modify(vars, |_| {});
-        self.taskbar_visible().modify(vars, |_| {});
-        self.parent().modify(vars, |_| {});
-        self.modal().modify(vars, |_| {});
-        self.transparent().modify(vars, |_| {});
+        self.chrome().touch(vars);
+        self.icon().touch(vars);
+        self.title().touch(vars);
+        self.state().touch(vars);
+        self.position().touch(vars);
+        self.size().touch(vars);
+        self.min_size().touch(vars);
+        self.max_size().touch(vars);
+        self.auto_size().touch(vars);
+        self.resizable().touch(vars);
+        self.movable().touch(vars);
+        self.always_on_top().touch(vars);
+        self.visible().touch(vars);
+        self.taskbar_visible().touch(vars);
+        self.parent().touch(vars);
+        self.modal().touch(vars);
+        self.transparent().touch(vars);
     }
 
     fn clone(&self) -> Self {
