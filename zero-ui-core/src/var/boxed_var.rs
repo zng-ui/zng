@@ -22,8 +22,6 @@ pub trait VarBoxed<T: VarValue> {
     fn can_update_boxed(&self) -> bool;
     fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut VarModify<T>)>) -> Result<(), VarIsReadOnly>;
     fn set_boxed(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>;
-    fn into_read_only_boxed(self) -> BoxedVar<T>;
-    fn into_local_boxed(self) -> BoxedLocalVar<T>;
     fn clone_boxed(&self) -> BoxedVar<T>;
 }
 impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
@@ -59,14 +57,6 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
         self.set(vars, new_value)
     }
 
-    fn into_read_only_boxed(self) -> BoxedVar<T> {
-        self.into_read_only().boxed()
-    }
-
-    fn into_local_boxed(self) -> BoxedLocalVar<T> {
-        Box::new(Var::into_local(self))
-    }
-
     fn clone_boxed(&self) -> BoxedVar<T> {
         self.clone().boxed()
     }
@@ -78,41 +68,41 @@ impl<T: VarValue> Clone for BoxedVar<T> {
 }
 impl<T: VarValue> Var<T> for BoxedVar<T> {
     type AsReadOnly = BoxedVar<T>;
-    type AsLocal = BoxedLocalVar<T>;
+    type AsLocal = CloningLocalVar<T, Self>;
 
     fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
-        self.get_boxed(vars)
+        self.as_ref().get_boxed(vars)
     }
 
     fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
-        self.get_new_boxed(vars)
+        self.as_ref().get_new_boxed(vars)
     }
 
     fn version(&self, vars: &VarsRead) -> u32 {
-        self.version_boxed(vars)
+        self.as_ref().version_boxed(vars)
     }
 
     fn is_read_only(&self, vars: &Vars) -> bool {
-        self.is_read_only_boxed(vars)
+        self.as_ref().is_read_only_boxed(vars)
     }
 
     fn always_read_only(&self) -> bool {
-        self.always_read_only_boxed()
+        self.as_ref().always_read_only_boxed()
     }
 
     fn can_update(&self) -> bool {
-        self.can_update_boxed()
+        self.as_ref().can_update_boxed()
     }
 
     fn modify<M>(&self, vars: &Vars, modify: M) -> Result<(), VarIsReadOnly>
     where
         M: FnOnce(&mut VarModify<T>) + 'static,
     {
-        self.modify_boxed(vars, Box::new(modify))
+        self.as_ref().modify_boxed(vars, Box::new(modify))
     }
 
     fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
-        self.set_boxed(vars, new_value)
+        self.as_ref().set_boxed(vars, new_value)
     }
 
     fn set_ne(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>
@@ -130,12 +120,12 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         if self.always_read_only() {
             self
         } else {
-            self.into_read_only_boxed()
+            ReadOnlyVar::new(self).boxed()
         }
     }
 
     fn into_local(self) -> Self::AsLocal {
-        self.into_local_boxed()
+        CloningLocalVar::new(self)
     }
 }
 impl<T: VarValue> IntoVar<T> for BoxedVar<T> {
@@ -176,42 +166,42 @@ impl<T: VarValue> Clone for BoxedLocalVar<T> {
     }
 }
 impl<T: VarValue> Var<T> for BoxedLocalVar<T> {
-    type AsReadOnly = BoxedVar<T>;
+    type AsReadOnly = ReadOnlyVar<T, Self>;
     type AsLocal = Self;
 
     fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
-        self.get_boxed(vars)
+        self.as_ref().get_boxed(vars)
     }
 
     fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
-        self.get_new_boxed(vars)
+        self.as_ref().get_new_boxed(vars)
     }
 
     fn version(&self, vars: &VarsRead) -> u32 {
-        self.version_boxed(vars)
+        self.as_ref().version_boxed(vars)
     }
 
     fn is_read_only(&self, vars: &Vars) -> bool {
-        self.is_read_only_boxed(vars)
+        self.as_ref().is_read_only_boxed(vars)
     }
 
     fn always_read_only(&self) -> bool {
-        self.always_read_only_boxed()
+        self.as_ref().always_read_only_boxed()
     }
 
     fn can_update(&self) -> bool {
-        self.can_update_boxed()
+        self.as_ref().can_update_boxed()
     }
 
     fn modify<M>(&self, vars: &Vars, modify: M) -> Result<(), VarIsReadOnly>
     where
         M: FnOnce(&mut VarModify<T>) + 'static,
     {
-        self.modify_boxed(vars, Box::new(modify))
+        self.as_ref().modify_boxed(vars, Box::new(modify))
     }
 
     fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
-        self.set_boxed(vars, new_value)
+        self.as_ref().set_boxed(vars, new_value)
     }
 
     fn set_ne(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>
@@ -226,7 +216,7 @@ impl<T: VarValue> Var<T> for BoxedLocalVar<T> {
     }
 
     fn into_read_only(self) -> Self::AsReadOnly {
-        self.into_read_only_boxed()
+        ReadOnlyVar::new(self)
     }
 
     fn into_local(self) -> Self::AsLocal {
@@ -246,10 +236,10 @@ impl<T: VarValue> VarLocal<T> for BoxedLocalVar<T> {
     }
 
     fn init_local<'a>(&'a mut self, vars: &'a Vars) -> &'a T {
-        self.init_local_boxed(vars)
+        self.as_mut().init_local_boxed(vars)
     }
 
     fn update_local<'a>(&'a mut self, vars: &'a Vars) -> Option<&'a T> {
-        self.update_local_boxed(vars)
+        self.as_mut().update_local_boxed(vars)
     }
 }
