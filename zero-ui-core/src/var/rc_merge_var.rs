@@ -2,7 +2,6 @@ use super::*;
 
 use std::cell::{Cell, RefCell, UnsafeCell};
 use std::marker::PhantomData;
-use std::mem::MaybeUninit;
 use std::rc::Rc;
 
 /// Initializes a new [`Var`](crate::var::Var) with value made
@@ -48,8 +47,287 @@ macro_rules! merge_var {
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $merge: expr) => {
         $crate::var::RcMerge8Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7), $merge)
     };
-    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $($more_args:tt)+) => {
-        compile_error!("merge_var is only implemented to a maximum of 8 variables")
+    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $merge: expr) => {
+        $crate::var::RcMerge9Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8), $merge)
+    };
+    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr, $merge: expr) => {
+        $crate::var::RcMerge10Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9), $merge)
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge11Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10), $merge)
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge12Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11), $merge)
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge13Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12), $merge)
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge14Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13), $merge)
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge15Var::new(
+            ($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge16Var::new(
+            ($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge17Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge18Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge19Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge20Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge21Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge22Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge23Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge24Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge25Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23, $v24,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge26Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23, $v24, $v25,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge27Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23, $v24, $v25, $v26,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr, $v27: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge28Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23, $v24, $v25, $v26, $v27,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr, $v27: expr,
+        $v28: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge29Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23, $v24, $v25, $v26, $v27, $v28,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr, $v27: expr,
+        $v28: expr, $v29: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge30Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23, $v24, $v25, $v26, $v27, $v28, $v29,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr, $v27: expr,
+        $v28: expr, $v29: expr, $v30: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge31Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23, $v24, $v25, $v26, $v27, $v28, $v29, $v30,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr, $v27: expr,
+        $v28: expr, $v29: expr, $v30: expr, $v31: expr,
+        $merge: expr
+    ) => {
+        $crate::var::RcMerge32Var::new(
+            (
+                $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
+                $v22, $v23, $v24, $v25, $v26, $v27, $v28, $v29, $v30, $v31,
+            ),
+            $merge,
+        )
+    };
+    (
+        $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
+        $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
+        $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr, $v27: expr,
+        $v28: expr, $v29: expr, $v30: expr, $v31: expr, $v32: expr,
+        $merge: expr
+    ) => {
+        compile_error!("merge_var is only implemented to a maximum of 32 variables")
     };
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (var0, var1, .., merge_fn")
@@ -70,6 +348,7 @@ macro_rules! impl_rc_merge_var {
                 I: $([<I $n>]),+;// I0, I1
                 V: $([<V $n>]),+;// V0, V1
                 n: $($n),+; // 0, 1
+                test_name: [<test_merge_var_ $len>]; // test_merge_var_2
             }
         }
     )+};
@@ -81,6 +360,7 @@ macro_rules! impl_rc_merge_var {
         I: $($I:ident),+;
         V: $($V:ident),+;
         n: $($n:tt),+;
+        test_name: $test_name:ident;
     ) => {
         #[doc(hidden)]
         pub struct $RcMergeVar<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>(
@@ -93,8 +373,8 @@ macro_rules! impl_rc_merge_var {
             f: RefCell<F>,
             versions: [Cell<u32>; $len],
             output_version: Cell<u32>,
-            output: UnsafeCell<MaybeUninit<O>>, // TODO: we are leaking memory here (drop not called), change to new RcVar method.
-            last_update_id: Cell<Option<u32>>,
+            output: UnsafeCell<Option<O>>,
+            last_update_id: Cell<u32>,
         }
 
         #[allow(missing_docs)]// this is all hidden.
@@ -106,8 +386,8 @@ macro_rules! impl_rc_merge_var {
                     f: RefCell::new(f),
                     versions: array_init::array_init(|_|Cell::new(0)),
                     output_version: Cell::new(0),
-                    output: UnsafeCell::new(MaybeUninit::uninit()),
-                    last_update_id: Cell::new(None),
+                    output: UnsafeCell::new(None),
+                    last_update_id: Cell::new(0),
                 }))
             }
 
@@ -131,29 +411,29 @@ macro_rules! impl_rc_merge_var {
                 <Self as Var<O>>::can_update(self)
             }
 
-            fn output_uninit(&self) -> bool {
-                self.0.last_update_id.get().is_none()
-            }
-
             fn update_output(&self, vars: &VarsRead) {
-                let last_update_id = Some(vars.update_id());
-                if self.0.last_update_id.get() != last_update_id {
-                    let versions = ($(self.0.vars.$n.version(vars)),+);
-                    if $(self.0.versions[$n].get() != versions.$n)||+ || self.output_uninit() {
-                        let value = (&mut *self.0.f.borrow_mut())($(self.0.vars.$n.get(vars)),+);
+                // SAFETY: This is safe because it only happens before the first borrow
+                // of this update, and borrows cannot exist across updates because source
+                // vars require a &mut Vars for changing version.
 
-                        // SAFETY: This is safe because it only happens before the first borrow
-                        // of this update, and borrows cannot exist across updates because source
-                        // vars require a &mut Vars for changing version.
+                let update_id = vars.update_id();
+                let mut update_output = unsafe { &*self.0.output.get() }.is_none();
+                if update_output || self.0.last_update_id.get() != update_id {
+                    self.0.last_update_id.set(update_id);
+
+                    let versions = ($(self.0.vars.$n.version(vars)),+);
+                    update_output |= $(self.0.versions[$n].get() != versions.$n)||+;
+
+                    if update_output {
+                        let new_value = (&mut *self.0.f.borrow_mut())($(self.0.vars.$n.get(vars)),+);
+
                         unsafe {
-                            let m_uninit = &mut *self.0.output.get();
-                            m_uninit.as_mut_ptr().write(value);
+                            *self.0.output.get() = Some(new_value);
                         }
 
                         self.0.output_version.set(self.0.output_version.get().wrapping_add(1));
                         $(self.0.versions[$n].set(versions.$n);)+
                     }
-                    self.0.last_update_id.set(last_update_id);
                 }
             }
         }
@@ -175,11 +455,8 @@ macro_rules! impl_rc_merge_var {
                 self.update_output(vars);
 
                 // SAFETY:
-                // This is safe because source require &mut Vars for updating.
-                unsafe {
-                    let inited = &*self.0.output.get();
-                    &*inited.as_ptr()
-                }
+                // This is safe because we require &mut Vars for updating.
+                unsafe { &*self.0.output.get() }.as_ref().unwrap()
             }
 
             fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
@@ -237,6 +514,32 @@ macro_rules! impl_rc_merge_var {
             type Var = Self;
             fn into_var(self) -> Self {
                 self
+            }
+        }
+
+        #[test]
+        #[allow(non_snake_case)]
+        fn $test_name() {
+            let vars = [$(var($n)),+];
+            let var = merge_var!(
+                $(vars[$n].clone(),)+
+                |$($I),+| {
+                    [$(*$I),+]
+                }
+            );
+
+            let mut test = crate::context::TestWidgetContext::new();
+
+            let mut expected = [$($n),+];
+            assert_eq!(&expected, var.get(&test.vars));
+
+            for i in 0..vars.len() {
+                vars[i].set(&test.vars, (i + 1) as i32);
+                expected[i] += 1;
+
+                let u = test.apply_updates();
+                assert!(u.update);
+                assert_eq!(&expected,  var.get(&test.vars));
             }
         }
     };
