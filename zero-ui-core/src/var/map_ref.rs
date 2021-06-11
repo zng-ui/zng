@@ -40,7 +40,7 @@ where
     /// Gets the mapped reference if the value of the source variable is new.
     #[inline]
     pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
-        self.source.get_new(vars).map(|v|(self.map)(v))
+        self.source.get_new(vars).map(|v| (self.map)(v))
     }
 
     /// Gets if the value of the source variable is new.

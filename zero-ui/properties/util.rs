@@ -249,7 +249,6 @@ mod tests {
 
         wgt.test_init(&mut ctx);
         assert_eq!(Some(&2), wgt.state().get::<TestKey>());
-
         value.set(&ctx.vars, 4);
         ctx.apply_updates();
         wgt.test_update(&mut ctx);
