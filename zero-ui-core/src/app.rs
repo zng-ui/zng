@@ -891,7 +891,7 @@ impl<E: AppExtension> AppExtended<E> {
         S: FnOnce(AppContextMut) -> F,
     {
         self.run(move |ctx| {
-            let mut task = ctx.tasks.app_task(start);
+            let mut task = ctx.async_task(start);
             if task.update(ctx).is_none() {
                 task.run(ctx.updates);
             }

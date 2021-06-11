@@ -897,7 +897,7 @@ impl Events {
                         unsubscribe: weak_handle.clone(),
                     };
                     let call = &mut handler;
-                    let mut task = ctx.tasks.app_task(move |ctx| call(ctx, args));
+                    let mut task = ctx.async_task(move |ctx| call(ctx, args));
 
                     if task.update(ctx).is_none() {
                         // executed the task up to the first `.await` and it did not complete.
@@ -1678,7 +1678,7 @@ where
                 self.child.event(ctx, args);
 
                 if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                    let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, args.clone()));
+                    let mut task = ctx.async_task(|ctx| (self.handler)(ctx, args.clone()));
                     if task.update(ctx).is_none() {
                         self.tasks.push(task);
                     }
@@ -1746,7 +1746,7 @@ where
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = E::update(args) {
                 if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                    let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, args.clone()));
+                    let mut task = ctx.async_task(|ctx| (self.handler)(ctx, args.clone()));
                     if task.update(ctx).is_none() {
                         self.tasks.push(task);
                     }

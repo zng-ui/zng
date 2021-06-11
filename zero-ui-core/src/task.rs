@@ -19,6 +19,7 @@ use crate::{
 pub struct Tasks {
     event_loop: EventLoopProxySync,
 }
+/// Multi-threaded parallel tasks.
 impl Tasks {
     pub(super) fn new(event_loop: EventLoopProxySync) -> Self {
         Tasks { event_loop }
@@ -167,6 +168,7 @@ impl Tasks {
     }
 }
 
+/// Single threaded async tasks.
 impl Tasks {
     /// Create a app thread bound future executor.
     ///
@@ -185,7 +187,7 @@ impl Tasks {
     /// The `task` closure is called immediately with the [`WidgetContextMut`] that is paired with the task, it
     /// should return the task future `F` in an inert state. Calls to [`WidgetTask::update`] exclusive borrow a
     /// [`WidgetContext`] that is made available inside `F` using the [`WidgetContextMut::with`] method.
-    pub fn widget_task<R, F, T>(&mut self, task: T) -> WidgetTask<R>
+    pub fn widget_task<R, F, T>(ctx: &mut WidgetContext, task: T) -> WidgetTask<R>
     where
         R: 'static,
         F: Future<Output = R> + 'static,
@@ -193,8 +195,10 @@ impl Tasks {
     {
         let (scope, mut_) = WidgetContextScope::new();
 
+        let task = scope.with_ctx(ctx, move || task(mut_));
+
         WidgetTask {
-            task: self.ui_task(task(mut_)), // TODO, mut_ is not available here.
+            task: ctx.tasks.ui_task(task),
             scope,
         }
     }
@@ -204,7 +208,7 @@ impl Tasks {
     /// The `task` closure is called immediately with the [`WindowContextMut`] that is paired with the task, it
     /// should return the task future `F` in an inert state. Calls to [`WindowTask::update`] exclusive borrow a
     /// [`WindowContext`] that is made available inside `F` using the [`WindowContextMut::with`] method.
-    pub fn window_task<R, F, T>(&mut self, task: T) -> WindowTask<R>
+    pub fn window_task<R, F, T>(ctx: &mut WindowContext, task: T) -> WindowTask<R>
     where
         R: 'static,
         F: Future<Output = R> + 'static,
@@ -212,8 +216,10 @@ impl Tasks {
     {
         let (scope, mut_) = WindowContextScope::new();
 
+        let task = scope.with_ctx(ctx, move || task(mut_));
+
         WindowTask {
-            task: self.ui_task(task(mut_)),
+            task: ctx.tasks.ui_task(task),
             scope,
         }
     }
@@ -223,7 +229,7 @@ impl Tasks {
     /// The `task` closure is called immediately with the [`AppContextMut`] that is paired with the task, it
     /// should return the task future `F` in an inert state. Calls to [`AppTask::update`] exclusive borrow the
     /// [`AppContext`] that is made available inside `F` using the [`AppContextMut::with`] method.
-    pub fn app_task<R, F, T>(&mut self, task: T) -> AppTask<R>
+    pub fn app_task<R, F, T>(ctx: &mut AppContext, task: T) -> AppTask<R>
     where
         R: 'static,
         F: Future<Output = R> + 'static,
@@ -231,10 +237,60 @@ impl Tasks {
     {
         let (scope, mut_) = AppContextScope::new();
 
+        let task = scope.with_ctx(ctx, move || task(mut_));
+
         AppTask {
-            task: self.ui_task(task(mut_)),
+            task: ctx.tasks.ui_task(task),
             scope,
         }
+    }
+}
+impl<'a> AppContext<'a> {
+    /// Create an app thread bound future executor that executes in the app context.
+    ///
+    /// The `task` closure is called immediately with the [`AppContextMut`] that is paired with the task, it
+    /// should return the task future `F` in an inert state. Calls to [`AppTask::update`] exclusive borrow the
+    /// [`AppContext`] that is made available inside `F` using the [`AppContextMut::with`] method.
+    #[inline]
+    pub fn async_task<R, F, T>(&mut self, task: T) -> AppTask<R>
+    where
+        R: 'static,
+        F: Future<Output = R> + 'static,
+        T: FnOnce(AppContextMut) -> F,
+    {
+        Tasks::app_task(self, task)
+    }
+}
+impl<'a> WindowContext<'a> {
+    /// Create an app thread bound future executor that executes in the context of a window.
+    ///
+    /// The `task` closure is called immediately with the [`WindowContextMut`] that is paired with the task, it
+    /// should return the task future `F` in an inert state. Calls to [`WindowTask::update`] exclusive borrow a
+    /// [`WindowContext`] that is made available inside `F` using the [`WindowContextMut::with`] method.
+    #[inline]
+    pub fn async_task<R, F, T>(&mut self, task: T) -> WindowTask<R>
+    where
+        R: 'static,
+        F: Future<Output = R> + 'static,
+        T: FnOnce(WindowContextMut) -> F,
+    {
+        Tasks::window_task(self, task)
+    }
+}
+impl<'a> WidgetContext<'a> {
+    /// Create an app thread bound future executor that executes in the context of a widget.
+    ///
+    /// The `task` closure is called immediately with the [`WidgetContextMut`] that is paired with the task, it
+    /// should return the task future `F` in an inert state. Calls to [`WidgetTask::update`] exclusive borrow a
+    /// [`WidgetContext`] that is made available inside `F` using the [`WidgetContextMut::with`] method.
+    #[inline]
+    pub fn async_task<R, F, T>(&mut self, task: T) -> WidgetTask<R>
+    where
+        R: 'static,
+        F: Future<Output = R> + 'static,
+        T: FnOnce(WidgetContextMut) -> F,
+    {
+        Tasks::widget_task(self, task)
     }
 }
 

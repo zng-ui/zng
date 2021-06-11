@@ -129,7 +129,7 @@ where
 
             self.count = self.count.wrapping_add(1);
 
-            let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, OnInitArgs { count: self.count }));
+            let mut task = ctx.async_task(|ctx| (self.handler)(ctx, OnInitArgs { count: self.count }));
             if task.update(ctx).is_none() {
                 self.tasks.push(task);
             }
@@ -188,7 +188,7 @@ where
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.count = self.count.wrapping_add(1);
 
-            let mut task = ctx.tasks.widget_task(|ctx| (self.handler)(ctx, OnInitArgs { count: self.count }));
+            let mut task = ctx.async_task(|ctx| (self.handler)(ctx, OnInitArgs { count: self.count }));
             if task.update(ctx).is_none() {
                 self.tasks.push(task);
             }
