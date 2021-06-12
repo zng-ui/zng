@@ -16,10 +16,10 @@ use crate::{
 };
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{
-    ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
+    ControlFlow, EventLoop as WinitEventLoop, EventLoopProxy as WinitEventLoopProxy, EventLoopWindowTarget as WinitEventLoopWindowTarget,
 };
 use std::future::Future;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::{
     any::{type_name, TypeId},
     fmt,
@@ -581,30 +581,56 @@ impl AppProcess {
     }
 }
 
-#[derive(Debug)]
 enum EventLoopInner {
-    Glutin(GEventLoop<AppEvent>),
+    Winit(WinitEventLoop<AppEvent>),
     Headless((flume::Sender<AppEvent>, flume::Receiver<AppEvent>)),
+    Adapter(Arc<dyn ExternalEventLoopAdapter>)
+}
+
+/// An adapter for an external *headed* event loop proxied in a [`EventLoop`].
+///
+/// This adapter exists to support [`RunningApp`] in client mode. The external event loop
+/// must be able to channel [`AppEvent`] values back to the [`RunningApp`].
+pub trait ExternalEventLoopAdapter: 'static + Sync {
+    /// Send an [`AppEvent`]. The event must be fed back to the client [`RunningApp`].
+    fn send_event(&self, event: AppEvent);
 }
 
 /// Provides a way to retrieve events from the system and from the windows that were registered to the events loop.
 /// Can be a fake headless event loop too.
-#[derive(Debug)]
 pub struct EventLoop(EventLoopInner);
-
+impl fmt::Debug for EventLoop {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            EventLoopInner::Winit(_) => write!(f, "EventLoop(Winit<AppEvent>)"),
+            EventLoopInner::Headless(_) => write!(f, "EventLoop(Headless)"),
+            EventLoopInner::Adapter(_) => write!(f, "EventLoop(Adapter)"),
+        }
+    }
+}
 impl EventLoop {
     /// Initializes a new event loop.
     pub fn new(headless: bool) -> Self {
         if headless {
             EventLoop(EventLoopInner::Headless(flume::unbounded()))
         } else {
-            EventLoop(EventLoopInner::Glutin(GEventLoop::with_user_event()))
+            EventLoop(EventLoopInner::Winit(WinitEventLoop::with_user_event()))
         }
+    }
+
+    /// Initializes [`EventLoop`] as a proxy to an external headed event loop.
+    pub fn new_adapter(adapter: Arc<dyn ExternalEventLoopAdapter>) -> Self {
+        EventLoop(EventLoopInner::Adapter(adapter))
     }
 
     /// If the event loop is a headless.
     pub fn is_headless(&self) -> bool {
         matches!(&self.0, EventLoopInner::Headless(_))
+    }
+
+    /// If is representing an external headed event loop.
+    pub fn is_adapter(&self) -> bool {
+        matches!(&self.0, EventLoopInner::Adapter(_))
     }
 
     /// Takes the headless user events send since the last call.
@@ -641,7 +667,11 @@ impl EventLoop {
     ///
     /// # Panics
     ///
-    /// If called when headless panics with the message: `"cannot run headless EventLoop"`.
+    /// If called when [`is_headless`](Self::is_headless) panics with the message: `"cannot run headless EventLoop"`.
+    /// Headless apps don't need to highjack the calling thread to "run".
+    ///
+    /// If called when [`is_adapter`](Self::is_adapter) panics with the message: `"cannot run external EventLoop"`.
+    /// External event loops are expected to be started externally.
     ///
     /// [`ControlFlow`]: glutin::event_loop::ControlFlow
     #[inline]
@@ -650,8 +680,9 @@ impl EventLoop {
         F: 'static + FnMut(GEvent<'_, AppEvent>, EventLoopWindowTarget<'_>, &mut ControlFlow),
     {
         match self.0 {
-            EventLoopInner::Glutin(el) => el.run(move |e, l, c| event_handler(e, EventLoopWindowTarget(Some(l)), c)),
+            EventLoopInner::Winit(el) => el.run(move |e, l, c| event_handler(e, EventLoopWindowTarget(Some(l)), c)),
             EventLoopInner::Headless(_) => panic!("cannot run headless EventLoop"),
+            EventLoopInner::Adapter(_) => panic!("cannot run external EventLoop"),
         }
     }
 
@@ -659,23 +690,25 @@ impl EventLoop {
     #[inline]
     pub fn window_target(&self) -> EventLoopWindowTarget<'_> {
         match &self.0 {
-            EventLoopInner::Glutin(el) => EventLoopWindowTarget(Some(el)),
+            EventLoopInner::Winit(el) => EventLoopWindowTarget(Some(el)),
             EventLoopInner::Headless(_) => EventLoopWindowTarget(None),
+            &EventLoopInner::Adapter(_) => todo!()
         }
     }
 
     /// Creates an [`EventLoopProxy`] that can be used to dispatch user events to the main event loop.
     pub fn create_proxy(&self) -> EventLoopProxy {
         match &self.0 {
-            EventLoopInner::Glutin(el) => EventLoopProxy(EventLoopProxyInner::Winit(el.create_proxy())),
+            EventLoopInner::Winit(el) => EventLoopProxy(EventLoopProxyInner::Winit(el.create_proxy())),
             EventLoopInner::Headless((s, _)) => EventLoopProxy(EventLoopProxyInner::Headless(s.clone())),
+            &EventLoopInner::Adapter(_) => todo!()
         }
     }
 }
 
 /// Target that associates windows with an [`EventLoop`].
 #[derive(Debug, Clone, Copy)]
-pub struct EventLoopWindowTarget<'a>(Option<&'a GEventLoopWindowTarget<AppEvent>>);
+pub struct EventLoopWindowTarget<'a>(Option<&'a WinitEventLoopWindowTarget<AppEvent>>);
 
 impl<'a> EventLoopWindowTarget<'a> {
     /// If this window target is a dummy for a headless context.
@@ -684,14 +717,14 @@ impl<'a> EventLoopWindowTarget<'a> {
     }
 
     /// Get the actual window target.
-    pub fn headed_target(self) -> Option<&'a GEventLoopWindowTarget<AppEvent>> {
+    pub fn headed_target(self) -> Option<&'a WinitEventLoopWindowTarget<AppEvent>> {
         self.0
     }
 }
 
 #[derive(Debug, Clone)]
 enum EventLoopProxyInner {
-    Winit(GEventLoopProxy<AppEvent>),
+    Winit(WinitEventLoopProxy<AppEvent>),
     Headless(flume::Sender<AppEvent>),
 }
 
@@ -728,7 +761,7 @@ impl EventLoopProxy {
 
 #[derive(Debug)]
 enum EventLoopProxyInnerSync {
-    Winit(Mutex<GEventLoopProxy<AppEvent>>),
+    Winit(Mutex<WinitEventLoopProxy<AppEvent>>),
     Headless(flume::Sender<AppEvent>),
 }
 impl Clone for EventLoopProxyInnerSync {
