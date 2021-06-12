@@ -499,8 +499,8 @@ impl Default for FocusManager {
     }
 }
 impl AppExtension for FocusManager {
-    fn init(&mut self, ctx: &mut AppInitContext) {
-        ctx.services.register(Focus::new(ctx.updates.sender().clone()));
+    fn init(&mut self, ctx: &mut AppContext) {
+        ctx.services.register(Focus::new(ctx.updates.update_sender()));
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {

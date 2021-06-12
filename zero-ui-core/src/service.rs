@@ -87,7 +87,7 @@ impl Services {
     /// # Extension Methods
     ///
     /// Every service implemented using `derive` has a `ServiceNameExt` trait that implements a method for [`Services`]
-    /// that requires the service. So instead of using this method to request `services.req::<FooBar>()` you can use 
+    /// that requires the service. So instead of using this method to request `services.req::<FooBar>()` you can use
     /// `services.foo_bar()` if you have imported `FooBarExt`.
     ///
     /// # Panics

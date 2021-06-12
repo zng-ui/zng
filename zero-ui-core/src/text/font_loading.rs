@@ -14,7 +14,7 @@ use webrender::api::RenderApi;
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
-use crate::context::{AppContext, AppInitContext, UpdateSender};
+use crate::context::{AppContext, UpdateSender};
 use crate::event::{event, event_args, EventUpdateArgs};
 use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
@@ -124,8 +124,8 @@ impl Default for FontManager {
     }
 }
 impl AppExtension for FontManager {
-    fn init(&mut self, ctx: &mut AppInitContext) {
-        let fonts = Fonts::new(ctx.updates.sender().clone());
+    fn init(&mut self, ctx: &mut AppContext) {
+        let fonts = Fonts::new(ctx.updates.update_sender());
         self.current_text_aa = fonts.system_text_aa();
         ctx.services.register(fonts);
     }
@@ -164,7 +164,7 @@ impl AppExtension for FontManager {
             let windows = ctx.services.windows();
             if let Ok(w) = windows.window(args.window_id) {
                 if w.mode().is_headed() {
-                    let update_sender = ctx.updates.sender().clone();
+                    let update_sender = ctx.updates.update_sender();
                     let system_fonts_changed = Rc::clone(&self.system_fonts_changed);
                     let system_text_aa_changed = Rc::clone(&self.system_text_aa_changed);
                     let ok = w.set_raw_windows_event_handler(move |_, msg, wparam, _| {

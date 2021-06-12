@@ -1,6 +1,6 @@
 //! App windows manager.
 use crate::{
-    app::{self, AppExtended, AppExtension, AppProcessExt, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
+    app::{self, AppExtended, AppExtension, AppProcessExt, EventLoopWindowTarget, ShutdownRequestedArgs},
     context::*,
     event::*,
     profiler::profile_scope,
@@ -11,8 +11,6 @@ use crate::{
     var::{response_done_var, response_var, var, IntoValue, RcVar, ResponderVar, ResponseVar, VarsRead},
     BoxedUiNode, UiNode, WidgetId,
 };
-
-use app::AppEvent;
 
 use glutin::window::WindowBuilder;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -423,7 +421,6 @@ event! {
 ///
 /// * [Windows]
 pub struct WindowManager {
-    event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
 }
 
@@ -440,17 +437,13 @@ impl Default for WindowManager {
                 .unwrap(),
         );
 
-        WindowManager {
-            event_loop_proxy: None,
-            ui_threads,
-        }
+        WindowManager { ui_threads }
     }
 }
 
 impl AppExtension for WindowManager {
-    fn init(&mut self, r: &mut AppInitContext) {
-        self.event_loop_proxy = Some(r.event_loop.clone());
-        r.services.register(Windows::new(r.updates.sender().clone()));
+    fn init(&mut self, ctx: &mut AppContext) {
+        ctx.services.register(Windows::new(ctx.updates.update_sender()));
     }
 
     fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
@@ -643,9 +636,9 @@ impl WindowManager {
                 request.responder,
                 ctx,
                 ctx.event_loop,
-                self.event_loop_proxy.as_ref().unwrap().clone(),
+                ctx.updates.new_frame_ready_sender(),
                 Arc::clone(&self.ui_threads),
-                ctx.updates.sender().clone(),
+                ctx.updates.update_sender(),
             );
             ctx.services.windows().opening_windows.push(w);
         }
@@ -1755,7 +1748,7 @@ pub struct OpenWindow {
     headless_state: WindowState,
     taskbar_visible: bool,
 
-    renderless_event_sender: Option<EventLoopProxy>,
+    renderless_event_sender: NewFrameReadySender,
 
     open_response: Option<ResponderVar<WindowEventArgs>>,
     close_response: RefCell<Option<ResponderVar<CloseWindowResult>>>,
@@ -1770,7 +1763,7 @@ impl OpenWindow {
         open_response: ResponderVar<WindowEventArgs>,
         ctx: &mut AppContext,
         event_loop: EventLoopWindowTarget,
-        event_loop_proxy: EventLoopProxy,
+        new_frame_ready_sender: NewFrameReadySender,
         ui_threads: Arc<ThreadPool>,
         update_sender: UpdateSender,
     ) -> Self {
@@ -1807,7 +1800,6 @@ impl OpenWindow {
         let renderer;
         let root;
         let api;
-        let renderless_event_sender;
 
         let vars = WindowVars::new();
         let mut wn_state = OwnedStateMap::default();
@@ -1824,14 +1816,12 @@ impl OpenWindow {
         };
         match mode {
             WindowMode::Headed => {
-                renderless_event_sender = None;
-
                 let window_ = WindowBuilder::new().with_visible(false); // not visible until first render, to avoid flickering
 
                 let event_loop = event_loop.headed_target().expect("AppContext is not headless but event_loop is");
-
+                let sender = new_frame_ready_sender.clone();
                 let r = Renderer::new_with_glutin(window_, &event_loop, renderer_config, move |args: NewFrameArgs| {
-                    let _ = event_loop_proxy.send_event(AppEvent::NewFrameReady(args.window_id.unwrap()));
+                    let _ = sender.send(args.window_id.unwrap());
                 })
                 .expect("failed to create a window renderer");
 
@@ -1849,17 +1839,17 @@ impl OpenWindow {
             }
             headless => {
                 window = None;
-                renderless_event_sender = Some(event_loop_proxy.clone());
 
                 id = WindowId::new_unique();
 
                 if headless == WindowMode::HeadlessWithRenderer {
+                    let sender = new_frame_ready_sender.clone();
                     let rend = Renderer::new(
                         RenderSize::zero(),
                         1.0,
                         renderer_config,
                         move |args: NewFrameArgs| {
-                            let _ = event_loop_proxy.send_event(AppEvent::NewFrameReady(args.window_id.unwrap()));
+                            let _ = sender.send(args.window_id.unwrap());
                         },
                         Some(id),
                     )
@@ -1908,7 +1898,7 @@ impl OpenWindow {
             max_size: LayoutSize::new(f32::INFINITY, f32::INFINITY),
             is_focused: true,
             frame_info,
-            renderless_event_sender,
+            renderless_event_sender: new_frame_ready_sender,
 
             open_response: Some(open_response),
             close_response: RefCell::default(),
@@ -2473,11 +2463,7 @@ impl OpenWindow {
             renderer.get_mut().render(display_list_data, frame_id);
         } else {
             // in renderless mode we only have the frame_info.
-            let _ = self
-                .renderless_event_sender
-                .as_ref()
-                .unwrap()
-                .send_event(AppEvent::NewFrameReady(self.id));
+            let _ = self.renderless_event_sender.send(self.id);
 
             self.init_state = WindowInitState::Inited;
         }
@@ -2506,11 +2492,7 @@ impl OpenWindow {
                 renderer.get_mut().render_update(update);
             } else {
                 // in renderless mode we only have the frame_info.
-                let _ = self
-                    .renderless_event_sender
-                    .as_ref()
-                    .unwrap()
-                    .send_event(AppEvent::NewFrameReady(self.id));
+                let _ = self.renderless_event_sender.send(self.id);
             }
         }
     }

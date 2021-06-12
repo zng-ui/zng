@@ -701,8 +701,8 @@ impl MouseManager {
 }
 
 impl AppExtension for MouseManager {
-    fn init(&mut self, r: &mut AppInitContext) {
-        r.services.register(Mouse::new(r.updates.sender().clone()));
+    fn init(&mut self, r: &mut AppContext) {
+        r.services.register(Mouse::new(r.updates.update_sender()));
     }
 
     fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {

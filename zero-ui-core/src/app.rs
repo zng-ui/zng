@@ -130,7 +130,7 @@ pub trait AppExtension: 'static {
 
     /// Initializes this extension.
     #[inline]
-    fn init(&mut self, ctx: &mut AppInitContext) {
+    fn init(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
 
@@ -261,7 +261,7 @@ pub trait AppExtension: 'static {
 pub trait AppExtensionBoxed: 'static {
     fn id_boxed(&self) -> TypeId;
     fn is_or_contain_boxed(&self, app_extension_id: TypeId) -> bool;
-    fn init_boxed(&mut self, ctx: &mut AppInitContext);
+    fn init_boxed(&mut self, ctx: &mut AppContext);
     fn enable_device_events_boxed(&self) -> bool;
     fn device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent);
     fn window_event_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent);
@@ -286,7 +286,7 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.is_or_contain(app_extension_id)
     }
 
-    fn init_boxed(&mut self, ctx: &mut AppInitContext) {
+    fn init_boxed(&mut self, ctx: &mut AppContext) {
         self.init(ctx);
     }
 
@@ -355,7 +355,7 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_ref().is_or_contain_boxed(app_extension_id)
     }
 
-    fn init(&mut self, ctx: &mut AppInitContext) {
+    fn init(&mut self, ctx: &mut AppContext) {
         self.as_mut().init_boxed(ctx);
     }
 
@@ -869,7 +869,7 @@ impl<E: AppExtension> AppExtended<E> {
 
         let event_loop = EventLoop::new(false);
 
-        let mut app = RunningApp::start(self.extensions, event_loop.create_proxy());
+        let mut app = RunningApp::start(self.extensions, event_loop.create_proxy(), event_loop.window_target());
 
         start(&mut app.ctx(event_loop.window_target()));
 
@@ -913,7 +913,7 @@ impl<E: AppExtension> AppExtended<E> {
 
         let event_loop = EventLoop::new(true);
 
-        let app = RunningApp::start(self.extensions.boxed(), event_loop.create_proxy());
+        let app = RunningApp::start(self.extensions.boxed(), event_loop.create_proxy(), event_loop.window_target());
 
         HeadlessApp {
             event_loop,
@@ -925,14 +925,18 @@ impl<E: AppExtension> AppExtended<E> {
     }
 
     /// Start a [`RunningApp`] that will be controlled by an external event loop.
-    pub fn run_client(self, event_loop: EventLoopProxy) -> RunningApp<E> {
-        RunningApp::start(self.extensions, event_loop)
+    pub fn run_client(self, event_loop: EventLoopProxy, window_target: EventLoopWindowTarget) -> RunningApp<E> {
+        RunningApp::start(self.extensions, event_loop, window_target)
     }
 
     /// Start a [`RunningApp`] that will be controlled by an external event loop, the app extensions
     /// are boxed making the app type more manageable.
-    pub fn run_client_boxed(self, event_loop: EventLoopProxy) -> RunningApp<Box<dyn AppExtensionBoxed>> {
-        RunningApp::start(self.extensions.boxed(), event_loop)
+    pub fn run_client_boxed(
+        self,
+        event_loop: EventLoopProxy,
+        window_target: EventLoopWindowTarget,
+    ) -> RunningApp<Box<dyn AppExtensionBoxed>> {
+        RunningApp::start(self.extensions.boxed(), event_loop, window_target)
     }
 }
 
@@ -951,7 +955,7 @@ pub struct RunningApp<E: AppExtension> {
     exiting: bool,
 }
 impl<E: AppExtension> RunningApp<E> {
-    fn start(mut extensions: E, event_loop: EventLoopProxy) -> Self {
+    fn start(mut extensions: E, event_loop: EventLoopProxy, window_target: EventLoopWindowTarget) -> Self {
         if App::is_running() {
             if cfg!(any(test, doc, feature = "pub_test")) {
                 panic!("only one app or `TestWidgetContext` is allowed per thread")
@@ -962,9 +966,9 @@ impl<E: AppExtension> RunningApp<E> {
 
         let mut owned_ctx = OwnedAppContext::instance(event_loop);
 
-        let mut init_ctx = owned_ctx.borrow_init();
-        init_ctx.services.register(AppProcess::new(init_ctx.updates.sender().clone()));
-        extensions.init(&mut init_ctx);
+        let mut ctx = owned_ctx.borrow(window_target);
+        ctx.services.register(AppProcess::new(ctx.updates.update_sender()));
+        extensions.init(&mut ctx);
 
         RunningApp {
             device_events: extensions.enable_device_events(),
@@ -1379,7 +1383,7 @@ impl AppExtension for () {
 }
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     #[inline]
-    fn init(&mut self, ctx: &mut AppInitContext) {
+    fn init(&mut self, ctx: &mut AppContext) {
         self.0.init(ctx);
         self.1.init(ctx);
     }
@@ -1475,7 +1479,7 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
 
 #[cfg(debug_assertions)]
 impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
-    fn init(&mut self, ctx: &mut AppInitContext) {
+    fn init(&mut self, ctx: &mut AppContext) {
         for ext in self {
             ext.init(ctx);
         }

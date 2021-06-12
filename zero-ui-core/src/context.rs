@@ -92,15 +92,31 @@ impl UpdateDisplayRequest {
 #[derive(Clone)]
 pub struct UpdateSender(EventLoopProxy);
 impl UpdateSender {
-    #[inline]
     fn new(event_loop: EventLoopProxy) -> Self {
         UpdateSender(event_loop)
     }
 
-    /// Sends an update request, awakes the app loop if needed.
+    /// Sends an [`AppEvent::Update`] to the app loop, awakes the app loop if needed.
     #[inline]
     pub fn send(&self) -> Result<(), AppShutdown<()>> {
         self.0.send_event(AppEvent::Update).map_err(|_| AppShutdown(()))
+    }
+}
+
+/// Window new frame ready sender.
+///
+/// This awakes the app and causes a [`AppExtension::new_frame_ready`](crate::app::AppExtension::new_frame_ready).
+#[derive(Clone)]
+pub struct NewFrameReadySender(EventLoopProxy);
+impl NewFrameReadySender {
+    fn new(event_loop: EventLoopProxy) -> Self {
+        NewFrameReadySender(event_loop)
+    }
+
+    /// Sends a [`AppEvent::NewFrameReady`] event to the app loop, will cause a redraw on the window affected.
+    #[inline]
+    pub fn send(&self, window_id: WindowId) -> Result<(), AppShutdown<()>> {
+        self.0.send_event(AppEvent::NewFrameReady(window_id)).map_err(|_| AppShutdown(()))
     }
 }
 
@@ -400,8 +416,7 @@ impl OwnedStateMap {
 pub struct OwnedUpdates(Updates);
 
 impl OwnedUpdates {
-    /// New `OwnedUpdates`, the `event_loop` reference is used to create an [`UpdateSender`].
-    pub fn new(event_loop: EventLoopProxy) -> Self {
+    fn new(event_loop: EventLoopProxy) -> Self {
         Self(Updates::new(event_loop))
     }
 
@@ -459,7 +474,7 @@ impl UpdateArgs {
 ///
 /// An instance of this struct can be built by [`OwnedUpdates`].
 pub struct Updates {
-    sender: UpdateSender,
+    event_loop: EventLoopProxy,
     update: bool,
     display_update: UpdateDisplayRequest,
     win_display_update: UpdateDisplayRequest,
@@ -470,7 +485,7 @@ pub struct Updates {
 impl Updates {
     fn new(event_loop: EventLoopProxy) -> Self {
         Updates {
-            sender: UpdateSender::new(event_loop),
+            event_loop,
             update: false,
             display_update: UpdateDisplayRequest::None,
             win_display_update: UpdateDisplayRequest::None,
@@ -480,10 +495,16 @@ impl Updates {
         }
     }
 
-    /// Cloneable [`update`](Self::update) sender.
+    /// Create an [`UpdateSender`] that can be used to awake the app and cause one update cycle from any thread.
     #[inline]
-    pub fn sender(&self) -> &UpdateSender {
-        &self.sender
+    pub fn update_sender(&self) -> UpdateSender {
+        UpdateSender::new(self.event_loop.clone())
+    }
+
+    /// Create a [`NewFrameReadySender`] that can awake the app and notify that a window frame is ready to be redraw.
+    #[inline]
+    pub fn new_frame_ready_sender(&self) -> NewFrameReadySender {
+        NewFrameReadySender::new(self.event_loop.clone())
     }
 
     /// Schedules a low-pressure update.
@@ -615,7 +636,6 @@ impl Updates {
 ///
 /// You can only have one instance of this at a time.
 pub struct OwnedAppContext {
-    event_loop: EventLoopProxy,
     app_state: StateMap,
     headless_state: Option<StateMap>,
     vars: Vars,
@@ -636,10 +656,9 @@ impl OwnedAppContext {
             vars: Vars::instance(event_loop.clone()),
             events: Events::instance(event_loop.clone()),
             services: Services::default(),
-            tasks: Tasks::new(event_loop.clone().into_sync()),
+            tasks: Tasks::new(event_loop.into_sync()),
             timers: Timers::new(),
             updates,
-            event_loop,
         }
     }
 
@@ -666,21 +685,6 @@ impl OwnedAppContext {
     /// State that lives for the duration of an application, including a headless application.
     pub fn app_state_mut(&mut self) -> &mut StateMap {
         &mut self.app_state
-    }
-
-    /// Borrow the app context as an [`AppInitContext`].
-    pub fn borrow_init(&mut self) -> AppInitContext {
-        AppInitContext {
-            app_state: &mut self.app_state,
-            headless: HeadlessInfo::new(self.headless_state.as_mut()),
-            event_loop: &self.event_loop,
-            vars: &self.vars,
-            events: &mut self.events,
-            services: &mut self.services,
-            tasks: &mut self.tasks,
-            timers: &mut self.timers,
-            updates: &mut self.updates.0,
-        }
     }
 
     /// Borrow the app context as an [`AppContext`].
@@ -740,57 +744,6 @@ impl<'a> HeadlessInfo<'a> {
             Some(state) => Some(state),
         }
     }
-}
-
-/// App extension initialization context.
-pub struct AppInitContext<'a> {
-    /// State that lives for the duration of the application.
-    pub app_state: &'a mut StateMap,
-    /// Information about this context if it is running in headless mode.
-    pub headless: HeadlessInfo<'a>,
-
-    /// Reference to the event loop.
-    pub event_loop: &'a EventLoopProxy,
-
-    /// Variables access.
-    ///
-    /// ### Note
-    ///
-    /// In the application initialization context there are no variable updates, so
-    /// `[`Var::update`](Var::update)` is always none.
-    pub vars: &'a Vars,
-
-    /// Events listener access and registration.
-    ///
-    /// ### Note
-    ///
-    /// Events are registered in the order the extensions appear in [`App`](crate::app::App), if an
-    /// extension needs a listener for an event of another extension this dependency
-    /// must be mentioned in documentation.
-    pub events: &'a mut Events,
-
-    /// Application services access and registration.
-    ///
-    /// ### Note
-    ///
-    /// Services are registered in the order the extensions appear in [`App`](crate::app::App), if an
-    /// extension needs a service from another extension this dependency
-    /// must be mentioned in documentation.
-    pub services: &'a mut Services,
-
-    /// Async tasks.
-    pub tasks: &'a mut Tasks,
-
-    /// Event loop based timers.
-    pub timers: &'a mut Timers,
-
-    /// Changes to be applied after initialization.
-    ///
-    /// ### Note
-    ///
-    /// There is no notification of updates for this one, the updates are
-    /// applied and then vars and events are reset.
-    pub updates: &'a mut Updates,
 }
 
 /// Full application context.

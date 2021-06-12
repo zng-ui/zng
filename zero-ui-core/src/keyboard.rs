@@ -169,7 +169,7 @@ impl KeyboardManager {
     }
 }
 impl AppExtension for KeyboardManager {
-    fn init(&mut self, r: &mut AppInitContext) {
+    fn init(&mut self, r: &mut AppContext) {
         r.services.register(Keyboard::default());
     }
 
