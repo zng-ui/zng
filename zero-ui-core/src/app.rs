@@ -15,15 +15,14 @@ use crate::{
     window::{WindowEvent, WindowId, WindowManager},
 };
 use glutin::event::Event as GEvent;
-use glutin::event_loop::{
-    ControlFlow, EventLoop as WinitEventLoop, EventLoopProxy as WinitEventLoopProxy, EventLoopWindowTarget as WinitEventLoopWindowTarget,
-};
+pub use glutin::event_loop::ControlFlow;
 use std::future::Future;
-use std::sync::{Arc, Mutex};
+use std::task::{Wake, Waker};
 use std::{
     any::{type_name, TypeId},
     fmt,
     sync::atomic::AtomicBool,
+    sync::{Arc, Mutex},
     time::Instant,
 };
 
@@ -546,15 +545,14 @@ impl fmt::Display for ShutdownCancelled {
 
 /// Service for managing the application process.
 ///
-/// This is the only service that is registered without an application extension.
+/// This service is registered for all apps.
 #[derive(Service)]
 pub struct AppProcess {
     shutdown_requests: Option<ResponderVar<ShutdownCancelled>>,
-    update_sender: UpdateSender,
+    update_sender: AppEventSender,
 }
 impl AppProcess {
-    /// New app process service
-    pub fn new(update_sender: UpdateSender) -> Self {
+    fn new(update_sender: AppEventSender) -> Self {
         AppProcess {
             shutdown_requests: None,
             update_sender,
@@ -571,266 +569,13 @@ impl AppProcess {
         } else {
             let (responder, response) = response_var();
             self.shutdown_requests = Some(responder);
-            let _ = self.update_sender.send();
+            let _ = self.update_sender.send_update();
             response
         }
     }
 
     fn take_requests(&mut self) -> Option<ResponderVar<ShutdownCancelled>> {
         self.shutdown_requests.take()
-    }
-}
-
-enum EventLoopInner {
-    Winit(WinitEventLoop<AppEvent>),
-    Headless((flume::Sender<AppEvent>, flume::Receiver<AppEvent>)),
-    Adapter(Arc<dyn ExternalEventLoopAdapter>),
-}
-
-/// An adapter for an external *headed* event loop proxied in a [`EventLoop`].
-///
-/// This adapter exists to support [`RunningApp`] in client mode. The external event loop
-/// must be able to channel [`AppEvent`] values back to the [`RunningApp`].
-pub trait ExternalEventLoopAdapter: 'static + Sync {
-    /// Send an [`AppEvent`]. The event must be fed back to the client [`RunningApp`].
-    fn send_event(&self, event: AppEvent);
-}
-
-/// Provides a way to retrieve events from the system and from the windows that were registered to the events loop.
-/// Can be a fake headless event loop too.
-pub struct EventLoop(EventLoopInner);
-impl fmt::Debug for EventLoop {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            EventLoopInner::Winit(_) => write!(f, "EventLoop(Winit<AppEvent>)"),
-            EventLoopInner::Headless(_) => write!(f, "EventLoop(Headless)"),
-            EventLoopInner::Adapter(_) => write!(f, "EventLoop(Adapter)"),
-        }
-    }
-}
-impl EventLoop {
-    /// Initializes a new event loop.
-    pub fn new(headless: bool) -> Self {
-        if headless {
-            EventLoop(EventLoopInner::Headless(flume::unbounded()))
-        } else {
-            EventLoop(EventLoopInner::Winit(WinitEventLoop::with_user_event()))
-        }
-    }
-
-    /// Initializes [`EventLoop`] as a proxy to an external headed event loop.
-    pub fn new_adapter(adapter: Arc<dyn ExternalEventLoopAdapter>) -> Self {
-        EventLoop(EventLoopInner::Adapter(adapter))
-    }
-
-    /// If the event loop is a headless.
-    pub fn is_headless(&self) -> bool {
-        matches!(&self.0, EventLoopInner::Headless(_))
-    }
-
-    /// If is representing an external headed event loop.
-    pub fn is_adapter(&self) -> bool {
-        matches!(&self.0, EventLoopInner::Adapter(_))
-    }
-
-    /// Takes the headless user events send since the last call.
-    ///
-    /// # Panics
-    ///
-    /// If the event loop is not headless panics with the message: `"cannot take user events from headed EventLoop`.
-    pub fn take_headless_app_events(&self, wait: bool) -> Vec<AppEvent> {
-        match &self.0 {
-            EventLoopInner::Headless((_, rcv)) => {
-                if wait && rcv.is_empty() {
-                    let mut buffer = Vec::with_capacity(1);
-                    if let Ok(r) = rcv.recv() {
-                        buffer.push(r);
-                    }
-                    buffer.extend(rcv.try_iter());
-                    buffer
-                } else {
-                    rcv.try_iter().collect()
-                }
-            }
-            _ => panic!("cannot take user events from headed EventLoop"),
-        }
-    }
-
-    /// Hijacks the calling thread and initializes the winit event loop with the provided
-    /// closure. Since the closure is `'static`, it must be a `move` closure if it needs to
-    /// access any data from the calling context.
-    ///
-    /// See the [`ControlFlow`] docs for information on how changes to `&mut ControlFlow` impact the
-    /// event loop's behavior.
-    ///
-    /// Any values not passed to this function will *not* be dropped.
-    ///
-    /// # Panics
-    ///
-    /// If called when [`is_headless`](Self::is_headless) panics with the message: `"cannot run headless EventLoop"`.
-    /// Headless apps don't need to highjack the calling thread to "run".
-    ///
-    /// If called when [`is_adapter`](Self::is_adapter) panics with the message: `"cannot run external EventLoop"`.
-    /// External event loops are expected to be started externally.
-    ///
-    /// [`ControlFlow`]: glutin::event_loop::ControlFlow
-    #[inline]
-    pub fn run_headed<F>(self, mut event_handler: F) -> !
-    where
-        F: 'static + FnMut(GEvent<'_, AppEvent>, EventLoopWindowTarget<'_>, &mut ControlFlow),
-    {
-        match self.0 {
-            EventLoopInner::Winit(el) => el.run(move |e, l, c| event_handler(e, EventLoopWindowTarget(Some(l)), c)),
-            EventLoopInner::Headless(_) => panic!("cannot run headless EventLoop"),
-            EventLoopInner::Adapter(_) => panic!("cannot run external EventLoop"),
-        }
-    }
-
-    /// Borrows a [`EventLoopWindowTarget`].
-    #[inline]
-    pub fn window_target(&self) -> EventLoopWindowTarget<'_> {
-        match &self.0 {
-            EventLoopInner::Winit(el) => EventLoopWindowTarget(Some(el)),
-            EventLoopInner::Headless(_) => EventLoopWindowTarget(None),
-            &EventLoopInner::Adapter(_) => todo!(),
-        }
-    }
-
-    /// Creates an [`EventLoopProxy`] that can be used to dispatch user events to the main event loop.
-    pub fn create_proxy(&self) -> EventLoopProxy {
-        match &self.0 {
-            EventLoopInner::Winit(el) => EventLoopProxy(EventLoopProxyInner::Winit(el.create_proxy())),
-            EventLoopInner::Headless((s, _)) => EventLoopProxy(EventLoopProxyInner::Headless(s.clone())),
-            &EventLoopInner::Adapter(_) => todo!(),
-        }
-    }
-}
-
-/// Target that associates windows with an [`EventLoop`].
-#[derive(Debug, Clone, Copy)]
-pub struct EventLoopWindowTarget<'a>(Option<&'a WinitEventLoopWindowTarget<AppEvent>>);
-
-impl<'a> EventLoopWindowTarget<'a> {
-    /// If this window target is a dummy for a headless context.
-    pub fn is_headless(self) -> bool {
-        self.0.is_none()
-    }
-
-    /// Get the actual window target.
-    pub fn headed_target(self) -> Option<&'a WinitEventLoopWindowTarget<AppEvent>> {
-        self.0
-    }
-}
-
-#[derive(Debug, Clone)]
-enum EventLoopProxyInner {
-    Winit(WinitEventLoopProxy<AppEvent>),
-    Headless(flume::Sender<AppEvent>),
-}
-
-/// Used to send custom events to [`EventLoop`].
-#[derive(Debug, Clone)]
-pub struct EventLoopProxy(EventLoopProxyInner);
-impl EventLoopProxy {
-    /// If this event loop is from a [headless app](HeadlessApp).
-    pub fn is_headless(&self) -> bool {
-        match &self.0 {
-            EventLoopProxyInner::Headless(_) => true,
-            EventLoopProxyInner::Winit(_) => false,
-        }
-    }
-
-    /// Send an [`AppEvent`] to the app.
-    #[inline]
-    pub fn send_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
-        match &self.0 {
-            EventLoopProxyInner::Winit(elp) => elp.send_event(event).map_err(|e| e.into()),
-            EventLoopProxyInner::Headless(sender) => sender.send(event).map_err(|e| AppShutdown(e.0)),
-        }
-    }
-
-    /// Convert the loop proxy to a version that implements [`Sync`].
-    #[inline]
-    pub fn into_sync(self) -> EventLoopProxySync {
-        EventLoopProxySync(match self.0 {
-            EventLoopProxyInner::Winit(l) => EventLoopProxyInnerSync::Winit(Mutex::new(l)),
-            EventLoopProxyInner::Headless(l) => EventLoopProxyInnerSync::Headless(l),
-        })
-    }
-}
-
-#[derive(Debug)]
-enum EventLoopProxyInnerSync {
-    Winit(Mutex<WinitEventLoopProxy<AppEvent>>),
-    Headless(flume::Sender<AppEvent>),
-}
-impl Clone for EventLoopProxyInnerSync {
-    fn clone(&self) -> Self {
-        match self {
-            EventLoopProxyInnerSync::Winit(l) => EventLoopProxyInnerSync::Winit(Mutex::new(l.lock().unwrap().clone())),
-            EventLoopProxyInnerSync::Headless(l) => EventLoopProxyInnerSync::Headless(l.clone()),
-        }
-    }
-}
-
-/// Alternative of [`EventLoopProxy`] that implements [`Sync`].
-///
-/// The headless event loop is naturally `Sync`, the headed `winit` event loop proxy is wrapped in a [`Mutex`].
-#[derive(Debug, Clone)]
-pub struct EventLoopProxySync(EventLoopProxyInnerSync);
-impl EventLoopProxySync {
-    /// If this event loop is from a [headless app](HeadlessApp).
-    pub fn is_headless(&self) -> bool {
-        match &self.0 {
-            EventLoopProxyInnerSync::Headless(_) => true,
-            EventLoopProxyInnerSync::Winit(_) => false,
-        }
-    }
-
-    /// Send an [`AppEvent`] to the app.
-    #[inline]
-    pub fn send_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
-        match &self.0 {
-            EventLoopProxyInnerSync::Winit(el) => match el.lock() {
-                Ok(el) => el.send_event(event).map_err(|e| e.into()),
-                Err(e) => {
-                    // if the winit channel is corrupted the whole app is F because not all
-                    // proxy senders know about this mutex, so we log the error and hope the channel is ok.
-                    log::error!("sending message using poisoned `EventLoopProxySync`");
-                    e.into_inner().send_event(event).map_err(|e| e.into())
-                }
-            },
-            EventLoopProxyInnerSync::Headless(sender) => sender.send(event).map_err(|e| AppShutdown(e.0)),
-        }
-    }
-}
-impl std::task::Wake for EventLoopProxySync {
-    /// Sends an [`AppEvent::Update`].
-    fn wake(self: std::sync::Arc<Self>) {
-        if let Err(e) = self.send_event(AppEvent::Update) {
-            log::error!("failed to wake using `EventLoopProxySync`, {}", e);
-        }
-    }
-}
-impl From<EventLoopProxy> for EventLoopProxySync {
-    fn from(el: EventLoopProxy) -> Self {
-        el.into_sync()
-    }
-}
-impl From<EventLoopProxySync> for EventLoopProxy {
-    fn from(el: EventLoopProxySync) -> Self {
-        Self(match el.0 {
-            EventLoopProxyInnerSync::Winit(el) => EventLoopProxyInner::Winit(match el.into_inner() {
-                Ok(el) => el,
-                Err(e) => {
-                    // if the winit channel is corrupted the whole app is F because not all
-                    // proxy senders know about this mutex, so we log the error and hope the channel is ok.
-                    log::error!("converting poisoned `EventLoopProxySync` to `EventLoopProxy`");
-                    e.into_inner()
-                }
-            }),
-            EventLoopProxyInnerSync::Headless(el) => EventLoopProxyInner::Headless(el),
-        })
     }
 }
 
@@ -900,11 +645,13 @@ impl<E: AppExtension> AppExtended<E> {
 
         profile_scope!("app::run");
 
-        let event_loop = EventLoop::new(false);
+        let event_loop = glutin::event_loop::EventLoop::with_user_event();
+        let sender = AppEventSender::from_winit(event_loop.create_proxy());
+        let window_target = WindowTarget::from_winit(&event_loop);
 
-        let mut app = RunningApp::start(self.extensions, event_loop.create_proxy(), event_loop.window_target());
+        let mut app = RunningApp::start(self.extensions, sender, window_target);
 
-        start(&mut app.ctx(event_loop.window_target()));
+        start(&mut app.ctx(window_target));
 
         app.run_headed(event_loop)
     }
@@ -944,12 +691,12 @@ impl<E: AppExtension> AppExtended<E> {
             ProfileScope::new("app::run_headless")
         };
 
-        let event_loop = EventLoop::new(true);
+        let (sender, receiver) = AppEventSender::new_headless();
 
-        let app = RunningApp::start(self.extensions.boxed(), event_loop.create_proxy(), event_loop.window_target());
+        let app = RunningApp::start(self.extensions.boxed(), sender, WindowTarget::headless());
 
         HeadlessApp {
-            event_loop,
+            app_event_receiver: receiver,
             app,
 
             #[cfg(feature = "app_profiler")]
@@ -958,18 +705,14 @@ impl<E: AppExtension> AppExtended<E> {
     }
 
     /// Start a [`RunningApp`] that will be controlled by an external event loop.
-    pub fn run_client(self, event_loop: EventLoopProxy, window_target: EventLoopWindowTarget) -> RunningApp<E> {
-        RunningApp::start(self.extensions, event_loop, window_target)
+    pub fn run_client(self, app_event_sender: AppEventSender, window_target: WindowTarget) -> RunningApp<E> {
+        RunningApp::start(self.extensions, app_event_sender, window_target)
     }
 
     /// Start a [`RunningApp`] that will be controlled by an external event loop, the app extensions
     /// are boxed making the app type more manageable.
-    pub fn run_client_boxed(
-        self,
-        event_loop: EventLoopProxy,
-        window_target: EventLoopWindowTarget,
-    ) -> RunningApp<Box<dyn AppExtensionBoxed>> {
-        RunningApp::start(self.extensions.boxed(), event_loop, window_target)
+    pub fn run_client_boxed(self, app_event_sender: AppEventSender, window_target: WindowTarget) -> RunningApp<Box<dyn AppExtensionBoxed>> {
+        RunningApp::start(self.extensions.boxed(), app_event_sender, window_target)
     }
 }
 
@@ -988,7 +731,7 @@ pub struct RunningApp<E: AppExtension> {
     exiting: bool,
 }
 impl<E: AppExtension> RunningApp<E> {
-    fn start(mut extensions: E, event_loop: EventLoopProxy, window_target: EventLoopWindowTarget) -> Self {
+    fn start(mut extensions: E, event_sender: AppEventSender, window_target: WindowTarget) -> Self {
         if App::is_running() {
             if cfg!(any(test, doc, feature = "pub_test")) {
                 panic!("only one app or `TestWidgetContext` is allowed per thread")
@@ -997,10 +740,10 @@ impl<E: AppExtension> RunningApp<E> {
             }
         }
 
-        let mut owned_ctx = OwnedAppContext::instance(event_loop);
+        let mut owned_ctx = OwnedAppContext::instance(event_sender);
 
         let mut ctx = owned_ctx.borrow(window_target);
-        ctx.services.register(AppProcess::new(ctx.updates.update_sender()));
+        ctx.services.register(AppProcess::new(ctx.updates.sender()));
         extensions.init(&mut ctx);
 
         RunningApp {
@@ -1013,11 +756,13 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    fn run_headed(self, event_loop: EventLoop) -> ! {
+    fn run_headed(self, event_loop: glutin::event_loop::EventLoop<AppEvent>) -> ! {
         let mut app = Some(self);
-        event_loop.run_headed(move |event, event_loop, control_flow| {
+        event_loop.run(move |event, window_target, control_flow| {
+            let window_target = WindowTarget::from_winit(window_target);
+
             if let GEvent::LoopDestroyed = &event {
-                app.take().unwrap().shutdown(event_loop);
+                app.take().unwrap().shutdown(window_target);
                 return;
             }
 
@@ -1029,15 +774,15 @@ impl<E: AppExtension> RunningApp<E> {
                         app.wait_until_elapsed();
                     }
                 }
-                GEvent::WindowEvent { window_id, event } => app.window_event(event_loop, window_id.into(), &event),
-                GEvent::DeviceEvent { device_id, event } => app.device_event(event_loop, device_id, &event),
-                GEvent::UserEvent(app_event) => app.app_event(event_loop, app_event),
-                GEvent::Suspended => app.suspended(event_loop),
-                GEvent::Resumed => app.resumed(event_loop),
+                GEvent::WindowEvent { window_id, event } => app.window_event(window_target, window_id.into(), &event),
+                GEvent::DeviceEvent { device_id, event } => app.device_event(window_target, device_id, &event),
+                GEvent::UserEvent(app_event) => app.app_event(window_target, app_event),
+                GEvent::Suspended => app.suspended(window_target),
+                GEvent::Resumed => app.resumed(window_target),
                 GEvent::MainEventsCleared => {
-                    *control_flow = app.update(event_loop, &mut ());
+                    *control_flow = app.update(window_target, &mut ());
                 }
-                GEvent::RedrawRequested(window_id) => app.redraw_requested(event_loop, window_id.into()),
+                GEvent::RedrawRequested(window_id) => app.redraw_requested(window_target, window_id.into()),
                 GEvent::RedrawEventsCleared => {}
                 GEvent::LoopDestroyed => unreachable!(),
             }
@@ -1045,9 +790,9 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Exclusive borrow the app context.
-    pub fn ctx<'a>(&'a mut self, event_loop: EventLoopWindowTarget<'a>) -> AppContext<'a> {
+    pub fn ctx<'a, 'w>(&'a mut self, window_target: WindowTarget<'w>) -> AppContext<'a, 'w> {
         self.maybe_has_updates = true;
-        self.owned_ctx.borrow(event_loop)
+        self.owned_ctx.borrow(window_target)
     }
 
     /// Event loop has awakened because [`WaitUntil`](ControlFlow::WaitUntil) was requested.
@@ -1056,48 +801,48 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Process window event.
-    pub fn window_event(&mut self, event_loop: EventLoopWindowTarget, window_id: WindowId, event: &WindowEvent) {
-        let mut ctx = self.owned_ctx.borrow(event_loop);
+    pub fn window_event(&mut self, window_target: WindowTarget, window_id: WindowId, event: &WindowEvent) {
+        let mut ctx = self.owned_ctx.borrow(window_target);
         self.extensions.window_event(&mut ctx, window_id, event);
         self.maybe_has_updates = true;
     }
 
     /// Process device event.
-    pub fn device_event(&mut self, event_loop: EventLoopWindowTarget, device_id: DeviceId, event: &DeviceEvent) {
+    pub fn device_event(&mut self, window_target: WindowTarget, device_id: DeviceId, event: &DeviceEvent) {
         if self.device_events {
-            let mut ctx = self.owned_ctx.borrow(event_loop);
+            let mut ctx = self.owned_ctx.borrow(window_target);
             self.extensions.device_event(&mut ctx, device_id, event);
             self.maybe_has_updates = true;
         }
     }
 
     /// Process an [`AppEvent`].
-    pub fn app_event(&mut self, event_loop: EventLoopWindowTarget, app_event: AppEvent) {
-        match app_event {
-            AppEvent::NewFrameReady(window_id) => {
-                let mut ctx = self.owned_ctx.borrow(event_loop);
+    pub fn app_event(&mut self, window_target: WindowTarget, app_event: AppEvent) {
+        match app_event.0 {
+            AppEventData::NewFrameReady(window_id) => {
+                let mut ctx = self.owned_ctx.borrow(window_target);
                 self.extensions.new_frame_ready(&mut ctx, window_id);
             }
-            AppEvent::Update => {
-                self.owned_ctx.borrow(event_loop).updates.update();
+            AppEventData::Update => {
+                self.owned_ctx.borrow(window_target).updates.update();
             }
-            AppEvent::Event(e) => {
-                self.owned_ctx.borrow(event_loop).events.notify_app_event(e);
+            AppEventData::Event(e) => {
+                self.owned_ctx.borrow(window_target).events.notify_app_event(e);
             }
-            AppEvent::Var => {
-                self.owned_ctx.borrow(event_loop).vars.sync();
+            AppEventData::Var => {
+                self.owned_ctx.borrow(window_target).vars.sync();
             }
         }
         self.maybe_has_updates = true;
     }
 
     /// Process application suspension.
-    pub fn suspended(&mut self, _event_loop: EventLoopWindowTarget) {
+    pub fn suspended(&mut self, _event_loop: WindowTarget) {
         log::error!(target: "app", "TODO suspended");
     }
 
     /// Process application resume from suspension.
-    pub fn resumed(&mut self, _event_loop: EventLoopWindowTarget) {
+    pub fn resumed(&mut self, _event_loop: WindowTarget) {
         log::error!(target: "app", "TODO resumed");
     }
 
@@ -1106,7 +851,7 @@ impl<E: AppExtension> RunningApp<E> {
     /// if there aren't.
     ///
     /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
-    pub fn update<O: AppUpdateObserver>(&mut self, event_loop: EventLoopWindowTarget, observer: &mut O) -> ControlFlow {
+    pub fn update<O: AppUpdateObserver>(&mut self, window_target: WindowTarget, observer: &mut O) -> ControlFlow {
         if self.maybe_has_updates {
             self.maybe_has_updates = false;
 
@@ -1125,7 +870,7 @@ impl<E: AppExtension> RunningApp<E> {
                 display_update |= u.display_update;
 
                 if u.update {
-                    let mut ctx = self.owned_ctx.borrow(event_loop);
+                    let mut ctx = self.owned_ctx.borrow(window_target);
 
                     // check shutdown.
                     if let Some(r) = ctx.services.app_process().take_requests() {
@@ -1171,7 +916,7 @@ impl<E: AppExtension> RunningApp<E> {
                 } else if display_update != UpdateDisplayRequest::None {
                     display_update = UpdateDisplayRequest::None;
 
-                    let mut ctx = self.owned_ctx.borrow(event_loop);
+                    let mut ctx = self.owned_ctx.borrow(window_target);
 
                     self.extensions.update_display(&mut ctx, display_update);
                     observer.update_display(&mut ctx, display_update);
@@ -1191,29 +936,16 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// OS requested a redraw.
-    pub fn redraw_requested(&mut self, event_loop: EventLoopWindowTarget, window_id: WindowId) {
-        let mut ctx = self.owned_ctx.borrow(event_loop);
+    pub fn redraw_requested(&mut self, window_target: WindowTarget, window_id: WindowId) {
+        let mut ctx = self.owned_ctx.borrow(window_target);
         self.extensions.redraw_requested(&mut ctx, window_id);
     }
 
     /// De-initializes extensions and drops.
-    pub fn shutdown(mut self, event_loop: EventLoopWindowTarget) {
-        let mut ctx = self.owned_ctx.borrow(event_loop);
+    pub fn shutdown(mut self, window_target: WindowTarget) {
+        let mut ctx = self.owned_ctx.borrow(window_target);
         self.extensions.deinit(&mut ctx);
     }
-}
-
-/// Raw events generated by the app.
-#[derive(Debug)]
-pub enum AppEvent {
-    /// An [`EventSender`](crate::event::EventSender) update.
-    Event(crate::event::BoxedSendEventUpdate),
-    /// A [`VarSender`](crate::var::VarSender) has updated.
-    Var,
-    /// A window frame is ready to be shown.
-    NewFrameReady(WindowId),
-    /// An update was requested.
-    Update,
 }
 
 /// A headless app controller.
@@ -1221,7 +953,7 @@ pub enum AppEvent {
 /// Headless apps don't cause external side-effects like visible windows and don't listen to system events.
 /// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
 pub struct HeadlessApp {
-    event_loop: EventLoop,
+    app_event_receiver: flume::Receiver<AppEvent>,
     app: RunningApp<Box<dyn AppExtensionBoxed>>,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
@@ -1282,25 +1014,19 @@ impl HeadlessApp {
     /// Notifies extensions of a [device event](DeviceEvent).
     pub fn device_event(&mut self, device_id: DeviceId, event: &DeviceEvent) {
         profile_scope!("headless_app::device_event");
-        self.app.device_event(self.event_loop.window_target(), device_id, event);
+        self.app.device_event(WindowTarget::headless(), device_id, event);
     }
 
     /// Notifies extensions of a [window event](WindowEvent).
     pub fn window_event(&mut self, window_id: WindowId, event: &WindowEvent) {
         profile_scope!("headless_app::device_event");
-        self.app.window_event(self.event_loop.window_target(), window_id, event);
+        self.app.window_event(WindowTarget::headless(), window_id, event);
     }
 
-    /// Sends an [app event](AppEvent).
-    pub fn app_event(&mut self, event: AppEvent) {
-        profile_scope!("headless_app::on_app_event");
-        let _ = self.event_loop.create_proxy().send_event(event);
-    }
-
-    /// Runs a custom action in the headless app context.
-    pub fn ctx(&mut self) -> AppContext {
+    /// Borrows the app context.
+    pub fn ctx<'a>(&'a mut self) -> AppContext<'a, 'static> {
         profile_scope!("headless_app::with_context");
-        self.app.ctx(self.event_loop.window_target())
+        self.app.ctx(WindowTarget::headless())
     }
 
     /// Does updates unobserved.
@@ -1349,12 +1075,16 @@ impl HeadlessApp {
     /// or returns [`WaitUntil`](ControlFlow::WaitUntil) if a timer is running or returns [`Wait`](ControlFlow::Wait)
     /// if the app is sleeping.
     pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
-        let event_loop = self.event_loop.window_target();
-        for event in self.event_loop.take_headless_app_events(wait_app_event) {
-            self.app.app_event(event_loop, event);
+        if wait_app_event {
+            if let Ok(event) = self.app_event_receiver.recv() {
+                self.app.app_event(WindowTarget::headless(), event);
+            }
+        }
+        for event in self.app_event_receiver.try_iter() {
+            self.app.app_event(WindowTarget::headless(), event);
         }
 
-        let r = self.app.update(event_loop, observer);
+        let r = self.app.update(WindowTarget::headless(), observer);
         debug_assert!(r != ControlFlow::Poll);
 
         r
@@ -1608,6 +1338,239 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
             ext.deinit(ctx);
         }
     }
+}
+
+/// Raw event for [`RunningApp`].
+#[derive(Debug)]
+pub struct AppEvent(AppEventData);
+#[derive(Debug)]
+enum AppEventData {
+    /// Notify [`Events`](crate::var::Events).
+    Event(crate::event::BoxedSendEventUpdate),
+    /// Notify [`Vars`](crate::var::Vars).
+    Var,
+    /// Call [`AppExtension::new_frame_ready`].
+    NewFrameReady(WindowId),
+    /// Do an update cycle.
+    Update,
+}
+
+/// An [`AppEvent`] sender that can awake apps and insert events into their loop.
+#[derive(Clone)]
+pub struct AppEventSender(AppEventSenderData);
+impl AppEventSender {
+    /// New headed event loop connected to an `winit` loop with [`AppEvent`] as the event type.
+    pub fn from_winit(el: glutin::event_loop::EventLoopProxy<AppEvent>) -> Self {
+        AppEventSender(AppEventSenderData::Winit(el))
+    }
+
+    /// New headed event loop connected to an external event loop using an [adapter](AppEventSenderAdapter).
+    pub fn from_adapter(el: Box<dyn AppEventSenderAdapter>) -> Self {
+        AppEventSender(AppEventSenderData::Adapter(el))
+    }
+
+    /// If the app is running in headless mode.
+    pub fn is_headless(&self) -> bool {
+        matches!(&self.0, AppEventSenderData::Headless(_))
+    }
+
+    pub(crate) fn new_headless() -> (Self, flume::Receiver<AppEvent>) {
+        let (send, rcv) = flume::unbounded();
+        (AppEventSender(AppEventSenderData::Headless(send)), rcv)
+    }
+
+    #[inline(always)]
+    fn send_app_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
+        match &self.0 {
+            AppEventSenderData::Winit(w) => w.send_event(event)?,
+            AppEventSenderData::Headless(s) => s.send(event)?,
+            AppEventSenderData::Adapter(a) => a.send_event(event)?,
+        }
+        Ok(())
+    }
+
+    /// Causes an update cycle to happen in the app.
+    #[inline]
+    pub fn send_update(&self) -> Result<(), AppShutdown<()>> {
+        self.send_app_event(AppEvent(AppEventData::Update)).map_err(|_| AppShutdown(()))
+    }
+
+    /// Causes a call to [`AppExtension::new_frame_ready`].
+    #[inline]
+    pub fn send_new_frame_ready(&self, window_id: WindowId) -> Result<(), AppShutdown<WindowId>> {
+        self.send_app_event(AppEvent(AppEventData::NewFrameReady(window_id)))
+            .map_err(|_| AppShutdown(window_id))
+    }
+
+    /// [`VarSender`](crate::var::VarSender) util.
+    #[inline]
+    pub(crate) fn send_var(&self) -> Result<(), AppShutdown<()>> {
+        self.send_app_event(AppEvent(AppEventData::Var)).map_err(|_| AppShutdown(()))
+    }
+
+    /// [`EventSender`](crate::event::EventSender) util.
+    pub(crate) fn send_event(
+        &self,
+        event: crate::event::BoxedSendEventUpdate,
+    ) -> Result<(), AppShutdown<crate::event::BoxedSendEventUpdate>> {
+        self.send_app_event(AppEvent(AppEventData::Event(event))).map_err(|e| match e.0 .0 {
+            AppEventData::Event(ev) => AppShutdown(ev),
+            _ => unreachable!(),
+        })
+    }
+
+    /// [`Waker`] that causes a [`send_update`](Self::send_update).
+    pub fn waker(&self) -> Waker {
+        let sync = match &self.0 {
+            AppEventSenderData::Winit(el) => AppEventSenderDataSync::Winit(Mutex::new(el.clone())),
+            AppEventSenderData::Headless(s) => AppEventSenderDataSync::Headless(s.clone()),
+            AppEventSenderData::Adapter(a) => AppEventSenderDataSync::Adapter(Mutex::new(a.clone_boxed())),
+        };
+        Arc::new(sync).into()
+    }
+}
+enum AppEventSenderData {
+    Winit(glutin::event_loop::EventLoopProxy<AppEvent>),
+    Headless(flume::Sender<AppEvent>),
+    Adapter(Box<dyn AppEventSenderAdapter>),
+}
+impl Clone for AppEventSenderData {
+    fn clone(&self) -> Self {
+        match self {
+            AppEventSenderData::Winit(el) => AppEventSenderData::Winit(el.clone()),
+            AppEventSenderData::Headless(s) => AppEventSenderData::Headless(s.clone()),
+            AppEventSenderData::Adapter(a) => AppEventSenderData::Adapter(a.clone_boxed()),
+        }
+    }
+}
+enum AppEventSenderDataSync {
+    Winit(Mutex<glutin::event_loop::EventLoopProxy<AppEvent>>),
+    Headless(flume::Sender<AppEvent>),
+    Adapter(Mutex<Box<dyn AppEventSenderAdapter>>),
+}
+impl Wake for AppEventSenderDataSync {
+    fn wake(self: Arc<Self>) {
+        let update = AppEvent(AppEventData::Update);
+        match &*self {
+            AppEventSenderDataSync::Winit(m) => {
+                let _ = match m.lock() {
+                    Ok(el) => el.send_event(update),
+                    Err(e) => e.into_inner().send_event(update),
+                };
+            }
+            AppEventSenderDataSync::Headless(s) => {
+                let _ = s.send(update);
+            }
+            AppEventSenderDataSync::Adapter(m) => {
+                let _ = match m.lock() {
+                    Ok(el) => el.send_event(update),
+                    Err(e) => e.into_inner().send_event(update),
+                };
+            }
+        }
+    }
+}
+
+/// Represents an external event loop in a [`AppEventSender`].
+///
+/// The external event loop must be awaken from this, receive an [`AppEvent`] as pass it to the client app using
+/// [`RunningApp::app_event`].
+pub trait AppEventSenderAdapter: Send + 'static {
+    /// Clone `self` and boxes it. The clone must send events to the same event loop as `self`.
+    fn clone_boxed(&self) -> Box<dyn AppEventSenderAdapter>;
+
+    /// Awake the app and insert the `event` into the loop,
+    /// or return the [`AppShutdown`] error if the event loop has closed.
+    fn send_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>>;
+}
+
+/// Event loop window target for headed
+#[derive(Clone, Copy)]
+pub struct WindowTarget<'a>(WindowTargetData<'a>);
+impl<'a> WindowTarget<'a> {
+    /// Reference a headed event loop with [`AppEvent`] as the event type.
+    ///
+    /// **Note:** The [`winit::event_loop::EventLoop`](glutin::event_loop::EventLoop) type dereferences
+    /// to the input for this method.
+    pub fn from_winit(window_target: &'a glutin::event_loop::EventLoopWindowTarget<AppEvent>) -> WindowTarget<'a> {
+        WindowTarget(WindowTargetData::Winit(window_target))
+    }
+
+    /// Reference an external event loop using an [adapter](WindowTargetAdapter).
+    pub fn from_adapter(adapter: &'a dyn WindowTargetAdapter<'a>) -> WindowTarget<'a> {
+        WindowTarget(WindowTargetData::Adapter(adapter))
+    }
+
+    fn headless() -> WindowTarget<'static> {
+        WindowTarget(WindowTargetData::Headless)
+    }
+}
+
+impl<'a> WindowTarget<'a> {
+    /// Call [`glutin::ContextBuilder::build_windowed`] for headed event loops.
+    ///
+    /// # Errors
+    ///
+    /// The error can be any from the `glutin` builder or [`glutin::CreationError::NotSupported`] with the message
+    /// `"cannot build `WindowedContext` in headless event loop"` if [`is_headless`](Self::is_headless).
+    pub fn build_glutin_window(
+        &self,
+        context_builder: glutin::ContextBuilder<glutin::NotCurrent>,
+        window_builder: glutin::window::WindowBuilder,
+    ) -> Result<glutin::WindowedContext<glutin::NotCurrent>, glutin::CreationError> {
+        match &self.0 {
+            WindowTargetData::Winit(wt) => context_builder.build_windowed(window_builder, wt),
+            WindowTargetData::Adapter(a) => a.build_glutin_window(context_builder, window_builder),
+            WindowTargetData::Headless => Err(glutin::CreationError::NotSupported(
+                "cannot build `WindowedContext` in headless event loop".to_owned(),
+            )),
+        }
+    }
+
+    /// Call [`winit::window::WindowBuilder::build`](glutin::window::WindowBuilder::build) for headed event loops.
+    ///
+    /// # Errors
+    ///
+    /// The error can be a [`glutin::CreationError::Window`] from the `winit` builder or [`glutin::CreationError::NotSupported`]
+    /// if [`is_headless`](Self::is_headless)
+    pub fn build_winit_window(
+        &self,
+        window_builder: glutin::window::WindowBuilder,
+    ) -> Result<glutin::window::Window, glutin::CreationError> {
+        match &self.0 {
+            WindowTargetData::Winit(wt) => window_builder.build(wt).map_err(glutin::CreationError::Window),
+            WindowTargetData::Adapter(a) => a.build_winit_window(window_builder).map_err(glutin::CreationError::Window),
+            WindowTargetData::Headless => Err(glutin::CreationError::NotSupported(
+                "cannot build `WindowedContext` in headless event loop".to_owned(),
+            )),
+        }
+    }
+
+    /// If this is a dummy window target for a headless app.
+    ///
+    /// If `true` both build methods will always return [`glutin::CreationError::NotSupported`].
+    pub fn is_headless(&self) -> bool {
+        matches!(&self.0, &WindowTargetData::Headless)
+    }
+}
+#[derive(Clone, Copy)]
+enum WindowTargetData<'a> {
+    Winit(&'a glutin::event_loop::EventLoopWindowTarget<AppEvent>),
+    Headless,
+    Adapter(&'a dyn WindowTargetAdapter<'a>),
+}
+
+/// Represents an external event loop in a [`WindowTarget`].
+pub trait WindowTargetAdapter<'a> {
+    /// Call [`glutin::ContextBuilder::build_windowed`].
+    fn build_glutin_window(
+        &self,
+        context_builder: glutin::ContextBuilder<glutin::NotCurrent>,
+        window_builder: glutin::window::WindowBuilder,
+    ) -> Result<glutin::WindowedContext<glutin::NotCurrent>, glutin::CreationError>;
+
+    /// Call [`winit::window::WindowBuilder::build`](glutin::window::WindowBuilder::build).
+    fn build_winit_window(&self, window_builder: glutin::window::WindowBuilder) -> Result<glutin::window::Window, glutin::error::OsError>;
 }
 
 #[cfg(test)]

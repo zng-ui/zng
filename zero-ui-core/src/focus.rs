@@ -76,7 +76,7 @@
 //! Focus information exists as metadata associated with a window frame. This metadata can be manually queried by
 //! creating a [`FrameFocusInfo`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
 
-use crate::app::{AppExtension, DeviceEvent, DeviceId};
+use crate::app::{AppEventSender, AppExtension, DeviceEvent, DeviceId};
 use crate::context::*;
 use crate::event::*;
 use crate::gesture::{shortcut, ShortcutEvent};
@@ -500,7 +500,7 @@ impl Default for FocusManager {
 }
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Focus::new(ctx.updates.update_sender()));
+        ctx.services.register(Focus::new(ctx.updates.sender()));
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -619,7 +619,7 @@ impl FocusManager {
 #[derive(Service)]
 pub struct Focus {
     request: Option<FocusRequest>,
-    update_sender: UpdateSender,
+    app_event_sender: AppEventSender,
     focused: Option<WidgetPath>,
     return_focused: FnvHashMap<WidgetId, WidgetPath>,
     alt_return: Option<(WidgetId, WidgetPath)>,
@@ -629,10 +629,10 @@ impl Focus {
     /// New focus service, the `update_sender` is used to flag an update after a focus change request.
     #[inline]
     #[must_use]
-    pub fn new(update_sender: UpdateSender) -> Self {
+    pub fn new(app_event_sender: AppEventSender) -> Self {
         Focus {
             request: None,
-            update_sender,
+            app_event_sender,
             focused: None,
             is_highlighting: false,
             return_focused: FnvHashMap::default(),
@@ -679,7 +679,7 @@ impl Focus {
     #[inline]
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);
-        let _ = self.update_sender.send();
+        let _ = self.app_event_sender.send_update();
     }
 
     /// Focus the widget if it is focusable and change the highlight.

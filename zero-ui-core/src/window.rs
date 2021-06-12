@@ -1,6 +1,6 @@
 //! App windows manager.
 use crate::{
-    app::{self, AppExtended, AppExtension, AppProcessExt, EventLoopWindowTarget, ShutdownRequestedArgs},
+    app::{self, AppEventSender, AppExtended, AppExtension, AppProcessExt, ShutdownRequestedArgs, WindowTarget},
     context::*,
     event::*,
     profiler::profile_scope,
@@ -443,7 +443,7 @@ impl Default for WindowManager {
 
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Windows::new(ctx.updates.update_sender()));
+        ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
     fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
@@ -635,10 +635,9 @@ impl WindowManager {
                 request.force_headless,
                 request.responder,
                 ctx,
-                ctx.event_loop,
-                ctx.updates.new_frame_ready_sender(),
+                ctx.window_target,
                 Arc::clone(&self.ui_threads),
-                ctx.updates.update_sender(),
+                ctx.updates.sender(),
             );
             ctx.services.windows().opening_windows.push(w);
         }
@@ -743,11 +742,11 @@ pub struct Windows {
 
     open_requests: Vec<OpenWindowRequest>,
     opening_windows: Vec<OpenWindow>,
-    update_sender: UpdateSender,
+    update_sender: AppEventSender,
 }
 
 impl Windows {
-    fn new(update_sender: UpdateSender) -> Self {
+    fn new(update_sender: AppEventSender) -> Self {
         Windows {
             shutdown_on_last_close: true,
             windows: Vec::with_capacity(1),
@@ -778,7 +777,7 @@ impl Windows {
             responder,
         };
         self.open_requests.push(request);
-        let _ = self.update_sender.send();
+        let _ = self.update_sender.send_update();
 
         response
     }
@@ -1748,12 +1747,10 @@ pub struct OpenWindow {
     headless_state: WindowState,
     taskbar_visible: bool,
 
-    renderless_event_sender: NewFrameReadySender,
-
     open_response: Option<ResponderVar<WindowEventArgs>>,
     close_response: RefCell<Option<ResponderVar<CloseWindowResult>>>,
     close_canceled: RefCell<Rc<Cell<bool>>>,
-    update_sender: UpdateSender,
+    app_sender: AppEventSender,
 }
 impl OpenWindow {
     #[allow(clippy::too_many_arguments)]
@@ -1762,10 +1759,9 @@ impl OpenWindow {
         force_headless: Option<WindowMode>,
         open_response: ResponderVar<WindowEventArgs>,
         ctx: &mut AppContext,
-        event_loop: EventLoopWindowTarget,
-        new_frame_ready_sender: NewFrameReadySender,
+        window_target: WindowTarget,
         ui_threads: Arc<ThreadPool>,
-        update_sender: UpdateSender,
+        app_sender: AppEventSender,
     ) -> Self {
         // get mode.
         let mut mode = if let Some(headless) = ctx.headless.state() {
@@ -1818,10 +1814,9 @@ impl OpenWindow {
             WindowMode::Headed => {
                 let window_ = WindowBuilder::new().with_visible(false); // not visible until first render, to avoid flickering
 
-                let event_loop = event_loop.headed_target().expect("AppContext is not headless but event_loop is");
-                let sender = new_frame_ready_sender.clone();
-                let r = Renderer::new_with_glutin(window_, &event_loop, renderer_config, move |args: NewFrameArgs| {
-                    let _ = sender.send(args.window_id.unwrap());
+                let sender = app_sender.clone();
+                let r = Renderer::new_with_glutin(window_, window_target, renderer_config, move |args: NewFrameArgs| {
+                    let _ = sender.send_new_frame_ready(args.window_id.unwrap());
                 })
                 .expect("failed to create a window renderer");
 
@@ -1843,13 +1838,13 @@ impl OpenWindow {
                 id = WindowId::new_unique();
 
                 if headless == WindowMode::HeadlessWithRenderer {
-                    let sender = new_frame_ready_sender.clone();
+                    let sender = app_sender.clone();
                     let rend = Renderer::new(
                         RenderSize::zero(),
                         1.0,
                         renderer_config,
                         move |args: NewFrameArgs| {
-                            let _ = sender.send(args.window_id.unwrap());
+                            let _ = sender.send_new_frame_ready(args.window_id.unwrap());
                         },
                         Some(id),
                     )
@@ -1898,12 +1893,11 @@ impl OpenWindow {
             max_size: LayoutSize::new(f32::INFINITY, f32::INFINITY),
             is_focused: true,
             frame_info,
-            renderless_event_sender: new_frame_ready_sender,
 
             open_response: Some(open_response),
             close_response: RefCell::default(),
             close_canceled: RefCell::default(),
-            update_sender,
+            app_sender,
 
             #[cfg(windows)]
             subclass_id: std::cell::Cell::new(0),
@@ -1922,7 +1916,7 @@ impl OpenWindow {
             let (responder, response) = response_var();
             *close_response = Some(responder);
             *self.close_canceled.borrow_mut() = Rc::default();
-            let _ = self.update_sender.send();
+            let _ = self.app_sender.send_update();
             response
         }
     }
@@ -2463,7 +2457,7 @@ impl OpenWindow {
             renderer.get_mut().render(display_list_data, frame_id);
         } else {
             // in renderless mode we only have the frame_info.
-            let _ = self.renderless_event_sender.send(self.id);
+            let _ = self.app_sender.send_new_frame_ready(self.id);
 
             self.init_state = WindowInitState::Inited;
         }
@@ -2492,7 +2486,7 @@ impl OpenWindow {
                 renderer.get_mut().render_update(update);
             } else {
                 // in renderless mode we only have the frame_info.
-                let _ = self.renderless_event_sender.send(self.id);
+                let _ = self.app_sender.send_new_frame_ready(self.id);
             }
         }
     }

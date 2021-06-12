@@ -24,12 +24,6 @@ mod build_tests {
         let t = TestCases::new();
         t.compile_fail("tests/build/widget_new/*.rs");
     }
-
-    #[test]
-    fn misc() {
-        let t = TestCases::new();
-        t.compile_fail("tests/build/misc/*.rs");
-    }
 }
 
 // `do test --build <test-pattern>` uses these to run specific tests.

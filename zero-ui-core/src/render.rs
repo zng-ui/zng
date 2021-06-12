@@ -1999,6 +1999,7 @@ mod renderer {
     use webrender::{api::Transaction, RendererKind};
 
     use crate::{
+        app::WindowTarget,
         color::RenderColor,
         units::{LayoutPoint, LayoutSize},
     };
@@ -2288,9 +2289,9 @@ mod renderer {
         /// # Panics
         ///
         /// Panics if not called by in the main thread.
-        pub fn new_with_glutin<E: 'static, C: RenderCallback>(
+        pub fn new_with_glutin<C: RenderCallback>(
             window: WindowBuilder,
-            event_loop: &glutin::event_loop::EventLoopWindowTarget<E>,
+            window_target: WindowTarget,
             config: RendererConfig,
             render_callback: C,
         ) -> Result<(Self, glutin::window::Window), RendererError> {
@@ -2298,12 +2299,11 @@ mod renderer {
                 panic!("can only init renderer in the main thread")
             }
 
-            let context = ContextBuilder::new()
-                .with_gl(GlRequest::GlThenGles {
-                    opengl_version: (3, 2),
-                    opengles_version: (3, 0),
-                })
-                .build_windowed(window, &event_loop)?;
+            let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
+                opengl_version: (3, 2),
+                opengles_version: (3, 0),
+            });
+            let context = window_target.build_glutin_window(context, window)?;
 
             let (context, window) = unsafe { context.split() };
 

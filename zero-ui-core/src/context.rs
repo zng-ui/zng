@@ -1,6 +1,5 @@
 //! Context information for app extensions, windows and widgets.
 
-use super::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use super::event::Events;
 use super::service::Services;
 use super::units::{LayoutSize, PixelGrid};
@@ -86,40 +85,6 @@ impl UpdateDisplayRequest {
     }
 }
 
-/// App update sender.
-///
-/// This awakes the app and causes the same effect as [`Updates::update`].
-#[derive(Clone)]
-pub struct UpdateSender(EventLoopProxy);
-impl UpdateSender {
-    fn new(event_loop: EventLoopProxy) -> Self {
-        UpdateSender(event_loop)
-    }
-
-    /// Sends an [`AppEvent::Update`] to the app loop, awakes the app loop if needed.
-    #[inline]
-    pub fn send(&self) -> Result<(), AppShutdown<()>> {
-        self.0.send_event(AppEvent::Update).map_err(|_| AppShutdown(()))
-    }
-}
-
-/// Window new frame ready sender.
-///
-/// This awakes the app and causes a [`AppExtension::new_frame_ready`](crate::app::AppExtension::new_frame_ready).
-#[derive(Clone)]
-pub struct NewFrameReadySender(EventLoopProxy);
-impl NewFrameReadySender {
-    fn new(event_loop: EventLoopProxy) -> Self {
-        NewFrameReadySender(event_loop)
-    }
-
-    /// Sends a [`AppEvent::NewFrameReady`] event to the app loop, will cause a redraw on the window affected.
-    #[inline]
-    pub fn send(&self, window_id: WindowId) -> Result<(), AppShutdown<()>> {
-        self.0.send_event(AppEvent::NewFrameReady(window_id)).map_err(|_| AppShutdown(()))
-    }
-}
-
 /// A key to a value in a [`StateMap`].
 ///
 /// The type that implements this trait is the key. You
@@ -158,7 +123,8 @@ macro_rules! state_key {
     )+};
 }
 
-use crate::app::AppShutdown;
+use crate::app::AppEventSender;
+use crate::app::WindowTarget;
 use crate::crate_util::RunOnDrop;
 use crate::event::BoxedEventUpdate;
 #[doc(inline)]
@@ -416,8 +382,8 @@ impl OwnedStateMap {
 pub struct OwnedUpdates(Updates);
 
 impl OwnedUpdates {
-    fn new(event_loop: EventLoopProxy) -> Self {
-        Self(Updates::new(event_loop))
+    fn new(event_sender: AppEventSender) -> Self {
+        Self(Updates::new(event_sender))
     }
 
     /// Take what update methods must be pumped.
@@ -474,7 +440,7 @@ impl UpdateArgs {
 ///
 /// An instance of this struct can be built by [`OwnedUpdates`].
 pub struct Updates {
-    event_loop: EventLoopProxy,
+    event_sender: AppEventSender,
     update: bool,
     display_update: UpdateDisplayRequest,
     win_display_update: UpdateDisplayRequest,
@@ -483,9 +449,9 @@ pub struct Updates {
     pos_handlers: Vec<UpdateHandler>,
 }
 impl Updates {
-    fn new(event_loop: EventLoopProxy) -> Self {
+    fn new(event_sender: AppEventSender) -> Self {
         Updates {
-            event_loop,
+            event_sender,
             update: false,
             display_update: UpdateDisplayRequest::None,
             win_display_update: UpdateDisplayRequest::None,
@@ -495,16 +461,10 @@ impl Updates {
         }
     }
 
-    /// Create an [`UpdateSender`] that can be used to awake the app and cause one update cycle from any thread.
+    /// Create an [`AppEventSender`] that can be used to awake the app and send app events.
     #[inline]
-    pub fn update_sender(&self) -> UpdateSender {
-        UpdateSender::new(self.event_loop.clone())
-    }
-
-    /// Create a [`NewFrameReadySender`] that can awake the app and notify that a window frame is ready to be redraw.
-    #[inline]
-    pub fn new_frame_ready_sender(&self) -> NewFrameReadySender {
-        NewFrameReadySender::new(self.event_loop.clone())
+    pub fn sender(&self) -> AppEventSender {
+        self.event_sender.clone()
     }
 
     /// Schedules a low-pressure update.
@@ -648,15 +608,19 @@ pub struct OwnedAppContext {
 
 impl OwnedAppContext {
     /// Produces the single instance of `AppContext` for a normal app run.
-    pub fn instance(event_loop: EventLoopProxy) -> Self {
-        let updates = OwnedUpdates::new(event_loop.clone());
+    pub fn instance(app_event_sender: AppEventSender) -> Self {
+        let updates = OwnedUpdates::new(app_event_sender.clone());
         OwnedAppContext {
             app_state: StateMap::new(),
-            headless_state: if event_loop.is_headless() { Some(StateMap::new()) } else { None },
-            vars: Vars::instance(event_loop.clone()),
-            events: Events::instance(event_loop.clone()),
+            headless_state: if app_event_sender.is_headless() {
+                Some(StateMap::new())
+            } else {
+                None
+            },
+            vars: Vars::instance(app_event_sender.clone()),
+            events: Events::instance(app_event_sender.clone()),
             services: Services::default(),
-            tasks: Tasks::new(event_loop.into_sync()),
+            tasks: Tasks::new(app_event_sender.waker()),
             timers: Timers::new(),
             updates,
         }
@@ -688,7 +652,7 @@ impl OwnedAppContext {
     }
 
     /// Borrow the app context as an [`AppContext`].
-    pub fn borrow<'a>(&'a mut self, event_loop: EventLoopWindowTarget<'a>) -> AppContext<'a> {
+    pub fn borrow<'a, 'w>(&'a mut self, window_target: WindowTarget<'w>) -> AppContext<'a, 'w> {
         AppContext {
             app_state: &mut self.app_state,
             headless: HeadlessInfo::new(self.headless_state.as_mut()),
@@ -698,7 +662,7 @@ impl OwnedAppContext {
             tasks: &mut self.tasks,
             timers: &mut self.timers,
             updates: &mut self.updates.0,
-            event_loop,
+            window_target,
         }
     }
 
@@ -747,7 +711,7 @@ impl<'a> HeadlessInfo<'a> {
 }
 
 /// Full application context.
-pub struct AppContext<'a> {
+pub struct AppContext<'a, 'w> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
     /// Information about this context if it is running in headless mode.
@@ -769,10 +733,10 @@ pub struct AppContext<'a> {
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 
-    /// Reference to raw event loop.
-    pub event_loop: EventLoopWindowTarget<'a>,
+    /// Reference to event loop for headed windows.
+    pub window_target: WindowTarget<'w>,
 }
-impl<'a> AppContext<'a> {
+impl<'a, 'w> AppContext<'a, 'w> {
     /// Runs a function `f` in the context of a window.
     #[inline(always)]
     pub fn window_context<R>(
@@ -986,10 +950,9 @@ pub struct TestWidgetContext {
     /// A headless event loop.
     ///
     /// WARNING: In a full headless app this is drained of app events in each update.
-    /// Call [`take_headless_app_events`](crate::app::EventLoop::take_headless_app_events) to
-    /// do this manually. You should probably use the full [`HeadlessApp`](crate::app::HeadlessApp) if you
+    /// You should probably use the full [`HeadlessApp`](crate::app::HeadlessApp) if you
     /// are needing to do this.
-    pub event_loop: crate::app::EventLoop,
+    pub event_loop: (AppEventSender, flume::Receiver<crate::app::AppEvent>),
 
     /// The [`updates`](WidgetContext::updates) repository. No request by default.
     ///
@@ -1031,7 +994,7 @@ impl TestWidgetContext {
             panic!("only one `TestWidgetContext` or app is allowed per thread")
         }
 
-        let event_loop = crate::app::EventLoop::new(true);
+        let (sender, receiver) = AppEventSender::new_headless();
         Self {
             window_id: WindowId::new_unique(),
             root_id: WidgetId::new_unique(),
@@ -1040,12 +1003,12 @@ impl TestWidgetContext {
             widget_state: OwnedStateMap::new(),
             update_state: OwnedStateMap::new(),
             services: Services::default(),
-            events: Events::instance(event_loop.create_proxy()),
-            vars: Vars::instance(event_loop.create_proxy()),
-            updates: OwnedUpdates::new(event_loop.create_proxy()),
-            tasks: Tasks::new(event_loop.create_proxy().into_sync()),
+            events: Events::instance(sender.clone()),
+            vars: Vars::instance(sender.clone()),
+            updates: OwnedUpdates::new(sender.clone()),
+            tasks: Tasks::new(sender.waker()),
             timers: Timers::new(),
-            event_loop,
+            event_loop: (sender, receiver),
         }
     }
 

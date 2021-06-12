@@ -3,7 +3,7 @@
 use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
-use crate::app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShutdown};
+use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::context::{AppContext, AppContextMut, Updates, WidgetContext, WidgetContextMut};
 use crate::task::WidgetTask;
 use crate::widget_base::IsEnabled;
@@ -348,7 +348,7 @@ where
     E: Event,
     E::Args: Send,
 {
-    event_loop: EventLoopProxy,
+    sender: AppEventSender,
     _event: PhantomData<E>,
 }
 impl<E> Clone for EventSender<E>
@@ -358,7 +358,7 @@ where
 {
     fn clone(&self) -> Self {
         EventSender {
-            event_loop: self.event_loop.clone(),
+            sender: self.sender.clone(),
             _event: PhantomData,
         }
     }
@@ -380,13 +380,9 @@ where
     /// Send an event update.
     pub fn send(&self, args: E::Args) -> Result<(), AppShutdown<E::Args>> {
         let update = EventUpdate::<E>(args).boxed_send();
-        self.event_loop.send_event(AppEvent::Event(update)).map_err(|e| {
-            if let AppEvent::Event(e) = e.0 {
-                if let Ok(e) = e.unbox_for::<E>() {
-                    AppShutdown(e)
-                } else {
-                    unreachable!()
-                }
+        self.sender.send_event(update).map_err(|e| {
+            if let Ok(e) = e.0.unbox_for::<E>() {
+                AppShutdown(e)
             } else {
                 unreachable!()
             }
@@ -622,7 +618,7 @@ type BufferEntry = Box<dyn Fn(&BoxedEventUpdate) -> Retain>;
 ///
 /// Only a single instance of this type exists at a time.
 pub struct Events {
-    event_loop: EventLoopProxy,
+    app_event_sender: AppEventSender,
 
     updates: Vec<BoxedEventUpdate>,
 
@@ -644,9 +640,9 @@ impl Events {
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
     #[inline]
-    pub fn instance(event_loop: EventLoopProxy) -> Self {
+    pub fn instance(app_event_sender: AppEventSender) -> Self {
         Events {
-            event_loop,
+            app_event_sender,
             updates: vec![],
             pre_buffers: vec![],
             buffers: vec![],
@@ -704,7 +700,7 @@ impl Events {
         E::Args: Send,
     {
         EventSender {
-            event_loop: self.event_loop.clone(),
+            sender: self.app_event_sender.clone(),
             _event: PhantomData,
         }
     }

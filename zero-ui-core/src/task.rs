@@ -1,28 +1,20 @@
 //! Asynchronous task runner
 
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::{
-        atomic::{self, AtomicBool},
-        Arc,
-    },
-};
+use std::{future::Future, pin::Pin, task::Waker};
 
 use crate::{
-    app::EventLoopProxySync,
     context::*,
     var::{response_channel, ResponseVar, VarValue, Vars},
 };
 
 /// Asynchronous task runner.
 pub struct Tasks {
-    event_loop: EventLoopProxySync,
+    event_loop_waker: Waker,
 }
 /// Multi-threaded parallel tasks.
 impl Tasks {
-    pub(super) fn new(event_loop: EventLoopProxySync) -> Self {
-        Tasks { event_loop }
+    pub(super) fn new(event_loop_waker: Waker) -> Self {
+        Tasks { event_loop_waker }
     }
 
     /// Run a CPU bound parallel task.
@@ -179,7 +171,7 @@ impl Tasks {
         R: 'static,
         T: Future<Output = R> + 'static,
     {
-        UiTask::new(task, self.event_loop.clone())
+        UiTask::new(task, self.event_loop_waker.clone())
     }
 
     /// Create an app thread bound future executor that executes in the context of a widget.
@@ -245,7 +237,7 @@ impl Tasks {
         }
     }
 }
-impl<'a> AppContext<'a> {
+impl<'a, 'w> AppContext<'a, 'w> {
     /// Create an app thread bound future executor that executes in the app context.
     ///
     /// The `task` closure is called immediately with the [`AppContextMut`] that is paired with the task, it
@@ -302,38 +294,37 @@ impl<'a> WidgetContext<'a> {
 /// Use the [`Tasks::ui_task`] method to create an UI task.
 pub struct UiTask<R> {
     future: Pin<Box<dyn Future<Output = R>>>,
-    waker: Arc<EventLoopWaker>,
+    event_loop_waker: Waker,
     result: Option<R>,
 }
 impl<R> UiTask<R> {
-    fn new<F: Future<Output = R> + 'static>(future: F, event_loop: EventLoopProxySync) -> Self {
+    fn new<F: Future<Output = R> + 'static>(future: F, event_loop_waker: Waker) -> Self {
         UiTask {
             future: Box::pin(future),
-            waker: EventLoopWaker::new(event_loop),
+            event_loop_waker,
             result: None,
         }
     }
 
     /// Polls the future if needed, returns a reference to the result if the task is done.
     ///
-    /// This does not poll the future if the task is done, it also only polls the future if it requested poll.
+    /// This does not poll the future if the task is done.
     #[inline]
     pub fn update(&mut self) -> Option<&R> {
         if self.result.is_some() {
             return self.result.as_ref();
         }
 
-        if self.waker.poll.swap(false, atomic::Ordering::Relaxed) {
-            let waker = std::task::Waker::from(Arc::clone(&self.waker));
-            match self.future.as_mut().poll(&mut std::task::Context::from_waker(&waker)) {
-                std::task::Poll::Ready(r) => {
-                    self.result = Some(r);
-                    self.result.as_ref()
-                }
-                std::task::Poll::Pending => None,
+        match self
+            .future
+            .as_mut()
+            .poll(&mut std::task::Context::from_waker(&self.event_loop_waker))
+        {
+            std::task::Poll::Ready(r) => {
+                self.result = Some(r);
+                self.result.as_ref()
             }
-        } else {
-            None
+            std::task::Poll::Pending => None,
         }
     }
 
@@ -464,24 +455,5 @@ impl AppTask<()> {
                 })
                 .forget();
         }
-    }
-}
-
-struct EventLoopWaker {
-    event_loop: EventLoopProxySync,
-    poll: AtomicBool,
-}
-impl EventLoopWaker {
-    fn new(event_loop: EventLoopProxySync) -> Arc<Self> {
-        Arc::new(EventLoopWaker {
-            event_loop,
-            poll: AtomicBool::new(true),
-        })
-    }
-}
-impl std::task::Wake for EventLoopWaker {
-    fn wake(self: Arc<Self>) {
-        self.poll.store(true, atomic::Ordering::Relaxed);
-        let _ = self.event_loop.send_event(crate::app::AppEvent::Update);
     }
 }

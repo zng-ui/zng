@@ -14,7 +14,8 @@ use webrender::api::RenderApi;
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
-use crate::context::{AppContext, UpdateSender};
+use crate::app::AppEventSender;
+use crate::context::AppContext;
 use crate::event::{event, event_args, EventUpdateArgs};
 use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
@@ -125,7 +126,7 @@ impl Default for FontManager {
 }
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        let fonts = Fonts::new(ctx.updates.update_sender());
+        let fonts = Fonts::new(ctx.updates.sender());
         self.current_text_aa = fonts.system_text_aa();
         ctx.services.register(fonts);
     }
@@ -164,20 +165,20 @@ impl AppExtension for FontManager {
             let windows = ctx.services.windows();
             if let Ok(w) = windows.window(args.window_id) {
                 if w.mode().is_headed() {
-                    let update_sender = ctx.updates.update_sender();
+                    let update_sender = ctx.updates.sender();
                     let system_fonts_changed = Rc::clone(&self.system_fonts_changed);
                     let system_text_aa_changed = Rc::clone(&self.system_text_aa_changed);
                     let ok = w.set_raw_windows_event_handler(move |_, msg, wparam, _| {
                         if msg == winapi::um::winuser::WM_FONTCHANGE {
                             system_fonts_changed.set(true);
-                            let _ = update_sender.send();
+                            let _ = update_sender.send_update();
                             Some(0)
                         } else if msg == winapi::um::winuser::WM_SETTINGCHANGE {
                             if wparam == winapi::um::winuser::SPI_GETFONTSMOOTHING as usize
                                 || wparam == winapi::um::winuser::SPI_GETFONTSMOOTHINGTYPE as usize
                             {
                                 system_text_aa_changed.set(true);
-                                let _ = update_sender.send();
+                                let _ = update_sender.send_update();
                                 Some(0)
                             } else {
                                 None
@@ -203,10 +204,10 @@ pub struct Fonts {
     prune_requested: bool,
 }
 impl Fonts {
-    fn new(notifier: UpdateSender) -> Self {
+    fn new(update_sender: AppEventSender) -> Self {
         Fonts {
             loader: FontFaceLoader::new(),
-            generics: GenericFonts::new(notifier),
+            generics: GenericFonts::new(update_sender),
             prune_requested: false,
         }
     }
@@ -241,7 +242,7 @@ impl Fonts {
     pub fn prune(&mut self) {
         if !self.prune_requested {
             self.prune_requested = true;
-            let _ = self.generics.update_sender.send();
+            let _ = self.generics.update_sender.send_update();
         }
     }
 
@@ -1381,11 +1382,11 @@ pub struct GenericFonts {
     cursive: FnvHashMap<Script, FontName>,
     fantasy: FnvHashMap<Script, FontName>,
     fallback: FnvHashMap<Script, FontName>,
-    update_sender: UpdateSender,
+    update_sender: AppEventSender,
     updates: Vec<FontChangedArgs>,
 }
 impl GenericFonts {
-    fn new(update_sender: UpdateSender) -> Self {
+    fn new(update_sender: AppEventSender) -> Self {
         fn default(name: impl Into<FontName>) -> FnvHashMap<Script, FontName> {
             let mut f = FnvHashMap::with_capacity_and_hasher(1, fnv::FnvBuildHasher::default());
             f.insert(Script::Unknown, name.into());
@@ -1462,7 +1463,7 @@ impl GenericFonts {
 
     fn notify(&mut self, change: FontChange) {
         if self.updates.is_empty() {
-            let _ = self.update_sender.send();
+            let _ = self.update_sender.send_update();
         }
         self.updates.push(FontChangedArgs::now(change));
     }

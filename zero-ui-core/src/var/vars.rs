@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    app::{AppEvent, AppShutdown, EventLoopProxy, RecvFut, TimeoutOrAppShutdown},
+    app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
     context::Updates,
     crate_util::RunOnDrop,
 };
@@ -49,7 +49,7 @@ pub struct VarsRead {
     #[allow(clippy::type_complexity)]
     widget_clear: RefCell<Vec<Box<dyn Fn(bool)>>>,
 
-    event_loop: EventLoopProxy,
+    app_event_sender: AppEventSender,
     senders: RefCell<Vec<SyncEntry>>,
     receivers: RefCell<Vec<SyncEntry>>,
 }
@@ -255,12 +255,12 @@ impl Vars {
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
     #[inline]
-    pub fn instance(event_loop: EventLoopProxy) -> Self {
+    pub fn instance(app_event_sender: AppEventSender) -> Self {
         Vars {
             read: VarsRead {
                 _singleton: SingletonVars::assert_new("Vars"),
                 update_id: 0,
-                event_loop,
+                app_event_sender,
                 widget_clear: Default::default(),
                 senders: RefCell::default(),
                 receivers: RefCell::default(),
@@ -353,7 +353,7 @@ impl Vars {
         };
 
         VarSender {
-            wake: self.event_loop.clone(),
+            wake: self.app_event_sender.clone(),
             sender,
         }
     }
@@ -386,7 +386,7 @@ impl Vars {
         }
 
         VarModifySender {
-            wake: self.event_loop.clone(),
+            wake: self.app_event_sender.clone(),
             sender,
         }
     }
@@ -504,7 +504,7 @@ pub struct VarSender<T>
 where
     T: VarValue + Send,
 {
-    wake: EventLoopProxy,
+    wake: AppEventSender,
     sender: flume::Sender<T>,
 }
 impl<T: VarValue + Send> Clone for VarSender<T> {
@@ -530,7 +530,7 @@ where
     /// value is sent before the app can process then, only the last value shows as an update in the UI thread.
     pub fn send(&self, new_value: T) -> Result<(), AppShutdown<T>> {
         self.sender.send(new_value).map_err(AppShutdown::from)?;
-        let _ = self.wake.send_event(AppEvent::Var);
+        let _ = self.wake.send_var();
         Ok(())
     }
 }
@@ -542,7 +542,7 @@ pub struct VarModifySender<T>
 where
     T: VarValue,
 {
-    wake: EventLoopProxy,
+    wake: AppEventSender,
     sender: flume::Sender<Box<dyn FnOnce(&mut VarModify<T>) + Send>>,
 }
 impl<T: VarValue> Clone for VarModifySender<T> {
@@ -571,7 +571,7 @@ where
         F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
         self.sender.send(Box::new(modify)).map_err(|_| AppShutdown(()))?;
-        let _ = self.wake.send_event(AppEvent::Var);
+        let _ = self.wake.send_var();
         Ok(())
     }
 }
