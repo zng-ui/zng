@@ -584,7 +584,7 @@ impl AppProcess {
 enum EventLoopInner {
     Winit(WinitEventLoop<AppEvent>),
     Headless((flume::Sender<AppEvent>, flume::Receiver<AppEvent>)),
-    Adapter(Arc<dyn ExternalEventLoopAdapter>)
+    Adapter(Arc<dyn ExternalEventLoopAdapter>),
 }
 
 /// An adapter for an external *headed* event loop proxied in a [`EventLoop`].
@@ -692,7 +692,7 @@ impl EventLoop {
         match &self.0 {
             EventLoopInner::Winit(el) => EventLoopWindowTarget(Some(el)),
             EventLoopInner::Headless(_) => EventLoopWindowTarget(None),
-            &EventLoopInner::Adapter(_) => todo!()
+            &EventLoopInner::Adapter(_) => todo!(),
         }
     }
 
@@ -701,7 +701,7 @@ impl EventLoop {
         match &self.0 {
             EventLoopInner::Winit(el) => EventLoopProxy(EventLoopProxyInner::Winit(el.create_proxy())),
             EventLoopInner::Headless((s, _)) => EventLoopProxy(EventLoopProxyInner::Headless(s.clone())),
-            &EventLoopInner::Adapter(_) => todo!()
+            &EventLoopInner::Adapter(_) => todo!(),
         }
     }
 }

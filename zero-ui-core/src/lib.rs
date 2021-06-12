@@ -25,7 +25,7 @@ pub mod animation;
 pub mod app;
 pub mod border;
 pub mod color;
-//pub mod command;
+pub mod command;
 pub mod context;
 pub mod debug;
 pub mod event;

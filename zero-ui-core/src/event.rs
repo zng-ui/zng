@@ -656,7 +656,7 @@ impl Events {
         }
     }
 
-    fn notify<E: Event>(&mut self, args: E::Args) {
+    pub(crate) fn notify<E: Event>(&mut self, args: E::Args) {
         let update = EventUpdate::<E>(args);
         self.updates.push(update.boxed());
     }
@@ -1308,7 +1308,10 @@ pub use crate::cancelable_event_args;
 /// ```
 #[macro_export]
 macro_rules! event {
-    ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis $Event:ident : $Args:path;
+    )+) => {$(
         $(#[$outer])*
         #[derive(Clone, Copy, Debug)]
         $vis struct $Event;
