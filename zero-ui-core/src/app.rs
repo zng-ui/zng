@@ -1091,7 +1091,7 @@ impl<E: AppExtension> RunningApp<E> {
                     let mut ctx = self.owned_ctx.borrow(event_loop);
 
                     // check shutdown.
-                    if let Some(r) = ctx.services.req::<AppProcess>().take_requests() {
+                    if let Some(r) = ctx.services.app_process().take_requests() {
                         let args = ShutdownRequestedArgs::now();
                         self.extensions.shutdown_requested(&mut ctx, &args);
                         if args.cancel_requested() {

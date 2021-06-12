@@ -21,7 +21,7 @@ use crate::units::{layout_to_pt, LayoutLength};
 use crate::{app::AppExtension, render::TextAntiAliasing};
 
 #[cfg(windows)]
-use crate::window::{WindowOpenEvent, Windows};
+use crate::window::{WindowOpenEvent, WindowsExt};
 
 event! {
     /// Change in [`Fonts`] that may cause a font query to now give
@@ -131,7 +131,7 @@ impl AppExtension for FontManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let fonts = ctx.services.req::<Fonts>();
+        let fonts = ctx.services.fonts();
 
         for args in fonts.take_updates() {
             FontChangedEvent::notify(ctx.events, args);
@@ -161,7 +161,7 @@ impl AppExtension for FontManager {
         #[cfg(windows)]
         if let Some(args) = WindowOpenEvent::update(args) {
             // attach subclass WM_FONTCHANGE monitor to new headed windows.
-            let windows = ctx.services.req::<Windows>();
+            let windows = ctx.services.windows();
             if let Ok(w) = windows.window(args.window_id) {
                 if w.mode().is_headed() {
                     let update_sender = ctx.updates.sender().clone();

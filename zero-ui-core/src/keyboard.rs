@@ -188,20 +188,20 @@ impl AppExtension for KeyboardManager {
             } => {
                 if let Some(target) = Self::target(window_id, ctx.services) {
                     ctx.services
-                        .req::<Keyboard>()
+                        .keyboard()
                         .device_input(device_id, scancode, key.map(Into::into), state, target, ctx.events);
                 }
             }
 
             WindowEvent::ModifiersChanged(m) => {
                 if let Some(target) = Self::target(window_id, ctx.services) {
-                    ctx.services.req::<Keyboard>().set_modifiers(m, target, ctx.events);
+                    ctx.services.keyboard().set_modifiers(m, target, ctx.events);
                 }
             }
 
             WindowEvent::ReceivedCharacter(c) => {
                 if let Some(target) = Self::target(window_id, ctx.services) {
-                    ctx.services.req::<Keyboard>().char_input(c, target, ctx.events);
+                    ctx.services.keyboard().char_input(c, target, ctx.events);
                 }
             }
 

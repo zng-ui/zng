@@ -935,7 +935,7 @@ pub mod prelude {
         },
         context::WidgetContext,
         event::Events,
-        focus::{DirectionalNav, Focus, TabIndex, TabNav},
+        focus::{DirectionalNav, Focus, FocusExt, TabIndex, TabNav},
         gesture::{shortcut, GestureKey, Shortcut, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         keyboard::{Key, ModifiersState},
@@ -960,7 +960,9 @@ pub mod prelude {
         var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, Vars},
         widget_base::Visibility,
         widget_vec, widgets,
-        window::{AppRunWindowExt, AutoSize, CursorIcon, StartPosition, Window, WindowChrome, WindowIcon, WindowState, Windows},
+        window::{
+            AppRunWindowExt, AutoSize, CursorIcon, StartPosition, Window, WindowChrome, WindowIcon, WindowState, Windows, WindowsExt,
+        },
         RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
     };
 

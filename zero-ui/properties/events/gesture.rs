@@ -151,7 +151,7 @@ where
                 // this request also focus the widget if the window is focused
                 // and the widget is focusable.
                 ctx.services
-                    .req::<Gestures>()
+                    .gestures()
                     .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), self.kind, args.clone());
                 args.stop_propagation();
             }

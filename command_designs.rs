@@ -54,7 +54,7 @@ mod send_stuff {
 
   #[property(context)]
   fn command<C: Command>(child: impl UiNode, command: C) -> impl UiNode {
-    let node = on_click(child, move |ctx, _| ctx.services.req::<Commands>().execute(command) );
+    let node = on_click(child, move |ctx, _| ctx.services.commands().execute(command) );
     let node = enabled(node, C::enabled());
     let node = visibility(node, C::visible().map(Visibility::from));
     node
@@ -73,7 +73,7 @@ pub fn on_copy(child: impl UiNode, can_run: impl FnMut(&mut WidgetContext) -> bo
   }
   impl UiNode for OnCopyNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
-      self.handler = ctx.services.req::<Commands>().handler::<CopyCommand>();
+      self.handler = ctx.services.commands().handler::<CopyCommand>();
       if self.can_run(ctx) {
         self.handler.set(true);
       }
@@ -98,7 +98,7 @@ pub mod text_box {
       can_run: |ctx| IsEnabled::get(ctx.vars) && IsVisible::get(ctx.vars),
       run: |ctx| {
         let text = ctx.widget_state[TextBoxTextState];
-        ctx.services.req::<Clipboard>().set_text(text);
+        ctx.services.clipboard().set_text(text);
       }
     };
   }
@@ -128,7 +128,7 @@ fn button_click(ctx: &mut WidgetContext) {
 
 fn text_box_on_event(ctx: &mut WidgetContext, args: EventUpdateArgs) {
   if let Some(args) = CopyCommand::update(args) {
-    ctx.services.req::<ClipBoard>().set_text("selected text")
+    ctx.services.clipboard().set_text("selected text")
   }
 }
 

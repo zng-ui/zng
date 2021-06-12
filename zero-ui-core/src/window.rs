@@ -1,6 +1,6 @@
 //! App windows manager.
 use crate::{
-    app::{self, AppExtended, AppExtension, AppProcess, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
+    app::{self, AppExtended, AppExtension, AppProcessExt, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
     context::*,
     event::*,
     profiler::profile_scope,
@@ -127,10 +127,10 @@ pub trait AppRunWindowExt {
     /// Which is a shortcut for:
     /// ```no_run
     /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::window::Windows;
+    /// # use zero_ui_core::window::WindowsExt;
     /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
     /// App::default().run(|ctx| {
-    ///     ctx.services.req::<Windows>().open(|ctx| {
+    ///     ctx.services.windows().open(|ctx| {
     ///         println!("starting app with window {:?}", ctx.window_id);
     ///         window! {
     ///             title = "Window 1";
@@ -144,7 +144,7 @@ pub trait AppRunWindowExt {
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> ! {
         self.run(|ctx| {
-            ctx.services.req::<Windows>().open(new_window, None);
+            ctx.services.windows().open(new_window, None);
         })
     }
 }
@@ -174,7 +174,7 @@ pub trait HeadlessAppWindowExt {
 }
 impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
-        let response = self.ctx().services.req::<Windows>().open(new_window, None);
+        let response = self.ctx().services.windows().open(new_window, None);
         let mut window_id = None;
         while window_id.is_none() {
             self.update_observe(
@@ -197,7 +197,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let focused = self
             .ctx()
             .services
-            .req::<Windows>()
+            .windows()
             .windows()
             .iter()
             .find(|w| w.is_focused())
@@ -224,7 +224,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let frame_id = self
             .ctx()
             .services
-            .req::<Windows>()
+            .windows()
             .window(window_id)
             .ok()
             .map(|w| w.frame_info().frame_id());
@@ -232,7 +232,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         loop {
             self.update(true);
 
-            if let Ok(w) = self.ctx().services.req::<Windows>().window(window_id) {
+            if let Ok(w) = self.ctx().services.windows().window(window_id) {
                 if Some(w.frame_info().frame_id()) != frame_id {
                     // is a new frame, get the pixels.
                     return w.frame_pixels();
@@ -244,7 +244,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     fn frame_pixels(&mut self, window_id: WindowId) -> FramePixels {
         self.ctx()
             .services
-            .req::<Windows>()
+            .windows()
             .window(window_id)
             .expect("window not found")
             .frame_pixels()
@@ -456,7 +456,7 @@ impl AppExtension for WindowManager {
     fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
         match event {
             WindowEvent::Focused(focused) => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
+                if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == window_id) {
                     window.is_focused = *focused;
 
                     let args = WindowIsFocusedArgs::now(window_id, window.is_focused, false);
@@ -464,7 +464,7 @@ impl AppExtension for WindowManager {
                 }
             }
             WindowEvent::Resized(_) => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
+                if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == window_id) {
                     let new_size = window.size();
 
                     // set the window size variable.
@@ -482,7 +482,7 @@ impl AppExtension for WindowManager {
                 }
             }
             WindowEvent::Moved(_) => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.iter().find(|w| w.id == window_id) {
+                if let Some(window) = ctx.services.windows().windows.iter().find(|w| w.id == window_id) {
                     let new_position = window.position();
 
                     // TODO check if in new monitor.
@@ -495,7 +495,7 @@ impl AppExtension for WindowManager {
                 }
             }
             WindowEvent::CloseRequested => {
-                if let Some(win) = ctx.services.req::<Windows>().windows.iter().find(|w| w.id == window_id) {
+                if let Some(win) = ctx.services.windows().windows.iter().find(|w| w.id == window_id) {
                     *win.close_response.borrow_mut() = Some(response_var().0);
                     ctx.updates.update();
                 }
@@ -504,7 +504,7 @@ impl AppExtension for WindowManager {
                 scale_factor,
                 new_inner_size,
             } => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
+                if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == window_id) {
                     let scale_factor = *scale_factor as f32;
                     let new_size = LayoutSize::new(
                         new_inner_size.width as f32 / scale_factor,
@@ -535,13 +535,7 @@ impl AppExtension for WindowManager {
     }
 
     fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let wn_ctxs: Vec<_> = ctx
-            .services
-            .req::<Windows>()
-            .windows
-            .iter_mut()
-            .map(|w| w.context.clone())
-            .collect();
+        let wn_ctxs: Vec<_> = ctx.services.windows().windows.iter_mut().map(|w| w.context.clone()).collect();
 
         for wn_ctx in wn_ctxs {
             wn_ctx.borrow_mut().event(ctx, args);
@@ -570,7 +564,7 @@ impl AppExtension for WindowManager {
         // to create a layout context. Services are not visible in the layout context
         // so this is fine. // TODO: REVIEW
         let (mut windows, mut opening) = {
-            let wns = ctx.services.req::<Windows>();
+            let wns = ctx.services.windows();
             (mem::take(&mut wns.windows), mem::take(&mut wns.opening_windows))
         };
         for window in windows.iter_mut().chain(&mut opening) {
@@ -579,13 +573,13 @@ impl AppExtension for WindowManager {
             window.render_update(ctx);
         }
 
-        let wns = ctx.services.req::<Windows>();
+        let wns = ctx.services.windows();
         wns.windows = windows;
         wns.opening_windows = opening;
     }
 
     fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        let wns = ctx.services.req::<Windows>();
+        let wns = ctx.services.windows();
         if let Some(window) = wns.windows.iter_mut().find(|w| w.id == window_id) {
             window.request_redraw(ctx.vars);
         } else if let Some(idx) = wns.opening_windows.iter().position(|w| w.id == window_id) {
@@ -602,14 +596,14 @@ impl AppExtension for WindowManager {
     }
 
     fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        if let Some(window) = ctx.services.req::<Windows>().windows.iter_mut().find(|w| w.id == window_id) {
+        if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == window_id) {
             window.redraw();
         }
     }
 
     fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
         if !args.cancel_requested() {
-            let service = ctx.services.req::<Windows>();
+            let service = ctx.services.windows();
             if service.shutdown_on_last_close {
                 let windows: Vec<WindowId> = service.windows.iter().map(|w| w.id).collect();
                 if !windows.is_empty() {
@@ -621,7 +615,7 @@ impl AppExtension for WindowManager {
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {
-        let windows = mem::take(&mut ctx.services.req::<Windows>().windows);
+        let windows = mem::take(&mut ctx.services.windows().windows);
         for window in windows {
             {
                 log::error!(
@@ -640,7 +634,7 @@ impl WindowManager {
     /// Respond to open/close requests.
     fn update_open_close(&mut self, ctx: &mut AppContext) {
         // respond to service requests
-        let (open, close) = ctx.services.req::<Windows>().take_requests();
+        let (open, close) = ctx.services.windows().take_requests();
 
         for request in open {
             let w = OpenWindow::new(
@@ -653,7 +647,7 @@ impl WindowManager {
                 Arc::clone(&self.ui_threads),
                 ctx.updates.sender().clone(),
             );
-            ctx.services.req::<Windows>().opening_windows.push(w);
+            ctx.services.windows().opening_windows.push(w);
         }
 
         for window_id in close {
@@ -664,37 +658,31 @@ impl WindowManager {
     /// Pump the requested update methods.
     fn update_pump(&mut self, ctx: &mut AppContext) {
         // detach context part so we can let a window content access its own window.
-        let wn_ctxs: Vec<_> = ctx
-            .services
-            .req::<Windows>()
-            .windows
-            .iter_mut()
-            .map(|w| w.context.clone())
-            .collect();
+        let wn_ctxs: Vec<_> = ctx.services.windows().windows.iter_mut().map(|w| w.context.clone()).collect();
 
         for wn_ctx in &wn_ctxs {
             wn_ctx.borrow_mut().update(ctx);
         }
 
         // do window vars update.
-        let mut windows = mem::take(&mut ctx.services.req::<Windows>().windows);
+        let mut windows = mem::take(&mut ctx.services.windows().windows);
         for window in windows.iter_mut() {
             window.update_window(ctx);
         }
-        ctx.services.req::<Windows>().windows = windows;
+        ctx.services.windows().windows = windows;
 
         // do preload updates.
-        let mut opening = mem::take(&mut ctx.services.req::<Windows>().opening_windows);
+        let mut opening = mem::take(&mut ctx.services.windows().opening_windows);
         for window in &mut opening {
             debug_assert!(!matches!(window.init_state, WindowInitState::Inited));
             window.preload_update_window(ctx);
         }
-        ctx.services.req::<Windows>().opening_windows = opening;
+        ctx.services.windows().opening_windows = opening;
     }
 
     /// Respond to window_closing events.
     fn update_closing(&mut self, ctx: &mut AppContext, args: &WindowCloseRequestedArgs) {
-        let wins = ctx.services.req::<Windows>();
+        let wins = ctx.services.windows();
         if let Ok(win) = wins.window(args.window_id) {
             if args.cancel_requested() {
                 let responder = win.close_response.borrow_mut().take().unwrap();
@@ -718,7 +706,7 @@ impl WindowManager {
     fn update_close(&mut self, ctx: &mut AppContext, args: &WindowEventArgs) {
         // remove the window.
         let window = {
-            let wns = ctx.services.req::<Windows>();
+            let wns = ctx.services.windows();
             wns.windows
                 .iter()
                 .position(|w| w.id == args.window_id)
@@ -735,9 +723,9 @@ impl WindowManager {
         }
 
         // does shutdown_on_last_close.
-        let service = ctx.services.req::<Windows>();
+        let service = ctx.services.windows();
         if service.shutdown_on_last_close && service.windows.is_empty() && service.opening_windows.is_empty() {
-            ctx.services.req::<AppProcess>().shutdown();
+            ctx.services.app_process().shutdown();
         }
     }
 
@@ -2392,7 +2380,7 @@ impl OpenWindow {
                 StartPosition::CenterScreen => Some(LayoutRect::from_size(self.screen_size())),
                 StartPosition::CenterParent => {
                     if let Some(parent_id) = self.vars.parent().get(ctx.vars) {
-                        if let Ok(parent) = ctx.services.req::<Windows>().window(*parent_id) {
+                        if let Ok(parent) = ctx.services.windows().window(*parent_id) {
                             Some(LayoutRect::new(parent.position(), parent.size()))
                         } else {
                             Some(LayoutRect::from_size(self.screen_size()))
@@ -2853,7 +2841,7 @@ mod headless_tests {
         let mut app = App::default().run_headless();
         assert!(!app.renderer_enabled());
 
-        app.ctx().services.req::<Windows>().open(test_window, None);
+        app.ctx().services.windows().open(test_window, None);
 
         app.update(false);
     }
@@ -2865,7 +2853,7 @@ mod headless_tests {
         app.enable_renderer(true);
         assert!(app.renderer_enabled());
 
-        app.ctx().services.req::<Windows>().open(test_window, None);
+        app.ctx().services.windows().open(test_window, None);
 
         app.update(false);
     }
@@ -2874,12 +2862,12 @@ mod headless_tests {
     pub fn query_frame() {
         let mut app = App::default().run_headless();
 
-        app.ctx().services.req::<Windows>().open(test_window, None);
+        app.ctx().services.windows().open(test_window, None);
 
         app.update(false); // process open request.
         app.update(true); // process first render.
 
-        let wn = &app.ctx().services.req::<Windows>().windows()[0];
+        let wn = &app.ctx().services.windows().windows()[0];
 
         assert_eq!(wn.id(), wn.frame_info().window_id());
 

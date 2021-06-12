@@ -2,7 +2,7 @@
 
 use super::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use super::event::Events;
-use super::service::{Services, ServicesInit};
+use super::service::Services;
 use super::units::{LayoutSize, PixelGrid};
 use super::var::Vars;
 use super::window::WindowId;
@@ -620,7 +620,7 @@ pub struct OwnedAppContext {
     headless_state: Option<StateMap>,
     vars: Vars,
     events: Events,
-    services: ServicesInit,
+    services: Services,
     tasks: Tasks,
     timers: Timers,
     updates: OwnedUpdates,
@@ -635,7 +635,7 @@ impl OwnedAppContext {
             headless_state: if event_loop.is_headless() { Some(StateMap::new()) } else { None },
             vars: Vars::instance(event_loop.clone()),
             events: Events::instance(event_loop.clone()),
-            services: ServicesInit::default(),
+            services: Services::default(),
             tasks: Tasks::new(event_loop.clone().into_sync()),
             timers: Timers::new(),
             updates,
@@ -690,7 +690,7 @@ impl OwnedAppContext {
             headless: HeadlessInfo::new(self.headless_state.as_mut()),
             vars: &self.vars,
             events: &mut self.events,
-            services: self.services.services(),
+            services: &mut self.services,
             tasks: &mut self.tasks,
             timers: &mut self.timers,
             updates: &mut self.updates.0,
@@ -755,6 +755,7 @@ pub struct AppInitContext<'a> {
     /// Variables access.
     ///
     /// ### Note
+    ///
     /// In the application initialization context there are no variable updates, so
     /// `[`Var::update`](Var::update)` is always none.
     pub vars: &'a Vars,
@@ -762,6 +763,7 @@ pub struct AppInitContext<'a> {
     /// Events listener access and registration.
     ///
     /// ### Note
+    ///
     /// Events are registered in the order the extensions appear in [`App`](crate::app::App), if an
     /// extension needs a listener for an event of another extension this dependency
     /// must be mentioned in documentation.
@@ -770,10 +772,11 @@ pub struct AppInitContext<'a> {
     /// Application services access and registration.
     ///
     /// ### Note
+    ///
     /// Services are registered in the order the extensions appear in [`App`](crate::app::App), if an
     /// extension needs a service from another extension this dependency
     /// must be mentioned in documentation.
-    pub services: &'a mut ServicesInit,
+    pub services: &'a mut Services,
 
     /// Async tasks.
     pub tasks: &'a mut Tasks,
@@ -784,6 +787,7 @@ pub struct AppInitContext<'a> {
     /// Changes to be applied after initialization.
     ///
     /// ### Note
+    ///
     /// There is no notification of updates for this one, the updates are
     /// applied and then vars and events are reset.
     pub updates: &'a mut Updates,
@@ -1024,11 +1028,7 @@ pub struct TestWidgetContext {
     pub update_state: OwnedStateMap,
 
     /// The [`services`](WidgetContext::services) repository. Empty by default.
-    ///
-    /// WARNING: In a real app services can only be registered at the start of the application.
-    /// In this context you can always register a service, you should probably not reuse a test widget
-    /// instance after registering a service.
-    pub services: ServicesInit,
+    pub services: Services,
 
     /// A headless event loop.
     ///
@@ -1086,7 +1086,7 @@ impl TestWidgetContext {
             window_state: OwnedStateMap::new(),
             widget_state: OwnedStateMap::new(),
             update_state: OwnedStateMap::new(),
-            services: ServicesInit::default(),
+            services: Services::default(),
             events: Events::instance(event_loop.create_proxy()),
             vars: Vars::instance(event_loop.create_proxy()),
             updates: OwnedUpdates::new(event_loop.create_proxy()),
@@ -1106,7 +1106,7 @@ impl TestWidgetContext {
             update_state: &mut self.update_state.0,
             vars: &self.vars,
             events: &mut self.events,
-            services: self.services.services(),
+            services: &mut self.services,
             tasks: &mut self.tasks,
             timers: &mut self.timers,
             updates: self.updates.updates(),
@@ -1507,19 +1507,6 @@ impl<'a> RenderContext<'a> {
         r
     }
 }
-
-/// Error when an service or event of the same type is registered twice.
-#[derive(Debug, Clone, Copy)]
-pub struct AlreadyRegistered {
-    /// Type name of the service.
-    pub type_name: &'static str,
-}
-impl fmt::Display for AlreadyRegistered {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "`{}` is already registered", self.type_name)
-    }
-}
-impl std::error::Error for AlreadyRegistered {}
 
 macro_rules! contextual_ctx {
     ($($Context:ident),+ $(,)?) => {$(paste::paste! {

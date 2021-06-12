@@ -62,7 +62,7 @@ fn functions() -> impl Widget {
             button! {
                 content = text("New Window");
                 on_click = |ctx, _| {
-                    ctx.services.req::<Windows>().open(|_|window! {
+                    ctx.services.windows().open(|_|window! {
                         title = "Other Window";
                         focus_shortcut = shortcut!(W);
                         content = v_stack! {
@@ -85,7 +85,7 @@ fn functions() -> impl Widget {
                         content = text("Detach Button");
                         on_click = move |ctx, _| {
                             let wwk = wk.clone();
-                            ctx.services.req::<Windows>().open(move |_| {
+                            ctx.services.windows().open(move |_| {
                                 window! {
                                     title = "Detached Button";
                                     content = slot(wwk.upgrade().unwrap(), take_on_init());
@@ -144,7 +144,7 @@ mod inspect {
     pub fn focus(path: &Option<WidgetPath>, services: &mut Services) -> String {
         path.as_ref()
             .map(|p| {
-                let window = if let Ok(w) = services.req::<Windows>().window(p.window_id()) {
+                let window = if let Ok(w) = services.windows().window(p.window_id()) {
                     w
                 } else {
                     return format!("<{}>", p);

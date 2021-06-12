@@ -777,7 +777,7 @@ impl AppExtension for GestureManager {
         } else if let Some(args) = ShortcutEvent::update(args) {
             // Generate click events from shortcuts.
             if !args.stop_propagation_requested() {
-                let gestures = ctx.services.req::<Gestures>();
+                let gestures = ctx.services.gestures();
                 let click = if gestures.click_focused.0.contains(&args.shortcut) {
                     Some(ShortcutClick::Primary)
                 } else if gestures.context_click_focused.0.contains(&args.shortcut) {

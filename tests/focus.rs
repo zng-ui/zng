@@ -1575,7 +1575,7 @@ impl TestApp {
     }
 
     pub fn focused(&mut self) -> Option<WidgetId> {
-        self.app.ctx().services.req::<Focus>().focused().map(|w| w.widget_id())
+        self.app.ctx().services.focus().focused().map(|w| w.widget_id())
     }
 
     pub fn press_tab(&mut self) {
@@ -1611,17 +1611,17 @@ impl TestApp {
     }
 
     pub fn focus(&mut self, widget_id: WidgetId) {
-        self.app.ctx().services.req::<Focus>().focus_widget(widget_id, true);
+        self.app.ctx().services.focus().focus_widget(widget_id, true);
         self.app.update(false);
     }
 
     pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
-        self.app.ctx().services.req::<Focus>().focus_widget_or_exit(widget_id, true);
+        self.app.ctx().services.focus().focus_widget_or_exit(widget_id, true);
         self.app.update(false);
     }
 
     pub fn focus_or_child(&mut self, widget_id: WidgetId) {
-        self.app.ctx().services.req::<Focus>().focus_widget_or_enter(widget_id, true);
+        self.app.ctx().services.focus().focus_widget_or_enter(widget_id, true);
         self.app.update(false);
     }
 

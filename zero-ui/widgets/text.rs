@@ -192,7 +192,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         let (family, style, weight, stretch) = TextContext::font_face(ctx.vars);
 
         // TODO use the full list.
-        let font_face = ctx.services.req::<Fonts>().get_list(family, style, weight, stretch).best().clone();
+        let font_face = ctx.services.fonts().get_list(family, style, weight, stretch).best().clone();
         self.synthesis_used = *FontSynthesisVar::get(ctx.vars) & font_face.synthesis_for(style, weight);
         self.font_face = Some(font_face);
 
@@ -237,7 +237,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
             let face = ctx
                 .services
-                .req::<Fonts>()
+                .fonts()
                 .get_list(font_family, font_style, font_weight, font_stretch)
                 .best()
                 .clone();

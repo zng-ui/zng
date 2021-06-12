@@ -10,7 +10,7 @@ use crate::event::*;
 use crate::keyboard::ModifiersState;
 use crate::render::*;
 use crate::service::*;
-use crate::window::{WindowEvent, WindowId, Windows};
+use crate::window::{WindowEvent, WindowId, Windows, WindowsExt};
 use std::{fmt, time::*};
 use std::{mem, num::NonZeroU8};
 
@@ -542,7 +542,7 @@ impl MouseManager {
 
             self.pos_window = Some(window_id);
 
-            let windows = ctx.services.req::<Windows>();
+            let windows = ctx.services.windows();
             self.pos_dpi = windows.window(window_id).unwrap().scale_factor();
         }
 
@@ -555,7 +555,7 @@ impl MouseManager {
 
             self.pos = pos;
 
-            let windows = ctx.services.req::<Windows>();
+            let windows = ctx.services.windows();
             let window = windows.window(window_id).unwrap();
 
             let hits = window.hit_test(pos);
@@ -568,7 +568,7 @@ impl MouseManager {
                 (frame_info.root().path(), pos)
             };
 
-            let mouse = ctx.services.req::<Mouse>();
+            let mouse = ctx.services.mouse();
             let capture = if let Some((path, mode)) = mouse.current_capture() {
                 Some(CaptureInfo {
                     position: self.pos, // TODO must be related to capture.
@@ -592,21 +592,14 @@ impl MouseManager {
             MouseMoveEvent::notify(ctx.events, args);
 
             // mouse_enter/mouse_leave.
-            self.update_hovered(
-                window_id,
-                Some(device_id),
-                hits,
-                Some(target),
-                ctx.events,
-                ctx.services.req::<Mouse>(),
-            );
+            self.update_hovered(window_id, Some(device_id), hits, Some(target), ctx.events, ctx.services.mouse());
         }
     }
 
     fn on_cursor_left(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
         if Some(window_id) == self.pos_window.take() {
             if let Some(args) = self.hover_enter_args.take() {
-                let capture = ctx.services.req::<Mouse>().current_capture().map(|(path, mode)| CaptureInfo {
+                let capture = ctx.services.mouse().current_capture().map(|(path, mode)| CaptureInfo {
                     target: path.clone(),
                     mode,
                     position: self.pos, // TODO
@@ -697,7 +690,7 @@ impl MouseManager {
     }
 
     fn release_window_capture(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        let mouse = ctx.services.req::<Mouse>();
+        let mouse = ctx.services.mouse();
         if let Some((path, _)) = mouse.current_capture() {
             if path.window_id() == window_id {
                 mouse.end_window_capture(ctx.events);

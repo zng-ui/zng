@@ -221,7 +221,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
                 self.child.event(ctx, args);
                 if !args.stop_propagation_requested() && self.shortcuts.get(ctx.vars).0.contains(&args.shortcut) {
                     // focus on shortcut
-                    ctx.services.req::<Focus>().focus_widget_or_related(ctx.path.widget_id(), true);
+                    ctx.services.focus().focus_widget_or_related(ctx.path.widget_id(), true);
                     args.stop_propagation();
                 }
             } else {

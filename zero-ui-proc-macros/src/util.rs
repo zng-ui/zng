@@ -834,3 +834,17 @@ pub fn parse_punct_terminated2<T: Parse, P: syn::token::Token + Parse>(input: To
 
     syn::parse2::<PunctTerm<T, P>>(input).map(|p| p.0)
 }
+
+/// Convert CamelCase to snake_case.
+pub fn snake_case(camel: &str) -> String {
+    let mut r = String::new();
+    let mut prev = '_';
+    for ch in camel.chars() {
+        if ch.is_uppercase() && prev != '_' {
+            r.push('_');
+        }
+        r.push(ch);
+        prev = ch;
+    }
+    r.to_lowercase()
+}

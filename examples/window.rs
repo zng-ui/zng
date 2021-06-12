@@ -131,7 +131,7 @@ fn screenshot() -> impl Widget {
 
             let t = Instant::now();
             let img = ctx.with(|ctx|{
-                ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().frame_pixels()
+                ctx.services.windows().window(ctx.path.window_id()).unwrap().frame_pixels()
             });
             println!("taken in {:?}, saving..", t.elapsed());
 
@@ -161,7 +161,7 @@ fn headless() -> impl Widget {
         content = text("headless");
         on_click = |ctx, _| {
             println!("taking `screenshot.png` using a new headless window ..");
-            ctx.services.req::<Windows>().open(|_|window! {
+            ctx.services.windows().open(|_|window! {
                     size = (500, 400);
                     background_color = colors::DARK_GREEN;
                     font_size = 72;
@@ -185,7 +185,7 @@ fn always_on_top() -> impl Widget {
     button! {
         content = text("always_on_top");
         on_click = |ctx, _| {
-            ctx.services.req::<Windows>().open(|_| {
+            ctx.services.windows().open(|_| {
                 let always_on_top = var(true);
                 window! {
                     title = always_on_top.map(|b| formatx!{"always_on_top = {}", b});
@@ -207,7 +207,7 @@ fn taskbar_visible() -> impl Widget {
     button! {
         content = text("taskbar_visible");
         on_click = |ctx, _| {
-            ctx.services.req::<Windows>().open(|_| {
+            ctx.services.windows().open(|_| {
                 let taskbar_visible = var(false);
                 window! {
                     title = taskbar_visible.map(|b| formatx!{"taskbar_visible = {}", b});

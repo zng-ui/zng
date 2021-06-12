@@ -557,7 +557,7 @@ impl AppExtension for FocusManager {
     fn update(&mut self, ctx: &mut AppContext) {
         let mut request = None;
 
-        let focus = ctx.services.req::<Focus>();
+        let focus = ctx.services.focus();
         if let Some(req) = focus.request.take() {
             // custom
             request = Some(req);

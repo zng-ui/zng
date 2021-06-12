@@ -1,59 +1,25 @@
 //! Services API.
 
-use crate::context::AlreadyRegistered;
-use std::{any::*, cell::Cell, ptr, rc::Rc, thread::LocalKey};
+use std::{any::*, cell::Cell, fmt, ptr, rc::Rc, thread::LocalKey};
 
-/// Auto implement [`Service`] trait.
+/// Auto implement [`Service`](ty@Service) trait and generates an extension method for requiring the service.
 pub use zero_ui_proc_macros::Service;
 
-/// Application services with registration access.
-pub struct ServicesInit {
-    m: Services,
-}
-impl Default for ServicesInit {
-    fn default() -> Self {
-        ServicesInit {
-            m: Services {
-                services: Vec::with_capacity(20),
-            },
-        }
+/// Error when an service of the same type is registered twice.
+///
+/// The associated value is the instance that could not be registered.
+pub struct AlreadyRegistered<S: Service>(pub S);
+impl<S: Service> fmt::Debug for AlreadyRegistered<S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AlreadyRegistered<{}>", type_name::<S>())
     }
 }
-impl ServicesInit {
-    /// Register a new service for the duration of the application context.
-    pub fn try_register<S: Service + Sized>(&mut self, service: S) -> Result<(), AlreadyRegistered> {
-        let mut service = Box::new(service);
-        let prev = S::thread_local_entry().init(service.as_mut() as _);
-        if prev.is_null() {
-            let deiniter = Box::new(|| S::thread_local_entry().deinit());
-            self.m.services.push(ServiceInstanceEntry {
-                _instance: service,
-                deiniter,
-            });
-            Ok(())
-        } else {
-            S::thread_local_entry().init(prev);
-            Err(AlreadyRegistered {
-                type_name: type_name::<S>(),
-            })
-        }
-    }
-
-    /// Register a new service for the duration of the application context.
-    ///
-    /// # Panics
-    ///
-    /// Panics if another instance of the service is already registered.
-    #[track_caller]
-    pub fn register<S: Service + Sized>(&mut self, service: S) {
-        self.try_register(service).expect("service already registered")
-    }
-
-    /// Reference the [`Services`].
-    pub fn services(&mut self) -> &mut Services {
-        &mut self.m
+impl<S: Service> fmt::Display for AlreadyRegistered<S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "`{}` is already registered", type_name::<S>())
     }
 }
+impl<S: Service> std::error::Error for AlreadyRegistered<S> {}
 
 struct ServiceInstanceEntry {
     _instance: Box<dyn Service>,
@@ -70,7 +36,41 @@ pub struct Services {
     services: Vec<ServiceInstanceEntry>,
 }
 impl Services {
+    pub(crate) fn default() -> Self {
+        Services {
+            services: Vec::with_capacity(20),
+        }
+    }
+
+    /// Register a new service for the duration of the application context.
+    pub fn try_register<S: Service + Sized>(&mut self, service: S) -> Result<(), AlreadyRegistered<S>> {
+        let mut service = Box::new(service);
+        let prev = S::thread_local_entry().init(service.as_mut() as _);
+        if prev.is_null() {
+            let deiniter = Box::new(|| S::thread_local_entry().deinit());
+            self.services.push(ServiceInstanceEntry {
+                _instance: service,
+                deiniter,
+            });
+            Ok(())
+        } else {
+            S::thread_local_entry().init(prev);
+            Err(AlreadyRegistered(*service))
+        }
+    }
+
+    /// Register a new service for the duration of the application context.
+    ///
+    /// # Panics
+    ///
+    /// Panics if another instance of the service is already registered.
+    #[track_caller]
+    pub fn register<S: Service + Sized>(&mut self, service: S) {
+        self.try_register(service).expect("service already registered")
+    }
+
     /// Gets a service reference if the service is registered in the application.
+    #[inline]
     pub fn get<S: Service>(&mut self) -> Option<&mut S> {
         let ptr = S::thread_local_entry().get();
         if ptr.is_null() {
@@ -82,11 +82,19 @@ impl Services {
         }
     }
 
-    // Requires a service reference.
+    /// Requires a service reference.
+    ///
+    /// # Extension Methods
+    ///
+    /// Every service implemented using `derive` has a `ServiceNameExt` trait that implements a method for [`Services`]
+    /// that requires the service. So instead of using this method to request `services.req::<FooBar>()` you can use 
+    /// `services.foo_bar()` if you have imported `FooBarExt`.
     ///
     /// # Panics
     ///
     /// If  the service is not registered in the application.
+    #[inline]
+    #[track_caller]
     pub fn req<S: Service>(&mut self) -> &mut S {
         self.get::<S>()
             .unwrap_or_else(|| panic!("app service `{}` is required", type_name::<S>()))
@@ -102,6 +110,7 @@ impl Services {
     /// # Panics
     ///
     /// If the same service type is requested more then once.
+    #[inline]
     pub fn get_multi<'m, M: ServiceTuple<'m>>(&'m mut self) -> Option<M::Borrowed> {
         M::get().ok()
     }
@@ -118,6 +127,8 @@ impl Services {
     /// If any of the services is not registered in the application.
     ///
     /// If the same service type is required more then once.
+    #[inline]
+    #[track_caller]
     pub fn req_multi<'m, M: ServiceTuple<'m>>(&'m mut self) -> M::Borrowed {
         M::get().unwrap_or_else(|e| panic!("service `{}` is required", e))
     }
@@ -127,7 +138,25 @@ impl Services {
 ///
 /// # Derive
 ///
-/// Implement this trait using `#[derive(Service)].`
+/// Implement this trait using `#[derive(Service)]`. It also generates an extension method for [`Services`] using the service name.
+///
+/// # Example
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{service::*, context::WidgetContext};
+/// /// Foo-bar service.
+/// #[derive(Service)]
+/// pub struct FooBar { }
+///
+/// mod elsewhere {
+/// #   use super::*;
+///     use crate::FooBarExt;// generated extension method.
+///     fn update(ctx: &mut WidgetContext) {
+///         let service = ctx.services.foo_bar();
+///     }
+/// }
+/// ```
 pub trait Service: 'static {
     /// Use `#[derive ..]` to implement this trait.
     ///
