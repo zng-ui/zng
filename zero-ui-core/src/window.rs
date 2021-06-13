@@ -1764,8 +1764,8 @@ impl OpenWindow {
         app_sender: AppEventSender,
     ) -> Self {
         // get mode.
-        let mut mode = if let Some(headless) = ctx.headless.state() {
-            if headless.get::<app::HeadlessRendererEnabledKey>().copied().unwrap_or_default() {
+        let mut mode = if ctx.is_headless() {
+            if ctx.app_state.get::<app::HeadlessRendererEnabledKey>().copied().unwrap_or_default() {
                 WindowMode::HeadlessWithRenderer
             } else {
                 WindowMode::Headless

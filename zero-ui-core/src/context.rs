@@ -597,7 +597,6 @@ impl Updates {
 /// You can only have one instance of this at a time.
 pub struct OwnedAppContext {
     app_state: StateMap,
-    headless_state: Option<StateMap>,
     vars: Vars,
     events: Events,
     services: Services,
@@ -612,11 +611,6 @@ impl OwnedAppContext {
         let updates = OwnedUpdates::new(app_event_sender.clone());
         OwnedAppContext {
             app_state: StateMap::new(),
-            headless_state: if app_event_sender.is_headless() {
-                Some(StateMap::new())
-            } else {
-                None
-            },
             vars: Vars::instance(app_event_sender.clone()),
             events: Events::instance(app_event_sender.clone()),
             services: Services::default(),
@@ -628,17 +622,7 @@ impl OwnedAppContext {
 
     /// If the context is in headless mode.
     pub fn is_headless(&self) -> bool {
-        self.headless_state.is_some()
-    }
-
-    /// State that lives for the duration of a headless application.
-    pub fn headless_state(&self) -> Option<&StateMap> {
-        self.headless_state.as_ref()
-    }
-
-    /// State that lives for the duration of a headless application.
-    pub fn headless_state_mut(&mut self) -> Option<&mut StateMap> {
-        self.headless_state.as_mut()
+        self.updates.0.event_sender.is_headless()
     }
 
     /// State that lives for the duration of an application, including a headless application.
@@ -655,7 +639,6 @@ impl OwnedAppContext {
     pub fn borrow<'a, 'w>(&'a mut self, window_target: WindowTarget<'w>) -> AppContext<'a, 'w> {
         AppContext {
             app_state: &mut self.app_state,
-            headless: HeadlessInfo::new(self.headless_state.as_mut()),
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
@@ -686,36 +669,10 @@ impl OwnedAppContext {
     }
 }
 
-/// Information about a headless app context.
-pub struct HeadlessInfo<'a> {
-    state: Option<&'a mut StateMap>,
-}
-
-impl<'a> HeadlessInfo<'a> {
-    fn new(state: Option<&'a mut StateMap>) -> Self {
-        HeadlessInfo { state }
-    }
-
-    /// If the application is running in headless mode.
-    pub fn is_headless(&self) -> bool {
-        self.state.is_some()
-    }
-
-    /// State that lives for the duration of the headless application.
-    pub fn state(&mut self) -> Option<&mut StateMap> {
-        match &mut self.state {
-            None => None,
-            Some(state) => Some(state),
-        }
-    }
-}
-
 /// Full application context.
 pub struct AppContext<'a, 'w> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
-    /// Information about this context if it is running in headless mode.
-    pub headless: HeadlessInfo<'a>,
 
     /// Access to variables.
     pub vars: &'a Vars,
@@ -737,6 +694,11 @@ pub struct AppContext<'a, 'w> {
     pub window_target: WindowTarget<'w>,
 }
 impl<'a, 'w> AppContext<'a, 'w> {
+    /// If the context is in headless mode.
+    pub fn is_headless(&self) -> bool {
+        self.updates.event_sender.is_headless()
+    }
+
     /// Runs a function `f` in the context of a window.
     #[inline(always)]
     pub fn window_context<R>(

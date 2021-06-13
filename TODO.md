@@ -37,8 +37,11 @@ Things that must be done first because they influence the core API design that i
 * Raw OpenGL textures.
 * Theming.
 * Async.
-  * IO bound workers.
-  * CPU bound workers.
+  * Shareable AppContextMut.
+  * UI async event update.
+  * UI async timers.
+  * UI async var updates.
+  * Async version or more components. 
 
 * Animation, transition and storyboarding.
 * Automatic screen reader integration (UI Automation).
