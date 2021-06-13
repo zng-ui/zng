@@ -14,6 +14,7 @@ Things that must be done first because they influence the core API design that i
   * Custom focus request?
   * Test directional navigation.
      * Including layout transformed widgets.
+  * Mnemonics.
 
 * Commands
 

@@ -1,9 +1,11 @@
 //! App event API.
 
+use fnv::FnvHashMap;
 use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
+use crate::command::DynCommand;
 use crate::context::{AppContext, AppContextMut, Updates, WidgetContext, WidgetContextMut};
 use crate::task::WidgetTask;
 use crate::widget_base::IsEnabled;
@@ -627,6 +629,8 @@ pub struct Events {
     pre_handlers: Vec<OnEventHandler>,
     pos_handlers: Vec<OnEventHandler>,
 
+    commands: FnvHashMap<TypeId, DynCommand>,
+
     _singleton: SingletonEvents,
 }
 impl Events {
@@ -648,6 +652,7 @@ impl Events {
             buffers: vec![],
             pre_handlers: vec![],
             pos_handlers: vec![],
+            commands: FnvHashMap::default(),
             _singleton: SingletonEvents::assert_new("Events"),
         }
     }
@@ -659,6 +664,13 @@ impl Events {
 
     pub(crate) fn notify_app_event(&mut self, update: BoxedSendEventUpdate) {
         self.updates.push(update.forget_send());
+    }
+
+    pub(crate) fn register_command(&mut self, command: DynCommand) {
+        if let Some(already) = self.commands.insert(command.command_type_id(), command) {
+            self.commands.insert(already.command_type_id(), already);
+            panic!("command `{:?}` is already registered", command)
+        }
     }
 
     /// Creates an event buffer that listens to `E`. The event updates are pushed as soon as possible, before
