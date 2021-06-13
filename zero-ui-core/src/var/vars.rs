@@ -233,7 +233,7 @@ type PendingUpdate = Box<dyn FnOnce(u32) -> bool>;
 
 /// Access to application variables.
 ///
-/// Only a single instance of this type exists at a time.
+/// An instance of this struct in [`AppContext`](crate::context::AppContext) and derived contexts.
 pub struct Vars {
     read: VarsRead,
     #[allow(clippy::type_complexity)]
@@ -247,7 +247,7 @@ impl fmt::Debug for Vars {
 impl Vars {
     /// If an instance of `Vars` already exists in the  current thread.
     #[inline]
-    pub fn instantiated() -> bool {
+    pub(crate) fn instantiated() -> bool {
         SingletonVars::in_use()
     }
 
@@ -255,7 +255,7 @@ impl Vars {
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
     #[inline]
-    pub fn instance(app_event_sender: AppEventSender) -> Self {
+    pub(crate) fn instance(app_event_sender: AppEventSender) -> Self {
         Vars {
             read: VarsRead {
                 _singleton: SingletonVars::assert_new("Vars"),
@@ -304,7 +304,7 @@ impl Vars {
         self.pending.borrow_mut().push(change);
     }
 
-    pub(crate) fn apply(&mut self, updates: &mut Updates) {
+    pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
         self.read.update_id = self.update_id.wrapping_add(1);
 
         let pending = self.pending.get_mut();

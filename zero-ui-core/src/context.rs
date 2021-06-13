@@ -378,26 +378,6 @@ impl OwnedStateMap {
     }
 }
 
-/// Executor access to [`Updates`].
-pub struct OwnedUpdates(Updates);
-
-impl OwnedUpdates {
-    fn new(event_sender: AppEventSender) -> Self {
-        Self(Updates::new(event_sender))
-    }
-
-    /// Take what update methods must be pumped.
-    #[inline]
-    pub fn take_updates(&mut self) -> (bool, UpdateDisplayRequest) {
-        (mem::take(&mut self.0.update), mem::take(&mut self.0.display_update))
-    }
-
-    /// Reference the [`Updates`].
-    pub fn updates(&mut self) -> &mut Updates {
-        &mut self.0
-    }
-}
-
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
 ///
 /// The update handler is dropped when every handle is dropped, unless a handle called
@@ -438,7 +418,7 @@ impl UpdateArgs {
 
 /// Schedule of actions to apply after an update.
 ///
-/// An instance of this struct can be built by [`OwnedUpdates`].
+/// An instance of this struct is available in [`AppContext`] and derived contexts.
 pub struct Updates {
     event_sender: AppEventSender,
     update: bool,
@@ -590,25 +570,28 @@ impl Updates {
             retain
         });
     }
+
+    fn take_updates(&mut self) -> (bool, UpdateDisplayRequest) {
+        (mem::take(&mut self.update), mem::take(&mut self.display_update))
+    }
 }
 
 /// Owner of [`AppContext`] objects.
 ///
-/// You can only have one instance of this at a time.
-pub struct OwnedAppContext {
+/// You can only have one instance of this at a time per-thread at a time.
+pub(crate) struct OwnedAppContext {
     app_state: StateMap,
     vars: Vars,
     events: Events,
     services: Services,
     tasks: Tasks,
     timers: Timers,
-    updates: OwnedUpdates,
+    updates: Updates,
 }
-
 impl OwnedAppContext {
     /// Produces the single instance of `AppContext` for a normal app run.
     pub fn instance(app_event_sender: AppEventSender) -> Self {
-        let updates = OwnedUpdates::new(app_event_sender.clone());
+        let updates = Updates::new(app_event_sender.clone());
         OwnedAppContext {
             app_state: StateMap::new(),
             vars: Vars::instance(app_event_sender.clone()),
@@ -618,11 +601,6 @@ impl OwnedAppContext {
             timers: Timers::new(),
             updates,
         }
-    }
-
-    /// If the context is in headless mode.
-    pub fn is_headless(&self) -> bool {
-        self.updates.0.event_sender.is_headless()
     }
 
     /// State that lives for the duration of an application, including a headless application.
@@ -644,7 +622,7 @@ impl OwnedAppContext {
             services: &mut self.services,
             tasks: &mut self.tasks,
             timers: &mut self.timers,
-            updates: &mut self.updates.0,
+            updates: &mut self.updates,
             window_target,
         }
     }
@@ -655,8 +633,8 @@ impl OwnedAppContext {
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
         let wake_time = self.timers.apply_updates(&self.vars);
-        self.vars.apply(&mut self.updates.0);
-        let events = self.events.apply(&mut self.updates.0);
+        self.vars.apply_updates(&mut self.updates);
+        let events = self.events.apply_updates(&mut self.updates);
 
         let (update, display_update) = self.updates.take_updates();
 
@@ -920,7 +898,7 @@ pub struct TestWidgetContext {
     ///
     /// WARNING: This is drained of requests after each update, you can do this manually by calling
     /// [`apply_updates`](Self::apply_updates).
-    pub updates: OwnedUpdates,
+    pub updates: Updates,
 
     /// The [`vars`](WidgetContext::vars) instance.
     pub vars: Vars,
@@ -967,7 +945,7 @@ impl TestWidgetContext {
             services: Services::default(),
             events: Events::instance(sender.clone()),
             vars: Vars::instance(sender.clone()),
-            updates: OwnedUpdates::new(sender.clone()),
+            updates: Updates::new(sender.clone()),
             tasks: Tasks::new(sender.waker()),
             timers: Timers::new(),
             event_loop: (sender, receiver),
@@ -987,7 +965,7 @@ impl TestWidgetContext {
             services: &mut self.services,
             tasks: &mut self.tasks,
             timers: &mut self.timers,
-            updates: self.updates.updates(),
+            updates: &mut self.updates,
         })
     }
 
@@ -1034,8 +1012,8 @@ impl TestWidgetContext {
     /// Returns the [`ContextUpdates`] a full app would use to update the application.
     pub fn apply_updates(&mut self) -> ContextUpdates {
         let wake_time = self.timers.apply_updates(&self.vars);
-        self.vars.apply(&mut self.updates.0);
-        let events = self.events.apply(&mut self.updates.0);
+        self.vars.apply_updates(&mut self.updates);
+        let events = self.events.apply_updates(&mut self.updates);
         let (update, display_update) = self.updates.take_updates();
         ContextUpdates {
             events,

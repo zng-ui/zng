@@ -616,7 +616,7 @@ type BufferEntry = Box<dyn Fn(&BoxedEventUpdate) -> Retain>;
 
 /// Access to application events.
 ///
-/// Only a single instance of this type exists at a time.
+/// An instance of this struct is available in [`AppContext`] and derived contexts.
 pub struct Events {
     app_event_sender: AppEventSender,
 
@@ -632,7 +632,7 @@ pub struct Events {
 impl Events {
     /// If an instance of `Events` already exists in the  current thread.
     #[inline]
-    pub fn instantiated() -> bool {
+    pub(crate) fn instantiated() -> bool {
         SingletonEvents::in_use()
     }
 
@@ -640,7 +640,7 @@ impl Events {
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
     #[inline]
-    pub fn instance(app_event_sender: AppEventSender) -> Self {
+    pub(crate) fn instance(app_event_sender: AppEventSender) -> Self {
         Events {
             app_event_sender,
             updates: vec![],
@@ -941,7 +941,7 @@ impl Events {
     }
 
     #[must_use]
-    pub(super) fn apply(&mut self, updates: &mut Updates) -> Vec<BoxedEventUpdate> {
+    pub(super) fn apply_updates(&mut self, updates: &mut Updates) -> Vec<BoxedEventUpdate> {
         if !self.updates.is_empty() {
             updates.update();
         }

@@ -28,6 +28,8 @@ struct TimerHandlerEntry {
 }
 
 /// App timers.
+///
+/// An instance of this struct is available in [`AppContext`] and derived contexts.
 pub struct Timers {
     deadlines: Vec<RcVar<TimeoutInfo>>,
     timers: Vec<RcVar<TimerInfo>>,

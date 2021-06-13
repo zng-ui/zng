@@ -32,6 +32,8 @@ impl Drop for ServiceInstanceEntry {
 }
 
 /// Access to application services.
+///
+/// An instance of this struct is available in [`AppContext`](crate::context::AppContext) and derived contexts.
 pub struct Services {
     services: Vec<ServiceInstanceEntry>,
 }

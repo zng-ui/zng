@@ -8,12 +8,15 @@ use crate::{
 };
 
 /// Asynchronous task runner.
+///
+/// An instance of this struct is available in [`AppContext`] and derived contexts, note that most
+/// of utility of this `struct` is available as associated functions (no instance required).
 pub struct Tasks {
     event_loop_waker: Waker,
 }
 /// Multi-threaded parallel tasks.
 impl Tasks {
-    pub(super) fn new(event_loop_waker: Waker) -> Self {
+    pub(crate) fn new(event_loop_waker: Waker) -> Self {
         Tasks { event_loop_waker }
     }
 
