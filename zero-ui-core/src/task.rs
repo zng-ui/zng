@@ -187,7 +187,7 @@ impl Tasks {
     {
         let (scope, mut_) = WidgetContextScope::new();
 
-        let task = scope.with_ctx(ctx, move || task(mut_));
+        let task = scope.with(ctx, move || task(mut_));
 
         WidgetTask {
             task: ctx.tasks.ui_task(task),
@@ -208,7 +208,7 @@ impl Tasks {
     {
         let (scope, mut_) = WindowContextScope::new();
 
-        let task = scope.with_ctx(ctx, move || task(mut_));
+        let task = scope.with(ctx, move || task(mut_));
 
         WindowTask {
             task: ctx.tasks.ui_task(task),
@@ -229,7 +229,7 @@ impl Tasks {
     {
         let (scope, mut_) = AppContextScope::new();
 
-        let task = scope.with_ctx(ctx, move || task(mut_));
+        let task = scope.with(ctx, move || task(mut_));
 
         AppTask {
             task: ctx.tasks.ui_task(task),
@@ -359,7 +359,7 @@ impl<R> WidgetTask<R> {
     #[inline]
     pub fn update(&mut self, ctx: &mut WidgetContext) -> Option<&R> {
         let task = &mut self.task;
-        self.scope.with_ctx(ctx, move || task.update())
+        self.scope.with(ctx, move || task.update())
     }
 
     /// Returns the result if the task is completed.
@@ -393,7 +393,7 @@ impl<R> WindowTask<R> {
     #[inline]
     pub fn update(&mut self, ctx: &mut WindowContext) -> Option<&R> {
         let task = &mut self.task;
-        self.scope.with_ctx(ctx, move || task.update())
+        self.scope.with(ctx, move || task.update())
     }
 
     /// Returns the result if the task is completed.
@@ -427,7 +427,7 @@ impl<R> AppTask<R> {
     #[inline]
     pub fn update(&mut self, ctx: &mut AppContext) -> Option<&R> {
         let task = &mut self.task;
-        self.scope.with_ctx(ctx, move || task.update())
+        self.scope.with(ctx, move || task.update())
     }
 
     /// Returns the result if the task is completed.

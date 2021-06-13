@@ -1402,7 +1402,7 @@ impl [<$Context Mut>] {
     ///
     /// ## Panics
     ///
-    #[doc = "Panics if not called inside the paired [`"$Context"Scope::with_ctx`]. You"]
+    #[doc = "Panics if not called inside the paired [`"$Context"Scope::with`]. You"]
     /// should expect this method to always work, the onus of safety is on the caller.
     #[inline]
     pub fn with<R, A>(&self, action: A) -> R
@@ -1431,7 +1431,7 @@ impl [<$Context Scope>] {
     }
 
     #[doc = "Runs `action` while the paired [`"$Context"Mut`] points to `ctx`."]
-    pub fn with_ctx<R, F>(&self, ctx: &mut $Context, action: F) -> R
+    pub fn with<R, F>(&self, ctx: &mut $Context, action: F) -> R
     where
         F: FnOnce() -> R,
     {
