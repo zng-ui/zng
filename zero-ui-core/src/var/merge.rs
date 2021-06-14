@@ -492,7 +492,7 @@ macro_rules! impl_rc_merge_var {
                 Err(VarIsReadOnly)
             }
 
-            fn set_ne(&self, _: &Vars, _: O) -> Result<(), VarIsReadOnly>  where O: PartialEq {
+            fn set_ne(&self, _: &Vars, _: O) -> Result<bool, VarIsReadOnly>  where O: PartialEq {
                 Err(VarIsReadOnly)
             }
 

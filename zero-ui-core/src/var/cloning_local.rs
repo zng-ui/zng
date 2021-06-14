@@ -65,7 +65,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for CloningLocalVar<T, V> {
         self.source.set(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
     where
         T: PartialEq,
     {

@@ -43,7 +43,7 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         Err(VarIsReadOnly)
     }
 
-    fn set_ne(&self, _: &Vars, _: T) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, _: &Vars, _: T) -> Result<bool, VarIsReadOnly>
     where
         T: PartialEq,
     {

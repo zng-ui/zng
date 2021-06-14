@@ -105,15 +105,18 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         self.as_ref().set_boxed(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
     where
         T: PartialEq,
     {
-        self.modify(vars, move |v| {
-            if !v.eq(&new_value) {
-                **v = new_value;
-            }
-        })
+        if self.is_read_only(vars) {
+            Err(VarIsReadOnly)
+        } else if self.get(vars) != &new_value {
+            let _ = self.set(vars, new_value);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn into_read_only(self) -> Self::AsReadOnly {
@@ -204,15 +207,18 @@ impl<T: VarValue> Var<T> for BoxedLocalVar<T> {
         self.as_ref().set_boxed(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
     where
         T: PartialEq,
     {
-        self.modify(vars, move |v| {
-            if !v.eq(&new_value) {
-                **v = new_value;
-            }
-        })
+        if self.is_read_only(vars) {
+            Err(VarIsReadOnly)
+        } else if self.get(vars) != &new_value {
+            let _ = self.set(vars, new_value);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn into_read_only(self) -> Self::AsReadOnly {

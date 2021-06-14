@@ -23,6 +23,9 @@ where
     S: Var<A>,
 {
     /// New reference mapping var.
+    ///
+    /// Only use this directly if you are implementing [`Var`]. For existing variables use
+    /// the [`Var::map_ref`] or [`Var::into_map_ref`] methods.
     pub fn new(source: S, map: M) -> Self {
         MapRefVar {
             _ab: PhantomData,
@@ -128,7 +131,7 @@ where
         Err(VarIsReadOnly)
     }
 
-    fn set_ne(&self, _: &Vars, _: B) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, _: &Vars, _: B) -> Result<bool, VarIsReadOnly>
     where
         B: PartialEq,
     {
@@ -182,6 +185,9 @@ where
     S: Var<A>,
 {
     /// New bidirectional reference mapping variable.
+    ///
+    /// Only use this directly if you are implementing [`Var`]. For existing variables use
+    /// the [`Var::map_bidi_ref`] or [`Var::into_map_bidi_ref`] methods.
     pub fn new(source: S, map: M, map_mut: N) -> Self {
         MapBidiRefVar {
             _ab: PhantomData,
@@ -254,18 +260,18 @@ where
     }
 
     /// Schedules an assign to the mapped mutable reference, but only if the value is not equal.
-    pub fn set_ne(&self, vars: &Vars, new_value: B) -> Result<(), VarIsReadOnly>
+    pub fn set_ne(&self, vars: &Vars, new_value: B) -> Result<bool, VarIsReadOnly>
     where
         B: PartialEq,
     {
-        let map = self.map_mut.clone();
-        self.source.modify(vars, |v| {
-            v.map_ref(map, |v| {
-                if !v.eq(&new_value) {
-                    **v = new_value;
-                }
-            })
-        })
+        if self.is_read_only(vars) {
+            Err(VarIsReadOnly)
+        } else if self.get(vars) != &new_value {
+            let _ = self.set(vars, new_value);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Convert this variable into a [`MapRefVar`].
@@ -348,7 +354,7 @@ where
         self.set(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: B) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, vars: &Vars, new_value: B) -> Result<bool, VarIsReadOnly>
     where
         B: PartialEq,
     {

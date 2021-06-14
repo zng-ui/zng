@@ -79,7 +79,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         Err(VarIsReadOnly)
     }
 
-    fn set_ne(&self, _: &Vars, _: C::Type) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, _: &Vars, _: C::Type) -> Result<bool, VarIsReadOnly>
     where
         C::Type: PartialEq,
     {

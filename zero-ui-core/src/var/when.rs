@@ -239,7 +239,7 @@ macro_rules! impl_rc_when_var {
                     self.0.default_value.set(vars, new_value)
                 }
             }
-            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> where O: PartialEq {
+            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly> where O: PartialEq {
                 $(
                     if *self.0.conditions.$n.get(vars) {
                         self.0.values.$n.set_ne(vars, new_value)
@@ -443,7 +443,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         self.0.default_.set(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
     where
         O: PartialEq,
     {

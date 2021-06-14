@@ -18,7 +18,7 @@ use crate::{
     var::{var, var_from, RcVar, ReadOnlyVar, Vars},
 };
 
-/// Declares new [`Command`](crate::event::Command) types.
+/// Declares new [`Command`](crate::command::Command) types.
 #[macro_export]
 macro_rules! command {
     ($(
@@ -93,7 +93,7 @@ pub use crate::command;
 
 /// Identifies a command type.
 ///
-/// Use [`command!`](crate::event::command) to declare.
+/// Use [`command!`](macro@crate::command::command) to declare.
 pub trait Command: Event {
     /// Runs `f` with access to the metadata state-map.
     fn with_meta<F, R>(self, f: F) -> R
@@ -163,11 +163,11 @@ impl fmt::Debug for DynCommand {
 impl Event for DynCommand {
     type Args = CommandArgs;
 
-    fn notify(events: &mut Events, args: Self::Args) {
+    fn notify(_events: &mut Events, _args: Self::Args) {
         todo!()
     }
 
-    fn update<U: crate::event::EventUpdateArgs>(args: &U) -> Option<&crate::event::EventUpdate<Self>> {
+    fn update<U: crate::event::EventUpdateArgs>(_args: &U) -> Option<&crate::event::EventUpdate<Self>> {
         todo!()
     }
 }
@@ -291,6 +291,7 @@ impl CommandValue {
         }
     }
 
+    #[allow(dead_code)] // TODO
     fn update_state(&self, vars: &Vars) {
         let has_handlers = Rc::strong_count(&self.handle) > 1;
         let enabled = self.handle.enabled.get() > 0;

@@ -200,7 +200,7 @@ macro_rules! impl_rc_switch_var {
                 }
             }
 
-            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> where O : PartialEq {
+            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly> where O : PartialEq {
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.set_ne(vars, new_value),)+
                     _ => panic!("switch_var index out of range")
@@ -306,7 +306,7 @@ impl<O: VarValue, VI: Var<usize>> RcSwitchVar<O, VI> {
     }
 
     /// Tries to set the indexed variable, but only sets if the value is not equal.
-    pub fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly>
+    pub fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
     where
         O: PartialEq,
     {
@@ -383,7 +383,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         self.0.vars[*self.0.index.get(vars)].set(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly>
+    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
     where
         O: PartialEq,
     {
