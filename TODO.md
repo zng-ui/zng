@@ -40,7 +40,6 @@ Things that must be done first because they influence the core API design that i
 * Async.
   * Unify parallel tasks to always use the rayon threads (remove async_global_executor).
   * Shareable AppContextMut.
-  *   Or test against reentry that can done using Rc<AppContextMut>.
   * UI async event update.
   * UI async timers.
   * UI async var updates.

@@ -1370,27 +1370,46 @@ macro_rules! contextual_ctx {
 #[doc = " Represents a *contextual* reference to [`" $Context "`]."]
 ///
 #[doc = "This type exist to provide access to a [`" $Context "`] inside [`UiTask`](crate::task::UiTask) futures."]
-#[doc = "Every time the task updates the executor must load an widget context using the paired [`" $Context "Scope`]"]
-/// to provide the context for that update.
+#[doc = "Every time the task updates the executor loads a exclusive reference to the context using the paired [`" $Context "Scope`]"]
+/// to provide the context for that update. Inside the future you can then call [`with`](Self::with) to get the exclusive
+/// reference to the context.
 pub struct [<$Context Mut>] {
-    ctx: Rc<Cell<*mut ()>>,
+    ctx: Rc<[<$Context ScopeData>]>,
+}
+impl Clone for [<$Context Mut>] {
+    fn clone(&self) -> Self {
+        Self {
+            ctx: Rc::clone(&self.ctx)
+        }
+    }
 }
 impl [<$Context Mut>] {
     #[doc = "Runs an action with the *contextual* exclusive borrow to a [`"$Context"`]."]
     ///
     /// ## Panics
     ///
-    #[doc = "Panics if not called inside the paired [`"$Context"Scope::with`]. You"]
-    /// should expect this method to always work, the onus of safety is on the caller.
+    /// Panics if `with` is called again inside `action`, also panics if not called inside the paired
+    #[doc = "[`"$Context"Scope::with`]. You should assume that if you have access to a [`"$Context"Mut`] it is in a valid"]
+    /// state, the onus of safety is on the caller.
     #[inline]
     pub fn with<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&mut $Context) -> R,
     {
-        let ptr = self.ctx.get();
+        if self.ctx.borrowed.get() {
+            panic!("already in `{0}Mut::with`, cannot borrow `&mut {0}` twice", stringify!($Context));
+        }
+
+        let ptr = self.ctx.ptr.get();
         if ptr.is_null() {
             panic!("no `&mut {0}` loaded for `{0}Mut`", stringify!($Context));
         }
+
+        self.ctx.borrowed.set(true);
+        let _r = RunOnDrop::new(|| {
+            self.ctx.borrowed.set(false);
+        });
+
         let ctx = unsafe { &mut *(ptr as *mut $Context) };
         action(ctx)
     }
@@ -1398,12 +1417,19 @@ impl [<$Context Mut>] {
 
 #[doc = "Pair of [`"$Context"Mut`] that can setup its reference."]
 pub struct [<$Context Scope>] {
-    ctx: Rc<Cell<*mut ()>>,
+    ctx: Rc<[<$Context ScopeData>]>,
+}
+struct [<$Context ScopeData>] {
+    ptr: Cell<*mut ()>,
+    borrowed: Cell<bool>,
 }
 impl [<$Context Scope>] {
     #[doc = "Create a new [`"$Context"Scope`], [`"$Context"Mut`] pair."]
     pub fn new() -> (Self, [<$Context Mut>]) {
-        let ctx = Rc::new(Cell::new(ptr::null_mut()));
+        let ctx = Rc::new([<$Context ScopeData>] {
+            ptr: Cell::new(ptr::null_mut()),
+            borrowed: Cell::new(false)
+        });
 
         (Self { ctx: Rc::clone(&ctx) }, [<$Context Mut>] { ctx })
     }
@@ -1413,8 +1439,10 @@ impl [<$Context Scope>] {
     where
         F: FnOnce() -> R,
     {
-        self.ctx.set(ctx as *mut $Context as *mut ());
-        let _r = RunOnDrop::new(|| self.ctx.set(ptr::null_mut()));
+        let prev = self.ctx.ptr.replace(ctx as *mut $Context as *mut ());
+        let _r = RunOnDrop::new(|| {
+            self.ctx.ptr.set(prev)
+        });
         action()
     }
 }
@@ -1422,3 +1450,28 @@ impl [<$Context Scope>] {
     })+};
 }
 contextual_ctx!(AppContext, WindowContext, WidgetContext);
+
+#[cfg(test)]
+pub mod tests {
+    use crate::app::App;
+
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "already in `AppContextMut::with`, cannot borrow `&mut AppContext` twice")]
+    fn context_reentry() {
+        let mut app = App::default().run_headless();
+
+        let (scope, ctx) = AppContextScope::new();
+        let ctx_a = Rc::new(ctx);
+        let ctx_b = Rc::clone(&ctx_a);
+
+        scope.with(&mut app.ctx(), move || {
+            ctx_a.with(move |a| {
+                ctx_b.with(move |b| {
+                    let _invalid: (&mut AppContext, &mut AppContext) = (a, b);
+                })
+            })
+        });
+    }
+}
