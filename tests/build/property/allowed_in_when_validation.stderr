@@ -40,7 +40,7 @@ error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement
 11 | #[property(context)] // error because no allowed_in_when = false
    | ^^^^^^^^^^^^^^^^^^^^ `<impl invalid2_Args as invalid2_Args>::T_value` cannot be formatted using `{:?}` because it doesn't implement `Debug`
    |
-  ::: $WORKSPACE/zero-ui-core/src/var/owned_var.rs
+  ::: $WORKSPACE/zero-ui-core/src/var/owned.rs
    |
    | pub struct OwnedVar<T: VarValue>(pub T);
    |                        -------- required by this bound in `OwnedVar`
@@ -55,7 +55,7 @@ error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: C
 11 | #[property(context)] // error because no allowed_in_when = false
    | ^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
    |
-  ::: $WORKSPACE/zero-ui-core/src/var/owned_var.rs
+  ::: $WORKSPACE/zero-ui-core/src/var/owned.rs
    |
    | pub struct OwnedVar<T: VarValue>(pub T);
    |                        -------- required by this bound in `OwnedVar`

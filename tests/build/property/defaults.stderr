@@ -80,7 +80,7 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
              <&'static [u8] as IntoVar<WindowIcon>>
              <&'static str as IntoVar<FontName>>
              <&'static str as IntoVar<FontNames>>
-           and 265 others
+           and 267 others
 
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:39:35
@@ -112,7 +112,7 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
              <&'static [u8] as IntoVar<WindowIcon>>
              <&'static str as IntoVar<FontName>>
              <&'static str as IntoVar<FontNames>>
-           and 265 others
+           and 267 others
 
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:45:41
