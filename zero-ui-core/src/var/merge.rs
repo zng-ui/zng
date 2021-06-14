@@ -488,11 +488,11 @@ macro_rules! impl_rc_merge_var {
                 $(self.0.vars.$n.can_update())||+
             }
 
-            fn set(&self, _: &Vars, _: O) -> Result<(), VarIsReadOnly> {
+            fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly> where N: Into<O> {
                 Err(VarIsReadOnly)
             }
 
-            fn set_ne(&self, _: &Vars, _: O) -> Result<bool, VarIsReadOnly>  where O: PartialEq {
+            fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>  where N: Into<O>, O: PartialEq {
                 Err(VarIsReadOnly)
             }
 

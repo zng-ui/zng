@@ -11,6 +11,7 @@ where
     V: Var<T>,
 {
     /// Wrap var.
+    #[inline]
     pub fn new(var: V) -> Self {
         ReadOnlyVar(var, PhantomData)
     }
@@ -35,30 +36,37 @@ where
 
     type AsLocal = ReadOnlyVar<T, V::AsLocal>;
 
+    #[inline]
     fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
         self.0.get(vars)
     }
 
+    #[inline]
     fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
         self.0.get_new(vars)
     }
 
+    #[inline]
     fn version(&self, vars: &VarsRead) -> u32 {
         self.0.version(vars)
     }
 
+    #[inline]
     fn is_read_only(&self, _: &Vars) -> bool {
         true
     }
 
+    #[inline]
     fn always_read_only(&self) -> bool {
         true
     }
 
+    #[inline]
     fn can_update(&self) -> bool {
         self.0.can_update()
     }
 
+    #[inline]
     fn modify<M>(&self, _: &Vars, _: M) -> Result<(), VarIsReadOnly>
     where
         M: FnOnce(&mut VarModify<T>) + 'static,
@@ -66,21 +74,29 @@ where
         Err(VarIsReadOnly)
     }
 
-    fn set(&self, _: &Vars, _: T) -> Result<(), VarIsReadOnly> {
+    #[inline]
+    fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<T>,
+    {
         Err(VarIsReadOnly)
     }
 
-    fn set_ne(&self, _: &Vars, _: T) -> Result<bool, VarIsReadOnly>
+    #[inline]
+    fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<T>,
         T: PartialEq,
     {
         Err(VarIsReadOnly)
     }
 
+    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
+    #[inline]
     fn into_local(self) -> Self::AsLocal {
         ReadOnlyVar::new(Var::into_local(self.0))
     }
@@ -93,6 +109,7 @@ where
 {
     type Var = Self;
 
+    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }
@@ -103,14 +120,17 @@ where
     T: VarValue,
     V: Var<T> + VarLocal<T>,
 {
+    #[inline]
     fn get_local(&self) -> &T {
         self.0.get_local()
     }
 
+    #[inline]
     fn init_local<'a>(&'a mut self, vars: &'a Vars) -> &'a T {
         self.0.init_local(vars)
     }
 
+    #[inline]
     fn update_local<'a>(&'a mut self, vars: &'a Vars) -> Option<&'a T> {
         self.0.update_local(vars)
     }

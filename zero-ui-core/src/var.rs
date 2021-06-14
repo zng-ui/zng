@@ -180,28 +180,36 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
 
     /// Schedule a new value for the variable.
     #[inline]
-    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
+    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<T>,
+    {
+        let new_value = new_value.into();
         self.modify(vars, move |v| **v = new_value)
     }
 
     /// Schedule a new value for the variable, but only if the current value is not equal to `new_value`.
     #[inline]
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<T>,
         T: PartialEq,
     {
         if self.is_read_only(vars) {
             Err(VarIsReadOnly)
-        } else if self.get(vars) != &new_value {
-            let _r = self.set(vars, new_value);
-            debug_assert!(
-                _r.is_ok(),
-                "variable type `{}` said it was not read-only but returned `VarIsReadOnly` on set",
-                std::any::type_name::<Self>()
-            );
-            Ok(true)
         } else {
-            Ok(false)
+            let new_value = new_value.into();
+            if self.get(vars) != &new_value {
+                let _r = self.set(vars, new_value);
+                debug_assert!(
+                    _r.is_ok(),
+                    "variable type `{}` said it was not read-only but returned `VarIsReadOnly` on set",
+                    std::any::type_name::<Self>()
+                );
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         }
     }
 

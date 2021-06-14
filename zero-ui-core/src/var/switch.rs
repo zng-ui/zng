@@ -193,14 +193,21 @@ macro_rules! impl_rc_switch_var {
                 true
             }
 
-            fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
+            fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+            where
+                N: Into<O>
+            {
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.set(vars, new_value),)+
                     _ => panic!("switch_var index out of range"),
                 }
             }
 
-            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly> where O : PartialEq {
+            fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
+            where
+                N: Into<O>,
+                O : PartialEq
+            {
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.set_ne(vars, new_value),)+
                     _ => panic!("switch_var index out of range")
@@ -301,13 +308,17 @@ impl<O: VarValue, VI: Var<usize>> RcSwitchVar<O, VI> {
     }
 
     /// Tries to set the indexed variable.
-    pub fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
+    pub fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<O>,
+    {
         <Self as Var<O>>::set(self, vars, new_value)
     }
 
     /// Tries to set the indexed variable, but only sets if the value is not equal.
-    pub fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
+    pub fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<O>,
         O: PartialEq,
     {
         <Self as Var<O>>::set_ne(self, vars, new_value)
@@ -379,12 +390,16 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         true
     }
 
-    fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
+    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<O>,
+    {
         self.0.vars[*self.0.index.get(vars)].set(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
+    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<O>,
         O: PartialEq,
     {
         self.0.vars[*self.0.index.get(vars)].set_ne(vars, new_value)

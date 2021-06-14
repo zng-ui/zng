@@ -101,21 +101,28 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         self.as_ref().modify_boxed(vars, Box::new(modify))
     }
 
-    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
-        self.as_ref().set_boxed(vars, new_value)
+    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<T>,
+    {
+        self.as_ref().set_boxed(vars, new_value.into())
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<T>,
         T: PartialEq,
     {
         if self.is_read_only(vars) {
             Err(VarIsReadOnly)
-        } else if self.get(vars) != &new_value {
-            let _ = self.set(vars, new_value);
-            Ok(true)
         } else {
-            Ok(false)
+            let new_value = new_value.into();
+            if self.get(vars) != &new_value {
+                let _ = self.set(vars, new_value);
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         }
     }
 
@@ -203,21 +210,28 @@ impl<T: VarValue> Var<T> for BoxedLocalVar<T> {
         self.as_ref().modify_boxed(vars, Box::new(modify))
     }
 
-    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
-        self.as_ref().set_boxed(vars, new_value)
+    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<T>,
+    {
+        self.as_ref().set_boxed(vars, new_value.into())
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<T>,
         T: PartialEq,
     {
         if self.is_read_only(vars) {
             Err(VarIsReadOnly)
-        } else if self.get(vars) != &new_value {
-            let _ = self.set(vars, new_value);
-            Ok(true)
         } else {
-            Ok(false)
+            let new_value = new_value.into();
+            if self.get(vars) != &new_value {
+                let _ = self.set(vars, new_value);
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         }
     }
 

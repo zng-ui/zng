@@ -461,7 +461,7 @@ impl AppExtension for WindowManager {
                     let new_size = window.size();
 
                     // set the window size variable.
-                    if window.vars.size().set_ne(ctx.vars, Size::from(new_size)) {
+                    if window.vars.size().set_ne(ctx.vars, new_size) {
                         // is new size:
                         ctx.updates.layout();
                         window.expect_layout_update();
@@ -479,7 +479,7 @@ impl AppExtension for WindowManager {
                     // TODO check if in new monitor.
 
                     // set the window position variable if it is not read-only.
-                    window.vars.position().set_ne(ctx.vars, new_position.into());
+                    window.vars.position().set_ne(ctx.vars, new_position);
 
                     // raise window_move
                     WindowMoveEvent::notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
@@ -2135,7 +2135,7 @@ impl OpenWindow {
                 if min_size.height.is_finite() {
                     self.min_size.height = min_size.height;
                 }
-                self.vars.min_size().set_ne(ctx.vars, self.min_size.into());
+                self.vars.min_size().set_ne(ctx.vars, self.min_size);
                 if let Some(window) = &self.window {
                     let size =
                         glutin::dpi::PhysicalSize::new((self.min_size.width * factor) as u32, (self.min_size.height * factor) as u32);
@@ -2161,7 +2161,7 @@ impl OpenWindow {
                 if max_size.height.is_finite() {
                     self.max_size.height = max_size.height;
                 }
-                self.vars.max_size().set_ne(ctx.vars, self.max_size.into());
+                self.vars.max_size().set_ne(ctx.vars, self.max_size);
                 if let Some(window) = &self.window {
                     let size =
                         glutin::dpi::PhysicalSize::new((self.max_size.width * factor) as u32, (self.max_size.height * factor) as u32);
@@ -2189,7 +2189,7 @@ impl OpenWindow {
                         size.height = current_size.height;
                     }
 
-                    self.vars.size().set_ne(ctx.vars, size.into());
+                    self.vars.size().set_ne(ctx.vars, size);
                     if let Some(window) = &self.window {
                         let size = glutin::dpi::PhysicalSize::new((size.width * factor) as u32, (size.height * factor) as u32);
                         window.set_inner_size(size);
@@ -2199,7 +2199,7 @@ impl OpenWindow {
                     }
                 } else {
                     // cannot change size if auto-sizing.
-                    self.vars.size().set_ne(ctx.vars, current_size.into());
+                    self.vars.size().set_ne(ctx.vars, current_size);
                 }
             }
 
@@ -2217,7 +2217,7 @@ impl OpenWindow {
                     pos.y = current_pos.y;
                 }
 
-                self.vars.position().set_ne(ctx.vars, pos.into());
+                self.vars.position().set_ne(ctx.vars, pos);
 
                 if let Some(window) = &self.window {
                     let pos = glutin::dpi::PhysicalPosition::new((pos.x * factor) as i32, (pos.y * factor) as i32);
@@ -2352,7 +2352,7 @@ impl OpenWindow {
             } else {
                 self.headless_size = size;
             }
-            self.vars.size().set_ne(ctx.vars, self.size().into());
+            self.vars.size().set_ne(ctx.vars, self.size());
             self.resize_renderer();
         }
 
@@ -2383,7 +2383,7 @@ impl OpenWindow {
                 } else {
                     self.headless_position = pos;
                 }
-                self.vars.position().set_ne(ctx.vars, self.position().into());
+                self.vars.position().set_ne(ctx.vars, self.position());
             }
 
             if auto_size == AutoSize::DISABLED {
@@ -2857,7 +2857,7 @@ mod headless_tests {
     }
 
     fn test_window(ctx: &mut WindowContext) -> Window {
-        ctx.window_state.req::<WindowVars>().size().set(ctx.vars, (520, 510).into());
+        ctx.window_state.req::<WindowVars>().size().set(ctx.vars, (520, 510));
         Window::new(
             WidgetId::new_unique(),
             StartPosition::Default,

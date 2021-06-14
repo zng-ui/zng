@@ -167,13 +167,17 @@ where
     }
 
     #[inline]
-    fn set(&self, _: &Vars, _: B) -> Result<(), VarIsReadOnly> {
+    fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<B>,
+    {
         Err(VarIsReadOnly)
     }
 
     #[inline]
-    fn set_ne(&self, _: &Vars, _: B) -> Result<bool, VarIsReadOnly>
+    fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<B>,
         B: PartialEq,
     {
         Err(VarIsReadOnly)
@@ -325,27 +329,34 @@ where
     }
 
     /// Map back the value and schedules a `set` in the source variable.
-    fn set(&self, vars: &Vars, new_value: B) -> Result<(), VarIsReadOnly> {
+    fn set<Nv>(&self, vars: &Vars, new_value: Nv) -> Result<(), VarIsReadOnly>
+    where
+        Nv: Into<B>,
+    {
         if self.0.source.is_read_only(vars) {
             Err(VarIsReadOnly)
         } else {
-            let new_value = self.0.map_back.borrow_mut()(new_value);
+            let new_value = self.0.map_back.borrow_mut()(new_value.into());
             self.0.source.set(vars, new_value)
         }
     }
 
     /// If `new_value` is not equal to the current value maps-back and schedules an assign in the source value.
-    fn set_ne(&self, vars: &Vars, new_value: B) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Nv>(&self, vars: &Vars, new_value: Nv) -> Result<bool, VarIsReadOnly>
     where
+        Nv: Into<B>,
         B: PartialEq,
     {
         if self.0.source.is_read_only(vars) {
             Err(VarIsReadOnly)
-        } else if self.get(vars) != &new_value {
-            let _ = self.0.source.set(vars, self.0.map_back.borrow_mut()(new_value));
-            Ok(true)
         } else {
-            Ok(false)
+            let new_value = new_value.into();
+            if self.get(vars) != &new_value {
+                let _ = self.0.source.set(vars, self.0.map_back.borrow_mut()(new_value));
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         }
     }
 
@@ -446,13 +457,17 @@ where
     }
 
     #[inline]
-    fn set(&self, vars: &Vars, new_value: B) -> Result<(), VarIsReadOnly> {
+    fn set<Nv>(&self, vars: &Vars, new_value: Nv) -> Result<(), VarIsReadOnly>
+    where
+        Nv: Into<B>,
+    {
         self.set(vars, new_value)
     }
 
     #[inline]
-    fn set_ne(&self, vars: &Vars, new_value: B) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Nv>(&self, vars: &Vars, new_value: Nv) -> Result<bool, VarIsReadOnly>
     where
+        Nv: Into<B>,
         B: PartialEq,
     {
         self.set_ne(vars, new_value)

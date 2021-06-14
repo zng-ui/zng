@@ -27,7 +27,7 @@ fn main() {
                     keypress_text.set(ctx.vars, formatx!{"Scan Code: {:?}", args.scan_code})
                 }
 
-                shortcut_text.set(ctx.vars, new_shortcut_text.into());
+                shortcut_text.set(ctx.vars, new_shortcut_text);
                 shortcut_color.set(ctx.vars, colors::SALMON);
             });
             content = v_stack! {

@@ -1028,7 +1028,7 @@ pub fn focused_removed_by_deleting() {
     assert_eq!(Some(button1_id), app.focused());
 
     app.set_vars(|vars| {
-        index.set(vars, 1);
+        index.set(vars, 1usize);
     });
 
     assert_ne!(Some(button1_id), app.focused());
@@ -1112,7 +1112,7 @@ pub fn focus_continued_after_widget_id_move() {
     app.take_focus_changed();
 
     app.set_vars(|vars| {
-        index.set(vars, 1);
+        index.set(vars, 1usize);
     });
     assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();

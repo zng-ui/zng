@@ -27,7 +27,7 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
             _ => todo!(),
         };
         size += pt_to_layout(change).get();
-        font_size.set(ctx.vars, size.into());
+        font_size.set(ctx.vars, size);
     }
     section(
         "font_size",

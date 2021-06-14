@@ -8,30 +8,37 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
 
     type AsLocal = Self;
 
+    #[inline]
     fn get<'a>(&'a self, _: &'a VarsRead) -> &'a T {
         &self.0
     }
 
+    #[inline]
     fn get_new<'a>(&'a self, _: &'a Vars) -> Option<&'a T> {
         None
     }
 
+    #[inline]
     fn version(&self, _: &VarsRead) -> u32 {
         0
     }
 
+    #[inline]
     fn is_read_only(&self, _: &Vars) -> bool {
         true
     }
 
+    #[inline]
     fn always_read_only(&self) -> bool {
         true
     }
 
+    #[inline]
     fn can_update(&self) -> bool {
         false
     }
 
+    #[inline]
     fn modify<M>(&self, _: &Vars, _: M) -> Result<(), VarIsReadOnly>
     where
         M: FnOnce(&mut VarModify<T>) + 'static,
@@ -39,21 +46,29 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         Err(VarIsReadOnly)
     }
 
-    fn set(&self, _: &Vars, _: T) -> Result<(), VarIsReadOnly> {
+    #[inline]
+    fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<T>,
+    {
         Err(VarIsReadOnly)
     }
 
-    fn set_ne(&self, _: &Vars, _: T) -> Result<bool, VarIsReadOnly>
+    #[inline]
+    fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<T>,
         T: PartialEq,
     {
         Err(VarIsReadOnly)
     }
 
+    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
+    #[inline]
     fn into_local(self) -> Self::AsLocal {
         self
     }
@@ -61,19 +76,23 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
 impl<T: VarValue> IntoVar<T> for OwnedVar<T> {
     type Var = Self;
 
+    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }
 }
 impl<T: VarValue> VarLocal<T> for OwnedVar<T> {
+    #[inline]
     fn get_local(&self) -> &T {
         &self.0
     }
 
+    #[inline]
     fn init_local<'a>(&'a mut self, _: &'a Vars) -> &'a T {
         &self.0
     }
 
+    #[inline]
     fn update_local<'a>(&'a mut self, _: &'a Vars) -> Option<&'a T> {
         None
     }

@@ -229,7 +229,10 @@ macro_rules! impl_rc_when_var {
             fn can_update(&self) -> bool {
                 true
             }
-            fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
+            fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+            where
+                N: Into<O>
+            {
                 $(
                     if *self.0.conditions.$n.get(vars) {
                         self.0.values.$n.set(vars, new_value)
@@ -239,7 +242,11 @@ macro_rules! impl_rc_when_var {
                     self.0.default_value.set(vars, new_value)
                 }
             }
-            fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly> where O: PartialEq {
+            fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
+            where
+                N: Into<O>,
+                O: PartialEq
+            {
                 $(
                     if *self.0.conditions.$n.get(vars) {
                         self.0.values.$n.set_ne(vars, new_value)
@@ -434,7 +441,10 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     }
 
     /// Sets the [current value variable](Self::get).
-    fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
+    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<O>,
+    {
         for (c, v) in self.0.whens.iter() {
             if *c.get(vars) {
                 return v.set(vars, new_value);
@@ -443,8 +453,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         self.0.default_.set(vars, new_value)
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: O) -> Result<bool, VarIsReadOnly>
+    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<O>,
         O: PartialEq,
     {
         for (c, v) in self.0.whens.iter() {

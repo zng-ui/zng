@@ -84,17 +84,23 @@ impl<T: VarValue> RcVar<T> {
 
     /// Schedule a new value for this variable.
     #[inline]
-    pub fn set(&self, vars: &Vars, new_value: T) {
+    pub fn set<N>(&self, vars: &Vars, new_value: N)
+    where
+        N: Into<T>,
+    {
+        let new_value = new_value.into();
         self.modify(vars, move |v| **v = new_value)
     }
 
     /// Schedule a new value for this variable, the variable will only be set if
     /// the value is not equal to `new_value`.
     #[inline]
-    pub fn set_ne(&self, vars: &Vars, new_value: T) -> bool
+    pub fn set_ne<N>(&self, vars: &Vars, new_value: N) -> bool
     where
+        N: Into<T>,
         T: PartialEq,
     {
+        let new_value = new_value.into();
         if self.get(vars) != &new_value {
             self.set(vars, new_value);
             true
@@ -202,13 +208,17 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         Ok(())
     }
 
-    fn set(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
+    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    where
+        N: Into<T>,
+    {
         self.set(vars, new_value);
         Ok(())
     }
 
-    fn set_ne(&self, vars: &Vars, new_value: T) -> Result<bool, VarIsReadOnly>
+    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        N: Into<T>,
         T: PartialEq,
     {
         Ok(self.set_ne(vars, new_value))
