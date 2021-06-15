@@ -18,13 +18,22 @@ use crate::{
     var::{var, var_from, RcVar, ReadOnlyVar, Vars},
 };
 
-/// Declares new [`Command`](crate::command::Command) types.
+#[doc(hidden)]
 #[macro_export]
-macro_rules! command {
-    ($(
+macro_rules! __command {
+    (
         $(#[$outer:meta])*
-        $vis:vis $Command:ident $(: $Args:path)?
-    );+$(;)?) => {$(
+        $vis:vis $Command:ident
+    ) => {
+        $crate::__command! {
+            $(#[$outer])*
+            $vis $Command: $crate::command::CommandArgs
+        }
+    };
+    (
+        $(#[$outer:meta])*
+        $vis:vis $Command:ident: $Args:path
+    ) => {
         $(#[$outer])*
         #[derive(Clone, Copy, Debug)]
         $vis struct $Command;
@@ -48,7 +57,7 @@ macro_rules! command {
             }
         }
         impl $crate::event::Event for $Command {
-            type Args = $crate::command::CommandArgs;// TODO $Args
+            type Args = $Args;
 
             #[inline(always)]
             fn notify(events: &mut $crate::event::Events, args: Self::Args) {
@@ -85,6 +94,20 @@ macro_rules! command {
             fn dynamic(self) -> $crate::command::DynCommand {
                 $crate::command::DynCommand::new(&Self::COMMAND)
             }
+        }
+    };
+}
+
+/// Declares new [`Command`](crate::command::Command) types.
+#[macro_export]
+macro_rules! command {
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis $Command:ident $(: $Args:path)?
+    );+$(;)?) => {$(
+        $crate::__command! {
+            $(#[$outer])*
+            $vis $Command $(: $Args)?
         }
     )+};
 }
@@ -133,6 +156,10 @@ impl DynCommand {
         DynCommand(c)
     }
 
+    pub(crate) fn update_state(&self, vars: &Vars) {
+        self.0.with(|c| c.update_state(vars))
+    }
+
     /// Gets the [`TypeId`] of the command represented by `self`.
     #[inline]
     pub fn command_type_id(self) -> TypeId {
@@ -163,12 +190,11 @@ impl fmt::Debug for DynCommand {
 impl Event for DynCommand {
     type Args = CommandArgs;
 
-    fn notify(_events: &mut Events, _args: Self::Args) {
-        todo!()
+    fn notify(_: &mut Events, _: Self::Args) {
+        panic!("cannot notify using DynCommand")
     }
-
-    fn update<U: crate::event::EventUpdateArgs>(_args: &U) -> Option<&crate::event::EventUpdate<Self>> {
-        todo!()
+    fn update<U: crate::event::EventUpdateArgs>(_: &U) -> Option<&crate::event::EventUpdate<Self>> {
+        panic!("cannot update using DynCommand")
     }
 }
 impl Command for DynCommand {
@@ -291,7 +317,6 @@ impl CommandValue {
         }
     }
 
-    #[allow(dead_code)] // TODO
     fn update_state(&self, vars: &Vars) {
         let has_handlers = Rc::strong_count(&self.handle) > 1;
         let enabled = self.handle.enabled.get() > 0;
@@ -343,5 +368,6 @@ mod tests {
 
     command! {
         FooCommand;
+        BarCommand: crate::command::CommandArgs;
     }
 }

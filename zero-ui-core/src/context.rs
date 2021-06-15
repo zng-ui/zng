@@ -633,8 +633,8 @@ impl OwnedAppContext {
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
         let wake_time = self.timers.apply_updates(&self.vars);
+        let events = self.events.apply_updates(&self.vars, &mut self.updates);
         self.vars.apply_updates(&mut self.updates);
-        let events = self.events.apply_updates(&mut self.updates);
 
         let (update, display_update) = self.updates.take_updates();
 
@@ -1012,8 +1012,8 @@ impl TestWidgetContext {
     /// Returns the [`ContextUpdates`] a full app would use to update the application.
     pub fn apply_updates(&mut self) -> ContextUpdates {
         let wake_time = self.timers.apply_updates(&self.vars);
+        let events = self.events.apply_updates(&self.vars, &mut self.updates);
         self.vars.apply_updates(&mut self.updates);
-        let events = self.events.apply_updates(&mut self.updates);
         let (update, display_update) = self.updates.take_updates();
         ContextUpdates {
             events,

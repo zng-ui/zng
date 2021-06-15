@@ -8,6 +8,7 @@ use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::DynCommand;
 use crate::context::{AppContext, AppContextMut, Updates, WidgetContext, WidgetContextMut};
 use crate::task::WidgetTask;
+use crate::var::Vars;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
 use std::cell::{Cell, RefCell};
@@ -953,7 +954,10 @@ impl Events {
     }
 
     #[must_use]
-    pub(super) fn apply_updates(&mut self, updates: &mut Updates) -> Vec<BoxedEventUpdate> {
+    pub(super) fn apply_updates(&mut self, vars: &Vars, updates: &mut Updates) -> Vec<BoxedEventUpdate> {
+        for command in self.commands.values() {
+            command.update_state(vars);
+        }
         if !self.updates.is_empty() {
             updates.update();
         }
