@@ -44,7 +44,7 @@ Things that must be done first because they influence the core API design that i
   * UI async timers.
   * UI async var updates.
   * Async version or more components. 
-* Vars binding, a temporary map/map_bidi like connection between two existing variables.
+* Vars binding in a single update.
 * Animation, transition and storyboarding.
 * Automatic screen reader integration (UI Automation).
 * Other DisplayListBuilder (iframe).

@@ -830,7 +830,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.owned_ctx.borrow(window_target).events.notify_app_event(e);
             }
             AppEventData::Var => {
-                self.owned_ctx.borrow(window_target).vars.sync();
+                self.owned_ctx.borrow(window_target).vars.receive_sended_modify();
             }
         }
         self.maybe_has_updates = true;

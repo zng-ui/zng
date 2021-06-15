@@ -1,3 +1,5 @@
+use retain_mut::RetainMut;
+
 use super::*;
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
@@ -6,9 +8,10 @@ use crate::{
 };
 use std::{
     any::type_name,
-    cell::RefCell,
+    cell::{Cell, RefCell},
     fmt,
     ops::Deref,
+    rc::Rc,
     time::{Duration, Instant},
 };
 
@@ -16,6 +19,8 @@ thread_singleton!(SingletonVars);
 
 type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
+
+type VarBinding = Box<dyn FnMut(&Vars) -> Retain>;
 
 /// Read-only access to [`Vars`].
 ///
@@ -52,6 +57,8 @@ pub struct VarsRead {
     app_event_sender: AppEventSender,
     senders: RefCell<Vec<SyncEntry>>,
     receivers: RefCell<Vec<SyncEntry>>,
+
+    bindings: RefCell<Vec<VarBinding>>,
 }
 impl fmt::Debug for VarsRead {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -59,6 +66,7 @@ impl fmt::Debug for VarsRead {
     }
 }
 impl VarsRead {
+    /// Id of the current update cycle, can be used to determinate if a variable value is new.
     pub(super) fn update_id(&self) -> u32 {
         self.update_id
     }
@@ -259,11 +267,12 @@ impl Vars {
         Vars {
             read: VarsRead {
                 _singleton: SingletonVars::assert_new("Vars"),
-                update_id: 0,
+                update_id: 0u32.wrapping_sub(13),
                 app_event_sender,
                 widget_clear: Default::default(),
                 senders: RefCell::default(),
                 receivers: RefCell::default(),
+                bindings: RefCell::default(),
             },
             pending: Default::default(),
         }
@@ -300,10 +309,12 @@ impl Vars {
         self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }
 
+    /// Schedule set/modify.
     pub(super) fn push_change(&self, change: PendingUpdate) {
         self.pending.borrow_mut().push(change);
     }
 
+    /// Apply scheduled set/modify.
     pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
         self.read.update_id = self.update_id.wrapping_add(1);
 
@@ -315,13 +326,16 @@ impl Vars {
             }
 
             if modified {
+                self.bindings.borrow_mut().retain_mut(|f| f(self));
+
                 self.senders.borrow_mut().retain(|f| f(self));
                 updates.update();
             }
         }
     }
 
-    pub(crate) fn sync(&self) {
+    /// Receive and apply set/modify from [`VarSender`] and [`VarModifySender`] instances.
+    pub(crate) fn receive_sended_modify(&self) {
         self.receivers.borrow_mut().retain(|f| f(self));
     }
 
@@ -389,6 +403,139 @@ impl Vars {
             wake: self.app_event_sender.clone(),
             sender,
         }
+    }
+
+    /// Create a [`map`](Var::map) like binding between two existing variables.
+    pub fn bind<A, B, AV, BV, M>(&self, from_var: AV, to_var: BV, mut map: M) -> VarBindingHandle
+    where
+        A: VarValue,
+        B: VarValue,
+        AV: Var<A>,
+        BV: Var<B>,
+        M: FnMut(&VarBindingInfo, &A) -> B + 'static,
+    {
+        let handle = VarBindingHandle::new();
+        let u_handle = handle.clone();
+        self.bindings.borrow_mut().push(Box::new(move |vars| {
+            let mut retain = handle.retain();
+            if retain {
+                if let Some(new_value) = from_var.get_new(vars) {
+                    let info = VarBindingInfo::new();
+                    let new_value = map(&info, new_value);
+                    let _ = to_var.set(vars, new_value); // TODO do this in one update
+                    if info.unbind.get() {
+                        retain = false;
+                    }
+                }
+            }
+            retain
+        }));
+        u_handle
+    }
+
+    /// Create a [`map_bidi`](Var::map_bidi) like binding between two existing variables.
+    pub fn bind_bidi<A, B, AV, BV, M, N>(&self, from_var: AV, to_var: BV, mut map: M, mut map_back: N) -> VarBindingHandle
+    where
+        A: VarValue,
+        B: VarValue,
+        AV: Var<A>,
+        BV: Var<B>,
+        M: FnMut(&VarBindingInfo, &A) -> B + 'static,
+        N: FnMut(&VarBindingInfo, &B) -> A + 'static,
+    {
+        let handle = VarBindingHandle::new();
+        let u_handle = handle.clone();
+        self.bindings.borrow_mut().push(Box::new(move |vars| {
+            let mut retain = handle.retain();
+            // TODO do this in one update, otherwise we are in an infinite loop.
+            if retain {
+                if let Some(new_value) = from_var.get_new(vars) {
+                    let info = VarBindingInfo::new();
+                    let new_value = map(&info, new_value);
+                    let _ = to_var.set(vars, new_value);
+                    if info.unbind.get() {
+                        retain = false;
+                    }
+                } else if let Some(new_value) = to_var.get_new(vars) {
+                    let info = VarBindingInfo::new();
+                    let new_value = map_back(&info, new_value);
+                    let _ = from_var.set(vars, new_value);
+                    if info.unbind.get() {
+                        retain = false;
+                    }
+                }
+            }
+            retain
+        }));
+        u_handle
+    }
+
+    /// Create a [`filter_map`](Var::filter_map) like binding between two existing variables.
+    pub fn bind_filtered<A, B, AV, BV, M>(&self, from_var: AV, to_var: BV, mut map: M) -> VarBindingHandle
+    where
+        A: VarValue,
+        B: VarValue,
+        AV: Var<A>,
+        BV: Var<B>,
+        M: FnMut(&VarBindingInfo, &A) -> Option<B> + 'static,
+    {
+        let handle = VarBindingHandle::new();
+        let u_handle = handle.clone();
+        self.bindings.borrow_mut().push(Box::new(move |vars| {
+            let mut retain = handle.retain();
+            if retain {
+                if let Some(new_value) = from_var.get_new(vars) {
+                    let info = VarBindingInfo::new();
+                    if let Some(new_value) = map(&info, new_value) {
+                        let _ = to_var.set(vars, new_value); // TODO do this in one update.
+                    }
+                    if info.unbind.get() {
+                        retain = false;
+                    }
+                }
+            }
+            retain
+        }));
+        u_handle
+    }
+
+    /// Create a [`filter_map_bidi`](Var::filter_map_bidi) like binding between two existing variables.
+    pub fn bind_bidi_filtered<A, B, AV, BV, M, N>(&self, from_var: AV, to_var: BV, mut map: M, mut map_back: N) -> VarBindingHandle
+    where
+        A: VarValue,
+        B: VarValue,
+        AV: Var<A>,
+        BV: Var<B>,
+        M: FnMut(&VarBindingInfo, &A) -> Option<B> + 'static,
+        N: FnMut(&VarBindingInfo, &B) -> Option<A> + 'static,
+    {
+        let handle = VarBindingHandle::new();
+        let u_handle = handle.clone();
+        self.bindings.borrow_mut().push(Box::new(move |vars| {
+            let mut retain = handle.retain();
+            // TODO do this in one update, otherwise we are in an infinite loop.
+            if retain {
+                if let Some(new_value) = from_var.get_new(vars) {
+                    let info = VarBindingInfo::new();
+                    if let Some(new_value) = map(&info, new_value) {
+                        let _ = to_var.set(vars, new_value);
+                    }
+                    if info.unbind.get() {
+                        retain = false;
+                    }
+                } else if let Some(new_value) = to_var.get_new(vars) {
+                    let info = VarBindingInfo::new();
+                    if let Some(new_value) = map_back(&info, new_value) {
+                        let _ = from_var.set(vars, new_value);
+                    }
+                    if info.unbind.get() {
+                        retain = false;
+                    }
+                }
+            }
+            retain
+        }));
+        u_handle
     }
 }
 impl Deref for Vars {
@@ -580,7 +727,6 @@ where
 ///
 /// Use [`response_channel`] to init.
 pub type ResponseSender<T> = VarSender<Response<T>>;
-
 impl<T: VarValue + Send> ResponseSender<T> {
     /// Send the one time response.
     pub fn send_response(&self, response: T) -> Result<(), AppShutdown<T>> {
@@ -598,4 +744,63 @@ impl<T: VarValue + Send> ResponseSender<T> {
 pub fn response_channel<T: VarValue + Send>(vars: &Vars) -> (ResponseSender<T>, ResponseVar<T>) {
     let (responder, response) = response_var();
     (vars.sender(&responder), response)
+}
+
+/// Represents a variable binding created one of the `bind` methods of [`Vars`].
+///
+/// Drop all clones of this handle to drop the binding, or call [`forget`](Self::forget) to drop the handle
+/// without dropping the binding.
+#[derive(Clone)]
+#[must_use = "the var binding is removed if the handle is dropped"]
+pub struct VarBindingHandle(Rc<VarBindingData>);
+struct VarBindingData {
+    forget: Cell<bool>,
+    unbind: Cell<bool>,
+}
+impl VarBindingHandle {
+    fn new() -> Self {
+        VarBindingHandle(Rc::new(VarBindingData {
+            forget: Cell::new(false),
+            unbind: Cell::new(false),
+        }))
+    }
+
+    /// Drop the handle but does **not** drop the binding.
+    ///
+    ///
+    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
+    /// memory is released immediately and the binding, memory is released when application shuts-down.
+    #[inline]
+    pub fn forget(self) {
+        self.0.forget.set(true);
+    }
+
+    /// Drops the handle and forces the binding to drop.
+    #[inline]
+    pub fn unbind(self) {
+        self.0.unbind.set(true);
+    }
+
+    fn retain(&self) -> bool {
+        !self.0.unbind.get() && (Rc::strong_count(&self.0) > 1 || self.0.forget.get())
+    }
+}
+
+/// Represents a variable binding in the binding closure.
+///
+/// All of the `bind` methods of [`Vars`] take a closure that take a reference to this info
+/// as input, they can use it to drop the variable binding from the inside.
+pub struct VarBindingInfo {
+    unbind: Cell<bool>,
+}
+impl VarBindingInfo {
+    fn new() -> Self {
+        VarBindingInfo { unbind: Cell::new(false) }
+    }
+
+    /// Drop the binding after applying the returned update.
+    #[inline]
+    pub fn unbind(&self) {
+        self.unbind.set(true);
+    }
 }
