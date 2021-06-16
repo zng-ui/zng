@@ -135,13 +135,13 @@ impl AppExtension for FontManager {
         let fonts = ctx.services.fonts();
 
         for args in fonts.take_updates() {
-            FontChangedEvent::notify(ctx.events, args);
+            FontChangedEvent.notify(ctx.events, args);
         }
 
         #[cfg(windows)]
         if self.system_fonts_changed.take() {
             // subclass monitor flagged a font (un)install.
-            FontChangedEvent::notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+            FontChangedEvent.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
             fonts.on_system_fonts_changed();
         } else if fonts.prune_requested {
             fonts.on_prune();
@@ -153,14 +153,14 @@ impl AppExtension for FontManager {
             let new = fonts.system_text_aa();
             let prev = mem::replace(&mut self.current_text_aa, new);
             if prev != new {
-                TextAntiAliasingChangedEvent::notify(ctx.events, TextAntiAliasingChangedArgs::now(prev, new));
+                TextAntiAliasingChangedEvent.notify(ctx.events, TextAntiAliasingChangedArgs::now(prev, new));
             }
         }
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         #[cfg(windows)]
-        if let Some(args) = WindowOpenEvent::update(args) {
+        if let Some(args) = WindowOpenEvent.update(args) {
             // attach subclass WM_FONTCHANGE monitor to new headed windows.
             let windows = ctx.services.windows();
             if let Ok(w) = windows.window(args.window_id) {

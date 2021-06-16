@@ -2,7 +2,13 @@
 //!
 //! Commands are [events](Event) that represent app actions.
 
-use std::{any::{Any, TypeId, type_name}, cell::{Cell, RefCell}, fmt, rc::Rc, thread::LocalKey};
+use std::{
+    any::{type_name, Any, TypeId},
+    cell::{Cell, RefCell},
+    fmt,
+    rc::Rc,
+    thread::LocalKey,
+};
 
 use crate::{
     context::{OwnedStateMap, StateMap},
@@ -31,22 +37,22 @@ macro_rules! command {
             /// Gets the event arguments if the update is for this event.
             #[inline(always)]
             #[allow(unused)]
-            pub fn update<U: $crate::event::EventUpdateArgs>(args: &U) -> Option<&$crate::event::EventUpdate<$Command>> {
-                <Self as $crate::event::Event>::update(args)
+            pub fn update<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<$Command>> {
+                <Self as $crate::event::Event>::update(self, args)
             }
 
             /// Schedule an event update if the command is enabled.
             #[inline]
             #[allow(unused)]
-            pub fn notify(events: &mut $crate::event::Events, args: $crate::command::CommandArgs) {
-                <Self as $crate::event::Event>::notify(events, args);
+            pub fn notify(self, events: &mut $crate::event::Events, args: $crate::command::CommandArgs) {
+                <Self as $crate::event::Event>::notify(self, events, args);
             }
         }
         impl $crate::event::Event for $Command {
             type Args = $crate::command::CommandArgs;
 
             #[inline(always)]
-            fn notify(events: &mut $crate::event::Events, args: Self::Args) {
+            fn notify(self, events: &mut $crate::event::Events, args: Self::Args) {
                 if Self::COMMAND.with(|c| c.handle.enabled.get() > 0) {
                     events.notify::<Self>(args);
                 }
@@ -89,7 +95,7 @@ pub use crate::command;
 /// Identifies a command type.
 ///
 /// Use [`command!`](macro@crate::command::command) to declare.
-pub trait Command: Event {
+pub trait Command: Event<Args = CommandArgs> {
     /// Runs `f` with access to the metadata state-map.
     fn with_meta<F, R>(self, f: F) -> R
     where
@@ -162,10 +168,10 @@ impl fmt::Debug for DynCommand {
 impl Event for DynCommand {
     type Args = CommandArgs;
 
-    fn notify(_: &mut Events, _: Self::Args) {
-        panic!("cannot notify using DynCommand")
+    fn notify(self, events: &mut Events, args: Self::Args) {
+        self.0.with(move |c| (c.notify)(events, args));
     }
-    fn update<U: crate::event::EventUpdateArgs>(_: &U) -> Option<&crate::event::EventUpdate<Self>> {
+    fn update<U: crate::event::EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
         panic!("cannot update using DynCommand")
     }
 }
@@ -274,6 +280,7 @@ pub struct CommandValue {
     has_handlers: RcVar<bool>,
     meta: RefCell<OwnedStateMap>,
     registered: Cell<bool>,
+    notify: Box<dyn Fn(&mut Events, CommandArgs)>,
 }
 #[allow(missing_docs)] // this is all hidden
 impl CommandValue {
@@ -286,6 +293,7 @@ impl CommandValue {
             has_handlers: var(false),
             meta: RefCell::default(),
             registered: Cell::new(false),
+            notify: Box::new(|events, args| events.notify::<C>(args)),
         }
     }
 

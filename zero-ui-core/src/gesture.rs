@@ -723,12 +723,12 @@ impl AppExtension for GestureManager {
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = MouseClickEvent::update(args) {
+        if let Some(args) = MouseClickEvent.update(args) {
             // Generate click events from mouse clicks.
             if !args.stop_propagation_requested() {
-                ClickEvent::notify(ctx.events, args.clone().into());
+                ClickEvent.notify(ctx.events, args.clone().into());
             }
-        } else if let Some(args) = KeyInputEvent::update(args) {
+        } else if let Some(args) = KeyInputEvent.update(args) {
             // Generate shortcut events from keyboard input.
             if !args.stop_propagation_requested() {
                 if let Some(key) = args.key {
@@ -743,7 +743,7 @@ impl AppExtension for GestureManager {
                                     args.repeat,
                                     args.target.clone(),
                                 );
-                                ShortcutEvent::notify(ctx.events, s_args);
+                                ShortcutEvent.notify(ctx.events, s_args);
                                 self.pressed_modifier = None;
                             } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                                 if !args.repeat {
@@ -764,7 +764,7 @@ impl AppExtension for GestureManager {
                                         false,
                                         args.target.clone(),
                                     );
-                                    ShortcutEvent::notify(ctx.events, s_args);
+                                    ShortcutEvent.notify(ctx.events, s_args);
                                 }
                             }
                         }
@@ -774,7 +774,7 @@ impl AppExtension for GestureManager {
                     self.pressed_modifier = None;
                 }
             }
-        } else if let Some(args) = ShortcutEvent::update(args) {
+        } else if let Some(args) = ShortcutEvent.update(args) {
             // Generate click events from shortcuts.
             if !args.stop_propagation_requested() {
                 let gestures = ctx.services.gestures();
@@ -786,7 +786,7 @@ impl AppExtension for GestureManager {
                     None
                 };
                 if let Some(kind) = click {
-                    ClickEvent::notify(
+                    ClickEvent.notify(
                         ctx.events,
                         ClickArgs::new(
                             args.timestamp,
@@ -815,7 +815,7 @@ impl AppExtension for GestureManager {
                 if window.is_focused() {
                     if let Some(widget) = window.frame_info().find(widget_id) {
                         // click target exists, in focused window.
-                        ClickEvent::notify(
+                        ClickEvent.notify(
                             ctx.events,
                             ClickArgs::now(
                                 window_id,

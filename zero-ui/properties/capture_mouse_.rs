@@ -34,7 +34,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = MouseDownEvent::update(args) {
+            if let Some(args) = MouseDownEvent.update(args) {
                 if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
                     let mouse = ctx.services.mouse();
                     let widget_id = ctx.path.widget_id();

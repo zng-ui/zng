@@ -127,7 +127,7 @@ fn button_click(ctx: &mut WidgetContext) {
 }
 
 fn text_box_on_event(ctx: &mut WidgetContext, args: EventUpdateArgs) {
-  if let Some(args) = CopyCommand::update(args) {
+  if let Some(args) = CopyCommand.update(args) {
     ctx.services.clipboard().set_text("selected text")
   }
 }

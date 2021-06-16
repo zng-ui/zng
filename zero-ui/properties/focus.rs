@@ -217,7 +217,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<Shortcuts>> UiNode for FocusShortcutNode<C, S> {
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = ShortcutEvent::update(args) {
+            if let Some(args) = ShortcutEvent.update(args) {
                 self.child.event(ctx, args);
                 if !args.stop_propagation_requested() && self.shortcuts.get(ctx.vars).0.contains(&args.shortcut) {
                     // focus on shortcut
@@ -328,7 +328,7 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = FocusChangedEvent::update(args) {
+            if let Some(args) = FocusChangedEvent.update(args) {
                 if IsEnabled::get(ctx.vars) {
                     self.is_focused = args
                         .new_focus
@@ -378,7 +378,7 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = FocusChangedEvent::update(args) {
+            if let Some(args) = FocusChangedEvent.update(args) {
                 if IsEnabled::get(ctx.vars) {
                     self.is_focus_within = args
                         .new_focus
@@ -430,7 +430,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = FocusChangedEvent::update(args) {
+            if let Some(args) = FocusChangedEvent.update(args) {
                 if IsEnabled::get(ctx.vars) {
                     self.is_focused_hgl = args.highlight
                         && args
@@ -485,7 +485,7 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = FocusChangedEvent::update(args) {
+            if let Some(args) = FocusChangedEvent.update(args) {
                 if IsEnabled::get(ctx.vars) {
                     self.is_focus_within_hgl = args.highlight
                         && args
@@ -535,7 +535,7 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = ReturnFocusChangedEvent::update(args) {
+            if let Some(args) = ReturnFocusChangedEvent.update(args) {
                 if IsEnabled::get(ctx.vars) {
                     if args
                         .prev_return

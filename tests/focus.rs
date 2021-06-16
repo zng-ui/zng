@@ -1519,9 +1519,9 @@ impl TestApp {
 
         let (focus_changed, return_focus_changed) = {
             let ctx = app.ctx();
-            let fc = ctx.events.buffer::<zero_ui::core::focus::FocusChangedEvent>();
-            let rfc = ctx.events.buffer::<zero_ui::core::focus::ReturnFocusChangedEvent>();
-            (fc, rfc)
+            let a = ctx.events.buffer(zero_ui::core::focus::FocusChangedEvent);
+            let b = ctx.events.buffer(zero_ui::core::focus::ReturnFocusChangedEvent);
+            (a, b)
         };
 
         let window_id = app.open_window(move |_| window);

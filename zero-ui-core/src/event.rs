@@ -63,13 +63,13 @@ pub trait Event: Debug + Clone + Copy + 'static {
     /// Schedule an event update.
     #[doc(hidden)]
     #[inline(always)]
-    fn notify(events: &mut Events, args: Self::Args) {
+    fn notify(self, events: &mut Events, args: Self::Args) {
         events.notify::<Self>(args);
     }
 
     /// Gets the event arguments if the update is for `Self`.
     #[inline(always)]
-    fn update<U: EventUpdateArgs>(args: &U) -> Option<&EventUpdate<Self>> {
+    fn update<U: EventUpdateArgs>(self, args: &U) -> Option<&EventUpdate<Self>> {
         args.args_for::<Self>()
     }
 }
@@ -678,25 +678,25 @@ impl Events {
     /// the UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the buffer to stop listening.
-    pub fn pre_buffer<E: Event>(&mut self) -> EventBuffer<E> {
-        Self::push_buffer::<E>(&mut self.pre_buffers)
+    pub fn pre_buffer<E: Event>(&mut self, event: E) -> EventBuffer<E> {
+        Self::push_buffer::<E>(&mut self.pre_buffers, event)
     }
 
     /// Creates an event buffer that listens to `E`. The event updates are pushed only after
     /// the UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the buffer to stop listening.
-    pub fn buffer<E: Event>(&mut self) -> EventBuffer<E> {
-        Self::push_buffer::<E>(&mut self.buffers)
+    pub fn buffer<E: Event>(&mut self, event: E) -> EventBuffer<E> {
+        Self::push_buffer::<E>(&mut self.buffers, event)
     }
 
-    fn push_buffer<E: Event>(buffers: &mut Vec<BufferEntry>) -> EventBuffer<E> {
+    fn push_buffer<E: Event>(buffers: &mut Vec<BufferEntry>, event: E) -> EventBuffer<E> {
         let buf = EventBuffer::never();
         let weak = Rc::downgrade(&buf.queue);
         buffers.push(Box::new(move |args| {
             let mut retain = false;
             if let Some(rc) = weak.upgrade() {
-                if let Some(args) = E::update(args) {
+                if let Some(args) = event.update(args) {
                     rc.borrow_mut().push_back(args.clone());
                 }
                 retain = true;
@@ -722,27 +722,27 @@ impl Events {
     /// the UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the receiver to stop listening.
-    pub fn pre_receiver<E>(&mut self) -> EventReceiver<E>
+    pub fn pre_receiver<E>(&mut self, event: E) -> EventReceiver<E>
     where
         E: Event,
         E::Args: Send,
     {
-        Self::push_receiver::<E>(&mut self.pre_buffers)
+        Self::push_receiver::<E>(&mut self.pre_buffers, event)
     }
 
     /// Creates a channel that can listen to event from another thread. The event updates are sent only after the
     /// UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the receiver to stop listening.
-    pub fn receiver<E>(&mut self) -> EventReceiver<E>
+    pub fn receiver<E>(&mut self, event: E) -> EventReceiver<E>
     where
         E: Event,
         E::Args: Send,
     {
-        Self::push_receiver::<E>(&mut self.buffers)
+        Self::push_receiver::<E>(&mut self.buffers, event)
     }
 
-    fn push_receiver<E>(buffers: &mut Vec<BufferEntry>) -> EventReceiver<E>
+    fn push_receiver<E>(buffers: &mut Vec<BufferEntry>, event: E) -> EventReceiver<E>
     where
         E: Event,
         E::Args: Send,
@@ -751,7 +751,7 @@ impl Events {
 
         buffers.push(Box::new(move |e| {
             let mut retain = true;
-            if let Some(args) = E::update(e) {
+            if let Some(args) = event.update(e) {
                 retain = sender.send(args.clone()).is_ok();
             }
             retain
@@ -785,12 +785,12 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_pre_event<E, H>(&mut self, _: E, handler: H) -> OnEventHandle
+    pub fn on_pre_event<E, H>(&mut self, event: E, handler: H) -> OnEventHandle
     where
         E: Event,
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
     {
-        Self::push_event_handler::<E, H>(&mut self.pre_handlers, handler)
+        Self::push_event_handler(&mut self.pre_handlers, event, handler)
     }
 
     /// Creates an async preview event handler.
@@ -801,13 +801,13 @@ impl Events {
     ///
     /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`AppEventArgs::unsubscribe`]. Unsubscribe using the handle also cancels running async tasks.
-    pub fn on_pre_event_async<E, F, H>(&mut self, handler: H) -> OnEventHandle
+    pub fn on_pre_event_async<E, F, H>(&mut self, event: E, handler: H) -> OnEventHandle
     where
         E: Event,
         F: Future<Output = ()> + 'static,
         H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
     {
-        Self::push_async_event_handler::<E, F, H>(&mut self.pre_handlers, handler)
+        Self::push_async_event_handler(&mut self.pre_handlers, event, handler)
     }
 
     /// Creates an event handler.
@@ -835,12 +835,12 @@ impl Events {
     /// # Panics
     ///
     /// If the event is not registered in the application.
-    pub fn on_event<E, H>(&mut self, _: E, handler: H) -> OnEventHandle
+    pub fn on_event<E, H>(&mut self, event: E, handler: H) -> OnEventHandle
     where
         E: Event,
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
     {
-        Self::push_event_handler::<E, H>(&mut self.pos_handlers, handler)
+        Self::push_event_handler(&mut self.pos_handlers, event, handler)
     }
 
     /// Creates an async event handler.
@@ -851,16 +851,16 @@ impl Events {
     ///
     /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`AppEventArgs::unsubscribe`]. Unsubscribe using the handle also cancels running async tasks.
-    pub fn on_event_async<E, F, H>(&mut self, _: E, handler: H) -> OnEventHandle
+    pub fn on_event_async<E, F, H>(&mut self, event: E, handler: H) -> OnEventHandle
     where
         E: Event,
         F: Future<Output = ()> + 'static,
         H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
     {
-        Self::push_async_event_handler::<E, F, H>(&mut self.pos_handlers, handler)
+        Self::push_async_event_handler(&mut self.pos_handlers, event, handler)
     }
 
-    fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, mut handler: H) -> OnEventHandle
+    fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, event: E, mut handler: H) -> OnEventHandle
     where
         E: Event,
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
@@ -868,7 +868,7 @@ impl Events {
         let handle = OnEventHandle::new();
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
             let mut retain = true;
-            if let Some(args) = E::update(args) {
+            if let Some(args) = event.update(args) {
                 if !args.stop_propagation_requested() {
                     let args = AppEventArgs {
                         args: &args.0,
@@ -887,7 +887,7 @@ impl Events {
         handle
     }
 
-    fn push_async_event_handler<E, F, H>(handlers: &mut Vec<OnEventHandler>, mut handler: H) -> OnEventHandle
+    fn push_async_event_handler<E, F, H>(handlers: &mut Vec<OnEventHandler>, event: E, mut handler: H) -> OnEventHandle
     where
         E: Event,
         F: Future<Output = ()> + 'static,
@@ -897,7 +897,7 @@ impl Events {
         let weak_handle = Arc::downgrade(&handle.0);
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
             let mut retain = true;
-            if let Some(args) = E::update(args) {
+            if let Some(args) = event.update(args) {
                 if !args.stop_propagation_requested() {
                     // event matches, will notify causing an async task to start.
 
@@ -1330,14 +1330,14 @@ macro_rules! event {
         impl $Event {
             /// Gets the event arguments if the update is for this event.
             #[inline(always)]
-            pub fn update<U: $crate::event::EventUpdateArgs>(args: &U) -> Option<&$crate::event::EventUpdate<$Event>> {
-                <Self as $crate::event::Event>::update(args)
+            pub fn update<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<$Event>> {
+                <Self as $crate::event::Event>::update(self, args)
             }
 
             /// Schedule an event update.
             #[inline]
-            pub fn notify(events: &mut $crate::event::Events, args: $Args) {
-                <Self as $crate::event::Event>::notify(events, args);
+            pub fn notify(self, events: &mut $crate::event::Events, args: $Args) {
+                <Self as $crate::event::Event>::notify(self, events, args);
             }
         }
         impl $crate::event::Event for $Event {
@@ -1553,7 +1553,7 @@ pub use crate::event_property;
 /// The event `handler` is called after the [`on_pre_event`] equivalent at the same context level. If the event
 /// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
 #[inline]
-pub fn on_event<C, E, F, H>(child: C, _event: E, filter: F, handler: H) -> impl UiNode
+pub fn on_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
     E: Event,
@@ -1562,7 +1562,7 @@ where
 {
     struct OnEventNode<C, E, F, H> {
         child: C,
-        _event: PhantomData<E>,
+        event: E,
         filter: F,
         handler: H,
     }
@@ -1575,7 +1575,7 @@ where
         H: FnMut(&mut WidgetContext, &E::Args) + 'static,
     {
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = E::update(args) {
+            if let Some(args) = self.event.update(args) {
                 self.child.event(ctx, args);
 
                 if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
@@ -1588,7 +1588,7 @@ where
     }
     OnEventNode {
         child,
-        _event: PhantomData::<E>,
+        event,
         filter,
         handler,
     }
@@ -1608,7 +1608,7 @@ where
 ///
 /// The event `handler` is called before the [`on_event`] equivalent at the same context level. If the event
 /// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-pub fn on_pre_event<C, E, F, H>(child: C, _event: E, filter: F, handler: H) -> impl UiNode
+pub fn on_pre_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
     E: Event,
@@ -1617,7 +1617,7 @@ where
 {
     struct OnPreviewEventNode<C, E, F, H> {
         child: C,
-        _event: PhantomData<E>,
+        event: E,
         filter: F,
         handler: H,
     }
@@ -1630,7 +1630,7 @@ where
         H: FnMut(&mut WidgetContext, &E::Args) + 'static,
     {
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = E::update(args) {
+            if let Some(args) = self.event.update(args) {
                 if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                     (self.handler)(ctx, args);
                 }
@@ -1642,7 +1642,7 @@ where
     }
     OnPreviewEventNode {
         child,
-        _event: PhantomData::<E>,
+        event,
         filter,
         handler,
     }
@@ -1664,7 +1664,7 @@ where
 /// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
 ///
 /// Code before the first `await` point is executed immediately, code after `await` points are executed in subsequent updates.
-pub fn on_event_async<C, E, F, R, H>(child: C, _event: E, filter: F, handler: H) -> impl UiNode
+pub fn on_event_async<C, E, F, R, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
     E: Event,
@@ -1674,7 +1674,7 @@ where
 {
     struct OnEventAsyncNode<C, E, F, H> {
         child: C,
-        _event: PhantomData<E>,
+        event: E,
         filter: F,
         handler: H,
         tasks: Vec<WidgetTask<()>>,
@@ -1689,7 +1689,7 @@ where
         H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
     {
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = E::update(args) {
+            if let Some(args) = self.event.update(args) {
                 self.child.event(ctx, args);
 
                 if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
@@ -1711,7 +1711,7 @@ where
     }
     OnEventAsyncNode {
         child,
-        _event: PhantomData::<E>,
+        event,
         filter,
         handler,
         tasks: Vec::with_capacity(1),
@@ -1734,7 +1734,7 @@ where
 /// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
 ///
 /// Code before the first `await` point is executed immediately, code after `await` points are executed in subsequent updates.
-pub fn on_pre_event_async<C, E, F, R, H>(child: C, _event: E, filter: F, handler: H) -> impl UiNode
+pub fn on_pre_event_async<C, E, F, R, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
     E: Event,
@@ -1744,7 +1744,7 @@ where
 {
     struct OnPreviewEventAsyncNode<C, E, F, H> {
         child: C,
-        _event: PhantomData<E>,
+        event: E,
         filter: F,
         handler: H,
         tasks: Vec<WidgetTask<()>>,
@@ -1759,7 +1759,7 @@ where
         H: FnMut(WidgetContextMut, E::Args) -> R + 'static,
     {
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = E::update(args) {
+            if let Some(args) = self.event.update(args) {
                 if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                     let mut task = ctx.async_task(|ctx| (self.handler)(ctx, args.clone()));
                     if task.update(ctx).is_none() {
@@ -1782,7 +1782,7 @@ where
 
     OnPreviewEventAsyncNode {
         child,
-        _event: PhantomData::<E>,
+        event,
         filter,
         handler,
         tasks: Vec::with_capacity(1),

@@ -1,8 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    fmt,
-    marker::PhantomData,
-    mem,
+    fmt, mem,
     rc::{Rc, Weak},
 };
 
@@ -67,7 +65,7 @@ pub trait UiNode: 'static {
     /// #[impl_ui_node(child)]
     /// impl<C: UiNode> UiNode for MyNode<C> {
     ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-    ///         if let Some(args) = ClickEvent::update(args) {
+    ///         if let Some(args) = ClickEvent.update(args) {
     ///             if args.concerns_widget(ctx) && IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() {
     ///                 self.click_count += 1;
     ///                 args.stop_propagation();
@@ -622,22 +620,22 @@ pub fn take_if<F: FnMut(&mut WidgetContext) -> bool + 'static>(custom: F) -> imp
     TakeIf(custom)
 }
 /// An [`RcNodeTakeSignal`] that takes the widget every time the `event` updates and passes the filter.
-pub fn take_on<E, F>(filter: F) -> impl RcNodeTakeSignal
+pub fn take_on<E, F>(event: E, filter: F) -> impl RcNodeTakeSignal
 where
     E: Event,
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
 {
-    struct TakeOn<E, F>(PhantomData<E>, F);
+    struct TakeOn<E, F>(E, F);
     impl<E, F> RcNodeTakeSignal for TakeOn<E, F>
     where
         E: Event,
         F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     {
         fn event_take<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) -> bool {
-            E::update(args).map(|a| (self.1)(ctx, a)).unwrap_or_default()
+            self.0.update(args).map(|a| (self.1)(ctx, a)).unwrap_or_default()
         }
     }
-    TakeOn(PhantomData::<E>, filter)
+    TakeOn(event, filter)
 }
 /// An [`RcNodeTakeSignal`] that takes the widget once on init.
 pub fn take_on_init() -> impl RcNodeTakeSignal {

@@ -246,14 +246,14 @@ impl Keyboard {
         if self.modifiers != modifiers {
             let prev_modifiers = std::mem::replace(&mut self.modifiers, modifiers);
             let args = ModifiersChangedArgs::now(prev_modifiers, modifiers, target);
-            ModifiersChangedEvent::notify(events, args);
+            ModifiersChangedEvent.notify(events, args);
         }
     }
 
     /// Character input.
     pub fn char_input(&mut self, character: char, target: WidgetPath, events: &mut Events) {
         let args = CharInputArgs::now(target.window_id(), character, target);
-        CharInputEvent::notify(events, args);
+        CharInputEvent.notify(events, args);
     }
 
     /// Current modifiers pressed.
@@ -283,11 +283,11 @@ impl Keyboard {
 
         let args = KeyInputArgs::now(target.window_id(), device_id, scan_code, state, key, self.modifiers, repeat, target);
 
-        KeyInputEvent::notify(events, args.clone());
+        KeyInputEvent.notify(events, args.clone());
 
         match args.state {
-            ElementState::Pressed => KeyDownEvent::notify(events, args),
-            ElementState::Released => KeyUpEvent::notify(events, args),
+            ElementState::Pressed => KeyDownEvent.notify(events, args),
+            ElementState::Released => KeyUpEvent.notify(events, args),
         }
     }
 }

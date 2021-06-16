@@ -257,9 +257,9 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
 
         self.update_observe_event(
             |_, args| {
-                if let Some(args) = WindowCloseRequestedEvent::update(args) {
+                if let Some(args) = WindowCloseRequestedEvent.update(args) {
                     requested |= args.window_id == window_id;
-                } else if let Some(args) = WindowCloseEvent::update(args) {
+                } else if let Some(args) = WindowCloseEvent.update(args) {
                     closed |= args.window_id == window_id;
                 }
             },
@@ -468,7 +468,7 @@ impl AppExtension for WindowManager {
                         window.resize_renderer();
 
                         // raise window_resize
-                        WindowResizeEvent::notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
+                        WindowResizeEvent.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
                     }
                 }
             }
@@ -482,7 +482,7 @@ impl AppExtension for WindowManager {
                     window.vars.position().set_ne(ctx.vars, new_position);
 
                     // raise window_move
-                    WindowMoveEvent::notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
+                    WindowMoveEvent.notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
                 }
             }
             WindowEvent::CloseRequested => {
@@ -518,7 +518,7 @@ impl AppExtension for WindowManager {
                         window.resize_renderer();
                     }
 
-                    WindowScaleChangedEvent::notify(ctx.events, WindowScaleChangedArgs::now(window_id, scale_factor, new_size));
+                    WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(window_id, scale_factor, new_size));
                 }
             }
             _ => {}
@@ -539,9 +539,9 @@ impl AppExtension for WindowManager {
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = WindowCloseRequestedEvent::update(args) {
+        if let Some(args) = WindowCloseRequestedEvent.update(args) {
             self.update_closing(ctx, args);
-        } else if let Some(args) = WindowCloseEvent::update(args) {
+        } else if let Some(args) = WindowCloseEvent.update(args) {
             self.update_close(ctx, args);
         }
     }
@@ -581,7 +581,7 @@ impl AppExtension for WindowManager {
 
             let args = WindowEventArgs::now(window.id, true);
             window.open_response.take().unwrap().respond(ctx.vars, args.clone());
-            WindowOpenEvent::notify(ctx.events, args);
+            WindowOpenEvent.notify(ctx.events, args);
             wns.windows.push(window);
         }
     }
@@ -641,7 +641,7 @@ impl WindowManager {
         }
 
         for window_id in close {
-            WindowCloseRequestedEvent::notify(ctx.events, WindowCloseRequestedArgs::now(window_id));
+            WindowCloseRequestedEvent.notify(ctx.events, WindowCloseRequestedArgs::now(window_id));
         }
     }
 
@@ -685,7 +685,7 @@ impl WindowManager {
                 let _ = win.close_response.borrow_mut().take();
             } else {
                 // close was success.
-                WindowCloseEvent::notify(ctx.events, WindowEventArgs::now(args.window_id, false));
+                WindowCloseEvent.notify(ctx.events, WindowEventArgs::now(args.window_id, false));
                 let responder = win.close_response.borrow_mut().take().unwrap();
                 responder.respond(ctx.vars, CloseWindowResult::Close);
             }
@@ -722,10 +722,10 @@ impl WindowManager {
     fn notify_focus(&self, args: WindowIsFocusedArgs, events: &mut Events) {
         debug_assert!(!args.closed || (args.closed && !args.focused));
 
-        WindowFocusChangedEvent::notify(events, args.clone());
+        WindowFocusChangedEvent.notify(events, args.clone());
         if args.focused {
         } else {
-            WindowBlurEvent::notify(events, args);
+            WindowBlurEvent.notify(events, args);
         }
     }
 }
