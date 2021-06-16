@@ -2,13 +2,7 @@
 //!
 //! Commands are [events](Event) that represent app actions.
 
-use std::{
-    any::{type_name, TypeId},
-    cell::{Cell, RefCell},
-    fmt,
-    rc::Rc,
-    thread::LocalKey,
-};
+use std::{any::{Any, TypeId, type_name}, cell::{Cell, RefCell}, fmt, rc::Rc, thread::LocalKey};
 
 use crate::{
     context::{OwnedStateMap, StateMap},
@@ -18,22 +12,14 @@ use crate::{
     var::{var, var_from, RcVar, ReadOnlyVar, Vars},
 };
 
-#[doc(hidden)]
+/// Declares new [`Command`](crate::command::Command) types.
 #[macro_export]
-macro_rules! __command {
-    (
+macro_rules! command {
+    ($(
         $(#[$outer:meta])*
-        $vis:vis $Command:ident
-    ) => {
-        $crate::__command! {
-            $(#[$outer])*
-            $vis $Command: $crate::command::CommandArgs
-        }
-    };
-    (
-        $(#[$outer:meta])*
-        $vis:vis $Command:ident: $Args:path
-    ) => {
+        $vis:vis $Command:ident $(: $Args:path)?
+    );+$(;)?) => {$(
+
         $(#[$outer])*
         #[derive(Clone, Copy, Debug)]
         $vis struct $Command;
@@ -57,7 +43,7 @@ macro_rules! __command {
             }
         }
         impl $crate::event::Event for $Command {
-            type Args = $Args;
+            type Args = $crate::command::CommandArgs;
 
             #[inline(always)]
             fn notify(events: &mut $crate::event::Events, args: Self::Args) {
@@ -94,20 +80,6 @@ macro_rules! __command {
             fn dynamic(self) -> $crate::command::DynCommand {
                 $crate::command::DynCommand::new(&Self::COMMAND)
             }
-        }
-    };
-}
-
-/// Declares new [`Command`](crate::command::Command) types.
-#[macro_export]
-macro_rules! command {
-    ($(
-        $(#[$outer:meta])*
-        $vis:vis $Command:ident $(: $Args:path)?
-    );+$(;)?) => {$(
-        $crate::__command! {
-            $(#[$outer])*
-            $vis $Command $(: $Args)?
         }
     )+};
 }
@@ -351,9 +323,13 @@ impl CommandValue {
         f(&mut self.meta.borrow_mut().0)
     }
 }
+
 crate::event_args! {
-    /// Event args for commands that don't have arguments.
+    /// Event args for command events.
     pub struct CommandArgs {
+        /// Optional parameter for the command handler.
+        pub parameter: Option<Rc<dyn Any>>,
+
         ..
 
         fn concerns_widget(&self, _: &mut WidgetContext) -> bool {
@@ -361,13 +337,25 @@ crate::event_args! {
         }
     }
 }
+impl CommandArgs {
+    /// Returns a reference to a parameter of `T` if [`parameter`](#structfield.parameter) is set to a value of `T`.
+    #[inline]
+    pub fn parameter<T: Any>(&self) -> Option<&T> {
+        self.parameter.as_ref().and_then(|p| p.downcast_ref::<T>())
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use super::command;
+    use super::{command, CommandArgs};
 
     command! {
         FooCommand;
         BarCommand: crate::command::CommandArgs;
+    }
+
+    #[test]
+    fn parameter_none() {
+        let _ = CommandArgs::now(None);
     }
 }
