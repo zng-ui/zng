@@ -1,4 +1,7 @@
-//! Asynchronous task runner
+//! Parallel tasks and async task runners.
+//!
+//! This module also re-exports the [`rayon`] crate for convenience, you can use rayon's parallel iterators
+//! inside any of the parallel tasks provided by [`Tasks`].
 
 use std::{future::Future, pin::Pin, task::Waker};
 
@@ -6,6 +9,9 @@ use crate::{
     context::*,
     var::{response_channel, ResponseVar, VarValue, Vars},
 };
+
+#[doc(no_inline)]
+pub use rayon;
 
 /// Asynchronous task runner.
 ///
@@ -24,28 +30,42 @@ impl Tasks {
     ///
     /// The task runs in a [`rayon`] thread-pool, this function is not blocking.
     ///
+    /// The [`rayon`] crate is re-exported in `::task::rayon` for convenience, you can use parallel iterators, `join`
+    /// or any of rayon's utilities inside `task` to make the it multi-threaded, otherwise it runs in parallel 
+    /// but in a single thread.
+    ///
+    /// The `task` should be doing CPU intensive only, if you need to await for an external operation TODO
+    ///
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, task::Tasks, var::{ResponseVar, response_channel}};
+    /// # use zero_ui_core::{context::WidgetContext, task::Tasks, rayon::iter::*, var::{ResponseVar, response_channel}};
     /// # struct SomeStruct { sum_response: ResponseVar<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
     ///     let (sender, response) = response_channel(ctx.vars);
     ///     self.sum_response = response;
-    ///     Tasks::run(move ||{
-    ///         let r = (0..1000).sum();
+    ///
+    ///     Tasks::run(move || {
+    ///         let r = (0..1000).par_iter().map(|i| i * i).sum();
+    ///
     ///         sender.send_response(r);
     ///     });
     /// }
     ///
     /// fn on_update(&mut self, ctx: &mut WidgetContext) {
     ///     if let Some(result) = self.sum_response.response_new(ctx.vars) {
-    ///         println!("sum of 0..1000: {}", result);   
+    ///         println!("sum of squares 0..1000: {}", result);   
     ///     }
     /// }
     /// # }
     /// ```
+    ///
+    /// The example uses `rayon` parallel iterator to compute a result and uses a [`response_channel`] to send the UI the result.
+    ///
+    /// Note that this function is the most basic way to spawn a parallel task where you must setup channels to the rest of the app yourself,
+    /// you can use [`Tasks::run_respond`] to avoid having to manually create a response channel, or [`Tasks::run_async`] to `.await` 
+    /// the result.
     #[inline]
     pub fn run<F>(task: F)
     where
@@ -54,7 +74,7 @@ impl Tasks {
         rayon::spawn(task);
     }
 
-    /// Run a CPU bound parallel task with a multi-threading executor.
+    /// Run a CPU bound parallel task that also can `.await` for external operations.
     ///
     /// The task runs in an [`async-global-executor`] thread-pool, this function is not blocking.
     ///
@@ -63,13 +83,15 @@ impl Tasks {
     /// ```
     /// # use zero_ui_core::{context::WidgetContext, task::Tasks, var::{ResponseVar, response_channel}};
     /// # struct SomeStruct { file_response: ResponseVar<Vec<u8>> }
+    /// # fn read_file_async() std::future::Ready<Vec<u8>> -> { std::future::ready(vec![]) }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
     ///     let (sender, response) = response_channel(ctx.vars);
     ///     self.file_response = response;
+    ///
     ///     Tasks::run_fut(async move {
-    ///         todo!("use async_std to read a file");
-    ///         let file = vec![];
+    ///         let file = read_file_async().await;
+    ///
     ///         sender.send_response(file);    
     ///     });
     /// }
@@ -90,10 +112,9 @@ impl Tasks {
         async_global_executor::spawn(task).detach();
     }
 
-    /// Run a CPU bound parallel task, returns a future that can be awaited on the UI
-    /// thread that will poll the result of the task.
+    /// Like [`run`](Tasks::run) but you can `.await` for the task result.
     ///
-    /// This is like [`run`](Tasks::run) but with an awaitable result.
+    /// 
     #[inline]
     pub async fn run_async<R, T>(task: T) -> R
     where
