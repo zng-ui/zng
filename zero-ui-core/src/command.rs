@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     context::{OwnedStateMap, StateMap},
-    event::{Event, Events},
+    event::{Event, EventUpdateArgs, Events},
     state_key,
     text::Text,
     var::{var, var_from, RcVar, ReadOnlyVar, Vars},
@@ -83,8 +83,8 @@ macro_rules! command {
             }
 
             #[inline]
-            fn dynamic(self) -> $crate::command::DynCommand {
-                $crate::command::DynCommand::new(&Self::COMMAND)
+            fn as_any(self) -> $crate::command::AnyCommand {
+                $crate::command::AnyCommand::new(&Self::COMMAND)
             }
         }
     )+};
@@ -120,18 +120,18 @@ pub trait Command: Event<Args = CommandArgs> {
     /// be used to set the [`enabled`](Self::enabled) state.
     fn new_handle(self, events: &mut Events) -> CommandHandle;
 
-    /// Gets a [`DynCommand`] that represents this command.
-    fn dynamic(self) -> DynCommand;
+    /// Gets a [`AnyCommand`] that represents this command.
+    fn as_any(self) -> AnyCommand;
 }
 
 /// Represents a [`Command`] type.
 #[derive(Clone, Copy)]
-pub struct DynCommand(&'static LocalKey<CommandValue>);
-impl DynCommand {
+pub struct AnyCommand(&'static LocalKey<CommandValue>);
+impl AnyCommand {
     #[inline]
     #[doc(hidden)]
     pub fn new(c: &'static LocalKey<CommandValue>) -> Self {
-        DynCommand(c)
+        AnyCommand(c)
     }
 
     pub(crate) fn update_state(&self, vars: &Vars) {
@@ -155,27 +155,30 @@ impl DynCommand {
     pub fn is<C: Command>(self) -> bool {
         self.command_type_id() == TypeId::of::<C>()
     }
-}
-impl fmt::Debug for DynCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "DynCommand({})", self.command_type_name())
-        } else {
-            write!(f, "dyn {}", self.command_type_name())
-        }
+
+    /// Schedule an event update for the command represented by `self`.
+    #[inline]
+    pub fn notify(self, events: &mut Events, args: CommandArgs) {
+        Event::notify(self, events, args)
     }
 }
-impl Event for DynCommand {
+impl fmt::Debug for AnyCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AnyCommand({})", self.command_type_name())
+    }
+}
+impl Event for AnyCommand {
     type Args = CommandArgs;
 
     fn notify(self, events: &mut Events, args: Self::Args) {
         self.0.with(move |c| (c.notify)(events, args));
     }
-    fn update<U: crate::event::EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
-        panic!("cannot update using DynCommand")
+    fn update<U: EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
+        panic!("`AnyCommand` does not support `Event::update`");
     }
 }
-impl Command for DynCommand {
+
+impl Command for AnyCommand {
     fn with_meta<F, R>(self, f: F) -> R
     where
         F: FnOnce(&mut StateMap) -> R,
@@ -195,7 +198,7 @@ impl Command for DynCommand {
         self.0.with(|c| c.new_handle(events, self.0))
     }
 
-    fn dynamic(self) -> DynCommand {
+    fn as_any(self) -> AnyCommand {
         self
     }
 }
@@ -308,7 +311,7 @@ impl CommandValue {
     pub fn new_handle(&self, events: &mut Events, key: &'static LocalKey<CommandValue>) -> CommandHandle {
         if self.registered.get() {
             self.registered.set(true);
-            events.register_command(DynCommand(key));
+            events.register_command(AnyCommand(key));
         }
         CommandHandle {
             handle: Rc::clone(&self.handle),

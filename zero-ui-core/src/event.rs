@@ -5,7 +5,7 @@ use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
-use crate::command::DynCommand;
+use crate::command::AnyCommand;
 use crate::context::{AppContext, AppContextMut, Updates, WidgetContext, WidgetContextMut};
 use crate::task::WidgetTask;
 use crate::var::Vars;
@@ -74,7 +74,7 @@ pub trait Event: Debug + Clone + Copy + 'static {
     }
 }
 
-mod protected {
+pub(crate) mod protected {
     pub trait EventUpdateArgs {}
 }
 
@@ -166,9 +166,9 @@ impl EventUpdateArgs for BoxedEventUpdate {
     #[inline(always)]
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
-            event_type: self.event_type,
+            event_type_id: self.event_type,
             event_name: self.event_name,
-            args: unsafe {
+            event_update_args: unsafe {
                 // SAFETY: no different then the EventUpdate::as_any()
                 self.args.downcast_ref_unchecked()
             },
@@ -216,9 +216,23 @@ impl fmt::Debug for BoxedSendEventUpdate {
 
 /// Type erased [`EventUpdateArgs`].
 pub struct AnyEventUpdate<'a> {
-    event_type: TypeId,
+    event_type_id: TypeId,
     event_name: &'static str,
-    args: &'a (),
+    // this is a reference to a `EventUpdate<Q>`.
+    event_update_args: &'a (),
+}
+impl<'a> AnyEventUpdate<'a> {
+    /// Gets the [`TypeId`] of the event type represented by `self`.
+    #[inline]
+    pub fn event_type_id(&self) -> TypeId {
+        self.event_type_id
+    }
+
+    /// Gets the [`type_name`] of the event type represented by `self`.
+    #[inline]
+    pub fn event_type_name(&self) -> &'static str {
+        self.event_name
+    }
 }
 impl<'a> fmt::Debug for AnyEventUpdate<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -229,11 +243,11 @@ impl<'a> protected::EventUpdateArgs for AnyEventUpdate<'a> {}
 impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
     #[inline(always)]
     fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>> {
-        if self.event_type == TypeId::of::<Q>() {
+        if self.event_type_id == TypeId::of::<Q>() {
             Some(unsafe {
                 // SAFETY: its the same type.
                 #[allow(clippy::transmute_ptr_to_ptr)]
-                mem::transmute(self.args)
+                mem::transmute(self.event_update_args)
             })
         } else {
             None
@@ -243,9 +257,9 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
     #[inline(always)]
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
-            event_type: self.event_type,
+            event_type_id: self.event_type_id,
             event_name: self.event_name,
-            args: self.args,
+            event_update_args: self.event_update_args,
         }
     }
 }
@@ -275,9 +289,9 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     #[inline(always)]
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
-            event_type: TypeId::of::<E>(),
+            event_type_id: TypeId::of::<E>(),
             event_name: type_name::<E>(),
-            args: unsafe {
+            event_update_args: unsafe {
                 // SAFETY: nothing will be done with it other then a validated restore in `args_for`.
                 #[allow(clippy::transmute_ptr_to_ptr)]
                 mem::transmute(self)
@@ -630,7 +644,7 @@ pub struct Events {
     pre_handlers: Vec<OnEventHandler>,
     pos_handlers: Vec<OnEventHandler>,
 
-    commands: FnvHashMap<TypeId, DynCommand>,
+    commands: FnvHashMap<TypeId, AnyCommand>,
 
     _singleton: SingletonEvents,
 }
@@ -667,7 +681,7 @@ impl Events {
         self.updates.push(update.forget_send());
     }
 
-    pub(crate) fn register_command(&mut self, command: DynCommand) {
+    pub(crate) fn register_command(&mut self, command: AnyCommand) {
         if let Some(already) = self.commands.insert(command.command_type_id(), command) {
             self.commands.insert(already.command_type_id(), already);
             panic!("command `{:?}` is already registered", command)
