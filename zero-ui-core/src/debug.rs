@@ -735,7 +735,7 @@ pub mod debug_var_util {
     }
     impl<T: VarValue, V: IntoVar<T>> FromIntoVar<T> for &&Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            self.0.clone().into_var().into_map(ValueInfo::new).boxed()
+            self.0.clone().into_var().map(ValueInfo::new).boxed()
         }
     }
 

@@ -57,8 +57,6 @@ pub struct VarsRead {
     app_event_sender: AppEventSender,
     senders: RefCell<Vec<SyncEntry>>,
     receivers: RefCell<Vec<SyncEntry>>,
-
-    bindings: RefCell<Vec<VarBinding>>,
 }
 impl fmt::Debug for VarsRead {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -244,6 +242,10 @@ type PendingUpdate = Box<dyn FnOnce(u32) -> bool>;
 /// An instance of this struct in [`AppContext`](crate::context::AppContext) and derived contexts.
 pub struct Vars {
     read: VarsRead,
+
+    binding_update_id: u32,
+    bindings: RefCell<Vec<VarBinding>>,
+
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
 }
@@ -272,8 +274,9 @@ impl Vars {
                 widget_clear: Default::default(),
                 senders: RefCell::default(),
                 receivers: RefCell::default(),
-                bindings: RefCell::default(),
             },
+            binding_update_id: 0u32.wrapping_sub(13),
+            bindings: RefCell::default(),
             pending: Default::default(),
         }
     }
@@ -326,9 +329,27 @@ impl Vars {
             }
 
             if modified {
-                self.bindings.borrow_mut().retain_mut(|f| f(self));
+                // update bindings
+                if !self.bindings.get_mut().is_empty() {
+                    self.binding_update_id = self.binding_update_id.wrapping_add(1);
 
+                    loop {
+                        self.bindings.borrow_mut().retain_mut(|f| f(self));
+
+                        let pending = self.pending.get_mut();
+                        if pending.is_empty() {
+                            break;
+                        }
+                        for f in pending.drain(..) {
+                            f(self.read.update_id);
+                        }
+                    }
+                }
+
+                // send values.
                 self.senders.borrow_mut().retain(|f| f(self));
+
+                // does an app update because some vars have new values.
                 updates.update();
             }
         }
@@ -416,13 +437,23 @@ impl Vars {
     {
         let handle = VarBindingHandle::new();
         let u_handle = handle.clone();
+
+        let mut last_update_id = self.binding_update_id;
+
         self.bindings.borrow_mut().push(Box::new(move |vars| {
             let mut retain = handle.retain();
+
+            if vars.binding_update_id == last_update_id {
+                return retain;
+            }
+
             if retain {
                 if let Some(new_value) = from_var.get_new(vars) {
+                    last_update_id = vars.binding_update_id;
+
                     let info = VarBindingInfo::new();
                     let new_value = map(&info, new_value);
-                    let _ = to_var.set(vars, new_value); // TODO do this in one update
+                    let _ = to_var.set(vars, new_value);
                     if info.unbind.get() {
                         retain = false;
                     }
@@ -445,18 +476,30 @@ impl Vars {
     {
         let handle = VarBindingHandle::new();
         let u_handle = handle.clone();
+
+        let mut last_update_id = self.binding_update_id;
+
         self.bindings.borrow_mut().push(Box::new(move |vars| {
             let mut retain = handle.retain();
-            // TODO do this in one update, otherwise we are in an infinite loop.
+
+            if vars.binding_update_id == last_update_id {
+                return retain;
+            }
+
             if retain {
                 if let Some(new_value) = from_var.get_new(vars) {
+                    last_update_id = vars.binding_update_id;
+
                     let info = VarBindingInfo::new();
                     let new_value = map(&info, new_value);
                     let _ = to_var.set(vars, new_value);
                     if info.unbind.get() {
                         retain = false;
                     }
-                } else if let Some(new_value) = to_var.get_new(vars) {
+                }
+                if let Some(new_value) = to_var.get_new(vars) {
+                    last_update_id = vars.binding_update_id;
+
                     let info = VarBindingInfo::new();
                     let new_value = map_back(&info, new_value);
                     let _ = from_var.set(vars, new_value);
@@ -481,13 +524,23 @@ impl Vars {
     {
         let handle = VarBindingHandle::new();
         let u_handle = handle.clone();
+
+        let mut last_update_id = self.binding_update_id;
+
         self.bindings.borrow_mut().push(Box::new(move |vars| {
             let mut retain = handle.retain();
+
+            if vars.binding_update_id == last_update_id {
+                return retain;
+            }
+
             if retain {
                 if let Some(new_value) = from_var.get_new(vars) {
+                    last_update_id = vars.binding_update_id;
+
                     let info = VarBindingInfo::new();
                     if let Some(new_value) = map(&info, new_value) {
-                        let _ = to_var.set(vars, new_value); // TODO do this in one update.
+                        let _ = to_var.set(vars, new_value);
                     }
                     if info.unbind.get() {
                         retain = false;
@@ -511,11 +564,20 @@ impl Vars {
     {
         let handle = VarBindingHandle::new();
         let u_handle = handle.clone();
+
+        let mut last_update_id = self.binding_update_id;
+
         self.bindings.borrow_mut().push(Box::new(move |vars| {
             let mut retain = handle.retain();
-            // TODO do this in one update, otherwise we are in an infinite loop.
+
+            if vars.binding_update_id == last_update_id {
+                return retain;
+            }
+
             if retain {
                 if let Some(new_value) = from_var.get_new(vars) {
+                    last_update_id = vars.binding_update_id;
+
                     let info = VarBindingInfo::new();
                     if let Some(new_value) = map(&info, new_value) {
                         let _ = to_var.set(vars, new_value);
@@ -523,7 +585,10 @@ impl Vars {
                     if info.unbind.get() {
                         retain = false;
                     }
-                } else if let Some(new_value) = to_var.get_new(vars) {
+                }
+                if let Some(new_value) = to_var.get_new(vars) {
+                    last_update_id = vars.binding_update_id;
+
                     let info = VarBindingInfo::new();
                     if let Some(new_value) = map_back(&info, new_value) {
                         let _ = from_var.set(vars, new_value);
@@ -802,5 +867,415 @@ impl VarBindingInfo {
     #[inline]
     pub fn unbind(&self) {
         self.unbind.set(true);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::app::App;
+    use crate::text::ToText;
+    use crate::var::var;
+
+    #[test]
+    fn one_way_binding() {
+        let a = var(10);
+        let b = var("".to_text());
+
+        let mut app = App::blank().run_headless();
+
+        app.ctx().vars.bind(a.clone(), b.clone(), |_, a| a.to_text()).forget();
+
+        let mut update_count = 0;
+        app.update_observe(
+            |_| {
+                update_count += 1;
+            },
+            false,
+        );
+        assert_eq!(0, update_count);
+
+        a.set(app.ctx().vars, 20);
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&20i32), a.get_new(ctx.vars));
+                assert_eq!(Some(&"20".to_text()), b.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        a.set(app.ctx().vars, 13);
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&13i32), a.get_new(ctx.vars));
+                assert_eq!(Some(&"13".to_text()), b.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+    }
+
+    #[test]
+    fn two_way_binding() {
+        let a = var(10);
+        let b = var("".to_text());
+
+        let mut app = App::blank().run_headless();
+
+        app.ctx()
+            .vars
+            .bind_bidi(a.clone(), b.clone(), |_, a| a.to_text(), |_, b| b.parse().unwrap())
+            .forget();
+
+        let mut update_count = 0;
+        app.update_observe(
+            |_| {
+                update_count += 1;
+            },
+            false,
+        );
+        assert_eq!(0, update_count);
+
+        a.set(app.ctx().vars, 20);
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&20i32), a.get_new(ctx.vars));
+                assert_eq!(Some(&"20".to_text()), b.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        b.set(app.ctx().vars, "55");
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&"55".to_text()), b.get_new(ctx.vars));
+                assert_eq!(Some(&55i32), a.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+    }
+
+    #[test]
+    fn one_way_filtered_binding() {
+        let a = var(10);
+        let b = var("".to_text());
+
+        let mut app = App::blank().run_headless();
+
+        app.ctx()
+            .vars
+            .bind_filtered(a.clone(), b.clone(), |_, a| if *a == 13 { None } else { Some(a.to_text()) })
+            .forget();
+
+        let mut update_count = 0;
+        app.update_observe(
+            |_| {
+                update_count += 1;
+            },
+            false,
+        );
+        assert_eq!(0, update_count);
+
+        a.set(app.ctx().vars, 20);
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&20i32), a.get_new(ctx.vars));
+                assert_eq!(Some(&"20".to_text()), b.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        a.set(app.ctx().vars, 13);
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&13i32), a.get_new(ctx.vars));
+                assert_eq!(&"20".to_text(), b.get(ctx.vars));
+                assert!(!b.is_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+    }
+
+    #[test]
+    fn two_way_filtered_binding() {
+        let a = var(10);
+        let b = var("".to_text());
+
+        let mut app = App::blank().run_headless();
+
+        app.ctx()
+            .vars
+            .bind_bidi_filtered(a.clone(), b.clone(), |_, a| Some(a.to_text()), |_, b| b.parse().ok())
+            .forget();
+
+        let mut update_count = 0;
+        app.update_observe(
+            |_| {
+                update_count += 1;
+            },
+            false,
+        );
+        assert_eq!(0, update_count);
+
+        a.set(app.ctx().vars, 20);
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&20i32), a.get_new(ctx.vars));
+                assert_eq!(Some(&"20".to_text()), b.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        b.set(app.ctx().vars, "55");
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&"55".to_text()), b.get_new(ctx.vars));
+                assert_eq!(Some(&55i32), a.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        b.set(app.ctx().vars, "not a i32");
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+                assert_eq!(Some(&"not a i32".to_text()), b.get_new(ctx.vars));
+                assert_eq!(&55i32, a.get(ctx.vars));
+                assert!(!a.is_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+    }
+
+    #[test]
+    fn binding_chain() {
+        let a = var(0);
+        let b = var(0);
+        let c = var(0);
+        let d = var(0);
+
+        let mut app = App::blank().run_headless();
+
+        app.ctx().vars.bind(a.clone(), b.clone(), |_, a| *a + 1).forget();
+        app.ctx().vars.bind(b.clone(), c.clone(), |_, b| *b + 1).forget();
+        app.ctx().vars.bind(c.clone(), d.clone(), |_, c| *c + 1).forget();
+
+        let mut update_count = 0;
+        app.update_observe(
+            |_| {
+                update_count += 1;
+            },
+            false,
+        );
+        assert_eq!(0, update_count);
+
+        a.set(app.ctx().vars, 20);
+
+        let mut update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+
+                assert_eq!(Some(&20), a.get_new(ctx.vars));
+                assert_eq!(Some(&21), b.get_new(ctx.vars));
+                assert_eq!(Some(&22), c.get_new(ctx.vars));
+                assert_eq!(Some(&23), d.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        a.set(app.ctx().vars, 30);
+
+        let mut update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+
+                assert_eq!(Some(&30), a.get_new(ctx.vars));
+                assert_eq!(Some(&31), b.get_new(ctx.vars));
+                assert_eq!(Some(&32), c.get_new(ctx.vars));
+                assert_eq!(Some(&33), d.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+    }
+
+    #[test]
+    fn binding_bidi_chain() {
+        let a = var(0);
+        let b = var(0);
+        let c = var(0);
+        let d = var(0);
+
+        let mut app = App::blank().run_headless();
+
+        app.ctx().vars.bind_bidi(a.clone(), b.clone(), |_, a| *a, |_, b| *b).forget();
+        app.ctx().vars.bind_bidi(b.clone(), c.clone(), |_, b| *b, |_, c| *c).forget();
+        app.ctx().vars.bind_bidi(c.clone(), d.clone(), |_, c| *c, |_, d| *d).forget();
+
+        let mut update_count = 0;
+        app.update_observe(
+            |_| {
+                update_count += 1;
+            },
+            false,
+        );
+        assert_eq!(0, update_count);
+
+        a.set(app.ctx().vars, 20);
+
+        let mut update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+
+                assert_eq!(Some(&20), a.get_new(ctx.vars));
+                assert_eq!(Some(&20), b.get_new(ctx.vars));
+                assert_eq!(Some(&20), c.get_new(ctx.vars));
+                assert_eq!(Some(&20), d.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        d.set(app.ctx().vars, 30);
+
+        let mut update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+
+                assert_eq!(Some(&30), a.get_new(ctx.vars));
+                assert_eq!(Some(&30), b.get_new(ctx.vars));
+                assert_eq!(Some(&30), c.get_new(ctx.vars));
+                assert_eq!(Some(&30), d.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+    }
+
+    #[test]
+    fn binding_drop_from_inside() {
+        let a = var(1);
+        let b = var(1);
+
+        let mut app = App::blank().run_headless();
+
+        let _handle = app.ctx().vars.bind(a.clone(), b.clone(), |info, i| {
+            info.unbind();
+            *i + 1
+        });
+
+        a.set(app.ctx().vars, 10);
+
+        let mut update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+
+                assert_eq!(Some(&10), a.get_new(ctx.vars));
+                assert_eq!(Some(&11), b.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        assert_eq!(1, a.strong_count());
+        assert_eq!(1, b.strong_count());
+
+        a.set(app.ctx().vars, 100);
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+
+                assert_eq!(Some(&100), a.get_new(ctx.vars));
+                assert!(!b.is_new(ctx.vars));
+                assert_eq!(&11, b.get(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+    }
+
+    #[test]
+    fn binding_drop_from_outside() {
+        let a = var(1);
+        let b = var(1);
+
+        let mut app = App::blank().run_headless();
+
+        let handle = app.ctx().vars.bind(a.clone(), b.clone(), |_, i| *i + 1);
+
+        a.set(app.ctx().vars, 10);
+
+        let mut update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+
+                assert_eq!(Some(&10), a.get_new(ctx.vars));
+                assert_eq!(Some(&11), b.get_new(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        drop(handle);
+
+        a.set(app.ctx().vars, 100);
+
+        update_count = 0;
+        app.update_observe(
+            |ctx| {
+                update_count += 1;
+
+                assert_eq!(Some(&100), a.get_new(ctx.vars));
+                assert!(!b.is_new(ctx.vars));
+                assert_eq!(&11, b.get(ctx.vars));
+            },
+            false,
+        );
+        assert_eq!(1, update_count);
+
+        assert_eq!(1, a.strong_count());
+        assert_eq!(1, b.strong_count());
     }
 }

@@ -27,7 +27,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else {
             quote_spanned! {expr.span()=>
                 // single var interpolation, use map.
-                #mod_::Var::into_map({#eval}, move |#[allow(non_snake_case)]#ident|{ #expr })
+                #mod_::Var::map(&{#eval}, move |#[allow(non_snake_case)]#ident|{ #expr })
             }
         }
     } else {

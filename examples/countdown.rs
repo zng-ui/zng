@@ -4,7 +4,7 @@ use zero_ui::prelude::*;
 fn main() {
     App::default().run_window(|ctx| {
         let mut count = 10;
-        let count = ctx.timers.interval(1.secs()).into_map(move |t| {
+        let count = ctx.timers.interval(1.secs()).map(move |t| {
             let r = count;
             if r == 0 {
                 t.stop();
@@ -17,7 +17,7 @@ fn main() {
             println!("{}", r);
             r
         });
-        let background_color = count.into_map(|&n| {
+        let background_color = count.map(|&n| {
             let angle = (n + 3) as f32 / 10.0 * 360.0;
             hsl(angle.deg(), 80.pct(), 30.pct()).to_rgba()
         });
