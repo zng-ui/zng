@@ -66,7 +66,7 @@ impl Tasks {
     ///     self.sum_response = response;
     ///
     ///     Tasks::run(async move {
-    ///         let r = (0usize..1000).par_iter().map(|i| i * i).sum();
+    ///         let r = (0..1000).into_par_iter().map(|i| i * i).sum();
     ///
     ///         sender.send_response(r);
     ///     });
@@ -102,13 +102,13 @@ impl Tasks {
     ///
     /// ```
     /// # use zero_ui_core::{widget, UiNode, var::{var, IntoVar}, async_clone_move, event_property, property,
-    /// # gesture::{ClickEvent, ClickArgs}, task::{Tasks, rayon::*}};
+    /// # gesture::{ClickEvent, ClickArgs}, task::{Tasks, rayon::prelude::*}};
     /// # #[widget($crate::button)]
     /// # pub mod button { }
     /// # event_property! { pub fn click { event: ClickEvent, args: ClickArgs, } }
     /// # #[property(context)]
     /// # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
-    /// # async fn read_numbers() -> Vec<usize> { vec![] }
+    /// # async fn read_numbers_file() -> Vec<usize> { vec![] }
     /// # fn main() {
     /// let enabled = var(false);
     /// button! {
@@ -119,8 +119,8 @@ impl Tasks {
     ///             let numbers = read_numbers_file().await;
     ///             numbers.par_iter().map(|i| i * i).sum()
     ///         });
-    ///
-    ///         println!("sum of squares: {}", sum_task.await);   
+    ///         let r: usize = sum_task.await;
+    ///         println!("sum of squares: {}", r);
     ///
     ///         ctx.with(|ctx| enabled.set(ctx.vars, true));
     ///     });

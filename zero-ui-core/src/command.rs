@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     context::{OwnedStateMap, StateMap},
-    event::{Event, EventUpdateArgs, Events},
+    event::{Event, Events},
     state_key,
     text::Text,
     var::{var, var_from, RcVar, ReadOnlyVar, Vars},
@@ -173,7 +173,7 @@ impl Event for AnyCommand {
     fn notify(self, events: &mut Events, args: Self::Args) {
         self.0.with(move |c| (c.notify)(events, args));
     }
-    fn update<U: EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
+    fn update<U: crate::event::EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
         panic!("`AnyCommand` does not support `Event::update`");
     }
 }

@@ -46,7 +46,6 @@ image = "0.23"
 # sync
 flume = "0.10"
 rayon = "1"
-async-global-executor = "2"
 
 # util
 bitflags = "1"
