@@ -1319,7 +1319,7 @@ impl Rect {
 
     /// Compute the rectangle in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutRect {
+    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutRect {
         LayoutRect::new(self.origin.to_layout(available_size, ctx), self.size.to_layout(available_size, ctx))
     }
 }
@@ -1486,7 +1486,7 @@ impl Line {
 
     /// Compute the line in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
+    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
         LayoutLine {
             start: self.start.to_layout(available_size, ctx),
             end: self.end.to_layout(available_size, ctx),
@@ -1658,7 +1658,7 @@ impl SideOffsets {
 
     /// Compute the offsets in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSideOffsets {
+    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSideOffsets {
         let width = LayoutLength::new(available_size.width);
         let height = LayoutLength::new(available_size.height);
         LayoutSideOffsets::from_lengths(

@@ -49,7 +49,7 @@ impl<T> From<flume::SendError<T>> for AppShutdown<T> {
 }
 impl<T> fmt::Debug for AppShutdown<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "AppHasShutdown")
+        write!(f, "AppHasShutdown<{}>", type_name::<T>())
     }
 }
 impl<T> fmt::Display for AppShutdown<T> {

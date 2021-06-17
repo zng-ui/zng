@@ -2489,6 +2489,18 @@ mod renderer {
             self.pipeline_id
         }
 
+        /// Viewport size in device pixels.
+        #[inline]
+        pub fn size(&self) -> RenderSize {
+            self.size
+        }
+
+        /// Scale size used to convert layout pixels to device pixels.
+        #[inline]
+        pub fn scale_factor(&self) -> f32 {
+            self.scale_factor
+        }
+
         /// Resize the renderer surface.
         ///
         /// The `new_size` must be already scaled by the `new_scale_factor`.

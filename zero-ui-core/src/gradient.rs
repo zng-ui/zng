@@ -634,6 +634,7 @@ impl GradientStops {
             match gs {
                 GradientStop::Color(s) => {
                     let mut stop = s.to_layout(length, ctx); // 1
+                    #[allow(clippy::branches_sharing_code)] // TODO this lint is broken, see https://github.com/rust-lang/rust-clippy/issues/7369
                     if is_positional(stop.offset) {
                         if positional_start.is_none() {
                             positional_start = Some(render_stops.len());

@@ -1471,7 +1471,7 @@ impl GenericFonts {
 
 /// Reference to in memory font data.
 // We can't use Arc<[u8]> here because of compatibility with the font-kit crate.
-#[allow(clippy::clippy::rc_buffer)]
+#[allow(clippy::rc_buffer)]
 pub type FontDataRef = Arc<Vec<u8>>;
 
 #[derive(Debug, Clone)]

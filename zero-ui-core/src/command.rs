@@ -164,7 +164,7 @@ impl AnyCommand {
 }
 impl fmt::Debug for AnyCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "AnyCommand({})", self.command_type_name())
+        write!(f, "any {}", self.command_type_name())
     }
 }
 impl Event for AnyCommand {

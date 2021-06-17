@@ -1482,7 +1482,7 @@ impl Window {
     /// * `on_pre_redraw`  - Event called just before a frame redraw.
     /// * `on_redraw`  - Event called just after a frame redraw.
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
-    #[allow(clippy::clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         root_id: WidgetId,
         start_position: impl Into<StartPosition>,

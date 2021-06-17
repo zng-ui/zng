@@ -2,7 +2,7 @@
 
 use std::{any::*, cell::Cell, fmt, ptr, rc::Rc, thread::LocalKey};
 
-/// Auto implement [`Service`](ty@Service) trait and generates an extension method for requiring the service.
+/// Auto implement [`Service`](type@Service) trait and generates an extension method for requiring the service.
 pub use zero_ui_proc_macros::Service;
 
 /// Error when an service of the same type is registered twice.
