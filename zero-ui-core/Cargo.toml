@@ -46,6 +46,7 @@ image = "0.23"
 # sync
 flume = "0.10"
 rayon = "1"
+blocking = "1"
 
 # util
 bitflags = "1"

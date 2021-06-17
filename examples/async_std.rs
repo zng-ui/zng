@@ -13,10 +13,10 @@ fn main() {
             ]);
             on_open = move |ctx, _| {
                 let size = ctx.vars.sender(&size);
-                Tasks::run(async move {
+                Tasks::spawn(async move {
                     // `async-std` starts their own *event reactor* so we can just start using async IO functions:
                     let bytes = async_std::fs::read(file).await.unwrap();
-                    
+
                     let _ = size.send(bytes.len());
                 })
             };
