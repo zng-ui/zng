@@ -1,9 +1,15 @@
-//! Parallel tasks and async task runners.
+//! Parallel async tasks and async task runners.
 //!
-//! This module also re-exports the [`rayon`] crate for convenience, you can use rayon's parallel iterators
-//! inside any of the parallel tasks provided by [`Tasks`].
+//! The [`Tasks`] `struct` contains associated functions for running parallel and async tasks.
+//!
+//! This module also re-exports the [`rayon`] crate for convenience.
 
-use std::{future::Future, pin::Pin, task::Waker};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Arc, Mutex},
+    task::Waker,
+};
 
 use crate::{
     context::*,
@@ -20,34 +26,47 @@ pub use rayon;
 pub struct Tasks {
     event_loop_waker: Waker,
 }
-/// Multi-threaded parallel tasks.
+/// Multi-threaded parallel async tasks.
 impl Tasks {
     pub(crate) fn new(event_loop_waker: Waker) -> Self {
         Tasks { event_loop_waker }
     }
 
-    /// Run a CPU bound parallel task.
+    /// Spawn a parallel async task, this function is not blocking and the `task` starts executing immediately.
     ///
-    /// The task runs in a [`rayon`] thread-pool, this function is not blocking.
+    /// # Parallel
     ///
-    /// The [`rayon`] crate is re-exported in `::task::rayon` for convenience, you can use parallel iterators, `join`
-    /// or any of rayon's utilities inside `task` to make the it multi-threaded, otherwise it runs in parallel 
-    /// but in a single thread.
+    /// The task runs in the primary [`rayon`] thread-pool, every [`poll`](Future::poll) inside a call to [`rayon::spawn`].
     ///
-    /// The `task` should be doing CPU intensive only, if you need to await for an external operation TODO
+    /// You can use parallel iterators, `join` or any of rayon's utilities inside `task` to make it multi-threaded,
+    /// otherwise it will run in a single thread at a time, still not blocking the UI.
+    ///
+    /// The [`rayon`] crate is re-exported in `task::rayon` for convenience.
+    ///
+    /// # Async
+    ///
+    /// The `task` is also a future so you can `.await`, after each `.await` the task continues executing in whatever rayon thread
+    /// is free to process it, so the `task` should either be doing CPU intensive work or awaiting, blocking IO operations
+    /// block one of the task threads from being used by other tasks reducing overall performance. You can use any of the async libraries
+    /// for IO, as long as they start and host their own *event reactor*. The `task` lives inside the [`Waker`] when awaiting and inside
+    /// [`rayon::spawn`] when executing.
+    ///
+    /// Of course, if you know that your app is only running one task at a time you don't need to import an async library and `.await`
+    /// just use the blocking `std` functions, that will still execute in parallel. The UI runs in the main thread and the renderers
+    /// have their own rayon thread-pool, so blocking one of the task threads does not matter in a small app.
     ///
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{context::WidgetContext, task::Tasks, rayon::iter::*, var::{ResponseVar, response_channel}};
+    /// # use zero_ui_core::{context::WidgetContext, task::{Tasks, rayon::iter::*}, var::{ResponseVar, response_channel}};
     /// # struct SomeStruct { sum_response: ResponseVar<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
     ///     let (sender, response) = response_channel(ctx.vars);
     ///     self.sum_response = response;
     ///
-    ///     Tasks::run(move || {
-    ///         let r = (0..1000).par_iter().map(|i| i * i).sum();
+    ///     Tasks::run(async move {
+    ///         let r = (0usize..1000).par_iter().map(|i| i * i).sum();
     ///
     ///         sender.send_response(r);
     ///     });
@@ -61,121 +80,117 @@ impl Tasks {
     /// # }
     /// ```
     ///
-    /// The example uses `rayon` parallel iterator to compute a result and uses a [`response_channel`] to send the UI the result.
+    /// The example uses the `rayon` parallel iterator to compute a result and uses a [`response_channel`] to send the result to the UI.
     ///
     /// Note that this function is the most basic way to spawn a parallel task where you must setup channels to the rest of the app yourself,
-    /// you can use [`Tasks::run_respond`] to avoid having to manually create a response channel, or [`Tasks::run_async`] to `.await` 
+    /// you can use [`Tasks::run_respond`] to avoid having to manually create a response channel, or [`Tasks::run_async`] to `.await`
     /// the result.
     #[inline]
     pub fn run<F>(task: F)
     where
-        F: FnOnce() + Send + 'static,
-    {
-        rayon::spawn(task);
-    }
-
-    /// Run a CPU bound parallel task that also can `.await` for external operations.
-    ///
-    /// The task runs in an [`async-global-executor`] thread-pool, this function is not blocking.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use zero_ui_core::{context::WidgetContext, task::Tasks, var::{ResponseVar, response_channel}};
-    /// # struct SomeStruct { file_response: ResponseVar<Vec<u8>> }
-    /// # fn read_file_async() std::future::Ready<Vec<u8>> -> { std::future::ready(vec![]) }
-    /// # impl SomeStruct {
-    /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     let (sender, response) = response_channel(ctx.vars);
-    ///     self.file_response = response;
-    ///
-    ///     Tasks::run_fut(async move {
-    ///         let file = read_file_async().await;
-    ///
-    ///         sender.send_response(file);    
-    ///     });
-    /// }
-    ///
-    /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-    ///     if let Some(result) = self.file_response.response_new(ctx.vars) {
-    ///         println!("file loaded: {} bytes", result.len());   
-    ///     }
-    /// }
-    /// # }
-    /// ```
-    #[inline]
-    pub fn run_fut<F>(task: F)
-    where
         F: Future<Output = ()> + Send + 'static,
     {
-        // TODO use async_executor directly in the rayon thread-pool.
-        async_global_executor::spawn(task).detach();
+        RayonTask::new(task).poll()
     }
 
     /// Like [`run`](Tasks::run) but you can `.await` for the task result.
     ///
-    /// 
+    /// The [`run`](Tasks::run) documentation explains how `task` is *parallel* and *async*. The returned future is
+    /// *disconnected* from the `task` future, in that polling it does not poll the `task` future.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui_core::{widget, UiNode, var::{var, IntoVar}, async_clone_move, event_property, property,
+    /// # gesture::{ClickEvent, ClickArgs}, task::{Tasks, rayon::*}};
+    /// # #[widget($crate::button)]
+    /// # pub mod button { }
+    /// # event_property! { pub fn click { event: ClickEvent, args: ClickArgs, } }
+    /// # #[property(context)]
+    /// # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
+    /// # async fn read_numbers() -> Vec<usize> { vec![] }
+    /// # fn main() {
+    /// let enabled = var(false);
+    /// button! {
+    ///     on_click_async = async_clone_move!(enabled, |ctx, _| {
+    ///         ctx.with(|ctx| enabled.set(ctx.vars, false));
+    ///
+    ///         let sum_task = Tasks::run_async(async {
+    ///             let numbers = read_numbers_file().await;
+    ///             numbers.par_iter().map(|i| i * i).sum()
+    ///         });
+    ///
+    ///         println!("sum of squares: {}", sum_task.await);   
+    ///
+    ///         ctx.with(|ctx| enabled.set(ctx.vars, true));
+    ///     });
+    ///     enabled;
+    /// }
+    /// # ;
+    /// # }
+    /// ```
+    ///
+    /// The example has two `.await` calls, the first `.await` is inside the `run_async` task and waits for a file read and parse,
+    /// this does not block the UI because it is running in parallel, and it does not block one of the parallel threads because the read
+    /// operation is done using the OS async API. After the numbers are read, rayon's parallel iterator is used to compute squares and sum,
+    /// at this point the task is potentially multi-threaded, with each of the parallel threads engaged in squaring and summing a
+    /// portion of the numbers. After this the result is available in `sum_task`.
+    ///
+    /// The second `.await` is called in the async event handler, this event handler is **not** parallel, the code outside the `run_async`
+    /// task runs in the UI thread. The `sum_task` is running from the start, the `sum_task.await` instruction only awaits for a message
+    /// from the parallel task with the result, it does not poll the task.
     #[inline]
     pub async fn run_async<R, T>(task: T) -> R
     where
         R: Send + 'static,
-        T: FnOnce() -> R + Send + 'static,
+        T: Future<Output = R> + Send + 'static,
     {
         let (sender, receiver) = flume::bounded(1);
 
-        Tasks::run(move || {
-            let r = task();
+        Tasks::run(async move {
+            let r = task.await;
             let _ = sender.send(r);
         });
 
         receiver.into_recv_async().await.unwrap()
     }
 
-    /// Run a CPU bound parallel task, returns a [`ResponseVar`] that will update when the task returns.
+    /// Like [`run`](Tasks::run) but the result is send to a [`ResponseVar`] when the task finishes.
     ///
-    /// This is like [`run`](Tasks::run) but with a response var result.
+    /// The [`run`](Tasks::run) documentation explains how `task` is *parallel* and *async*.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui_core::{context::WidgetContext, task::{Tasks, rayon::iter::*}, var::ResponseVar};
+    /// # struct SomeStruct { sum_response: ResponseVar<usize> }
+    /// # async fn read_numbers() -> Vec<usize> { vec![] }
+    /// # impl SomeStruct {
+    /// fn on_event(&mut self, ctx: &mut WidgetContext) {
+    ///     self.sum_response = Tasks::run_respond(ctx.vars, async {
+    ///         read_numbers().await.par_iter().map(|i| i * i).sum()
+    ///     });
+    /// }
+    ///
+    /// fn on_update(&mut self, ctx: &mut WidgetContext) {
+    ///     if let Some(result) = self.sum_response.response_new(ctx.vars) {
+    ///         println!("sum of squares: {}", result);   
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// The example `.await` for some numbers and then uses a parallel iterator to compute a result. The result is send to
+    /// `sum_response` that is a [`ResponseVar`].
     #[inline]
     pub fn run_respond<R, F>(vars: &Vars, task: F) -> ResponseVar<R>
     where
         R: VarValue + Send + 'static,
-        F: FnOnce() -> R + Send + 'static,
-    {
-        let (sender, response) = response_channel(vars);
-
-        Tasks::run(move || {
-            let r = task();
-            let _ = sender.send_response(r);
-        });
-
-        response
-    }
-
-    /// Run a CPU bound parallel task with a multi-threading executor, returns a future that can be awaited on the UI thread
-    /// that will poll the result of the task.
-    ///
-    /// This is like [`run_async`](Tasks::run_async) but with an awaitable result.
-    #[inline]
-    pub async fn run_fut_async<R, F>(task: F) -> R
-    where
-        R: Send + 'static,
-        F: Future<Output = R> + Send + 'static,
-    {
-        async_global_executor::spawn(task).await
-    }
-
-    /// Run a CPU bound parallel task with a multi-threading executor, returns a [`ResponseVar`] that will update when the task returns.
-    ///
-    ///
-    /// This is like [`run_async`](Tasks::run_async) but with a response var result.
-    #[inline]
-    pub fn run_fut_respond<R, F>(vars: &Vars, task: F) -> ResponseVar<R>
-    where
-        R: VarValue + Send + 'static,
         F: Future<Output = R> + Send + 'static,
     {
         let (sender, response) = response_channel(vars);
 
-        Tasks::run_fut(async move {
+        Tasks::run(async move {
             let r = task.await;
             let _ = sender.send_response(r);
         });
@@ -184,7 +199,7 @@ impl Tasks {
     }
 }
 
-/// Single threaded async tasks.
+/// Single-threaded async tasks.
 impl Tasks {
     /// Create a app thread bound future executor.
     ///
@@ -479,5 +494,35 @@ impl AppTask<()> {
                 })
                 .forget();
         }
+    }
+}
+
+/// A future that is its own waker that polls inside the rayon primary thread-pool.
+struct RayonTask {
+    future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
+}
+impl RayonTask {
+    fn new<F>(future: F) -> Arc<Self>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        Arc::new(RayonTask {
+            future: Mutex::new(Box::pin(future)),
+        })
+    }
+
+    fn poll(self: Arc<RayonTask>) {
+        rayon::spawn(move || {
+            let waker = self.clone().into();
+            if let Ok(mut t) = self.future.lock() {
+                let mut cx = std::task::Context::from_waker(&waker);
+                let _ = t.as_mut().poll(&mut cx);
+            }
+        })
+    }
+}
+impl std::task::Wake for RayonTask {
+    fn wake(self: Arc<Self>) {
+        self.poll()
     }
 }

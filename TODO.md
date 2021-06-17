@@ -38,7 +38,7 @@ Things that must be done first because they influence the core API design that i
 * Raw OpenGL textures.
 * Theming.
 * Async.
-  * Unify parallel tasks to always use the rayon threads (remove async_global_executor).
+  * Test parallel async tasks integration with `tokio` and `async-std`.
   * UI async event update.
   * UI async timers.
   * UI async var updates.

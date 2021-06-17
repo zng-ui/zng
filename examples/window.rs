@@ -135,7 +135,7 @@ fn screenshot() -> impl Widget {
             });
             println!("taken in {:?}, saving..", t.elapsed());
 
-            Tasks::run_async(move || {
+            Tasks::run_async(async move {
                 let t = Instant::now();
                 img.save("screenshot.png").unwrap();
                 println!("saved in {:?}", t.elapsed());
