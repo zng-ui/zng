@@ -58,18 +58,18 @@ pub mod line_w {
         S: Var<LineStyle>,
     {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.width.is_new(ctx.vars) || self.length.is_new(ctx.vars) || self.orientation.is_new(ctx.vars) {
+            if self.width.is_new(ctx) || self.length.is_new(ctx) || self.orientation.is_new(ctx) {
                 ctx.updates.layout();
             }
-            if self.color.is_new(ctx.vars) || self.style.is_new(ctx.vars) {
+            if self.color.is_new(ctx) || self.style.is_new(ctx) {
                 ctx.updates.render();
             }
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_space: LayoutSize) -> LayoutSize {
-            let (width, height) = match *self.orientation.get(ctx.vars) {
-                LineOrientation::Horizontal => (self.length.get(ctx.vars), self.width.get(ctx.vars)),
-                LineOrientation::Vertical => (self.width.get(ctx.vars), self.length.get(ctx.vars)),
+            let (width, height) = match *self.orientation.get(ctx) {
+                LineOrientation::Horizontal => (self.length.get(ctx), self.width.get(ctx)),
+                LineOrientation::Vertical => (self.width.get(ctx), self.length.get(ctx)),
             };
 
             let width = width.to_layout(LayoutLength::new(available_space.width), ctx);
@@ -84,9 +84,9 @@ pub mod line_w {
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let bounds = LayoutRect::from_size(self.bounds);
-            let orientation = *self.orientation.get(ctx.vars);
-            let color = *self.color.get(ctx.vars);
-            let style = *self.style.get(ctx.vars);
+            let orientation = *self.orientation.get(ctx);
+            let color = *self.color.get(ctx);
+            let style = *self.style.get(ctx);
             frame.push_line(bounds, orientation, color.into(), style);
         }
     }

@@ -140,9 +140,9 @@ macro_rules! impl_rc_when_var {
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Var<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
             type AsReadOnly = ReadOnlyVar<O, Self>;
 
-            type AsLocal = CloningLocalVar<O, Self>;
+            fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
+                let vars = vars.as_ref();
 
-            fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
                 $(
                     if *self.0.conditions.$n.get(vars) {
                         self.0.values.$n.get(vars)
@@ -152,7 +152,9 @@ macro_rules! impl_rc_when_var {
                     self.0.default_value.get(vars)
                 }
             }
-            fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+            fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a O> {
+                let vars = vars.as_ref();
+
                 let mut condition_is_new = false;
                 $(
                     condition_is_new |= self.0.conditions.$n.is_new(vars);
@@ -171,107 +173,134 @@ macro_rules! impl_rc_when_var {
                     self.0.default_value.get_new(vars)
                 }
             }
-            fn is_new(&self, vars: &Vars) -> bool {
-                let mut condition_is_new = false;
-
-                $(
-                    condition_is_new |= self.0.conditions.$n.is_new(vars);
-                    if *self.0.conditions.$n.get(vars) {
-                        return condition_is_new || self.0.values.$n.is_new(vars);
-                    }
-                )+
-                condition_is_new || self.0.default_value.is_new(vars)
+            fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
+                match Rc::try_unwrap(self.0) {
+                    Ok(r) => vars.with(|vars| {
+                        $(
+                            if *r.conditions.$n.get(vars) {
+                                r.values.$n.into_value(vars)
+                            }
+                        )else+
+                        else {
+                            r.default_value.into_value(vars)
+                        }
+                    }),
+                    Err(e) => $RcMergeVar(e).get_clone(vars)
+                }
             }
-            fn version(&self, vars: &VarsRead) -> u32 {
-                let mut changed = false;
+            fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+                vars.with(|vars| {
+                    let mut condition_is_new = false;
 
-                $(
-                    let version = self.0.conditions.$n.version(vars);
-                    if version != self.0.condition_versions[$n].get() {
-                        changed = true;
-                        self.0.condition_versions[$n].set(version);
-                    }
-                )+
-
-                $(
-                    let version = self.0.values.$n.version(vars);
-                    if version != self.0.value_versions[$n].get() {
-                        changed = true;
-                        self.0.value_versions[$n].set(version);
-                    }
-                )+
-
-                let version = self.0.default_value.version(vars);
-                if version != self.0.default_version.get() {
-                    changed = true;
-                    self.0.default_version.set(version);
-                }
-
-                if changed {
-                    self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
-                }
-
-                self.0.self_version.get()
+                    $(
+                        condition_is_new |= self.0.conditions.$n.is_new(vars);
+                        if *self.0.conditions.$n.get(vars) {
+                            return condition_is_new || self.0.values.$n.is_new(vars);
+                        }
+                    )+
+                    condition_is_new || self.0.default_value.is_new(vars)
+                })
             }
-            fn is_read_only(&self, vars: &Vars) -> bool {
-                $(
-                    if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.is_read_only(vars)
+            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+                vars.with(|vars| {
+                    let mut changed = false;
+
+                    $(
+                        let version = self.0.conditions.$n.version(vars);
+                        if version != self.0.condition_versions[$n].get() {
+                            changed = true;
+                            self.0.condition_versions[$n].set(version);
+                        }
+                    )+
+
+                    $(
+                        let version = self.0.values.$n.version(vars);
+                        if version != self.0.value_versions[$n].get() {
+                            changed = true;
+                            self.0.value_versions[$n].set(version);
+                        }
+                    )+
+
+                    let version = self.0.default_value.version(vars);
+                    if version != self.0.default_version.get() {
+                        changed = true;
+                        self.0.default_version.set(version);
                     }
-                )else+
-                else {
-                    self.0.default_value.is_read_only(vars)
-                }
+
+                    if changed {
+                        self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
+                    }
+
+                    self.0.self_version.get()
+                })
+            }
+            fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
+                vars.with(|vars| {
+                    $(
+                        if *self.0.conditions.$n.get(vars) {
+                            self.0.values.$n.is_read_only(vars)
+                        }
+                    )else+
+                    else {
+                        self.0.default_value.is_read_only(vars)
+                    }
+                })
             }
             fn always_read_only(&self) -> bool {
                 $(self.0.values.$n.always_read_only())&&+ && self.0.default_value.always_read_only()
             }
+            #[inline]
             fn can_update(&self) -> bool {
                 true
             }
-            fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+            fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
             where
+                Vw: WithVars,
                 N: Into<O>
             {
-                $(
-                    if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.set(vars, new_value)
+                vars.with(|vars| {
+                    $(
+                        if *self.0.conditions.$n.get(vars) {
+                            self.0.values.$n.set(vars, new_value)
+                        }
+                    )else+
+                    else {
+                        self.0.default_value.set(vars, new_value)
                     }
-                )else+
-                else {
-                    self.0.default_value.set(vars, new_value)
-                }
+                })
             }
-            fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
+            fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
             where
+                Vw: WithVars,
                 N: Into<O>,
                 O: PartialEq
             {
-                $(
-                    if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.set_ne(vars, new_value)
+                vars.with(|vars| {
+                    $(
+                        if *self.0.conditions.$n.get(vars) {
+                            self.0.values.$n.set_ne(vars, new_value)
+                        }
+                    )else+
+                    else {
+                        self.0.default_value.set_ne(vars, new_value)
                     }
-                )else+
-                else {
-                    self.0.default_value.set_ne(vars, new_value)
-                }
+                })
             }
 
-            fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-                $(
-                    if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.modify(vars, change)
+            fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
+                vars.with(|vars| {
+                    $(
+                        if *self.0.conditions.$n.get(vars) {
+                            self.0.values.$n.modify(vars, change)
+                        }
+                    )else+
+                    else {
+                        self.0.default_value.modify(vars, change)
                     }
-                )else+
-                else {
-                    self.0.default_value.modify(vars, change)
-                }
+                })
             }
 
-            fn into_local(self) -> Self::AsLocal {
-                CloningLocalVar::new(self)
-            }
-
+            #[inline]
             fn into_read_only(self) -> Self::AsReadOnly {
                ReadOnlyVar::new(self)
             }
@@ -280,6 +309,7 @@ macro_rules! impl_rc_when_var {
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> IntoVar<O> for $RcMergeVar<O, D, $($C),+ , $($V),+>  {
             type Var = Self;
 
+            #[inline]
             fn into_var(self) -> Self::Var {
                 self
             }
@@ -334,10 +364,11 @@ impl<O: VarValue> Clone for RcWhenVar<O> {
 }
 impl<O: VarValue> Var<O> for RcWhenVar<O> {
     type AsReadOnly = ReadOnlyVar<O, Self>;
-    type AsLocal = CloningLocalVar<O, Self>;
 
     /// Gets the the first variable with `true` condition or the default variable.
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
+        let vars = vars.as_ref();
+
         for (c, v) in self.0.whens.iter() {
             if *c.get(vars) {
                 return v.get(vars);
@@ -353,7 +384,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     /// Gets the default variable if any of the conditions are new and all are `false`.
     ///
     /// Gets the default variable if all conditions are `false` and the default variable value is new.
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a O> {
+        let vars = vars.as_ref();
+
         let mut condition_is_new = false;
         for (c, v) in self.0.whens.iter() {
             condition_is_new |= c.is_new(vars);
@@ -377,57 +410,81 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     /// Gets if [`get_new`](Self::get_new) will return `Some(_)` if called.
     ///
     /// This is slightly more performant than `when_var.get_new(vars).is_some()`.
-    fn is_new(&self, vars: &Vars) -> bool {
-        let mut condition_is_new = false;
-        for (c, v) in self.0.whens.iter() {
-            condition_is_new |= c.is_new(vars);
-            if *c.get(vars) {
-                return condition_is_new || v.is_new(vars);
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        vars.with(|vars| {
+            let mut condition_is_new = false;
+            for (c, v) in self.0.whens.iter() {
+                condition_is_new |= c.is_new(vars);
+                if *c.get(vars) {
+                    return condition_is_new || v.is_new(vars);
+                }
             }
+            condition_is_new || self.0.default_.is_new(vars)
+        })
+    }
+
+    /// If `self` is the only reference calls `into_value` on the first variable with condition `true`.
+    ///
+    /// If `self` is not the only reference returns a clone of the value.
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
+        match Rc::try_unwrap(self.0) {
+            Ok(r) => vars.with(move |vars| {
+                for (c, v) in Vec::from(r.whens) {
+                    if *c.get(vars) {
+                        return v.into_value(vars);
+                    }
+                }
+
+                r.default_.into_value(vars)
+            }),
+            Err(e) => RcWhenVar(e).get_clone(vars),
         }
-        condition_is_new || self.0.default_.is_new(vars)
     }
 
     /// Gets the version.
     ///
     /// The version is new when any of the condition and value variables version is new.
-    fn version(&self, vars: &VarsRead) -> u32 {
-        let mut changed = false;
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+        vars.with(|vars| {
+            let mut changed = false;
 
-        let dv = self.0.default_.version(vars);
-        if dv != self.0.default_version.get() {
-            changed = true;
-            self.0.default_version.set(dv);
-        }
-
-        for ((c, v), (w_cv, w_vv)) in self.0.whens.iter().zip(self.0.when_versions.iter()) {
-            let cv = c.version(vars);
-            if cv != w_cv.get() {
+            let dv = self.0.default_.version(vars);
+            if dv != self.0.default_version.get() {
                 changed = true;
-                w_cv.set(cv);
+                self.0.default_version.set(dv);
             }
-            let vv = v.version(vars);
-            if vv != w_vv.get() {
-                changed = true;
-                w_vv.set(vv);
+
+            for ((c, v), (w_cv, w_vv)) in self.0.whens.iter().zip(self.0.when_versions.iter()) {
+                let cv = c.version(vars);
+                if cv != w_cv.get() {
+                    changed = true;
+                    w_cv.set(cv);
+                }
+                let vv = v.version(vars);
+                if vv != w_vv.get() {
+                    changed = true;
+                    w_vv.set(vv);
+                }
             }
-        }
 
-        if changed {
-            self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
-        }
+            if changed {
+                self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
+            }
 
-        self.0.self_version.get()
+            self.0.self_version.get()
+        })
     }
 
     /// If the [current value variable](Self::get) is read-only.
-    fn is_read_only(&self, vars: &Vars) -> bool {
-        for (c, v) in self.0.whens.iter() {
-            if *c.get(vars) {
-                return v.is_read_only(vars);
+    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        vars.with(|vars| {
+            for (c, v) in self.0.whens.iter() {
+                if *c.get(vars) {
+                    return v.is_read_only(vars);
+                }
             }
-        }
-        self.0.default_.is_read_only(vars)
+            self.0.default_.is_read_only(vars)
+        })
     }
 
     /// If all value variables (including default) are always read-only.
@@ -436,50 +493,56 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     }
 
     /// Always `true`.
+    #[inline]
     fn can_update(&self) -> bool {
         true
     }
 
     /// Sets the [current value variable](Self::get).
-    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<O>,
     {
-        for (c, v) in self.0.whens.iter() {
-            if *c.get(vars) {
-                return v.set(vars, new_value);
+        vars.with(|vars| {
+            for (c, v) in self.0.whens.iter() {
+                if *c.get(vars) {
+                    return v.set(vars, new_value);
+                }
             }
-        }
-        self.0.default_.set(vars, new_value)
+            self.0.default_.set(vars, new_value)
+        })
     }
 
-    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<O>,
         O: PartialEq,
     {
-        for (c, v) in self.0.whens.iter() {
-            if *c.get(vars) {
-                return v.set_ne(vars, new_value);
+        vars.with(|vars| {
+            for (c, v) in self.0.whens.iter() {
+                if *c.get(vars) {
+                    return v.set_ne(vars, new_value);
+                }
             }
-        }
-        self.0.default_.set_ne(vars, new_value)
+            self.0.default_.set_ne(vars, new_value)
+        })
     }
 
     /// Modify the [current value variable](Self::get).
-    fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-        for (c, v) in self.0.whens.iter() {
-            if *c.get(vars) {
-                return v.modify(vars, change);
+    fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
+        vars.with(|vars| {
+            for (c, v) in self.0.whens.iter() {
+                if *c.get(vars) {
+                    return v.modify(vars, change);
+                }
             }
-        }
-        self.0.default_.modify(vars, change)
+            self.0.default_.modify(vars, change)
+        })
     }
 
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
-    }
-
+    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
     }
@@ -487,6 +550,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {
     type Var = Self;
 
+    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }

@@ -74,21 +74,21 @@ where
 
     #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.axis.is_new(ctx.vars) || self.stops.is_new(ctx.vars) || self.extend_mode.is_new(ctx.vars) {
+        if self.axis.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
             ctx.updates.layout();
         }
     }
     #[UiNode]
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
         self.final_size = final_size;
-        self.render_line = self.axis.get(ctx.vars).layout(final_size, ctx);
+        self.render_line = self.axis.get(ctx).layout(final_size, ctx);
 
         let length = self.render_line.length();
 
-        self.stops.get(ctx.vars).layout_linear(
+        self.stops.get(ctx).layout_linear(
             length,
             ctx,
-            *self.extend_mode.get(ctx.vars),
+            *self.extend_mode.get(ctx),
             &mut self.render_line,
             &mut self.render_stops,
         );
@@ -99,7 +99,7 @@ where
             LayoutRect::from_size(self.final_size),
             self.render_line,
             &self.render_stops,
-            (*self.extend_mode.get(ctx.vars)).into(),
+            (*self.extend_mode.get(ctx)).into(),
             self.final_size,
             LayoutSize::zero(),
         );
@@ -128,14 +128,14 @@ where
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.g.update(ctx);
 
-        if self.tile_size.is_new(ctx.vars) || self.tile_spacing.is_new(ctx.vars) {
+        if self.tile_size.is_new(ctx) || self.tile_spacing.is_new(ctx) {
             ctx.updates.layout();
         }
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-        self.render_tile_size = self.tile_size.get(ctx.vars).to_layout(final_size, ctx);
-        self.render_tile_spacing = self.tile_spacing.get(ctx.vars).to_layout(final_size, ctx);
+        self.render_tile_size = self.tile_size.get(ctx).to_layout(final_size, ctx);
+        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(final_size, ctx);
         self.g.arrange(ctx, self.render_tile_size);
         self.g.final_size = final_size;
     }
@@ -145,7 +145,7 @@ where
             LayoutRect::from_size(self.g.final_size),
             self.g.render_line,
             &self.g.render_stops,
-            (*self.g.extend_mode.get(ctx.vars)).into(),
+            self.g.extend_mode.copy(ctx).into(),
             self.render_tile_size,
             self.render_tile_spacing,
         );

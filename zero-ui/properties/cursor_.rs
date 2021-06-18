@@ -21,14 +21,14 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNo
     #[impl_ui_node(child)]
     impl<T: UiNode, C: Var<CursorIcon>> UiNode for CursorNode<T, C> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.cursor.is_new(&ctx.vars) {
+            if self.cursor.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_cursor(*self.cursor.get(ctx.vars), |frame| self.child.render(ctx, frame));
+            frame.push_cursor(self.cursor.copy(ctx), |frame| self.child.render(ctx, frame));
         }
     }
     CursorNode {

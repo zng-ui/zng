@@ -57,7 +57,7 @@ pub enum View<U: UiNode> {
 ///             }.boxed())
 ///         }
 ///         State::Counting => {
-///             if *n.get(ctx.vars) > 0 {
+///             if n.copy(ctx) > 0 {
 ///                 // text updates automatically when `n` updates
 ///                 // se we can continue using the same UI.
 ///
@@ -132,7 +132,7 @@ where
 
         #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.data.is_new(ctx.vars) {
+            if self.data.is_new(ctx) {
                 self.refresh_child(ctx);
             }
             self.child.update(ctx);

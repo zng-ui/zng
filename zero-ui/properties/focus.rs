@@ -14,14 +14,14 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for FocusableNode<C, E> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.is_focusable.is_new(ctx.vars) {
+            if self.is_focusable.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().focusable = Some(*self.is_focusable.get(ctx.vars));
+            frame.meta().entry::<FocusInfoKey>().or_default().focusable = Some(*self.is_focusable.get(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -45,14 +45,14 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
         T: Var<TabIndex>,
     {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.tab_index.is_new(ctx.vars) {
+            if self.tab_index.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().tab_index = Some(*self.tab_index.get(ctx.vars));
+            frame.meta().entry::<FocusInfoKey>().or_default().tab_index = Some(*self.tab_index.get(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -90,7 +90,7 @@ struct FocusScopeNode<C: UiNode, E: Var<bool>> {
 #[impl_ui_node(child)]
 impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.is_focus_scope.is_new(ctx.vars) {
+        if self.is_focus_scope.is_new(ctx) {
             ctx.updates.render();
         }
         self.child.update(ctx);
@@ -98,7 +98,7 @@ impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         let info = frame.meta().entry::<FocusInfoKey>().or_default();
-        info.scope = Some(*self.is_focus_scope.get(ctx.vars));
+        info.scope = Some(self.is_focus_scope.copy(ctx));
         if self.is_alt {
             info.alt_scope = true;
 
@@ -129,7 +129,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
     #[impl_ui_node(child)]
     impl<C: UiNode, B: Var<FocusScopeOnFocus>> UiNode for FocusScopeBehaviorNode<C, B> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.behavior.is_new(ctx.vars) {
+            if self.behavior.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
@@ -137,7 +137,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let info = frame.meta().entry::<FocusInfoKey>().or_default();
-            info.on_focus = *self.behavior.get(ctx.vars);
+            info.on_focus = self.behavior.copy(ctx);
             if info.scope.is_none() {
                 info.scope = Some(true);
             }
@@ -160,14 +160,14 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<TabNav>> UiNode for TabNavNode<C, E> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.tab_nav.is_new(ctx.vars) {
+            if self.tab_nav.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().tab_nav = Some(*self.tab_nav.get(ctx.vars));
+            frame.meta().entry::<FocusInfoKey>().or_default().tab_nav = Some(self.tab_nav.copy(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -187,14 +187,14 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<DirectionalNav>> UiNode for DirectionalNavNode<C, E> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.directional_nav.is_new(ctx.vars) {
+            if self.directional_nav.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().directional_nav = Some(*self.directional_nav.get(ctx.vars));
+            frame.meta().entry::<FocusInfoKey>().or_default().directional_nav = Some(self.directional_nav.copy(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -219,7 +219,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = ShortcutEvent.update(args) {
                 self.child.event(ctx, args);
-                if !args.stop_propagation_requested() && self.shortcuts.get(ctx.vars).0.contains(&args.shortcut) {
+                if !args.stop_propagation_requested() && self.shortcuts.get(ctx).0.contains(&args.shortcut) {
                     // focus on shortcut
                     ctx.services.focus().focus_widget_or_related(ctx.path.widget_id(), true);
                     args.stop_propagation();
@@ -251,14 +251,14 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
         E: Var<bool>,
     {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.enabled.is_new(ctx.vars) {
+            if self.enabled.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().skip_directional = Some(*self.enabled.get(ctx.vars));
+            frame.meta().entry::<FocusInfoKey>().or_default().skip_directional = Some(self.enabled.copy(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -329,7 +329,7 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = FocusChangedEvent.update(args) {
-                if IsEnabled::get(ctx.vars) {
+                if IsEnabled::get(ctx) {
                     self.is_focused = args
                         .new_focus
                         .as_ref()
@@ -345,7 +345,7 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_focused = false;
             }
 
@@ -379,7 +379,7 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = FocusChangedEvent.update(args) {
-                if IsEnabled::get(ctx.vars) {
+                if IsEnabled::get(ctx) {
                     self.is_focus_within = args
                         .new_focus
                         .as_ref()
@@ -395,7 +395,7 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_focus_within = false;
             }
             self.state.set_ne(ctx.vars, self.is_focus_within);
@@ -431,7 +431,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = FocusChangedEvent.update(args) {
-                if IsEnabled::get(ctx.vars) {
+                if IsEnabled::get(ctx) {
                     self.is_focused_hgl = args.highlight
                         && args
                             .new_focus
@@ -449,7 +449,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_focused_hgl = false;
             }
 
@@ -486,7 +486,7 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = FocusChangedEvent.update(args) {
-                if IsEnabled::get(ctx.vars) {
+                if IsEnabled::get(ctx) {
                     self.is_focus_within_hgl = args.highlight
                         && args
                             .new_focus
@@ -504,7 +504,7 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_focus_within_hgl = false;
             }
 
@@ -536,7 +536,7 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = ReturnFocusChangedEvent.update(args) {
-                if IsEnabled::get(ctx.vars) {
+                if IsEnabled::get(ctx) {
                     if args
                         .prev_return
                         .as_ref()
@@ -562,7 +562,7 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_return_focus = false;
             }
 

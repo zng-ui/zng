@@ -139,16 +139,16 @@ macro_rules! impl_rc_switch_var {
         Var<O> for $RcSwitchVar<O, $($V,)+ VI> {
             type AsReadOnly = ReadOnlyVar<O, Self>;
 
-            type AsLocal = CloningLocalVar<O, Self>;
-
-            fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
+            fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
+                let vars = vars.as_ref();
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.get(vars),)+
                     _ => panic!("switch_var index out of range"),
                 }
             }
 
-            fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+            fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a O> {
+                let vars = vars.as_ref();
                 if self.is_new(vars) {
                     Some(self.get(vars))
                 } else {
@@ -156,16 +156,33 @@ macro_rules! impl_rc_switch_var {
                 }
             }
 
-            fn is_new(&self, vars: &Vars) -> bool {
-                self.0.index.is_new(vars)
+            fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
+                match Rc::try_unwrap(self.0) {
+                    Ok(r) => {
+                        vars.with(move |vars| {
+                            match *r.index.get(vars) {
+                                $($n => r.vars.$n.into_value(vars),)+
+                                _ => panic!("switch_var index out of range"),
+                            }
+                        })
+                    },
+                    Err(e) => $RcSwitchVar(e).get_clone(vars)
+                }
+            }
+
+            fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+                vars.with(|vars| {
+                    self.0.index.is_new(vars)
                     || match *self.0.index.get(vars) {
                         $($n => self.0.vars.$n.is_new(vars),)+
                         _ => panic!("switch_var index out of range"),
                     }
+                })
             }
 
-            fn version(&self, vars: &VarsRead) -> u32 {
-                let i_ver = self.0.index.version(vars);
+            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+                vars.with(|vars| {
+                    let i_ver = self.0.index.version(vars);
                 let var_vers = ($(self.0.vars.$n.version(vars)),+);
 
                 if i_ver != self.0.index_version.get() || $(var_vers.$n != self.0.versions[$n].get())||+ {
@@ -175,56 +192,69 @@ macro_rules! impl_rc_switch_var {
                 }
 
                 self.0.self_version.get()
+                })
             }
 
-            fn is_read_only(&self, vars: &Vars) -> bool {
-                match *self.0.index.get(vars) {
-                    $($n => self.0.vars.$n.is_read_only(vars),)+
-                    _ => panic!("switch_var index out of range"),
-                }
+            fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
+               vars.with(|vars| {
+                    match *self.0.index.get(vars) {
+                        $($n => self.0.vars.$n.is_read_only(vars),)+
+                        _ => panic!("switch_var index out of range"),
+                    }
+               })
             }
 
             fn always_read_only(&self) -> bool {
                 $(self.0.vars.$n.always_read_only())&&+
             }
 
+            #[inline]
             fn can_update(&self) -> bool {
                 // you could make one that doesn't but we don't care.
                 true
             }
 
-            fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+            fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
             where
+                Vw: WithVars,
                 N: Into<O>
             {
-                match *self.0.index.get(vars) {
-                    $($n => self.0.vars.$n.set(vars, new_value),)+
-                    _ => panic!("switch_var index out of range"),
-                }
+                vars.with(|vars| {
+                    match *self.0.index.get(vars) {
+                        $($n => self.0.vars.$n.set(vars, new_value),)+
+                        _ => panic!("switch_var index out of range"),
+                    }
+                })
             }
 
-            fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
+            fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
             where
+                Vw: WithVars,
                 N: Into<O>,
                 O : PartialEq
             {
-                match *self.0.index.get(vars) {
-                    $($n => self.0.vars.$n.set_ne(vars, new_value),)+
-                    _ => panic!("switch_var index out of range")
-                }
+                vars.with(|vars| {
+                    match *self.0.index.get(vars) {
+                        $($n => self.0.vars.$n.set_ne(vars, new_value),)+
+                        _ => panic!("switch_var index out of range")
+                    }
+                })
             }
 
-            fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-                match *self.0.index.get(vars) {
-                    $($n => self.0.vars.$n.modify(vars, change),)+
-                    _ => panic!("switch_var index out of range"),
-                }
+            fn modify<Vw, F>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly>
+            where
+                Vw: WithVars,
+                F: FnOnce(&mut VarModify<O>) + 'static
+            {
+                vars.with(|vars| {
+                    match *self.0.index.get(vars) {
+                        $($n => self.0.vars.$n.modify(vars, change),)+
+                        _ => panic!("switch_var index out of range"),
+                    }
+                })
             }
 
-            fn into_local(self) -> Self::AsLocal {
-                CloningLocalVar::new(self)
-            }
-
+            #[inline]
             fn into_read_only(self) -> Self::AsReadOnly {
                 ReadOnlyVar::new(self)
             }
@@ -233,6 +263,8 @@ macro_rules! impl_rc_switch_var {
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         IntoVar<O> for $RcSwitchVar<O, $($V,)+ VI> {
             type Var = Self;
+
+            #[inline]
             fn into_var(self) -> Self {
                 self
             }
@@ -337,13 +369,13 @@ impl<O: VarValue, VI: Var<usize>> Clone for RcSwitchVar<O, VI> {
 impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     type AsReadOnly = ReadOnlyVar<O, Self>;
 
-    type AsLocal = CloningLocalVar<O, Self>;
-
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
-        self.0.vars[*self.0.index.get(vars)].get(vars)
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
+        let vars = vars.as_ref();
+        self.0.vars[self.0.index.copy(vars)].get(vars)
     }
 
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a O> {
+        let vars = vars.as_ref();
         if self.is_new(vars) {
             Some(self.get(vars))
         } else {
@@ -351,68 +383,77 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         }
     }
 
-    fn is_new(&self, vars: &Vars) -> bool {
-        self.0.vars[*self.0.index.get(vars)].is_new(vars)
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        vars.with(|vars| self.0.vars[self.0.index.copy(vars)].is_new(vars))
     }
 
-    fn version(&self, vars: &VarsRead) -> u32 {
-        let mut changed = false;
-
-        let i_ver = self.0.index.version(vars);
-        if i_ver != self.0.index_version.get() {
-            self.0.index_version.set(i_ver);
-            changed = true;
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
+        match Rc::try_unwrap(self.0) {
+            Ok(r) => vars.with(move |vars| Vec::from(r.vars).swap_remove(r.index.copy(vars)).into_value(vars)),
+            Err(e) => RcSwitchVar(e).get_clone(vars),
         }
-
-        let i = *self.0.index.get(vars);
-        let v_ver = self.0.vars[i].version(vars);
-        if v_ver != self.0.var_versions[i].get() {
-            self.0.var_versions[i].set(v_ver);
-            changed = true;
-        }
-
-        if changed {
-            self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
-        }
-
-        self.0.self_version.get()
     }
 
-    fn is_read_only(&self, vars: &Vars) -> bool {
-        self.0.vars[*self.0.index.get(vars)].is_read_only(vars)
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+        vars.with(|vars| {
+            let mut changed = false;
+
+            let i_ver = self.0.index.version(vars);
+            if i_ver != self.0.index_version.get() {
+                self.0.index_version.set(i_ver);
+                changed = true;
+            }
+
+            let i = *self.0.index.get(vars);
+            let v_ver = self.0.vars[i].version(vars);
+            if v_ver != self.0.var_versions[i].get() {
+                self.0.var_versions[i].set(v_ver);
+                changed = true;
+            }
+
+            if changed {
+                self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
+            }
+
+            self.0.self_version.get()
+        })
+    }
+
+    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        vars.with(|vars| self.0.vars[*self.0.index.get(vars)].is_read_only(vars))
     }
 
     fn always_read_only(&self) -> bool {
         self.0.vars.iter().all(|v| v.always_read_only())
     }
 
+    #[inline]
     fn can_update(&self) -> bool {
         true
     }
 
-    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<O>,
     {
-        self.0.vars[*self.0.index.get(vars)].set(vars, new_value)
+        vars.with(|vars| self.0.vars[*self.0.index.get(vars)].set(vars, new_value))
     }
 
-    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<O>,
         O: PartialEq,
     {
-        self.0.vars[*self.0.index.get(vars)].set_ne(vars, new_value)
+        vars.with(|vars| self.0.vars[*self.0.index.get(vars)].set_ne(vars, new_value))
     }
 
-    fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-        self.0.vars[*self.0.index.get(vars)].modify(vars, change)
+    fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
+        vars.with(|vars| self.0.vars[*self.0.index.get(vars)].modify(vars, change))
     }
 
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
-    }
-
+    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
     }
@@ -420,6 +461,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
 impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {
     type Var = Self;
 
+    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }

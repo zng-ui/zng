@@ -1592,7 +1592,7 @@ where
             if let Some(args) = self.event.update(args) {
                 self.child.event(ctx, args);
 
-                if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                if IsEnabled::get(ctx) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                     (self.handler)(ctx, args);
                 }
             } else {
@@ -1645,7 +1645,7 @@ where
     {
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = self.event.update(args) {
-                if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                if IsEnabled::get(ctx) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                     (self.handler)(ctx, args);
                 }
                 self.child.event(ctx, args);
@@ -1706,7 +1706,7 @@ where
             if let Some(args) = self.event.update(args) {
                 self.child.event(ctx, args);
 
-                if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                if IsEnabled::get(ctx) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                     let mut task = ctx.async_task(|ctx| (self.handler)(ctx, args.clone()));
                     if task.update(ctx).is_none() {
                         self.tasks.push(task);
@@ -1774,7 +1774,7 @@ where
     {
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = self.event.update(args) {
-                if IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                if IsEnabled::get(ctx) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                     let mut task = ctx.async_task(|ctx| (self.handler)(ctx, args.clone()));
                     if task.update(ctx).is_none() {
                         self.tasks.push(task);

@@ -202,11 +202,11 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
         V: Var<f32>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.variations = FontVariationsVar::get(ctx.vars).clone();
-            self.variations.insert(self.name, *self.value.get(ctx.vars));
+            self.variations = FontVariationsVar::get(ctx).clone();
+            self.variations.insert(self.name, self.value.copy(ctx));
 
-            self.version = FontVariationsVar::version(ctx.vars);
-            let is_new = FontVariationsVar::is_new(ctx.vars);
+            self.version = FontVariationsVar::version(ctx);
+            let is_new = FontVariationsVar::is_new(ctx);
 
             if is_new {
                 self.version = self.version.wrapping_add(1);
@@ -230,12 +230,12 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
         fn update(&mut self, ctx: &mut WidgetContext) {
             let mut is_new = false;
 
-            if let Some(new_ctx) = FontVariationsVar::get_new(ctx.vars) {
+            if let Some(new_ctx) = FontVariationsVar::get_new(ctx) {
                 self.variations = new_ctx.clone();
-                self.variations.insert(self.name, *self.value.get(ctx.vars));
+                self.variations.insert(self.name, self.value.copy(ctx));
                 self.version = self.version.wrapping_add(1);
                 is_new = true;
-            } else if let Some(value) = self.value.get_new(ctx.vars) {
+            } else if let Some(value) = self.value.copy(ctx) {
                 self.variations.insert(self.name, *value);
                 self.version = self.version.wrapping_add(1);
                 is_new = true;
@@ -327,14 +327,14 @@ where
         D: FnMut(&mut FontFeatures, S) -> S + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.features = FontFeaturesVar::get(ctx.vars).clone();
-            self.version = FontFeaturesVar::version(ctx.vars);
-            let is_new = FontFeaturesVar::is_new(ctx.vars);
+            self.features = FontFeaturesVar::get(ctx).clone();
+            self.version = FontFeaturesVar::version(ctx);
+            let is_new = FontFeaturesVar::is_new(ctx);
             if is_new {
                 self.version = self.version.wrapping_add(1);
             }
 
-            (self.set_feature)(&mut self.features, self.var.get(ctx.vars).clone());
+            (self.set_feature)(&mut self.features, self.var.get_clone(ctx));
 
             let child = &mut self.child;
             ctx.vars
@@ -353,12 +353,12 @@ where
         fn update(&mut self, ctx: &mut WidgetContext) {
             let mut is_new = false;
 
-            if let Some(new_ctx) = FontFeaturesVar::get_new(ctx.vars) {
+            if let Some(new_ctx) = FontFeaturesVar::get_new(ctx) {
                 self.features = new_ctx.clone();
-                (self.set_feature)(&mut self.features, self.var.get(ctx.vars).clone());
+                (self.set_feature)(&mut self.features, self.var.get_clone(ctx));
                 self.version = self.version.wrapping_add(1);
                 is_new = true;
-            } else if let Some(value) = self.var.get_new(ctx.vars) {
+            } else if let Some(value) = self.var.get_new(ctx) {
                 (self.set_feature)(&mut self.features, value.clone());
                 self.version = self.version.wrapping_add(1);
                 is_new = true;
@@ -615,7 +615,9 @@ pub struct TextContext<'a> {
 }
 impl<'a> TextContext<'a> {
     /// Borrow or copy all the text contextual values.
-    pub fn get(vars: &'a VarsRead) -> Self {
+    pub fn get<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> Self {
+        let vars = vars.as_ref();
+
         TextContext {
             font_family: FontFamilyVar::get(vars),
             font_style: *FontStyleVar::get(vars),
@@ -646,7 +648,8 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets the properties that affect the font face.
-    pub fn font_face(vars: &'a VarsRead) -> (&'a [FontName], FontStyle, FontWeight, FontStretch) {
+    pub fn font_face<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a [FontName], FontStyle, FontWeight, FontStretch) {
+        let vars = vars.as_ref();
         (
             FontFamilyVar::get(vars),
             *FontStyleVar::get(vars),
@@ -655,7 +658,8 @@ impl<'a> TextContext<'a> {
         )
     }
     /// Gets [`font_face`](Self::font_face) if any of the properties updated.
-    pub fn font_face_update(vars: &'a Vars) -> Option<(&'a [FontName], FontStyle, FontWeight, FontStretch)> {
+    pub fn font_face_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(&'a [FontName], FontStyle, FontWeight, FontStretch)> {
+        let vars = vars.as_ref();
         if FontFamilyVar::is_new(vars) || FontStyleVar::is_new(vars) || FontWeightVar::is_new(vars) || FontStretchVar::is_new(vars) {
             Some(Self::font_face(vars))
         } else {
@@ -665,26 +669,30 @@ impl<'a> TextContext<'a> {
 
     /// Gets the properties that affect the text characters.
     #[inline]
-    pub fn text(vars: &'a VarsRead) -> (TextTransformFn, WhiteSpace) {
-        (TextTransformVar::get(vars).clone(), *WhiteSpaceVar::get(vars))
+    pub fn text<Vr: WithVarsRead>(vars: &'a Vr) -> (TextTransformFn, WhiteSpace) {
+        vars.with(|vars| (TextTransformVar::get(vars).clone(), *WhiteSpaceVar::get(vars)))
     }
     /// Gets [`text`](Self::text) if any of the properties updated.
-    pub fn text_update(vars: &'a Vars) -> Option<(TextTransformFn, WhiteSpace)> {
-        if TextTransformVar::is_new(vars) || WhiteSpaceVar::is_new(vars) {
-            Some(Self::text(vars))
-        } else {
-            None
-        }
+    pub fn text_update<Vw: WithVars>(vars: &'a Vw) -> Option<(TextTransformFn, WhiteSpace)> {
+        vars.with(|vars| {
+            if TextTransformVar::is_new(vars) || WhiteSpaceVar::is_new(vars) {
+                Some(Self::text(vars))
+            } else {
+                None
+            }
+        })
     }
 
     /// Gets the properties that affect the sized font. The [`Length`] is `font_size`.
     #[inline]
-    pub fn font(vars: &'a VarsRead) -> (Length, &'a FontVariations) {
+    pub fn font<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (Length, &'a FontVariations) {
+        let vars = vars.as_ref();
         (*FontSizeVar::get(vars), FontVariationsVar::get(vars))
     }
     /// Gets [`font`](Self::font) if any of the properties updated.
     #[inline]
-    pub fn font_update(vars: &'a Vars) -> Option<(Length, &'a FontVariations)> {
+    pub fn font_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(Length, &'a FontVariations)> {
+        let vars = vars.as_ref();
         if FontSizeVar::is_new(vars) || FontVariationsVar::is_new(vars) {
             Some(Self::font(vars))
         } else {
@@ -694,29 +702,31 @@ impl<'a> TextContext<'a> {
 
     /// Gets the property that affect color.
     #[inline]
-    pub fn color(vars: &'a VarsRead) -> Rgba {
+    pub fn color<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> Rgba {
         *TextColorVar::get(vars)
     }
     /// Gets [`color`](Self::color) if the property updated.
     #[inline]
-    pub fn color_update(vars: &'a Vars) -> Option<Rgba> {
-        TextColorVar::get_new(vars).copied()
+    pub fn color_update<Vw: WithVars>(vars: &'a Vw) -> Option<Rgba> {
+        vars.with(|vars| TextColorVar::get_new(vars).copied())
     }
 
     /// Gets the properties that affects what font synthesis is used.
     #[inline]
-    pub fn font_synthesis(vars: &'a VarsRead) -> (FontSynthesis, FontStyle, FontWeight) {
-        (*FontSynthesisVar::get(vars), *FontStyleVar::get(vars), *FontWeightVar::get(vars))
+    pub fn font_synthesis<Vr: WithVarsRead>(vars: &'a Vr) -> (FontSynthesis, FontStyle, FontWeight) {
+        vars.with(|vars| (*FontSynthesisVar::get(vars), *FontStyleVar::get(vars), *FontWeightVar::get(vars)))
     }
 
     /// Gets [`font_synthesis`](Self::font_synthesis) if any of the properties changed.
     #[inline]
-    pub fn font_synthesis_update(vars: &'a Vars) -> Option<(FontSynthesis, FontStyle, FontWeight)> {
-        if FontSynthesisVar::is_new(vars) || FontStyleVar::is_new(vars) || FontWeightVar::is_new(vars) {
-            Some(Self::font_synthesis(vars))
-        } else {
-            None
-        }
+    pub fn font_synthesis_update<Vw: WithVars>(vars: &'a Vw) -> Option<(FontSynthesis, FontStyle, FontWeight)> {
+        vars.with(|vars| {
+            if FontSynthesisVar::is_new(vars) || FontStyleVar::is_new(vars) || FontWeightVar::is_new(vars) {
+                Some(Self::font_synthesis(vars))
+            } else {
+                None
+            }
+        })
     }
 }
 impl<'a> Clone for TextContext<'a> {

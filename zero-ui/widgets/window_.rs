@@ -300,7 +300,7 @@ pub mod window {
                         #[impl_ui_node(child)]
                         impl<C: UiNode, V: Var<$Type>> [<Window $ident:camel Node>] <C, V> {
                             fn set(&mut self, ctx: &mut WidgetContext) {
-                                let $ident = self.$ident.get(ctx.vars).clone();
+                                let $ident = self.$ident.get_clone(ctx);
                                 ctx.window_state
                                     .get::<WindowVars>()
                                     .expect("no `WindowVars` in `window_state`")
@@ -316,14 +316,14 @@ pub mod window {
 
                             #[UiNode]
                             fn update(&mut self, ctx: &mut WidgetContext) {
-                                if self.$ident.is_new(ctx.vars) {
+                                if self.$ident.is_new(ctx) {
                                     self.set(ctx);
                                 } else if let Some($ident) = ctx
                                     .window_state
                                     .get::<WindowVars>()
                                     .expect("no `WindowVars` in `window_state`")
                                     .$ident()
-                                    .get_new(ctx.vars) {
+                                    .get_new(ctx) {
                                     let _ = self.$ident.set_ne(ctx.vars, $ident.clone());
                                 }
                                 self.child.update(ctx);
@@ -375,16 +375,16 @@ pub mod window {
                     #[impl_ui_node(child)]
                     impl<C: UiNode, V: Var<$Type>> [<Window $ident:camel Node>] <C, V> {
                         fn set(&mut self, ctx: &mut WidgetContext) {
-                            let $ident = *self.$ident.get(ctx.vars);
+                            let $ident = self.$ident.copy(ctx);
                             let [<$ident var>] = ctx.window_state.get::<WindowVars>().expect("no `WindowVars` in `window_state`").$ident();
 
                             if $ident.$member_a.is_finite() {
                                 if $ident.$member_b.is_finite() {
                                     [<$ident var>].set_ne(ctx.vars, $ident);
-                                } else if $ident.$member_a != [<$ident var>].get(ctx.vars).$member_a {
+                                } else if $ident.$member_a != [<$ident var>].get(ctx).$member_a {
                                     [<$ident var>].modify(ctx.vars, move |v|v.$member_a = $ident.$member_a);
                                 }
-                            } else if $ident.$member_b.is_finite() && $ident.$member_b != [<$ident var>].get(ctx.vars).$member_b {
+                            } else if $ident.$member_b.is_finite() && $ident.$member_b != [<$ident var>].get(ctx).$member_b {
                                 [<$ident var>].modify(ctx.vars, move |v|v.$member_b = $ident.$member_b);
                             }
                         }
@@ -397,14 +397,14 @@ pub mod window {
 
                         #[UiNode]
                         fn update(&mut self, ctx: &mut WidgetContext) {
-                            if self.$ident.is_new(ctx.vars) {
+                            if self.$ident.is_new(ctx) {
                                 self.set(ctx);
                             } else if let Some($ident) = ctx
                                 .window_state
                                 .get::<WindowVars>()
                                 .expect("no `WindowVars` in `window_state`")
                                 .$ident()
-                                .get_new(ctx.vars)
+                                .get_new(ctx)
                             {
                                 let _ = self.$ident.set_ne(ctx.vars, $ident.clone());
                             }
@@ -442,14 +442,14 @@ pub mod window {
                     #[impl_ui_node(child)]
                     impl<C: UiNode, V: Var<Length>> [<Window $ident:camel Node>]<C, V> {
                         fn set(&mut self, ctx: &mut WidgetContext) {
-                            let $ident = *self.$ident.get(ctx.vars);
+                            let $ident = *self.$ident.get(ctx);
                             if $ident.is_finite() {
                                 let $var = ctx
                                     .window_state
                                     .get::<WindowVars>()
                                     .expect("no `WindowVars` in `window_state`")
                                     .$var();
-                                if $ident != $var.get(ctx.vars).$member {
+                                if $ident != $var.get(ctx).$member {
                                     $var.modify(ctx.vars, move |s| s.$member = $ident);
                                 }
                             }
@@ -463,14 +463,14 @@ pub mod window {
 
                         #[UiNode]
                         fn update(&mut self, ctx: &mut WidgetContext) {
-                            if self.$ident.is_new(ctx.vars) {
+                            if self.$ident.is_new(ctx) {
                                 self.set(ctx);
                             } else if let Some($var) = ctx
                                 .window_state
                                 .get::<WindowVars>()
                                 .expect("no `WindowVars` in `window_state`")
                                 .$var()
-                                .get_new(ctx.vars)
+                                .get_new(ctx)
                             {
                                 let _ = self.$ident.set_ne(ctx.vars, $var.$member);
                             }

@@ -63,7 +63,7 @@ use std::{
 
 use crate::{
     context::*,
-    var::{response_channel, ResponseVar, VarValue, Vars},
+    var::{response_channel, ResponseVar, VarValue, WithVars},
 };
 
 #[doc(no_inline)]
@@ -100,7 +100,7 @@ pub use rayon;
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # impl SomeStruct {
 /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-///     let (sender, response) = response_channel(ctx.vars);
+///     let (sender, response) = response_channel(ctx);
 ///     self.sum_response = response;
 ///
 ///     task::spawn(async move {
@@ -111,7 +111,7 @@ pub use rayon;
 /// }
 ///
 /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-///     if let Some(result) = self.sum_response.response_new(ctx.vars) {
+///     if let Some(result) = self.sum_response.rsp_new(ctx) {
 ///         println!("sum of squares 0..1000: {}", result);   
 ///     }
 /// }
@@ -181,13 +181,13 @@ where
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
 /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-///     self.sum_response = task::respond(ctx.vars, async {
+///     self.sum_response = task::respond(ctx, async {
 ///         read_numbers().await.par_iter().map(|i| i * i).sum()
 ///     });
 /// }
 ///
 /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-///     if let Some(result) = self.sum_response.response_new(ctx.vars) {
+///     if let Some(result) = self.sum_response.rsp_new(ctx) {
 ///         println!("sum of squares: {}", result);   
 ///     }
 /// }
@@ -197,7 +197,7 @@ where
 /// The example `.await` for some numbers and then uses a parallel iterator to compute a result. The result is send to
 /// `sum_response` that is a [`ResponseVar`].
 #[inline]
-pub fn respond<R, F>(vars: &Vars, task: F) -> ResponseVar<R>
+pub fn respond<Vw: WithVars, R, F>(vars: &Vw, task: F) -> ResponseVar<R>
 where
     R: VarValue + Send + 'static,
     F: Future<Output = R> + Send + 'static,

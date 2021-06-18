@@ -38,18 +38,18 @@ pub fn border(
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
-            if self.widths.is_new(ctx.vars) || self.radius.is_new(ctx.vars) {
+            if self.widths.is_new(ctx) || self.radius.is_new(ctx) {
                 ctx.updates.layout()
             }
-            if self.sides.is_new(ctx.vars) {
+            if self.sides.is_new(ctx) {
                 ctx.updates.render()
             }
         }
 
         #[UiNode]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            self.final_widths = self.widths.get(ctx.vars).to_layout(available_size, ctx);
-            self.final_radius = self.radius.get(ctx.vars).to_layout(available_size, ctx);
+            self.final_widths = self.widths.get(ctx).to_layout(available_size, ctx);
+            self.final_radius = self.radius.get(ctx).to_layout(available_size, ctx);
 
             let size_inc = self.size_increment();
             self.child.measure(ctx, available_size - size_inc) + size_inc
@@ -73,7 +73,7 @@ pub fn border(
             frame.push_border(
                 LayoutRect::from_size(self.final_size),
                 self.final_widths,
-                *self.sides.get(ctx.vars),
+                *self.sides.get(ctx),
                 self.final_radius,
             );
             frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));

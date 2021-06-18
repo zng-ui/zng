@@ -33,12 +33,12 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = MouseEnterEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_hovered = true;
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseLeaveEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_hovered = false;
                 }
                 self.child.event(ctx, args);
@@ -48,7 +48,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_hovered = false;
             }
             self.state.set_ne(ctx.vars, self.is_hovered);
@@ -84,17 +84,17 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = MouseEnterEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_hovered = true;
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseLeaveEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_hovered = false;
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseCaptureEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     if args.is_got(ctx.path.widget_id()) {
                         self.is_captured = true;
                     } else if args.is_lost(ctx.path.widget_id()) {
@@ -108,7 +108,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_hovered = false;
                 self.is_captured = false;
             }
@@ -157,17 +157,17 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = MouseEnterEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_over = true;
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseLeaveEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_over = false;
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseInputEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.is_primary() {
+                if IsEnabled::get(ctx) && args.is_primary() {
                     match args.state {
                         ElementState::Pressed => {
                             if args.concerns_capture(ctx) {
@@ -180,7 +180,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                     }
                 }
             } else if let Some(args) = ClickEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) && args.shortcut().is_some() {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) && args.shortcut().is_some() {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_press`
                     // unless we where already doing that, then we just stop showing pressed, this causes
                     // a flickering effect when rapid clicks are happening.
@@ -193,7 +193,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = WindowBlurEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_down = false;
                 }
                 self.child.event(ctx, args);
@@ -205,12 +205,12 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_down = false;
                 self.is_over = false;
                 self.shortcut_press = None;
             } else if let Some(timer) = &self.shortcut_press {
-                if timer.is_new(ctx.vars) {
+                if timer.is_new(ctx) {
                     self.shortcut_press = None;
                 }
             }
@@ -252,7 +252,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = MouseInputEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.is_primary() {
+                if IsEnabled::get(ctx) && args.is_primary() {
                     match args.state {
                         ElementState::Pressed => {
                             if args.concerns_capture(ctx) {
@@ -266,17 +266,17 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseCaptureEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_captured = args.is_got(ctx.path.widget_id());
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = WindowBlurEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_down = false;
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = ClickEvent.update(args) {
-                if IsEnabled::get(ctx.vars) && args.concerns_widget(ctx) && args.shortcut().is_some() {
+                if IsEnabled::get(ctx) && args.concerns_widget(ctx) && args.shortcut().is_some() {
                     // see `is_pressed` for details of what is happening here.
                     if self.shortcut_press.take().is_none() {
                         let duration = ctx.services.gestures().shortcut_pressed_duration;
@@ -294,12 +294,12 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
-            if let Some(false) = IsEnabled::get_new(ctx.vars) {
+            if let Some(false) = IsEnabled::get_new(ctx) {
                 self.is_down = false;
                 self.is_captured = false;
                 self.shortcut_press = None;
             } else if let Some(timer) = &self.shortcut_press {
-                if timer.is_new(ctx.vars) {
+                if timer.is_new(ctx) {
                     self.shortcut_press = None;
                 }
             }
@@ -328,7 +328,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     impl<C: UiNode> IsHitTestableNode<C> {
         fn update_state(&self, ctx: &mut WidgetContext) {
-            let hit_testable = IsHitTestable::get(ctx.vars) && ctx.widget_state.hit_testable();
+            let hit_testable = IsHitTestable::get(ctx) && ctx.widget_state.hit_testable();
             self.state.set_ne(ctx.vars, hit_testable);
         }
     }
@@ -354,7 +354,7 @@ struct IsEnabledNode<C: UiNode> {
 }
 impl<C: UiNode> IsEnabledNode<C> {
     fn update_state(&self, ctx: &mut WidgetContext) {
-        let enabled = IsEnabled::get(ctx.vars) && ctx.widget_state.enabled();
+        let enabled = IsEnabled::get(ctx) && ctx.widget_state.enabled();
         let is_state = enabled == self.expected;
         self.state.set_ne(ctx.vars, is_state);
     }
@@ -407,7 +407,7 @@ struct IsVisibilityNode<C: UiNode> {
 }
 impl<C: UiNode> IsVisibilityNode<C> {
     fn update_state(&self, ctx: &mut WidgetContext) {
-        let vis = VisibilityContext::get(ctx.vars) | ctx.widget_state.visibility();
+        let vis = VisibilityContext::get(ctx) | ctx.widget_state.visibility();
         let is_state = vis == self.expected;
         self.state.set_ne(ctx.vars, is_state);
     }

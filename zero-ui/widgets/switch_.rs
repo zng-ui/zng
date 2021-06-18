@@ -27,13 +27,13 @@ pub mod switch {
     impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.options.update_all(ctx);
-            if self.index.is_new(ctx.vars) {
+            if self.index.is_new(ctx) {
                 ctx.updates.layout();
             }
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let index = *self.index.get(ctx.vars);
+            let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.widget_measure(index, ctx, available_size)
             } else {
@@ -42,20 +42,20 @@ pub mod switch {
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            let index = *self.index.get(ctx.vars);
+            let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.widget_arrange(index, ctx, final_size)
             }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let index = *self.index.get(ctx.vars);
+            let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.widget_render(index, ctx, frame)
             }
         }
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            let index = *self.index.get(ctx.vars);
+            let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.widget_render_update(index, ctx, update)
             }

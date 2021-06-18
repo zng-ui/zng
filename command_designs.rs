@@ -95,7 +95,7 @@ pub fn on_copy(child: impl UiNode, can_run: impl FnMut(&mut WidgetContext) -> bo
 pub mod text_box {
   properties! {
     on_copy = {
-      can_run: |ctx| IsEnabled::get(ctx.vars) && IsVisible::get(ctx.vars),
+      can_run: |ctx| IsEnabled::get(ctx) && IsVisible::get(ctx),
       run: |ctx| {
         let text = ctx.widget_state[TextBoxTextState];
         ctx.services.clipboard().set_text(text);

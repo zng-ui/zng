@@ -177,7 +177,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         while window_id.is_none() {
             self.update_observe(
                 |ctx| {
-                    if let Some(opened) = response.response_new(ctx.vars) {
+                    if let Some(opened) = response.rsp_new(ctx) {
                         window_id = Some(opened.window_id);
                     }
                 },
@@ -506,7 +506,7 @@ impl AppExtension for WindowManager {
                     // we can determinate if the system only changed the size
                     // to visually match the new scale_factor or if the window was
                     // really resized.
-                    if *window.vars.size().get(ctx.vars) == new_size.into() {
+                    if window.vars.size().copy(ctx) == new_size.into() {
                         // if it only changed to visually match, the WindowEvent::Resized
                         // will not cause a re-layout, so we need to do it here, but window.resize_renderer()
                         // calls window.size(), so we need to set the new_inner_size before winit.
@@ -613,7 +613,7 @@ impl AppExtension for WindowManager {
                     target: "window",
                     "dropping `{:?} ({})` without closing events",
                     window.id,
-                    window.vars.title().get(ctx.vars)
+                    window.vars.title().get(ctx)
                 );
                 window.context.borrow_mut().deinit(ctx);
             }
@@ -2099,22 +2099,22 @@ impl OpenWindow {
 
     /// Updated inited window.
     fn update_window(&mut self, ctx: &mut AppContext) {
-        if let Some(title) = self.vars.title().get_new(ctx.vars) {
+        if let Some(title) = self.vars.title().get_new(ctx) {
             if let Some(window) = &self.window {
                 window.set_title(title);
             }
         }
 
-        if let Some(icon) = self.vars.icon().get_new(ctx.vars) {
+        if let Some(icon) = self.vars.icon().get_new(ctx) {
             Self::set_icon(&self.window, icon);
         }
 
         if !self.kiosk {
-            if let Some(&auto_size) = self.vars.auto_size().get_new(ctx.vars) {
+            if let Some(auto_size) = self.vars.auto_size().copy_new(ctx) {
                 // size will be updated in self.layout(..)
                 ctx.updates.layout();
 
-                let resizable = auto_size == AutoSize::DISABLED && *self.vars.resizable().get(ctx.vars);
+                let resizable = auto_size == AutoSize::DISABLED && *self.vars.resizable().get(ctx);
                 self.vars.resizable().set_ne(ctx.vars, resizable);
 
                 if let Some(window) = &self.window {
@@ -2122,7 +2122,7 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(&min_size) = self.vars.min_size().get_new(ctx.vars) {
+            if let Some(min_size) = self.vars.min_size().copy_new(ctx) {
                 let factor = self.scale_factor();
                 let prev_min_size = self.min_size;
                 let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
@@ -2148,7 +2148,7 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(&max_size) = self.vars.max_size().get_new(ctx.vars) {
+            if let Some(max_size) = self.vars.max_size().copy_new(ctx) {
                 let factor = self.scale_factor();
                 let prev_max_size = self.max_size;
                 let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
@@ -2174,9 +2174,9 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(&size) = self.vars.size().get_new(ctx.vars) {
+            if let Some(size) = self.vars.size().copy_new(ctx) {
                 let current_size = self.size();
-                if AutoSize::DISABLED == *self.vars.auto_size().get(ctx.vars) {
+                if AutoSize::DISABLED == *self.vars.auto_size().get(ctx) {
                     let factor = self.scale_factor();
                     let mut size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
                         size.to_layout(*ctx.viewport_size, ctx)
@@ -2203,7 +2203,7 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(&pos) = self.vars.position().get_new(ctx.vars) {
+            if let Some(pos) = self.vars.position().copy_new(ctx) {
                 let factor = self.scale_factor();
                 let current_pos = self.position();
                 let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
@@ -2227,30 +2227,30 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(&always_on_top) = self.vars.always_on_top().get_new(ctx.vars) {
+            if let Some(always_on_top) = self.vars.always_on_top().copy_new(ctx) {
                 if let Some(window) = &self.window {
                     window.set_always_on_top(always_on_top);
                 }
             }
 
-            if let Some(&taskbar_visible) = self.vars.taskbar_visible().get_new(ctx.vars) {
+            if let Some(taskbar_visible) = self.vars.taskbar_visible().copy_new(ctx) {
                 self.set_taskbar_visible(taskbar_visible);
             }
 
-            if let Some(chrome) = self.vars.chrome().get_new(ctx.vars) {
+            if let Some(chrome) = self.vars.chrome().get_new(ctx) {
                 if let Some(window) = &self.window {
                     window.set_decorations(chrome.is_default());
                 }
             }
 
-            if let Some(&visible) = self.vars.visible().get_new(ctx.vars) {
+            if let Some(visible) = self.vars.visible().copy_new(ctx) {
                 if let Some(window) = &self.window {
                     window.set_visible(visible && matches!(self.init_state, WindowInitState::Inited));
                 }
             }
         } else {
             // kiosk mode
-            if let Some(state) = self.vars.state().get_new(ctx.vars) {
+            if let Some(state) = self.vars.state().copy_new(ctx) {
                 match state {
                     WindowState::Normal | WindowState::Minimized | WindowState::Maximized | WindowState::Fullscreen => {
                         self.vars.state().set_ne(ctx.vars, WindowState::Fullscreen);
@@ -2269,31 +2269,31 @@ impl OpenWindow {
                     }
                 }
             }
-            if self.vars.position().is_new(ctx.vars) {
+            if self.vars.position().is_new(ctx) {
                 self.vars.position().set_ne(ctx.vars, Point::zero());
             }
-            if self.vars.auto_size().is_new(ctx.vars) {
+            if self.vars.auto_size().is_new(ctx) {
                 self.vars.auto_size().set_ne(ctx.vars, AutoSize::DISABLED);
             }
-            if self.vars.min_size().is_new(ctx.vars) {
+            if self.vars.min_size().is_new(ctx) {
                 self.vars.min_size().set_ne(ctx.vars, Size::zero());
             }
-            if self.vars.max_size().is_new(ctx.vars) {
+            if self.vars.max_size().is_new(ctx) {
                 self.vars.max_size().set_ne(ctx.vars, Size::fill());
             }
-            if self.vars.resizable().is_new(ctx.vars) {
+            if self.vars.resizable().is_new(ctx) {
                 self.vars.resizable().set_ne(ctx.vars, false);
             }
-            if self.vars.movable().is_new(ctx.vars) {
+            if self.vars.movable().is_new(ctx) {
                 self.vars.movable().set_ne(ctx.vars, false);
             }
-            if self.vars.always_on_top().is_new(ctx.vars) {
+            if self.vars.always_on_top().is_new(ctx) {
                 self.vars.always_on_top().set_ne(ctx.vars, true);
             }
-            if self.vars.taskbar_visible().is_new(ctx.vars) {
+            if self.vars.taskbar_visible().is_new(ctx) {
                 self.vars.taskbar_visible().set_ne(ctx.vars, true);
             }
-            if self.vars.visible().is_new(ctx.vars) {
+            if self.vars.visible().is_new(ctx) {
                 self.vars.visible().set_ne(ctx.vars, true);
             }
         }
@@ -2311,7 +2311,7 @@ impl OpenWindow {
 
         profile_scope!("window::layout");
 
-        let auto_size = *self.vars.auto_size().get(ctx.vars);
+        let auto_size = *self.vars.auto_size().get(ctx);
         let mut size = self.size();
         let mut max_size = self.max_size;
         if auto_size.contains(AutoSize::CONTENT_WIDTH) {
@@ -2361,7 +2361,7 @@ impl OpenWindow {
                 StartPosition::Default => None,
                 StartPosition::CenterScreen => Some(LayoutRect::from_size(self.screen_size())),
                 StartPosition::CenterParent => {
-                    if let Some(parent_id) = self.vars.parent().get(ctx.vars) {
+                    if let Some(parent_id) = self.vars.parent().get(ctx) {
                         if let Ok(parent) = ctx.services.windows().window(*parent_id) {
                             Some(LayoutRect::new(parent.position(), parent.size()))
                         } else {

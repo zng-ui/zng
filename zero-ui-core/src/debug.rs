@@ -423,17 +423,17 @@ impl UiNode for WidgetInstanceInfoNode {
             .zip(self.debug_vars.iter())
         {
             for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
-                arg.value = var.get(ctx.vars).clone();
-                arg.value_version = var.version(ctx.vars);
+                arg.value = var.get_clone(ctx);
+                arg.value_version = var.version(ctx);
                 arg.can_update = var.can_update();
             }
         }
         for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
-            when.condition = *var.get(ctx.vars);
-            when.condition_version = var.version(ctx.vars);
+            when.condition = var.copy(ctx);
+            when.condition_version = var.version(ctx);
         }
 
-        info.parent_property = ParentPropertyName::get(ctx.vars);
+        info.parent_property = ParentPropertyName::get(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -449,16 +449,16 @@ impl UiNode for WidgetInstanceInfoNode {
             .zip(self.debug_vars.iter())
         {
             for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
-                if let Some(update) = var.get_new(ctx.vars) {
+                if let Some(update) = var.get_new(ctx) {
                     arg.value = update.clone();
-                    arg.value_version = var.version(ctx.vars);
+                    arg.value_version = var.version(ctx);
                 }
             }
         }
         for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
-            if let Some(update) = var.get_new(ctx.vars) {
+            if let Some(update) = var.get_new(ctx) {
                 when.condition = *update;
-                when.condition_version = var.version(ctx.vars);
+                when.condition_version = var.version(ctx);
             }
         }
     }
@@ -557,8 +557,8 @@ impl UiNode for PropertyInfoNode {
         });
 
         for (var, arg) in self.arg_debug_vars.iter().zip(info.args.iter_mut()) {
-            arg.value = var.get(ctx.vars).clone();
-            arg.value_version = var.version(ctx.vars);
+            arg.value = var.get_clone(ctx);
+            arg.value_version = var.version(ctx);
             arg.can_update = var.can_update();
         }
     }
@@ -570,9 +570,9 @@ impl UiNode for PropertyInfoNode {
         ctx_mtd!(self.update, ctx, mut info);
 
         for (var, arg) in self.arg_debug_vars.iter_mut().zip(info.args.iter_mut()) {
-            if let Some(new) = var.get_new(ctx.vars) {
+            if let Some(new) = var.get_new(ctx) {
                 arg.value = new.clone();
-                arg.value_version = var.version(ctx.vars);
+                arg.value_version = var.version(ctx);
             }
         }
     }

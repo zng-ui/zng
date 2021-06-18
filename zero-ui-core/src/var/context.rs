@@ -33,14 +33,14 @@ impl<C: ContextVar> Default for ContextVarProxy<C> {
 impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     type AsReadOnly = Self;
 
-    type AsLocal = CloningLocalVar<C::Type, Self>;
-
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a C::Type {
-        vars.context_var::<C>().0
+    #[inline]
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a C::Type {
+        vars.as_ref().context_var::<C>().0
     }
 
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a C::Type> {
-        let info = vars.context_var::<C>();
+    #[inline]
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a C::Type> {
+        let info = vars.as_ref().context_var::<C>();
         if info.1 {
             Some(info.0)
         } else {
@@ -48,60 +48,74 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         }
     }
 
-    fn is_new(&self, vars: &Vars) -> bool {
-        vars.context_var::<C>().1
+    #[inline]
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        vars.with(|v| v.context_var::<C>().1)
     }
 
-    fn version(&self, vars: &VarsRead) -> u32 {
-        vars.context_var::<C>().2
+    #[inline]
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> C::Type {
+        self.get_clone(vars)
     }
 
-    fn is_read_only(&self, _: &Vars) -> bool {
+    #[inline]
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+        vars.with(|v| v.context_var::<C>().2)
+    }
+
+    #[inline]
+    fn is_read_only<Vr: WithVars>(&self, _: &Vr) -> bool {
         true
     }
 
+    #[inline]
     fn always_read_only(&self) -> bool {
         true
     }
 
+    #[inline]
     fn can_update(&self) -> bool {
         true
     }
 
-    fn modify<M>(&self, _: &Vars, _: M) -> Result<(), VarIsReadOnly>
+    #[inline]
+    fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         M: FnOnce(&mut VarModify<C::Type>) + 'static,
     {
         Err(VarIsReadOnly)
     }
 
-    fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly>
+    #[inline]
+    fn set<Vw, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<C::Type>,
     {
         Err(VarIsReadOnly)
     }
 
-    fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>
+    #[inline]
+    fn set_ne<Vw, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<C::Type>,
         C::Type: PartialEq,
     {
         Err(VarIsReadOnly)
     }
 
+    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
-    }
-
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
     }
 }
 
 impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     type Var = Self;
 
+    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }
@@ -211,28 +225,30 @@ macro_rules! __context_var_inner {
             /// References the value in the current `vars` context.
             #[inline]
             #[allow(unused)]
-            pub fn get<'a>(vars: &'a $crate::var::VarsRead) -> &'a $type {
+            pub fn get<'a, Vr: AsRef<$crate::var::VarsRead>>(vars: &'a Vr) -> &'a $type {
                 $crate::var::Var::get($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
+
+            // TODO copy, clone
 
             /// References the value in the current `vars` context if it is marked as new.
             #[inline]
             #[allow(unused)]
-            pub fn get_new<'a>(vars: &'a $crate::var::Vars) -> Option<&'a $type> {
+            pub fn get_new<'a, Vw: AsRef<$crate::var::Vars>>(vars: &'a Vw) -> Option<&'a $type> {
                 $crate::var::Var::get_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// If the value in the current `vars` context is marked as new.
             #[inline]
             #[allow(unused)]
-            pub fn is_new(vars: & $crate::var::Vars) -> bool {
+            pub fn is_new<Vw: $crate::var::WithVars>(vars: &Vw) -> bool {
                 $crate::var::Var::is_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// Gets the version of the value in the current `vars` context.
             #[inline]
             #[allow(unused)]
-            pub fn version(vars: & $crate::var::VarsRead) -> u32 {
+            pub fn version<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> u32 {
                 $crate::var::Var::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
         }

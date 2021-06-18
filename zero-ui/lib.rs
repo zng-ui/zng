@@ -260,7 +260,7 @@ pub mod core {
     /// impl<C: UiNode, V: Var<&'static str>> UiNode for MyNode<C, V> {
     ///     fn init(&mut self, ctx: &mut WidgetContext) {
     ///         self.child.init(ctx);
-    ///         println!("{}", self.value.get(ctx.vars));
+    ///         println!("{}", self.value.get(ctx));
     ///     }
     /// }
     ///
@@ -1014,7 +1014,7 @@ pub mod prelude {
     /// impl<C: UiNode, V: Var<bool>> UiNode for MyPropertyNode<C, V> {
     ///     fn update(&mut self, ctx: &mut WidgetContext) {
     ///         self.child.update(ctx);
-    ///         if let Some(new_value) = self.value.get_new(ctx.vars) {
+    ///         if let Some(new_value) = self.value.get_new(ctx) {
     ///             todo!()
     ///         }
     ///     }

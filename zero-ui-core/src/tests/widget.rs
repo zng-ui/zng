@@ -1579,7 +1579,7 @@ mod util {
     impl<C: UiNode> IsStateNode<C> {
         fn update_state(&mut self, ctx: &mut WidgetContext) {
             let wgt_state = ctx.widget_state.get::<IsStateKey>().copied().unwrap_or_default();
-            if wgt_state != *self.state.get(ctx.vars) {
+            if wgt_state != self.state.copy(ctx) {
                 self.state.set(ctx.vars, wgt_state);
             }
         }
@@ -1625,12 +1625,12 @@ mod util {
     impl<C: UiNode, T: Var<&'static str>> UiNode for LiveTraceNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            ctx.widget_state.entry::<TraceKey>().or_default().insert(self.trace.get(ctx.vars));
+            ctx.widget_state.entry::<TraceKey>().or_default().insert(self.trace.get(ctx));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if let Some(trace) = self.trace.get_new(ctx.vars) {
+            if let Some(trace) = self.trace.get_new(ctx) {
                 ctx.widget_state.entry::<TraceKey>().or_default().insert(trace);
             }
         }

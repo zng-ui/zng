@@ -147,11 +147,7 @@ pub mod uniform_grid {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.children.update_all(ctx);
 
-            if self.columns.is_new(ctx.vars)
-                || self.rows.is_new(ctx.vars)
-                || self.first_column.is_new(ctx.vars)
-                || self.spacing.is_new(ctx.vars)
-            {
+            if self.columns.is_new(ctx) || self.rows.is_new(ctx) || self.first_column.is_new(ctx) || self.spacing.is_new(ctx) {
                 ctx.updates.layout();
             }
         }
@@ -159,7 +155,7 @@ pub mod uniform_grid {
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get(ctx.vars).to_layout(available_size, ctx);
+            let layout_spacing = self.spacing.get(ctx).to_layout(available_size, ctx);
 
             let available_size = LayoutSize::new(
                 (available_size.width - layout_spacing.column / 2.0) / columns,
@@ -182,7 +178,7 @@ pub mod uniform_grid {
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get(ctx.vars).to_layout(final_size, ctx);
+            let layout_spacing = self.spacing.get(ctx).to_layout(final_size, ctx);
 
             let cell_size = LayoutSize::new(
                 (final_size.width - layout_spacing.column * (columns - 1.0)) / columns,
@@ -192,7 +188,7 @@ pub mod uniform_grid {
 
             self.children.arrange_all(ctx, |_, _| cell_size);
 
-            let mut first_column = *self.first_column.get(ctx.vars) as f32;
+            let mut first_column = self.first_column.copy(ctx) as f32;
             if first_column >= columns {
                 first_column = 0.0;
             }

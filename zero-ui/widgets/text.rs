@@ -189,16 +189,16 @@ impl<T: Var<Text>> TextNode<T> {
 #[impl_ui_node(none)]
 impl<T: Var<Text>> UiNode for TextNode<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let (family, style, weight, stretch) = TextContext::font_face(ctx.vars);
+        let (family, style, weight, stretch) = TextContext::font_face(ctx);
 
         // TODO use the full list.
         let font_face = ctx.services.fonts().get_list(family, style, weight, stretch).best().clone();
-        self.synthesis_used = *FontSynthesisVar::get(ctx.vars) & font_face.synthesis_for(style, weight);
+        self.synthesis_used = *FontSynthesisVar::get(ctx) & font_face.synthesis_for(style, weight);
         self.font_face = Some(font_face);
 
-        let text = self.text_var.get(ctx.vars).clone();
-        let text = TextTransformVar::get(ctx.vars).transform(text);
-        let text = WhiteSpaceVar::get(ctx.vars).transform(text);
+        let text = self.text_var.get_clone(ctx);
+        let text = TextTransformVar::get(ctx).transform(text);
+        let text = WhiteSpaceVar::get(ctx).transform(text);
         self.text = SegmentedText::new(text)
     }
 
@@ -211,8 +211,8 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         // update `self.text`, affects shaping and layout
-        if let Some(text) = self.text_var.get_new(ctx.vars) {
-            let (text_transform, white_space) = TextContext::text(ctx.vars);
+        if let Some(text) = self.text_var.get_new(ctx) {
+            let (text_transform, white_space) = TextContext::text(ctx);
             let text = text_transform.transform(text.clone());
             let text = white_space.transform(text);
             if self.text.text() != text {
@@ -221,8 +221,8 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
                 ctx.updates.layout();
             }
-        } else if let Some((text_transform, white_space)) = TextContext::text_update(ctx.vars) {
-            let text = self.text_var.get(ctx.vars).clone();
+        } else if let Some((text_transform, white_space)) = TextContext::text_update(ctx) {
+            let text = self.text_var.get_clone(ctx);
             let text = text_transform.transform(text);
             let text = white_space.transform(text);
             if self.text.text() != text {
@@ -234,7 +234,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // update `self.font_face`, affects shaping and layout
-        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
+        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx) {
             let face = ctx
                 .services
                 .fonts()
@@ -243,7 +243,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
                 .clone();
 
             if !self.font_face.as_ref().map(|f| f.ptr_eq(&face)).unwrap_or_default() {
-                self.synthesis_used = *FontSynthesisVar::get(ctx.vars) & face.synthesis_for(font_style, font_weight);
+                self.synthesis_used = *FontSynthesisVar::get(ctx) & face.synthesis_for(font_style, font_weight);
                 self.font_face = Some(face);
                 self.font = None;
                 self.shaped_text = ShapedText::default();
@@ -253,7 +253,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // update `self.font_instance`, affects shaping and layout
-        if TextContext::font_update(ctx.vars).is_some() {
+        if TextContext::font_update(ctx).is_some() {
             self.font = None;
             self.shaped_text = ShapedText::default();
             ctx.updates.layout();
@@ -262,12 +262,12 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         // TODO features, spacing, breaking.
 
         // update `self.color`
-        if TextContext::color_update(ctx.vars).is_some() {
+        if TextContext::color_update(ctx).is_some() {
             ctx.updates.render();
         }
 
         // update `self.font_synthesis`
-        if let Some((synthesis_allowed, style, weight)) = TextContext::font_synthesis_update(ctx.vars) {
+        if let Some((synthesis_allowed, style, weight)) = TextContext::font_synthesis_update(ctx) {
             if let Some(face) = &self.font_face {
                 let synthesis_used = synthesis_allowed & face.synthesis_for(style, weight);
                 if synthesis_used != self.synthesis_used {
@@ -280,7 +280,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
         if self.font.is_none() {
-            let (size, variations) = TextContext::font(ctx.vars);
+            let (size, variations) = TextContext::font(ctx);
             let size = size.to_layout(LayoutLength::new(available_size.width), ctx);
             self.font = Some(
                 self.font_face
@@ -317,7 +317,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             LayoutRect::from_size(self.size),
             self.shaped_text.glyphs(),
             self.font.as_ref().expect("font not initied in render"),
-            RenderColor::from(*TextColorVar::get(ctx.vars)),
+            RenderColor::from(*TextColorVar::get(ctx)),
             self.synthesis_used,
         );
     }

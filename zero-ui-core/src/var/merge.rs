@@ -391,26 +391,6 @@ macro_rules! impl_rc_merge_var {
                 }))
             }
 
-            pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
-                <Self as Var<O>>::get(self, vars)
-            }
-
-            pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
-                <Self as Var<O>>::get_new(self, vars)
-            }
-
-            pub fn is_new(&self, vars: &Vars) -> bool {
-                <Self as Var<O>>::is_new(self, vars)
-            }
-
-            pub fn version(&self, vars: &Vars) -> u32 {
-                <Self as Var<O>>::version(self, vars)
-            }
-
-            pub fn can_update(&self) -> bool {
-                <Self as Var<O>>::can_update(self)
-            }
-
             fn update_output(&self, vars: &VarsRead) {
                 // SAFETY: This is safe because it only happens before the first borrow
                 // of this update, and borrows cannot exist across updates because source
@@ -449,17 +429,17 @@ macro_rules! impl_rc_merge_var {
         Var<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             type AsReadOnly = ReadOnlyVar<O, Self>;
 
-            type AsLocal = CloningLocalVar<O, Self>;
-
-            fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
-                self.update_output(vars);
+            fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
+                self.update_output(vars.as_ref());
 
                 // SAFETY:
                 // This is safe because we require &mut Vars for updating.
                 unsafe { &*self.0.output.get() }.as_ref().unwrap()
             }
 
-            fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+            fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a O> {
+                let vars = vars.as_ref();
+
                 if self.is_new(vars) {
                     Some(self.get(vars))
                 } else {
@@ -467,19 +447,35 @@ macro_rules! impl_rc_merge_var {
                 }
             }
 
-            fn is_new(&self, vars: &Vars) -> bool {
+            #[inline]
+            fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
+                vars.with(|vars| {
+                    self.update_output(vars);
+
+                    match Rc::try_unwrap(self.0) {
+                        Ok(r) => r.output.into_inner().unwrap(),
+                        Err(e) => $RcMergeVar(e).get_clone(vars)
+                    }
+                })
+            }
+
+            fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
                 $(self.0.vars.$n.is_new(vars))||+
             }
 
-            fn version(&self, vars: &VarsRead) -> u32 {
-                self.update_output(vars);
-                self.0.output_version.get()
+            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+               vars.with(|vars| {
+                    self.update_output(vars);
+                    self.0.output_version.get()
+               })
             }
 
-            fn is_read_only(&self, _: &Vars) -> bool {
+            #[inline]
+            fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
                 true
             }
 
+            #[inline]
             fn always_read_only(&self) -> bool {
                 true
             }
@@ -488,22 +484,22 @@ macro_rules! impl_rc_merge_var {
                 $(self.0.vars.$n.can_update())||+
             }
 
-            fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly> where N: Into<O> {
+            #[inline]
+            fn set<Vw: WithVars, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly> where N: Into<O> {
                 Err(VarIsReadOnly)
             }
 
-            fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>  where N: Into<O>, O: PartialEq {
+            #[inline]
+            fn set_ne<Vw: WithVars, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>  where N: Into<O>, O: PartialEq {
                 Err(VarIsReadOnly)
             }
 
-            fn modify<F2: FnOnce(&mut VarModify<O>) + 'static>(&self, _: &Vars, _: F2) -> Result<(), VarIsReadOnly> {
+            #[inline]
+            fn modify<Vw: WithVars, F2: FnOnce(&mut VarModify<O>) + 'static>(&self, _: &Vw, _: F2) -> Result<(), VarIsReadOnly> {
                 Err(VarIsReadOnly)
             }
 
-            fn into_local(self) -> Self::AsLocal {
-                CloningLocalVar::new(self)
-            }
-
+            #[inline]
             fn into_read_only(self) -> Self::AsReadOnly {
                 ReadOnlyVar::new(self)
             }

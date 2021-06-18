@@ -21,14 +21,14 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode, F: Var<Filter>> UiNode for FilterNode<C, F> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.filter.is_new(ctx.vars) {
+            if self.filter.is_new(ctx) {
                 ctx.updates.layout() //TODO don't use layout when not needed.
             }
             self.child.update(ctx)
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.render_filter = self.filter.get(ctx.vars).to_render(final_size, ctx);
+            self.render_filter = self.filter.get(ctx).to_render(final_size, ctx);
             self.child.arrange(ctx, final_size);
         }
 
@@ -115,14 +115,14 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl Ui
     #[impl_ui_node(child)]
     impl<C: UiNode, A: Var<FactorNormal>> UiNode for OpacityNode<C, A> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.alpha_value.is_new(ctx.vars) {
+            if self.alpha_value.is_new(ctx) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.alpha_value.get(ctx.vars).0;
+            let opacity = self.alpha_value.get(ctx).0;
             let opacity = if let Some(frame_key) = self.frame_key {
                 frame_key.bind(opacity)
             } else {
@@ -133,7 +133,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl Ui
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Some(frame_key) = self.frame_key {
-                update.update_f32(frame_key.update(self.alpha_value.get(ctx.vars).0));
+                update.update_f32(frame_key.update(self.alpha_value.get(ctx).0));
             }
             self.child.render_update(ctx, update);
         }

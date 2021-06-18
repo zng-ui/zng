@@ -22,13 +22,13 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
     {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if self.transform.is_new(ctx.vars) {
+            if self.transform.is_new(ctx) {
                 ctx.updates.render_update();
             }
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.layout_transform = self.transform.get(ctx.vars).to_layout(final_size, ctx);
+            self.layout_transform = self.transform.get(ctx).to_layout(final_size, ctx);
             self.child.arrange(ctx, final_size);
         }
 
@@ -170,14 +170,14 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     #[impl_ui_node(child)]
     impl<C: UiNode, O: Var<Point>> UiNode for TransformOriginNode<C, O> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.origin.is_new(ctx.vars) {
+            if self.origin.is_new(ctx) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx);
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.layout_origin = self.origin.get(ctx.vars).to_layout(final_size, ctx);
+            self.layout_origin = self.origin.get(ctx).to_layout(final_size, ctx);
             self.child.arrange(ctx, final_size);
         }
 

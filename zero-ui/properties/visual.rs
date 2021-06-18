@@ -316,7 +316,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     #[impl_ui_node(child)]
     impl<T: UiNode, S: Var<bool>> UiNode for ClipToBoundsNode<T, S> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.clip.is_new(ctx.vars) {
+            if self.clip.is_new(ctx) {
                 ctx.updates.render();
             }
 
@@ -329,7 +329,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if *self.clip.get(ctx.vars) {
+            if *self.clip.get(ctx) {
                 frame.push_simple_clip(self.bounds, |frame| self.child.render(ctx, frame));
             } else {
                 self.child.render(ctx, frame);

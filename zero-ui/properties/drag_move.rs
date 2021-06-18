@@ -15,7 +15,7 @@ pub fn draggable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
     impl<C: UiNode, E: Var<bool>> UiNode for DraggableNode<C, E> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if *self.enabled.get(ctx.vars) {
+            if self.enabled.copy(ctx) {
                 todo!();
             }
         }

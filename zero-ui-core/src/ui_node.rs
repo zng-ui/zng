@@ -66,7 +66,7 @@ pub trait UiNode: 'static {
     /// impl<C: UiNode> UiNode for MyNode<C> {
     ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
     ///         if let Some(args) = ClickEvent.update(args) {
-    ///             if args.concerns_widget(ctx) && IsEnabled::get(ctx.vars) && !args.stop_propagation_requested() {
+    ///             if args.concerns_widget(ctx) && IsEnabled::get(ctx) && !args.stop_propagation_requested() {
     ///                 self.click_count += 1;
     ///                 args.stop_propagation();
     ///                 println!("clicks blocked {}", self.click_count);
@@ -606,7 +606,7 @@ where
 {
     /// Takes the widget when the var value is `true`.
     fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
-        *self.get(ctx.vars)
+        *self.get(ctx)
     }
 }
 /// An [`RcNodeTakeSignal`] that takes the widget when `custom` returns `true`.

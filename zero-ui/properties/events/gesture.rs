@@ -147,7 +147,7 @@ where
     {
         if let Some(args) = ShortcutEvent.update(args) {
             self.child.event(ctx, args);
-            if !args.stop_propagation_requested() && self.shortcuts.get(ctx.vars).0.contains(&args.shortcut) {
+            if !args.stop_propagation_requested() && self.shortcuts.get(ctx).0.contains(&args.shortcut) {
                 // this request also focus the widget if the window is focused
                 // and the widget is focusable.
                 ctx.services

@@ -9,7 +9,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
     #[impl_ui_node(none)]
     impl<C: Var<Rgba>> UiNode for FillColorNode<C> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.color.is_new(ctx.vars) {
+            if self.color.is_new(ctx) {
                 ctx.updates.render();
             }
         }
@@ -18,7 +18,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_color(LayoutRect::from_size(self.final_size), (*self.color.get(ctx.vars)).into());
+            frame.push_color(LayoutRect::from_size(self.final_size), (self.color.copy(ctx)).into());
         }
     }
 

@@ -611,6 +611,240 @@ impl Deref for Vars {
     }
 }
 
+/// Represents a type that can provide access to a [`Vars`] inside the window of function call.
+///
+/// This is used to make vars assign less cumbersome to use, it is implemented to all sync and async context types and [`Vars`] it-self.
+///
+/// # Example
+///
+/// The example demonstrate how this `trait` simplifies calls to [`Var::set`]. The same applies to [`Var::modify`] and [`Var::set_ne`].
+///
+/// ```
+/// # use zero_ui_core::{var::*, context::*};
+/// # struct Foo { foo_var: RcVar<&'static str> } impl Foo {
+/// fn update(&mut self, ctx: &mut WidgetContext) {
+///     self.foo_var.set(ctx, "we are not borrowing `ctx` so can use it directly");
+///
+///    // ..
+///    let services = ctx.services;
+///    self.foo_var.set(ctx.vars, "we are partially borrowing `ctx` but not `ctx.vars` so we use that");
+/// }
+///
+/// async fn handler(&mut self, ctx: WidgetContextMut) {
+///     self.foo_var.set(&ctx, "async contexts are also almost seamless");
+/// }
+/// # }
+/// ```
+pub trait WithVars {
+    /// Calls `action` with the [`Vars`] reference.
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R;
+}
+impl WithVars for Vars {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        action(self)
+    }
+}
+impl<'a, 'w> WithVars for crate::context::AppContext<'a, 'w> {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        action(self.vars)
+    }
+}
+impl<'a> WithVars for crate::context::WindowContext<'a> {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        action(self.vars)
+    }
+}
+impl<'a> WithVars for crate::context::WidgetContext<'a> {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        action(self.vars)
+    }
+}
+impl WithVars for crate::context::AppContextMut {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        self.with(move |ctx| action(ctx.vars))
+    }
+}
+impl WithVars for crate::context::WindowContextMut {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        self.with(move |ctx| action(ctx.vars))
+    }
+}
+impl WithVars for crate::context::WidgetContextMut {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        self.with(move |ctx| action(ctx.vars))
+    }
+}
+
+/// Represents a type that can provide access to a [`VarsRead`] inside the window of function call.
+///
+/// This is used to make vars value-read less cumbersome to use, it is implemented to all sync and async context
+/// types and [`Vars`] it-self.
+pub trait WithVarsRead {
+    /// Calls `action` with the [`Vars`] reference.
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R;
+}
+impl WithVarsRead for Vars {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self)
+    }
+}
+impl WithVarsRead for VarsRead {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self)
+    }
+}
+impl<'a, 'w> WithVarsRead for crate::context::AppContext<'a, 'w> {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self.vars)
+    }
+}
+impl<'a> WithVarsRead for crate::context::WindowContext<'a> {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self.vars)
+    }
+}
+impl<'a> WithVarsRead for crate::context::WidgetContext<'a> {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self.vars)
+    }
+}
+impl WithVarsRead for crate::context::AppContextMut {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        self.with(move |ctx| action(ctx.vars))
+    }
+}
+impl WithVarsRead for crate::context::WindowContextMut {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        self.with(move |ctx| action(ctx.vars))
+    }
+}
+impl WithVarsRead for crate::context::WidgetContextMut {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        self.with(move |ctx| action(ctx.vars))
+    }
+}
+impl<'a> WithVarsRead for crate::context::LayoutContext<'a> {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self.vars)
+    }
+}
+impl<'a> WithVarsRead for crate::context::RenderContext<'a> {
+    fn with<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self.vars)
+    }
+}
+
+impl AsRef<VarsRead> for VarsRead {
+    fn as_ref(&self) -> &VarsRead {
+        self
+    }
+}
+impl AsRef<VarsRead> for Vars {
+    fn as_ref(&self) -> &VarsRead {
+        self
+    }
+}
+impl<'a, 'w> AsRef<VarsRead> for crate::context::AppContext<'a, 'w> {
+    fn as_ref(&self) -> &VarsRead {
+        self.vars
+    }
+}
+impl<'a> AsRef<VarsRead> for crate::context::WindowContext<'a> {
+    fn as_ref(&self) -> &VarsRead {
+        self.vars
+    }
+}
+impl<'a> AsRef<VarsRead> for crate::context::WidgetContext<'a> {
+    fn as_ref(&self) -> &VarsRead {
+        self.vars
+    }
+}
+impl<'a> AsRef<VarsRead> for crate::context::LayoutContext<'a> {
+    fn as_ref(&self) -> &VarsRead {
+        self.vars
+    }
+}
+impl<'a> AsRef<VarsRead> for crate::context::RenderContext<'a> {
+    fn as_ref(&self) -> &VarsRead {
+        self.vars
+    }
+}
+impl AsRef<Vars> for Vars {
+    fn as_ref(&self) -> &Vars {
+        self
+    }
+}
+impl<'a, 'w> AsRef<Vars> for crate::context::AppContext<'a, 'w> {
+    fn as_ref(&self) -> &Vars {
+        self.vars
+    }
+}
+impl<'a> AsRef<Vars> for crate::context::WindowContext<'a> {
+    fn as_ref(&self) -> &Vars {
+        self.vars
+    }
+}
+impl<'a> AsRef<Vars> for crate::context::WidgetContext<'a> {
+    fn as_ref(&self) -> &Vars {
+        self.vars
+    }
+}
+
 /// A variable update receiver that can be used from any thread and without access to [`Vars`].
 ///
 /// Use [`VarsRead::receiver`] to create a receiver, drop to stop listening.
@@ -806,9 +1040,9 @@ impl<T: VarValue + Send> ResponseSender<T> {
 }
 
 /// New paired [`ResponseSender`] and [`ResponseVar`] in the waiting state.
-pub fn response_channel<T: VarValue + Send>(vars: &Vars) -> (ResponseSender<T>, ResponseVar<T>) {
+pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (ResponseSender<T>, ResponseVar<T>) {
     let (responder, response) = response_var();
-    (vars.sender(&responder), response)
+    vars.with(|vars| (vars.sender(&responder), response))
 }
 
 /// Represents a variable binding created one of the `bind` methods of [`Vars`].
@@ -900,8 +1134,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&20i32), a.get_new(ctx.vars));
-                assert_eq!(Some(&"20".to_text()), b.get_new(ctx.vars));
+                assert_eq!(Some(20i32), a.copy_new(ctx));
+                assert_eq!(Some("20".to_text()), b.copy_new(ctx));
             },
             false,
         );
@@ -913,8 +1147,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&13i32), a.get_new(ctx.vars));
-                assert_eq!(Some(&"13".to_text()), b.get_new(ctx.vars));
+                assert_eq!(Some(13i32), a.copy_new(ctx));
+                assert_eq!(Some("13".to_text()), b.get_new(ctx));
             },
             false,
         );
@@ -948,8 +1182,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&20i32), a.get_new(ctx.vars));
-                assert_eq!(Some(&"20".to_text()), b.get_new(ctx.vars));
+                assert_eq!(Some(20i32), a.copy_new(ctx));
+                assert_eq!(Some("20".to_text()), b.get_new(ctx));
             },
             false,
         );
@@ -961,8 +1195,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&"55".to_text()), b.get_new(ctx.vars));
-                assert_eq!(Some(&55i32), a.get_new(ctx.vars));
+                assert_eq!(Some("55".to_text()), b.get_new(ctx));
+                assert_eq!(Some(55i32), a.copy_new(ctx));
             },
             false,
         );
@@ -996,8 +1230,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&20i32), a.get_new(ctx.vars));
-                assert_eq!(Some(&"20".to_text()), b.get_new(ctx.vars));
+                assert_eq!(Some(20i32), a.copy_new(ctx));
+                assert_eq!(Some("20".to_text()), b.clone_new(ctx));
             },
             false,
         );
@@ -1009,9 +1243,9 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&13i32), a.get_new(ctx.vars));
-                assert_eq!(&"20".to_text(), b.get(ctx.vars));
-                assert!(!b.is_new(ctx.vars));
+                assert_eq!(Some(&13i32), a.get_new(ctx));
+                assert_eq!("20".to_text(), b.get(ctx));
+                assert!(!b.is_new(ctx));
             },
             false,
         );
@@ -1045,8 +1279,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&20i32), a.get_new(ctx.vars));
-                assert_eq!(Some(&"20".to_text()), b.get_new(ctx.vars));
+                assert_eq!(Some(20i32), a.get_new(ctx));
+                assert_eq!(Some("20".to_text()), b.get_new(ctx));
             },
             false,
         );
@@ -1058,8 +1292,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&"55".to_text()), b.get_new(ctx.vars));
-                assert_eq!(Some(&55i32), a.get_new(ctx.vars));
+                assert_eq!(Some("55".to_text()), b.get_new(ctx));
+                assert_eq!(Some(55i32), a.get_new(ctx));
             },
             false,
         );
@@ -1071,9 +1305,9 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&"not a i32".to_text()), b.get_new(ctx.vars));
-                assert_eq!(&55i32, a.get(ctx.vars));
-                assert!(!a.is_new(ctx.vars));
+                assert_eq!(Some("not a i32".to_text()), b.get_new(ctx));
+                assert_eq!(55i32, a.get(ctx));
+                assert!(!a.is_new(ctx));
             },
             false,
         );
@@ -1109,10 +1343,10 @@ mod tests {
             |ctx| {
                 update_count += 1;
 
-                assert_eq!(Some(&20), a.get_new(ctx.vars));
-                assert_eq!(Some(&21), b.get_new(ctx.vars));
-                assert_eq!(Some(&22), c.get_new(ctx.vars));
-                assert_eq!(Some(&23), d.get_new(ctx.vars));
+                assert_eq!(Some(20), a.copy_new(ctx));
+                assert_eq!(Some(21), b.copy_new(ctx));
+                assert_eq!(Some(22), c.copy_new(ctx));
+                assert_eq!(Some(23), d.copy_new(ctx));
             },
             false,
         );
@@ -1125,10 +1359,10 @@ mod tests {
             |ctx| {
                 update_count += 1;
 
-                assert_eq!(Some(&30), a.get_new(ctx.vars));
-                assert_eq!(Some(&31), b.get_new(ctx.vars));
-                assert_eq!(Some(&32), c.get_new(ctx.vars));
-                assert_eq!(Some(&33), d.get_new(ctx.vars));
+                assert_eq!(Some(30), a.copy_new(ctx));
+                assert_eq!(Some(31), b.copy_new(ctx));
+                assert_eq!(Some(32), c.copy_new(ctx));
+                assert_eq!(Some(33), d.copy_new(ctx));
             },
             false,
         );
@@ -1164,10 +1398,10 @@ mod tests {
             |ctx| {
                 update_count += 1;
 
-                assert_eq!(Some(&20), a.get_new(ctx.vars));
-                assert_eq!(Some(&20), b.get_new(ctx.vars));
-                assert_eq!(Some(&20), c.get_new(ctx.vars));
-                assert_eq!(Some(&20), d.get_new(ctx.vars));
+                assert_eq!(Some(20), a.copy_new(ctx));
+                assert_eq!(Some(20), b.copy_new(ctx));
+                assert_eq!(Some(20), c.copy_new(ctx));
+                assert_eq!(Some(20), d.copy_new(ctx));
             },
             false,
         );
@@ -1180,10 +1414,10 @@ mod tests {
             |ctx| {
                 update_count += 1;
 
-                assert_eq!(Some(&30), a.get_new(ctx.vars));
-                assert_eq!(Some(&30), b.get_new(ctx.vars));
-                assert_eq!(Some(&30), c.get_new(ctx.vars));
-                assert_eq!(Some(&30), d.get_new(ctx.vars));
+                assert_eq!(Some(30), a.copy_new(ctx));
+                assert_eq!(Some(30), b.copy_new(ctx));
+                assert_eq!(Some(30), c.copy_new(ctx));
+                assert_eq!(Some(30), d.copy_new(ctx));
             },
             false,
         );
@@ -1209,8 +1443,8 @@ mod tests {
             |ctx| {
                 update_count += 1;
 
-                assert_eq!(Some(&10), a.get_new(ctx.vars));
-                assert_eq!(Some(&11), b.get_new(ctx.vars));
+                assert_eq!(Some(10), a.copy_new(ctx));
+                assert_eq!(Some(11), b.copy_new(ctx));
             },
             false,
         );
@@ -1226,9 +1460,9 @@ mod tests {
             |ctx| {
                 update_count += 1;
 
-                assert_eq!(Some(&100), a.get_new(ctx.vars));
-                assert!(!b.is_new(ctx.vars));
-                assert_eq!(&11, b.get(ctx.vars));
+                assert_eq!(Some(100), a.copy_new(ctx));
+                assert!(!b.is_new(ctx));
+                assert_eq!(11, b.copy(ctx));
             },
             false,
         );
@@ -1251,8 +1485,8 @@ mod tests {
             |ctx| {
                 update_count += 1;
 
-                assert_eq!(Some(&10), a.get_new(ctx.vars));
-                assert_eq!(Some(&11), b.get_new(ctx.vars));
+                assert_eq!(Some(10), a.copy_new(ctx));
+                assert_eq!(Some(11), b.copy_new(ctx));
             },
             false,
         );
@@ -1267,9 +1501,9 @@ mod tests {
             |ctx| {
                 update_count += 1;
 
-                assert_eq!(Some(&100), a.get_new(ctx.vars));
-                assert!(!b.is_new(ctx.vars));
-                assert_eq!(&11, b.get(ctx.vars));
+                assert_eq!(Some(100), a.copy_new(ctx));
+                assert!(!b.is_new(ctx));
+                assert_eq!(11, b.copy(ctx));
             },
             false,
         );

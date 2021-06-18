@@ -11,9 +11,6 @@ pub use vars::*;
 mod boxed;
 pub use boxed::*;
 
-mod cloning_local;
-pub use cloning_local::*;
-
 mod context;
 pub use context::*;
 
@@ -99,14 +96,6 @@ pub trait IntoVar<T: VarValue>: Clone {
     /// Converts the source value into a var.
     fn into_var(self) -> Self::Var;
 
-    /// Shortcut call `self.into_var().into_local()`.
-    fn into_local(self) -> <<Self as IntoVar<T>>::Var as Var<T>>::AsLocal
-    where
-        Self: Sized,
-    {
-        Var::into_local(self.into_var())
-    }
-
     #[doc(hidden)]
     #[allow(non_snake_case)]
     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
@@ -122,38 +111,62 @@ impl<T: VarValue> IntoValue<T> for T {}
 pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// The variable type that represents a read-only version of this type.
     type AsReadOnly: Var<T>;
-    /// The variable type that represents a version of this type that provides direct access
-    /// to its value without a [`VarsRead`] reference.
-    type AsLocal: VarLocal<T>;
 
     // TODO when GATs are stable:
     // type Map<B: VarValue, M: FnMut(&T) -> B> : Var<B>;
     // type MapBidi<B: VarValue, M: FnMut(&T) -> B, N: FnMut(&B) -> T> : Var<B>;
 
     /// References the value.
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T;
+
+    /// Copy the value.
+    #[inline]
+    fn copy<Vr: WithVarsRead>(&self, vars: &Vr) -> T
+    where
+        T: Copy,
+    {
+        vars.with(|v| *self.get(v))
+    }
+
+    /// Clone the value.
+    #[inline]
+    fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
+        vars.with(|v| self.get(v).clone())
+    }
 
     /// References the value if [`is_new`](Self::is_new).
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T>;
+
+    /// Copy the value if [`is_new`](Self::is_new).
+    #[inline]
+    fn copy_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T>
+    where
+        T: Copy,
+    {
+        vars.with(|v| self.get_new(v).copied())
+    }
+
+    /// Clone the value if [`is_new`](Self::is_new).
+    #[inline]
+    fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
+        vars.with(|v| self.get_new(v).cloned())
+    }
 
     /// If the variable value changed in this update.
     ///
     /// When the variable value changes this stays `true` for one app update cycle.
-    #[inline]
-    fn is_new(&self, vars: &Vars) -> bool {
-        self.get_new(vars).is_some()
-    }
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool;
 
     /// Gets the variable value version.
     ///
     /// The version is a different number every time the value is modified, you can use this to monitor
     /// variable change outside of the window of opportunity of [`is_new`](Self::is_new).
-    fn version(&self, vars: &VarsRead) -> u32;
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32;
 
     /// If the variable cannot be set or modified right now.
     ///
     /// **Note** this can change unless the variable is [`always_read_only`](Self::always_read_only).
-    fn is_read_only(&self, vars: &Vars) -> bool;
+    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool;
 
     /// If the variable can never be set or modified.
     ///
@@ -165,23 +178,28 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// **Note** this can be `true` even if the variable is [`always_read_only`](Self::always_read_only).
     fn can_update(&self) -> bool;
 
+    /// Convert this variable to the value, if the variable is a reference, clones the value.
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T;
+
     /// Schedule a modification of the variable value.
     ///
     /// The variable is marked as *new* only if the closure input is dereferenced as `mut`.
-    fn modify<M>(&self, vars: &Vars, modify: M) -> Result<(), VarIsReadOnly>
+    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         M: FnOnce(&mut VarModify<T>) + 'static;
 
     /// Causes the variable to notify update without changing the value.
     #[inline]
-    fn touch(&self, vars: &Vars) -> Result<(), VarIsReadOnly> {
+    fn touch<Vw: WithVars>(&self, vars: &Vw) -> Result<(), VarIsReadOnly> {
         self.modify(vars, |v| v.touch())
     }
 
     /// Schedule a new value for the variable.
     #[inline]
-    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<T>,
     {
         let new_value = new_value.into();
@@ -190,8 +208,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
 
     /// Schedule a new value for the variable, but only if the current value is not equal to `new_value`.
     #[inline]
-    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<T>,
         T: PartialEq,
     {
@@ -199,17 +218,19 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
             Err(VarIsReadOnly)
         } else {
             let new_value = new_value.into();
-            if self.get(vars) != &new_value {
-                let _r = self.set(vars, new_value);
-                debug_assert!(
-                    _r.is_ok(),
-                    "variable type `{}` said it was not read-only but returned `VarIsReadOnly` on set",
-                    std::any::type_name::<Self>()
-                );
-                Ok(true)
-            } else {
-                Ok(false)
-            }
+            vars.with(|vars| {
+                if self.get(vars) != &new_value {
+                    let _r = self.set(vars, new_value);
+                    debug_assert!(
+                        _r.is_ok(),
+                        "variable type `{}` said it was not read-only but returned `VarIsReadOnly` on set",
+                        std::any::type_name::<Self>()
+                    );
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            })
         }
     }
 
@@ -224,9 +245,6 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
 
     /// Convert this variable to one that cannot be set or modified.
     fn into_read_only(self) -> Self::AsReadOnly;
-
-    /// Convert this variable to one that provides direct access to the current value.
-    fn into_local(self) -> Self::AsLocal;
 
     /// Create a read-only variable with a value that is mapped from this variable.
     ///
@@ -383,29 +401,6 @@ impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
         self.touched = true;
         self.value
     }
-}
-
-/// A [`Var`] that provide direct access to its value without holding a [`Vars`] reference.
-///
-/// This is only possible if the value is local, so variable with shared values
-/// will keep a clone of the value locally if converted to [`VarLocal`].
-pub trait VarLocal<T: VarValue>: Var<T> {
-    /// Reference the current value.
-    fn get_local(&self) -> &T;
-
-    /// Initializes local clone of the value, if needed.
-    ///
-    /// This must be called in the [`UiNode::init`](crate::UiNode::init) method.
-    ///
-    /// Returns a reference to the local value for convenience.
-    fn init_local<'a>(&'a mut self, vars: &'a Vars) -> &'a T;
-
-    /// Updates the local clone of the value, if needed.
-    ///
-    /// This must be called in the [`UiNode::update`](crate::UiNode::update) method.
-    ///
-    /// Returns a reference to the local value if the value is new.
-    fn update_local<'a>(&'a mut self, vars: &'a Vars) -> Option<&'a T>;
 }
 
 /// New [`impl Var<T>`](Var) from an expression with interpolated *vars*.

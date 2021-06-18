@@ -200,12 +200,12 @@ where
         V: Var<K::Type>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.widget_state.set::<K>(self.var.get(ctx.vars).clone());
+            ctx.widget_state.set::<K>(self.var.get(ctx).clone());
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new) = self.var.get_new(ctx.vars) {
+            if let Some(new) = self.var.get_new(ctx) {
                 ctx.widget_state.set::<K>(new.clone());
             }
             self.child.update(ctx);
@@ -279,12 +279,12 @@ mod tests {
         impl<C: UiNode, V: Var<u8>> UiNode for TestVarProbeNode<C, V> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.child.init(ctx);
-                self.value.set(ctx.vars, *TestVar::get(ctx.vars)).expect("probe var is read-only");
+                self.value.set(ctx.vars, *TestVar::get(ctx)).expect("probe var is read-only");
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {
                 self.child.update(ctx);
-                if let Some(&new) = TestVar::get_new(ctx.vars) {
+                if let Some(&new) = TestVar::get_new(ctx) {
                     self.value.set(ctx.vars, new).expect("probe var is read-only");
                 }
             }

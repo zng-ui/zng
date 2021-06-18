@@ -6,25 +6,33 @@ pub struct OwnedVar<T: VarValue>(pub T);
 impl<T: VarValue> Var<T> for OwnedVar<T> {
     type AsReadOnly = Self;
 
-    type AsLocal = Self;
-
     #[inline]
-    fn get<'a>(&'a self, _: &'a VarsRead) -> &'a T {
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, _: &'a Vr) -> &'a T {
         &self.0
     }
 
     #[inline]
-    fn get_new<'a>(&'a self, _: &'a Vars) -> Option<&'a T> {
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, _: &'a Vw) -> Option<&'a T> {
         None
     }
 
     #[inline]
-    fn version(&self, _: &VarsRead) -> u32 {
+    fn is_new<Vw: WithVars>(&self, _: &Vw) -> bool {
+        false
+    }
+
+    #[inline]
+    fn into_value<Vr: WithVarsRead>(self, _: &Vr) -> T {
+        self.0
+    }
+
+    #[inline]
+    fn version<Vr: WithVarsRead>(&self, _: &Vr) -> u32 {
         0
     }
 
     #[inline]
-    fn is_read_only(&self, _: &Vars) -> bool {
+    fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
         true
     }
 
@@ -39,24 +47,27 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     }
 
     #[inline]
-    fn modify<M>(&self, _: &Vars, _: M) -> Result<(), VarIsReadOnly>
+    fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         M: FnOnce(&mut VarModify<T>) + 'static,
     {
         Err(VarIsReadOnly)
     }
 
     #[inline]
-    fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly>
+    fn set<Vw, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<T>,
     {
         Err(VarIsReadOnly)
     }
 
     #[inline]
-    fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Vw, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<T>,
         T: PartialEq,
     {
@@ -65,11 +76,6 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
 
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
-        self
-    }
-
-    #[inline]
-    fn into_local(self) -> Self::AsLocal {
         self
     }
 }
@@ -81,23 +87,6 @@ impl<T: VarValue> IntoVar<T> for OwnedVar<T> {
         self
     }
 }
-impl<T: VarValue> VarLocal<T> for OwnedVar<T> {
-    #[inline]
-    fn get_local(&self) -> &T {
-        &self.0
-    }
-
-    #[inline]
-    fn init_local<'a>(&'a mut self, _: &'a Vars) -> &'a T {
-        &self.0
-    }
-
-    #[inline]
-    fn update_local<'a>(&'a mut self, _: &'a Vars) -> Option<&'a T> {
-        None
-    }
-}
-
 impl<T: VarValue> IntoVar<T> for T {
     type Var = OwnedVar<T>;
 

@@ -34,7 +34,7 @@ where
 
     #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.spacing.is_new(ctx.vars) {
+        if self.spacing.is_new(ctx) {
             ctx.updates.layout();
         }
         self.children.update_all(ctx);
@@ -48,7 +48,7 @@ where
         let (total_len, max_ort_len) = D::lengths_mut(&mut total_size);
         let spacing = self
             .spacing
-            .get(ctx.vars)
+            .get(ctx)
             .to_layout(LayoutLength::new(D::length(available_size)), ctx)
             .get();
         let mut first = true;

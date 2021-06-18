@@ -34,25 +34,33 @@ where
 {
     type AsReadOnly = Self;
 
-    type AsLocal = ReadOnlyVar<T, V::AsLocal>;
-
     #[inline]
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
         self.0.get(vars)
     }
 
     #[inline]
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         self.0.get_new(vars)
     }
 
     #[inline]
-    fn version(&self, vars: &VarsRead) -> u32 {
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        self.0.is_new(vars)
+    }
+
+    #[inline]
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
+        self.0.into_value(vars)
+    }
+
+    #[inline]
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
         self.0.version(vars)
     }
 
     #[inline]
-    fn is_read_only(&self, _: &Vars) -> bool {
+    fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
         true
     }
 
@@ -67,24 +75,27 @@ where
     }
 
     #[inline]
-    fn modify<M>(&self, _: &Vars, _: M) -> Result<(), VarIsReadOnly>
+    fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         M: FnOnce(&mut VarModify<T>) + 'static,
     {
         Err(VarIsReadOnly)
     }
 
     #[inline]
-    fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly>
+    fn set<Vw, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<T>,
     {
         Err(VarIsReadOnly)
     }
 
     #[inline]
-    fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Vw, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<T>,
         T: PartialEq,
     {
@@ -94,11 +105,6 @@ where
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
-    }
-
-    #[inline]
-    fn into_local(self) -> Self::AsLocal {
-        ReadOnlyVar::new(Var::into_local(self.0))
     }
 }
 
@@ -112,26 +118,5 @@ where
     #[inline]
     fn into_var(self) -> Self::Var {
         self
-    }
-}
-
-impl<T, V> VarLocal<T> for ReadOnlyVar<T, V>
-where
-    T: VarValue,
-    V: Var<T> + VarLocal<T>,
-{
-    #[inline]
-    fn get_local(&self) -> &T {
-        self.0.get_local()
-    }
-
-    #[inline]
-    fn init_local<'a>(&'a mut self, vars: &'a Vars) -> &'a T {
-        self.0.init_local(vars)
-    }
-
-    #[inline]
-    fn update_local<'a>(&'a mut self, vars: &'a Vars) -> Option<&'a T> {
-        self.0.update_local(vars)
     }
 }

@@ -26,17 +26,27 @@ impl<T: VarValue> RcVar<T> {
 
     /// Reference the current value.
     #[inline]
-    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
-        let _ = vars;
+    pub fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
+        let _vars = vars.as_ref();
         // SAFETY: this is safe because we are tying the `Vars` lifetime to the value
         // and we require `&mut Vars` to modify the value.
         unsafe { &*self.0.value.get() }
     }
 
+    fn copy<Vr: WithVarsRead>(&self, vars: &Vr) -> T
+    where
+            T: Copy, {
+        
+    }
+
+    fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
+        
+    }
+
     /// Reference the current value if it [is new](Self::is_new).
     #[inline]
-    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
-        let _ = vars;
+    pub fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
+        let vars = vars.as_ref();
         if self.0.last_update_id.get() == vars.update_id() {
             Some(self.get(vars))
         } else {
@@ -44,48 +54,61 @@ impl<T: VarValue> RcVar<T> {
         }
     }
 
+    pub fn copy_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T>
+    where
+            T: Copy, {
+        
+    }
+
+    pub fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
+        
+    }
+
     /// If the current value changed in the last update.
     #[inline]
-    pub fn is_new(&self, vars: &Vars) -> bool {
-        self.0.last_update_id.get() == vars.update_id()
+    pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        vars.with(|vars| self.0.last_update_id.get() == vars.update_id())
     }
 
     /// Gets the current value version.
     #[inline]
-    pub fn version(&self, vars: &VarsRead) -> u32 {
-        let _ = vars;
-        self.0.version.get()
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+        vars.with(|_| self.0.version.get())
     }
 
     /// Schedule a value modification for this variable.
     #[inline]
-    pub fn modify<M>(&self, vars: &Vars, modify: M)
+    pub fn modify<Vw, M>(&self, vars: &Vw, modify: M)
     where
+        Vw: WithVars,
         M: FnOnce(&mut VarModify<T>) + 'static,
     {
-        let self_ = self.clone();
-        vars.push_change(Box::new(move |update_id| {
-            // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
-            let mut guard = VarModify::new(unsafe { &mut *self_.0.value.get() });
-            modify(&mut guard);
-            if guard.touched() {
-                self_.0.last_update_id.set(update_id);
-                self_.0.version.set(self_.0.version.get().wrapping_add(1));
-            }
-            guard.touched()
-        }));
+        vars.with(|vars| {
+            let self_ = self.clone();
+            vars.push_change(Box::new(move |update_id| {
+                // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
+                let mut guard = VarModify::new(unsafe { &mut *self_.0.value.get() });
+                modify(&mut guard);
+                if guard.touched() {
+                    self_.0.last_update_id.set(update_id);
+                    self_.0.version.set(self_.0.version.get().wrapping_add(1));
+                }
+                guard.touched()
+            }));
+        })
     }
 
     /// Causes the variable to notify update without changing the value.
     #[inline]
-    pub fn touch(&self, vars: &Vars) {
+    pub fn touch<Vw: WithVars>(&self, vars: &Vw) {
         self.modify(vars, |v| v.touch());
     }
 
     /// Schedule a new value for this variable.
     #[inline]
-    pub fn set<N>(&self, vars: &Vars, new_value: N)
+    pub fn set<Vw, N>(&self, vars: &Vw, new_value: N)
     where
+        Vw: WithVars,
         N: Into<T>,
     {
         let new_value = new_value.into();
@@ -95,18 +118,21 @@ impl<T: VarValue> RcVar<T> {
     /// Schedule a new value for this variable, the variable will only be set if
     /// the value is not equal to `new_value`.
     #[inline]
-    pub fn set_ne<N>(&self, vars: &Vars, new_value: N) -> bool
+    pub fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> bool
     where
+        Vw: WithVars,
         N: Into<T>,
         T: PartialEq,
     {
-        let new_value = new_value.into();
-        if self.get(vars) != &new_value {
-            self.set(vars, new_value);
-            true
-        } else {
-            false
-        }
+        vars.with(|vars| {
+            let new_value = new_value.into();
+            if self.get(vars) != &new_value {
+                self.set(vars, new_value);
+                true
+            } else {
+                false
+            }
+        })
     }
 
     /// Gets the number of [`RcVar`] that point to this same variable.
@@ -170,71 +196,108 @@ impl<T: VarValue> WeakVar<T> {
 impl<T: VarValue> Var<T> for RcVar<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
 
-    type AsLocal = CloningLocalVar<T, Self>;
-
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
+    #[inline]
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
         self.get(vars)
     }
 
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+    fn copy<Vr: WithVarsRead>(&self, vars: &Vr) -> T
+    where
+            T: Copy, {
+        
+    }
+
+    fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
+        
+    }
+
+    #[inline]
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         self.get_new(vars)
     }
 
-    fn is_new(&self, vars: &Vars) -> bool {
+    fn copy_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T>
+    where
+            T: Copy, {
+        self.copy_new(vars)
+    }
+
+    fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
+        self.clone_new(vars)
+    }
+
+    #[inline]
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
+        match Rc::try_unwrap(self.0) {
+            Ok(v) => v.value.into_inner(),
+            Err(v) => RcVar(v).get_clone(vars),
+        }
+    }
+
+    #[inline]
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.is_new(vars)
     }
 
-    fn version(&self, vars: &VarsRead) -> u32 {
+    #[inline]
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
         self.version(vars)
     }
 
-    fn is_read_only(&self, _: &Vars) -> bool {
+    #[inline]
+    fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
         false
     }
 
+    #[inline]
     fn always_read_only(&self) -> bool {
         false
     }
 
+    #[inline]
     fn can_update(&self) -> bool {
         true
     }
 
-    fn modify<M>(&self, vars: &Vars, modify: M) -> Result<(), VarIsReadOnly>
+    #[inline]
+    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         M: FnOnce(&mut VarModify<T>) + 'static,
     {
         self.modify(vars, modify);
         Ok(())
     }
 
-    fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
+    #[inline]
+    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<T>,
     {
         self.set(vars, new_value);
         Ok(())
     }
 
-    fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
+    #[inline]
+    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<T>,
         T: PartialEq,
     {
         Ok(self.set_ne(vars, new_value))
     }
 
+    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
-    }
-
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
     }
 }
 impl<T: VarValue> IntoVar<T> for RcVar<T> {
     type Var = Self;
 
+    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }
@@ -308,7 +371,7 @@ impl<T: VarValue> fmt::Debug for Response<T> {
 impl<T: VarValue> ResponseVar<T> {
     /// References the response value if a response was set.
     #[inline]
-    pub fn response<'a>(&'a self, vars: &'a VarsRead) -> Option<&'a T> {
+    pub fn rsp<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> Option<&'a T> {
         match self.get(vars) {
             Response::Waiting => None,
             Response::Done(r) => Some(r),
@@ -316,7 +379,7 @@ impl<T: VarValue> ResponseVar<T> {
     }
 
     /// References the response value if a response was set for this update.
-    pub fn response_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+    pub fn rsp_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         if let Some(new) = self.get_new(vars) {
             match new {
                 Response::Waiting => None,
@@ -325,6 +388,58 @@ impl<T: VarValue> ResponseVar<T> {
         } else {
             None
         }
+    }
+
+    /// If the variable contains a response.
+    #[inline]
+    pub fn responded<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        vars.with(|vars| self.rsp(vars).is_some())
+    }
+
+    /// Copy the response value if a response was set.
+    #[inline]
+    pub fn rsp_copy<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<T>
+    where
+        T: Copy,
+    {
+        vars.with(|vars| self.rsp(vars).copied())
+    }
+
+    /// Clone the response value if a response was set.
+    #[inline]
+    pub fn rsp_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<T> {
+        vars.with(|vars| self.rsp(vars).cloned())
+    }
+
+    /// Copy the response value if a response was set for this update.
+    #[inline]
+    pub fn rsp_new_copy<Vw: WithVars>(self, vars: &Vw) -> Option<T>
+    where
+        T: Copy,
+    {
+        vars.with(|vars| self.rsp_new(vars).copied())
+    }
+
+    /// Clone the response value if a response was set for this update.
+    #[inline]
+    pub fn rsp_new_clone<Vw: WithVars>(self, vars: &Vw) -> Option<T> {
+        vars.with(|vars| self.rsp_new(vars).cloned())
+    }
+
+    /// If the variable has responded returns the response value or a clone of it if `self` is not the only reference to the response.
+    /// If the variable has **not** responded returns `self` in the error.
+    #[inline]
+    pub fn try_into_rsp<Vr: WithVarsRead>(self, vars: &Vr) -> Result<T, Self> {
+        vars.with(|vars| {
+            if self.responded(vars) {
+                match self.into_value(vars) {
+                    Response::Done(r) => Ok(r),
+                    Response::Waiting => unreachable!(),
+                }
+            } else {
+                Err(self)
+            }
+        })
     }
 }
 
@@ -335,11 +450,13 @@ impl<T: VarValue> ResponderVar<T> {
     ///
     /// Panics if the variable is already in the done state.
     #[inline]
-    pub fn respond<'a>(&'a self, vars: &'a Vars, response: T) {
-        if let Response::Done(_) = self.get(vars) {
-            panic!("already responded");
-        }
-        self.set(vars, Response::Done(response));
+    pub fn respond<'a, Vw: WithVars>(&'a self, vars: &'a Vw, response: T) {
+        vars.with(|vars| {
+            if let Response::Done(_) = self.get(vars) {
+                panic!("already responded");
+            }
+            self.set(vars, Response::Done(response));
+        })
     }
 
     /// Creates a [`ResponseVar`] linked to this responder.

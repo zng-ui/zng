@@ -36,25 +36,25 @@ where
 
     /// Gets the mapped reference.
     #[inline]
-    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a B {
+    pub fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
         (self.map)(self.source.get(vars))
     }
 
     /// Gets the mapped reference if the value of the source variable is new.
     #[inline]
-    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
+    pub fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
         self.source.get_new(vars).map(|v| (self.map)(v))
     }
 
     /// Gets if the value of the source variable is new.
     #[inline]
-    pub fn is_new(&self, vars: &Vars) -> bool {
+    pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.source.is_new(vars)
     }
 
     /// Gets the version of the source variable value.
     #[inline]
-    pub fn version(&self, vars: &VarsRead) -> u32 {
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
         self.source.version(vars)
     }
 
@@ -90,30 +90,32 @@ where
 {
     type AsReadOnly = Self;
 
-    type AsLocal = CloningLocalVar<B, Self>;
-
     #[inline]
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a B {
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
         self.get(vars)
     }
 
     #[inline]
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
         self.get_new(vars)
     }
 
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> B {
+        self.get_clone(vars)
+    }
+
     #[inline]
-    fn is_new(&self, vars: &Vars) -> bool {
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.is_new(vars)
     }
 
     #[inline]
-    fn version(&self, vars: &VarsRead) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
         self.version(vars)
     }
 
     #[inline]
-    fn is_read_only(&self, _: &Vars) -> bool {
+    fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
         true
     }
 
@@ -128,24 +130,27 @@ where
     }
 
     #[inline]
-    fn modify<Mo>(&self, _: &Vars, _: Mo) -> Result<(), VarIsReadOnly>
+    fn modify<Vw, Mo>(&self, _: &Vw, _: Mo) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         Mo: FnOnce(&mut VarModify<B>) + 'static,
     {
         Err(VarIsReadOnly)
     }
 
     #[inline]
-    fn set<N>(&self, _: &Vars, _: N) -> Result<(), VarIsReadOnly>
+    fn set<Vw, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<B>,
     {
         Err(VarIsReadOnly)
     }
 
     #[inline]
-    fn set_ne<N>(&self, _: &Vars, _: N) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Vw, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         N: Into<B>,
         B: PartialEq,
     {
@@ -155,11 +160,6 @@ where
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
-    }
-
-    #[inline]
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
     }
 }
 
@@ -216,25 +216,25 @@ where
 
     /// Gets the mapped reference.
     #[inline]
-    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a B {
+    pub fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
         (self.map)(self.source.get(vars))
     }
 
     /// Gets the mapped reference if the value of the source variable is new.
     #[inline]
-    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
+    pub fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
         self.source.get_new(vars).map(|v| (self.map)(v))
     }
 
     /// Gets if the value of the source variable is new.
     #[inline]
-    pub fn is_new(&self, vars: &Vars) -> bool {
+    pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.source.is_new(vars)
     }
 
     /// Gets the version of the source variable value.
     #[inline]
-    pub fn version(&self, vars: &VarsRead) -> u32 {
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
         self.source.version(vars)
     }
 
@@ -246,7 +246,7 @@ where
 
     /// Gets if the source is currently read-only.
     #[inline]
-    pub fn is_read_only(&self, vars: &Vars) -> bool {
+    pub fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.source.is_read_only(vars)
     }
 
@@ -258,8 +258,9 @@ where
     }
 
     /// Schedules a modification using the mapped mutable reference.
-    pub fn modify<Mo>(&self, vars: &Vars, modify: Mo) -> Result<(), VarIsReadOnly>
+    pub fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         Mo: FnOnce(&mut VarModify<B>) + 'static,
     {
         let map = self.map_mut.clone();
@@ -269,8 +270,9 @@ where
     }
 
     /// Schedules an assign to the mapped mutable reference.
-    pub fn set<Nv>(&self, vars: &Vars, new_value: Nv) -> Result<(), VarIsReadOnly>
+    pub fn set<Vw, Nv>(&self, vars: &Vw, new_value: Nv) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         Nv: Into<B>,
     {
         let map = self.map_mut.clone();
@@ -281,21 +283,24 @@ where
     }
 
     /// Schedules an assign to the mapped mutable reference, but only if the value is not equal.
-    pub fn set_ne<Nv>(&self, vars: &Vars, new_value: Nv) -> Result<bool, VarIsReadOnly>
+    pub fn set_ne<Vw, Nv>(&self, vars: &Vw, new_value: Nv) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         Nv: Into<B>,
         B: PartialEq,
     {
         if self.is_read_only(vars) {
             Err(VarIsReadOnly)
         } else {
-            let new_value = new_value.into();
-            if self.get(vars) != &new_value {
-                let _ = self.set(vars, new_value);
-                Ok(true)
-            } else {
-                Ok(false)
-            }
+            vars.with(|vars| {
+                let new_value = new_value.into();
+                if self.get(vars) != &new_value {
+                    let _ = self.set(vars, new_value);
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            })
         }
     }
 
@@ -338,30 +343,33 @@ where
 {
     type AsReadOnly = ReadOnlyVar<B, Self>;
 
-    type AsLocal = CloningLocalVar<B, Self>;
-
     #[inline]
-    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a B {
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
         self.get(vars)
     }
 
     #[inline]
-    fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a B> {
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
         self.get_new(vars)
     }
 
     #[inline]
-    fn is_new(&self, vars: &Vars) -> bool {
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> B {
+        self.get_clone(vars)
+    }
+
+    #[inline]
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.is_new(vars)
     }
 
     #[inline]
-    fn version(&self, vars: &VarsRead) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
         self.version(vars)
     }
 
     #[inline]
-    fn is_read_only(&self, vars: &Vars) -> bool {
+    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.is_read_only(vars)
     }
 
@@ -376,24 +384,27 @@ where
     }
 
     #[inline]
-    fn modify<Mo>(&self, vars: &Vars, modify: Mo) -> Result<(), VarIsReadOnly>
+    fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         Mo: FnOnce(&mut VarModify<B>) + 'static,
     {
         self.modify(vars, modify)
     }
 
     #[inline]
-    fn set<Nv>(&self, vars: &Vars, new_value: Nv) -> Result<(), VarIsReadOnly>
+    fn set<Vw, Nv>(&self, vars: &Vw, new_value: Nv) -> Result<(), VarIsReadOnly>
     where
+        Vw: WithVars,
         Nv: Into<B>,
     {
         self.set(vars, new_value)
     }
 
     #[inline]
-    fn set_ne<Nv>(&self, vars: &Vars, new_value: Nv) -> Result<bool, VarIsReadOnly>
+    fn set_ne<Vw, Nv>(&self, vars: &Vw, new_value: Nv) -> Result<bool, VarIsReadOnly>
     where
+        Vw: WithVars,
         Nv: Into<B>,
         B: PartialEq,
     {
@@ -403,11 +414,6 @@ where
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
-    }
-
-    #[inline]
-    fn into_local(self) -> Self::AsLocal {
-        CloningLocalVar::new(self)
     }
 }
 
