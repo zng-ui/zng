@@ -216,7 +216,7 @@ where
 ///
 /// # Parallel
 ///
-/// The `task` runs in the [`blocking`] thread-pool which is optimized for awaiting blocking operations.
+/// The `task` runs in the [`blocking`](https://docs.rs/blocking) thread-pool which is optimized for awaiting blocking operations.
 /// If the `task` is computation heavy you should use [`run`] and then `wait` inside that task for the
 /// parts that are blocking.
 ///
