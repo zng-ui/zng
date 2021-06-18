@@ -129,7 +129,6 @@ use crate::crate_util::RunOnDrop;
 use crate::event::BoxedEventUpdate;
 #[doc(inline)]
 pub use crate::state_key;
-use crate::task::Tasks;
 use crate::timer::Timers;
 use crate::{var::VarsRead, window::WindowMode};
 
@@ -584,7 +583,6 @@ pub(crate) struct OwnedAppContext {
     vars: Vars,
     events: Events,
     services: Services,
-    tasks: Tasks,
     timers: Timers,
     updates: Updates,
 }
@@ -595,9 +593,8 @@ impl OwnedAppContext {
         OwnedAppContext {
             app_state: StateMap::new(),
             vars: Vars::instance(app_event_sender.clone()),
-            events: Events::instance(app_event_sender.clone()),
+            events: Events::instance(app_event_sender),
             services: Services::default(),
-            tasks: Tasks::new(app_event_sender.waker()),
             timers: Timers::new(),
             updates,
         }
@@ -620,7 +617,6 @@ impl OwnedAppContext {
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
-            tasks: &mut self.tasks,
             timers: &mut self.timers,
             updates: &mut self.updates,
             window_target,
@@ -658,9 +654,6 @@ pub struct AppContext<'a, 'w> {
     pub events: &'a mut Events,
     /// Access to application services.
     pub services: &'a mut Services,
-
-    /// Async tasks.
-    pub tasks: &'a mut Tasks,
 
     /// Event loop based timers.
     pub timers: &'a mut Timers,
@@ -702,7 +695,6 @@ impl<'a, 'w> AppContext<'a, 'w> {
             events: self.events,
             services: self.services,
             timers: self.timers,
-            tasks: self.tasks,
             updates: self.updates,
         });
 
@@ -770,9 +762,6 @@ pub struct WindowContext<'a> {
     /// Access to application services.
     pub services: &'a mut Services,
 
-    /// Async tasks.
-    pub tasks: &'a mut Tasks,
-
     /// Event loop based timers.
     pub timers: &'a mut Timers,
 
@@ -801,7 +790,6 @@ impl<'a> WindowContext<'a> {
             services: self.services,
 
             timers: self.timers,
-            tasks: self.tasks,
 
             updates: self.updates,
         })
@@ -910,9 +898,6 @@ pub struct TestWidgetContext {
     /// instance after registering an event.
     pub events: Events,
 
-    /// Asynchronous tasks runner.
-    pub tasks: Tasks,
-
     /// Event loop bases timers.
     ///
     /// TODO testable timers.
@@ -946,7 +931,6 @@ impl TestWidgetContext {
             events: Events::instance(sender.clone()),
             vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender.clone()),
-            tasks: Tasks::new(sender.waker()),
             timers: Timers::new(),
             event_loop: (sender, receiver),
         }
@@ -963,7 +947,6 @@ impl TestWidgetContext {
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
-            tasks: &mut self.tasks,
             timers: &mut self.timers,
             updates: &mut self.updates,
         })
@@ -1099,9 +1082,6 @@ pub struct WidgetContext<'a> {
     /// Access to application services.
     pub services: &'a mut Services,
 
-    /// Async tasks.
-    pub tasks: &'a mut Tasks,
-
     /// Event loop based timers.
     pub timers: &'a mut Timers,
 
@@ -1133,7 +1113,6 @@ impl<'a> WidgetContext<'a> {
                 services: self.services,
 
                 timers: self.timers,
-                tasks: self.tasks,
 
                 updates: self.updates,
             })

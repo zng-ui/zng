@@ -135,7 +135,7 @@ fn screenshot() -> impl Widget {
             });
             println!("taken in {:?}, saving..", t.elapsed());
 
-            Tasks::run(async move {
+            task::run(async move {
                 let t = Instant::now();
                 img.save("screenshot.png").unwrap();
                 println!("saved in {:?}", t.elapsed());
@@ -157,24 +157,40 @@ fn inspect() -> impl Widget {
 }
 
 fn headless() -> impl Widget {
+    let enabled = var(true);
     button! {
-        content = text("headless");
-        on_click = |ctx, _| {
+        content = text(enabled.map(|&enabled| {
+            if enabled {
+                "headless".to_text()
+            } else {
+                "saving..".to_text()
+            }
+        }));
+        enabled = enabled.clone();
+        on_click = move |ctx, _| {
+            enabled.set(ctx.vars, false);
+
             println!("taking `screenshot.png` using a new headless window ..");
-            ctx.services.windows().open(|_|window! {
+            ctx.services.windows().open(clone_move!(enabled, |_|window! {
                     size = (500, 400);
                     background_color = colors::DARK_GREEN;
                     font_size = 72;
                     content = text("No Head!");
 
-                    on_redraw = |args| {
-                        let img = args.frame_pixels().unwrap();
-                        args.close();
-                        println!("saving screenshot..");
-                        img.save("screenshot.png").unwrap();
-                        println!("saved");
-                    };
-                },
+                    on_open = clone_move!(enabled, |ctx, args| {
+                        let window = ctx.services.windows().window(args.window_id).unwrap();
+                        let img = window.frame_pixels();
+                        let enabled = ctx.vars.sender(&enabled);
+                        task::spawn(async move {
+                            println!("saving screenshot..");
+                            img.save("screenshot.png").unwrap();
+                            println!("saved");
+
+                            enabled.send(true).unwrap();
+                        });
+                        window.close();
+                    });
+                }),
                 Some(zero_ui::core::window::WindowMode::HeadlessWithRenderer)
             );
         };

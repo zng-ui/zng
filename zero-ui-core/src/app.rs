@@ -659,7 +659,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Runs the application with an async `start` function.
     ///
     /// The `start` future is executed in the app thread only (the main thread), it runs up to the first `await` immediately
-    /// and subsequent polls happen in app updates, it is async but not parallel. You can use [`Tasks`](crate::task::Tasks)
+    /// and subsequent polls happen in app updates, it is async but not parallel. You can use [`task`](crate::task)
     /// to start parallel tasks that can be awaited in the app thread.
     ///
     /// # Panics

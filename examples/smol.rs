@@ -13,7 +13,7 @@ fn main() {
             ]);
             on_open = move |ctx, _| {
                 let size = ctx.vars.sender(&size);
-                Tasks::spawn(async move {
+                task::spawn(async move {
                     // `smol` starts their own *event reactor* so we can just start using async IO functions:
                     let bytes = smol::fs::read(file).await.unwrap();
 
