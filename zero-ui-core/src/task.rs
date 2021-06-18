@@ -1,6 +1,6 @@
 //! Parallel async tasks and async task runners.
 //!
-//! Use the [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`] to unblock blocking IO operations, and use 
+//! Use the [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`] to unblock blocking IO operations, and use
 //! [`WidgetTask`] to create async properties.
 //!
 //! This module also re-exports the [`rayon`] crate for convenience.
