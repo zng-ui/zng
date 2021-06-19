@@ -33,14 +33,19 @@ impl<T: VarValue> RcVar<T> {
         unsafe { &*self.0.value.get() }
     }
 
-    fn copy<Vr: WithVarsRead>(&self, vars: &Vr) -> T
+    /// Copy the current value.
+    #[inline]
+    pub fn copy<Vr: WithVarsRead>(&self, vars: &Vr) -> T
     where
-            T: Copy, {
-        
+        T: Copy,
+    {
+        vars.with(|vars| *self.get(vars))
     }
 
-    fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
-        
+    /// Clone the current value.
+    #[inline]
+    pub fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
+        vars.with(|vars| self.get(vars).clone())
     }
 
     /// Reference the current value if it [is new](Self::is_new).
@@ -54,14 +59,19 @@ impl<T: VarValue> RcVar<T> {
         }
     }
 
+    /// Copy the current value if it [is new](Self::is_new).
+    #[inline]
     pub fn copy_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T>
     where
-            T: Copy, {
-        
+        T: Copy,
+    {
+        vars.with(|vars| self.get_new(vars).copied())
     }
 
+    /// Cline the current value if it [is new](Self::is_new).
+    #[inline]
     pub fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
-        
+        vars.with(|vars| self.get_new(vars).cloned())
     }
 
     /// If the current value changed in the last update.
@@ -201,14 +211,17 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         self.get(vars)
     }
 
+    #[inline]
     fn copy<Vr: WithVarsRead>(&self, vars: &Vr) -> T
     where
-            T: Copy, {
-        
+        T: Copy,
+    {
+        self.copy(vars)
     }
 
+    #[inline]
     fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
-        
+        self.get_clone(vars)
     }
 
     #[inline]
@@ -218,7 +231,8 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 
     fn copy_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T>
     where
-            T: Copy, {
+        T: Copy,
+    {
         self.copy_new(vars)
     }
 

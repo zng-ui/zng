@@ -1625,12 +1625,12 @@ mod util {
     impl<C: UiNode, T: Var<&'static str>> UiNode for LiveTraceNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            ctx.widget_state.entry::<TraceKey>().or_default().insert(self.trace.get(ctx));
+            ctx.widget_state.entry::<TraceKey>().or_default().insert(self.trace.copy(ctx.vars));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if let Some(trace) = self.trace.get_new(ctx) {
+            if let Some(trace) = self.trace.copy_new(ctx) {
                 ctx.widget_state.entry::<TraceKey>().or_default().insert(trace);
             }
         }

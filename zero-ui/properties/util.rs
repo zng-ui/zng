@@ -205,8 +205,8 @@ where
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new) = self.var.get_new(ctx) {
-                ctx.widget_state.set::<K>(new.clone());
+            if let Some(new) = self.var.clone_new(ctx) {
+                ctx.widget_state.set::<K>(new);
             }
             self.child.update(ctx);
         }

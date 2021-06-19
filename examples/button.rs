@@ -25,7 +25,7 @@ fn example() -> impl Widget {
         on_click = clone_move!(t, |ctx, _| {
             count += 1;
             let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
-            t.set(ctx.vars, new_txt);
+            t.set(ctx, new_txt);
         });
         on_double_click = |_, _| println!("double click!");
         on_triple_click = |_, _| println!("triple click!");

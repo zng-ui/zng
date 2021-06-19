@@ -626,7 +626,7 @@ impl Deref for Vars {
 ///     self.foo_var.set(ctx, "we are not borrowing `ctx` so can use it directly");
 ///
 ///    // ..
-///    let services = ctx.services;
+///    let services = &mut ctx.services;
 ///    self.foo_var.set(ctx.vars, "we are partially borrowing `ctx` but not `ctx.vars` so we use that");
 /// }
 ///
@@ -1135,7 +1135,7 @@ mod tests {
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.copy_new(ctx));
-                assert_eq!(Some("20".to_text()), b.copy_new(ctx));
+                assert_eq!(Some("20".to_text()), b.clone_new(ctx));
             },
             false,
         );
@@ -1148,7 +1148,7 @@ mod tests {
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(13i32), a.copy_new(ctx));
-                assert_eq!(Some("13".to_text()), b.get_new(ctx));
+                assert_eq!(Some("13".to_text()), b.clone_new(ctx));
             },
             false,
         );
@@ -1183,7 +1183,7 @@ mod tests {
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.copy_new(ctx));
-                assert_eq!(Some("20".to_text()), b.get_new(ctx));
+                assert_eq!(Some("20".to_text()), b.clone_new(ctx));
             },
             false,
         );
@@ -1195,7 +1195,7 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some("55".to_text()), b.get_new(ctx));
+                assert_eq!(Some("55".to_text()), b.clone_new(ctx));
                 assert_eq!(Some(55i32), a.copy_new(ctx));
             },
             false,
@@ -1243,8 +1243,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(&13i32), a.get_new(ctx));
-                assert_eq!("20".to_text(), b.get(ctx));
+                assert_eq!(Some(13i32), a.copy_new(ctx));
+                assert_eq!("20".to_text(), b.get_clone(ctx));
                 assert!(!b.is_new(ctx));
             },
             false,
@@ -1279,8 +1279,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some(20i32), a.get_new(ctx));
-                assert_eq!(Some("20".to_text()), b.get_new(ctx));
+                assert_eq!(Some(20i32), a.copy_new(ctx));
+                assert_eq!(Some("20".to_text()), b.clone_new(ctx));
             },
             false,
         );
@@ -1292,8 +1292,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some("55".to_text()), b.get_new(ctx));
-                assert_eq!(Some(55i32), a.get_new(ctx));
+                assert_eq!(Some("55".to_text()), b.clone_new(ctx));
+                assert_eq!(Some(55i32), a.copy_new(ctx));
             },
             false,
         );
@@ -1305,8 +1305,8 @@ mod tests {
         app.update_observe(
             |ctx| {
                 update_count += 1;
-                assert_eq!(Some("not a i32".to_text()), b.get_new(ctx));
-                assert_eq!(55i32, a.get(ctx));
+                assert_eq!(Some("not a i32".to_text()), b.clone_new(ctx));
+                assert_eq!(55i32, a.copy(ctx));
                 assert!(!a.is_new(ctx));
             },
             false,

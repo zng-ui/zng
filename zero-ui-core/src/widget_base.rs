@@ -3,7 +3,7 @@
 use std::{fmt, ops};
 
 use crate::event::EventUpdateArgs;
-use crate::var::{context_var, IntoVar, Vars, WithVars, WithVarsRead};
+use crate::var::{context_var, IntoVar, WithVars, WithVarsRead};
 use crate::{
     context::RenderContext,
     render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey},
@@ -308,7 +308,7 @@ impl IsEnabled {
 
     /// Gets the new enabled state in the current `vars` context.
     #[inline]
-    pub fn get_new<Vw: WithVars>(vars: &Vars) -> Option<bool> {
+    pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<bool> {
         vars.with(|vars| IsEnabledVar::get_new(vars).copied())
     }
 }
@@ -630,8 +630,8 @@ pub struct VisibilityContext;
 impl VisibilityContext {
     /// Gets the visibility state in the current `vars` context.
     #[inline]
-    pub fn get(vars: &Vars) -> Visibility {
-        *VisibilityVar::get(vars)
+    pub fn get<Vr: WithVarsRead>(vars: &Vr) -> Visibility {
+        vars.with(|vars| *VisibilityVar::get(vars))
     }
 }
 
@@ -720,8 +720,8 @@ context_var! {
 pub struct IsHitTestable;
 impl IsHitTestable {
     /// Gets the hit-testable state in the current `vars` context.
-    pub fn get(vars: &VarsRead) -> bool {
-        *IsHitTestableVar::get(vars)
+    pub fn get<Vr: WithVarsRead>(vars: &Vr) -> bool {
+        vars.with(|vars| *IsHitTestableVar::get(vars))
     }
 }
 

@@ -506,7 +506,7 @@ impl AppExtension for WindowManager {
                     // we can determinate if the system only changed the size
                     // to visually match the new scale_factor or if the window was
                     // really resized.
-                    if window.vars.size().copy(ctx) == new_size.into() {
+                    if window.vars.size().copy(ctx.vars) == new_size.into() {
                         // if it only changed to visually match, the WindowEvent::Resized
                         // will not cause a re-layout, so we need to do it here, but window.resize_renderer()
                         // calls window.size(), so we need to set the new_inner_size before winit.
@@ -2361,8 +2361,8 @@ impl OpenWindow {
                 StartPosition::Default => None,
                 StartPosition::CenterScreen => Some(LayoutRect::from_size(self.screen_size())),
                 StartPosition::CenterParent => {
-                    if let Some(parent_id) = self.vars.parent().get(ctx) {
-                        if let Ok(parent) = ctx.services.windows().window(*parent_id) {
+                    if let Some(parent_id) = self.vars.parent().copy(ctx) {
+                        if let Ok(parent) = ctx.services.windows().window(parent_id) {
                             Some(LayoutRect::new(parent.position(), parent.size()))
                         } else {
                             Some(LayoutRect::from_size(self.screen_size()))

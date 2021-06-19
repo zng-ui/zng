@@ -284,9 +284,9 @@ macro_rules! __clone_move {
 /// let title = var("Click Me!".to_text());
 /// window! {
 ///     on_click_async = async_clone_move!(title, |ctx, _| {
-///         ctx.with(|ctx| title.set(ctx.vars, "Clicked!"));
+///         title.set(&ctx, "Clicked!");
 ///         delay().await;
-///         ctx.with(|ctx| title.set(ctx.vars, "Async Update!"));
+///         title.set(&ctx, "Async Update!");
 ///     });
 ///     title;
 /// }
@@ -329,9 +329,9 @@ macro_rules! __clone_move {
 ///         move |ctx, _| {
 ///             let title = title.clone();
 ///             async move {
-///                 ctx.with(|ctx| title.set(ctx.vars, "Clicked!"));
+///                 title.set(&ctx, "Clicked!");
 ///                 delay().await;
-///                 ctx.with(|ctx| title.set(ctx.vars, "Async Update!"));
+///                 title.set(&ctx, "Async Update!");
 ///             }
 ///         }
 ///     };

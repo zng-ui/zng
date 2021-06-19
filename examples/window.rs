@@ -125,7 +125,7 @@ fn screenshot() -> impl Widget {
         }));
         on_click_async = async_clone_move!(enabled, |ctx, _| {
             // disable button until screenshot is saved.
-            ctx.with(|ctx| enabled.set(ctx.vars, false));
+            enabled.set(&ctx, false);
 
             println!("taking `screenshot.png`..");
 
@@ -141,7 +141,7 @@ fn screenshot() -> impl Widget {
                 println!("saved in {:?}", t.elapsed());
             }).await;
 
-            ctx.with(|ctx| enabled.set(ctx.vars, true));
+            enabled.set(&ctx, true);
         });
         enabled;
     }

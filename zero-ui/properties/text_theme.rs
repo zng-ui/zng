@@ -235,8 +235,8 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
                 self.variations.insert(self.name, self.value.copy(ctx));
                 self.version = self.version.wrapping_add(1);
                 is_new = true;
-            } else if let Some(value) = self.value.copy(ctx) {
-                self.variations.insert(self.name, *value);
+            } else if let Some(value) = self.value.copy_new(ctx) {
+                self.variations.insert(self.name, value);
                 self.version = self.version.wrapping_add(1);
                 is_new = true;
             }
@@ -669,11 +669,11 @@ impl<'a> TextContext<'a> {
 
     /// Gets the properties that affect the text characters.
     #[inline]
-    pub fn text<Vr: WithVarsRead>(vars: &'a Vr) -> (TextTransformFn, WhiteSpace) {
+    pub fn text<Vr: WithVarsRead>(vars: &Vr) -> (TextTransformFn, WhiteSpace) {
         vars.with(|vars| (TextTransformVar::get(vars).clone(), *WhiteSpaceVar::get(vars)))
     }
     /// Gets [`text`](Self::text) if any of the properties updated.
-    pub fn text_update<Vw: WithVars>(vars: &'a Vw) -> Option<(TextTransformFn, WhiteSpace)> {
+    pub fn text_update<Vw: WithVars>(vars: &Vw) -> Option<(TextTransformFn, WhiteSpace)> {
         vars.with(|vars| {
             if TextTransformVar::is_new(vars) || WhiteSpaceVar::is_new(vars) {
                 Some(Self::text(vars))
@@ -702,24 +702,24 @@ impl<'a> TextContext<'a> {
 
     /// Gets the property that affect color.
     #[inline]
-    pub fn color<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> Rgba {
+    pub fn color<Vr: AsRef<VarsRead>>(vars: &Vr) -> Rgba {
         *TextColorVar::get(vars)
     }
     /// Gets [`color`](Self::color) if the property updated.
     #[inline]
-    pub fn color_update<Vw: WithVars>(vars: &'a Vw) -> Option<Rgba> {
+    pub fn color_update<Vw: WithVars>(vars: &Vw) -> Option<Rgba> {
         vars.with(|vars| TextColorVar::get_new(vars).copied())
     }
 
     /// Gets the properties that affects what font synthesis is used.
     #[inline]
-    pub fn font_synthesis<Vr: WithVarsRead>(vars: &'a Vr) -> (FontSynthesis, FontStyle, FontWeight) {
+    pub fn font_synthesis<Vr: WithVarsRead>(vars: &Vr) -> (FontSynthesis, FontStyle, FontWeight) {
         vars.with(|vars| (*FontSynthesisVar::get(vars), *FontStyleVar::get(vars), *FontWeightVar::get(vars)))
     }
 
     /// Gets [`font_synthesis`](Self::font_synthesis) if any of the properties changed.
     #[inline]
-    pub fn font_synthesis_update<Vw: WithVars>(vars: &'a Vw) -> Option<(FontSynthesis, FontStyle, FontWeight)> {
+    pub fn font_synthesis_update<Vw: WithVars>(vars: &Vw) -> Option<(FontSynthesis, FontStyle, FontWeight)> {
         vars.with(|vars| {
             if FontSynthesisVar::is_new(vars) || FontStyleVar::is_new(vars) || FontWeightVar::is_new(vars) {
                 Some(Self::font_synthesis(vars))

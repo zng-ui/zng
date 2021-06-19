@@ -19,7 +19,7 @@
 //! let enabled = var(false);
 //! button! {
 //!     on_click_async = async_clone_move!(enabled, |ctx, _| {
-//!         ctx.with(|ctx| enabled.set(ctx.vars, false));
+//!         enabled.set(&ctx, false);
 //!
 //!         let sum_task = task::run(async {
 //!             let numbers = read_numbers().await;
@@ -28,7 +28,7 @@
 //!         let sum: usize = sum_task.await;
 //!         println!("sum of squares: {}", sum);
 //!
-//!         ctx.with(|ctx| enabled.set(ctx.vars, true));
+//!         enabled.set(&ctx, true);
 //!     });
 //!     enabled;
 //! }

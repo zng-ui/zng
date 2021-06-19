@@ -189,7 +189,7 @@ impl<T: Var<Text>> TextNode<T> {
 #[impl_ui_node(none)]
 impl<T: Var<Text>> UiNode for TextNode<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let (family, style, weight, stretch) = TextContext::font_face(ctx);
+        let (family, style, weight, stretch) = TextContext::font_face(ctx.vars);
 
         // TODO use the full list.
         let font_face = ctx.services.fonts().get_list(family, style, weight, stretch).best().clone();
@@ -234,7 +234,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // update `self.font_face`, affects shaping and layout
-        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx) {
+        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
             let face = ctx
                 .services
                 .fonts()
