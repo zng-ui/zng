@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     context::{OwnedStateMap, StateMap},
-    event::{Event, Events},
+    event::{Event, Events, WithEvents},
     state_key,
     text::Text,
     var::{var, var_from, RcVar, ReadOnlyVar, Vars},
@@ -52,9 +52,9 @@ macro_rules! command {
             type Args = $crate::command::CommandArgs;
 
             #[inline(always)]
-            fn notify(self, events: &mut $crate::event::Events, args: Self::Args) {
+            fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, args: Self::Args) {
                 if Self::COMMAND.with(|c| c.handle.enabled.get() > 0) {
-                    events.notify::<Self>(args);
+                    events.with_events(|evs| evs.notify::<Self>(args));
                 }
             }
         }
@@ -170,8 +170,8 @@ impl fmt::Debug for AnyCommand {
 impl Event for AnyCommand {
     type Args = CommandArgs;
 
-    fn notify(self, events: &mut Events, args: Self::Args) {
-        self.0.with(move |c| (c.notify)(events, args));
+    fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
+        events.with_events(|events| self.0.with(move |c| (c.notify)(events, args)));
     }
     fn update<U: crate::event::EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
         panic!("`AnyCommand` does not support `Event::update`");

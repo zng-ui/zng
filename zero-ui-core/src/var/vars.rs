@@ -631,7 +631,7 @@ impl Deref for Vars {
 /// }
 ///
 /// async fn handler(&mut self, ctx: WidgetContextMut) {
-///     self.foo_var.set(&ctx, "async contexts are also almost seamless");
+///     self.foo_var.set(&ctx, "async contexts can also be used");
 /// }
 /// # }
 /// ```

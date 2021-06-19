@@ -63,8 +63,8 @@ pub trait Event: Debug + Clone + Copy + 'static {
     /// Schedule an event update.
     #[doc(hidden)]
     #[inline(always)]
-    fn notify(self, events: &mut Events, args: Self::Args) {
-        events.notify::<Self>(args);
+    fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
+        events.with_events(|events| events.notify::<Self>(args));
     }
 
     /// Gets the event arguments if the update is for `Self`.
@@ -1007,6 +1007,73 @@ impl Events {
     }
 }
 
+/// Represents a type that can provide access to a [`Events`] inside the window of function call.
+///
+/// This is used to make event notification less cumbersome to use, it is implemented to all sync and async context types
+/// and [`Events`] it-self.
+///
+/// # Example
+///
+/// The example demonstrate how this `trait` simplifies calls to [`Event::notify`].
+///
+/// ```
+/// # use zero_ui_core::{var::*, event::*, context::*};
+/// # event_args! { pub struct BarArgs { pub msg: &'static str, .. fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool { true } } }
+/// # event! { pub BarEvent: BarArgs; }
+/// # struct Foo { } impl Foo {
+/// fn update(&mut self, ctx: &mut WidgetContext) {
+///     BarEvent.notify(ctx, BarArgs::now("we are not borrowing `ctx` so can use it directly"));
+///
+///    // ..
+///    let services = &mut ctx.services;
+///    BarEvent.notify(ctx, BarArgs::now("we are partially borrowing `ctx` but not `ctx.vars` so we use that"));
+/// }
+///
+/// async fn handler(&mut self, mut ctx: WidgetContextMut) {
+///     BarEvent.notify(&mut ctx, BarArgs::now("async contexts can also be used"));
+/// }
+/// # }
+/// ```
+pub trait WithEvents {
+    /// Calls `action` with the [`Events`] reference.
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R;
+}
+impl WithEvents for Events {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        action(self)
+    }
+}
+impl<'a, 'w> WithEvents for crate::context::AppContext<'a, 'w> {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        action(self.events)
+    }
+}
+impl<'a> WithEvents for crate::context::WindowContext<'a> {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        action(self.events)
+    }
+}
+impl<'a> WithEvents for crate::context::WidgetContext<'a> {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        action(self.events)
+    }
+}
+impl WithEvents for crate::context::AppContextMut {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        self.with(move |ctx| action(ctx.events))
+    }
+}
+impl WithEvents for crate::context::WindowContextMut {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        self.with(move |ctx| action(ctx.events))
+    }
+}
+impl WithEvents for crate::context::WidgetContextMut {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        self.with(move |ctx| action(ctx.events))
+    }
+}
+
 type Retain = bool;
 
 /// Declares new [`EventArgs`](crate::event::EventArgs) types.
@@ -1350,7 +1417,7 @@ macro_rules! event {
 
             /// Schedule an event update.
             #[inline]
-            pub fn notify(self, events: &mut $crate::event::Events, args: $Args) {
+            pub fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, args: $Args) {
                 <Self as $crate::event::Event>::notify(self, events, args);
             }
         }

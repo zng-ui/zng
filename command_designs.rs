@@ -123,7 +123,7 @@ fn main() {
 //
 
 fn button_click(ctx: &mut WidgetContext) {
-  CopyCommand::notify(ctx.events, args);
+  CopyCommand::notify(ctx, args);
 }
 
 fn text_box_on_event(ctx: &mut WidgetContext, args: EventUpdateArgs) {
