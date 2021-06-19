@@ -207,6 +207,8 @@ impl VarsRead {
     /// Every time the variable updates a clone of the value is sent to the receiver. The current value is sent immediately.
     ///
     /// Drop the receiver to release one reference to `var`.
+    ///
+    /// You can use [`Var::receiver`] to call this function using any [`WithVarsRead`] context.
     pub fn receiver<T, V>(&self, var: &V) -> VarReceiver<T>
     where
         T: VarValue + Send,
@@ -365,6 +367,8 @@ impl Vars {
     /// If the variable is read-only when a value is received it is silently dropped.
     ///
     /// Drop the sender to release one reference to `var`.
+    ///
+    /// You can use [`Var::sender`] to call this function using any [`WithVars`] context.
     pub fn sender<T, V>(&self, var: &V) -> VarSender<T>
     where
         T: VarValue + Send,
@@ -398,6 +402,8 @@ impl Vars {
     /// If the variable is read-only when a modification is received it is silently dropped.
     ///
     /// Drop the sender to release one reference to `var`.
+    ///
+    /// You can use [`Var::modify_sender`] to call this function using any [`WithVars`] context.
     pub fn modify_sender<T, V>(&self, var: &V) -> VarModifySender<T>
     where
         T: VarValue,
@@ -426,101 +432,58 @@ impl Vars {
         }
     }
 
-    /// Create a [`map`](Var::map) like binding between two existing variables.
-    pub fn bind<A, B, AV, BV, M>(&self, from_var: AV, to_var: BV, mut map: M) -> VarBindingHandle
+    /// Attach a listener to a variable, it is called when the variable was modified/touched and can modify
+    /// the variable before the app update happens.
+    pub fn bind_one<T, V, M>(&self, var: &V, mut on_touch: M) -> VarBindingHandle
     where
-        A: VarValue,
-        B: VarValue,
-        AV: Var<A>,
-        BV: Var<B>,
-        M: FnMut(&VarBindingInfo, &A) -> B + 'static,
+        T: VarValue,
+        V: Var<T>,
+        M: FnMut(&Vars, &VarBindingInfo, &V) + 'static,
     {
-        let handle = VarBindingHandle::new();
-        let u_handle = handle.clone();
+        let var = var.clone();
+        self.register_binding(move |vars, retain, last_update_id| {
+            if var.is_new(vars) {
+                *last_update_id = vars.binding_update_id;
 
-        let mut last_update_id = self.binding_update_id;
+                let info = VarBindingInfo::new();
+                on_touch(vars, &info, &var);
 
-        self.bindings.borrow_mut().push(Box::new(move |vars| {
-            let mut retain = handle.retain();
-
-            if vars.binding_update_id == last_update_id {
-                return retain;
-            }
-
-            if retain {
-                if let Some(new_value) = from_var.get_new(vars) {
-                    last_update_id = vars.binding_update_id;
-
-                    let info = VarBindingInfo::new();
-                    let new_value = map(&info, new_value);
-                    let _ = to_var.set(vars, new_value);
-                    if info.unbind.get() {
-                        retain = false;
-                    }
+                if info.unbind.get() {
+                    *retain = false;
                 }
             }
-            retain
-        }));
-        u_handle
+        })
     }
 
-    /// Create a [`map_bidi`](Var::map_bidi) like binding between two existing variables.
-    pub fn bind_bidi<A, B, AV, BV, M, N>(&self, from_var: AV, to_var: BV, mut map: M, mut map_back: N) -> VarBindingHandle
+    /// Attach a listener to two variables, it is called when either variables was modified/touched and can modify
+    /// the variables before the app update happens.
+    pub fn bind_two<A, B, VA, VB, M>(&self, var_a: &VA, var_b: &VB, mut on_touch: M) -> VarBindingHandle
     where
         A: VarValue,
         B: VarValue,
-        AV: Var<A>,
-        BV: Var<B>,
-        M: FnMut(&VarBindingInfo, &A) -> B + 'static,
-        N: FnMut(&VarBindingInfo, &B) -> A + 'static,
+        VA: Var<A>,
+        VB: Var<B>,
+        M: FnMut(&Vars, &VarBindingInfo, &VA, &VB) + 'static,
     {
-        let handle = VarBindingHandle::new();
-        let u_handle = handle.clone();
+        let var_a = var_a.clone();
+        let var_b = var_b.clone();
+        self.register_binding(move |vars, retain, last_update_id| {
+            if var_a.is_new(vars) || var_b.is_new(vars) {
+                *last_update_id = vars.binding_update_id;
 
-        let mut last_update_id = self.binding_update_id;
+                let info = VarBindingInfo::new();
+                on_touch(vars, &info, &var_a, &var_b);
 
-        self.bindings.borrow_mut().push(Box::new(move |vars| {
-            let mut retain = handle.retain();
-
-            if vars.binding_update_id == last_update_id {
-                return retain;
-            }
-
-            if retain {
-                if let Some(new_value) = from_var.get_new(vars) {
-                    last_update_id = vars.binding_update_id;
-
-                    let info = VarBindingInfo::new();
-                    let new_value = map(&info, new_value);
-                    let _ = to_var.set(vars, new_value);
-                    if info.unbind.get() {
-                        retain = false;
-                    }
-                }
-                if let Some(new_value) = to_var.get_new(vars) {
-                    last_update_id = vars.binding_update_id;
-
-                    let info = VarBindingInfo::new();
-                    let new_value = map_back(&info, new_value);
-                    let _ = from_var.set(vars, new_value);
-                    if info.unbind.get() {
-                        retain = false;
-                    }
+                if info.unbind.get() {
+                    *retain = false;
                 }
             }
-            retain
-        }));
-        u_handle
+        })
     }
 
-    /// Create a [`filter_map`](Var::filter_map) like binding between two existing variables.
-    pub fn bind_filtered<A, B, AV, BV, M>(&self, from_var: AV, to_var: BV, mut map: M) -> VarBindingHandle
+    fn register_binding<B>(&self, mut binding: B) -> VarBindingHandle
     where
-        A: VarValue,
-        B: VarValue,
-        AV: Var<A>,
-        BV: Var<B>,
-        M: FnMut(&VarBindingInfo, &A) -> Option<B> + 'static,
+        B: FnMut(&Vars, &mut bool, &mut u32) + 'static,
     {
         let handle = VarBindingHandle::new();
         let u_handle = handle.clone();
@@ -535,71 +498,12 @@ impl Vars {
             }
 
             if retain {
-                if let Some(new_value) = from_var.get_new(vars) {
-                    last_update_id = vars.binding_update_id;
-
-                    let info = VarBindingInfo::new();
-                    if let Some(new_value) = map(&info, new_value) {
-                        let _ = to_var.set(vars, new_value);
-                    }
-                    if info.unbind.get() {
-                        retain = false;
-                    }
-                }
+                binding(vars, &mut retain, &mut last_update_id);
             }
+
             retain
         }));
-        u_handle
-    }
 
-    /// Create a [`filter_map_bidi`](Var::filter_map_bidi) like binding between two existing variables.
-    pub fn bind_bidi_filtered<A, B, AV, BV, M, N>(&self, from_var: AV, to_var: BV, mut map: M, mut map_back: N) -> VarBindingHandle
-    where
-        A: VarValue,
-        B: VarValue,
-        AV: Var<A>,
-        BV: Var<B>,
-        M: FnMut(&VarBindingInfo, &A) -> Option<B> + 'static,
-        N: FnMut(&VarBindingInfo, &B) -> Option<A> + 'static,
-    {
-        let handle = VarBindingHandle::new();
-        let u_handle = handle.clone();
-
-        let mut last_update_id = self.binding_update_id;
-
-        self.bindings.borrow_mut().push(Box::new(move |vars| {
-            let mut retain = handle.retain();
-
-            if vars.binding_update_id == last_update_id {
-                return retain;
-            }
-
-            if retain {
-                if let Some(new_value) = from_var.get_new(vars) {
-                    last_update_id = vars.binding_update_id;
-
-                    let info = VarBindingInfo::new();
-                    if let Some(new_value) = map(&info, new_value) {
-                        let _ = to_var.set(vars, new_value);
-                    }
-                    if info.unbind.get() {
-                        retain = false;
-                    }
-                }
-                if let Some(new_value) = to_var.get_new(vars) {
-                    last_update_id = vars.binding_update_id;
-
-                    let info = VarBindingInfo::new();
-                    if let Some(new_value) = map_back(&info, new_value) {
-                        let _ = from_var.set(vars, new_value);
-                    }
-                    if info.unbind.get() {
-                        retain = false;
-                    }
-                }
-            }
-            retain
-        }));
         u_handle
     }
 }
@@ -1045,7 +949,7 @@ pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (Respons
     vars.with(|vars| (vars.sender(&responder), response))
 }
 
-/// Represents a variable binding created one of the `bind` methods of [`Vars`].
+/// Represents a variable binding created one of the `bind` methods of [`Vars`] or [`Var`].
 ///
 /// Drop all clones of this handle to drop the binding, or call [`forget`](Self::forget) to drop the handle
 /// without dropping the binding.
@@ -1108,7 +1012,7 @@ impl VarBindingInfo {
 mod tests {
     use crate::app::App;
     use crate::text::ToText;
-    use crate::var::var;
+    use crate::var::{var, Var};
 
     #[test]
     fn one_way_binding() {
@@ -1117,7 +1021,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        app.ctx().vars.bind(a.clone(), b.clone(), |_, a| a.to_text()).forget();
+        a.bind(&app.ctx(), &b, |_, a| a.to_text()).forget();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1162,10 +1066,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        app.ctx()
-            .vars
-            .bind_bidi(a.clone(), b.clone(), |_, a| a.to_text(), |_, b| b.parse().unwrap())
-            .forget();
+        a.bind_bidi(&app.ctx(), &b, |_, a| a.to_text(), |_, b| b.parse().unwrap()).forget();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1210,9 +1111,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        app.ctx()
-            .vars
-            .bind_filtered(a.clone(), b.clone(), |_, a| if *a == 13 { None } else { Some(a.to_text()) })
+        a.filter_bind(&app.ctx(), &b, |_, a| if *a == 13 { None } else { Some(a.to_text()) })
             .forget();
 
         let mut update_count = 0;
@@ -1259,9 +1158,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        app.ctx()
-            .vars
-            .bind_bidi_filtered(a.clone(), b.clone(), |_, a| Some(a.to_text()), |_, b| b.parse().ok())
+        a.filter_bind_bidi(&app.ctx(), &b, |_, a| Some(a.to_text()), |_, b| b.parse().ok())
             .forget();
 
         let mut update_count = 0;
@@ -1323,9 +1220,9 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        app.ctx().vars.bind(a.clone(), b.clone(), |_, a| *a + 1).forget();
-        app.ctx().vars.bind(b.clone(), c.clone(), |_, b| *b + 1).forget();
-        app.ctx().vars.bind(c.clone(), d.clone(), |_, c| *c + 1).forget();
+        a.bind(&app.ctx(), &b, |_, a| *a + 1).forget();
+        b.bind(&app.ctx(), &c, |_, b| *b + 1).forget();
+        c.bind(&app.ctx(), &d, |_, c| *c + 1).forget();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1378,9 +1275,9 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        app.ctx().vars.bind_bidi(a.clone(), b.clone(), |_, a| *a, |_, b| *b).forget();
-        app.ctx().vars.bind_bidi(b.clone(), c.clone(), |_, b| *b, |_, c| *c).forget();
-        app.ctx().vars.bind_bidi(c.clone(), d.clone(), |_, c| *c, |_, d| *d).forget();
+        a.bind_bidi(&app.ctx(), &b, |_, a| *a, |_, b| *b).forget();
+        b.bind_bidi(&app.ctx(), &c, |_, b| *b, |_, c| *c).forget();
+        c.bind_bidi(&app.ctx(), &d, |_, c| *c, |_, d| *d).forget();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1431,7 +1328,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        let _handle = app.ctx().vars.bind(a.clone(), b.clone(), |info, i| {
+        let _handle = a.bind(&app.ctx(), &b, |info, i| {
             info.unbind();
             *i + 1
         });
@@ -1476,7 +1373,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        let handle = app.ctx().vars.bind(a.clone(), b.clone(), |_, i| *i + 1);
+        let handle = a.bind(&app.ctx(), &b, |_, i| *i + 1);
 
         a.set(app.ctx().vars, 10);
 

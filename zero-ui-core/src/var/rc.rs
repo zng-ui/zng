@@ -455,6 +455,24 @@ impl<T: VarValue> ResponseVar<T> {
             }
         })
     }
+
+    /// Map the response value using `map`, if the variable is awaiting a response uses the `waiting_value` first.
+    #[inline]
+    pub fn map_rsp<O, I, M>(&self, waiting_value: I, map: M) -> impl Var<O>
+    where
+        O: VarValue,
+        I: FnOnce() -> O + 'static,
+        M: FnOnce(&T) -> O + 'static,
+    {
+        let mut map = Some(map);
+        self.filter_map(
+            move |_| waiting_value(),
+            move |r| match r {
+                Response::Waiting => None,
+                Response::Done(r) => map.take().map(|m| m(r)),
+            },
+        )
+    }
 }
 
 impl<T: VarValue> ResponderVar<T> {

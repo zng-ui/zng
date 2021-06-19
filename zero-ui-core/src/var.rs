@@ -251,7 +251,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// The value of the map variable is kept up-to-date with the value of this variable, `map` is called every
     /// time the value needs to update.
     ///
-    /// Also see [`Vars::bind`] to create a *map binding* between two existing variables.
+    /// Also see [`Var::bind`] to create a *map binding* between two existing variables.
     #[inline]
     fn map<O, M>(&self, map: M) -> RcMapVar<T, O, M, Self>
     where
@@ -280,7 +280,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// called every time the value needs to update. When the mapped variable is assigned, `map_back` is
     /// called to generate a value that is assigned back to this variable.
     ///
-    /// Also see [`Vars::bind_bidi`] to create a *map binding* between two existing variables.
+    /// Also see [`bind_bidi`](Var::bind_bidi) to create a *map binding* between two existing variables.
     #[inline]
     fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> RcMapBidiVar<T, O, M, N, Self>
     where
@@ -313,7 +313,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     ///
     /// The `fallback_init` can be called once if the first call to `map` returns `None`, it must return a *fallback* initial value.
     ///
-    /// Also see [`Vars::bind_filtered`] to create a *map binding* between two existing variables.
+    /// Also see [`filter_bind`](Var::filter_bind) to create a *map binding* between two existing variables.
     #[inline]
     fn filter_map<O, I, M>(&self, fallback_init: I, map: M) -> RcFilterMapVar<T, O, I, M, Self>
     where
@@ -331,7 +331,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     ///
     /// When the mapped variable is assigned, `map_back` is called, if it returns `Some(T)` the value is assigned back to this variable.
     ///
-    /// Also see [`Vars::bind_bidi_filtered`] to create a *map binding* between two existing variables.
+    /// Also see [`filter_bind_bidi`](Var::filter_bind_bidi) to create a *map binding* between two existing variables.
     #[inline]
     fn filter_map_bidi<O, I, M, N>(&self, fallback_init: I, map: M, map_back: N) -> RcFilterMapBidiVar<T, O, I, M, N, Self>
     where
@@ -341,6 +341,157 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         N: FnMut(O) -> Option<T> + 'static,
     {
         RcFilterMapBidiVar::new(self.clone(), fallback_init, map, map_back)
+    }
+
+    /// Creates a sender that can set `self` from other threads and without access to [`Vars`].
+    ///
+    /// If the variable is read-only when a value is received it is silently dropped.
+    ///
+    /// Drop the sender to release one reference to `self`.
+    #[inline]
+    fn sender<Vw>(&self, vars: &Vw) -> VarSender<T>
+    where
+        T: Send,
+        Vw: WithVars,
+    {
+        vars.with(|vars| vars.sender(self))
+    }
+
+    /// Creates a sender that modify `self` from other threads and without access to [`Vars`].
+    ///
+    /// If the variable is read-only when a modification is received it is silently dropped.
+    ///
+    /// Drop the sender to release one reference to `self`.
+    #[inline]
+    fn modify_sender<Vw: WithVars>(&self, vars: &Vw) -> VarModifySender<T> {
+        vars.with(|vars| vars.modify_sender(self))
+    }
+
+    /// Creates a channel that can receive `var` updates from another thread.
+    ///
+    /// Every time the variable updates a clone of the value is sent to the receiver. The current value is sent immediately.
+    ///
+    /// Drop the receiver to release one reference to `var`.
+    #[inline]
+    fn receiver<Vr>(&self, vars: &Vr) -> VarReceiver<T>
+    where
+        T: Send,
+        Vr: WithVarsRead,
+    {
+        vars.with(|vars| vars.receiver(self))
+    }
+
+    /// Create a [`map`](Var::map) like binding between two existing variables.
+    ///
+    /// The binding flows from `self` to `to_var`, every time `self` updates `map` is called to generate a value that is assigned `to_var`.
+    ///
+    /// Both `self` and `to_var` notify a new value in the same app update, this is different then a manually implemented *binding*
+    /// where the assign to `to_var` would cause a second update.
+    #[inline]
+    fn bind<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue,
+        V2: Var<T2>,
+        M: FnMut(&VarBindingInfo, &T) -> T2 + 'static,
+    {
+        vars.with(|vars| {
+            let to_var = to_var.clone();
+            vars.bind_one(self, move |vars, info, from_var| {
+                let new_value = map(info, from_var.get(vars));
+                let _ = to_var.set(vars, new_value);
+            })
+        })
+    }
+
+    /// Create a [`map_bidi`](Var::map_bidi) like binding between two existing variables.
+    ///
+    /// The bindings **maps** from `self` to `other_var` and **maps-back** from `other_var` to `self`.
+    /// Every time `self` updates `map` is called to generate a value that is assigned to `other_var` and every time `other_var`
+    /// updates `map_back` is called to generate a value that is assigned back to `self`.
+    ///
+    /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
+    /// when the assign to the second variable would cause a second update.
+    #[inline]
+    fn bind_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue,
+        V2: Var<T2>,
+        M: FnMut(&VarBindingInfo, &T) -> T2 + 'static,
+        N: FnMut(&VarBindingInfo, &T2) -> T + 'static,
+    {
+        vars.with(|vars| {
+            vars.bind_two(self, other_var, move |vars, info, from_var, to_var| {
+                if let Some(new_value) = from_var.get_new(vars) {
+                    let new_value = map(&info, new_value);
+                    let _ = to_var.set(vars, new_value);
+                }
+                if let Some(new_value) = to_var.get_new(vars) {
+                    let new_value = map_back(&info, new_value);
+                    let _ = from_var.set(vars, new_value);
+                }
+            })
+        })
+    }
+
+    /// Create a [`filter_map`](Var::filter_map) like binding between two existing variables.
+    ///
+    /// The binding flows from `self` to `to_var`, every time `self` updates `map` is called to generate a value, if it does, that value
+    /// is assigned `to_var`.
+    ///
+    /// Both `self` and `to_var` notify a new value in the same app update, this is different then a manually implemented *binding*
+    /// where the assign to `to_var` would cause a second update.
+    #[inline]
+    fn filter_bind<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue,
+        V2: Var<T2>,
+        M: FnMut(&VarBindingInfo, &T) -> Option<T2> + 'static,
+    {
+        vars.with(|vars| {
+            let to_var = to_var.clone();
+            vars.bind_one(self, move |vars, info, from_var| {
+                if let Some(new_value) = map(&info, from_var.get(vars)) {
+                    let _ = to_var.set(vars, new_value);
+                }
+            })
+        })
+    }
+
+    /// Create a [`filter_map_bidi`](Var::filter_map_bidi) like binding between two existing variables.
+    ///
+    /// The bindings **maps** from `self` to `other_var` and **maps-back** from `other_var` to `self`.
+    /// Every time `self` updates `map` is called to generate a value that is assigned to `other_var` and every time `other_var`
+    /// updates `map_back` is called to generate a value that is assigned back to `self`. In both cases the second variable only
+    /// updates if the map function returns a value.
+    ///
+    /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
+    /// when the assign to the second variable would cause a second update.
+    #[inline]
+    fn filter_bind_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue,
+        V2: Var<T2>,
+        M: FnMut(&VarBindingInfo, &T) -> Option<T2> + 'static,
+        N: FnMut(&VarBindingInfo, &T2) -> Option<T> + 'static,
+    {
+        vars.with(|vars| {
+            vars.bind_two(self, other_var, move |vars, info, from_var, to_var| {
+                if let Some(new_value) = from_var.get_new(vars) {
+                    if let Some(new_value) = map(info, new_value) {
+                        let _ = to_var.set(vars, new_value);
+                    }
+                }
+                if let Some(new_value) = to_var.get_new(vars) {
+                    if let Some(new_value) = map_back(&info, new_value) {
+                        let _ = from_var.set(vars, new_value);
+                    }
+                }
+            })
+        })
     }
 }
 
