@@ -28,7 +28,7 @@ pub_test = []
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
 
 # windowing
-glutin = "0.26"
+glutin = "0.27"
 winapi = "0.3"
 
 # text
