@@ -23,15 +23,23 @@ use crate::{
 macro_rules! command {
     ($(
         $(#[$outer:meta])*
-        $vis:vis $Command:ident $(: $Args:path)?
-    );+$(;)?) => {$(
+        $vis:vis $Command:ident $(
+                 .$init:ident( $($args:tt)* )
+        )*;
+    )+) => {$(
 
         $(#[$outer])*
         #[derive(Clone, Copy, Debug)]
         $vis struct $Command;
         impl $Command {
             std::thread_local! {
-                static COMMAND: $crate::command::CommandValue = $crate::command::CommandValue::init::<$Command>();
+                static COMMAND: $crate::command::CommandValue = $crate::command::CommandValue::init::<$Command, _>(||{
+                    #[allow(path_statements)] {
+                        $Command $(
+                        .$init( $($args)* )
+                        )*;
+                    }
+                });
             }
 
             /// Gets the event arguments if the update is for this event.
@@ -42,10 +50,11 @@ macro_rules! command {
             }
 
             /// Schedule an event update if the command is enabled.
+            /// `parameter` is an optional value for the command handler.
             #[inline]
             #[allow(unused)]
-            pub fn notify(self, events: &mut $crate::event::Events, args: $crate::command::CommandArgs) {
-                <Self as $crate::event::Event>::notify(self, events, args);
+            pub fn notify(self, events: &mut $crate::event::Events, parameter: Option<std::rc::Rc<dyn std::any::Any>>) {
+                <Self as $crate::event::Event>::notify(self, events, $crate::command::CommandArgs::now(parameter));
             }
         }
         impl $crate::event::Event for $Command {
@@ -53,7 +62,7 @@ macro_rules! command {
 
             #[inline(always)]
             fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, args: Self::Args) {
-                if Self::COMMAND.with(|c| c.handle.enabled.get() > 0) {
+                if Self::COMMAND.with(|c| c.enabled_value()) {
                     events.with_events(|evs| evs.notify::<Self>(args));
                 }
             }
@@ -73,8 +82,18 @@ macro_rules! command {
             }
 
             #[inline]
+            fn enabled_value(self) -> bool {
+                Self::COMMAND.with(|c| c.enabled_value())
+            }
+
+            #[inline]
             fn has_handlers(self) -> $crate::var::ReadOnlyVar<bool, $crate::var::RcVar<bool>> {
                 Self::COMMAND.with(|c| c.has_handlers())
+            }
+
+            #[inline]
+            fn has_handlers_value(self) -> bool {
+                Self::COMMAND.with(|c| c.has_handlers_value())
             }
 
             #[inline]
@@ -108,11 +127,17 @@ pub trait Command: Event<Args = CommandArgs> {
     /// visible but disabled.
     fn enabled(self) -> ReadOnlyVar<bool, RcVar<bool>>;
 
+    /// Gets if the command has at least one enabled handler.
+    fn enabled_value(self) -> bool;
+
     /// Gets a read-only variable that indicates if the command has at least one handler.
     ///
     /// When this is `false` the command can be considered *not relevant* in the current app state
     /// and associated command trigger widgets can be hidden.
     fn has_handlers(self) -> ReadOnlyVar<bool, RcVar<bool>>;
+
+    /// Gets if the command has at least one handler.
+    fn has_handlers_value(self) -> bool;
 
     /// Create a new handle to this command.
     ///
@@ -171,7 +196,11 @@ impl Event for AnyCommand {
     type Args = CommandArgs;
 
     fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
-        events.with_events(|events| self.0.with(move |c| (c.notify)(events, args)));
+        self.0.with(|c| {
+            if c.enabled_value() {
+                events.with_events(|e| (c.notify)(e, args))
+            }
+        });
     }
     fn update<U: crate::event::EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
         panic!("`AnyCommand` does not support `Event::update`");
@@ -190,8 +219,16 @@ impl Command for AnyCommand {
         self.0.with(|c| c.enabled())
     }
 
+    fn enabled_value(self) -> bool {
+        self.0.with(|c| c.enabled_value())
+    }
+
     fn has_handlers(self) -> ReadOnlyVar<bool, RcVar<bool>> {
         self.0.with(|c| c.has_handlers())
+    }
+
+    fn has_handlers_value(self) -> bool {
+        self.0.with(|c| c.has_handlers_value())
     }
 
     fn new_handle(self, events: &mut Events) -> CommandHandle {
@@ -207,6 +244,9 @@ impl Command for AnyCommand {
 pub trait CommandNameExt: Command {
     /// Gets a read-write variable that is the display name for the command.
     fn name(self) -> RcVar<Text>;
+
+    /// Sets the initial name if it is not set.
+    fn init_name(self, name: impl Into<Text>) -> Self;
 }
 state_key! {
     struct CommandNameKey: RcVar<Text>;
@@ -219,12 +259,23 @@ impl<C: Command> CommandNameExt for C {
             var.clone()
         })
     }
+
+    fn init_name(self, name: impl Into<Text>) -> Self {
+        self.with_meta(|m| {
+            let entry = m.entry::<CommandNameKey>();
+            entry.or_insert_with(|| var(name.into()));
+        });
+        self
+    }
 }
 
 /// Adds the [`info`](CommandInfoExt) metadata.
 pub trait CommandInfoExt: Command {
     /// Gets a read-write variable that is a short informational string about the command.
     fn info(self) -> RcVar<Text>;
+
+    /// Sets the initial info if it is not set.
+    fn init_info(self, info: impl Into<Text>) -> Self;
 }
 state_key! {
     struct CommandInfoKey: RcVar<Text>;
@@ -236,6 +287,14 @@ impl<C: Command> CommandInfoExt for C {
             let var = entry.or_insert_with(|| var_from(""));
             var.clone()
         })
+    }
+
+    fn init_info(self, info: impl Into<Text>) -> Self {
+        self.with_meta(|m| {
+            let entry = m.entry::<CommandInfoKey>();
+            entry.or_insert_with(|| var(info.into()));
+        });
+        self
     }
 }
 
@@ -282,12 +341,13 @@ pub struct CommandValue {
     enabled: RcVar<bool>,
     has_handlers: RcVar<bool>,
     meta: RefCell<OwnedStateMap>,
+    meta_init: Cell<Option<Box<dyn FnOnce()>>>,
     registered: Cell<bool>,
     notify: Box<dyn Fn(&mut Events, CommandArgs)>,
 }
 #[allow(missing_docs)] // this is all hidden
 impl CommandValue {
-    pub fn init<C: Command>() -> Self {
+    pub fn init<C: Command, I: FnOnce() + 'static>(meta_init: I) -> Self {
         CommandValue {
             command_type_id: TypeId::of::<C>(),
             command_type_name: type_name::<C>(),
@@ -295,17 +355,15 @@ impl CommandValue {
             enabled: var(false),
             has_handlers: var(false),
             meta: RefCell::default(),
+            meta_init: Cell::new(Some(Box::new(meta_init))),
             registered: Cell::new(false),
             notify: Box::new(|events, args| events.notify::<C>(args)),
         }
     }
 
     fn update_state(&self, vars: &Vars) {
-        let has_handlers = Rc::strong_count(&self.handle) > 1;
-        let enabled = self.handle.enabled.get() > 0;
-
-        self.has_handlers.set_ne(vars, has_handlers);
-        self.enabled.set_ne(vars, enabled);
+        self.has_handlers.set_ne(vars, self.has_handlers_value());
+        self.enabled.set_ne(vars, self.enabled_value());
     }
 
     pub fn new_handle(&self, events: &mut Events, key: &'static LocalKey<CommandValue>) -> CommandHandle {
@@ -323,14 +381,25 @@ impl CommandValue {
         ReadOnlyVar::new(self.enabled.clone())
     }
 
+    pub fn enabled_value(&self) -> bool {
+        self.handle.enabled.get() > 0
+    }
+
     pub fn has_handlers(&self) -> ReadOnlyVar<bool, RcVar<bool>> {
         ReadOnlyVar::new(self.has_handlers.clone())
+    }
+
+    pub fn has_handlers_value(&self) -> bool {
+        Rc::strong_count(&self.handle) > 1
     }
 
     pub fn with_meta<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut StateMap) -> R,
     {
+        if let Some(init) = self.meta_init.take() {
+            init()
+        }
         f(&mut self.meta.borrow_mut().0)
     }
 }
@@ -362,7 +431,7 @@ mod tests {
 
     command! {
         FooCommand;
-        BarCommand: crate::command::CommandArgs;
+        BarCommand;
     }
 
     #[test]

@@ -61,7 +61,6 @@ pub trait Event: Debug + Clone + Copy + 'static {
     type Args: EventArgs;
 
     /// Schedule an event update.
-    #[doc(hidden)]
     #[inline(always)]
     fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
         events.with_events(|events| events.notify::<Self>(args));
@@ -672,7 +671,8 @@ impl Events {
         }
     }
 
-    pub(crate) fn notify<E: Event>(&mut self, args: E::Args) {
+    /// Called by [`Event::notify`] to schedule a notification.
+    pub fn notify<E: Event>(&mut self, args: E::Args) {
         let update = EventUpdate::<E>(args);
         self.updates.push(update.boxed());
     }

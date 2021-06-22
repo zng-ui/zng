@@ -13,6 +13,7 @@ mod border_;
 pub use border_::*;
 
 mod capture_mouse_;
+pub mod commands;
 mod cursor_;
 pub mod drag_move;
 pub mod events;

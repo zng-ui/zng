@@ -33,12 +33,17 @@ mod declare_stuff{
 
   command! {
       /// Command docs.
-      pub CopyCommand;
+      pub CopyCommand
+          .init_name("Copy")
+          .init_gesture(shortcuts![CTRL+C]);      
 
       /// Other command docs.
       pub PasteCommand;
   }
 
+  fn app_run(ctx: _) {
+    CopyCommand.name().set(ctx, "Copiar")
+  }
 }
 
 // 
@@ -145,7 +150,11 @@ button!{
   content = text(CopyCommand::label());
   enabled = CopyCommand::enabled();
   visible = CopyCommand::has_handlers();
+
+  //this
   command = CopyCommand;
+  //or this
+  on_click = hn!(|_, _| CopyCommand.notify(None));
 }
 
 command_button!{
