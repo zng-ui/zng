@@ -11,7 +11,7 @@ fn main() {
                 text(formatx!(r#"> using `async-std` to read "{}".."#, file)),
                 text(size.map(|&i| if i == 0 { "".to_text() } else { formatx!("> done, {} bytes", i) }))
             ]);
-            on_open = move |ctx, _| {
+            on_open = hn!(|ctx, _| {
                 let size = ctx.vars.sender(&size);
                 task::spawn(async move {
                     // `async-std` starts their own *event reactor* so we can just start using async IO functions:
@@ -19,7 +19,7 @@ fn main() {
 
                     let _ = size.send(bytes.len());
                 })
-            };
+            });
         }
     })
 }

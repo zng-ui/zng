@@ -273,13 +273,23 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
 }
 
 event_args! {
-    /// [`WindowOpenEvent`], [`WindowCloseEvent`] args.
-    pub struct WindowEventArgs {
+    /// [`WindowOpenEvent`] args.
+    pub struct WindowOpenArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
 
-        /// `true` if the window opened, `false` if it closed.
-        pub opened: bool,
+        ..
+
+        /// If the widget is in the same window.
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            ctx.path.window_id() == self.window_id
+        }
+    }
+
+    /// [`WindowCloseEvent`] args.
+    pub struct WindowCloseArgs {
+        /// Id of window that was opened or closed.
+        pub window_id: WindowId,
 
         ..
 
@@ -378,7 +388,7 @@ event! {
     pub WindowMoveEvent: WindowMoveArgs;
 
     /// New window event.
-    pub WindowOpenEvent: WindowEventArgs;
+    pub WindowOpenEvent: WindowOpenArgs;
 
     /// Window focus/blur event.
     pub WindowFocusChangedEvent: WindowIsFocusedArgs;
@@ -396,7 +406,7 @@ event! {
     pub WindowCloseRequestedEvent: WindowCloseRequestedArgs;
 
     /// Close window event.
-    pub WindowCloseEvent: WindowEventArgs;
+    pub WindowCloseEvent: WindowCloseArgs;
 }
 
 /// Application extension that manages windows.
@@ -579,7 +589,7 @@ impl AppExtension for WindowManager {
 
             debug_assert!(matches!(window.init_state, WindowInitState::Inited));
 
-            let args = WindowEventArgs::now(window.id, true);
+            let args = WindowOpenArgs::now(window.id);
             window.open_response.take().unwrap().respond(ctx.vars, args.clone());
             WindowOpenEvent.notify(ctx.events, args);
             wns.windows.push(window);
@@ -685,7 +695,7 @@ impl WindowManager {
                 let _ = win.close_response.borrow_mut().take();
             } else {
                 // close was success.
-                WindowCloseEvent.notify(ctx.events, WindowEventArgs::now(args.window_id, false));
+                WindowCloseEvent.notify(ctx.events, WindowCloseArgs::now(args.window_id));
                 let responder = win.close_response.borrow_mut().take().unwrap();
                 responder.respond(ctx.vars, CloseWindowResult::Close);
             }
@@ -693,7 +703,7 @@ impl WindowManager {
     }
 
     /// Respond to window_close events.
-    fn update_close(&mut self, ctx: &mut AppContext, args: &WindowEventArgs) {
+    fn update_close(&mut self, ctx: &mut AppContext, args: &WindowCloseArgs) {
         // remove the window.
         let window = {
             let wns = ctx.services.windows();
@@ -724,6 +734,7 @@ impl WindowManager {
 
         WindowFocusChangedEvent.notify(events, args.clone());
         if args.focused {
+            WindowFocusEvent.notify(events, args)
         } else {
             WindowBlurEvent.notify(events, args);
         }
@@ -767,7 +778,7 @@ impl Windows {
         &mut self,
         new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
         force_headless: Option<WindowMode>,
-    ) -> ResponseVar<WindowEventArgs> {
+    ) -> ResponseVar<WindowOpenArgs> {
         let (responder, response) = response_var();
         let request = OpenWindowRequest {
             new: Box::new(new_window),
@@ -864,7 +875,7 @@ impl Windows {
 struct OpenWindowRequest {
     new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     force_headless: Option<WindowMode>,
-    responder: ResponderVar<WindowEventArgs>,
+    responder: ResponderVar<WindowOpenArgs>,
 }
 
 /// Response message of [`close`](Windows::close) and [`close_together`](Windows::close_together).
@@ -887,7 +898,7 @@ pub enum GetWindowError {
     /// the window finishes opening.
     ///
     /// **Note:** The window initial content is inited, updated, layout and rendered once before the window is open.
-    Opening(WindowId, ResponseVar<WindowEventArgs>),
+    Opening(WindowId, ResponseVar<WindowOpenArgs>),
 }
 impl fmt::Debug for GetWindowError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1745,7 +1756,7 @@ pub struct OpenWindow {
     headless_state: WindowState,
     taskbar_visible: bool,
 
-    open_response: Option<ResponderVar<WindowEventArgs>>,
+    open_response: Option<ResponderVar<WindowOpenArgs>>,
     close_response: RefCell<Option<ResponderVar<CloseWindowResult>>>,
     close_canceled: RefCell<Rc<Cell<bool>>>,
     app_sender: AppEventSender,
@@ -1755,7 +1766,7 @@ impl OpenWindow {
     fn new(
         new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>,
         force_headless: Option<WindowMode>,
-        open_response: ResponderVar<WindowEventArgs>,
+        open_response: ResponderVar<WindowOpenArgs>,
         ctx: &mut AppContext,
         window_target: WindowTarget,
         ui_threads: Arc<ThreadPool>,

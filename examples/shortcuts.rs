@@ -12,11 +12,11 @@ fn main() {
             auto_size = true;
             padding = 50;
             start_position = StartPosition::CenterScreen;
-            on_shortcut = clone_move!(shortcut_text, shortcut_color, |ctx, args| {
+            on_shortcut = hn!(shortcut_text, shortcut_color, |ctx, args: &ShortcutArgs| {
                 shortcut_text.set(ctx.vars, args.shortcut.to_text());
                 shortcut_color.set(ctx.vars, shortcut_color_dft);
             });
-            on_key_down = clone_move!(keypress_text, shortcut_text, shortcut_color, |ctx, args| {
+            on_key_down = hn!(keypress_text, shortcut_text, shortcut_color, |ctx, args: &KeyInputArgs| {
                 let mut new_shortcut_text = "not supported";
                 if let Some(key) = args.key {
                     if key.is_modifier() {

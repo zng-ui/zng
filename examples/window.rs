@@ -106,9 +106,9 @@ fn set_var_btn<T: zero_ui::core::var::VarValue>(var: &RcVar<T>, new_value: T, co
     let var = var.clone();
     button! {
         content = text(content_txt);
-        on_click = move |ctx, _| {
-            var.set(ctx.vars,  new_value.clone());
-        };
+        on_click = hn!(|ctx, _| {
+            var.set(ctx,  new_value.clone());
+        });
     }
 }
 
@@ -123,7 +123,7 @@ fn screenshot() -> impl Widget {
                 "saving..".to_text()
             }
         }));
-        on_click_async = async_clone_move!(enabled, |ctx, _| {
+        on_click = async_hn!(enabled, |ctx, _| {
             // disable button until screenshot is saved.
             enabled.set(&ctx, false);
 
@@ -150,9 +150,9 @@ fn screenshot() -> impl Widget {
 fn inspect() -> impl Widget {
     button! {
         content = text("inspector");
-        on_click = |_,_| {
+        on_click = hn!(|_,_| {
             println!("in debug only, press CTRL+SHIFT+I")
-        };
+        });
     }
 }
 
@@ -167,7 +167,7 @@ fn headless() -> impl Widget {
             }
         }));
         enabled = enabled.clone();
-        on_click = move |ctx, _| {
+        on_click = hn!(|ctx, _| {
             enabled.set(ctx.vars, false);
 
             println!("taking `screenshot.png` using a new headless window ..");
@@ -177,7 +177,7 @@ fn headless() -> impl Widget {
                     font_size = 72;
                     content = text("No Head!");
 
-                    on_open = clone_move!(enabled, |ctx, args| {
+                    on_open = hn_once!(|ctx, args: &WindowOpenArgs| {
                         let window = ctx.services.windows().window(args.window_id).unwrap();
                         let img = window.frame_pixels();
                         let enabled = ctx.vars.sender(&enabled);
@@ -193,51 +193,51 @@ fn headless() -> impl Widget {
                 }),
                 Some(zero_ui::core::window::WindowMode::HeadlessWithRenderer)
             );
-        };
+        });
     }
 }
 
 fn always_on_top() -> impl Widget {
     button! {
         content = text("always_on_top");
-        on_click = |ctx, _| {
+        on_click = hn!(|ctx, _| {
             ctx.services.windows().open(|_| {
                 let always_on_top = var(true);
                 window! {
                     title = always_on_top.map(|b| formatx!{"always_on_top = {}", b});
                     content = button!{
                         content = text("toggle always_on_top");
-                        on_click = clone_move!(always_on_top, |ctx, _| {
-                            always_on_top.modify(ctx.vars, |b| **b = !**b)
+                        on_click = hn!(always_on_top, |ctx, _| {
+                            always_on_top.modify(ctx, |b| **b = !**b)
                         })
                     };
                     size = (400, 300);
                     always_on_top;
                 }
             }, None);
-        }
+        })
     }
 }
 
 fn taskbar_visible() -> impl Widget {
     button! {
         content = text("taskbar_visible");
-        on_click = |ctx, _| {
+        on_click = hn!(|ctx, _| {
             ctx.services.windows().open(|_| {
                 let taskbar_visible = var(false);
                 window! {
                     title = taskbar_visible.map(|b| formatx!{"taskbar_visible = {}", b});
                     content = button!{
                         content = text("toggle taskbar_visible");
-                        on_click = clone_move!(taskbar_visible, |ctx, _| {
-                            taskbar_visible.modify(ctx.vars, |b| **b = !**b)
+                        on_click = hn!(taskbar_visible, |ctx, _| {
+                            taskbar_visible.modify(ctx, |b| **b = !**b)
                         })
                     };
                     size = (400, 300);
                     taskbar_visible;
                 }
             }, None);
-        }
+        })
     }
 }
 
@@ -246,9 +246,9 @@ fn set_chrome(label: impl IntoVar<Text> + 'static, chrome: impl Into<WindowChrom
     let chrome = chrome.into();
     button! {
         content = text(label);
-        on_click = move |ctx, _| {
-            var.set_ne(ctx.vars, chrome.clone());
-        };
+        on_click = hn!(|ctx, _| {
+            var.set_ne(ctx, chrome.clone());
+        });
     }
 }
 
@@ -257,8 +257,8 @@ fn set_icon(label: impl IntoVar<Text> + 'static, icon: impl Into<WindowIcon>, va
     let icon = icon.into();
     button! {
         content = text(label);
-        on_click = move |ctx, _| {
-            var.set_ne(ctx.vars, icon.clone());
-        };
+        on_click = hn!(|ctx, _| {
+            var.set_ne(ctx, icon.clone());
+        });
     }
 }

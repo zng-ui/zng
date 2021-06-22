@@ -61,7 +61,7 @@ fn functions() -> impl Widget {
             title("Functions (F)"),
             button! {
                 content = text("New Window");
-                on_click = |ctx, _| {
+                on_click = hn!(|ctx, _| {
                     ctx.services.windows().open(|_|window! {
                         title = "Other Window";
                         focus_shortcut = shortcut!(W);
@@ -77,13 +77,13 @@ fn functions() -> impl Widget {
                             ]
                         };
                     }, None);
-                };
+                });
             },
             {
                 let detach_focused = RcNode::new_cyclic(|wk| {
                     let btn = button! {
                         content = text("Detach Button");
-                        on_click = move |ctx, _| {
+                        on_click = hn!(|ctx, _| {
                             let wwk = wk.clone();
                             ctx.services.windows().open(move |_| {
                                 window! {
@@ -91,7 +91,7 @@ fn functions() -> impl Widget {
                                     content = slot(wwk.upgrade().unwrap(), take_on_init());
                                 }
                             }, None);
-                        }
+                        });
                     };
                     btn.boxed()
                 });
@@ -111,9 +111,9 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widg
     button! {
         content = text(content.clone());
         tab_index;
-        on_click = move |_, _| {
+        on_click = hn!(|_, _| {
             println!("Clicked {} {:?}", content, tab_index)
-        };
+        });
     }
 }
 

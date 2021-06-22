@@ -225,10 +225,6 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
         on_pre_window_open as on_open;
-        /// Async [`on_open`](#wp-on_open).
-        ///
-        /// This property is the [`on_pre_window_open_async`](fn@on_pre_window_open_async) so window handlers see it first.
-        on_pre_window_open_async as on_open_async;
 
         /// Event just before the window frame is redraw.
         #[allowed_in_when = false]
@@ -500,16 +496,16 @@ pub mod window {
 }
 
 #[cfg(not(debug_assertions))]
-fn print_frame_inspector() -> impl FnMut(&mut WidgetContext, &ShortcutArgs) {
-    |_, _| {}
+fn print_frame_inspector() -> impl EventHandler<ShortcutArgs> {
+    hn!(|_, _| {})
 }
 
 #[cfg(debug_assertions)]
-fn print_frame_inspector() -> impl FnMut(&mut WidgetContext, &ShortcutArgs) {
+fn print_frame_inspector() -> impl EventHandler<ShortcutArgs> {
     use crate::core::debug::{write_frame, WriteFrameState};
 
     let mut state = WriteFrameState::none();
-    move |ctx, args| {
+    hn!(|ctx, args: &ShortcutArgs| {
         if args.shortcut == shortcut!(CTRL | SHIFT + I) {
             args.stop_propagation();
 
@@ -524,5 +520,5 @@ fn print_frame_inspector() -> impl FnMut(&mut WidgetContext, &ShortcutArgs) {
 
             state = WriteFrameState::new(&frame);
         }
-    }
+    })
 }

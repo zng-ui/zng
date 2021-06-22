@@ -8,7 +8,7 @@
 //! # Example
 //!
 //! ```
-//! # use zero_ui_core::{widget, UiNode, var::{var, IntoVar}, async_clone_move, event_property, property,
+//! # use zero_ui_core::{widget, UiNode, var::{var, IntoVar}, async_hn, event_property, property,
 //! # gesture::{ClickEvent, ClickArgs}, task::{self, rayon::prelude::*}};
 //! # #[widget($crate::button)]
 //! # pub mod button { }
@@ -18,7 +18,7 @@
 //! # fn main() {
 //! let enabled = var(false);
 //! button! {
-//!     on_click_async = async_clone_move!(enabled, |ctx, _| {
+//!     on_click = async_hn!(enabled, |ctx, _| {
 //!         enabled.set(&ctx, false);
 //!
 //!         let sum_task = task::run(async {

@@ -22,21 +22,21 @@ fn example() -> impl Widget {
     let mut count = 0;
 
     button! {
-        on_click = clone_move!(t, |ctx, _| {
+        on_click = hn!(t, |ctx, _| {
             count += 1;
             let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
             t.set(ctx, new_txt);
         });
-        on_double_click = |_, _| println!("double click!");
-        on_triple_click = |_, _| println!("triple click!");
-        on_context_click = |_, _| println!("context click!");
+        on_double_click = hn!(|_, _| println!("double click!"));
+        on_triple_click = hn!(|_, _| println!("triple click!"));
+        on_context_click = hn!(|_, _| println!("context click!"));
         content = text(t);
     }
 }
 
 fn disabled() -> impl Widget {
     button! {
-        on_click = |_, _| panic!("disabled button");
+        on_click = hn!(|_, _| panic!("disabled button"));
         enabled = false;
         content = text("Disabled");
     }

@@ -9,7 +9,7 @@
 //! event using [`Events`](crate::core::event::Events).
 
 use super::event_property;
-use crate::core::window::{WindowCloseRequestedArgs, WindowCloseRequestedEvent, WindowEventArgs, WindowOpenEvent};
+use crate::core::window::{WindowCloseRequestedArgs, WindowCloseRequestedEvent, WindowOpenArgs, WindowOpenEvent};
 
 event_property! {
     /// On window opened.
@@ -17,7 +17,7 @@ event_property! {
     /// This event notifies once per window, after the window content is inited and the first frame is rendered.
     pub fn window_open {
         event: WindowOpenEvent,
-        args: WindowEventArgs,
+        args: WindowOpenArgs,
     }
 
     /// On window close requested.

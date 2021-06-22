@@ -19,10 +19,10 @@ pub mod button {
         /// use zero_ui::prelude::*;
         ///
         /// button! {
-        ///     on_click = |ctx, click_args| {
-        ///         assert!(click_args.is_primary());
+        ///     on_click = hn!(|ctx, args: &ClickArgs| {
+        ///         assert!(args.is_primary());
         ///         println!("button {:?} clicked!", ctx.path.widget_id());
-        ///     };
+        ///     });
         ///     content = text("Click Me!");
         /// }
         /// # ;

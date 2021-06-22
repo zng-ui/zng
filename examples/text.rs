@@ -34,13 +34,13 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         widgets![
             button! {
                 content = text("Increase Size");
-                on_click = clone_move!(font_size, |ctx, _| {
+                on_click = hn!(font_size, |ctx, _| {
                     change_size(&font_size, 1.0, ctx)
                 });
             },
             button! {
                 content = text("Decrease Size");
-                on_click = clone_move!(font_size, |ctx, _| {
+                on_click = hn!(font_size, |ctx, _| {
                     change_size(&font_size, -1.0, ctx)
                 });
             },

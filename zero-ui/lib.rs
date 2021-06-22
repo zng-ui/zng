@@ -25,9 +25,9 @@
 //!
 //! fn example() -> impl Widget {
 //!     button! {
-//!         on_click = |_,_| {
+//!         on_click = hn!(|_,_| {
 //!             println!("Button clicked!");
-//!         };
+//!         });
 //!         margin = 10.0;
 //!         size = (300.0, 200.0);
 //!         align = Alignment::CENTER;
@@ -934,12 +934,12 @@ pub mod prelude {
             sepia, Rgba,
         },
         context::WidgetContext,
-        event::Events,
-        focus::{DirectionalNav, Focus, FocusExt, TabIndex, TabNav},
-        gesture::{shortcut, GestureKey, Shortcut, Shortcuts},
+        event::{async_hn, async_hn_once, hn, hn_once, EventHandler, Events},
+        focus::{DirectionalNav, Focus, FocusChangedArgs, FocusExt, ReturnFocusChangedArgs, TabIndex, TabNav},
+        gesture::{shortcut, ClickArgs, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
-        keyboard::{Key, ModifiersState},
-        mouse::MouseButton,
+        keyboard::{CharInputArgs, Key, KeyInputArgs, ModifiersChangedArgs, ModifiersState},
+        mouse::{MouseButton, MouseMoveArgs},
         node_vec, nodes,
         render::WidgetPath,
         service::Services,
@@ -960,7 +960,8 @@ pub mod prelude {
         widget_base::Visibility,
         widget_vec, widgets,
         window::{
-            AppRunWindowExt, AutoSize, CursorIcon, StartPosition, Window, WindowChrome, WindowIcon, WindowState, Windows, WindowsExt,
+            AppRunWindowExt, AutoSize, CursorIcon, StartPosition, Window, WindowChrome, WindowCloseRequestedArgs, WindowIcon,
+            WindowMoveArgs, WindowOpenArgs, WindowResizeArgs, WindowState, Windows, WindowsExt,
         },
         RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
     };
@@ -1079,6 +1080,8 @@ pub mod prelude {
         pub use crate::core::color::*;
         #[doc(no_inline)]
         pub use crate::core::context::*;
+        #[doc(no_inline)]
+        pub use crate::core::event::*;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
