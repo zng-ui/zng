@@ -18,8 +18,6 @@ Things that must be done first because they influence the core API design that i
 
 * Commands.
 
-* Timer.
-  * Unify UI timer types.
 * App level EventHandler.
 
 * Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
