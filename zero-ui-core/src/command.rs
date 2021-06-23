@@ -52,7 +52,7 @@ macro_rules! command {
             }
 
             /// Schedule an event update if the command is enabled.
-            /// `parameter` is an optional value for the command handler.
+            /// The `parameter` is an optional value for the command handler.
             #[inline]
             #[allow(unused)]
             pub fn notify(self, events: &mut $crate::event::Events, parameter: Option<std::rc::Rc<dyn std::any::Any>>) {
@@ -256,8 +256,10 @@ state_key! {
 impl<C: Command> CommandNameExt for C {
     fn name(self) -> RcVar<Text> {
         self.with_meta(|m| {
-            let entry = m.entry::<CommandNameKey>();
-            let var = entry.or_insert_with(|| var_from(type_name::<C>()));
+            let var = m.entry::<CommandNameKey>().or_insert_with(|| {
+                let name = type_name::<C>();
+                var_from(name.strip_suffix("Command").unwrap_or(name))
+            });
             var.clone()
         })
     }
@@ -284,17 +286,12 @@ state_key! {
 }
 impl<C: Command> CommandInfoExt for C {
     fn info(self) -> RcVar<Text> {
-        self.with_meta(|m| {
-            let entry = m.entry::<CommandInfoKey>();
-            let var = entry.or_insert_with(|| var_from(""));
-            var.clone()
-        })
+        self.with_meta(|m| m.entry::<CommandInfoKey>().or_insert_with(|| var_from("")).clone())
     }
 
     fn init_info(self, info: impl Into<Text>) -> Self {
         self.with_meta(|m| {
-            let entry = m.entry::<CommandInfoKey>();
-            entry.or_insert_with(|| var(info.into()));
+            m.entry::<CommandInfoKey>().or_insert_with(|| var(info.into()));
         });
         self
     }

@@ -79,6 +79,11 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         self
     }
 }
+impl<T: VarValue + Default> Default for OwnedVar<T> {
+    fn default() -> Self {
+        OwnedVar(T::default())
+    }
+}
 impl<T: VarValue> IntoVar<T> for OwnedVar<T> {
     type Var = Self;
 

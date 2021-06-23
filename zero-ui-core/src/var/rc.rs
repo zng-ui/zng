@@ -174,6 +174,11 @@ impl<T: VarValue> Clone for RcVar<T> {
         RcVar(Rc::clone(&self.0))
     }
 }
+impl<T: VarValue + Default> Default for RcVar<T> {
+    fn default() -> Self {
+        var(T::default())
+    }
+}
 
 /// New [`RcVar`].
 #[inline]

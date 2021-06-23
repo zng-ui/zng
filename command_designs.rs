@@ -116,7 +116,7 @@ pub mod text_box {
 
 fn main() {
   App::default().run(|ctx| {
-    CopyCommand::shortcuts().set(ctx.vars, shortcut![Ctrl+C]);
+    CopyCommand::shortcuts().set(ctx.vars, shortcut!(Ctrl+C));
   })
 }
 
