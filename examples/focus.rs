@@ -132,7 +132,7 @@ fn trace_focus(events: &mut Events) {
                 );
             }
         })
-        .forget();
+        .permanent();
 }
 
 #[cfg(debug_assertions)]

@@ -518,7 +518,7 @@ impl AppTask<()> {
                         args.unsubscribe();
                     }
                 })
-                .forget();
+                .permanent();
         }
     }
 }

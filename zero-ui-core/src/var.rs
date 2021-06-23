@@ -393,7 +393,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         Vw: WithVars,
         T2: VarValue,
         V2: Var<T2>,
-        M: FnMut(&VarBindingInfo, &T) -> T2 + 'static,
+        M: FnMut(&VarBinding, &T) -> T2 + 'static,
     {
         vars.with(|vars| {
             let to_var = to_var.clone();
@@ -418,8 +418,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         Vw: WithVars,
         T2: VarValue,
         V2: Var<T2>,
-        M: FnMut(&VarBindingInfo, &T) -> T2 + 'static,
-        N: FnMut(&VarBindingInfo, &T2) -> T + 'static,
+        M: FnMut(&VarBinding, &T) -> T2 + 'static,
+        N: FnMut(&VarBinding, &T2) -> T + 'static,
     {
         vars.with(|vars| {
             vars.bind_two(self, other_var, move |vars, info, from_var, to_var| {
@@ -448,7 +448,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         Vw: WithVars,
         T2: VarValue,
         V2: Var<T2>,
-        M: FnMut(&VarBindingInfo, &T) -> Option<T2> + 'static,
+        M: FnMut(&VarBinding, &T) -> Option<T2> + 'static,
     {
         vars.with(|vars| {
             let to_var = to_var.clone();
@@ -475,8 +475,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         Vw: WithVars,
         T2: VarValue,
         V2: Var<T2>,
-        M: FnMut(&VarBindingInfo, &T) -> Option<T2> + 'static,
-        N: FnMut(&VarBindingInfo, &T2) -> Option<T> + 'static,
+        M: FnMut(&VarBinding, &T) -> Option<T2> + 'static,
+        N: FnMut(&VarBinding, &T2) -> Option<T> + 'static,
     {
         vars.with(|vars| {
             vars.bind_two(self, other_var, move |vars, info, from_var, to_var| {

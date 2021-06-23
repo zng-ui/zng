@@ -4,14 +4,13 @@ use super::*;
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
     context::Updates,
-    crate_util::RunOnDrop,
+    crate_util::{Handle, HandleOwner, RunOnDrop},
 };
 use std::{
     any::type_name,
     cell::{Cell, RefCell},
     fmt,
     ops::Deref,
-    rc::Rc,
     time::{Duration, Instant},
 };
 
@@ -20,7 +19,7 @@ thread_singleton!(SingletonVars);
 type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
 
-type VarBinding = Box<dyn FnMut(&Vars) -> Retain>;
+type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 
 /// Read-only access to [`Vars`].
 ///
@@ -246,7 +245,7 @@ pub struct Vars {
     read: VarsRead,
 
     binding_update_id: u32,
-    bindings: RefCell<Vec<VarBinding>>,
+    bindings: RefCell<Vec<VarBindingFn>>,
 
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
@@ -438,14 +437,14 @@ impl Vars {
     where
         T: VarValue,
         V: Var<T>,
-        M: FnMut(&Vars, &VarBindingInfo, &V) + 'static,
+        M: FnMut(&Vars, &VarBinding, &V) + 'static,
     {
         let var = var.clone();
         self.register_binding(move |vars, retain, last_update_id| {
             if var.is_new(vars) {
                 *last_update_id = vars.binding_update_id;
 
-                let info = VarBindingInfo::new();
+                let info = VarBinding::new();
                 on_touch(vars, &info, &var);
 
                 if info.unbind.get() {
@@ -463,7 +462,7 @@ impl Vars {
         B: VarValue,
         VA: Var<A>,
         VB: Var<B>,
-        M: FnMut(&Vars, &VarBindingInfo, &VA, &VB) + 'static,
+        M: FnMut(&Vars, &VarBinding, &VA, &VB) + 'static,
     {
         let var_a = var_a.clone();
         let var_b = var_b.clone();
@@ -471,7 +470,7 @@ impl Vars {
             if var_a.is_new(vars) || var_b.is_new(vars) {
                 *last_update_id = vars.binding_update_id;
 
-                let info = VarBindingInfo::new();
+                let info = VarBinding::new();
                 on_touch(vars, &info, &var_a, &var_b);
 
                 if info.unbind.get() {
@@ -485,13 +484,12 @@ impl Vars {
     where
         B: FnMut(&Vars, &mut bool, &mut u32) + 'static,
     {
-        let handle = VarBindingHandle::new();
-        let u_handle = handle.clone();
+        let (handle_owner, handle) = VarBindingHandle::new();
 
         let mut last_update_id = self.binding_update_id;
 
         self.bindings.borrow_mut().push(Box::new(move |vars| {
-            let mut retain = handle.retain();
+            let mut retain = !handle_owner.is_dropped();
 
             if vars.binding_update_id == last_update_id {
                 return retain;
@@ -504,7 +502,7 @@ impl Vars {
             retain
         }));
 
-        u_handle
+        handle
     }
 }
 impl Deref for Vars {
@@ -949,56 +947,65 @@ pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (Respons
     vars.with(|vars| (vars.sender(&responder), response))
 }
 
-/// Represents a variable binding created one of the `bind` methods of [`Vars`] or [`Var`].
+/// Represents a variable binding created by one of the `bind` methods of [`Vars`] or [`Var`].
 ///
-/// Drop all clones of this handle to drop the binding, or call [`forget`](Self::forget) to drop the handle
-/// without dropping the binding.
+/// Drop all clones of this handle to drop the binding, or call [`permanent`](Self::permanent) to drop the handle
+/// but keep the binding alive for the duration of the app.
 #[derive(Clone)]
-#[must_use = "the var binding is removed if the handle is dropped"]
-pub struct VarBindingHandle(Rc<VarBindingData>);
-struct VarBindingData {
-    forget: Cell<bool>,
-    unbind: Cell<bool>,
-}
+#[must_use = "the var binding is undone if the handle is dropped"]
+pub struct VarBindingHandle(Handle<()>);
 impl VarBindingHandle {
-    fn new() -> Self {
-        VarBindingHandle(Rc::new(VarBindingData {
-            forget: Cell::new(false),
-            unbind: Cell::new(false),
-        }))
+    fn new() -> (HandleOwner<()>, VarBindingHandle) {
+        let (owner, handle) = Handle::new(());
+        (owner, VarBindingHandle(handle))
     }
 
-    /// Drop the handle but does **not** drop the binding.
-    ///
-    ///
-    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
-    /// memory is released immediately and the binding, memory is released when application shuts-down.
+    /// Create dummy handle that is always in the *unbound* state.
     #[inline]
-    pub fn forget(self) {
-        self.0.forget.set(true);
+    pub fn dummy() -> VarBindingHandle {
+        VarBindingHandle(Handle::dummy(()))
+    }
+
+    /// Drop the handle but does **not** unbind.
+    ///
+    /// The var binding stays in memory for the duration of the app or until another handle calls [`unbind`](Self::unbind.)
+    #[inline]
+    pub fn permanent(self) {
+        self.0.permanent();
+    }
+
+    /// If another handle has called [`permanent`](Self::permanent).
+    /// If `true` the var binding will stay active until the app shutdown, unless [`unbind`](Self::unbind) is called.
+    #[inline]
+    pub fn is_permanent(&self) -> bool {
+        self.0.is_permanent()
     }
 
     /// Drops the handle and forces the binding to drop.
     #[inline]
     pub fn unbind(self) {
-        self.0.unbind.set(true);
+        self.0.force_drop();
     }
 
-    fn retain(&self) -> bool {
-        !self.0.unbind.get() && (Rc::strong_count(&self.0) > 1 || self.0.forget.get())
+    /// If another handle has called [`unbind`](Self::unbind).
+    ///
+    /// The var binding is already dropped or will be dropped in the next app update, this is irreversible.
+    #[inline]
+    pub fn is_unbound(&self) -> bool {
+        self.0.is_dropped()
     }
 }
 
-/// Represents a variable binding in the binding closure.
+/// Represents the variable binding in its binding closure.
 ///
 /// All of the `bind` methods of [`Vars`] take a closure that take a reference to this info
 /// as input, they can use it to drop the variable binding from the inside.
-pub struct VarBindingInfo {
+pub struct VarBinding {
     unbind: Cell<bool>,
 }
-impl VarBindingInfo {
+impl VarBinding {
     fn new() -> Self {
-        VarBindingInfo { unbind: Cell::new(false) }
+        VarBinding { unbind: Cell::new(false) }
     }
 
     /// Drop the binding after applying the returned update.
@@ -1021,7 +1028,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.bind(&app.ctx(), &b, |_, a| a.to_text()).forget();
+        a.bind(&app.ctx(), &b, |_, a| a.to_text()).permanent();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1066,7 +1073,8 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.bind_bidi(&app.ctx(), &b, |_, a| a.to_text(), |_, b| b.parse().unwrap()).forget();
+        a.bind_bidi(&app.ctx(), &b, |_, a| a.to_text(), |_, b| b.parse().unwrap())
+            .permanent();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1112,7 +1120,7 @@ mod tests {
         let mut app = App::blank().run_headless();
 
         a.filter_bind(&app.ctx(), &b, |_, a| if *a == 13 { None } else { Some(a.to_text()) })
-            .forget();
+            .permanent();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1159,7 +1167,7 @@ mod tests {
         let mut app = App::blank().run_headless();
 
         a.filter_bind_bidi(&app.ctx(), &b, |_, a| Some(a.to_text()), |_, b| b.parse().ok())
-            .forget();
+            .permanent();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1220,9 +1228,9 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.bind(&app.ctx(), &b, |_, a| *a + 1).forget();
-        b.bind(&app.ctx(), &c, |_, b| *b + 1).forget();
-        c.bind(&app.ctx(), &d, |_, c| *c + 1).forget();
+        a.bind(&app.ctx(), &b, |_, a| *a + 1).permanent();
+        b.bind(&app.ctx(), &c, |_, b| *b + 1).permanent();
+        c.bind(&app.ctx(), &d, |_, c| *c + 1).permanent();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1275,9 +1283,9 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.bind_bidi(&app.ctx(), &b, |_, a| *a, |_, b| *b).forget();
-        b.bind_bidi(&app.ctx(), &c, |_, b| *b, |_, c| *c).forget();
-        c.bind_bidi(&app.ctx(), &d, |_, c| *c, |_, d| *d).forget();
+        a.bind_bidi(&app.ctx(), &b, |_, a| *a, |_, b| *b).permanent();
+        b.bind_bidi(&app.ctx(), &c, |_, b| *b, |_, c| *c).permanent();
+        c.bind_bidi(&app.ctx(), &d, |_, c| *c, |_, d| *d).permanent();
 
         let mut update_count = 0;
         app.update_observe(

@@ -7,11 +7,13 @@ use std::{
     cell::{Cell, RefCell},
     fmt,
     rc::Rc,
+    sync::atomic::{AtomicUsize, Ordering},
     thread::LocalKey,
 };
 
 use crate::{
     context::{OwnedStateMap, StateMap},
+    crate_util::{Handle, HandleOwner},
     event::{Event, Events, WithEvents},
     state_key,
     text::Text,
@@ -305,11 +307,8 @@ impl<C: Command> CommandInfoExt for C {
 ///
 /// You can use the [`Command::new_handle`] method in a command type to create a handle.
 pub struct CommandHandle {
-    handle: Rc<CommandHandleData>,
+    handle: Handle<AtomicUsize>,
     local_enabled: Cell<bool>,
-}
-struct CommandHandleData {
-    enabled: Cell<usize>,
 }
 impl CommandHandle {
     /// Sets if the command event handler is active.
@@ -318,12 +317,11 @@ impl CommandHandle {
     pub fn set_enabled(&self, enabled: bool) {
         if self.local_enabled.get() != enabled {
             self.local_enabled.set(enabled);
-            let new_count = if enabled {
-                self.handle.enabled.get() + 1
+            if enabled {
+                self.handle.data().fetch_add(1, Ordering::Relaxed);
             } else {
-                self.handle.enabled.get() - 1
+                self.handle.data().fetch_sub(1, Ordering::Relaxed);
             };
-            self.handle.enabled.set(new_count);
         }
     }
 }
@@ -337,7 +335,7 @@ impl Drop for CommandHandle {
 pub struct CommandValue {
     command_type_id: TypeId,
     command_type_name: &'static str,
-    handle: Rc<CommandHandleData>,
+    handle: HandleOwner<AtomicUsize>,
     enabled: RcVar<bool>,
     has_handlers: RcVar<bool>,
     meta: RefCell<OwnedStateMap>,
@@ -351,7 +349,7 @@ impl CommandValue {
         CommandValue {
             command_type_id: TypeId::of::<C>(),
             command_type_name: type_name::<C>(),
-            handle: Rc::new(CommandHandleData { enabled: Cell::new(0) }),
+            handle: HandleOwner::dropped(AtomicUsize::new(0)),
             enabled: var(false),
             has_handlers: var(false),
             meta: RefCell::default(),
@@ -372,7 +370,7 @@ impl CommandValue {
             events.register_command(AnyCommand(key));
         }
         CommandHandle {
-            handle: Rc::clone(&self.handle),
+            handle: self.handle.reanimate(),
             local_enabled: Cell::new(false),
         }
     }
@@ -382,7 +380,7 @@ impl CommandValue {
     }
 
     pub fn enabled_value(&self) -> bool {
-        self.handle.enabled.get() > 0
+        self.has_handlers_value() && self.handle.data().load(Ordering::Relaxed) > 0
     }
 
     pub fn has_handlers(&self) -> ReadOnlyVar<bool, RcVar<bool>> {
@@ -390,7 +388,7 @@ impl CommandValue {
     }
 
     pub fn has_handlers_value(&self) -> bool {
-        Rc::strong_count(&self.handle) > 1
+        !self.handle.is_dropped()
     }
 
     pub fn with_meta<F, R>(&self, f: F) -> R

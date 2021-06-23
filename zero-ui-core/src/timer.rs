@@ -5,6 +5,7 @@ use std::{
     cell::Cell,
     mem,
     rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
     time::{Duration, Instant},
 };
 
@@ -12,11 +13,12 @@ use retain_mut::RetainMut;
 
 use crate::{
     context::AppContext,
+    crate_util::{Handle, HandleOwner},
     var::{var, RcVar, ReadOnlyVar, Var, Vars, VarsRead},
 };
 
 struct DeadlineHandlerEntry {
-    handle: TimeoutHandle,
+    handle: HandleOwner<TimeoutState>,
     handler: Option<Box<dyn FnOnce(&mut AppContext)>>,
     pending: bool,
 }
@@ -112,16 +114,16 @@ impl Timers {
     where
         F: FnOnce(&mut AppContext) + 'static,
     {
-        let h = TimeoutHandle(Rc::new(TimeoutHandleData {
+        let (handle_owner, handle) = Handle::new(TimeoutState {
             deadline,
-            forget: Cell::new(false),
-        }));
+            executed: AtomicBool::new(false),
+        });
         self.deadline_handlers.push(DeadlineHandlerEntry {
-            handle: h.clone(),
+            handle: handle_owner,
             handler: Some(Box::new(handler)),
             pending: false,
         });
-        h
+        TimeoutHandle(handle)
     }
 
     /// Register a `handler` that will be called once when `timeout` elapses.
@@ -189,12 +191,13 @@ impl Timers {
         });
 
         self.deadline_handlers.retain_mut(|e| {
-            let retain = e.handle.0.forget.get() || Rc::strong_count(&e.handle.0) > 1;
+            let retain = !e.handle.is_dropped();
             if retain {
-                e.pending = e.handle.0.deadline <= now;
+                let deadline = e.handle.data().deadline;
+                e.pending = deadline <= now;
                 if !e.pending {
                     min_next_some = true;
-                    min_next = min_next.min(e.handle.0.deadline);
+                    min_next = min_next.min(deadline);
                 }
             }
             retain
@@ -227,6 +230,7 @@ impl Timers {
         handlers.retain_mut(|h| {
             if h.pending {
                 h.handler.take().unwrap()(ctx);
+                h.handle.data().executed.store(true, Ordering::Relaxed);
             }
             !h.pending
         });
@@ -470,24 +474,57 @@ timer_methods!(Timer, self => &self.state);
 
 /// Represents a [`on_timeout`](Timers::on_timeout) or [`on_deadline`](Timers::on_deadline) handler.
 ///
-/// Drop all clones of this handle to cancel the timer, or call [`forget`](Self::forget) to drop the handle
+/// Drop all clones of this handle to cancel the timer, or call [`permanent`](Self::permanent) to drop the handle
 /// without cancelling the timer.
 #[derive(Clone)]
 #[must_use = "the timer is canceled if the handler is dropped"]
-pub struct TimeoutHandle(Rc<TimeoutHandleData>);
-struct TimeoutHandleData {
+pub struct TimeoutHandle(Handle<TimeoutState>);
+struct TimeoutState {
     deadline: Instant,
-    forget: Cell<bool>,
+    executed: AtomicBool,
 }
 impl TimeoutHandle {
     /// Drops the handle but does **not** drop the timeout handler closure.
     ///
-    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
-    /// memory is released immediately and the handler memory is released when the time elapses or
-    /// application shuts-down.
+    /// The handler closure will be dropped after being called or when the app shutdown.
     #[inline]
-    pub fn forget(self) {
-        self.0.forget.set(true);
+    pub fn permanent(self) {
+        self.0.permanent();
+    }
+
+    /// If [`permanent`](Self::permanent) was called in another handle.
+    /// If `true` the closure will only be dropped when the time elapses, when the app shutdown or if [`cancel`](Self::cancel) is called.
+    #[inline]
+    pub fn is_permanent(&self) -> bool {
+        self.0.is_permanent()
+    }
+
+    /// Drops the handle and forces the timeout handler to drop.
+    ///
+    /// If the timeout has not already elapsed the handler will not be called, and will drop in the next app update.
+    #[inline]
+    pub fn cancel(self) {
+        self.0.force_drop();
+    }
+
+    /// The timeout deadline.
+    ///
+    /// The handler is called once when this deadline is reached or a little later.
+    #[inline]
+    pub fn deadline(&self) -> Instant {
+        self.0.data().deadline
+    }
+
+    /// If the timeout has executed.
+    #[inline]
+    pub fn has_executed(&self) -> bool {
+        self.0.data().executed.load(Ordering::Relaxed)
+    }
+
+    /// If the timeout handler will never execute.
+    #[inline]
+    pub fn is_canceled(&self) -> bool {
+        !self.has_executed() && self.0.is_dropped()
     }
 }
 

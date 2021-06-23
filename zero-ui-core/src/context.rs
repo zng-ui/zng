@@ -125,7 +125,7 @@ macro_rules! state_key {
 
 use crate::app::AppEventSender;
 use crate::app::WindowTarget;
-use crate::crate_util::RunOnDrop;
+use crate::crate_util::{Handle, HandleOwner, RunOnDrop};
 use crate::event::BoxedEventUpdate;
 #[doc(inline)]
 pub use crate::state_key;
@@ -379,26 +379,55 @@ impl OwnedStateMap {
 
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
 ///
-/// The update handler is dropped when every handle is dropped, unless a handle called
-/// [`forget`](OnUpdateHandle::forget).
+/// Drop all clones of this handle to drop the binding, or call [`permanent`](Self::permanent) to drop the handle
+/// but keep the handler alive for the duration of the app.
 #[derive(Clone)]
 #[must_use = "dropping the handle unsubscribes update handler"]
-pub struct OnUpdateHandle(Rc<OnUpdateHandleData>);
+pub struct OnUpdateHandle(Handle<()>);
 impl OnUpdateHandle {
-    /// Drops this handle without dropping the handler.
-    ///
-    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
-    /// memory is released immediately and the handler memory is released when the application shuts-down.
+    fn new() -> (HandleOwner<()>, OnUpdateHandle) {
+        let (owner, handle) = Handle::new(());
+        (owner, OnUpdateHandle(handle))
+    }
+
+    /// Create a handle to nothing, the handle always in the *unsubscribed* state.
     #[inline]
-    pub fn forget(self) {
-        self.0.forget.set(true);
+    pub fn dummy() -> Self {
+        OnUpdateHandle(Handle::dummy(()))
+    }
+
+    /// Drop the handle but does **not** unsubscribe.
+    ///
+    /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
+    #[inline]
+    pub fn permanent(self) {
+        self.0.permanent();
+    }
+
+    /// If another handle has called [`permanent`](Self::permanent).
+    /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
+    #[inline]
+    pub fn is_permanent(&self) -> bool {
+        self.0.is_permanent()
+    }
+
+    /// Drops the handle and forces the handler to drop.
+    #[inline]
+    pub fn unsubscribe(self) {
+        self.0.force_drop()
+    }
+
+    /// If another handle has called [`unsubscribe`](Self::unsubscribe).
+    ///
+    /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
+    #[inline]
+    pub fn is_unsubscribed(&self) -> bool {
+        self.0.is_dropped()
     }
 }
-struct OnUpdateHandleData {
-    forget: Cell<bool>,
-}
+
 struct UpdateHandler {
-    handle: OnUpdateHandle,
+    handle: HandleOwner<()>,
     handler: Box<dyn FnMut(&mut AppContext, &UpdateArgs)>,
 }
 
@@ -534,9 +563,9 @@ impl Updates {
     where
         F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
     {
-        let handle = OnUpdateHandle(Rc::new(OnUpdateHandleData { forget: Cell::new(false) }));
+        let (handle_owner, handle) = OnUpdateHandle::new();
         entries.push(UpdateHandler {
-            handle: handle.clone(),
+            handle: handle_owner,
             handler: Box::new(handler),
         });
         handle
@@ -558,13 +587,13 @@ impl Updates {
 
     fn retain_updates(ctx: &mut AppContext, handlers: &mut Vec<UpdateHandler>) {
         handlers.retain_mut(|e| {
-            let mut retain = e.handle.0.forget.get() || Rc::strong_count(&e.handle.0) > 1;
+            let mut retain = !e.handle.is_dropped();
             if retain {
                 let args = UpdateArgs {
                     unsubscribe: Cell::new(false),
                 };
                 (e.handler)(ctx, &args);
-                retain = args.unsubscribe.get();
+                retain = !args.unsubscribe.get() && !e.handle.is_dropped();
             }
             retain
         });

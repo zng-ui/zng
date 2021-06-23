@@ -7,6 +7,7 @@ use unsafe_any::UnsafeAny;
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
 use crate::context::{AppContext, AppContextMut, Updates, WidgetContext, WidgetContextMut};
+use crate::crate_util::{Handle, HandleOwner, WeakHandle};
 use crate::task::WidgetTask;
 use crate::var::Vars;
 use crate::widget_base::IsEnabled;
@@ -18,8 +19,6 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{any::*, collections::VecDeque};
 
@@ -533,7 +532,7 @@ where
 }
 
 struct OnEventHandler {
-    handle: OnEventHandle,
+    handle: HandleOwner<()>,
     handler: Box<dyn FnMut(&mut AppContext, &BoxedEventUpdate) -> Retain>,
 }
 
@@ -563,14 +562,14 @@ impl<'a, E: EventArgs> Deref for AppEventArgs<'a, E> {
 pub struct AppAsyncEventArgs<E: EventArgs> {
     /// The actual event arguments, this `struct` dereferences to this value.
     pub args: E,
-    unsubscribe: std::sync::Weak<OnEventHandleData>,
+    unsubscribe: WeakHandle<()>,
 }
 impl<E: EventArgs> AppAsyncEventArgs<E> {
     /// Flags the event handler and any running async tasks for dropping.
     #[inline]
     pub fn unsubscribe(&self) {
         if let Some(handle) = self.unsubscribe.upgrade() {
-            handle.unsubscribe.store(true, std::sync::atomic::Ordering::Relaxed);
+            handle.force_drop();
         }
     }
 }
@@ -584,45 +583,50 @@ impl<E: EventArgs> Deref for AppAsyncEventArgs<E> {
 
 /// Represents an app context event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
 ///
-/// Drop all clones of this handle to drop the handler, or call [`forget`](Self::forget) to drop the handle
+/// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
 /// without dropping the handler.
 #[derive(Clone)]
 #[must_use = "the event handler unsubscribes if the handle is dropped"]
-pub struct OnEventHandle(Arc<OnEventHandleData>);
+pub struct OnEventHandle(Handle<()>);
 impl OnEventHandle {
-    /// Drops the handle but does **not** drop the handler closure.
-    ///
-    /// This method does not work like [`std::mem::forget`], **no memory is leaked**, the handle
-    /// memory is released immediately and the handler memory is released when application shuts-down.
-    #[inline]
-    pub fn forget(self) {
-        self.0.forget.store(true, Ordering::Relaxed);
+    fn new() -> (HandleOwner<()>, OnEventHandle) {
+        let (owner, handle) = Handle::new(());
+        (owner, OnEventHandle(handle))
     }
 
-    /// Drops the handle and flags the handler closure to drop even if there are other handles alive.
+    /// Create a handle to nothing, the handle always in the *unsubscribed* state.
+    #[inline]
+    pub fn dummy() -> Self {
+        OnEventHandle(Handle::dummy(()))
+    }
+
+    /// Drop the handle but does **not** unsubscribe.
+    ///
+    /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
+    #[inline]
+    pub fn permanent(self) {
+        self.0.permanent();
+    }
+
+    /// If another handle has called [`permanent`](Self::permanent).
+    /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
+    #[inline]
+    pub fn is_permanent(&self) -> bool {
+        self.0.is_permanent()
+    }
+
+    /// Drops the handle and forces the handler to drop.
     #[inline]
     pub fn unsubscribe(self) {
-        self.0.unsubscribe.store(true, Ordering::Relaxed);
+        self.0.force_drop()
     }
 
-    fn retain(&self, min_count: usize) -> bool {
-        self.0.retain(min_count)
-    }
-
-    fn new() -> Self {
-        OnEventHandle(Arc::new(OnEventHandleData {
-            forget: AtomicBool::new(false),
-            unsubscribe: AtomicBool::new(false),
-        }))
-    }
-}
-struct OnEventHandleData {
-    forget: AtomicBool,
-    unsubscribe: AtomicBool,
-}
-impl OnEventHandleData {
-    fn retain(self: &Arc<Self>, min_count: usize) -> bool {
-        !self.unsubscribe.load(Ordering::Relaxed) && (self.forget.load(Ordering::Relaxed) || Arc::strong_count(self) > min_count)
+    /// If another handle has called [`unsubscribe`](Self::unsubscribe).
+    ///
+    /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
+    #[inline]
+    pub fn is_unsubscribed(&self) -> bool {
+        self.0.is_dropped()
     }
 }
 
@@ -879,7 +883,7 @@ impl Events {
         E: Event,
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
     {
-        let handle = OnEventHandle::new();
+        let (handle_owner, handle) = OnEventHandle::new();
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
             let mut retain = true;
             if let Some(args) = event.update(args) {
@@ -895,7 +899,7 @@ impl Events {
             retain
         };
         handlers.push(OnEventHandler {
-            handle: handle.clone(),
+            handle: handle_owner,
             handler: Box::new(handler),
         });
         handle
@@ -907,8 +911,8 @@ impl Events {
         F: Future<Output = ()> + 'static,
         H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
     {
-        let handle = OnEventHandle::new();
-        let weak_handle = Arc::downgrade(&handle.0);
+        let (handle_owner, handle) = OnEventHandle::new();
+        let weak_handle = handle.0.downgrade();
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
             let mut retain = true;
             if let Some(args) = event.update(args) {
@@ -926,11 +930,7 @@ impl Events {
                         // executed the task up to the first `.await` and it did not complete.
 
                         // check if unsubscribe was requested.
-                        if let Some(handle) = weak_handle.upgrade() {
-                            retain = handle.retain(2);
-                        } else {
-                            retain = false;
-                        }
+                        retain = weak_handle.upgrade().is_some();
                         if retain {
                             // did not unsubscribe, schedule an `on_pre_update` handler to execute the task.
 
@@ -938,13 +938,11 @@ impl Events {
                             ctx.updates
                                 .on_pre_update(move |ctx, args| {
                                     // check if the event unsubscribe was requested.
-                                    if let Some(handle) = weak_handle.upgrade() {
-                                        if handle.retain(2) {
-                                            // task still active, do update.
-                                            if task.update(ctx).is_none() && handle.retain(2) {
-                                                // task updated and did not request event unsubscribe.
-                                                return;
-                                            }
+                                    if weak_handle.upgrade().is_some() {
+                                        // task still active, do update.
+                                        if task.update(ctx).is_none() && weak_handle.upgrade().is_some() {
+                                            // task updated and did not request event unsubscribe.
+                                            return;
                                         }
                                     }
 
@@ -953,7 +951,7 @@ impl Events {
                                     // or can be because the task is finished.
                                     args.unsubscribe();
                                 })
-                                .forget();
+                                .permanent();
                         }
                     }
                 }
@@ -961,7 +959,7 @@ impl Events {
             retain
         };
         handlers.push(OnEventHandler {
-            handle: handle.clone(),
+            handle: handle_owner,
             handler: Box::new(handler),
         });
         handle
@@ -998,7 +996,7 @@ impl Events {
 
     fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, args: &BoxedEventUpdate) {
         handlers.retain_mut(|e| {
-            let mut retain = e.handle.retain(1);
+            let mut retain = !e.handle.is_dropped();
             if retain {
                 retain = (e.handler)(ctx, args);
             }
