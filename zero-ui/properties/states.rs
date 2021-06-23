@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use zero_ui_core::timer::TimeoutVar;
+use zero_ui_core::timer::DeadlineVar;
 use zero_ui_core::widget_base::{IsHitTestable, WidgetHitTestableExt};
 
 use crate::core::mouse::*;
@@ -143,7 +143,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state: StateVar,
         is_down: bool,
         is_over: bool,
-        shortcut_press: Option<TimeoutVar>,
+        shortcut_press: Option<DeadlineVar>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsPressedNode<C> {
@@ -238,7 +238,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state: StateVar,
         is_down: bool,
         is_captured: bool,
-        shortcut_press: Option<TimeoutVar>,
+        shortcut_press: Option<DeadlineVar>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsCapPressedNode<C> {
