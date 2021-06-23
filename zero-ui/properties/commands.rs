@@ -77,7 +77,7 @@ command! {
         .init_info("Insert content from the clipboard.")
         .init_shortcut([shortcut!(CTRL+V), shortcut!(SHIFT+Insert)]);
 
-    /// Represents the window close action.
+    /// Represents the window **close** action.
     ///
     /// # Metadata
     ///
