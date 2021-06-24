@@ -190,12 +190,12 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
 ///
 /// The parameter type `D` is any [`Sync`] data type that will be shared using the handle.
 #[must_use = "the resource id dropped if the handle is dropped"]
-pub(crate) struct Handle<D: Sync>(Arc<HandleState<D>>);
+pub(crate) struct Handle<D: Send + Sync>(Arc<HandleState<D>>);
 struct HandleState<D> {
     state: AtomicU8,
     data: D,
 }
-impl<D: Sync> Handle<D> {
+impl<D: Send + Sync> Handle<D> {
     /// Create a handle with owner pair.
     pub fn new(data: D) -> (HandleOwner<D>, Handle<D>) {
         let handle = Handle(Arc::new(HandleState {
@@ -259,12 +259,12 @@ impl<D: Sync> Handle<D> {
         WeakHandle(Arc::downgrade(&self.0))
     }
 }
-impl<D: Sync> Clone for Handle<D> {
+impl<D: Send + Sync> Clone for Handle<D> {
     fn clone(&self) -> Self {
         Handle(Arc::clone(&self.0))
     }
 }
-impl<D: Sync> Drop for Handle<D> {
+impl<D: Send + Sync> Drop for Handle<D> {
     fn drop(&mut self) {
         if !self.is_permanent() && Arc::strong_count(&self.0) == 2 {
             // if we are about to drop the last handle and it is not permanent, force-drop
@@ -276,8 +276,8 @@ impl<D: Sync> Drop for Handle<D> {
 }
 
 /// A weak reference to a [`Handle`].
-pub(crate) struct WeakHandle<D: Sync>(Weak<HandleState<D>>);
-impl<D: Sync> WeakHandle<D> {
+pub(crate) struct WeakHandle<D: Send + Sync>(Weak<HandleState<D>>);
+impl<D: Send + Sync> WeakHandle<D> {
     /// Get a live handle if it was not dropped or force-dropped.
     pub fn upgrade(&self) -> Option<Handle<D>> {
         if let Some(arc) = self.0.upgrade() {
@@ -292,7 +292,7 @@ impl<D: Sync> WeakHandle<D> {
         }
     }
 }
-impl<D: Sync> Clone for WeakHandle<D> {
+impl<D: Send + Sync> Clone for WeakHandle<D> {
     fn clone(&self) -> Self {
         WeakHandle(self.0.clone())
     }
@@ -303,8 +303,8 @@ impl<D: Sync> Clone for WeakHandle<D> {
 /// Use [`Handle::new`] to create.
 ///
 /// Dropping the [`HandleOwner`] marks all active handles as *force-drop*.
-pub(crate) struct HandleOwner<D: Sync>(Handle<D>);
-impl<D: Sync> HandleOwner<D> {
+pub(crate) struct HandleOwner<D: Send + Sync>(Handle<D>);
+impl<D: Send + Sync> HandleOwner<D> {
     /// If the handle is in *dropped* state.
     ///
     /// The handle is considered dropped when all handle and clones are dropped or when [`force_drop`](Handle::force_drop)
@@ -330,12 +330,17 @@ impl<D: Sync> HandleOwner<D> {
         self.0.clone()
     }
 
+    /// Gets an weak handle that may-not be able to upgrade.
+    pub fn weak_handle(&self) -> WeakHandle<D> {
+        self.0.downgrade()
+    }
+
     /// Reference the attached data.
     pub fn data(&self) -> &D {
         self.0.data()
     }
 }
-impl<D: Sync> Drop for HandleOwner<D> {
+impl<D: Send + Sync> Drop for HandleOwner<D> {
     fn drop(&mut self) {
         self.0 .0.state.store(FORCE_DROP, Ordering::Relaxed);
     }

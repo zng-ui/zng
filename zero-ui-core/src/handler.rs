@@ -16,27 +16,9 @@ use std::mem;
 
 use retain_mut::RetainMut;
 
-use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
+use crate::context::{AppContext, AppContextMut, UpdateArgs, WidgetContext, WidgetContextMut};
+use crate::crate_util::WeakHandle;
 use crate::task::{AppTask, WidgetTask};
-
-/// A type that clones to a `'static` version of it-self.
-///
-/// This `trait` is already implemented for every time that is `Clone + 'static`, types that contain
-/// lifetimes can implement this `trait` to be used as args in [`WidgetHandler`] or [`AppHandler`].
-pub trait CloneStatic {
-    /// The type that represents `Self` as  `'static`.
-    type Static: 'static;
-
-    /// Create a `Self::Static` from a reference to `Self`.
-    fn clone_static(&self) -> Self::Static;
-}
-impl<T: Clone + 'static> CloneStatic for T {
-    type Static = Self;
-
-    fn clone_static(&self) -> Self::Static {
-        self.clone()
-    }
-}
 
 /// Represents a handler in a widget context.
 ///
@@ -481,20 +463,54 @@ macro_rules! async_hn_once {
 #[doc(inline)]
 pub use crate::async_hn_once;
 
+/// Represents a weak handle to an [`AppHandler`] subscription.
+pub trait AppWeakHandle: Send {
+    /// Dynamic clone.
+    fn clone_boxed(&self) -> Box<dyn AppWeakHandle>;
+
+    /// Unsubscribes the [`AppHandler`].
+    ///
+    /// This stops the handler from being called again and causes it to be dropped in a future app update.
+    fn unsubscribe(&self);
+}
+impl<D: Send + Sync + 'static> AppWeakHandle for WeakHandle<D> {
+    fn clone_boxed(&self) -> Box<dyn AppWeakHandle> {
+        Box::new(self.clone())
+    }
+
+    fn unsubscribe(&self) {
+        if let Some(handle) = self.upgrade() {
+            handle.force_drop();
+        }
+    }
+}
+
+/// Arguments for a call of [`AppHandler::event`].
+pub struct AppHandlerArgs<'a> {
+    /// Handle to the [`AppHandler`] subscription.
+    pub handle: &'a dyn AppWeakHandle,
+    /// If the handler is invoked in a *preview* context.
+    pub is_preview: bool,
+}
+
 /// Represents an event handler in the app context.
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`app_hn!`], [`app_hn_once!`] or [`async_app_hn!`], [`async_app_hn_once!`] to start.
 pub trait AppHandler<A: Clone + 'static>: 'static {
-    /// Called every time the event happens, returns if the handler should be retained.
-    fn event(&mut self, ctx: &mut AppContext, args: &A) -> bool;
+    /// Called every time the event happens.
+    ///
+    /// The `args.handle` can be used to unsubscribe the handler. Async handlers are expected to schedule
+    /// their tasks to run somewhere in the app, usually in the [`Updates::on_pre_update`]. The `handle` is
+    /// **not** expected to cancel running async tasks, only to drop `self` before the next event happens.
+    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs);
 }
 
 #[doc(hidden)]
 pub struct FnMutAppHandler<A, H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A) + 'static,
+    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
 {
     _p: PhantomData<A>,
     handler: H,
@@ -502,18 +518,17 @@ where
 impl<A, H> AppHandler<A> for FnMutAppHandler<A, H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A) + 'static,
+    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
 {
-    fn event(&mut self, ctx: &mut AppContext, args: &A) -> bool {
-        (self.handler)(ctx, args);
-        true
+    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
+        (self.handler)(ctx, args, handler_args.handle);
     }
 }
 #[doc(hidden)]
 pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<A, H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A) + 'static,
+    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
 {
     FnMutAppHandler { _p: PhantomData, handler }
 }
@@ -532,23 +547,27 @@ where
 /// # use zero_ui_core::handler::app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(ClickEvent, app_hn!(|_, _| {
+/// ctx.events.on_event(ClickEvent, app_hn!(|_, _, _| {
 ///     println!("Clicked Somewhere!");
 /// }));
 /// # }
 /// ```
 ///
-/// The closure input is `&mut AppContext` for all handlers and `&ClickArgs` for this event. Note that
-/// if you want to use the event args you must annotate the input type, the context type is inferred.
+/// The closure input is `&mut AppContext, &A, &dyn AppWeakHandle` with `&A` equaling `&ClickArgs` for this event. Note that
+/// if you want to use the event args you must annotate the input type, the context and handle type is inferred.
+///
+/// The handle can be used to unsubscribe the event handler, if [`unsubscribe`](AppWeakHandle::unsubscribe) is called the handler
+/// will be dropped some time before the next event update.
 ///
 /// ```
 /// # use zero_ui_core::gesture::{ClickEvent, ClickArgs};
 /// # use zero_ui_core::handler::app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(ClickEvent, app_hn!(|ctx, args: &ClickArgs| {
+/// ctx.events.on_event(ClickEvent, app_hn!(|ctx, args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     let _ = ctx.services;
+///     handle.unsubscribe();
 /// }));
 /// # }
 /// ```
@@ -556,21 +575,22 @@ where
 /// Internally the [`clone_move!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{Event, ClickArgs};
+/// # use zero_ui_core::gesture::{ClickEvent, ClickArgs};
 /// # use zero_ui_core::text::{formatx, ToText};
 /// # use zero_ui_core::var::{var, Var};
+/// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::handler::app_hn;
-/// # fn assert_type(ctx: &mut AppContext) -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # fn assert_type(ctx: &mut AppContext) {
 /// let foo = var("".to_text());
 ///
-/// ctx.events.on_event(ClickEvent, app_hn!(foo, |ctx, args: &ClickArgs| {
+/// ctx.events.on_event(ClickEvent, app_hn!(foo, |ctx, args: &ClickArgs, _| {
 ///     foo.set(ctx, args.target.to_text());
 /// }));
 ///
 /// // can still use after:
 /// let bar = foo.map(|c| formatx!("last click: {}", c));
 ///
-/// # on_click }
+/// # }
 /// ```
 ///
 /// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
@@ -598,11 +618,13 @@ where
     A: Clone + 'static,
     H: FnOnce(&mut AppContext, &A) + 'static,
 {
-    fn event(&mut self, ctx: &mut AppContext, args: &A) -> bool {
+    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
         if let Some(handler) = self.handler.take() {
             handler(ctx, args);
+            handler_args.handle.unsubscribe();
+        } else {
+            log::error!("`app_hn_once!` called after requesting unsubscribe");
         }
-        false
     }
 }
 #[doc(hidden)]
@@ -626,12 +648,12 @@ where
 ///
 /// The example captures `data` by move and then destroys it in the first call, this cannot be done using [`app_hn!`] because
 /// the `data` needs to be available for all event calls. In this case the closure is only called once, subsequent events
-/// are ignored by the handler and if automatically requests unsubscribe.
+/// are ignored by the handler and it automatically requests unsubscribe.
 ///
 /// ```
 /// # use zero_ui_core::gesture::ClickEvent;
 /// # use zero_ui_core::handler::app_hn_once;
-/// # use zero_ui_core::context::Context;
+/// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let data = vec![1, 2, 3];
 ///
@@ -650,7 +672,7 @@ where
 /// ```
 /// # use zero_ui_core::gesture::{ClickArgs, ClickEvent};
 /// # use zero_ui_core::handler::app_hn_once;
-/// # use zero_ui_core::context::Context;
+/// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let data = vec![1, 2, 3];
 ///
@@ -675,7 +697,7 @@ pub struct AsyncFnMutAppHandler<A, F, H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
-    H: FnMut(AppContextMut, A) -> F + 'static,
+    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
 {
     _a: PhantomData<A>,
     handler: H,
@@ -684,21 +706,30 @@ impl<A, F, H> AppHandler<A> for AsyncFnMutAppHandler<A, F, H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
-    H: FnMut(AppContextMut, A) -> F + 'static,
+    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
 {
-    fn event(&mut self, ctx: &mut AppContext, args: &A) -> bool {
+    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
         let handler = &mut self.handler;
-        let mut task = AppTask::new(ctx, |ctx| handler(ctx, args.clone()));
+        let mut task = AppTask::new(ctx, |ctx| handler(ctx, args.clone(), handler_args.handle.clone_boxed()));
         if task.update(ctx).is_none() {
-            ctx.updates
-                .on_pre_update(move |ctx, u_args| {
-                    if task.update(ctx).is_some() {
-                        u_args.unsubscribe();
-                    }
-                })
-                .permanent();
+            if handler_args.is_preview {
+                ctx.updates
+                    .on_pre_update(move |ctx, u_args: &UpdateArgs| {
+                        if task.update(ctx).is_some() {
+                            u_args.unsubscribe();
+                        }
+                    })
+                    .permanent();
+            } else {
+                ctx.updates
+                    .on_update(move |ctx, u_args: &UpdateArgs| {
+                        if task.update(ctx).is_some() {
+                            u_args.unsubscribe();
+                        }
+                    })
+                    .permanent();
+            }
         }
-        true
     }
 }
 #[doc(hidden)]
@@ -706,7 +737,7 @@ pub fn async_app_hn<A, F, H>(handler: H) -> AsyncFnMutAppHandler<A, F, H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
-    H: FnMut(AppContextMut, A) -> F + 'static,
+    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
 {
     AsyncFnMutAppHandler { _a: PhantomData, handler }
 }
@@ -717,9 +748,11 @@ where
 /// the input is the same syntax.
 ///
 /// The handler generates a future for each event, the future is polled immediately if it does not finish it is scheduled
-/// to update in [`on_pre_update`](crate::context::Updates::on_pre_update). Note that this means
-/// [`stop_propagation`](crate::event::EventArgs::stop_propagation) can only be meaningfully called before the first `.await`,
-/// after the event has already propagated.
+/// to update in [`on_pre_update`](crate::context::Updates::on_pre_update) or [`on_update`](crate::context::Updates::on_update) depending
+/// on if the handler was assigned to a *preview* event or not.
+///
+/// Note that this means [`stop_propagation`](crate::event::EventArgs::stop_propagation) can only be meaningfully called before the
+/// first `.await`, after the event has already propagated.
 ///
 /// # Examples
 ///
@@ -731,7 +764,7 @@ where
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(ClickEvent, async_app_hn!(|_, _| {
+/// ctx.events.on_event(ClickEvent, async_app_hn!(|_, _, _| {
 ///     println!("Clicked Somewhere!");
 ///
 ///     task::run(async {
@@ -743,17 +776,25 @@ where
 /// # }
 /// ```
 ///
-/// The closure input is `AppContextMut` for all handlers and `ClickArgs` for this property. Note that
-/// if you want to use the event args you must annotate the input type, the context type is inferred.
+/// The closure input is `AppContextMut, A, Box<dyn AppWeakHandle>` for all handlers and `ClickArgs` for this property. Note that
+/// if you want to use the event args you must annotate the input type, the context and handle types are inferred.
+///
+/// The handle can be used to unsubscribe the event handler, if [`unsubscribe`](AppWeakHandle::unsubscribe) is called the handler
+/// will be dropped some time before the next event update. Running tasks are not canceled by unsubscribing, the only way to *cancel*
+/// then is by returning early inside the async blocks.
 ///
 /// ```
 /// # use zero_ui_core::gesture::{ClickArgs, ClickEvent};
 /// # use zero_ui_core::handler::async_app_hn;
 /// # use zero_ui_core::context::AppContext;
+/// # use zero_ui_core::task;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(ClickEvent, async_app_hn!(|ctx, args: ClickArgs| {
+/// ctx.events.on_event(ClickEvent, async_app_hn!(|ctx, args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     ctx.with(|c| {  });
+///     task::run(async move { 
+///         handle.unsubscribe();
+///     });
 /// }));
 /// # }
 /// ```
@@ -766,11 +807,11 @@ where
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::var::{var, Var};
 /// # use zero_ui_core::task;
-/// # use zero_ui_core::text::formatx;
+/// # use zero_ui_core::text::{formatx, ToText};
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let status = var("pending..".to_text());
 ///
-/// ctx.events.on_event(ClickEvent, async_hn!(enabled, |ctx, args: ClickArgs| {
+/// ctx.events.on_event(ClickEvent, async_app_hn!(status, |ctx, args: ClickArgs, _| {
 ///     status.set(&ctx, formatx!("processing {}..", args.target));
 ///
 ///     task::run(async move {
@@ -783,7 +824,7 @@ where
 /// // can still use after:
 /// let text = status;
 ///
-/// # on_click }
+/// # }
 /// ```
 ///
 /// In the example above only a clone of `status` is moved into the handler. Note that handlers always capture by move, if `status` was not
@@ -821,20 +862,33 @@ where
     F: Future<Output = ()> + 'static,
     H: FnOnce(AppContextMut, A) -> F + 'static,
 {
-    fn event(&mut self, ctx: &mut AppContext, args: &A) -> bool {
+    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
         if let Some(handler) = self.handler.take() {
+            handler_args.handle.unsubscribe();
+
             let mut task = AppTask::new(ctx, |ctx| handler(ctx, args.clone()));
             if task.update(ctx).is_none() {
-                ctx.updates
+                if handler_args.is_preview {
+                    ctx.updates
                     .on_pre_update(move |ctx, u_args| {
                         if task.update(ctx).is_some() {
                             u_args.unsubscribe();
                         }
                     })
                     .permanent();
+                } else {
+                    ctx.updates
+                    .on_update(move |ctx, u_args| {
+                        if task.update(ctx).is_some() {
+                            u_args.unsubscribe();
+                        }
+                    })
+                    .permanent();
+                }
             }
+        } else {
+            log::error!("`async_app_hn_once!` called after requesting unsubscribe");
         }
-        false
     }
 }
 #[doc(hidden)]

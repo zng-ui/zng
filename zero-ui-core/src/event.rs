@@ -6,16 +6,14 @@ use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
-use crate::context::{AppContext, AppContextMut, Updates, WidgetContext};
-use crate::crate_util::{Handle, HandleOwner, WeakHandle};
-use crate::handler::WidgetHandler;
+use crate::context::{AppContext, Updates, WidgetContext};
+use crate::crate_util::{Handle, HandleOwner};
+use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::fmt::{self, Debug};
-use std::future::Future;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
@@ -534,41 +532,7 @@ where
 
 struct OnEventHandler {
     handle: HandleOwner<()>,
-    handler: Box<dyn FnMut(&mut AppContext, &BoxedEventUpdate) -> Retain>,
-}
-
-/// Event args for an [`on_event`](Events::on_event) or [`on_pre_event`](Events::on_event) handler.
-///
-/// This type dereferences to the actual event [`args`](Self::args) but it also adds the [`unsubscribe`](Self::unsubscribe)
-/// method that can be used force drop the event handler.
-pub struct AppEventArgs<'a, A: EventArgs> {
-    /// The actual event arguments, this `struct` dereferences to this value.
-    pub args: Cow<'a, A>,
-    unsubscribe: WeakHandle<()>,
-}
-impl<'a, A: EventArgs> AppEventArgs<'a, A> {
-    /// Flags the event handler and any running async tasks for dropping.
-    #[inline]
-    pub fn unsubscribe(&self) {
-        if let Some(handle) = self.unsubscribe.upgrade() {
-            handle.force_drop();
-        }
-    }
-}
-impl<'a, A: EventArgs> Deref for AppEventArgs<'a, A> {
-    type Target = A;
-
-    fn deref(&self) -> &Self::Target {
-        &self.args
-    }
-}
-impl<'a, A: EventArgs> Clone for AppEventArgs<'a, A> {
-    fn clone(&self) -> Self {
-        AppEventArgs {
-            args: self.args.clone(),
-            unsubscribe: self.unsubscribe.clone(),
-        }
-    }
+    handler: Box<dyn FnMut(&mut AppContext, &BoxedEventUpdate, &dyn AppWeakHandle)>,
 }
 
 /// Represents an app context event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
@@ -775,49 +739,46 @@ impl Events {
     /// preview handlers.
     ///
     /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`AppEventArgs::unsubscribe`].
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
     ///
     /// # Example
     ///
     /// ```
     /// # use zero_ui_core::event::*;
-    /// # use zero_ui_core::focus::FocusChangedEvent;
+    /// # use zero_ui_core::handler::app_hn;
+    /// # use zero_ui_core::focus::{FocusChangedEvent, FocusChangedArgs};
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handle = ctx.events.on_pre_event(FocusChangedEvent, |_ctx, args| {
+    /// let handle = ctx.events.on_pre_event(FocusChangedEvent, app_hn!(|_ctx, args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
-    /// });
+    /// }));
     /// # }
     /// ```
     /// The example listens to all `FocusChangedEvent` events, independent of widget context and before all UI handlers.
     ///
-    /// # Panics
+    /// # Handlers
     ///
-    /// If the event is not registered in the application.
+    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
+    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
+    /// [`app_hn_once!`] and [`async_app_hn_once!`].
+    ///
+    /// ## Async
+    ///
+    /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
+    /// subsequent event updates, after the event has already propagated, so calling [`stop_propagation`](EventArgs::stop_propagation)
+    /// only causes the desired effect before the first `.await`.
+    ///
+    /// [`app_hn!`]: crate::handler::app_hn!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn!
+    /// [`app_hn_once!`]: crate::handler::app_hn_once!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
     pub fn on_pre_event<E, H>(&mut self, event: E, handler: H) -> OnEventHandle
     where
         E: Event,
-        H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
+        H: AppHandler<E::Args>,
     {
-        Self::push_event_handler(&mut self.pre_handlers, event, handler)
+        Self::push_event_handler(&mut self.pre_handlers, event, true, handler)
     }
-
-    /// Creates an async preview event handler.
-    ///
-    /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
-    /// The handler is called before UI handlers and [`on_event`](Self::on_event) handlers, it is called after all previous registered
-    /// preview handlers. Only the code up to the first `await` is executed immediately the code afterwards is executed in app updates.
-    ///
-    /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`AppEventArgs::unsubscribe`]. Unsubscribe using the handle also cancels running async tasks.
-    pub fn on_pre_event_async<E, F, H>(&mut self, event: E, handler: H) -> OnEventHandle
-    where
-        E: Event,
-        F: Future<Output = ()> + 'static,
-        H: FnMut(AppContextMut, AppEventArgs<'static, E::Args>) -> F + 'static,
-    {
-        Self::push_async_event_handler(&mut self.pre_handlers, event, handler)
-    }
-
+    
     /// Creates an event handler.
     ///
     /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
@@ -831,123 +792,55 @@ impl Events {
     ///
     /// ```
     /// # use zero_ui_core::event::*;
-    /// # use zero_ui_core::focus::FocusChangedEvent;
+    /// # use zero_ui_core::handler::app_hn;
+    /// # use zero_ui_core::focus::{FocusChangedEvent, FocusChangedArgs};
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handle = ctx.events.on_event(FocusChangedEvent, |_ctx, args| {
+    /// let handle = ctx.events.on_event(FocusChangedEvent, app_hn!(|_ctx, args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
-    /// });
+    /// }));
     /// # }
     /// ```
     /// The example listens to all `FocusChangedEvent` events, independent of widget context, after the UI was notified.
     ///
-    /// # Panics
+    /// # Handlers
     ///
-    /// If the event is not registered in the application.
+    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
+    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
+    /// [`app_hn_once!`] and [`async_app_hn_once!`].
+    ///
+    /// ## Async
+    ///
+    /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
+    /// subsequent event updates, after the event has already propagated, so calling [`stop_propagation`](EventArgs::stop_propagation)
+    /// only causes the desired effect before the first `.await`.
+    ///
+    /// [`app_hn!`]: crate::handler::app_hn!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn!
+    /// [`app_hn_once!`]: crate::handler::app_hn_once!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
     pub fn on_event<E, H>(&mut self, event: E, handler: H) -> OnEventHandle
     where
         E: Event,
-        H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
+        H: AppHandler<E::Args>,
     {
-        Self::push_event_handler(&mut self.pos_handlers, event, handler)
+        Self::push_event_handler(&mut self.pos_handlers, event, false, handler)
     }
-
-    /// Creates an async event handler.
-    ///
-    /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
-    /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
-    /// registered before this one. Only the code up to the first `await` is executed immediately the code afterwards is executed in app updates.
-    ///
-    /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`AppEventArgs::unsubscribe`]. Unsubscribe using the handle also cancels running async tasks.
-    pub fn on_event_async<E, F, H>(&mut self, event: E, handler: H) -> OnEventHandle
+    
+    fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, event: E, is_preview: bool, mut handler: H) -> OnEventHandle
     where
         E: Event,
-        F: Future<Output = ()> + 'static,
-        H: FnMut(AppContextMut, AppEventArgs<'static, E::Args>) -> F + 'static,
-    {
-        Self::push_async_event_handler(&mut self.pos_handlers, event, handler)
-    }
-
-    fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, event: E, mut handler: H) -> OnEventHandle
-    where
-        E: Event,
-        H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
+        H: AppHandler<E::Args>,
     {
         let (handle_owner, handle) = OnEventHandle::new();
-        let weak_handle = handle.0.downgrade();
-        let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
-            let mut retain = true;
+        let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate, handle: &dyn AppWeakHandle| {
             if let Some(args) = event.update(args) {
                 if !args.stop_propagation_requested() {
-                    let args = AppEventArgs {
-                        args: Cow::Borrowed(&args.0),
-                        unsubscribe: weak_handle.clone(),
-                    };
-                    handler(ctx, &args);
-                    retain = args.unsubscribe.upgrade().is_some();
+                    handler.event(ctx, &args, &AppHandlerArgs {
+                        handle,
+                        is_preview,
+                    });
                 }
             }
-            retain
-        };
-        handlers.push(OnEventHandler {
-            handle: handle_owner,
-            handler: Box::new(handler),
-        });
-        handle
-    }
-
-    fn push_async_event_handler<E, F, H>(handlers: &mut Vec<OnEventHandler>, event: E, mut handler: H) -> OnEventHandle
-    where
-        E: Event,
-        F: Future<Output = ()> + 'static,
-        H: FnMut(AppContextMut, AppEventArgs<'static, E::Args>) -> F + 'static,
-    {
-        let (handle_owner, handle) = OnEventHandle::new();
-        let weak_handle = handle.0.downgrade();
-        let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
-            let mut retain = true;
-            if let Some(args) = event.update(args) {
-                if !args.stop_propagation_requested() {
-                    // event matches, will notify causing an async task to start.
-
-                    let args = AppEventArgs {
-                        args: Cow::Owned(args.0.clone()),
-                        unsubscribe: weak_handle.clone(),
-                    };
-                    let call = &mut handler;
-                    let mut task = ctx.async_task(move |ctx| call(ctx, args));
-
-                    if task.update(ctx).is_none() {
-                        // executed the task up to the first `.await` and it did not complete.
-
-                        // check if unsubscribe was requested.
-                        retain = weak_handle.upgrade().is_some();
-                        if retain {
-                            // did not unsubscribe, schedule an `on_pre_update` handler to execute the task.
-
-                            let weak_handle = weak_handle.clone();
-                            ctx.updates
-                                .on_pre_update(move |ctx, args| {
-                                    // check if the event unsubscribe was requested.
-                                    if weak_handle.upgrade().is_some() {
-                                        // task still active, do update.
-                                        if task.update(ctx).is_none() && weak_handle.upgrade().is_some() {
-                                            // task updated and did not request event unsubscribe.
-                                            return;
-                                        }
-                                    }
-
-                                    // unsubscribe the task executor.
-                                    // can be a cancel if the event unsubscribed
-                                    // or can be because the task is finished.
-                                    args.unsubscribe();
-                                })
-                                .permanent();
-                        }
-                    }
-                }
-            }
-            retain
         };
         handlers.push(OnEventHandler {
             handle: handle_owner,
@@ -987,11 +880,12 @@ impl Events {
 
     fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, args: &BoxedEventUpdate) {
         handlers.retain_mut(|e| {
-            let mut retain = !e.handle.is_dropped();
-            if retain {
-                retain = (e.handler)(ctx, args);
-            }
-            retain
+            if !e.handle.is_dropped() {
+                (e.handler)(ctx, args, &e.handle.weak_handle());
+                !e.handle.is_dropped()
+            } else {
+                false
+            }            
         });
     }
 

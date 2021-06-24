@@ -119,7 +119,7 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widg
 
 fn trace_focus(events: &mut Events) {
     events
-        .on_pre_event(FocusChangedEvent, |ctx, args| {
+        .on_pre_event(FocusChangedEvent, app_hn!(|ctx, args: &FocusChangedArgs, _| {
             if args.is_hightlight_changed() {
                 println!("highlight: {}", args.highlight);
             } else if args.is_widget_move() {
@@ -131,7 +131,7 @@ fn trace_focus(events: &mut Events) {
                     inspect::focus(&args.new_focus, ctx.services)
                 );
             }
-        })
+        }))
         .permanent();
 }
 
