@@ -997,7 +997,7 @@ impl Events {
 
     /// Commands that had handles generated in this app.
     ///
-    /// When [`Command::new_handle`] is called for the first time in an app, the command gets regitered here.
+    /// When [`Command::new_handle`] is called for the first time in an app, the command gets registered here.
     #[inline]
     pub fn commands(&self) -> impl Iterator<Item = AnyCommand> + '_ {
         self.commands.values().copied()

@@ -284,7 +284,10 @@ pub mod window {
                 }
             }
         }
-        let child = OnCloseWindowNode{child, handle: CommandHandle::dummy()};
+        let child = OnCloseWindowNode {
+            child,
+            handle: CommandHandle::dummy(),
+        };
         Window::new(
             root_id,
             start_position,
