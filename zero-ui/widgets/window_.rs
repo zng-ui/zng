@@ -496,12 +496,12 @@ pub mod window {
 }
 
 #[cfg(not(debug_assertions))]
-fn print_frame_inspector() -> impl EventHandler<ShortcutArgs> {
+fn print_frame_inspector() -> impl WidgetHandler<ShortcutArgs> {
     hn!(|_, _| {})
 }
 
 #[cfg(debug_assertions)]
-fn print_frame_inspector() -> impl EventHandler<ShortcutArgs> {
+fn print_frame_inspector() -> impl WidgetHandler<ShortcutArgs> {
     use crate::core::debug::{write_frame, WriteFrameState};
 
     let mut state = WriteFrameState::none();

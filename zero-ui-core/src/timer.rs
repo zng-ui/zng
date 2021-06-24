@@ -3,7 +3,6 @@
 //! This module *entry point* is the [`Timers`] `struct`. You can use it to
 /// create UI bound timers, these timers run using only the main thread and can awake the app event loop
 /// to notify updates.
-
 use std::{
     cell::Cell,
     mem,

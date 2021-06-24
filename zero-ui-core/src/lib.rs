@@ -18,9 +18,6 @@ extern crate self as zero_ui_core;
 #[macro_use]
 mod crate_util;
 
-#[macro_use]
-mod clone_move;
-
 #[doc(hidden)]
 pub use paste::paste;
 
@@ -32,6 +29,8 @@ pub mod command;
 pub mod context;
 pub mod debug;
 pub mod event;
+#[macro_use]
+pub mod handler;
 pub mod focus;
 pub mod gesture;
 pub mod gradient;

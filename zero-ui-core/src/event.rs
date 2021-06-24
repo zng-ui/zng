@@ -6,13 +6,14 @@ use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
-use crate::context::{AppContext, AppContextMut, Updates, WidgetContext, WidgetContextMut};
+use crate::context::{AppContext, AppContextMut, Updates, WidgetContext};
 use crate::crate_util::{Handle, HandleOwner, WeakHandle};
-use crate::task::WidgetTask;
+use crate::handler::WidgetHandler;
 use crate::var::Vars;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
-use std::cell::{Cell, RefCell};
+use std::borrow::Cow;
+use std::cell::RefCell;
 use std::fmt::{self, Debug};
 use std::future::Future;
 use std::marker::PhantomData;
@@ -536,35 +537,16 @@ struct OnEventHandler {
     handler: Box<dyn FnMut(&mut AppContext, &BoxedEventUpdate) -> Retain>,
 }
 
-/// Event arguments for an [`on_event`](Events::on_event) or [`on_pre_event`](Events::on_pre_event) handler.
-pub struct AppEventArgs<'a, E: EventArgs> {
+/// Event args for an [`on_event`](Events::on_event) or [`on_pre_event`](Events::on_event) handler.
+///
+/// This type dereferences to the actual event [`args`](Self::args) but it also adds the [`unsubscribe`](Self::unsubscribe)
+/// method that can be used force drop the event handler.
+pub struct AppEventArgs<'a, A: EventArgs> {
     /// The actual event arguments, this `struct` dereferences to this value.
-    pub args: &'a E,
-    unsubscribe: Cell<bool>,
-}
-impl<'a, E: EventArgs> AppEventArgs<'a, E> {
-    /// Drops the event handler.
-    #[inline]
-    pub fn unsubscribe(&self) {
-        self.unsubscribe.set(true)
-    }
-}
-impl<'a, E: EventArgs> Deref for AppEventArgs<'a, E> {
-    type Target = E;
-
-    fn deref(&self) -> &Self::Target {
-        self.args
-    }
-}
-
-/// Event arguments for an [`on_event_async`](Events::on_event_async) or [`on_pre_event_async`](Events::on_event_async) handler.
-#[derive(Clone)]
-pub struct AppAsyncEventArgs<E: EventArgs> {
-    /// The actual event arguments, this `struct` dereferences to this value.
-    pub args: E,
+    pub args: Cow<'a, A>,
     unsubscribe: WeakHandle<()>,
 }
-impl<E: EventArgs> AppAsyncEventArgs<E> {
+impl<'a, A: EventArgs> AppEventArgs<'a, A> {
     /// Flags the event handler and any running async tasks for dropping.
     #[inline]
     pub fn unsubscribe(&self) {
@@ -573,11 +555,19 @@ impl<E: EventArgs> AppAsyncEventArgs<E> {
         }
     }
 }
-impl<E: EventArgs> Deref for AppAsyncEventArgs<E> {
-    type Target = E;
+impl<'a, A: EventArgs> Deref for AppEventArgs<'a, A> {
+    type Target = A;
 
     fn deref(&self) -> &Self::Target {
         &self.args
+    }
+}
+impl<'a, A: EventArgs> Clone for AppEventArgs<'a, A> {
+    fn clone(&self) -> Self {
+        AppEventArgs {
+            args: self.args.clone(),
+            unsubscribe: self.unsubscribe.clone(),
+        }
     }
 }
 
@@ -823,7 +813,7 @@ impl Events {
     where
         E: Event,
         F: Future<Output = ()> + 'static,
-        H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
+        H: FnMut(AppContextMut, AppEventArgs<'static, E::Args>) -> F + 'static,
     {
         Self::push_async_event_handler(&mut self.pre_handlers, event, handler)
     }
@@ -873,7 +863,7 @@ impl Events {
     where
         E: Event,
         F: Future<Output = ()> + 'static,
-        H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
+        H: FnMut(AppContextMut, AppEventArgs<'static, E::Args>) -> F + 'static,
     {
         Self::push_async_event_handler(&mut self.pos_handlers, event, handler)
     }
@@ -884,16 +874,17 @@ impl Events {
         H: FnMut(&mut AppContext, &AppEventArgs<E::Args>) + 'static,
     {
         let (handle_owner, handle) = OnEventHandle::new();
+        let weak_handle = handle.0.downgrade();
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate| {
             let mut retain = true;
             if let Some(args) = event.update(args) {
                 if !args.stop_propagation_requested() {
                     let args = AppEventArgs {
-                        args: &args.0,
-                        unsubscribe: Cell::new(false),
+                        args: Cow::Borrowed(&args.0),
+                        unsubscribe: weak_handle.clone(),
                     };
                     handler(ctx, &args);
-                    retain = !args.unsubscribe.get();
+                    retain = args.unsubscribe.upgrade().is_some();
                 }
             }
             retain
@@ -909,7 +900,7 @@ impl Events {
     where
         E: Event,
         F: Future<Output = ()> + 'static,
-        H: FnMut(AppContextMut, AppAsyncEventArgs<E::Args>) -> F + 'static,
+        H: FnMut(AppContextMut, AppEventArgs<'static, E::Args>) -> F + 'static,
     {
         let (handle_owner, handle) = OnEventHandle::new();
         let weak_handle = handle.0.downgrade();
@@ -919,8 +910,8 @@ impl Events {
                 if !args.stop_propagation_requested() {
                     // event matches, will notify causing an async task to start.
 
-                    let args = AppAsyncEventArgs {
-                        args: args.clone(),
+                    let args = AppEventArgs {
+                        args: Cow::Owned(args.0.clone()),
                         unsubscribe: weak_handle.clone(),
                     };
                     let call = &mut handler;
@@ -1450,10 +1441,10 @@ macro_rules! __event_property {
         /// # Async
         ///
         /// You can use async event handlers with this property.
-        #[$crate::property(event, default( $crate::event::hn!(|_, _|{}) ))]
+        #[$crate::property(event, default( $crate::handler::hn!(|_, _|{}) ))]
         $vis fn [<on_ $event>](
             child: impl $crate::UiNode,
-            handler: impl $crate::event::EventHandler<$Args>,
+            handler: impl $crate::handler::WidgetHandler<$Args>,
         ) -> impl $crate::UiNode {
             $crate::event::on_event(child, $Event, $filter, handler)
         }
@@ -1469,10 +1460,10 @@ macro_rules! __event_property {
         ///
         /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
         /// subsequent code runs in widget updates.
-        #[$crate::property(event, default( $crate::event::hn!(|_, _|{}) ))]
+        #[$crate::property(event, default( $crate::handler::hn!(|_, _|{}) ))]
         $vis fn [<on_pre_ $event>](
             child: impl $crate::UiNode,
-            handler: impl $crate::event::EventHandler<$Args>,
+            handler: impl $crate::handler::WidgetHandler<$Args>,
         ) -> impl $crate::UiNode {
             $crate::event::on_pre_event(child, $Event, $filter, handler)
         }
@@ -1590,7 +1581,7 @@ where
     C: UiNode,
     E: Event,
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-    H: EventHandler<E::Args>,
+    H: WidgetHandler<E::Args>,
 {
     struct OnEventNode<C, E, F, H> {
         child: C,
@@ -1604,7 +1595,7 @@ where
         C: UiNode,
         E: Event,
         F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-        H: EventHandler<E::Args>,
+        H: WidgetHandler<E::Args>,
     {
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = self.event.update(args) {
@@ -1656,7 +1647,7 @@ where
     C: UiNode,
     E: Event,
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-    H: EventHandler<E::Args>,
+    H: WidgetHandler<E::Args>,
 {
     struct OnPreviewEventNode<C, E, F, H> {
         child: C,
@@ -1670,7 +1661,7 @@ where
         C: UiNode,
         E: Event,
         F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
-        H: EventHandler<E::Args>,
+        H: WidgetHandler<E::Args>,
     {
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = self.event.update(args) {
@@ -1693,520 +1684,5 @@ where
         event,
         filter,
         handler,
-    }
-}
-
-/// Represents an event handler in a widget.
-///
-/// There are different flavors of handlers, you can use macros to declare then.
-/// See [`hn!`], [`hn_once!`] or [`async_hn!`], [`async_hn_once!`] to start.
-pub trait EventHandler<A: EventArgs>: 'static {
-    /// Called every time the event happens in the widget context.
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A);
-    /// Called every widget update.
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        let _ = ctx;
-    }
-}
-#[doc(hidden)]
-pub struct FnMutEventHandler<A, H>
-where
-    A: EventArgs,
-    H: FnMut(&mut WidgetContext, &A) + 'static,
-{
-    _p: PhantomData<A>,
-    handler: H,
-}
-impl<A, H> EventHandler<A> for FnMutEventHandler<A, H>
-where
-    A: EventArgs,
-    H: FnMut(&mut WidgetContext, &A) + 'static,
-{
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) {
-        (self.handler)(ctx, args)
-    }
-}
-#[doc(hidden)]
-pub fn hn<A, H>(handler: H) -> FnMutEventHandler<A, H>
-where
-    A: EventArgs,
-    H: FnMut(&mut WidgetContext, &A) + 'static,
-{
-    FnMutEventHandler { _p: PhantomData, handler }
-}
-
-/// Declare a mutable *clone-move* event handler.
-///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
-/// the input is the same syntax.
-///
-/// # Examples
-///
-/// The example declares an event handler for the `on_click` property.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::hn;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// # let
-/// on_click = hn!(|_, _| {
-///     println!("Clicked!");
-/// });
-/// # on_click }
-/// ```
-///
-/// The closure input is `&mut WidgetContext` for all handlers and `&ClickArgs` for this property. Note that
-/// if you want to use the event args you must annotate the input type, the context type is inferred.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::hn;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// # let
-/// on_click = hn!(|ctx, args: &ClickArgs| {
-///     println!("Clicked {}!", args.click_count);
-///     let _ = ctx.services;
-/// });
-/// # on_click }
-/// ```
-///
-/// Internally the [`clone_move!`] macro is used so you can *clone-move* variables into the handler.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::text::formatx;
-/// # use zero_ui_core::var::{var, Var};
-/// # use zero_ui_core::event::hn;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// let foo = var(0);
-///
-/// // ..
-///
-/// # let
-/// on_click = hn!(foo, |ctx, args: &ClickArgs| {
-///     foo.set(ctx, args.click_count);
-/// });
-///
-/// // can still use after:
-/// let bar = foo.map(|c| formatx!("click_count: {}", c));
-///
-/// # on_click }
-/// ```
-///
-/// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
-/// listed in the *clone-move* section it would not be available after the handler is created. See [`clone_move!`] for details.
-#[macro_export]
-macro_rules! hn {
-    ($($tt:tt)+) => {
-        $crate::event::hn($crate::clone_move!{ $($tt)+ })
-    }
-}
-#[doc(inline)]
-pub use crate::hn;
-
-#[doc(hidden)]
-pub struct FnOnceEventHandler<A, H>
-where
-    A: EventArgs,
-    H: FnOnce(&mut WidgetContext, &A) + 'static,
-{
-    _p: PhantomData<A>,
-    handler: Option<H>,
-}
-impl<A, H> EventHandler<A> for FnOnceEventHandler<A, H>
-where
-    A: EventArgs,
-    H: FnOnce(&mut WidgetContext, &A) + 'static,
-{
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) {
-        if let Some(handler) = self.handler.take() {
-            handler(ctx, args);
-        }
-    }
-}
-#[doc(hidden)]
-pub fn hn_once<A, H>(handler: H) -> FnOnceEventHandler<A, H>
-where
-    A: EventArgs,
-    H: FnOnce(&mut WidgetContext, &A) + 'static,
-{
-    FnOnceEventHandler {
-        _p: PhantomData,
-        handler: Some(handler),
-    }
-}
-
-/// Declare a *clone-move* event handler that is only called once.
-///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
-/// the input is the same syntax.
-///
-/// # Examples
-///
-/// The example captures `data` by move and then destroys it in the first call, this cannot be done using [`hn!`] because
-/// the `data` needs to be available for all event calls. In this case the closure is only called once, subsequent events
-/// are ignored by the handler.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::hn_once;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// let data = vec![1, 2, 3];
-/// # let
-/// on_click = hn_once!(|_, _| {
-///     for i in data {
-///         print!("{}, ", i);
-///     }
-/// });
-/// # on_click }
-/// ```
-///
-/// Other then declaring a `FnOnce` this macro behaves like [`hn!`], so the same considerations apply. You can *clone-move* variables,
-/// the type of the first closure input is `&mut WidgetContext` and is inferred automatically, the type if the second input is the event
-/// arguments and must be annotated.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::hn_once;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// let data = vec![1, 2, 3];
-/// # let
-/// on_click = hn_once!(data, |ctx, args: &ClickArgs| {
-///     drop(data);
-/// });
-///
-///  println!("{:?}", data);
-/// # on_click }
-/// ```
-#[macro_export]
-macro_rules! hn_once {
-    ($($tt:tt)+) => {
-        $crate::event::hn_once($crate::clone_move! { $($tt)+ })
-    }
-}
-#[doc(inline)]
-pub use crate::hn_once;
-
-/// Declare an async *clone-move* event handler.
-///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move!`] so
-/// the input is the same syntax.
-///
-/// # Examples
-///
-/// The example declares an async event handler for the `on_click` property.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::async_hn;
-/// # use zero_ui_core::task;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// # let
-/// on_click = async_hn!(|_, _| {
-///     println!("Clicked!");
-///
-///     task::run(async {
-///         println!("In other thread!");
-///     }).await;
-///
-///     println!("Back in UI thread, in a widget update.");
-/// });
-/// # on_click }
-/// ```
-///
-/// The closure input is `WidgetContextMut` for all handlers and `ClickArgs` for this property. Note that
-/// if you want to use the event args you must annotate the input type, the context type is inferred.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::async_hn;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// # let
-/// on_click = async_hn!(|ctx, args: ClickArgs| {
-///     println!("Clicked {}!", args.click_count);
-///     ctx.with(|c| {  });
-/// });
-/// # on_click }
-/// ```
-///
-/// Internally the [`async_clone_move!`] macro is used so you can *clone-move* variables into the handler.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::async_hn;
-/// # use zero_ui_core::var::{var, Var};
-/// # use zero_ui_core::task;
-/// # use zero_ui_core::text::formatx;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// let enabled = var(true);
-///
-/// // ..
-///
-/// # let
-/// on_click = async_hn!(enabled, |ctx, args: ClickArgs| {
-///     enabled.set(&ctx, false);
-///
-///     task::run(async move {
-///         println!("do something {}", args.click_count);
-///     }).await;
-///
-///     enabled.set(&ctx, true);
-/// });
-///
-/// // can still use after:
-/// # let
-/// text = enabled.map(|&e| if e { "Click Me!" } else { "Busy.." });
-/// enabled;
-///
-/// # on_click }
-/// ```
-///
-/// In the example above only a clone of `enabled` is moved into the handler. Note that handlers always capture by move, if `enabled` was not
-/// listed in the *clone-move* section it would not be available after the handler is created. See [`async_clone_move!`] for details.
-///
-/// The example also demonstrates a common pattern with async handlers, most events are only raised when the widget is enabled, so you can
-/// disable the widget while the async task is running. This way you don't block the UI running a task but the user cannot spawn a second
-/// task while the first is still running.
-///
-/// ## Futures and Clone-Move
-///
-/// You may want to always *clone-move* captures for async handlers, because they then automatically get cloned again for each event. This
-/// needs to happen because you can have more then one *handler task* running at the same type, and both want access to the captured variables.
-///
-/// This second cloning can be avoided by using the [`async_hn_once!`] macro instead, but only if you expect a single event.
-#[macro_export]
-macro_rules! async_hn {
-    ($($tt:tt)+) => {
-        $crate::event::async_hn($crate::async_clone_move! { $($tt)+ })
-    }
-}
-#[doc(inline)]
-pub use crate::async_hn;
-
-#[doc(hidden)]
-pub struct AsyncFnMutEventHandler<A, F, H>
-where
-    A: EventArgs,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + 'static,
-{
-    _a: PhantomData<A>,
-    handler: H,
-    tasks: Vec<WidgetTask<()>>,
-}
-impl<A, F, H> EventHandler<A> for AsyncFnMutEventHandler<A, F, H>
-where
-    A: EventArgs,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + 'static,
-{
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) {
-        let handler = &mut self.handler;
-        let mut task = WidgetTask::new(ctx, |ctx| handler(ctx, args.clone()));
-        if task.update(ctx).is_none() {
-            self.tasks.push(task);
-        }
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.tasks.retain_mut(|t| t.update(ctx).is_none());
-    }
-}
-#[doc(hidden)]
-pub fn async_hn<A, F, H>(handler: H) -> AsyncFnMutEventHandler<A, F, H>
-where
-    A: EventArgs,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + 'static,
-{
-    AsyncFnMutEventHandler {
-        _a: PhantomData,
-        handler,
-        tasks: vec![],
-    }
-}
-
-/// Declare an async *clone-move* event handler that is only called once.
-///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_once!`] so
-/// the input is the same syntax.
-///
-/// # Example
-///
-/// The example captures `data` by move and then moves it again to another thread. This is not something you can do using [`async_hn!`]
-/// because that handler expects to be called many times. We expect `on_open` to only be called once, so we can don't need to capture by
-/// *clone-move* here just to use `data`.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::async_hn_once;
-/// # use zero_ui_core::task;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// let data = vec![1, 2, 3];
-/// # let
-/// on_open = async_hn_once!(|_, _| {
-///     task::run(async move {
-///          for i in data {
-///              print!("{}, ", i);
-///          }    
-///     }).await;
-///
-///     println!("Done!");
-/// });
-/// # on_open }
-/// ```
-///
-/// You can still *clone-move* to have access to the variable after creating the handler, in this case the `data` will be cloned into the handler
-/// but will just be moved to the other thread, avoiding a needless clone.
-///
-/// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::event::async_hn_once;
-/// # use zero_ui_core::task;
-/// # fn assert_type() -> impl zero_ui_core::event::EventHandler<ClickArgs> {
-/// let data = vec![1, 2, 3];
-/// # let
-/// on_open = async_hn_once!(data, |_, _| {
-///     task::run(async move {
-///          for i in data {
-///              print!("{}, ", i);
-///          }    
-///     }).await;
-///
-///     println!("Done!");
-/// });
-/// println!("{:?}", data);
-/// # on_open }
-/// ```
-#[macro_export]
-macro_rules! async_hn_once {
-    ($($tt:tt)+) => {
-        $crate::event::async_hn_once($crate::async_clone_move_once! { $($tt)+ })
-    }
-}
-#[doc(inline)]
-pub use crate::async_hn_once;
-
-enum AsyncFnOnceEhState<H> {
-    NotCalled(H),
-    Pending(WidgetTask<()>),
-    Done,
-}
-#[doc(hidden)]
-pub struct AsyncFnOnceEventHandler<A, F, H>
-where
-    A: EventArgs,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + 'static,
-{
-    _a: PhantomData<A>,
-    state: AsyncFnOnceEhState<H>,
-}
-
-impl<A, F, H> EventHandler<A> for AsyncFnOnceEventHandler<A, F, H>
-where
-    A: EventArgs,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + 'static,
-{
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) {
-        if let AsyncFnOnceEhState::NotCalled(handler) = mem::replace(&mut self.state, AsyncFnOnceEhState::Done) {
-            let mut task = WidgetTask::new(ctx, |ctx| handler(ctx, args.clone()));
-            if task.update(ctx).is_none() {
-                self.state = AsyncFnOnceEhState::Pending(task);
-            }
-        }
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if let AsyncFnOnceEhState::Pending(t) = &mut self.state {
-            if t.update(ctx).is_some() {
-                self.state = AsyncFnOnceEhState::Done;
-            }
-        }
-    }
-}
-#[doc(hidden)]
-pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceEventHandler<A, F, H>
-where
-    A: EventArgs,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + 'static,
-{
-    AsyncFnOnceEventHandler {
-        _a: PhantomData,
-        state: AsyncFnOnceEhState::NotCalled(handler),
-    }
-}
-
-#[cfg(test)]
-#[allow(unused)]
-mod tests {
-    use super::*;
-    use crate::gesture::ClickArgs;
-
-    fn test_infer<H: EventHandler<ClickArgs>>(handler: H) {
-        let _ = handler;
-    }
-
-    fn hn_inference() {
-        // if it builds it passes
-
-        test_infer(hn!(|cx, _| {
-            let _ = cx.services;
-        }));
-
-        test_infer(hn!(|cx, a: &ClickArgs| {
-            let _ = cx.services;
-            println!("{}", a.click_count);
-        }));
-    }
-
-    fn hn_once_inference() {
-        // if it builds it passes
-
-        test_infer(hn_once!(|cx, _| {
-            let _ = cx.services;
-        }));
-
-        test_infer(hn_once!(|cx, a: &ClickArgs| {
-            let _ = cx.services;
-            println!("{}", a.click_count);
-        }))
-    }
-
-    #[test]
-    fn async_hn_inference() {
-        // if it builds it passes
-
-        test_infer(async_hn!(|cx, _| {
-            cx.with(|cx| {
-                let _ = cx.services;
-            });
-        }));
-
-        test_infer(async_hn!(|cx, a: ClickArgs| {
-            cx.with(|cx| {
-                let _ = cx.services;
-            });
-            println!("{}", a.click_count);
-        }));
-    }
-
-    fn async_hn_once_inference() {
-        // if it builds it passes
-
-        test_infer(async_hn_once!(|cx, _| {
-            cx.with(|cx| {
-                let _ = cx.services;
-            });
-        }));
-
-        test_infer(async_hn_once!(|cx, a: ClickArgs| {
-            cx.with(|cx| {
-                let _ = cx.services;
-            });
-            println!("{}", a.click_count);
-        }));
     }
 }

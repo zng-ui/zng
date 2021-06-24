@@ -934,10 +934,11 @@ pub mod prelude {
             sepia, Rgba,
         },
         context::WidgetContext,
-        event::{async_hn, async_hn_once, hn, hn_once, EventHandler, Events},
+        event::Events,
         focus::{DirectionalNav, Focus, FocusChangedArgs, FocusExt, ReturnFocusChangedArgs, TabIndex, TabNav},
         gesture::{shortcut, ClickArgs, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
+        handler::*,
         keyboard::{CharInputArgs, Key, KeyInputArgs, ModifiersChangedArgs, ModifiersState},
         mouse::{MouseButton, MouseMoveArgs},
         node_vec, nodes,
@@ -1035,6 +1036,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::gesture::*;
         #[doc(no_inline)]
+        pub use crate::core::handler::*;
+        #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
         pub use crate::core::task::{self, AppTask, WidgetTask, WindowTask};
@@ -1082,6 +1085,8 @@ pub mod prelude {
         pub use crate::core::context::*;
         #[doc(no_inline)]
         pub use crate::core::event::*;
+        #[doc(no_inline)]
+        pub use crate::core::handler::*;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
