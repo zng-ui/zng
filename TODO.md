@@ -19,9 +19,8 @@ Things that must be done first because they influence the core API design that i
 * Commands.
 
 * Handlers.
-  * Handler sub-sets, so that callers can deny async or request only once.
-  * Variadic closure inputs in the handler macros, for convenience and to avoid cloning in async handlers.
   * Review all `_async` methods and functions, try to support handlers in all of then.
+  * Variadic closure inputs in the handler macros, for convenience and to avoid cloning in async handlers.
 * Timers.
   * Unify with app handlers.
   * Configurable `Instant::now` source, to advance time instantly in tests.

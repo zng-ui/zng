@@ -778,7 +778,7 @@ impl Events {
     {
         Self::push_event_handler(&mut self.pre_handlers, event, true, handler)
     }
-    
+
     /// Creates an event handler.
     ///
     /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
@@ -786,7 +786,7 @@ impl Events {
     /// registered before this one.
     ///
     /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`AppEventArgs::unsubscribe`].
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
     ///
     /// # Example
     ///
@@ -825,7 +825,7 @@ impl Events {
     {
         Self::push_event_handler(&mut self.pos_handlers, event, false, handler)
     }
-    
+
     fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, event: E, is_preview: bool, mut handler: H) -> OnEventHandle
     where
         E: Event,
@@ -835,10 +835,7 @@ impl Events {
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate, handle: &dyn AppWeakHandle| {
             if let Some(args) = event.update(args) {
                 if !args.stop_propagation_requested() {
-                    handler.event(ctx, &args, &AppHandlerArgs {
-                        handle,
-                        is_preview,
-                    });
+                    handler.event(ctx, &args, &AppHandlerArgs { handle, is_preview });
                 }
             }
         };
@@ -885,13 +882,15 @@ impl Events {
                 !e.handle.is_dropped()
             } else {
                 false
-            }            
+            }
         });
     }
 
     /// Commands that had handles generated in this app.
     ///
     /// When [`Command::new_handle`] is called for the first time in an app, the command gets registered here.
+    ///
+    /// [`Command::new_handle`]: crate::command::Command::new_handle
     #[inline]
     pub fn commands(&self) -> impl Iterator<Item = AnyCommand> + '_ {
         self.commands.values().copied()

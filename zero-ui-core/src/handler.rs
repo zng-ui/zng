@@ -11,7 +11,6 @@
 //! provide a very easy way to *clone-move* captured variables into the handler.
 
 use std::future::Future;
-use std::marker::PhantomData;
 use std::mem;
 
 use retain_mut::RetainMut;
@@ -19,6 +18,38 @@ use retain_mut::RetainMut;
 use crate::context::{AppContext, AppContextMut, UpdateArgs, WidgetContext, WidgetContextMut};
 use crate::crate_util::WeakHandle;
 use crate::task::{AppTask, WidgetTask};
+
+/// Marker traits that can be used to constrain what [`AppHandler`] or [ `WidgetHandler`] are accepted.
+///
+/// For example a function that wants to receive only synchronous [`WidgetHandler`] handlers can use the
+/// [`NotAsyncHn`](marker::NotAsyncHn) to constrain its parameter:
+///
+/// ```
+/// # use zero_ui_core::handler::*;
+/// fn foo<H>(handler: H) where H: WidgetHandler<()> + marker::NotAsyncHn { }
+/// ```
+pub mod marker {
+    #[allow(unused_imports)] // use in doc links.
+    use super::*;
+
+    /// Represents a handler that is **not** async. Only the [`hn!`], [`hn_once!`], [`app_hn!`] and [`app_hn_once!`]
+    /// handlers implement this trait.
+    ///
+    /// See the [module level](self) documentation for details.
+    pub trait NotAsyncHn {}
+
+    /// Represents a handler that is async. Only the [`async_hn!`], [`async_hn_once!`], [`async_app_hn!`] and [`async_hn_once!`]
+    /// handlers implement this trait.
+    ///
+    /// See the [module level](self) documentation for details.
+    pub trait AsyncHn {}
+
+    /// Represents a handler that will consume it self in the first event call. Only the [`hn_once!`], [`async_hn_once!`],
+    /// [`app_hn_once!`] and [`async_hn_once!`] handlers implement this trait.
+    ///
+    /// See the [module level](self) documentation for details.
+    pub trait OnceHn {}
+}
 
 /// Represents a handler in a widget context.
 ///
@@ -33,15 +64,10 @@ pub trait WidgetHandler<A: Clone + 'static>: 'static {
     }
 }
 #[doc(hidden)]
-pub struct FnMutWidgetHandler<A, H>
-where
-    A: Clone + 'static,
-    H: FnMut(&mut WidgetContext, &A) + 'static,
-{
-    _p: PhantomData<A>,
+pub struct FnMutWidgetHandler<H> {
     handler: H,
 }
-impl<A, H> WidgetHandler<A> for FnMutWidgetHandler<A, H>
+impl<A, H> WidgetHandler<A> for FnMutWidgetHandler<H>
 where
     A: Clone + 'static,
     H: FnMut(&mut WidgetContext, &A) + 'static,
@@ -50,13 +76,14 @@ where
         (self.handler)(ctx, args)
     }
 }
+impl<H> marker::NotAsyncHn for FnMutWidgetHandler<H> {}
 #[doc(hidden)]
-pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<A, H>
+pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<H>
 where
     A: Clone + 'static,
     H: FnMut(&mut WidgetContext, &A) + 'static,
 {
-    FnMutWidgetHandler { _p: PhantomData, handler }
+    FnMutWidgetHandler { handler }
 }
 
 /// Declare a mutable *clone-move* event handler.
@@ -129,15 +156,10 @@ macro_rules! hn {
 pub use crate::hn;
 
 #[doc(hidden)]
-pub struct FnOnceWidgetHandler<A, H>
-where
-    A: Clone + 'static,
-    H: FnOnce(&mut WidgetContext, &A) + 'static,
-{
-    _p: PhantomData<A>,
+pub struct FnOnceWidgetHandler<H> {
     handler: Option<H>,
 }
-impl<A, H> WidgetHandler<A> for FnOnceWidgetHandler<A, H>
+impl<A, H> WidgetHandler<A> for FnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
     H: FnOnce(&mut WidgetContext, &A) + 'static,
@@ -148,16 +170,15 @@ where
         }
     }
 }
+impl<H> marker::OnceHn for FnOnceWidgetHandler<H> {}
+impl<H> marker::NotAsyncHn for FnOnceWidgetHandler<H> {}
 #[doc(hidden)]
-pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<A, H>
+pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
     H: FnOnce(&mut WidgetContext, &A) + 'static,
 {
-    FnOnceWidgetHandler {
-        _p: PhantomData,
-        handler: Some(handler),
-    }
+    FnOnceWidgetHandler { handler: Some(handler) }
 }
 
 /// Declare a *clone-move* event handler that is only called once.
@@ -212,17 +233,11 @@ macro_rules! hn_once {
 pub use crate::hn_once;
 
 #[doc(hidden)]
-pub struct AsyncFnMutWidgetHandler<A, F, H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + 'static,
-{
-    _a: PhantomData<A>,
+pub struct AsyncFnMutWidgetHandler<H> {
     handler: H,
     tasks: Vec<WidgetTask<()>>,
 }
-impl<A, F, H> WidgetHandler<A> for AsyncFnMutWidgetHandler<A, F, H>
+impl<A, F, H> WidgetHandler<A> for AsyncFnMutWidgetHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
@@ -240,18 +255,15 @@ where
         self.tasks.retain_mut(|t| t.update(ctx).is_none());
     }
 }
+impl<H> marker::AsyncHn for AsyncFnMutWidgetHandler<H> {}
 #[doc(hidden)]
-pub fn async_hn<A, F, H>(handler: H) -> AsyncFnMutWidgetHandler<A, F, H>
+pub fn async_hn<A, F, H>(handler: H) -> AsyncFnMutWidgetHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
     H: FnMut(WidgetContextMut, A) -> F + 'static,
 {
-    AsyncFnMutWidgetHandler {
-        _a: PhantomData,
-        handler,
-        tasks: vec![],
-    }
+    AsyncFnMutWidgetHandler { handler, tasks: vec![] }
 }
 
 /// Declare an async *clone-move* event handler.
@@ -356,17 +368,10 @@ enum AsyncFnOnceWhState<H> {
     Done,
 }
 #[doc(hidden)]
-pub struct AsyncFnOnceWidgetHandler<A, F, H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + 'static,
-{
-    _a: PhantomData<A>,
+pub struct AsyncFnOnceWidgetHandler<H> {
     state: AsyncFnOnceWhState<H>,
 }
-
-impl<A, F, H> WidgetHandler<A> for AsyncFnOnceWidgetHandler<A, F, H>
+impl<A, F, H> WidgetHandler<A> for AsyncFnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
@@ -389,15 +394,16 @@ where
         }
     }
 }
+impl<H> marker::AsyncHn for AsyncFnOnceWidgetHandler<H> {}
+impl<H> marker::OnceHn for AsyncFnOnceWidgetHandler<H> {}
 #[doc(hidden)]
-pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<A, F, H>
+pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
     H: FnOnce(WidgetContextMut, A) -> F + 'static,
 {
     AsyncFnOnceWidgetHandler {
-        _a: PhantomData,
         state: AsyncFnOnceWhState::NotCalled(handler),
     }
 }
@@ -501,21 +507,18 @@ pub trait AppHandler<A: Clone + 'static>: 'static {
     /// Called every time the event happens.
     ///
     /// The `args.handle` can be used to unsubscribe the handler. Async handlers are expected to schedule
-    /// their tasks to run somewhere in the app, usually in the [`Updates::on_pre_update`]. The `handle` is
+    /// their tasks to run somewhere in the app, usually in the [`Updates::on_update`]. The `handle` is
     /// **not** expected to cancel running async tasks, only to drop `self` before the next event happens.
+    ///
+    /// [`Updates::on_update`]: crate::context::Updates::on_update
     fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs);
 }
 
 #[doc(hidden)]
-pub struct FnMutAppHandler<A, H>
-where
-    A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
-{
-    _p: PhantomData<A>,
+pub struct FnMutAppHandler<H> {
     handler: H,
 }
-impl<A, H> AppHandler<A> for FnMutAppHandler<A, H>
+impl<A, H> AppHandler<A> for FnMutAppHandler<H>
 where
     A: Clone + 'static,
     H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
@@ -524,13 +527,14 @@ where
         (self.handler)(ctx, args, handler_args.handle);
     }
 }
+impl<H> marker::NotAsyncHn for FnMutAppHandler<H> {}
 #[doc(hidden)]
-pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<A, H>
+pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<H>
 where
     A: Clone + 'static,
     H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
 {
-    FnMutAppHandler { _p: PhantomData, handler }
+    FnMutAppHandler { handler }
 }
 
 /// Declare a mutable *clone-move* app event handler.
@@ -605,15 +609,10 @@ macro_rules! app_hn {
 pub use crate::app_hn;
 
 #[doc(hidden)]
-pub struct FnOnceAppHandler<A, H>
-where
-    A: Clone + 'static,
-    H: FnOnce(&mut AppContext, &A) + 'static,
-{
-    _p: PhantomData<A>,
+pub struct FnOnceAppHandler<H> {
     handler: Option<H>,
 }
-impl<A, H> AppHandler<A> for FnOnceAppHandler<A, H>
+impl<A, H> AppHandler<A> for FnOnceAppHandler<H>
 where
     A: Clone + 'static,
     H: FnOnce(&mut AppContext, &A) + 'static,
@@ -627,16 +626,15 @@ where
         }
     }
 }
+impl<H> marker::OnceHn for FnOnceAppHandler<H> {}
+impl<H> marker::NotAsyncHn for FnOnceAppHandler<H> {}
 #[doc(hidden)]
-pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<A, H>
+pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<H>
 where
     A: Clone + 'static,
     H: FnOnce(&mut AppContext, &A) + 'static,
 {
-    FnOnceAppHandler {
-        _p: PhantomData,
-        handler: Some(handler),
-    }
+    FnOnceAppHandler { handler: Some(handler) }
 }
 
 /// Declare a *clone-move* app event handler that is only called once.
@@ -693,16 +691,10 @@ macro_rules! app_hn_once {
 pub use crate::app_hn_once;
 
 #[doc(hidden)]
-pub struct AsyncFnMutAppHandler<A, F, H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
-{
-    _a: PhantomData<A>,
+pub struct AsyncFnMutAppHandler<H> {
     handler: H,
 }
-impl<A, F, H> AppHandler<A> for AsyncFnMutAppHandler<A, F, H>
+impl<A, F, H> AppHandler<A> for AsyncFnMutAppHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
@@ -732,14 +724,15 @@ where
         }
     }
 }
+impl<H> marker::AsyncHn for AsyncFnMutAppHandler<H> {}
 #[doc(hidden)]
-pub fn async_app_hn<A, F, H>(handler: H) -> AsyncFnMutAppHandler<A, F, H>
+pub fn async_app_hn<A, F, H>(handler: H) -> AsyncFnMutAppHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
     H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
 {
-    AsyncFnMutAppHandler { _a: PhantomData, handler }
+    AsyncFnMutAppHandler { handler }
 }
 
 /// Declare an async *clone-move* app event handler.
@@ -792,7 +785,7 @@ where
 /// ctx.events.on_event(ClickEvent, async_app_hn!(|ctx, args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     ctx.with(|c| {  });
-///     task::run(async move { 
+///     task::run(async move {
 ///         handle.unsubscribe();
 ///     });
 /// }));
@@ -846,17 +839,11 @@ macro_rules! async_app_hn {
 pub use crate::async_app_hn;
 
 #[doc(hidden)]
-pub struct AsyncFnOnceAppHandler<A, F, H>
-where
-    A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(AppContextMut, A) -> F + 'static,
-{
-    _a: PhantomData<A>,
+pub struct AsyncFnOnceAppHandler<H> {
     handler: Option<H>,
 }
 
-impl<A, F, H> AppHandler<A> for AsyncFnOnceAppHandler<A, F, H>
+impl<A, F, H> AppHandler<A> for AsyncFnOnceAppHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
@@ -870,20 +857,20 @@ where
             if task.update(ctx).is_none() {
                 if handler_args.is_preview {
                     ctx.updates
-                    .on_pre_update(move |ctx, u_args| {
-                        if task.update(ctx).is_some() {
-                            u_args.unsubscribe();
-                        }
-                    })
-                    .permanent();
+                        .on_pre_update(move |ctx, u_args| {
+                            if task.update(ctx).is_some() {
+                                u_args.unsubscribe();
+                            }
+                        })
+                        .permanent();
                 } else {
                     ctx.updates
-                    .on_update(move |ctx, u_args| {
-                        if task.update(ctx).is_some() {
-                            u_args.unsubscribe();
-                        }
-                    })
-                    .permanent();
+                        .on_update(move |ctx, u_args| {
+                            if task.update(ctx).is_some() {
+                                u_args.unsubscribe();
+                            }
+                        })
+                        .permanent();
                 }
             }
         } else {
@@ -891,17 +878,16 @@ where
         }
     }
 }
+impl<H> marker::AsyncHn for AsyncFnOnceAppHandler<H> {}
+impl<H> marker::OnceHn for AsyncFnOnceAppHandler<H> {}
 #[doc(hidden)]
-pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<A, F, H>
+pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + 'static,
     H: FnOnce(AppContextMut, A) -> F + 'static,
 {
-    AsyncFnOnceAppHandler {
-        _a: PhantomData,
-        handler: Some(handler),
-    }
+    AsyncFnOnceAppHandler { handler: Some(handler) }
 }
 
 /// Declare an async *clone-move* app event handler that is only called once.
