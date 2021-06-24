@@ -16,9 +16,9 @@
 //!
 //! # Handlers
 //!
-//! A property event handler is any type that implements [`WidgetHandler`](crate::core::handler::WidgetHandler), usually they are a 
-//! closure declared with the assistance of a macro, the widget handler macros are [`hn!`](crate::core::handler::hn!), 
-//! [`hn_once!`](crate::core::handler::hn_once!), [`async_hn!`](crate::core::handler::async_hn!) and 
+//! A property event handler is any type that implements [`WidgetHandler`](crate::core::handler::WidgetHandler), usually they are a
+//! closure declared with the assistance of a macro, the widget handler macros are [`hn!`](crate::core::handler::hn!),
+//! [`hn_once!`](crate::core::handler::hn_once!), [`async_hn!`](crate::core::handler::async_hn!) and
 //! [`async_hn_once!`](crate::core::handler::async_hn_once!).
 //!
 //! ```

@@ -24,6 +24,11 @@ use crate::properties::events::window::*;
 /// See [`run_window`](crate::core::window::AppRunWindow::run_window) for more details.
 #[widget($crate::widgets::window)]
 pub mod window {
+    use zero_ui_core::window::WindowsExt;
+
+    use crate::core::command::CommandHandle;
+    use crate::properties::commands::CloseWindowCommand;
+
     use super::*;
 
     inherit!(container);
@@ -259,6 +264,27 @@ pub mod window {
         on_pre_redraw: impl FnMut(&mut RedrawArgs) + 'static,
         on_redraw: impl FnMut(&mut RedrawArgs) + 'static,
     ) -> Window {
+        struct OnCloseWindowNode<C: UiNode> {
+            child: C,
+            handle: CommandHandle,
+        }
+        #[impl_ui_node(child)]
+        impl<C: UiNode> UiNode for OnCloseWindowNode<C> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.handle = CloseWindowCommand.new_handle(ctx);
+                self.handle.set_enabled(true);
+                self.child.init(ctx)
+            }
+            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                if let Some(args) = CloseWindowCommand.update(args) {
+                    let _ = ctx.services.windows().close(ctx.path.window_id());
+                    self.child.event(ctx, args)
+                } else {
+                    self.child.event(ctx, args)
+                }
+            }
+        }
+        let child = OnCloseWindowNode{child, handle: CommandHandle::dummy()};
         Window::new(
             root_id,
             start_position,

@@ -804,6 +804,15 @@ impl AppExtension for GestureManager {
                             args.target.clone(),
                         ),
                     );
+                } else {
+                    let command = ctx
+                        .events
+                        .commands()
+                        .find(|c| c.enabled_value() && c.shortcut().get(ctx.vars).0.contains(&args.shortcut));
+                    if let Some(command) = command {
+                        command.notify(ctx.events, None);
+                        args.stop_propagation()
+                    }
                 }
             }
         }

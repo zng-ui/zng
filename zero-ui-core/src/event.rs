@@ -994,6 +994,14 @@ impl Events {
             retain
         });
     }
+
+    /// Commands that had handles generated in this app.
+    ///
+    /// When [`Command::new_handle`] is called for the first time in an app, the command gets regitered here.
+    #[inline]
+    pub fn commands(&self) -> impl Iterator<Item = AnyCommand> + '_ {
+        self.commands.values().copied()
+    }
 }
 
 /// Represents a type that can provide access to a [`Events`] inside the window of function call.

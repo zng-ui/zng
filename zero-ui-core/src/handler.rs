@@ -717,8 +717,8 @@ where
 /// the input is the same syntax.
 ///
 /// The handler generates a future for each event, the future is polled immediately if it does not finish it is scheduled
-/// to update in [`on_pre_update`](crate::context::Updates::on_pre_update). Note that this means 
-/// [`stop_propagation`](crate::event::EventArgs::stop_propagation) can only be meaningfully called before the first `.await`, 
+/// to update in [`on_pre_update`](crate::context::Updates::on_pre_update). Note that this means
+/// [`stop_propagation`](crate::event::EventArgs::stop_propagation) can only be meaningfully called before the first `.await`,
 /// after the event has already propagated.
 ///
 /// # Examples
