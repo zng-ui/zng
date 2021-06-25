@@ -127,6 +127,7 @@ use crate::app::AppEventSender;
 use crate::app::WindowTarget;
 use crate::crate_util::{Handle, HandleOwner, RunOnDrop};
 use crate::event::BoxedEventUpdate;
+use crate::handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle};
 #[doc(inline)]
 pub use crate::state_key;
 use crate::timer::Timers;
@@ -428,20 +429,15 @@ impl OnUpdateHandle {
 
 struct UpdateHandler {
     handle: HandleOwner<()>,
-    handler: Box<dyn FnMut(&mut AppContext, &UpdateArgs)>,
+    count: usize,
+    handler: Box<dyn FnMut(&mut AppContext, &UpdateArgs, &dyn AppWeakHandle)>,
 }
 
-/// Arguments for an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
-#[derive(Debug)]
+/// Arguments for an [`on_pre_update`](Updates::on_pre_update), [`on_update`](Updates::on_update) or [`run`](Updates::run) handler.
+#[derive(Debug, Clone, Copy)]
 pub struct UpdateArgs {
-    unsubscribe: Cell<bool>,
-}
-impl UpdateArgs {
-    /// Causes the update handler to drop.
-    #[inline]
-    pub fn unsubscribe(&self) {
-        self.unsubscribe.set(true);
-    }
+    /// Number of times the handler was called.
+    pub count: usize,
 }
 
 /// Schedule of actions to apply after an update.
@@ -533,17 +529,29 @@ impl Updates {
         self.display_update |= updates;
     }
 
+    /// Schedule an *once* handler to run when these updates are applied.
+    ///
+    /// The callback is any of the *once* [`AppHandler`], including async handlers. You can use [`app_hn_once!`](handler::app_hn_once!)
+    /// or [`async_app_hn_once!`](handler::async_app_hn_once!) to declare the closure. If the handler is async and does not finish in
+    /// one call it is scheduled to update in *preview* updates.
+    pub fn run<H: AppHandler<UpdateArgs> + handler::marker::OnceHn>(&mut self, handler: H) -> OnUpdateHandle {
+        Self::push_handler(&mut self.pos_handlers, true, handler)
+    }
+
     /// Create a preview update handler.
     ///
-    /// The `handler` is called every time the app updates, just before the UI updates.
+    /// The `handler` is called every time the app updates, just before the UI updates. It can be any of the non-async [`AppHandler`],
+    /// use the [`app_hn!`] or [`app_hn_once!`] macros to declare the closure. Async handlers are not allowed because UI bound async
+    /// tasks cause app updates to awake, so it is very easy to lock the app in a constant sequence of updates. You can use [`run`](Self::run)
+    /// to start an async app context task.
     ///
     /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`UpdateArgs::unsubscribe`].
-    pub fn on_pre_update<F>(&mut self, handler: F) -> OnUpdateHandle
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    pub fn on_pre_update<H>(&mut self, handler: H) -> OnUpdateHandle
     where
-        F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
+        H: AppHandler<UpdateArgs> + handler::marker::NotAsyncHn,
     {
-        Self::push_handler(&mut self.pre_handlers, handler)
+        Self::push_handler(&mut self.pre_handlers, true, handler)
     }
 
     /// Create an update handler.
@@ -551,22 +559,25 @@ impl Updates {
     /// The `handler` is called every time the app updates, just after the UI updates.
     ///
     /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`UpdateArgs::unsubscribe`].
-    pub fn on_update<F>(&mut self, handler: F) -> OnUpdateHandle
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    pub fn on_update<H>(&mut self, handler: H) -> OnUpdateHandle
     where
-        F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
+        H: AppHandler<UpdateArgs> + handler::marker::NotAsyncHn,
     {
-        Self::push_handler(&mut self.pos_handlers, handler)
+        Self::push_handler(&mut self.pos_handlers, false, handler)
     }
 
-    fn push_handler<F>(entries: &mut Vec<UpdateHandler>, handler: F) -> OnUpdateHandle
+    fn push_handler<H>(entries: &mut Vec<UpdateHandler>, is_preview: bool, mut handler: H) -> OnUpdateHandle
     where
-        F: FnMut(&mut AppContext, &UpdateArgs) + 'static,
+        H: AppHandler<UpdateArgs>,
     {
         let (handle_owner, handle) = OnUpdateHandle::new();
         entries.push(UpdateHandler {
             handle: handle_owner,
-            handler: Box::new(handler),
+            count: 0,
+            handler: Box::new(move |ctx, args, handle| {
+                handler.event(ctx, args, &AppHandlerArgs { handle, is_preview });
+            }),
         });
         handle
     }
@@ -587,15 +598,11 @@ impl Updates {
 
     fn retain_updates(ctx: &mut AppContext, handlers: &mut Vec<UpdateHandler>) {
         handlers.retain_mut(|e| {
-            let mut retain = !e.handle.is_dropped();
-            if retain {
-                let args = UpdateArgs {
-                    unsubscribe: Cell::new(false),
-                };
-                (e.handler)(ctx, &args);
-                retain = !args.unsubscribe.get() && !e.handle.is_dropped();
+            !e.handle.is_dropped() && {
+                e.count = e.count.wrapping_add(1);
+                (e.handler)(ctx, &UpdateArgs { count: e.count }, &e.handle.weak_handle());
+                !e.handle.is_dropped()
             }
-            retain
         });
     }
 

@@ -877,11 +877,9 @@ impl Events {
 
     fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, args: &BoxedEventUpdate) {
         handlers.retain_mut(|e| {
-            if !e.handle.is_dropped() {
+            !e.handle.is_dropped() && {
                 (e.handler)(ctx, args, &e.handle.weak_handle());
                 !e.handle.is_dropped()
-            } else {
-                false
             }
         });
     }

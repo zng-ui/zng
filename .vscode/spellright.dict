@@ -76,3 +76,5 @@ rustdoc
 structfield
 smol
 hn
+deinits
+deiniting

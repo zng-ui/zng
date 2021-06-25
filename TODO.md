@@ -19,7 +19,6 @@ Things that must be done first because they influence the core API design that i
 * Commands.
 
 * Handlers.
-  * Review all `_async` methods and functions, try to support handlers in all of then.
   * Variadic closure inputs in the handler macros, for convenience and to avoid cloning in async handlers.
 * Timers.
   * Unify with app handlers.

@@ -3,14 +3,7 @@
 //! These events map very close to the [`UiNode`] methods. The event handler have non-standard signatures
 //! and the event does not respects widget [`enabled`](crate::core::widget_base::IsEnabled) status.
 
-use std::future::Future;
-
-use retain_mut::RetainMut;
-
-use zero_ui_core::context::RenderContext;
-use zero_ui_core::context::WidgetContextMut;
-use zero_ui_core::task::WidgetTask;
-
+use crate::core::handler::*;
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;
 use crate::core::*;
@@ -18,196 +11,261 @@ use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::FrameUpdate,
 };
-macro_rules! widget_context_handler_events {
-    ($($Ident:ident),+) => {$(paste::paste! {
-        #[doc = "Arguments for the [`on_"$Ident:snake"`](fn@on_"$Ident:snake") event."]
-        #[derive(Clone, Debug, Copy)]
-        pub struct [<On $Ident Args>] {
-            /// Number of time the handler was called.
-            ///
-            /// The number is `1` for the first call.
-            pub count: usize,
-        }
+use zero_ui_core::context::RenderContext;
 
-        #[doc = "Event fired during the widget [`" $Ident:snake "`](UiNode::" $Ident:snake ")."]
-        ///
-        #[doc = "The `handler` is called after the [preview event](on_pre_" $Ident:snake ") and after the widget children."]
-        ///
-        /// The `handler` is called even when the widget is [disabled](IsEnabled).
-        #[property(event, default(|_, _|{}))]
-        pub fn [<on_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext, [<On $Ident Args>]) + 'static) -> impl UiNode {
-            struct [<On $Ident Node>]<C, F> {
-                child: C,
-                handler: F,
-                count: usize,
-            }
-            #[impl_ui_node(child)]
-            impl<C: UiNode, F: FnMut(&mut WidgetContext, [<On $Ident Args>]) + 'static> UiNode for [<On $Ident Node>]<C, F> {
-                fn [<$Ident:snake>](&mut self, ctx: &mut WidgetContext) {
-                    self.child.[<$Ident:snake>](ctx);
-                    self.count = self.count.wrapping_add(1);
-                    let args = [<On $Ident Args>] { count: self.count };
-                    (self.handler)(ctx, args);
-                }
-            }
-            [<On $Ident Node>] {
-                child,
-                handler,
-                count: 0
-            }
-        }
-
-        #[doc = "Preview [`on_" $Ident:snake "`] event."]
-        ///
-        /// The `handler` is called before the main event and before the widget children.
-        ///
-        /// The `handler` is called even when the widget is [disabled](IsEnabled).
-        #[property(event, default(|_, _|{}))]
-        pub fn [<on_pre_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext, [<On $Ident Args>]) + 'static) -> impl UiNode {
-            struct [<OnPreview $Ident Node>]<C, F> {
-                child: C,
-                handler: F,
-                count: usize,
-            }
-            #[impl_ui_node(child)]
-            impl<C: UiNode, F: FnMut(&mut WidgetContext, [<On $Ident Args>]) + 'static> UiNode for [<OnPreview $Ident Node>]<C, F> {
-                fn [<$Ident:snake>](&mut self, ctx: &mut WidgetContext) {
-                    self.count = self.count.wrapping_add(1);
-                    let args = [<On $Ident Args>] { count: self.count };
-                    (self.handler)(ctx, args);
-                    self.child.[<$Ident:snake>](ctx);
-                }
-            }
-            [<OnPreview $Ident Node>] {
-                child,
-                handler,
-                count: 0,
-            }
-        }
-    })+}
-}
-widget_context_handler_events! {
-    Init, Deinit, Update
+/// Arguments for the [`on_init`](fn@on_init) event.
+#[derive(Clone, Debug, Copy)]
+pub struct OnInitArgs {
+    /// Number of time the handler was called.
+    ///
+    /// The number is `1` for the first call.
+    pub count: usize,
 }
 
-/// Async [`on_init`] event.
+/// Widget [`init`](UiNode::init) event.
 ///
-/// Note that widgets can be deinited an reinited, so its possible for multiple init tasks to be running.
+/// This property calls `handler` when the widget and its content initializes. Note that widgets
+/// can be [deinitialized](fn@on_deinit) and reinitialized, so the `handler` can be called more then once,
+/// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnInitArgs::count).
+/// to determinate if you are in the first init.
 ///
-/// # Async Handlers
+/// # Handlers
 ///
-/// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-/// runs during updates of the widget they are bound to, if the widget does not update the task does not advance and
-/// if the widget is dropped the task is canceled (dropped).
+/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
-/// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
-/// to run CPU intensive work in parallel and await for the result in the handler.
+/// ## Async
 ///
-/// See [`on_event_async`](zero_ui::core::event::on_event_async) for more details.
-#[property(event, default(|_, _| async {}))]
-pub fn on_init_async<C, F, H>(child: C, handler: H) -> impl UiNode
-where
-    C: UiNode,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, OnInitArgs) -> F + 'static,
-{
-    struct OnInitAsyncNode<C, H> {
+/// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
+/// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
+#[property(event,  default( hn!(|_, _|{}) ))]
+pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
+    struct OnInitNode<C, H> {
         child: C,
         handler: H,
         count: usize,
-        tasks: Vec<WidgetTask<()>>,
     }
+
     #[impl_ui_node(child)]
-    impl<C, F, H> UiNode for OnInitAsyncNode<C, H>
-    where
-        C: UiNode,
-        F: Future<Output = ()> + 'static,
-        H: FnMut(WidgetContextMut, OnInitArgs) -> F + 'static,
-    {
+    impl<C: UiNode, H: WidgetHandler<OnInitArgs>> UiNode for OnInitNode<C, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
             self.count = self.count.wrapping_add(1);
-
-            let mut task = ctx.async_task(|ctx| (self.handler)(ctx, OnInitArgs { count: self.count }));
-            if task.update(ctx).is_none() {
-                self.tasks.push(task);
-            }
+            self.handler.event(ctx, &OnInitArgs { count: self.count });
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-
-            self.tasks.retain_mut(|t| t.update(ctx).is_none());
+            self.handler.update(ctx);
         }
     }
-    OnInitAsyncNode {
-        child,
-        handler,
-        count: 0,
-        tasks: Vec::with_capacity(1),
-    }
+
+    OnInitNode { child, handler, count: 0 }
 }
 
-/// Async [`on_pre_init`] event.
+/// Preview [`on_init`] event.
 ///
-/// # Async Handlers
+/// This property calls `handler` when the widget initializes, before the widget content initializes. This means
+/// that the `handler` is raised before any [`on_init`] handler.
 ///
-/// Async event handlers run in the UI thread only, the code before the first `await` runs immediately, subsequent code
-/// runs during updates of the widget they are bound to, if the widget does not update the task does not advance and
-/// if the widget is dropped the task is canceled (dropped).
+/// # Handlers
 ///
-/// The handler tasks are asynchronous but not parallel, when they are doing work they block the UI thread, you can use `Tasks`
-/// to run CPU intensive work in parallel and await for the result in the handler.
+/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
 ///
-/// See [`on_event_async`](zero_ui::core::event::on_event_async) for more details.
+/// ## Async
 ///
-/// ## Async Preview
-///
-/// Only the code before the first `await` runs immediately so only that code is *preview*.
-#[property(event, default(|_, _| async {}))]
-pub fn on_pre_init_async<C, F, H>(child: C, handler: H) -> impl UiNode
-where
-    C: UiNode,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, OnInitArgs) -> F + 'static,
-{
-    struct OnPreInitAsyncNode<C, H> {
+/// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
+/// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
+#[property(event,  default( hn!(|_, _|{}) ))]
+pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
+    struct OnPreviewInitNode<C, H> {
         child: C,
         handler: H,
         count: usize,
-        tasks: Vec<WidgetTask<()>>,
     }
+
     #[impl_ui_node(child)]
-    impl<C, F, H> UiNode for OnPreInitAsyncNode<C, H>
-    where
-        C: UiNode,
-        F: Future<Output = ()> + 'static,
-        H: FnMut(WidgetContextMut, OnInitArgs) -> F + 'static,
-    {
+    impl<C: UiNode, H: WidgetHandler<OnInitArgs>> UiNode for OnPreviewInitNode<C, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.count = self.count.wrapping_add(1);
-
-            let mut task = ctx.async_task(|ctx| (self.handler)(ctx, OnInitArgs { count: self.count }));
-            if task.update(ctx).is_none() {
-                self.tasks.push(task);
-            }
+            self.handler.event(ctx, &OnInitArgs { count: self.count });
 
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            self.tasks.retain_mut(|t| t.update(ctx).is_none());
+            self.handler.update(ctx);
+            self.child.update(ctx);
+        }
+    }
+
+    OnPreviewInitNode { child, handler, count: 0 }
+}
+
+/// Arguments for the [`on_update`](fn@on_update) event.
+#[derive(Clone, Debug, Copy)]
+pub struct OnUpdateArgs {
+    /// Number of time the handler was called.
+    ///
+    /// The number is `1` for the first call.
+    pub count: usize,
+}
+
+/// Widget [`update`](UiNode::update) event.
+///
+/// This property calls `handler` every UI update, after the widget content updates. Updates happen in
+/// high volume in between idle moments, so the handler code should be considered a *hot-path*.
+///
+/// # Handlers
+///
+/// This property accepts the [`WidgetHandler`] that are not async. Use one of the handler macros, [`hn!`] or
+/// [`hn_once!`], to declare a handler closure.
+///
+/// ## Async
+///
+/// The async handlers are not permitted here because of the high volume of calls and because async tasks cause an
+/// UI update every time they awake, so it is very easy to lock the app in a constant sequence of updates.
+#[property(event,  default( hn!(|_, _|{}) ))]
+pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> + marker::NotAsyncHn) -> impl UiNode {
+    struct OnUpdateNode<C, H> {
+        child: C,
+        handler: H,
+        count: usize,
+    }
+
+    #[impl_ui_node(child)]
+    impl<C: UiNode, H: WidgetHandler<OnUpdateArgs>> UiNode for OnUpdateNode<C, H> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            self.count = self.count.wrapping_add(1);
+            self.handler.event(ctx, &OnUpdateArgs { count: self.count });
+        }
+    }
+
+    OnUpdateNode { child, handler, count: 0 }
+}
+
+/// Preview [`on_update`] event.
+///
+/// This property calls `handler` every time the UI updates, before the widget content updates. This means
+/// that the `handler` is raised before any [`on_init`] handler.
+///
+/// # Handlers
+///
+/// This property accepts the [`WidgetHandler`] that are not async. Use one of the handler macros, [`hn!`] or
+/// [`hn_once!`], to declare a handler closure.
+///
+/// ## Async
+///
+/// The async handlers are not permitted here because of the high volume of calls and because async tasks cause an
+/// UI update every time they awake, so it is very easy to lock the app in a constant sequence of updates.
+#[property(event,  default( hn!(|_, _|{}) ))]
+pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> + marker::NotAsyncHn) -> impl UiNode {
+    struct OnPreviewUpdateNode<C, H> {
+        child: C,
+        handler: H,
+        count: usize,
+    }
+
+    #[impl_ui_node(child)]
+    impl<C: UiNode, H: WidgetHandler<OnUpdateArgs>> UiNode for OnPreviewUpdateNode<C, H> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.count = self.count.wrapping_add(1);
+            self.handler.event(ctx, &OnUpdateArgs { count: self.count });
 
             self.child.update(ctx);
         }
     }
-    OnPreInitAsyncNode {
-        child,
-        handler,
-        count: 0,
-        tasks: Vec::with_capacity(1),
+
+    OnPreviewUpdateNode { child, handler, count: 0 }
+}
+
+/// Arguments for the [`on_deinit`](fn@on_deinit) event.
+#[derive(Clone, Debug, Copy)]
+pub struct OnDeinitArgs {
+    /// Number of time the handler was called.
+    ///
+    /// The number is `1` for the first call.
+    pub count: usize,
+}
+
+/// Widget [`deinit`](UiNode::deinit) event.
+///
+/// This property calls `handler` when the widget deinits, after the widget content deinits. Note that
+/// widgets can be [reinitialized](fn@on_init) so the `handler` can be called more then once,
+/// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnDeinitArgs::count)
+/// to determinate if you are in the first deinit.
+///
+/// # Handlers
+///
+/// This property accepts the [`WidgetHandler`] that are not async. Use one of the handler macros, [`hn!`] or
+/// [`hn_once!`], to declare a handler closure.
+///
+/// ## Async
+///
+/// The async handlers are not permitted here because widget bound async tasks only advance past the first `.await`
+/// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
+/// async task in the app context using [`Updates::run`] or you can use [`task::spawn`] to start a parallel async task
+/// in a worker thread.
+#[property(event,  default( hn!(|_, _|{}) ))]
+pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> + marker::NotAsyncHn) -> impl UiNode {
+    struct OnDeinitNode<C, H> {
+        child: C,
+        handler: H,
+        count: usize,
     }
+
+    #[impl_ui_node(child)]
+    impl<C: UiNode, H: WidgetHandler<OnDeinitArgs>> UiNode for OnDeinitNode<C, H> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            self.count = self.count.wrapping_add(1);
+            self.handler.event(ctx, &OnDeinitArgs { count: self.count });
+        }
+    }
+
+    OnDeinitNode { child, handler, count: 0 }
+}
+
+/// Preview [`on_update`] event.
+///
+/// This property calls `handler` every time the UI updates, before the widget content updates. This means
+/// that the `handler` is raised before any [`on_init`] handler.
+///
+/// # Handlers
+///
+/// This property accepts the [`WidgetHandler`] that are not async. Use one of the handler macros, [`hn!`] or
+/// [`hn_once!`], to declare a handler closure.
+///
+/// ## Async
+///
+/// The async handlers are not permitted here because widget bound async tasks only advance past the first `.await`
+/// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
+/// async task in the app context using [`Updates::run`] or you can use [`task::spawn`] to start a parallel async task
+/// in a worker thread.
+#[property(event,  default( hn!(|_, _|{}) ))]
+pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> + marker::NotAsyncHn) -> impl UiNode {
+    struct OnPreviewDeinitNode<C, H> {
+        child: C,
+        handler: H,
+        count: usize,
+    }
+
+    #[impl_ui_node(child)]
+    impl<C: UiNode, H: WidgetHandler<OnDeinitArgs>> UiNode for OnPreviewDeinitNode<C, H> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.count = self.count.wrapping_add(1);
+            self.handler.event(ctx, &OnDeinitArgs { count: self.count });
+
+            self.child.update(ctx);
+        }
+    }
+
+    OnPreviewDeinitNode { child, handler, count: 0 }
 }
 
 /// Arguments of the [`on_measure`](fn@on_measure) event.

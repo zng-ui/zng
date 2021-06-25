@@ -15,7 +15,7 @@ use std::mem;
 
 use retain_mut::RetainMut;
 
-use crate::context::{AppContext, AppContextMut, UpdateArgs, WidgetContext, WidgetContextMut};
+use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
 use crate::crate_util::WeakHandle;
 use crate::task::{AppTask, WidgetTask};
 
@@ -34,6 +34,8 @@ pub mod marker {
 
     /// Represents a handler that is **not** async. Only the [`hn!`], [`hn_once!`], [`app_hn!`] and [`app_hn_once!`]
     /// handlers implement this trait.
+    ///
+    /// When this constrain is used the [`WidgetHandler`] should not expect to be [updated](WidgetHandler::update).
     ///
     /// See the [module level](self) documentation for details.
     pub trait NotAsyncHn {}
@@ -706,19 +708,19 @@ where
         if task.update(ctx).is_none() {
             if handler_args.is_preview {
                 ctx.updates
-                    .on_pre_update(move |ctx, u_args: &UpdateArgs| {
+                    .on_pre_update(app_hn!(|ctx, _, handle| {
                         if task.update(ctx).is_some() {
-                            u_args.unsubscribe();
+                            handle.unsubscribe();
                         }
-                    })
+                    }))
                     .permanent();
             } else {
                 ctx.updates
-                    .on_update(move |ctx, u_args: &UpdateArgs| {
+                    .on_update(app_hn!(|ctx, _, handle| {
                         if task.update(ctx).is_some() {
-                            u_args.unsubscribe();
+                            handle.unsubscribe();
                         }
-                    })
+                    }))
                     .permanent();
             }
         }
@@ -857,19 +859,19 @@ where
             if task.update(ctx).is_none() {
                 if handler_args.is_preview {
                     ctx.updates
-                        .on_pre_update(move |ctx, u_args| {
+                        .on_pre_update(app_hn!(|ctx, _, handle| {
                             if task.update(ctx).is_some() {
-                                u_args.unsubscribe();
+                                handle.unsubscribe();
                             }
-                        })
+                        }))
                         .permanent();
                 } else {
                     ctx.updates
-                        .on_update(move |ctx, u_args| {
+                        .on_update(app_hn!(|ctx, _, handle| {
                             if task.update(ctx).is_some() {
-                                u_args.unsubscribe();
+                                handle.unsubscribe();
                             }
-                        })
+                        }))
                         .permanent();
                 }
             }
@@ -953,118 +955,82 @@ pub use crate::async_app_hn_once;
 
 /// Cloning closure.
 ///
-/// A common pattern when creating widgets is a [variable](crate::var::var) that is shared between a property and an event handler.
-/// The event handler is a closure but you cannot just move the variable, it needs to take a clone of the variable.
-///
-/// This macro facilitates this pattern.
+/// A common pattern when creating `'static` closures is to capture clones by `move`, this way the closure is `'static`
+/// and the cloned values are still available after creating the closure. This macro facilitates this pattern.
 ///
 /// # Example
 ///
+/// In the example `bar` was *clone-moved* into the `'static` closure given to `foo`.
+///
 /// ```
-/// # fn main() { }
-/// # use zero_ui_core::{widget, clone_move, NilUiNode, var::{var, IntoVar}, text::{Text, ToText}, context::WidgetContext};
-/// #
-/// # #[widget($crate::window)]
-/// # pub mod window {
-/// #     use super::*;
-/// #
-/// #     properties! {
-/// #         #[allowed_in_when = false]
-/// #         title(impl IntoVar<Text>);
-/// #
-/// #         #[allowed_in_when = false]
-/// #         on_click(impl FnMut(&mut WidgetContext, ()));
-/// #     }
-/// #
-/// #     fn new_child(title: impl IntoVar<Text>, on_click: impl FnMut(&mut WidgetContext, ())) -> NilUiNode {
-/// #         NilUiNode
-/// #     }
-/// # }
-/// #
-/// # fn demo() {
-/// let title = var("Click Me!".to_text());
-/// window! {
-///     on_click = clone_move!(title, |ctx, _| {
-///         title.set(ctx.vars, "Clicked!");
-///     });
-///     title;
+/// # use zero_ui_core::handler::clone_move;
+/// fn foo(mut f: impl FnMut(bool) + 'static) {
+///     f(true);
 /// }
-/// # ;
-/// # }
+///
+/// let bar = "Cool!".to_owned();
+/// foo(clone_move!(bar, |p| {
+///     if p { println!("cloned: {}", bar) }
+/// }));
+///
+/// println!("original: {}", bar);
 /// ```
 ///
 /// Expands to:
 ///
 /// ```
-/// # fn main() { }
-/// # use zero_ui_core::{widget, clone_move, NilUiNode, var::{var, IntoVar}, text::{Text, ToText}, context::WidgetContext};
-/// #
-/// # #[widget($crate::window)]
-/// # pub mod window {
-/// #     use super::*;
-/// #
-/// #     properties! {
-/// #         #[allowed_in_when = false]
-/// #         title(impl IntoVar<Text>);
-/// #
-/// #         #[allowed_in_when = false]
-/// #         on_click(impl FnMut(&mut WidgetContext, ()));
-/// #     }
-/// #
-/// #     fn new_child(title: impl IntoVar<Text>, on_click: impl FnMut(&mut WidgetContext, ())) -> NilUiNode {
-/// #         NilUiNode
-/// #     }
+/// # use zero_ui_core::handler::clone_move;
+/// # fn foo(mut f: impl FnMut(bool) + 'static) {
+/// #     f(true);
 /// # }
-/// #
-/// # fn demo() {
-/// let title = var("Click Me!".to_text());
-/// window! {
-///     on_click = {
-///         let title = title.clone();
-///         move |ctx, _| {
-///             title.set(ctx.vars, "Clicked!");
-///         }
-///     };
-///     title;
-/// }
-/// # ;
-/// # }
+/// # let bar = "Cool!".to_owned();
+/// foo({
+///     let bar = bar.clone();
+///     move |p| {
+///         if p { println!("cloned: {}", bar) }
+///     }
+/// });
+/// # println!("original: {}", bar);
 /// ```
 ///
 /// # Other Patterns
 ///
-/// Although this macro exists primarily for creating event handlers, you can use it with any Rust variable. The
-/// cloned variable can be marked `mut` and you can deref `*` as many times as you need to get to the actual value you
-/// want to clone.
+/// Sometimes you want to clone an *inner deref* of the value, or you want the clone to be `mut`, you can annotate the
+/// variables cloned to achieve these effects.
 ///
 /// ```
-/// # use zero_ui_core::clone_move;
+/// # use zero_ui_core::handler::clone_move;
 /// # use std::rc::Rc;
-/// let foo = vec![1, 2, 3];
-/// let bar = Rc::new(vec!['a', 'b', 'c']);
-/// let closure = clone_move!(mut foo, *bar, || {
-///     foo.push(4);
-///     let cloned_vec: Vec<_> = bar;
-/// });
-/// assert_eq!(foo.len(), 3);
+/// fn foo(mut f: impl FnMut(bool) + 'static) {
+///     f(true);
+/// }
+///
+/// let bar = Rc::new("Cool!".to_string());
+/// foo(clone_move!(mut *bar, |p| {
+///     bar.push_str("!!");
+///     if p { println!("cloned String not Rc: {}", bar) }
+/// }));
+///
+/// println!("original: {}", bar);
 /// ```
 ///
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui_core::clone_move;
+/// # use zero_ui_core::handler::clone_move;
 /// # use std::rc::Rc;
-/// let foo = vec![1, 2, 3];
-/// let bar = Rc::new(vec!['a', 'b', 'c']);
-/// let closure = {
-///     let mut foo = foo.clone();
-///     let bar = (*bar).clone();
-///     move || {
-///         foo.push(4);
-///         let cloned_vec: Vec<_> = bar;
+/// # fn foo(mut f: impl FnMut(bool) + 'static) {
+/// #     f(true);
+/// # }
+/// # let bar = Rc::new("Cool!".to_string());
+/// foo({
+///     let mut bar = (*bar).clone();
+///     move |p| {
+///         bar.push_str("!!");
+///         if p { println!("cloned String not Rc: {}", bar) }
 ///     }
-/// };
-/// assert_eq!(foo.len(), 3);
+///});
+/// # println!("original: {}", bar);
 /// ```
 ///
 /// # Async
@@ -1093,7 +1059,7 @@ macro_rules! __clone_move {
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
         $crate::__clone_move! {
             [$($done)*]
-            [$($mut:tt)?]
+            [$($mut)?]
             [$($deref)* *]
             $($rest)+
         }
@@ -1136,90 +1102,44 @@ macro_rules! __clone_move {
 ///
 /// # Example
 ///
+/// In the example `bar` is cloned into the closure and then it is cloned again for each future generated by the closure.
+///
 /// ```
-/// # fn main() { }
-/// # use zero_ui_core::{widget, property, async_clone_move, UiNode, NilUiNode, var::{var, IntoVar}, text::{Text, ToText}, context::WidgetContextMut};
+/// # use zero_ui_core::handler::async_clone_move;
 /// # use std::future::Future;
-/// #
-/// # #[property(event)]
-/// # fn on_click_async<C: UiNode, F: Future<Output=()>, H: FnMut(WidgetContextMut, ()) -> F>(child: C, handler: H) -> impl UiNode { child }
-/// #
-/// # #[widget($crate::window)]
-/// # pub mod window {
-/// #     use super::*;
-/// #
-/// #     properties! {
-/// #         #[allowed_in_when = false]
-/// #         title(impl IntoVar<Text>);
-/// #     }
-/// #
-/// #     fn new_child(title: impl IntoVar<Text>) -> NilUiNode {
-/// #         NilUiNode
-/// #     }
-/// # }
-/// # async fn delay() {
-/// #   std::future::ready(true).await;
-/// # }
-/// #
-/// # fn demo() {
-/// let title = var("Click Me!".to_text());
-/// window! {
-///     on_click_async = async_clone_move!(title, |ctx, _| {
-///         title.set(&ctx, "Clicked!");
-///         delay().await;
-///         title.set(&ctx, "Async Update!");
-///     });
-///     title;
+/// async fn foo<F: Future<Output=()>, H:  FnMut(bool) -> F + 'static>(mut f: H) {
+///     f(true).await;
 /// }
-/// # ;
-/// # }
+///
+/// let bar = "Cool!".to_owned();
+/// foo(async_clone_move!(bar, |p| {
+///     std::future::ready(()).await;
+///     if p { println!("cloned: {}", bar) }
+/// }));
+///
+/// println!("original: {}", bar);
 /// ```
 ///
 /// Expands to:
 ///
 /// ```
-/// # fn main() { }
-/// # use zero_ui_core::{widget, property, async_clone_move, UiNode, NilUiNode, var::{var, IntoVar}, text::{Text, ToText}, context::WidgetContextMut};
+/// # use zero_ui_core::handler::async_clone_move;
 /// # use std::future::Future;
-/// #
-/// # #[property(event)]
-/// # fn on_click_async<C: UiNode, F: Future<Output=()>, H: FnMut(WidgetContextMut, ()) -> F>(child: C, handler: H) -> impl UiNode { child }
-/// #
-/// # #[widget($crate::window)]
-/// # pub mod window {
-/// #     use super::*;
-/// #
-/// #     properties! {
-/// #         #[allowed_in_when = false]
-/// #         title(impl IntoVar<Text>);
-/// #     }
-/// #
-/// #     fn new_child(title: impl IntoVar<Text>) -> NilUiNode {
-/// #         NilUiNode
-/// #     }
+/// # async fn foo<F: Future<Output=()>, H:  FnMut(bool) -> F + 'static>(mut f: H) {
+/// #     f(true).await;
 /// # }
-/// # async fn delay() {
-/// #   std::future::ready(true).await;
-/// # }
-/// #
-/// # fn demo() {
-/// let title = var("Click Me!".to_text());
-/// window! {
-///     on_click_async = {
-///         let title = title.clone();
-///         move |ctx, _| {
-///             let title = title.clone();
-///             async move {
-///                 title.set(&ctx, "Clicked!");
-///                 delay().await;
-///                 title.set(&ctx, "Async Update!");
-///             }
+/// # let bar = "Cool!".to_owned();
+/// foo({
+///     let bar = bar.clone();
+///     move |p| {
+///         let bar = bar.clone();
+///         async move {
+///             std::future::ready(()).await;
+///             if p { println!("cloned: {}", bar) }
 ///         }
-///     };
-///     title;
-/// }
-/// # ;
-/// # }
+///     }
+/// });
+/// # println!("original: {}", bar);
 /// ```
 #[macro_export]
 macro_rules! async_clone_move {
@@ -1244,7 +1164,7 @@ macro_rules! __async_clone_move {
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
         $crate::__async_clone_move! {
             [$($done)*]
-            [$($mut:tt)?]
+            [$($mut)?]
             [$($deref)* *]
             $($rest)+
         }
@@ -1360,19 +1280,41 @@ macro_rules! __async_clone_move {
 ///
 /// # Example
 ///
-/// In the example `data` is clone moved to the closure and then moved in the returned `Future`, this only works because the closure
-/// is a `FnOnce`.
+/// In the example `bar` is cloned into the closure and then moved to the future generated by the closure.
 ///
 /// ```
-/// # use zero_ui_core::{async_clone_move_once, task};
+/// # use zero_ui_core::handler::async_clone_move;
 /// # use std::future::Future;
-/// fn foo<F: Future<Output=Vec<u32>>>(f: impl FnOnce(String) -> F) { }
+/// async fn foo<F: Future<Output=()>, H:  FnOnce(bool) -> F + 'static>(mut f: H) {
+///     f(true).await;
+/// }
 ///
-/// let data = vec![1, 2, 3];
-/// foo(async_clone_move_once!(data, |s| {
-///     task::wait(move || println!("do async thing: {}", s)).await;
-///     data
-/// }))
+/// let bar = "Cool!".to_owned();
+/// foo(async_clone_move!(bar, |p| {
+///     std::future::ready(()).await;
+///     if p { println!("cloned: {}", bar) }
+/// }));
+///
+/// println!("original: {}", bar);
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui_core::handler::async_clone_move;
+/// # use std::future::Future;
+/// # async fn foo<F: Future<Output=()>, H:  FnOnce(bool) -> F + 'static>(mut f: H) {
+/// #     f(true).await;
+/// # }
+/// # let bar = "Cool!".to_owned();
+/// foo({
+///     let bar = bar.clone();
+///     move |p| async move {
+///         std::future::ready(()).await;
+///         if p { println!("cloned: {}", bar) }
+///     }
+/// });
+/// # println!("original: {}", bar);
 /// ```
 #[macro_export]
 macro_rules! async_clone_move_once {
@@ -1397,7 +1339,7 @@ macro_rules! __async_clone_move_once {
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
         $crate::__async_clone_move_once! {
             [$($done)*]
-            [$($mut:tt)?]
+            [$($mut)?]
             [$($deref)* *]
             $($rest)+
         }

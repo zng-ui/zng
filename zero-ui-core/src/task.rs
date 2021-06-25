@@ -513,11 +513,11 @@ impl AppTask<()> {
     pub fn run(mut self, updates: &mut Updates) {
         if self.task.result.is_none() {
             updates
-                .on_pre_update(move |ctx, args| {
+                .on_pre_update(app_hn!(|ctx, _, handle| {
                     if self.update(ctx).is_some() {
-                        args.unsubscribe();
+                        handle.unsubscribe();
                     }
-                })
+                }))
                 .permanent();
         }
     }
