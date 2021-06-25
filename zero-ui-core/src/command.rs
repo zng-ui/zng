@@ -86,8 +86,8 @@ macro_rules! command {
             /// be used to set the [`enabled`](Self::enabled) state.
             #[inline]
             #[allow(unused)]
-            pub fn new_handle<Evs: $crate::event::WithEvents>(self, events: &mut Evs) -> $crate::command::CommandHandle {
-                <Self as $crate::command::Command>::new_handle(self, events)
+            pub fn new_handle<Evs: $crate::event::WithEvents>(self, events: &mut Evs, enabled: bool) -> $crate::command::CommandHandle {
+                <Self as $crate::command::Command>::new_handle(self, events, enabled)
             }
         }
         impl $crate::event::Event for $Command {
@@ -130,8 +130,8 @@ macro_rules! command {
             }
 
             #[inline]
-            fn new_handle<Evs: $crate::event::WithEvents>(self, events: &mut Evs) -> $crate::command::CommandHandle {
-                Self::COMMAND.with(|c| c.new_handle(events, &Self::COMMAND))
+            fn new_handle<Evs: $crate::event::WithEvents>(self, events: &mut Evs, enabled: bool) -> $crate::command::CommandHandle {
+                Self::COMMAND.with(|c| c.new_handle(events, &Self::COMMAND, enabled))
             }
 
             #[inline]
@@ -176,7 +176,7 @@ pub trait Command: Event<Args = CommandArgs> {
     ///
     /// A handle indicates that there is an active *handler* for the event, the handle can also
     /// be used to set the [`enabled`](Self::enabled) state.
-    fn new_handle<Evs: WithEvents>(self, events: &mut Evs) -> CommandHandle;
+    fn new_handle<Evs: WithEvents>(self, events: &mut Evs, enabled: bool) -> CommandHandle;
 
     /// Gets a [`AnyCommand`] that represents this command.
     fn as_any(self) -> AnyCommand;
@@ -264,8 +264,8 @@ impl Command for AnyCommand {
         self.0.with(|c| c.has_handlers_value())
     }
 
-    fn new_handle<Evs: WithEvents>(self, events: &mut Evs) -> CommandHandle {
-        self.0.with(|c| c.new_handle(events, self.0))
+    fn new_handle<Evs: WithEvents>(self, events: &mut Evs, enabled: bool) -> CommandHandle {
+        self.0.with(|c| c.new_handle(events, self.0, enabled))
     }
 
     fn as_any(self) -> AnyCommand {
@@ -400,15 +400,19 @@ impl CommandValue {
         self.enabled.set_ne(vars, self.enabled_value());
     }
 
-    pub fn new_handle<Evs: WithEvents>(&self, events: &mut Evs, key: &'static LocalKey<CommandValue>) -> CommandHandle {
+    pub fn new_handle<Evs: WithEvents>(&self, events: &mut Evs, key: &'static LocalKey<CommandValue>, enabled: bool) -> CommandHandle {
         if !self.registered.get() {
             self.registered.set(true);
             events.with_events(|e| e.register_command(AnyCommand(key)));
         }
-        CommandHandle {
+        let r = CommandHandle {
             handle: self.handle.reanimate(),
             local_enabled: Cell::new(false),
+        };
+        if enabled {
+            r.set_enabled(true);
         }
+        r
     }
 
     pub fn enabled(&self) -> ReadOnlyVar<bool, RcVar<bool>> {

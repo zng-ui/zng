@@ -24,7 +24,7 @@ use crate::properties::events::window::*;
 /// See [`run_window`](crate::core::window::AppRunWindow::run_window) for more details.
 #[widget($crate::widgets::window)]
 pub mod window {
-    use zero_ui_core::window::WindowsExt;
+    use zero_ui_core::window::{WindowFocusChangedEvent, WindowsExt};
 
     use crate::core::command::CommandHandle;
     use crate::properties::commands::CloseWindowCommand;
@@ -268,17 +268,34 @@ pub mod window {
             child: C,
             handle: CommandHandle,
         }
+
+        impl<C: UiNode> OnCloseWindowNode<C> {
+            fn window_is_focused(&self, ctx: &mut WidgetContext) -> bool {
+                let window_id = ctx.path.window_id();
+                ctx.services
+                    .focus()
+                    .focused()
+                    .map(|p| p.window_id() == window_id)
+                    .unwrap_or_default()
+            }
+        }
+
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for OnCloseWindowNode<C> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.handle = CloseWindowCommand.new_handle(ctx);
-                self.handle.set_enabled(true);
+                let enabled = self.window_is_focused(ctx);
+                self.handle = CloseWindowCommand.new_handle(ctx, enabled);
                 self.child.init(ctx)
             }
             fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                 if let Some(args) = CloseWindowCommand.update(args) {
-                    let _ = ctx.services.windows().close(ctx.path.window_id());
+                    if self.window_is_focused(ctx) {
+                        let _ = ctx.services.windows().close(ctx.path.window_id());
+                    }
                     self.child.event(ctx, args)
+                } else if let Some(args) = WindowFocusChangedEvent.update(args) {
+                    self.handle.set_enabled(args.focused);
+                    self.child.event(ctx, args);
                 } else {
                     self.child.event(ctx, args)
                 }
