@@ -18,8 +18,6 @@ Things that must be done first because they influence the core API design that i
 
 * Commands.
 
-* Handlers.
-  * Variadic closure inputs in the handler macros, for convenience and to avoid cloning in async handlers.
 * Timers.
   * Unify with app handlers.
   * Configurable `Instant::now` source, to advance time instantly in tests.
