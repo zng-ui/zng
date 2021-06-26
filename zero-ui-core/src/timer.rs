@@ -30,7 +30,7 @@ struct DeadlineHandlerEntry {
 struct TimerHandlerEntry {
     handle: HandleOwner<TimerState>,
     handler: Box<dyn FnMut(&mut AppContext, &TimerArgs, &dyn AppWeakHandle)>,
-    pending: Option<Instant>, // Instant is the deadline for the args.
+    pending: Option<Instant>, // the `Instant` is the last expected deadline
 }
 
 struct TimerVarEntry {
@@ -258,18 +258,18 @@ impl Timers {
                 if !t.handle.is_dropped() {
                     let timer = var.get(vars);
                     let mut deadline = timer.0 .0.data().deadline.lock().unwrap();
-                    if *deadline <= now {
+                    if deadline.next_deadline() <= now {
                         // timer elapses, but only update if is enabled:
                         if timer.is_enabled() {
                             timer.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
                             var.touch(vars);
                         }
 
-                        *deadline = now + timer.interval();
+                        deadline.last = now;
                     }
 
                     min_next_some = true;
-                    min_next = min_next.min(*deadline);
+                    min_next = min_next.min(deadline.next_deadline());
 
                     return true; // retain, has at least one var and did not call stop.
                 }
@@ -302,18 +302,18 @@ impl Timers {
 
             let state = e.handle.data();
             let mut deadline = state.deadline.lock().unwrap();
-            if *deadline <= now {
+            if deadline.next_deadline() <= now {
                 // timer elapsed, but only flag for handler call if is enabled:
                 if state.enabled.load(Ordering::Relaxed) {
                     // this is wrapping_add
                     state.count.fetch_add(1, Ordering::Relaxed);
-                    e.pending = Some(*deadline);
+                    e.pending = Some(deadline.next_deadline());
                 }
-                *deadline = now + *state.interval.lock().unwrap();
+                deadline.last = now;
             }
 
             min_next_some = true;
-            min_next = min_next.min(*deadline);
+            min_next = min_next.min(deadline.next_deadline());
 
             true // retain if stop was not called
         });
@@ -487,16 +487,26 @@ pub struct DeadlineArgs {
 pub struct TimerHandle(Handle<TimerState>);
 struct TimerState {
     enabled: AtomicBool,
-    interval: Mutex<Duration>,
-    deadline: Mutex<Instant>,
+    deadline: Mutex<TimerDeadline>,
     count: AtomicUsize,
+}
+struct TimerDeadline {
+    interval: Duration,
+    last: Instant,
+}
+impl TimerDeadline {
+    fn next_deadline(&self) -> Instant {
+        self.last + self.interval
+    }    
 }
 impl TimerHandle {
     fn new(interval: Duration) -> (HandleOwner<TimerState>, TimerHandle) {
         let (owner, handle) = Handle::new(TimerState {
             enabled: AtomicBool::new(true),
-            interval: Mutex::new(interval),
-            deadline: Mutex::new(Instant::now() + interval),
+            deadline: Mutex::new(TimerDeadline {
+                interval,
+                last: Instant::now(),
+            }),
             count: AtomicUsize::new(0),
         });
         (owner, TimerHandle(handle))
@@ -506,8 +516,10 @@ impl TimerHandle {
     pub fn dummy() -> TimerHandle {
         TimerHandle(Handle::dummy(TimerState {
             enabled: AtomicBool::new(false),
-            interval: Mutex::new(Duration::MAX),
-            deadline: Mutex::new(Instant::now()),
+            deadline: Mutex::new(TimerDeadline {
+                interval: Duration::MAX,
+                last: Instant::now(),
+            }),
             count: AtomicUsize::new(0),
         }))
     }
@@ -543,25 +555,33 @@ impl TimerHandle {
         self.0.is_dropped()
     }
 
-    /// The interval that will be used when [`deadline`](Self::deadline) is reached.
+    /// The timer interval. Enabled handlers are called every time this interval elapses.
     #[inline]
     pub fn interval(&self) -> Duration {
-        *self.0.data().interval.lock().unwrap()
+        self.0.data().deadline.lock().unwrap().interval
     }
 
-    /// Sets the [`interval`](Self::interval). Note that this only affects the interval after
-    /// the current [`deadline`](Self::deadline) is reached.
+    /// Sets the [`interval`](Self::interval). 
+    /// 
+    /// Note that this method does not awake the app, so if this is called from outside the app 
+    /// thread it will only apply on the next app update.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {
-        *self.0.data().interval.lock().unwrap() = new_interval;
+        self.0.data().deadline.lock().unwrap().interval = new_interval;
+    }
+
+    /// Last elapsed time, or the start time if the timer has not elapsed yet.
+    #[inline]
+    pub fn timestamp(&self) -> Instant {
+        self.0.data().deadline.lock().unwrap().last
     }
 
     /// The next deadline.
     ///
-    /// The handler will be called when this deadline is reached and the deadline is then changed to the next deadline.
+    /// This is the [`timestamp`](Self::timestamp) plus the [`interval`](Self::interval).
     #[inline]
     pub fn deadline(&self) -> Instant {
-        *self.0.data().deadline.lock().unwrap()
+        self.0.data().deadline.lock().unwrap().next_deadline()
     }
 
     /// If the handler is called when the timer elapses.
@@ -655,24 +675,30 @@ impl Timer {
         self.0.is_stopped()
     }
 
-    /// The interval that will be used after the [`deadline`](Self::deadline) is reached to calculate the
-    /// next deadline.
+    /// The timer interval. Enabled variables update every time this interval elapses.
     #[inline]
     pub fn interval(&self) -> Duration {
         self.0.interval()
     }
 
-    /// Sets the [`interval`](Self::interval). Note that this does not reset the current [`deadline`](Self::deadline)
-    /// so if this method is called during a variable update it will still update using the previous interval one
-    /// more time.
+    /// Sets the [`interval`](Self::interval).
+    /// 
+    /// Note that this method does not awake the app, so if this is called from outside the app 
+    /// thread it will only apply on the next app update.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {
         self.0.set_interval(new_interval)
     }
 
+    /// Last update time, or the start time if the timer has not updated yet.
+    #[inline]
+    pub fn timestamp(&self) -> Instant {
+        self.0.timestamp()
+    }
+
     /// The next deadline.
     ///
-    /// The variable will update when this deadline, the update will already show the next deadline.
+    /// This is the [`timestamp`](Self::timestamp) plus the [`interval`](Self::interval).
     #[inline]
     pub fn deadline(&self) -> Instant {
         self.0.deadline()
@@ -718,7 +744,7 @@ pub struct TimerArgs {
     /// When the handler was called.
     pub timestamp: Instant,
 
-    /// Timer deadline, is less-or-equal to the [`timestamp`](Self::timestamp).
+    /// Expected deadline, is less-or-equal to the [`timestamp`](Self::timestamp).
     pub deadline: Instant,
 
     wk_handle: WeakHandle<TimerState>,
@@ -729,15 +755,16 @@ impl TimerArgs {
         self.wk_handle.upgrade().map(TimerHandle)
     }
 
-    /// The interval that will be used after the [`deadline`](Self::deadline) is reached to calculate the
-    /// next deadline.
+    /// The timer interval. Enabled handlers are called every time this interval elapses.
     #[inline]
     pub fn interval(&self) -> Duration {
         self.handle().map(|h| h.interval()).unwrap_or_default()
     }
 
-    /// Sets the [`interval`](Self::interval). Note that this does not reset the next deadline so the handler
-    /// will be called one more time using the previous interval.
+    /// Set the [`interval`](Self::interval).
+    ///
+    /// Note that this method does not awake the app, so if this is called from outside the app 
+    /// thread it will only apply on the next app update.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {
         if let Some(h) = self.handle() {
@@ -752,8 +779,6 @@ impl TimerArgs {
     }
 
     /// Disable or re-enable the timer. Disabled timers don't call the handler.
-    ///
-    /// This does not affect the deadline, it just affect if the handler is called and the [`count`](Self::count) value.
     #[inline]
     pub fn set_enabled(&self, enabled: bool) {
         if let Some(h) = self.handle() {
@@ -773,6 +798,21 @@ impl TimerArgs {
         if let Some(h) = self.handle() {
             h.set_count(count)
         }
+    }
+
+    /// The timestamp of the last update. This can be different from [`timestamp`](Self::timestamp)
+    /// after the first `.await` in async handlers of if called from a different thread.
+    #[inline]
+    pub fn last_timestamp(&self) -> Instant {
+        self.handle().map(|h| h.timestamp()).unwrap_or(self.timestamp)
+    }
+
+    /// The next timer deadline.
+    ///
+    /// This is [`last_timestamp`](Self::last_timestamp) plus [`interval`](Self::interval).
+    #[inline]
+    pub fn next_deadline(&self) -> Instant {
+        self.handle().map(|h| h.deadline()).unwrap_or(self.deadline)
     }
 
     /// If the timer was stopped while the handler was running after it started handling.
