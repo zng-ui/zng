@@ -309,7 +309,7 @@ impl IsEnabled {
     /// Gets the new enabled state in the current `vars` context.
     #[inline]
     pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<bool> {
-        vars.with(|vars| IsEnabledVar::get_new(vars).copied())
+        vars.with_vars(|vars| IsEnabledVar::get_new(vars).copied())
     }
 }
 

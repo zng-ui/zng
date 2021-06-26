@@ -50,7 +50,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|v| v.context_var::<C>().1)
+        vars.with_vars(|v| v.context_var::<C>().1)
     }
 
     #[inline]

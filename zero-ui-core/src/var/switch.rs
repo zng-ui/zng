@@ -171,7 +171,7 @@ macro_rules! impl_rc_switch_var {
             }
 
             fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     self.0.index.is_new(vars)
                     || match *self.0.index.get(vars) {
                         $($n => self.0.vars.$n.is_new(vars),)+
@@ -196,7 +196,7 @@ macro_rules! impl_rc_switch_var {
             }
 
             fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-               vars.with(|vars| {
+               vars.with_vars(|vars| {
                     match *self.0.index.get(vars) {
                         $($n => self.0.vars.$n.is_read_only(vars),)+
                         _ => panic!("switch_var index out of range"),
@@ -219,7 +219,7 @@ macro_rules! impl_rc_switch_var {
                 Vw: WithVars,
                 N: Into<O>
             {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     match *self.0.index.get(vars) {
                         $($n => self.0.vars.$n.set(vars, new_value),)+
                         _ => panic!("switch_var index out of range"),
@@ -233,7 +233,7 @@ macro_rules! impl_rc_switch_var {
                 N: Into<O>,
                 O : PartialEq
             {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     match *self.0.index.get(vars) {
                         $($n => self.0.vars.$n.set_ne(vars, new_value),)+
                         _ => panic!("switch_var index out of range")
@@ -246,7 +246,7 @@ macro_rules! impl_rc_switch_var {
                 Vw: WithVars,
                 F: FnOnce(&mut VarModify<O>) + 'static
             {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     match *self.0.index.get(vars) {
                         $($n => self.0.vars.$n.modify(vars, change),)+
                         _ => panic!("switch_var index out of range"),
@@ -384,7 +384,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     }
 
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| self.0.vars[self.0.index.copy(vars)].is_new(vars))
+        vars.with_vars(|vars| self.0.vars[self.0.index.copy(vars)].is_new(vars))
     }
 
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
@@ -420,7 +420,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     }
 
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| self.0.vars[*self.0.index.get(vars)].is_read_only(vars))
+        vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].is_read_only(vars))
     }
 
     fn always_read_only(&self) -> bool {
@@ -437,7 +437,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         Vw: WithVars,
         N: Into<O>,
     {
-        vars.with(|vars| self.0.vars[*self.0.index.get(vars)].set(vars, new_value))
+        vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].set(vars, new_value))
     }
 
     fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
@@ -446,11 +446,11 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         N: Into<O>,
         O: PartialEq,
     {
-        vars.with(|vars| self.0.vars[*self.0.index.get(vars)].set_ne(vars, new_value))
+        vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].set_ne(vars, new_value))
     }
 
     fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
-        vars.with(|vars| self.0.vars[*self.0.index.get(vars)].modify(vars, change))
+        vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].modify(vars, change))
     }
 
     #[inline]

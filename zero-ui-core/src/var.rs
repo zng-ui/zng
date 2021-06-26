@@ -41,6 +41,9 @@ pub use switch::*;
 mod when;
 pub use when::*;
 
+mod future;
+pub use future::*;
+
 /// A type that can be a [`Var`] value.
 ///
 /// # Trait Alias
@@ -143,19 +146,130 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     where
         T: Copy,
     {
-        vars.with(|v| self.get_new(v).copied())
+        vars.with_vars(|v| self.get_new(v).copied())
+    }
+
+    /// Returns a future that awaits for [`copy_new`](Var::copy_new) after the current update.
+    ///
+    /// You can `.await` this in UI thread bound async code, like in async event handlers. The future
+    /// will unblock once for every time [`copy_new`](Var::copy_new) returns `Some(T)` in a different update.
+    ///
+    /// Note that if [`Var::can_update`] is `false` this will never awake and a warning will be logged.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui_core::var::*;
+    /// # use zero_ui_core::handler::async_hn;
+    /// fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
+    /// # let foo_var = var(10u32);
+    /// async_hn!(foo_var, |ctx, _| {
+    ///     let value = foo_var.wait_copy(&ctx).await;
+    ///     assert_eq!(Some(value), foo_var.copy_new(&ctx));
+    ///
+    ///     let value = foo_var.wait_copy(&ctx).await;
+    ///     assert_eq!(Some(value), foo_var.copy_new(&ctx));
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// In the example the handler awaits for the variable to have a new value, the code immediately after
+    /// runs in the app update where the variable is new, the second `.await` does not poll immediately it awaits
+    /// for the variable to be new again but in a different update.
+    ///
+    /// You can also reuse the future, but it is very cheap to just create a new one.
+    #[inline]
+    fn wait_copy<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarCopyNewFut<'a, Vw, T, Self>
+    where
+        T: Copy,
+    {
+        if !self.can_update() {
+            log::warn!("`Var::wait_copy` called in a variable that never updates");
+        }
+        VarCopyNewFut::new(vars, self)
     }
 
     /// Clone the value if [`is_new`](Self::is_new).
     #[inline]
     fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
-        vars.with(|v| self.get_new(v).cloned())
+        vars.with_vars(|v| self.get_new(v).cloned())
+    }
+
+    /// Returns a future that awaits for [`clone_new`](Var::clone_new) after the current update.
+    ///
+    /// You can `.await` this in UI thread bound async code, like in async event handlers. The future
+    /// will unblock once for every time [`clone_new`](Var::clone_new) returns `Some(T)` in a different update.
+    ///
+    /// Note that if [`Var::can_update`] is `false` this will never awake and a warning will be logged.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui_core::var::*;
+    /// # use zero_ui_core::handler::async_hn;
+    /// fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
+    /// # let foo_var = var(10u32);
+    /// async_hn!(foo_var, |ctx, _| {
+    ///     let value = foo_var.wait_clone(&ctx).await;
+    ///     assert_eq!(Some(value), foo_var.clone_new(&ctx));
+    ///
+    ///     let value = foo_var.wait_clone(&ctx).await;
+    ///     assert_eq!(Some(value), foo_var.clone_new(&ctx));
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// In the example the handler awaits for the variable to have a new value, the code immediately after
+    /// runs in the app update where the variable is new, the second `.await` does not poll immediately it awaits
+    /// for the variable to be new again but in a different update.
+    ///
+    /// You can also reuse the future, but it is very cheap to just create a new one.
+    #[inline]
+    fn wait_clone<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarCloneNewFut<'a, Vw, T, Self> {
+        if !self.can_update() {
+            log::warn!("`Var::wait_clone` called in a variable that never updates");
+        }
+        VarCloneNewFut::new(vars, self)
     }
 
     /// If the variable value changed in this update.
     ///
     /// When the variable value changes this stays `true` for one app update cycle.
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool;
+
+    /// Returns a future that awaits for [`is_new`](Var::is_new) after the current update.
+    ///
+    /// You can `.await` this in UI thread bound async code, like in async event handlers. The future
+    /// will unblock once for every time [`is_new`](Var::is_new) returns `true` in a different update.
+    ///
+    /// Note that if [`Var::can_update`] is `false` this will never awake and a warning will be logged.
+    /// ```
+    /// # use zero_ui_core::var::*;
+    /// # use zero_ui_core::handler::async_hn;
+    /// fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
+    /// # let foo_var = var(10u32);
+    /// async_hn!(foo_var, |ctx, _| {
+    ///     foo_var.wait_new(&ctx).await;
+    ///     assert!(foo_var.is_new(&ctx));
+    ///
+    ///     foo_var.wait_new(&ctx).await;
+    ///     assert!(foo_var.is_new(&ctx));
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// In the example the handler awaits for the variable to have a new value, the code immediately after
+    /// runs in the app update where the variable is new, the second `.await` does not poll immediately it awaits
+    /// for the variable to be new again but in a different update.
+    ///
+    /// You can also reuse the future, but it is very cheap to just create a new one.
+    #[inline]
+    fn wait_new<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarIsNewFut<'a, Vw, T, Self> {
+        if !self.can_update() {
+            log::warn!("`Var::wait_new` called in a variable that never updates");
+        }
+        VarIsNewFut::new(vars, self)
+    }
 
     /// Gets the variable value version.
     ///
@@ -218,7 +332,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
             Err(VarIsReadOnly)
         } else {
             let new_value = new_value.into();
-            vars.with(|vars| {
+            vars.with_vars(|vars| {
                 if self.get(vars) != &new_value {
                     let _r = self.set(vars, new_value);
                     debug_assert!(
@@ -354,7 +468,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         T: Send,
         Vw: WithVars,
     {
-        vars.with(|vars| vars.sender(self))
+        vars.with_vars(|vars| vars.sender(self))
     }
 
     /// Creates a sender that modify `self` from other threads and without access to [`Vars`].
@@ -364,7 +478,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// Drop the sender to release one reference to `self`.
     #[inline]
     fn modify_sender<Vw: WithVars>(&self, vars: &Vw) -> VarModifySender<T> {
-        vars.with(|vars| vars.modify_sender(self))
+        vars.with_vars(|vars| vars.modify_sender(self))
     }
 
     /// Creates a channel that can receive `var` updates from another thread.
@@ -395,7 +509,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         V2: Var<T2>,
         M: FnMut(&VarBinding, &T) -> T2 + 'static,
     {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             let to_var = to_var.clone();
             vars.bind_one(self, move |vars, info, from_var| {
                 let new_value = map(info, from_var.get(vars));
@@ -421,7 +535,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         M: FnMut(&VarBinding, &T) -> T2 + 'static,
         N: FnMut(&VarBinding, &T2) -> T + 'static,
     {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             vars.bind_two(self, other_var, move |vars, info, from_var, to_var| {
                 if let Some(new_value) = from_var.get_new(vars) {
                     let new_value = map(&info, new_value);
@@ -450,7 +564,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         V2: Var<T2>,
         M: FnMut(&VarBinding, &T) -> Option<T2> + 'static,
     {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             let to_var = to_var.clone();
             vars.bind_one(self, move |vars, info, from_var| {
                 if let Some(new_value) = map(&info, from_var.get(vars)) {
@@ -478,7 +592,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         M: FnMut(&VarBinding, &T) -> Option<T2> + 'static,
         N: FnMut(&VarBinding, &T2) -> Option<T> + 'static,
     {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             vars.bind_two(self, other_var, move |vars, info, from_var, to_var| {
                 if let Some(new_value) = from_var.get_new(vars) {
                     if let Some(new_value) = map(info, new_value) {

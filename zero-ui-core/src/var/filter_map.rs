@@ -132,7 +132,7 @@ where
     /// Returns `true` if the source var is new and the new value was approved by the filter.
     #[inline]
     pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| self.get_new(vars).is_some())
+        vars.with_vars(|vars| self.get_new(vars).is_some())
     }
 
     /// Gets the up-to-date value version.
@@ -372,7 +372,7 @@ where
     /// Returns `true` if the source var is new and the new value was approved by the filter.
     #[inline]
     pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| self.get_new(vars).is_some())
+        vars.with_vars(|vars| self.get_new(vars).is_some())
     }
 
     /// Gets the up-to-date value version.
@@ -456,7 +456,7 @@ where
             Err(VarIsReadOnly)
         } else {
             let new_value = new_value.into();
-            vars.with(|vars| {
+            vars.with_vars(|vars| {
                 if self.get(vars) != &new_value {
                     if let Some(new_value) = self.0.map_back.borrow_mut()(new_value) {
                         let _ = self.0.source.set(vars, new_value);

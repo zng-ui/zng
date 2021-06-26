@@ -65,19 +65,19 @@ impl<T: VarValue> RcVar<T> {
     where
         T: Copy,
     {
-        vars.with(|vars| self.get_new(vars).copied())
+        vars.with_vars(|vars| self.get_new(vars).copied())
     }
 
     /// Cline the current value if it [is new](Self::is_new).
     #[inline]
     pub fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
-        vars.with(|vars| self.get_new(vars).cloned())
+        vars.with_vars(|vars| self.get_new(vars).cloned())
     }
 
     /// If the current value changed in the last update.
     #[inline]
     pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| self.0.last_update_id.get() == vars.update_id())
+        vars.with_vars(|vars| self.0.last_update_id.get() == vars.update_id())
     }
 
     /// Gets the current value version.
@@ -93,7 +93,7 @@ impl<T: VarValue> RcVar<T> {
         Vw: WithVars,
         M: FnOnce(&mut VarModify<T>) + 'static,
     {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             let self_ = self.clone();
             vars.push_change(Box::new(move |update_id| {
                 // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
@@ -134,7 +134,7 @@ impl<T: VarValue> RcVar<T> {
         N: Into<T>,
         T: PartialEq,
     {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             let new_value = new_value.into();
             if self.get(vars) != &new_value {
                 self.set(vars, new_value);
@@ -436,13 +436,13 @@ impl<T: VarValue> ResponseVar<T> {
     where
         T: Copy,
     {
-        vars.with(|vars| self.rsp_new(vars).copied())
+        vars.with_vars(|vars| self.rsp_new(vars).copied())
     }
 
     /// Clone the response value if a response was set for this update.
     #[inline]
     pub fn rsp_new_clone<Vw: WithVars>(self, vars: &Vw) -> Option<T> {
-        vars.with(|vars| self.rsp_new(vars).cloned())
+        vars.with_vars(|vars| self.rsp_new(vars).cloned())
     }
 
     /// If the variable has responded returns the response value or a clone of it if `self` is not the only reference to the response.
@@ -488,7 +488,7 @@ impl<T: VarValue> ResponderVar<T> {
     /// Panics if the variable is already in the done state.
     #[inline]
     pub fn respond<'a, Vw: WithVars>(&'a self, vars: &'a Vw, response: T) {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             if let Response::Done(_) = self.get(vars) {
                 panic!("already responded");
             }

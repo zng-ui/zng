@@ -189,7 +189,7 @@ macro_rules! impl_rc_when_var {
                 }
             }
             fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     let mut condition_is_new = false;
 
                     $(
@@ -235,7 +235,7 @@ macro_rules! impl_rc_when_var {
                 })
             }
             fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     $(
                         if *self.0.conditions.$n.get(vars) {
                             self.0.values.$n.is_read_only(vars)
@@ -258,7 +258,7 @@ macro_rules! impl_rc_when_var {
                 Vw: WithVars,
                 N: Into<O>
             {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     $(
                         if *self.0.conditions.$n.get(vars) {
                             self.0.values.$n.set(vars, new_value)
@@ -275,7 +275,7 @@ macro_rules! impl_rc_when_var {
                 N: Into<O>,
                 O: PartialEq
             {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     $(
                         if *self.0.conditions.$n.get(vars) {
                             self.0.values.$n.set_ne(vars, new_value)
@@ -288,7 +288,7 @@ macro_rules! impl_rc_when_var {
             }
 
             fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
-                vars.with(|vars| {
+                vars.with_vars(|vars| {
                     $(
                         if *self.0.conditions.$n.get(vars) {
                             self.0.values.$n.modify(vars, change)
@@ -411,7 +411,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     ///
     /// This is slightly more performant than `when_var.get_new(vars).is_some()`.
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             let mut condition_is_new = false;
             for (c, v) in self.0.whens.iter() {
                 condition_is_new |= c.is_new(vars);
@@ -477,7 +477,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 
     /// If the [current value variable](Self::get) is read-only.
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
                 if *c.get(vars) {
                     return v.is_read_only(vars);
@@ -504,7 +504,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         Vw: WithVars,
         N: Into<O>,
     {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
                 if *c.get(vars) {
                     return v.set(vars, new_value);
@@ -520,7 +520,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         N: Into<O>,
         O: PartialEq,
     {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
                 if *c.get(vars) {
                     return v.set_ne(vars, new_value);
@@ -532,7 +532,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 
     /// Modify the [current value variable](Self::get).
     fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
                 if *c.get(vars) {
                     return v.modify(vars, change);

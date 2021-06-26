@@ -96,7 +96,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
 
     #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| self.as_ref().is_new_boxed(vars))
+        vars.with_vars(|vars| self.as_ref().is_new_boxed(vars))
     }
 
     #[inline]
@@ -111,7 +111,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
 
     #[inline]
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with(|vars| self.as_ref().is_read_only_boxed(vars))
+        vars.with_vars(|vars| self.as_ref().is_read_only_boxed(vars))
     }
 
     #[inline]
@@ -130,7 +130,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         Vw: WithVars,
         M: FnOnce(&mut VarModify<T>) + 'static,
     {
-        vars.with(|vars| self.as_ref().modify_boxed(vars, Box::new(modify)))
+        vars.with_vars(|vars| self.as_ref().modify_boxed(vars, Box::new(modify)))
     }
 
     #[inline]
@@ -139,7 +139,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         Vw: WithVars,
         N: Into<T>,
     {
-        vars.with(|vars| self.as_ref().set_boxed(vars, new_value.into()))
+        vars.with_vars(|vars| self.as_ref().set_boxed(vars, new_value.into()))
     }
 
     fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
@@ -152,7 +152,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
             Err(VarIsReadOnly)
         } else {
             let new_value = new_value.into();
-            vars.with(|vars| {
+            vars.with_vars(|vars| {
                 if self.get(vars) != &new_value {
                     let _ = self.set(vars, new_value);
                     Ok(true)

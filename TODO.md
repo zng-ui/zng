@@ -20,7 +20,6 @@ Things that must be done first because they influence the core API design that i
 
 * Timers.
   * Unify with app handlers (missing on_interval docs).
-  * Make deadline timers editable.
   * Configurable `Instant::now` source, to advance time instantly in tests.
 
 * Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
@@ -45,11 +44,8 @@ Things that must be done first because they influence the core API design that i
 * Raw OpenGL textures.
 * Theming.
 * Async.
-  * Test parallel async tasks integration with `tokio` and `async-std`.
-  * UI async event update.
-  * UI async timers.
-  * UI async var updates.
-  * Parallel async tasks, including timer.
+  * UI await update.
+  * Parallel async tasks, including timers, large file write, and network ops.
 * Animation, transition and storyboarding.
 * Automatic screen reader integration (UI Automation).
 * Other DisplayListBuilder (iframe).

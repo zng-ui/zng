@@ -674,7 +674,7 @@ impl<'a> TextContext<'a> {
     }
     /// Gets [`text`](Self::text) if any of the properties updated.
     pub fn text_update<Vw: WithVars>(vars: &Vw) -> Option<(TextTransformFn, WhiteSpace)> {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             if TextTransformVar::is_new(vars) || WhiteSpaceVar::is_new(vars) {
                 Some(Self::text(vars))
             } else {
@@ -708,7 +708,7 @@ impl<'a> TextContext<'a> {
     /// Gets [`color`](Self::color) if the property updated.
     #[inline]
     pub fn color_update<Vw: WithVars>(vars: &Vw) -> Option<Rgba> {
-        vars.with(|vars| TextColorVar::get_new(vars).copied())
+        vars.with_vars(|vars| TextColorVar::get_new(vars).copied())
     }
 
     /// Gets the properties that affects what font synthesis is used.
@@ -720,7 +720,7 @@ impl<'a> TextContext<'a> {
     /// Gets [`font_synthesis`](Self::font_synthesis) if any of the properties changed.
     #[inline]
     pub fn font_synthesis_update<Vw: WithVars>(vars: &Vw) -> Option<(FontSynthesis, FontStyle, FontWeight)> {
-        vars.with(|vars| {
+        vars.with_vars(|vars| {
             if FontSynthesisVar::is_new(vars) || FontStyleVar::is_new(vars) || FontWeightVar::is_new(vars) {
                 Some(Self::font_synthesis(vars))
             } else {

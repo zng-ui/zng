@@ -363,7 +363,7 @@ where
             Err(VarIsReadOnly)
         } else {
             let new_value = new_value.into();
-            vars.with(|vars| {
+            vars.with_vars(|vars| {
                 if self.get(vars) != &new_value {
                     let _ = self.0.source.set(vars, self.0.map_back.borrow_mut()(new_value));
                     Ok(true)

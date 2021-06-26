@@ -497,7 +497,7 @@ struct TimerDeadline {
 impl TimerDeadline {
     fn next_deadline(&self) -> Instant {
         self.last + self.interval
-    }    
+    }
 }
 impl TimerHandle {
     fn new(interval: Duration) -> (HandleOwner<TimerState>, TimerHandle) {
@@ -561,9 +561,9 @@ impl TimerHandle {
         self.0.data().deadline.lock().unwrap().interval
     }
 
-    /// Sets the [`interval`](Self::interval). 
-    /// 
-    /// Note that this method does not awake the app, so if this is called from outside the app 
+    /// Sets the [`interval`](Self::interval).
+    ///
+    /// Note that this method does not awake the app, so if this is called from outside the app
     /// thread it will only apply on the next app update.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {
@@ -682,8 +682,8 @@ impl Timer {
     }
 
     /// Sets the [`interval`](Self::interval).
-    /// 
-    /// Note that this method does not awake the app, so if this is called from outside the app 
+    ///
+    /// Note that this method does not awake the app, so if this is called from outside the app
     /// thread it will only apply on the next app update.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {
@@ -763,7 +763,7 @@ impl TimerArgs {
 
     /// Set the [`interval`](Self::interval).
     ///
-    /// Note that this method does not awake the app, so if this is called from outside the app 
+    /// Note that this method does not awake the app, so if this is called from outside the app
     /// thread it will only apply on the next app update.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {

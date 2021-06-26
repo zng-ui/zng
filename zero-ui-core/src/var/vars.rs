@@ -539,12 +539,12 @@ impl Deref for Vars {
 /// ```
 pub trait WithVars {
     /// Calls `action` with the [`Vars`] reference.
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R;
 }
 impl WithVars for Vars {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
     {
@@ -552,7 +552,7 @@ impl WithVars for Vars {
     }
 }
 impl<'a, 'w> WithVars for crate::context::AppContext<'a, 'w> {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
     {
@@ -560,7 +560,7 @@ impl<'a, 'w> WithVars for crate::context::AppContext<'a, 'w> {
     }
 }
 impl<'a> WithVars for crate::context::WindowContext<'a> {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
     {
@@ -568,7 +568,7 @@ impl<'a> WithVars for crate::context::WindowContext<'a> {
     }
 }
 impl<'a> WithVars for crate::context::WidgetContext<'a> {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
     {
@@ -576,7 +576,7 @@ impl<'a> WithVars for crate::context::WidgetContext<'a> {
     }
 }
 impl WithVars for crate::context::AppContextMut {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
     {
@@ -584,7 +584,7 @@ impl WithVars for crate::context::AppContextMut {
     }
 }
 impl WithVars for crate::context::WindowContextMut {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
     {
@@ -592,7 +592,7 @@ impl WithVars for crate::context::WindowContextMut {
     }
 }
 impl WithVars for crate::context::WidgetContextMut {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
     {
@@ -944,7 +944,7 @@ impl<T: VarValue + Send> ResponseSender<T> {
 /// New paired [`ResponseSender`] and [`ResponseVar`] in the waiting state.
 pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (ResponseSender<T>, ResponseVar<T>) {
     let (responder, response) = response_var();
-    vars.with(|vars| (vars.sender(&responder), response))
+    vars.with_vars(|vars| (vars.sender(&responder), response))
 }
 
 /// Represents a variable binding created by one of the `bind` methods of [`Vars`] or [`Var`].

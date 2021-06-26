@@ -292,7 +292,7 @@ where
         if self.is_read_only(vars) {
             Err(VarIsReadOnly)
         } else {
-            vars.with(|vars| {
+            vars.with_vars(|vars| {
                 let new_value = new_value.into();
                 if self.get(vars) != &new_value {
                     let _ = self.set(vars, new_value);
