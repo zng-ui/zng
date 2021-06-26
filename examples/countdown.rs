@@ -3,14 +3,12 @@ use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|ctx| {
-        let mut count = 10;
         let count = ctx.timers.interval(1.secs()).map(move |t| {
-            let r = count;
-            if r == 0 {
+            let count = 10 - t.count();
+            if count == 0 {
                 t.stop();
             }
-            count -= 1;
-            r
+            count
         });
         let countdown = count.map(move |&n| {
             let r = if n > 0 { formatx!("{}", n) } else { "Done!".to_text() };

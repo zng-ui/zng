@@ -23,8 +23,7 @@ use crate::{
 
 struct DeadlineHandlerEntry {
     handle: HandleOwner<DeadlineState>,
-    #[allow(clippy::type_complexity)]
-    handler: Option<Box<dyn FnOnce(&mut AppContext, &dyn AppWeakHandle)>>,
+    handler: Box<dyn FnMut(&mut AppContext, &dyn AppWeakHandle)>,
     pending: bool,
 }
 
@@ -59,7 +58,7 @@ struct TimerVarEntry {
 ///
 /// To create timers that work in any thread and independent from the running app use the [`task`](crate::task) module timers functions.
 pub struct Timers {
-    deadlines: Vec<RcVar<Deadline>>,
+    deadlines: Vec<WeakVar<Deadline>>,
     timers: Vec<TimerVarEntry>,
     deadline_handlers: Vec<DeadlineHandlerEntry>,
     timer_handlers: Vec<TimerHandlerEntry>,
@@ -101,7 +100,7 @@ impl Timers {
     #[must_use]
     pub fn deadline(&mut self, deadline: Instant) -> DeadlineVar {
         let timer = var(Deadline { deadline, elapsed: false });
-        self.deadlines.push(timer.clone());
+        self.deadlines.push(timer.downgrade());
         timer.into_read_only()
     }
 
@@ -191,7 +190,7 @@ impl Timers {
         let (handle_owner, handle) = DeadlineHandle::new(deadline);
         self.deadline_handlers.push(DeadlineHandlerEntry {
             handle: handle_owner,
-            handler: Some(Box::new(move |ctx, handle| {
+            handler: Box::new(move |ctx, handle| {
                 handler.event(
                     ctx,
                     &DeadlineArgs {
@@ -200,7 +199,7 @@ impl Timers {
                     },
                     &AppHandlerArgs { handle, is_preview: true },
                 )
-            })),
+            }),
             pending: false,
         });
         handle
@@ -234,78 +233,89 @@ impl Timers {
         handle
     }
 
-    /// Update timers, returns new app wake time.
+    /// Update timer vars, flag handlers to be called in [`Self::notify`], returns new app wake time.
     pub(crate) fn apply_updates(&mut self, vars: &Vars) -> Option<Instant> {
         let now = Instant::now();
 
         let mut min_next_some = false;
         let mut min_next = now + Duration::from_secs(60 * 60 * 60);
 
-        self.deadlines.retain(|t| {
-            let mut retain = t.strong_count() > 1;
-            let deadline = t.get(vars).deadline;
-            if retain && deadline <= now {
-                t.modify(vars, |t| t.elapsed = true);
-                retain = false;
-            } else {
-                min_next_some = true;
-                min_next = min_next.min(deadline);
+        // update `deadline` vars
+        self.deadlines.retain(|wk| {
+            if let Some(var) = wk.updgrade() {
+                let deadline = var.get(vars).deadline;
+                if deadline > now {
+                    return true; // retain
+                }
+                var.modify(vars, |t| t.elapsed = true);
             }
-            retain
+            false // don't retain
         });
 
+        // update `interval` vars
         self.timers.retain(|t| {
             if let Some(var) = t.weak_var.updgrade() {
-                let timer = var.get(vars);
                 if !t.handle.is_dropped() {
-                    if timer.deadline() <= now {
+                    let timer = var.get(vars);
+                    let mut deadline = timer.0 .0.data().deadline.lock().unwrap();
+                    if *deadline <= now {
+                        // timer elapses, but only update if is enabled:
                         if timer.is_enabled() {
                             timer.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
                             var.touch(vars);
                         }
-                        let mut deadline = timer.0 .0.data().deadline.lock().unwrap();
-                        let next_deadline = *deadline + timer.interval();
-                        *deadline = next_deadline;
-                        min_next_some = true;
-                        min_next = min_next.min(next_deadline);
+
+                        *deadline = now + timer.interval();
                     }
-                    return true; // retain
+
+                    min_next_some = true;
+                    min_next = min_next.min(*deadline);
+
+                    return true; // retain, has at least one var and did not call stop.
                 }
             }
             false // don't retain.
         });
 
+        // flag `on_deadline` handlers that need to run.
         self.deadline_handlers.retain_mut(|e| {
-            let retain = !e.handle.is_dropped();
-            if retain {
-                let deadline = e.handle.data().deadline;
-                e.pending = deadline <= now;
-                if !e.pending {
-                    min_next_some = true;
-                    min_next = min_next.min(deadline);
-                }
+            if e.handle.is_dropped() {
+                return false; // cancel
             }
-            retain
+
+            let deadline = e.handle.data().deadline;
+            e.pending = deadline <= now;
+
+            if !e.pending {
+                min_next_some = true;
+                min_next = min_next.min(deadline);
+            }
+
+            true // retain if not canceled, elapsed deadlines will be dropped in [`Self::notify`].
         });
 
+        // flag `on_interval` handlers that need to run.
         self.timer_handlers.retain_mut(|e| {
-            let retain = !e.handle.is_dropped();
-            if retain {
-                let state = e.handle.data();
-                let mut deadline = state.deadline.lock().unwrap();
-                if *deadline <= now {
-                    if !state.enabled.load(Ordering::Relaxed) {
-                        // this is wrapping_add
-                        state.count.fetch_add(1, Ordering::Relaxed);
-                    } else {
-                        e.pending = Some(*deadline);
-                    }
-                    *deadline = now + *state.interval.lock().unwrap();
-                }
-                min_next_some = true;
-                min_next = min_next.min(*deadline);
+            if e.handle.is_dropped() {
+                return false; // stop
             }
-            retain
+
+            let state = e.handle.data();
+            let mut deadline = state.deadline.lock().unwrap();
+            if *deadline <= now {
+                // timer elapsed, but only flag for handler call if is enabled:
+                if state.enabled.load(Ordering::Relaxed) {
+                    // this is wrapping_add
+                    state.count.fetch_add(1, Ordering::Relaxed);
+                    e.pending = Some(*deadline);
+                }
+                *deadline = now + *state.interval.lock().unwrap();
+            }
+
+            min_next_some = true;
+            min_next = min_next.min(*deadline);
+
+            true // retain if stop was not called
         });
 
         if min_next_some {
@@ -315,29 +325,37 @@ impl Timers {
         }
     }
 
+    /// does on_* notifications.
     pub(crate) fn notify(ctx: &mut AppContext) {
+        // we need to detach the handlers from the AppContext, so we can pass the context for then
+        // so we `mem::take` for the duration of the call. But new timers can be registered inside
+        // the handlers, so we add those handlers using `extend`.
+
+        // call `on_deadline` handlers.
         let mut handlers = mem::take(&mut ctx.timers.deadline_handlers);
         handlers.retain_mut(|h| {
             if h.pending {
-                h.handler.take().unwrap()(ctx, &h.handle.weak_handle());
+                (h.handler)(ctx, &h.handle.weak_handle());
                 h.handle.data().executed.store(true, Ordering::Relaxed);
             }
-            !h.pending
+            !h.pending // drop if just called, deadline handlers are *once*.
         });
         handlers.extend(ctx.timers.deadline_handlers.drain(..));
         ctx.timers.deadline_handlers = handlers;
 
+        // call `on_interval` handlers.
         let mut handlers = mem::take(&mut ctx.timers.timer_handlers);
         handlers.retain_mut(|h| {
-            if let Some(prev_deadline) = h.pending.take() {
+            if let Some(deadline) = h.pending.take() {
                 let args = TimerArgs {
                     timestamp: Instant::now(),
-                    deadline: prev_deadline,
+                    deadline,
                     wk_handle: h.handle.weak_handle(),
                 };
                 (h.handler)(ctx, &args, &h.handle.weak_handle());
             }
-            !h.handle.is_dropped()
+
+            !h.handle.is_dropped() // drop if called stop inside the handler.
         });
         handlers.extend(ctx.timers.timer_handlers.drain(..));
         ctx.timers.timer_handlers = handlers;
@@ -645,7 +663,8 @@ impl Timer {
     }
 
     /// Sets the [`interval`](Self::interval). Note that this does not reset the current [`deadline`](Self::deadline)
-    /// so if this method is not called during a variable update it will update one last time using the previous duration.
+    /// so if this method is called during a variable update it will still update using the previous interval one
+    /// more time.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {
         self.0.set_interval(new_interval)
@@ -653,7 +672,7 @@ impl Timer {
 
     /// The next deadline.
     ///
-    /// The variable will update when this deadline is reached and the deadline is then changed to the next deadline.
+    /// The variable will update when this deadline, the update will already show the next deadline.
     #[inline]
     pub fn deadline(&self) -> Instant {
         self.0.deadline()
@@ -717,9 +736,8 @@ impl TimerArgs {
         self.handle().map(|h| h.interval()).unwrap_or_default()
     }
 
-    /// Sets the [`interval`](Self::interval). Note that this does not reset the current [`deadline`](Self::deadline)
-    /// so if this method is not called during the synchronous part of the handler it will only affect the next deadline.
-    /// For async handlers this is the code before the first `.await`, for other handlers this always works.
+    /// Sets the [`interval`](Self::interval). Note that this does not reset the next deadline so the handler
+    /// will be called one more time using the previous interval.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {
         if let Some(h) = self.handle() {

@@ -659,9 +659,8 @@ impl OwnedAppContext {
         }
     }
 
-    /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
-    ///
-    /// Returns the update requests and a time for the loop to awake and update.
+    /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
+    /// requests and a time for the loop to awake and update.
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
         let wake_time = self.timers.apply_updates(&self.vars);
