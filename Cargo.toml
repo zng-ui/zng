@@ -17,6 +17,7 @@ zero-ui-core = { path = "zero-ui-core" }
 # util
 paste = "1"
 retain_mut = "0.1"
+winapi = "0.3"
 
 [dev-dependencies]
 bencher = "0.1"

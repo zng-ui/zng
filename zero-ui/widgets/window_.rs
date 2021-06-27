@@ -24,7 +24,8 @@ use crate::properties::events::window::*;
 /// See [`run_window`](crate::core::window::AppRunWindow::run_window) for more details.
 #[widget($crate::widgets::window)]
 pub mod window {
-    use zero_ui_core::window::{WindowFocusChangedEvent, WindowsExt};
+    use winapi::um::winuser::CloseWindow;
+    use zero_ui_core::window::{WindowFocusChangedEvent, WindowOpenEvent, WindowsExt};
 
     use crate::core::command::CommandHandle;
     use crate::properties::commands::CloseWindowCommand;
@@ -295,6 +296,20 @@ pub mod window {
                     self.child.event(ctx, args)
                 } else if let Some(args) = WindowFocusChangedEvent.update(args) {
                     self.handle.set_enabled(args.focused);
+                    self.child.event(ctx, args);
+                } else if let Some(args) = WindowOpenEvent.update(args) {
+                    let window = ctx.services.windows().window(ctx.path.window_id()).unwrap();
+                    window.set_raw_windows_event_handler(|_, msg, wparam, _| {
+                        if msg == winapi::um::winuser::WM_SYSKEYDOWN
+                            && wparam as i32 == winapi::um::winuser::VK_F4
+                            // TODO : // && CloseWindowCommand.shortcut() // contains(ALT + F4)
+                        {   
+                            // TODO: Manually send a F4 keydown event when this is handled (on return Some(0);)? Is that possible?
+                            // println! {"set_raw_windows_event_handler -> ALT + F4"}
+                            // return Some(0);
+                        }
+                        None
+                    });
                     self.child.event(ctx, args);
                 } else {
                     self.child.event(ctx, args)

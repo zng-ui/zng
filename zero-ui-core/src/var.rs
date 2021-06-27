@@ -161,7 +161,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// ```
     /// # use zero_ui_core::var::*;
     /// # use zero_ui_core::handler::async_hn;
-    /// fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
+    /// # fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
     /// # let foo_var = var(10u32);
     /// async_hn!(foo_var, |ctx, _| {
     ///     let value = foo_var.wait_copy(&ctx).await;
@@ -207,7 +207,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// ```
     /// # use zero_ui_core::var::*;
     /// # use zero_ui_core::handler::async_hn;
-    /// fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
+    /// # fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
     /// # let foo_var = var(10u32);
     /// async_hn!(foo_var, |ctx, _| {
     ///     let value = foo_var.wait_clone(&ctx).await;
@@ -246,7 +246,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// ```
     /// # use zero_ui_core::var::*;
     /// # use zero_ui_core::handler::async_hn;
-    /// fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
+    /// # fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
     /// # let foo_var = var(10u32);
     /// async_hn!(foo_var, |ctx, _| {
     ///     foo_var.wait_new(&ctx).await;
