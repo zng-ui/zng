@@ -895,7 +895,7 @@ impl Events {
     }
 }
 
-/// Represents a type that can provide access to a [`Events`] inside the window of function call.
+/// Represents a type that can provide access to [`Events`] inside the window of function call.
 ///
 /// This is used to make event notification less cumbersome to use, it is implemented to all sync and async context types
 /// and [`Events`] it-self.
@@ -947,11 +947,6 @@ impl<'a> WithEvents for crate::context::WidgetContext<'a> {
     }
 }
 impl WithEvents for crate::context::AppContextMut {
-    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
-        self.with(move |ctx| action(ctx.events))
-    }
-}
-impl WithEvents for crate::context::WindowContextMut {
     fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
         self.with(move |ctx| action(ctx.events))
     }

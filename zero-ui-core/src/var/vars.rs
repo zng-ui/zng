@@ -583,14 +583,6 @@ impl WithVars for crate::context::AppContextMut {
         self.with(move |ctx| action(ctx.vars))
     }
 }
-impl WithVars for crate::context::WindowContextMut {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        self.with(move |ctx| action(ctx.vars))
-    }
-}
 impl WithVars for crate::context::WidgetContextMut {
     fn with_vars<R, A>(&self, action: A) -> R
     where
@@ -651,14 +643,6 @@ impl<'a> WithVarsRead for crate::context::WidgetContext<'a> {
     }
 }
 impl WithVarsRead for crate::context::AppContextMut {
-    fn with<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        self.with(move |ctx| action(ctx.vars))
-    }
-}
-impl WithVarsRead for crate::context::WindowContextMut {
     fn with<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,

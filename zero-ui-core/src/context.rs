@@ -9,6 +9,7 @@ use super::AnyMap;
 use super::WidgetId;
 use retain_mut::RetainMut;
 use std::cell::Cell;
+use std::future::Future;
 use std::ptr;
 use std::rc::Rc;
 use std::{any::type_name, fmt, mem};
@@ -535,6 +536,7 @@ impl Updates {
     /// or [`async_app_hn_once!`](handler::async_app_hn_once!) to declare the closure. If the handler is async and does not finish in
     /// one call it is scheduled to update in *preview* updates.
     pub fn run<H: AppHandler<UpdateArgs> + handler::marker::OnceHn>(&mut self, handler: H) -> OnUpdateHandle {
+        self.update(); // in case of this was called outside of an update.
         Self::push_handler(&mut self.pos_handlers, true, handler)
     }
 
@@ -608,6 +610,44 @@ impl Updates {
 
     fn take_updates(&mut self) -> (bool, UpdateDisplayRequest) {
         (mem::take(&mut self.update), mem::take(&mut self.display_update))
+    }
+}
+
+/// Represents a type that can provide access to [`Updates`] inside the window of function call.
+///
+/// This is implemented to all sync and async context types and [`Updates`] it-self.
+pub trait WithUpdates {
+    /// Calls `action` with the [`Updates`] reference.
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R;
+}
+impl WithUpdates for Updates {
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
+        action(self)
+    }
+}
+impl<'a, 'w> WithUpdates for crate::context::AppContext<'a, 'w> {
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
+        action(self.updates)
+    }
+}
+impl<'a> WithUpdates for crate::context::WindowContext<'a> {
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
+        action(self.updates)
+    }
+}
+impl<'a> WithUpdates for crate::context::WidgetContext<'a> {
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
+        action(self.updates)
+    }
+}
+impl WithUpdates for crate::context::AppContextMut {
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
+        self.with(move |ctx| action(ctx.updates))
+    }
+}
+impl WithUpdates for crate::context::WidgetContextMut {
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
+        self.with(move |ctx| action(ctx.updates))
     }
 }
 
@@ -1463,7 +1503,192 @@ impl [<$Context Scope>] {
 
     })+};
 }
-contextual_ctx!(AppContext, WindowContext, WidgetContext);
+contextual_ctx!(AppContext, WidgetContext);
+
+impl AppContextMut {
+    /// Returns a future that *yields* one update.
+    ///
+    /// Async event handlers run in app updates, the code each `.await` runs in a different update, but only if
+    /// the `.await` does not return immediately. This future always awaits once for each new update, so the
+    /// code after awaiting is guaranteed to run in a different update.
+    ///
+    /// Note that this does not cause an immediate update, if no update was requested it will *wait* until one is.
+    /// To force an update and then yield use [`update`](Self::update) instead.
+    ///
+    /// You can reuse this future but it is very cheap to just make a new one.
+    ///
+    /// ```
+    /// # use zero_ui_core::context::*;
+    /// # use zero_ui_core::handler::*;
+    /// # fn __() -> impl AppHandler<()> {
+    /// async_app_hn!(|ctx, _, _| {
+    ///     println!("First update");
+    ///     ctx.yield_one().await;
+    ///     println!("Second update");
+    /// })
+    /// # }
+    /// ```
+    pub fn yield_one(&self) -> YieldOneUpdateFut<Self> {
+        YieldOneUpdateFut::new(self)
+    }
+
+    /// Requests one update and returns a future that *yields* one update.
+    ///
+    /// This is like [`yield_one`](Self::yield_one) but also requests the next update, causing the code after
+    /// the `.await` to run immediately after one update is processed.
+    ///
+    /// ```
+    /// # use zero_ui_core::context::*;
+    /// # use zero_ui_core::handler::*;
+    /// # use zero_ui_core::var::*;
+    /// # let mut app = zero_ui_core::app::App::blank().run_headless();
+    /// let foo_var = var(false);
+    /// # app.ctx().updates.run(
+    /// async_app_hn_once!(foo_var, |ctx, _| {
+    ///     // variable assign will cause an update.
+    ///     foo_var.set(&ctx, true);
+    ///
+    ///     ctx.yield_one().await;// wait next update.
+    ///
+    ///     // we are in the next update now, the variable value is new.
+    ///     assert_eq!(Some(true), foo_var.copy_new(&ctx));
+    ///
+    ///     ctx.update().await;// force next update and wait.
+    ///
+    ///     // we are in the requested update, variable value is no longer new.
+    ///     assert_eq!(None, foo_var.copy_new(&ctx));
+    /// })
+    /// # ).permanent();
+    /// # app.update(false);
+    /// # assert!(foo_var.copy(&app.ctx()));
+    /// ```
+    ///
+    /// In the example above, the variable assign causes an app update so `yield_one` processes it immediately,
+    /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
+    /// to awake.
+    pub async fn update(&self) {
+        self.with(|c| c.updates.update());
+        self.yield_one().await
+    }
+}
+
+impl WidgetContextMut {
+    /// Returns a future that *yields* one update.
+    ///
+    /// Async event handlers run in widget updates, the code each `.await` runs in a different update, but only if
+    /// the `.await` does not return immediately. This future always awaits once for each new update, so the
+    /// code after awaiting is guaranteed to run in a different update.
+    ///
+    /// Note that this does not cause an immediate update, if no update was requested it will *wait* until one is.
+    /// To force an update and then yield use [`update`](Self::update) instead.
+    ///
+    /// You can reuse this future but it is very cheap to just make a new one.
+    ///
+    /// ```
+    /// # use zero_ui_core::context::*;
+    /// # use zero_ui_core::handler::*;
+    /// # fn __() -> impl WidgetHandler<()> {
+    /// async_hn!(|ctx, _| {
+    ///     println!("First update");
+    ///     ctx.yield_one().await;
+    ///     println!("Second update");
+    /// })
+    /// # }
+    /// ```
+    pub fn yield_one(&self) -> YieldOneUpdateFut<Self> {
+        YieldOneUpdateFut::new(self)
+    }
+
+    /// Requests one update and returns a future that *yields* one update.
+    ///
+    /// This is like [`yield_one`](Self::yield_one) but also requests the next update, causing the code after
+    /// the `.await` to run immediately after one update is processed.
+    ///
+    /// ```
+    /// # use zero_ui_core::context::*;
+    /// # use zero_ui_core::handler::*;
+    /// # use zero_ui_core::var::*;
+    /// # fn __() -> impl WidgetHandler<()> {
+    /// async_hn!(|ctx, _| {
+    ///     let foo_var = var(false);
+    ///     // variable assign will cause an update.
+    ///     foo_var.set(&ctx, true);
+    ///
+    ///     ctx.yield_one().await;// wait next update.
+    ///
+    ///     // we are in the next update now, the variable value is new.
+    ///     assert_eq!(Some(true), foo_var.copy_new(&ctx));
+    ///
+    ///     ctx.update().await;// force next update and wait.
+    ///
+    ///     // we are in the requested update, variable value is no longer new.
+    ///     assert_eq!(None, foo_var.copy_new(&ctx));
+    /// })
+    /// # }
+    /// ```
+    ///
+    /// In the example above, the variable assign causes an app update so `yield_one` processes it immediately,
+    /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
+    /// to awake.
+    pub async fn update(&self) {
+        self.with(|c| c.updates.update());
+        self.yield_one().await
+    }
+}
+
+/// A future that *yields* in UI bound async code.
+///
+/// Use the `yield_one` method in [`AppContextMut`](AppContextMut::yield_one) or
+/// [`WidgetContextMut`](AppContextMut::yield_one) to create this future.
+///
+/// Async event handlers run in app updates, the code each `.await` runs in a different app update, but only if
+/// the `.await` does not return immediately. This future always waits once for each new update, so the
+/// code after awaiting is guaranteed to run in a different update.
+///
+/// Note that this does not cause an immediate subsequent update, if no update was requested it will wait until one is.
+/// Updates can be requested using [`AppContextMut::update`] or [`WidgetContextMut::update`], or any of the app interactions
+/// that cause update, that is, variable assigns, event notifications, timers, calls to [`Updates::update`] or
+/// [`AppEventSender::send_update`] and more.
+///
+/// You can reuse this future but it is very cheap to just make a new one.
+///
+/// ```
+/// # use zero_ui_core::context::*;
+/// # use zero_ui_core::handler::*;
+/// # fn __() -> impl WidgetHandler<()> {
+/// async_hn!(|ctx, _| {
+///     println!("First update");
+///     ctx.yield_one().await;
+///     println!("Second update");
+/// })
+/// # }
+/// ```
+pub struct YieldOneUpdateFut<'a, C: WithUpdates> {
+    _ctx: &'a C,
+    pending: Cell<bool>,
+}
+impl<'a, C: WithUpdates> YieldOneUpdateFut<'a, C> {
+    #[allow(missing_docs)]
+    pub fn new(ctx: &'a C) -> Self {
+        YieldOneUpdateFut {
+            _ctx: ctx,
+            pending: Cell::new(true),
+        }
+    }
+}
+impl<'a, C: WithUpdates> Future for YieldOneUpdateFut<'a, C> {
+    type Output = ();
+
+    fn poll(self: std::pin::Pin<&mut Self>, _: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+        if self.pending.get() {
+            self.pending.set(false);
+            std::task::Poll::Pending
+        } else {
+            self.pending.set(true);
+            std::task::Poll::Ready(())
+        }
+    }
+}
 
 #[cfg(test)]
 pub mod tests {
