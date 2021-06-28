@@ -22,6 +22,13 @@ Things that must be done first because they influence the core API design that i
   * Unify with app handlers (missing on_interval docs).
   * Configurable `Instant::now` source, to advance time instantly in tests.
 
+* Var.
+  * Bind-into.
+  * Bind-text.
+  * Map-split.
+    * Result.
+    * Map/bind parse.
+
 * Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
 
 * Window

@@ -1,6 +1,7 @@
 //! Variables.
 
 use std::{
+    convert::{TryFrom, TryInto},
     fmt,
     ops::{Deref, DerefMut},
 };
@@ -90,10 +91,135 @@ impl std::fmt::Display for VarIsReadOnly {
 }
 
 /// A value-to-[var](Var) conversion that consumes the value.
+///
+/// Every [`Var`] implements this to convert to it-self, every [`VarValue`] implements this to
+/// convert to an [`OwnedVar`].
+///
+/// This trait is used by used by most properties, it allows then to accept literal values, variables and context variables
+/// all with a single signature. Together with [`Var`] this gives properties great flexibility of usage, at zero-cost. Widget
+/// `when` blocks also use [`IntoVar`] to support *changing* the property value depending on the widget state.
+/// 
+/// Value types can also manually implement this to support a shorthand literal syntax for when they are used in properties,
+/// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`OwnedVar`]
+/// too. They can implement the trait multiple times to support different shorthand syntaxes or different types in the shorthand
+/// value.
+///
+/// # Examples
+/// 
+/// A value type using [`IntoVar`] twice to support a shorthand initialization syntax:
+/// 
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::*;
+/// #[derive(Debug, Clone)]
+/// pub struct Size { 
+///     width: f32, 
+///     height: f32 
+/// }
+/// impl IntoVar<Size> for (u32, u32) {
+///     type Var = OwnedVar<Size>;
+/// 
+///     fn into_var(self) -> Self::Var {
+///         OwnedVar(Size { width: self.0, height: self.1 })
+///     }
+/// }
+/// impl IntoVar<Size> for (f32, f32) {
+///     type Var = OwnedVar<Size>;
+/// 
+///     fn into_var(self) -> Self::Var {
+///         OwnedVar(Size { width: self.0, height: self.1 })
+///     }
+/// }
+/// #[property(size)]
+/// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+///     // ...
+///     # todo!()
+/// }
+/// # #[widget($crate::blank)]
+/// # mod blank { }
+/// 
+/// // shorthand #1:
+/// blank! {
+///     size = (800, 600);
+/// }
+/// 
+/// // shorthand #2:
+/// blank! {
+///     size = (800.1, 600.2);
+/// }
+/// 
+/// // blanket impl:
+/// blank! {
+///     size = Size { width: 800.0, height: 600.0 };
+/// }
+/// ```
+///
+/// A property implemented using [`IntoVar`]:
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::text::*;
+/// # use zero_ui_core::context::*;
+/// # use zero_ui_core::*;
+/// #[property(outer)]
+/// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
+///     struct FooNode<C, V> {
+///         child: C,
+///         bar: V
+///     }
+///     #[impl_ui_node(child)]
+///     impl<C: UiNode, V: Var<Text>> UiNode for FooNode<C, V> {
+///         fn init(&mut self, ctx: &mut WidgetContext) {
+///             self.child.init(ctx);
+///             println!("init: {}", self.bar.get(ctx));
+///         }
+///         
+///         fn update(&mut self, ctx: &mut WidgetContext) {
+///             self.child.update(ctx);
+///             if let Some(new) = self.bar.get_new(ctx) {
+///                 println!("update: {}", new);
+///             }
+///         }
+///     }
+/// 
+///     FooNode { child, bar: bar.into_var() }
+/// }
+/// 
+/// # #[widget($crate::blank)]
+/// # pub mod blank { }
+/// 
+/// // literal assign:
+/// blank! {
+///     foo = 42;
+/// }
+/// 
+/// // variable assign:
+/// let variable = var(42);
+/// blank! {
+///     foo = variable;
+/// }
+/// 
+/// // widget when:
+/// blank! {
+///     foo = 42;
+/// 
+///     when !self.enabled {
+///         foo = 32;
+///     }
+/// }
+/// ```
+/// 
+/// The property implementation is minimal and yet it supports a variety of different inputs that
+/// alter how it is compiled, from a static literal value that never changes to an updating variable to a changing widget state.
+/// 
+/// In the case of an static value the update code will be optimized away, but if assigned a variable it will become dynamic
+/// reacting to state changes, the same applies to `when` that compiles to a single property assign with a generated variable.
 pub trait IntoVar<T: VarValue>: Clone {
     /// Variable type that will wrap the `T` value.
     ///
-    /// This is the [`OwnedVar`] for most types.
+    /// This is the [`OwnedVar`] for most types or `Self` for variable types.
     type Var: Var<T>;
 
     /// Converts the source value into a var.
@@ -365,7 +491,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// The value of the map variable is kept up-to-date with the value of this variable, `map` is called every
     /// time the value needs to update.
     ///
-    /// Also see [`Var::bind`] to create a *map binding* between two existing variables.
+    /// Also see [`Var::bind_map`] to create a *map binding* between two existing variables.
     #[inline]
     fn map<O, M>(&self, map: M) -> RcMapVar<T, O, M, Self>
     where
@@ -373,6 +499,30 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         M: FnMut(&T) -> O + 'static,
     {
         RcMapVar::new(self.clone(), map)
+    }
+
+    /// Create a [`map`](Var::map) that uses [`Into`] to convert from `T` to `O`.
+    #[inline]
+    fn map_into<O>(&self) -> RcMapVar<T, O, fn(&T) -> O, Self>
+    where
+        O: VarValue + From<T>,
+    {
+        self.map(|t| t.clone().into())
+    }
+
+    /// Create a [`map`](Var::map) that uses [`ToText`](crate::text::ToText) to convert `T` to [`Text`](crate::text::ToText).
+    #[inline]
+    fn map_to_text(&self) -> RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self>
+    where
+        T: crate::text::ToText,
+    {
+        self.map(|t| t.to_text())
+    }
+
+    /// Create a [`map`](Var::map) that maps to a debug [`Text`](crate::text::ToText) using the `{:?}` format.
+    #[inline]
+    fn map_debug(&self) -> RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self> {
+        self.map(|t| crate::formatx!("{:?}", t))
     }
 
     /// Create a read-only variable with a value that is dereferenced from this variable value.
@@ -394,7 +544,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// called every time the value needs to update. When the mapped variable is assigned, `map_back` is
     /// called to generate a value that is assigned back to this variable.
     ///
-    /// Also see [`bind_bidi`](Var::bind_bidi) to create a *map binding* between two existing variables.
+    /// Also see [`bind_map_bidi`](Var::bind_map_bidi) to create a *map binding* between two existing variables.
     #[inline]
     fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> RcMapBidiVar<T, O, M, N, Self>
     where
@@ -405,13 +555,24 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 
+    /// Create a [`map_bidi`](Var::map_bidi) that uses [`Into`] to convert between `T` and `O`.
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn map_into_bidi<O>(&self) -> RcMapBidiVar<T, O, fn(&T) -> O, fn(O) -> T, Self>
+    where
+        O: VarValue + From<T>,
+        T: From<O>,
+    {
+        self.map_bidi(|t| t.clone().into(), |o| o.into())
+    }
+
     /// Create a read-write variable with a value that is dereferenced from this variable value.
     ///
     /// This is a lightweight alternative to [`map_bidi`](Var::map_bidi) that can be used when the *mapped* value already
     /// exist in the source variable, `map` is called every time the mapped value is accessed and `map_mut` is called
     /// to get a mutable reference to the value when the mapped variable is assigned.
     #[inline]
-    fn map_bidi_ref<O, M, N>(&self, map: M, map_mut: N) -> MapBidiRefVar<T, O, M, N, Self>
+    fn map_ref_bidi<O, M, N>(&self, map: M, map_mut: N) -> MapBidiRefVar<T, O, M, N, Self>
     where
         O: VarValue,
         M: Fn(&T) -> &O + Clone + 'static,
@@ -427,7 +588,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     ///
     /// The `fallback_init` can be called once if the first call to `map` returns `None`, it must return a *fallback* initial value.
     ///
-    /// Also see [`filter_bind`](Var::filter_bind) to create a *map binding* between two existing variables.
+    /// Also see [`bind_filter`](Var::bind_filter) to create a *map binding* between two existing variables.
     #[inline]
     fn filter_map<O, I, M>(&self, fallback_init: I, map: M) -> RcFilterMapVar<T, O, I, M, Self>
     where
@@ -438,6 +599,86 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         RcFilterMapVar::new(self.clone(), fallback_init, map)
     }
 
+    /// Create a [`filter_map`](Var::filter_map) that uses [`TryInto`] to convert from `T` to `O`.
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_try_into<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    where
+        O: VarValue + TryFrom<T>,
+        I: FnOnce(&T) -> O + 'static,
+    {
+        RcFilterMapVar::new(self.clone(), fallback_init, |v| v.clone().try_into().ok())
+    }
+
+    /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Ok`].
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_ok<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    where
+        O: VarValue,
+        I: FnOnce(&T) -> O + 'static,
+        T: ResultOk<O>,
+    {
+        self.filter_map(fallback_init, |t| t.r_ok().cloned())
+    }
+
+    /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Ok`] and maps the result to [`Text`].
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_ok_text<I>(&self, fallback_init: I) -> RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
+    where
+        I: FnOnce(&T) -> Text + 'static,
+        T: ResultOkText,
+    {
+        self.filter_map(fallback_init, |t| t.r_ok_text())
+    }
+
+    /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Err`].
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_err<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    where
+        O: VarValue,
+        I: FnOnce(&T) -> O + 'static,
+        T: ResultErr<O>,
+    {
+        self.filter_map(fallback_init, |t| t.r_err().cloned())
+    }
+
+    /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Err`] and maps the error to [`Text`].
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_err_text<I>(&self, fallback_init: I) -> RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
+    where
+        I: FnOnce(&T) -> Text + 'static,
+        T: ResultErrText,
+    {
+        self.filter_map(fallback_init, |t| t.r_err_text())
+    }
+
+    /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Some`].
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_some<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    where
+        O: VarValue,
+        I: FnOnce(&T) -> O + 'static,
+        T: OptionSome<O>,
+    {
+        self.filter_map(fallback_init, |t| t.opt_some().cloned())
+    }
+
+    /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Some`] and convert the value to [`Text`].
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_some_text<I>(&self, fallback_init: I) -> RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
+    where
+        I: FnOnce(&T) -> Text + 'static,
+        T: OptionSomeText,
+    {
+        self.filter_map(fallback_init, |t| t.opt_some_text())
+    }
+
     /// Create a read-write variable with a value that is mapped from and to this variable, but only if the values pass the filters.
     ///
     /// The value of the map variable is kept up-to-date with the value of this variable, `map` is
@@ -445,7 +686,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     ///
     /// When the mapped variable is assigned, `map_back` is called, if it returns `Some(T)` the value is assigned back to this variable.
     ///
-    /// Also see [`filter_bind_bidi`](Var::filter_bind_bidi) to create a *map binding* between two existing variables.
+    /// Also see [`bind_filter_bidi`](Var::bind_filter_bidi) to create a *map binding* between two existing variables.
     #[inline]
     fn filter_map_bidi<O, I, M, N>(&self, fallback_init: I, map: M, map_back: N) -> RcFilterMapBidiVar<T, O, I, M, N, Self>
     where
@@ -455,6 +696,18 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         N: FnMut(O) -> Option<T> + 'static,
     {
         RcFilterMapBidiVar::new(self.clone(), fallback_init, map, map_back)
+    }
+
+    /// Create a [`filter_map_bidi`](Var::filter_map_bidi) that uses [`TryInto`] to convert between `T` and `O`.
+    #[allow(clippy::type_complexity)]
+    #[inline]
+    fn filter_try_into_bidi<O, I>(&self, fallback_init: I) -> RcFilterMapBidiVar<T, O, I, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
+    where
+        O: VarValue + TryFrom<T>,
+        I: FnOnce(&T) -> O + 'static,
+        T: TryFrom<O>,
+    {
+        RcFilterMapBidiVar::new(self.clone(), fallback_init, |t| t.clone().try_into().ok(), |o| o.try_into().ok())
     }
 
     /// Creates a sender that can set `self` from other threads and without access to [`Vars`].
@@ -495,6 +748,33 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         vars.with(|vars| vars.receiver(self))
     }
 
+    /// Create a binding with `to_var`. When `self` updates the `to_var` is assigned a clone of the new value.
+    ///
+    /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
+    /// when the assign to the second variable would cause a second update.
+    #[inline]
+    fn bind<Vw, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        V2: Var<T>,
+    {
+        self.bind_map(vars, to_var, |_, v| v.clone())
+    }
+
+    /// Create a bidirectional binding with `other_var`. When one of the vars update the other is
+    /// assigned a clone of the new value.
+    ///
+    /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
+    /// when the assign to the second variable would cause a second update.
+    #[inline]
+    fn bind_bidi<Vw, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        V2: Var<T>,
+    {
+        self.bind_map_bidi(vars, other_var, |_, v| v.clone(), |_, v| v.clone())
+    }
+
     /// Create a [`map`](Var::map) like binding between two existing variables.
     ///
     /// The binding flows from `self` to `to_var`, every time `self` updates `map` is called to generate a value that is assigned `to_var`.
@@ -502,7 +782,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// Both `self` and `to_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// where the assign to `to_var` would cause a second update.
     #[inline]
-    fn bind<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
+    fn bind_map<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
     where
         Vw: WithVars,
         T2: VarValue,
@@ -518,6 +798,28 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         })
     }
 
+    /// Create a [`bind_map`](Var::bind_map) that uses [`Into`] to convert `T` to `T2`.
+    #[inline]
+    fn bind_into<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue + From<T>,
+        V2: Var<T2>,
+    {
+        self.bind_map(vars, to_var, |_, v| v.clone().into())
+    }
+
+    /// Create a [`bind_map`](Var::bind_map) that uses [`ToText`](crate::text::ToText) to convert `T` to [`Text`](crate::text::ToText).
+    #[inline]
+    fn bind_to_text<Vw, V>(&self, vars: &Vw, text_var: &V) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        V: Var<Text>,
+        T: crate::text::ToText,
+    {
+        self.bind_map(vars, text_var, |_, v| v.to_text())
+    }
+
     /// Create a [`map_bidi`](Var::map_bidi) like binding between two existing variables.
     ///
     /// The bindings **maps** from `self` to `other_var` and **maps-back** from `other_var` to `self`.
@@ -527,7 +829,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// when the assign to the second variable would cause a second update.
     #[inline]
-    fn bind_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
+    fn bind_map_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
     where
         Vw: WithVars,
         T2: VarValue,
@@ -549,6 +851,18 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         })
     }
 
+    /// Create a [`bind_map_bidi`](Var::bind_map_bidi) that uses [`Into`] to convert between `self` and `other_var`.
+    #[inline]
+    fn bind_into_bidi<Vw, T2, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue + From<T>,
+        V2: Var<T2>,
+        T: From<T2>,
+    {
+        self.bind_map_bidi(vars, other_var, |_, t| t.clone().into(), |_, t2| t2.clone().into())
+    }
+
     /// Create a [`filter_map`](Var::filter_map) like binding between two existing variables.
     ///
     /// The binding flows from `self` to `to_var`, every time `self` updates `map` is called to generate a value, if it does, that value
@@ -557,7 +871,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// Both `self` and `to_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// where the assign to `to_var` would cause a second update.
     #[inline]
-    fn filter_bind<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
+    fn bind_filter<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
     where
         Vw: WithVars,
         T2: VarValue,
@@ -574,6 +888,86 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         })
     }
 
+    /// Create a [`bind_filter`](Var::bind_filter) that uses [`TryInto`] to convert from `self` to `to_var`.
+    #[inline]
+    fn bind_try_into<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue + TryFrom<T>,
+        V2: Var<T2>,
+    {
+        self.bind_filter(vars, to_var, |_, t| t.clone().try_into().ok())
+    }
+
+    /// Create a [`bind_filter`](Var::bind_filter) that sets `to_var` when `T` is [`Ok`].
+    #[inline]
+    fn bind_ok<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue,
+        V2: Var<T2>,
+        T: ResultOk<T2>,
+    {
+        self.bind_filter(vars, to_var, |_, t| t.r_ok().cloned())
+    }
+
+    /// Create a [`bind_filter`](Var::bind_filter) that sets `text_var` when `T` is [`Ok`].
+    #[inline]
+    fn bind_ok_text<Vw, V2>(&self, vars: &Vw, text_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        V2: Var<Text>,
+        T: ResultOkText,
+    {
+        self.bind_filter(vars, text_var, |_, t| t.r_ok_text())
+    }
+
+    /// Create a [`bind_filter`](Var::bind_filter) that sets `to_var` when `T` is [`Err`].
+    #[inline]
+    fn bind_err<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue,
+        V2: Var<T2>,
+        T: ResultErr<T2>,
+    {
+        self.bind_filter(vars, to_var, |_, t| t.r_err().cloned())
+    }
+
+    /// Create a [`bind_filter`](Var::bind_filter) that sets `text_var` when `T` is [`Err`].
+    #[inline]
+    fn bind_err_text<Vw, V2>(&self, vars: &Vw, text_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        V2: Var<Text>,
+        T: ResultErrText,
+    {
+        self.bind_filter(vars, text_var, |_, t| t.r_err_text())
+    }
+
+    /// Create a [`bind_filter`](Var::bind_filter) that sets `to_var` when `T` is [`Some`].
+    #[inline]
+    fn bind_some<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue,
+        V2: Var<T2>,
+        T: OptionSome<T2>,
+    {
+        self.bind_filter(vars, to_var, |_, t| t.opt_some().cloned())
+    }
+
+    /// Create a [`bind_filter`](Var::bind_filter) that sets `text_var` when `T` is [`Some`].
+    #[inline]
+    fn bind_some_text<Vw, V2>(&self, vars: &Vw, text_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        V2: Var<Text>,
+        T: OptionSomeText,
+    {
+        self.bind_filter(vars, text_var, |_, t| t.opt_some_text())
+    }
+
     /// Create a [`filter_map_bidi`](Var::filter_map_bidi) like binding between two existing variables.
     ///
     /// The bindings **maps** from `self` to `other_var` and **maps-back** from `other_var` to `self`.
@@ -584,7 +978,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// when the assign to the second variable would cause a second update.
     #[inline]
-    fn filter_bind_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
+    fn bind_filter_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
     where
         Vw: WithVars,
         T2: VarValue,
@@ -606,6 +1000,78 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
                 }
             })
         })
+    }
+
+    /// Create a [`bind_filter_bidi`](Var::bind_filter_bidi) that uses [`TryInto`] to convert between `self` and `other_var`.
+    #[inline]
+    fn bind_try_into_bidi<Vw, T2, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue + TryFrom<T>,
+        V2: Var<T2>,
+        T: TryFrom<T2>,
+    {
+        self.bind_filter_bidi(vars, other_var, |_, t| t.clone().try_into().ok(), |_, o| o.clone().try_into().ok())
+    }
+}
+
+#[doc(hidden)]
+pub trait ResultOk<T> {
+    fn r_ok(&self) -> Option<&T>;
+}
+impl<T, E> ResultOk<T> for Result<T, E> {
+    fn r_ok(&self) -> Option<&T> {
+        self.as_ref().ok()
+    }
+}
+
+#[doc(hidden)]
+pub trait ResultOkText {
+    fn r_ok_text(&self) -> Option<Text>;
+}
+impl<T: ToText, E> ResultOkText for Result<T, E> {
+    fn r_ok_text(&self) -> Option<Text> {
+        self.as_ref().ok().map(ToText::to_text)
+    }
+}
+
+#[doc(hidden)]
+pub trait ResultErr<E> {
+    fn r_err(&self) -> Option<&E>;
+}
+impl<T, E> ResultErr<E> for Result<T, E> {
+    fn r_err(&self) -> Option<&E> {
+        self.as_ref().err()
+    }
+}
+
+#[doc(hidden)]
+pub trait ResultErrText {
+    fn r_err_text(&self) -> Option<Text>;
+}
+impl<T, E: ToText> ResultErrText for Result<T, E> {
+    fn r_err_text(&self) -> Option<Text> {
+        self.as_ref().err().map(ToText::to_text)
+    }
+}
+
+#[doc(hidden)]
+pub trait OptionSome<T> {
+    fn opt_some(&self) -> Option<&T>;
+}
+impl<T> OptionSome<T> for Option<T> {
+    fn opt_some(&self) -> Option<&T> {
+        self.as_ref()
+    }
+}
+
+#[doc(hidden)]
+pub trait OptionSomeText {
+    fn opt_some_text(&self) -> Option<Text>;
+}
+impl<T: ToText> OptionSomeText for Option<T> {
+    fn opt_some_text(&self) -> Option<Text> {
+        self.as_ref().map(ToText::to_text)
     }
 }
 
@@ -731,6 +1197,7 @@ macro_rules! expr_var {
 }
 #[doc(inline)]
 pub use crate::expr_var;
+use crate::text::{Text, ToText};
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::expr_var as __expr_var;

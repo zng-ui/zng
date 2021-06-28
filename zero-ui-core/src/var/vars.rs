@@ -1012,7 +1012,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.bind(&app.ctx(), &b, |_, a| a.to_text()).permanent();
+        a.bind_map(&app.ctx(), &b, |_, a| a.to_text()).permanent();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1057,7 +1057,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.bind_bidi(&app.ctx(), &b, |_, a| a.to_text(), |_, b| b.parse().unwrap())
+        a.bind_map_bidi(&app.ctx(), &b, |_, a| a.to_text(), |_, b| b.parse().unwrap())
             .permanent();
 
         let mut update_count = 0;
@@ -1103,7 +1103,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.filter_bind(&app.ctx(), &b, |_, a| if *a == 13 { None } else { Some(a.to_text()) })
+        a.bind_filter(&app.ctx(), &b, |_, a| if *a == 13 { None } else { Some(a.to_text()) })
             .permanent();
 
         let mut update_count = 0;
@@ -1150,7 +1150,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.filter_bind_bidi(&app.ctx(), &b, |_, a| Some(a.to_text()), |_, b| b.parse().ok())
+        a.bind_filter_bidi(&app.ctx(), &b, |_, a| Some(a.to_text()), |_, b| b.parse().ok())
             .permanent();
 
         let mut update_count = 0;
@@ -1212,9 +1212,9 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.bind(&app.ctx(), &b, |_, a| *a + 1).permanent();
-        b.bind(&app.ctx(), &c, |_, b| *b + 1).permanent();
-        c.bind(&app.ctx(), &d, |_, c| *c + 1).permanent();
+        a.bind_map(&app.ctx(), &b, |_, a| *a + 1).permanent();
+        b.bind_map(&app.ctx(), &c, |_, b| *b + 1).permanent();
+        c.bind_map(&app.ctx(), &d, |_, c| *c + 1).permanent();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1267,9 +1267,9 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        a.bind_bidi(&app.ctx(), &b, |_, a| *a, |_, b| *b).permanent();
-        b.bind_bidi(&app.ctx(), &c, |_, b| *b, |_, c| *c).permanent();
-        c.bind_bidi(&app.ctx(), &d, |_, c| *c, |_, d| *d).permanent();
+        a.bind_bidi(&app.ctx(), &b).permanent();
+        b.bind_bidi(&app.ctx(), &c).permanent();
+        c.bind_bidi(&app.ctx(), &d).permanent();
 
         let mut update_count = 0;
         app.update_observe(
@@ -1320,7 +1320,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        let _handle = a.bind(&app.ctx(), &b, |info, i| {
+        let _handle = a.bind_map(&app.ctx(), &b, |info, i| {
             info.unbind();
             *i + 1
         });
@@ -1365,7 +1365,7 @@ mod tests {
 
         let mut app = App::blank().run_headless();
 
-        let handle = a.bind(&app.ctx(), &b, |_, i| *i + 1);
+        let handle = a.bind_map(&app.ctx(), &b, |_, i| *i + 1);
 
         a.set(app.ctx().vars, 10);
 

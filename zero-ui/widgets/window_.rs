@@ -300,10 +300,9 @@ pub mod window {
                 } else if let Some(args) = WindowOpenEvent.update(args) {
                     let window = ctx.services.windows().window(ctx.path.window_id()).unwrap();
                     window.set_raw_windows_event_handler(|_, msg, wparam, _| {
-                        if msg == winapi::um::winuser::WM_SYSKEYDOWN
-                            && wparam as i32 == winapi::um::winuser::VK_F4
-                            // TODO : // && CloseWindowCommand.shortcut() // contains(ALT + F4)
-                        {   
+                        if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4
+                        // TODO : // && CloseWindowCommand.shortcut() // contains(ALT + F4)
+                        {
                             // TODO: Manually send a F4 keydown event when this is handled (on return Some(0);)? Is that possible?
                             // println! {"set_raw_windows_event_handler -> ALT + F4"}
                             // return Some(0);
@@ -338,6 +337,53 @@ pub mod window {
     pub mod properties {
         use crate::core::window::{AutoSize, WindowChrome, WindowIcon, WindowId, WindowVars};
         use crate::prelude::new_property::*;
+
+        fn bind_window_var<T: VarValue + PartialEq>(
+            child: impl UiNode,
+            user_var: impl IntoVar<T>,
+            select: impl Fn(&WindowVars) -> &RcVar<T> + 'static,
+        ) -> impl UiNode {
+            struct BindWindowVarNode<C, V, S> {
+                child: C,
+                user_var: V,
+                select: S,
+                binding: Option<VarBindingHandle>,
+            }
+
+            #[impl_ui_node(child)]
+            impl<T, C, V, S> UiNode for BindWindowVarNode<C, V, S>
+            where
+                T: VarValue + PartialEq,
+                C: UiNode,
+                V: Var<T>,
+                S: Fn(&WindowVars) -> &RcVar<T> + 'static,
+            {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let window_var = (self.select)(ctx.window_state.req::<WindowVars>());
+                    if self.user_var.can_update() {
+                        self.binding = Some(self.user_var.bind_bidi(ctx.vars, window_var));
+                    }
+                    window_var.set_ne(ctx.vars, self.user_var.get_clone(ctx.vars));
+                    self.child.init(ctx);
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.binding = None;
+                    self.child.deinit(ctx);
+                }
+            }
+            BindWindowVarNode {
+                child,
+                user_var: user_var.into_var(),
+                select,
+                binding: None,
+            }
+        }
+
+        #[property(context)]
+        pub fn size2(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+            bind_window_var(child, size, |w| w.size())
+        }
 
         // Properties that have a scalar value type, just compare and set.
         macro_rules! set_properties {
