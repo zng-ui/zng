@@ -7,7 +7,7 @@
 use crate::app::*;
 use crate::context::*;
 use crate::event::*;
-use crate::focus::Focus;
+use crate::focus::{Focus, FocusExt};
 use crate::render::WidgetPath;
 use crate::service::*;
 use crate::window::{WindowEvent, WindowId, Windows};
@@ -48,6 +48,33 @@ event_args! {
         /// If the widget is focused or contains the focused widget.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
+        }
+    }
+
+    /// Raw keyboard event args.
+    pub struct RawKeyInputArgs {
+        /// Id of window that received the event.
+        pub window_id: WindowId,
+
+        /// Id of device that generated the event.
+        ///
+        /// Is `None` if the event was generated programmatically.
+        pub device_id: Option<DeviceId>,
+
+        /// Raw code of key.
+        pub scan_code: ScanCode,
+
+        /// If the key was pressed or released.
+        pub state: ElementState,
+
+        /// Symbolic name of [`scan_code`](KeyInputArgs::scan_code).
+        pub key: Option<Key>,
+
+        ..
+
+        /// Always `false`
+        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+            false
         }
     }
 
@@ -97,6 +124,14 @@ event! {
     ///
     /// This event is provided by the [`KeyboardManager`] extension.
     pub KeyInputEvent: KeyInputArgs;
+
+    /// Key pressed or released without focus target.
+    /// You can invoke this event to fake a key-press that [`Keyboard`] accepts.
+    ///
+    /// # Provider
+    ///
+    /// This event is provided by the [`KeyboardManager`] extension.
+    pub RawKeyInputEvent: RawKeyInputArgs;
 
     /// Key pressed or repeat event.
     ///
@@ -186,11 +221,10 @@ impl AppExtension for KeyboardManager {
                     },
                 ..
             } => {
-                if let Some(target) = Self::target(window_id, ctx.services) {
-                    ctx.services
-                        .keyboard()
-                        .device_input(device_id, scancode, key.map(Into::into), state, target, ctx.events);
-                }
+                RawKeyInputEvent.notify(
+                    ctx.events,
+                    RawKeyInputArgs::now(window_id, Some(device_id), scancode, state, key.map(Into::into)),
+                );
             }
 
             WindowEvent::ModifiersChanged(m) => {
@@ -206,6 +240,31 @@ impl AppExtension for KeyboardManager {
             }
 
             _ => {}
+        }
+    }
+
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawKeyInputEvent.update(args) {
+            if let Some(target) = ctx.services.focus().focused() {
+                let args = KeyInputArgs::new(
+                    args.timestamp,
+                    args.window_id,
+                    args.device_id,
+                    args.scan_code,
+                    args.state,
+                    args.key,
+                    // TODO
+                    ModifiersState::empty(),
+                    false,
+                    target.clone(),
+                );
+
+                KeyInputEvent.notify(ctx.events, args.clone());
+                match args.state {
+                    ElementState::Pressed => KeyDownEvent.notify(ctx.events, args),
+                    ElementState::Released => KeyUpEvent.notify(ctx.events, args),
+                }
+            }
         }
     }
 }

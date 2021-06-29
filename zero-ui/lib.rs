@@ -393,7 +393,7 @@
 //!     Idle,
 //!     Info(Text)
 //! }
-//! 
+//!
 //! // single var that controls the button.
 //! let task_status = var(Status::Idle);
 //!
@@ -414,13 +414,13 @@
 //!             status.send(Status::Info("Starting..".to_text()));
 //!
 //!             heavy_lifting(status.clone()).await;             
-//! 
+//!
 //!             status.send(Status::Idle);             
 //!         });
 //!     });
 //! };
 //!
-//! async fn heavy_lifting(VarSender<Status>) { 
+//! async fn heavy_lifting(VarSender<Status>) {
 //!     status.send(Status::Info("Working..".to_text()));
 //!     todo!()
 //! }
@@ -1405,10 +1405,11 @@ pub mod prelude {
             self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
             sepia, Rgba,
         },
+        command::{CommandInfoExt, CommandNameExt},
         context::WidgetContext,
         event::Events,
         focus::{DirectionalNav, Focus, FocusChangedArgs, FocusExt, ReturnFocusChangedArgs, TabIndex, TabNav},
-        gesture::{shortcut, ClickArgs, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
+        gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         handler::*,
         keyboard::{CharInputArgs, Key, KeyInputArgs, ModifiersChangedArgs, ModifiersState},
@@ -1446,6 +1447,8 @@ pub mod prelude {
 
     #[doc(no_inline)]
     pub use crate::properties::border::*;
+    #[doc(no_inline)]
+    pub use crate::properties::commands::*;
     #[doc(no_inline)]
     pub use crate::properties::events::{gesture::*, keyboard::*, mouse::on_mouse_move};
     #[doc(no_inline)]

@@ -679,7 +679,7 @@ impl Events {
     }
 
     /// Creates a sender that can raise an event from other threads and without access to [`Events`].
-    pub fn sender<A, E>(&mut self) -> EventSender<E>
+    pub fn sender<E>(&mut self, _: E) -> EventSender<E>
     where
         E: Event,
         E::Args: Send,
