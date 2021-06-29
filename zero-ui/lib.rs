@@ -105,7 +105,7 @@
 //!
 //! ### Declaring Widgets
 //!
-//! Widgets are declared as a module marked with the [`#[widget]`] attribute. Its very easy to declare a widget, you should try it when
+//! Widgets are declared as a module marked with the [`#[widget]`][#widget] attribute. Its very easy to declare a widget, you should try it when
 //! you find yourself duplicating the same widget/property/value combo in multiple places.
 //!
 //! ```
@@ -190,7 +190,7 @@
 //!
 //! ### Declaring Properties
 //!
-//! Properties are declared as a function marked with the [`#[property]`] attribute. The first parameter contains the other properties
+//! Properties are declared as a function marked with the [`#[property]`][#property] attribute. The first parameter contains the other properties
 //! from the widget, the function wraps this into their own code and returns the appended code, that will probably be fed into another
 //! property.
 //!
@@ -216,7 +216,7 @@
 //! ```
 //!
 //! The mechanism properties use to append their own code to widgets is beyond the scope of this introduction, the documentation
-//! of the **[`#[property]`]** and **[`#[impl_ui_node]`]** attributes explains it in detail.
+//! of the **[`#[property]`][#property]** and **[`#[impl_ui_node]`][#impl_ui_node]** attributes explains it in detail.
 //!
 //! ## Variables
 //!
@@ -515,9 +515,9 @@ document.addEventListener('DOMContentLoaded', function() {
 //! [`VarBindingHandle`]: crate::core::var::VarBindingHandle
 //! [`SideOffsets`]: crate::core::units::SideOffsets
 //! [`RcVar<T>`]: crate::core::var::RcVar
-//! [`#[widget]`]: macro@crate::core::widget
-//! [`#[property]`]: macro@crate::core::property
-//! [`#[impl_ui_node]`]: macro@crate::core::impl_ui_node
+//! [#widget]: macro@crate::core::widget
+//! [#property]: macro@crate::core::property
+//! [#impl_ui_node]: macro@crate::core::impl_ui_node
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]
@@ -1364,10 +1364,12 @@ pub mod core {
     ///
     /// Widget mix-ins can only be inherited by other widgets and mix-ins, they cannot be instantiated.
     ///
-    /// See the [`#[widget(..)]`](macro@widget) documentation for how to declare, the only difference
+    /// See the [`#[widget(..)]`][#widget] documentation for how to declare, the only difference
     /// from a full widget is that you can only inherit other mix-ins and cannot declare
     /// the `new_child` and `new` functions.
     /// <div style='display:none'>
+    ///
+    /// [#widget]: macro@widget
     pub use zero_ui_core::widget_mixin;
 
     pub use zero_ui_core::*;
