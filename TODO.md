@@ -8,6 +8,12 @@ Things that must be done first because they influence the core API design that i
   argument, instead of all at once.
 * Test `#[cfg(..)]` support in widget declarations.
 
+* Docs
+  * Normalize docs using guidelines: 
+  https://deterministic.space/machine-readable-inline-markdown-code-cocumentation.html
+  https://github.com/rust-lang/rfcs/blob/30221dc3e025eb9f8f84ccacbc9622e3a75dff5e/text/1574-more-api-documentation-conventions.md
+  https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
+
 * Focusable
   * Support more then one ALT scopes?
   * Configurable shortcuts for stuff like `Tab`?
@@ -28,6 +34,7 @@ Things that must be done first because they influence the core API design that i
   * Map-split.
     * Result.
     * Map/bind parse.
+  * Seal.
 
 * Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
 

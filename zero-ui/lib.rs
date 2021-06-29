@@ -5,38 +5,486 @@
 #![allow(clippy::needless_doctest_main)]
 #![warn(missing_docs)]
 
-//! Zero-Ui is a pure Rust UI framework.
+//! Zero-Ui is the pure Rust GUI framework with batteries included.
 //!
-//! # Example
+//! It provides all that you need to create a beautiful, fast and responsive multi-platform GUI apps, it includes many features
+//! that allow you to get started quickly, without sacrificing customization or performance. With features like gesture events,
+//! common widgets, layouts, data binding, async tasks, accessibility and localization
+//! you can focus on what makes your app unique, not the boilerplate required to get modern apps up to standard.
+//!
+//! When you do need to customize, Zero-Ui is rightly flexible, you can create new widgets or customize existing ones, not just
+//! new looks but new behavior, at a lower level you can introduce new event types or new event sources, making custom hardware seamless
+//! integrate into the framework.
+//!
+//! # Usage
+//!
+//! First add this to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! zero-ui = "0.2"
+//! ```
+//!
+//! Then create your first window:
+//!
 //! ```no_run
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
 //!     App::default().run_window(|_| {
-//!         let size = var_from((800., 600.));
-//!         let title = size.map(|s: &Size| formatx!("Button Example - {}", s));
+//!         let size = var_from((800, 600));
 //!         window! {
+//!             title = size.map(|s: &Size| formatx!("Button Example - {}", s));
 //!             size;
-//!             title;
-//!             content = example();
+//!             content = button! {
+//!                 on_click = hn!(|_,_| {
+//!                     println!("Button clicked!");
+//!                 });
+//!                 margin = 10;
+//!                 size = (300, 200);
+//!                 align = Alignment::CENTER;
+//!                 font_size = 28;
+//!                 content = text("Click Me!");
+//!             }
 //!         }
 //!     })
 //! }
+//! ```
 //!
-//! fn example() -> impl Widget {
-//!     button! {
-//!         on_click = hn!(|_,_| {
-//!             println!("Button clicked!");
-//!         });
-//!         margin = 10.0;
-//!         size = (300.0, 200.0);
-//!         align = Alignment::CENTER;
-//!         font_size = 28;
-//!         content = text("Click Me!");
-//!     }
+//! # Building Blocks
+//!
+//! Zero-Ui apps are completely formed from modular building blocks and those blocks are formed from more basic blocks still,
+//! most of the high level blocks compile down to the most basic at zero-cost. This can be surprising when you see put together:
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! button! {
+//!     on_click = hn!(|_, _| println!("Clicked!"));
+//!     content = text("Click Me!");
+//!     font_size = 28;
 //! }
 //! ```
-/*!
+//!
+//! The example demonstrates the [`button!`] widget, you may thing the [`on_click`] and [`font_size`] are implemented in the widget,
+//! but they are not. The button widget only knows that it has a `content` that is another widget, it makes this content looks like a button.
+//!
+//! In this case [`text()`] is another widget that renders text, and [`font_size`] is a property that sets the font size for all texts
+//! inside the widget it is set in. Similarly [`on_click`] is a property that makes the widget clickable. Widgets are build from
+//! properties and properties are built from a lower level block, the [`UiNode`].
+//!
+//! You can make a small app knowing only the high-level blocks, but a passing understanding of how they are formed can help you make the
+//! most of them. The following is a summary of the high-level blocks with links for further reading on how they work:
+//!
+//! ## Widgets
+//!
+//! Widgets, also known as controls, are the building blocks of the final GUI, items such as a button, text-box, scroll-bar and label are widgets.
+//! In Zero-Ui they are usually a module/macro combo with the same name, some widgets also add a shorthand function.
+//!
+//! You can think of a widget as a set of properties that work well together, widgets can preset, rename or require properties, they can
+//! also *inherit* from other widgets. They are **instantiated using a macro** for each widget, the macro lets you assign properties using
+//! a declarative syntax, all widgets are open-ended, meaning you can use any property with any widget.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! let text_a = text! {
+//!     text = "Hello!";
+//!     color = colors::BLACK;
+//!     background_gradient = 45.deg(), [rgb(255, 0, 0), rgb(0, 255, 0)];
+//!     margin = 10;
+//! };
+//!
+//! let text_b = text("Hello!");
+//! ```
+//!
+//! The example instantiate two [`text!`] widgets, `text_a` uses the full macro, the `text` and `color` properties are mentioned in
+//! widget documentation but `background_gradient` and `margin` are not. The `text_b` demonstrates the shorthand function [`text()`]
+//! that for assigning the `text` property directly.
+//!
+//! This crate provides most of the common widgets in the **[`zero_ui::widgets`]** module. That module documentation also explains widgets
+//! in detail.
+//!
+//! ### Declaring Widgets
+//!
+//! Widgets are declared as a module marked with the [`#[widget]`] attribute. Its very easy to declare a widget, you should try it when
+//! you find yourself duplicating the same widget/property/value combo in multiple places.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! use zero_ui::prelude::new_widget::*;
+//!
+//! #[widget($crate::red_button)]
+//! mod red_button {
+//      use super::*;
+//!     inherit!(zero_ui::widgets::button);
+//!     
+//!     properties! {
+//!         background_color = colors::RED.darken(50.pct());
+//!         text_color = colors::WHITE;
+//!       
+//!         when self.is_pressed {
+//!             background_color = colors::RED.darken(30.pct());
+//!         }
+//!     }
+//! }
+//!
+//! # fn main() {
+//! let btn = red_button! {
+//!     content = text("!");
+//!     on_click = hn!(|_, _| println!("Alert!"));
+//! };
+//! # }
+//! ```
+//!
+//! The example demonstrates a simple [`button!`] derived widget, all the widgets in this crate are declared using the **[`#[widget]`]**
+//! attribute, the documentation for the attribute explains widget declaration in detail.
+//!
+//! ## Layouts
+//!
+//! Widgets can contains, none, one or many other widgets, some widgets are specialized into arranging other widgets on the screen. These
+//! are called *layout widgets*.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! #
+//! let menu = v_stack! {
+//!     spacing = 5;
+//!     items = widgets![
+//!         button! { content = text("New") },
+//!         button! { content = text("Load") },
+//!         button! { content = text("Save") },
+//!     ];
+//! };
+//! ```
+//!
+//! The example demonstrates the [`v_stack!`] layout widget, it stacks other widgets vertically with an optional spacing in between then.
+//! All the built-in layouts are in the **[`zero_ui::widgets::layouts`]**.
+//!
+//! ## Properties
+//!
+//! Properties are the most important building block, most of the code that goes into forming a widget is implemented in properties.
+//! Assigning a property in a widget causes it to insert its own code in the *widget*, if a property is not assigned it has zero cost,
+//! this means that a widget designer never needs to worry about the cost of adding a rarely used widget behavior, because it will not
+//! cost anything, unless it is used.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! #
+//! let wgt = blank! {
+//!     // single value assign:
+//!     margin = (10, 5);
+//!
+//!     // multi value assign:
+//!     background_gradient = 45.deg(), [rgb(255, 0, 0), rgb(0, 255, 0)];
+//! };
+//! let wgt = blank! {
+//!     // multi value using the named value syntax:
+//!     background_gradient = {
+//!         axis: 45.deg(),
+//!         stops: [rgb(255, 0, 0), rgb(0, 255, 0)]
+//!     };
+//! };
+//! ```
+//!
+//! Some property kinds can be identified using the prefix of their names, `on_foo` indicates that the property setups an event handler,
+//! `is_foo` indicates a property that reports an widget state.
+//!
+//! ### Declaring Properties
+//!
+//! Properties are declared as a function marked with the [`#[property]`] attribute. The first parameter contains the other properties
+//! from the widget, the function wraps this into their own code and returns the appended code, that will probably be fed into another
+//! property.
+//!
+//! ```
+//! # fn main() { }
+//! use zero_ui::prelude::new_property::*;
+//!
+//! #[property(outer)]
+//! pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+//!     // ..
+//!#    child
+//! }
+//! ```
+//!
+//! When assigned in a widget only the second plus parameters are the property input, the first parameter is set by the widget.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! # use blank as foo;
+//! let wgt = foo! {
+//!     margin = 10;
+//! };
+//! ```
+//!
+//! The mechanism properties use to append their own code to widgets is beyond the scope of this introduction, the documentation
+//! of the **[`#[property]`]** and **[`#[impl_ui_node]`]** attributes explains it in detail.
+//!
+//! ## Variables
+//!
+//! Due to the declarative nature of properties, you cannot reassign a property. When you assign a property in a widget you are actually
+//! helping to define the widget. The solution to this is to assign it once to a value that changes, the property can then update when the value
+//! updates, this is sometimes called *data-binding*, we just call then variables. By supporting any value that implements [`Var<T>`]
+//! properties can work with both updating and unchanging values, and if you use an unchanging value the code that responds to variable
+//! changes is optimized away.
+//!
+//! Usually the trait [`IntoVar<T>`] is used to receive variable inputs, every type that is `Debug + Clone` implements this trait,
+//! types used in properties also tend to implement a *shorthand syntax* by converting from simpler types. For example the [`margin`]
+//! property input type is [`SideOffsets`], it converts from multiple different *shorthand types*:
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! # let _ = blank! {
+//! // Same margin all around:
+//! margin = 10;
+//! # };
+//!
+//! # let _ = blank! {
+//! // (top-bottom, left-right):
+//! margin = (10, 20);
+//! # };
+//!
+//! # let _ = blank! {
+//! // (top, right, bottom, left):
+//! margin = (10, 20, 30, 40);
+//! # };
+//!
+//! # let _ = blank! {
+//! // direct value:
+//! margin = SideOffsets::new_all(10);
+//! # };
+//! ```
+//!
+//! As you can see a variety of inputs kinds are supported, all still statically typed so they are validated by the Rust type system.
+//! But the real power of variables shows when you use variable that update, you can declare one using [`var()`] or [`var_from()`]:
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! let offset = var_from(10);
+//! let moving_btn = button! {
+//!     margin = offset.clone();
+//!     on_click = hn!(|ctx, _| {
+//!         offset.modify(ctx, |m|n.left += 50.0);
+//!     });
+//!     content = text("Click to Move!")
+//! }
+//! ```
+//!
+//! The button moves to the right when clicked, the `margin` starts at `10` and every click the variable is modified, this causes
+//! the `margin` property to request a re-layout and render. Note that the variable is now *shared* between two places, variables
+//! that update are *counted* references to a shared value, the one created in the example is called [`RcVar<T>`].
+//!
+//! ### Variable Get/Set
+//!
+//! Variable bridge two styles of programming, when you are wiring properties using variables the code is *declarative* but when
+//! you actually access their value the code is, usually, *imperative*. The most common place where variables are changed is in event
+//! handlers, the [`Var<T>`] trait provides methods for getting and setting the value.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! let flag = var(false);
+//! let btn = button! {
+//!     content = text(flag.map_to_text());
+//!     on_click = hn!(|ctx, _| {
+//!         flag.set(ctx.vars, !flag.copy(ctx.vars));
+//!     });
+//! };
+//! ```
+//!
+//! The `copy` method gets a copy of the current value, the `set` method schedules a new value for the variable.
+//! Value changes **don't apply immediately**, when you set a variable the new value will be visible only in the next app
+//! update, this is done so that variable observers are always synchronized, it is not possible to enter a state where a
+//! part of the screen is showing a different value because it is changed in between.
+//!
+//! This synchronization is done using the Rust borrow checker, every value access is done using a reference to [`Vars`]
+//! and only one [`Vars`] instance exists per app. Internally [`Vars`] is exclusive-borrowed when it is time to apply
+//! variable changes, asserting that there is no dangling reference, without needing any run-time mechanism like `RefCell`.
+//!
+//! The [`Var<T>`] trait provides other methods for getting, there is `copy`, `get` for referencing the value and `get_clone` for cloning.
+//! The same for settings, there is `set` that replaces the value, `modify` that schedules a closure that modifies the value and `set_ne`
+//! that checks for value equality before causing an update. You can also `touch` a variable to cause an update without changing the value.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! let flag = var(false);
+//! let btn = button! {
+//!     content = text(flag.map_to_text());
+//!     on_click = hn!(|ctx, _| {
+//!         let new_value = !*flag.get(ctx.vars);
+//!         // 3 methods doing the same thing.
+//!         flag.set(ctx.vars, new_value);
+//!         flag.set_ne(ctx.vars, new_value);
+//!         flag.modify(ctx.vars, |f| *f = new_value);
+//!     });
+//! };
+//! ```
+//!
+//! See the [`Var<T>`] documentation for indebt information about accessing variable values.
+//!
+//! ### Variable Mapping
+//!
+//! You can generate new variables that **map** from a source variable, every time the source variable changes a *mapping function*
+//! is applied to generated a mapped value, both the source and mapped variable updating at the same time.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! let count = var(0u32);
+//! let clicker = button! {
+//!     content = text(count.map(|c| {
+//!         match c {
+//!             0 => "Click Me!".to_text(),
+//!             1 => "Clicked 1 Time!".to_text(),
+//!             n => formatx!("Clicked {} Times!", n)
+//!         }
+//!     }));
+//!     on_click = hn!(|ctx, _| {
+//!         let next = count.copy(ctx) + 1;
+//!         count.set(ctx, next);
+//!     });
+//! };
+//! ```
+//!
+//! In the example the source variable `count` is mapped into a [`Text`] for the button content. Every time the button is clicked
+//! the text changes, but the event handler only needs to know about the source variable. There is a variety of different mappings
+//! that can be done, including bidirectional mapping, see the [`Var<T>`] documentation for an inadept explanation of variable mapping.
+//!
+//! ### Variable Binding
+//!
+//! Variable mapping always generate a new variable, if you have two variables you can **bind** then instead. Bound variables
+//! update at the same time, liked mapped variables, but with the advantage that you can *unbind* then and still use both variables.
+//!
+//! ```no_run
+//! # use zero_ui::prelude::*;
+//! App::default().run_window(|ctx| {
+//!     let count = var(0u32);
+//!     let count_text = var_from("Click Me!");
+//!     let handle = count.bind_map(ctx, &count_text, |_, c| {
+//!         match c {
+//!             1 => "Clicked 1 Time!".to_text(),
+//!             n => formatx!("Clicked {} Times!", n)
+//!         }
+//!     });
+//!     handle.permanent();
+//!     window! {
+//!         content = button! {
+//!             content = text(count_text);
+//!             on_click = hn!(|ctx, _| {
+//!                 count.modify(ctx, |c| *c += 1);
+//!             });
+//!         }
+//!     }
+//! })
+//! ```
+//!
+//! Notice the differences between mapping and binding, first we need a context to access the [`Vars`] reference, second the
+//! text variable already has a value and it is only overwritten when the count variable updates, and
+//! finally the bind method returned a [`VarBindingHandle`] that must be dealt with.
+//!
+//! ### Variable Send/Receive
+//!
+//! Variables are not `Send` and you can only get/set then in the app thread. Together with the get/set requirements they
+//! synchronize for free, and are very cheap but also limited. To solve this the [`Var<T>`] provides two methods for creating
+//! sender/receiver channels to a variable. The general idea is you wire the GUI using variables, mapping and binding, reducing
+//! the number of variables that control to whole thing, a *view-model* if you will, then you create channels to these variables
+//! to control then from the business side of your app, that can exist as a multi-thread task.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! #[derive(Clone, Copy, Debug)]
+//! enum Status {
+//!     Idle,
+//!     Info(Text)
+//! }
+//! 
+//! // single var that controls the button.
+//! let task_status = var(Status::Idle);
+//!
+//! let start_btn = button! {
+//!     // content derived from the status.
+//!     content = text(task_status.map(|s| match s {
+//!         Status::Idle => "Start".to_text(),
+//!         Status::Info(t) => t.clone()
+//!     }));
+//!
+//!     // `on_click` only works when the button is enabled.
+//!     enabled = task_status.map(|s| matches!(s, Status::Idle));
+//!
+//!     on_click = hn!(|ctx, _| {
+//!         // the status sender.
+//!         let status = task_status.sender(ctx);
+//!         task::spawn(async move {
+//!             status.send(Status::Info("Starting..".to_text()));
+//!
+//!             heavy_lifting(status.clone()).await;             
+//! 
+//!             status.send(Status::Idle);             
+//!         });
+//!     });
+//! };
+//!
+//! async fn heavy_lifting(VarSender<Status>) { 
+//!     status.send(Status::Info("Working..".to_text()));
+//!     todo!()
+//! }
+//! ```
+//!
+//! ## Handlers
+//!
+//! ## Commands
+//!
+//! ## Contexts
+//!
+//! ## Services
+//!
+//! ## States
+//!
+//! ## Tasks
+//!
+//! ## App Extensions
+//!
+//! # Logging
+//!
+//! This crate integrates with the [`log`] crate, in debug builds it registers a minimal logger that prints all warmings
+//! and errors to `stderr`. You can override this by registering your own logger before starting the app. We recommend only including
+//! another logger in release builds, or setting-up your own `stderr` logger for debug builds, this way you don't miss any error or warning.
+//!
+//! ```
+//! # mod log4rs { fn init_file(file: &'static str, config: ()) -> Result<(), ()> { Ok(()) } }
+//! use zero_ui::prelude::*;
+//!
+//! fn main() {
+//!     #[cfg(not(debug_assertions))]
+//!     log4rs::init_file("log4rs.yml", Default::default()).unwrap();
+//!
+//!     let app = App::default();
+//! }
+//! ```
+//!
+//! # Release Build
+//!
+//! To build the application for release just use `cargo build --release`, the result is a single portable executable file. Most
+//! of Zero-UI dependencies are statically linked, the external dependencies are **OpenGL 3.2** in all systems and **FreeType** plus
+//! **FontConfig** in Linux systems. As a rule of thumb if the system can run Firefox it can run your app.
+//!
+//! ## Windows Subsystem
+//!
+//! In Windows if you open your executable from the Explorer you will see a **Console Window** alongside your app window.
+//! To remove it you need to add `#![windows_subsystem = "windows"]` at the top of your crate's `main.rs`. Except this also stops debug
+//! error prints from showing, so we recommend using the `cfg_attr` attribute to only apply the `windows_subsystem` attribute in
+//! release builds.
+//!
+//! ```
+//! #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+//!
+//! use zero_ui::prelude::*;
+//!
+//! fn main () {
+//!     // ..
+//! }
+//! ```
+//!
+//! In other operating systems the `windows_subsystem` attribute does nothing and does not cause an error, so you can just copy & paste
+//! that attribute line in your crate to support Windows releases.
+//!
+/*
 <script>
 // hide macros from doc root
 document.addEventListener('DOMContentLoaded', function() {
@@ -48,6 +496,28 @@ document.addEventListener('DOMContentLoaded', function() {
  })
 </script>
 */
+//!
+//! [`button!`]: mod@crate::widgets::button
+//! [`text()`]: fn@crate::widgets::text::text
+//! [`text!`]: mod@crate::widgets::text::text
+//! [`v_stack!`]: mod@crate::widgets::layouts::v_stack
+//! [`font_size`]: fn@crate::properties::text_theme::font_size
+//! [`margin`]: fn@crate::properties::margin
+//! [`on_click`]: fn@crate::properties::events::gesture::on_click
+//! [`UiNode`]: crate::core::UiNode
+//! [`log`]: https://docs.rs/log
+//! [`Var<T>`]: crate::core::var::Var
+//! [`IntoVar<T>`]: crate::core::var::IntoVar
+//! [`var()`]: crate::core::var::var
+//! [`var_from()`]: crate::core::var::var_from
+//! [`Text`]: crate::core::text::Text
+//! [`Vars`]: crate::core::var::Vars
+//! [`VarBindingHandle`]: crate::core::var::VarBindingHandle
+//! [`SideOffsets`]: crate::core::units::SideOffsets
+//! [`RcVar<T>`]: crate::core::var::RcVar
+//! [`#[widget]`]: macro@crate::core::widget
+//! [`#[property]`]: macro@crate::core::property
+//! [`#[impl_ui_node]`]: macro@crate::core::impl_ui_node
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]

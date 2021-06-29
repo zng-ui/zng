@@ -98,35 +98,35 @@ impl std::fmt::Display for VarIsReadOnly {
 /// This trait is used by used by most properties, it allows then to accept literal values, variables and context variables
 /// all with a single signature. Together with [`Var`] this gives properties great flexibility of usage, at zero-cost. Widget
 /// `when` blocks also use [`IntoVar`] to support *changing* the property value depending on the widget state.
-/// 
+///
 /// Value types can also manually implement this to support a shorthand literal syntax for when they are used in properties,
 /// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`OwnedVar`]
 /// too. They can implement the trait multiple times to support different shorthand syntaxes or different types in the shorthand
 /// value.
 ///
 /// # Examples
-/// 
+///
 /// A value type using [`IntoVar`] twice to support a shorthand initialization syntax:
-/// 
+///
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::*;
 /// #[derive(Debug, Clone)]
-/// pub struct Size { 
-///     width: f32, 
-///     height: f32 
+/// pub struct Size {
+///     width: f32,
+///     height: f32
 /// }
 /// impl IntoVar<Size> for (u32, u32) {
 ///     type Var = OwnedVar<Size>;
-/// 
+///
 ///     fn into_var(self) -> Self::Var {
 ///         OwnedVar(Size { width: self.0, height: self.1 })
 ///     }
 /// }
 /// impl IntoVar<Size> for (f32, f32) {
 ///     type Var = OwnedVar<Size>;
-/// 
+///
 ///     fn into_var(self) -> Self::Var {
 ///         OwnedVar(Size { width: self.0, height: self.1 })
 ///     }
@@ -138,17 +138,17 @@ impl std::fmt::Display for VarIsReadOnly {
 /// }
 /// # #[widget($crate::blank)]
 /// # mod blank { }
-/// 
+///
 /// // shorthand #1:
 /// blank! {
 ///     size = (800, 600);
 /// }
-/// 
+///
 /// // shorthand #2:
 /// blank! {
 ///     size = (800.1, 600.2);
 /// }
-/// 
+///
 /// // blanket impl:
 /// blank! {
 ///     size = Size { width: 800.0, height: 600.0 };
@@ -183,37 +183,37 @@ impl std::fmt::Display for VarIsReadOnly {
 ///             }
 ///         }
 ///     }
-/// 
+///
 ///     FooNode { child, bar: bar.into_var() }
 /// }
-/// 
+///
 /// # #[widget($crate::blank)]
 /// # pub mod blank { }
-/// 
+///
 /// // literal assign:
 /// blank! {
 ///     foo = 42;
 /// }
-/// 
+///
 /// // variable assign:
 /// let variable = var(42);
 /// blank! {
 ///     foo = variable;
 /// }
-/// 
+///
 /// // widget when:
 /// blank! {
 ///     foo = 42;
-/// 
+///
 ///     when !self.enabled {
 ///         foo = 32;
 ///     }
 /// }
 /// ```
-/// 
+///
 /// The property implementation is minimal and yet it supports a variety of different inputs that
 /// alter how it is compiled, from a static literal value that never changes to an updating variable to a changing widget state.
-/// 
+///
 /// In the case of an static value the update code will be optimized away, but if assigned a variable it will become dynamic
 /// reacting to state changes, the same applies to `when` that compiles to a single property assign with a generated variable.
 pub trait IntoVar<T: VarValue>: Clone {
