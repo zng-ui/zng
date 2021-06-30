@@ -5,7 +5,7 @@
 //!
 //! This module also re-exports the [`rayon`] crate for convenience.
 //!
-//! # Example
+//! # Examples
 //!
 //! ```
 //! # use zero_ui_core::{widget, UiNode, var::{var, IntoVar}, async_hn, event_property, property,
@@ -53,7 +53,29 @@
 //! for a potentially slow external operation, so if we just call `std::fs::read_to_string` directly we can potentially remove one of
 //! the work threads from play, reducing the overall tasks performance. To avoid this we move the IO operation inside a [`wait`]
 //! task, this task is not *async* but it is *parallel*, meaning if does not block but it runs a blocking operation. It runs inside
-//! a [`blocking`](https://docs.rs/blocking) thread-pool, that is optimized for waiting.
+//! a [`blocking`] thread-pool, that is optimized for waiting.
+//!
+//! # Async Crates Integration
+//!
+//! This module provides async parallel tasks and IO unblocking but it does not provide more elaborate async IO or async networking.
+//! You can use external async crates to create these futures and then `.await` then in async code managed by Zero-Ui, but there is some
+//! consideration needed. Async code needs a runtime to execute and some async functions from external crates expect their own runtime
+//! to work properly, as a rule of thumb if the crate starts their own *event reactor* you can just use then without worry.
+//!
+//! You can use the [`futures`], [`async-std`] and [`smol`] crates without worry, they integrate well and even use the same [`blocking`]
+//! thread-pool that is used in [`wait`]. Functions that require an *event reactor* start it automatically, usually at the cost of one extra
+//! thread only. Just `.await` futures from these crate.
+//!
+//! The [`tokio`] crate on the other hand, does not integrate well. It does not start its own runtime automatically, and expects you
+//! to call its async functions from inside the tokio runtime. After you created a future from inside the runtime you can `.await` then
+//! in any thread at least, so if you have no alternative but to use [`tokio`] we recommend manually starting its runtime in a thread and
+//! then using the `tokio::runtime::Handle` to start futures in the runtime.
+//! 
+//! [`blocking`]: https://docs.rs/blocking
+//! [`futures`]: https://docs.rs/futures
+//! [`async-std`]: https://docs.rs/async-std
+//! [`smol`]: https://docs.rs/smol
+//! [`tokio`]: https://docs.rs/tokio
 use std::{
     future::Future,
     pin::Pin,
