@@ -119,6 +119,32 @@ impl Rgba {
         self.into()
     }
 
+    /// Adds the `amount` to the color *lightness*.
+    ///
+    /// This method converts to [`Hsla`] to lighten and then converts back to `Rgba`.
+    ///
+    /// # Examples
+    ///
+    /// Add `10%` more light to the `DARK_RED` color:
+    ///
+    /// ```
+    /// # use zero_ui_core::color::*;
+    /// # use zero_ui_core::units::*;
+    /// colors::DARK_RED.lighten(10.pct())
+    /// # ;
+    /// ```
+    pub fn lighten<A: Into<FactorNormal>>(self, amount: A) -> Self {
+        self.to_hsla().lighten(amount).to_rgba()
+    }
+
+    /// Subtracts the `amount` from the color *lightness*.
+    ///
+    /// This method converts to [`Hsla`] to darken and then converts back to `Rgba`.
+    #[inline]
+    pub fn darken<A: Into<FactorNormal>>(self, amount: A) -> Self {
+        self.to_hsla().darken(amount).to_rgba()
+    }
+
     /// Convert a copy to [R, G, B, A] bytes.
     #[inline]
     pub fn to_bytes(self) -> [u8; 4] {

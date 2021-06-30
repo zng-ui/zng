@@ -313,7 +313,7 @@
 //!         // 3 methods doing the same thing.
 //!         flag.set(ctx.vars, new_value);
 //!         flag.set_ne(ctx.vars, new_value);
-//!         flag.modify(ctx.vars, |f| **f = new_value);
+//!         flag.modify(ctx.vars, move |f| **f = new_value);
 //!     });
 //! };
 //! ```
@@ -421,7 +421,7 @@
 //!     });
 //! };
 //!
-//! async fn heavy_lifting(VarSender<Status>) {
+//! async fn heavy_lifting(status: VarSender<Status>) {
 //!     status.send(Status::Info("Working..".to_text()));
 //!     todo!()
 //! }
@@ -1431,7 +1431,7 @@ pub mod prelude {
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight,
             Point, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
         },
-        var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, Vars},
+        var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, Vars, VarSender, VarReceiver},
         widget_base::Visibility,
         widget_vec, widgets,
         window::{

@@ -1,6 +1,7 @@
 //! Angle, factor and length units.
 
 use derive_more as dm;
+use std::ops;
 use std::{f32::consts::*, fmt, time::Duration};
 use webrender::api::units as wr;
 
@@ -353,7 +354,7 @@ impl fmt::Display for FactorPercent {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign)]
 pub struct FactorNormal(pub f32);
 impl FactorNormal {
     /// Clamp factor to [0.0..=1.0] range.
@@ -477,6 +478,101 @@ pub enum Length {
     /// Relative to 1% of the largest of the viewport's dimensions.
     ViewportMax(f32),
 }
+impl<L: Into<Length>> ops::Add<L> for Length {
+    type Output = Length;
+
+    fn add(self, rhs: L) -> Self::Output {
+        use Length::*;
+
+        match (self, rhs.into()) {
+            (Exact(a), Exact(b)) => Exact(a + b),
+            (Relative(a), Relative(b)) => Relative(a + b),
+            (Em(a), Em(b)) => Em(a + b),
+            (RootEm(a), RootEm(b)) => RootEm(a + b),
+            (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a + b),
+            (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a + b),
+            (ViewportMin(a), ViewportMin(b)) => ViewportMin(a + b),
+            (ViewportMax(a), ViewportMax(b)) => ViewportMax(a + b),
+            _ => panic!("mixed length unit addition not implemented"),
+        }
+    }
+}
+impl<L: Into<Length>> ops::AddAssign<L> for Length {
+    fn add_assign(&mut self, rhs: L) {
+        *self = *self + rhs;
+    }
+}
+impl<L: Into<Length>> ops::Sub<L> for Length {
+    type Output = Length;
+
+    fn sub(self, rhs: L) -> Self::Output {
+        use Length::*;
+
+        match (self, rhs.into()) {
+            (Exact(a), Exact(b)) => Exact(a - b),
+            (Relative(a), Relative(b)) => Relative(a - b),
+            (Em(a), Em(b)) => Em(a - b),
+            (RootEm(a), RootEm(b)) => RootEm(a - b),
+            (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a - b),
+            (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a - b),
+            (ViewportMin(a), ViewportMin(b)) => ViewportMin(a - b),
+            (ViewportMax(a), ViewportMax(b)) => ViewportMax(a - b),
+            _ => panic!("mixed length unit subtraction not implemented"),
+        }
+    }
+}
+impl<L: Into<Length>> ops::SubAssign<L> for Length {
+    fn sub_assign(&mut self, rhs: L) {
+        *self = *self - rhs;
+    }
+}
+impl ops::Mul<f32> for Length {
+    type Output = Length;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        use Length::*;
+
+        match self {
+            Exact(e) => Exact(e * rhs),
+            Relative(r) => Relative(r * rhs),
+            Em(e) => Em(e * rhs),
+            RootEm(e) => RootEm(e * rhs),
+            ViewportWidth(w) => ViewportWidth(w * rhs),
+            ViewportHeight(h) => ViewportHeight(h * rhs),
+            ViewportMin(m) => ViewportMin(m * rhs),
+            ViewportMax(m) => ViewportMax(m * rhs),
+        }
+    }
+}
+impl ops::MulAssign<f32> for Length {
+    fn mul_assign(&mut self, rhs: f32) {
+        *self = *self * rhs;
+    }
+}
+impl ops::Div<f32> for Length {
+    type Output = Length;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        use Length::*;
+
+        match self {
+            Exact(e) => Exact(e / rhs),
+            Relative(r) => Relative(r / rhs),
+            Em(e) => Em(e / rhs),
+            RootEm(e) => RootEm(e / rhs),
+            ViewportWidth(w) => ViewportWidth(w / rhs),
+            ViewportHeight(h) => ViewportHeight(h / rhs),
+            ViewportMin(m) => ViewportMin(m / rhs),
+            ViewportMax(m) => ViewportMax(m),
+        }
+    }
+}
+impl ops::DivAssign<f32> for Length {
+    fn div_assign(&mut self, rhs: f32) {
+        *self = *self / rhs;
+    }
+}
+
 impl Default for Length {
     /// Exact `0`.
     fn default() -> Self {
