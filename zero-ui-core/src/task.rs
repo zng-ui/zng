@@ -70,18 +70,15 @@
 //! to call its async functions from inside the tokio runtime. After you created a future from inside the runtime you can `.await` then
 //! in any thread at least, so if you have no alternative but to use [`tokio`] we recommend manually starting its runtime in a thread and
 //! then using the `tokio::runtime::Handle` to start futures in the runtime.
-//! 
+//!
 //! [`blocking`]: https://docs.rs/blocking
 //! [`futures`]: https://docs.rs/futures
 //! [`async-std`]: https://docs.rs/async-std
 //! [`smol`]: https://docs.rs/smol
 //! [`tokio`]: https://docs.rs/tokio
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::{Arc, Mutex},
-    task::Waker,
-};
+use std::{future::Future, pin::Pin, sync::Arc, task::Waker};
+
+use parking_lot::Mutex;
 
 use crate::{
     context::*,
@@ -493,10 +490,8 @@ impl RayonTask {
     fn poll(self: Arc<RayonTask>) {
         rayon::spawn(move || {
             let waker = self.clone().into();
-            if let Ok(mut t) = self.future.lock() {
-                let mut cx = std::task::Context::from_waker(&waker);
-                let _ = t.as_mut().poll(&mut cx);
-            }
+            let mut cx = std::task::Context::from_waker(&waker);
+            let _ = self.future.lock().as_mut().poll(&mut cx);
         })
     }
 }

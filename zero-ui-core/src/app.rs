@@ -16,13 +16,14 @@ use crate::{
 };
 use glutin::event::{DeviceEvent, Event as RawEvent, WindowEvent};
 pub use glutin::event_loop::ControlFlow;
+use parking_lot::Mutex;
 use std::future::Future;
-use std::task::{Wake, Waker};
+use std::sync::Arc;
+use std::task::Waker;
 use std::{
     any::{type_name, TypeId},
     fmt,
     sync::atomic::AtomicBool,
-    sync::{Arc, Mutex},
     time::Instant,
 };
 
@@ -1447,18 +1448,20 @@ enum AppEventData {
     Update,
 }
 
-/// An [`AppEvent`] sender that can awake apps and insert events into their loop.
+/// An [`AppEvent`] sender that can awake apps and insert events into the main loop.
 #[derive(Clone)]
 pub struct AppEventSender(AppEventSenderData);
 impl AppEventSender {
     /// New headed event loop connected to an `winit` loop with [`AppEvent`] as the event type.
     pub fn from_winit(el: glutin::event_loop::EventLoopProxy<AppEvent>) -> Self {
-        AppEventSender(AppEventSenderData::Winit(el))
+        AppEventSender(AppEventSenderData::Winit(Mutex::new(el)))
     }
 
-    /// New headed event loop connected to an external event loop using an [adapter](AppEventSenderAdapter).
+    /// New headed event loop connected to an external event loop using an [adapter].
+    ///
+    /// [adapter]: AppEventSenderAdapter
     pub fn from_adapter(el: Box<dyn AppEventSenderAdapter>) -> Self {
-        AppEventSender(AppEventSenderData::Adapter(el))
+        AppEventSender(AppEventSenderData::Adapter(Mutex::new(el)))
     }
 
     /// If the app is running in headless mode.
@@ -1474,9 +1477,9 @@ impl AppEventSender {
     #[inline(always)]
     fn send_app_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
         match &self.0 {
-            AppEventSenderData::Winit(w) => w.send_event(event)?,
+            AppEventSenderData::Winit(w) => w.lock().send_event(event)?,
             AppEventSenderData::Headless(s) => s.send(event)?,
-            AppEventSenderData::Adapter(a) => a.send_event(event)?,
+            AppEventSenderData::Adapter(a) => a.lock().send_event(event)?,
         }
         Ok(())
     }
@@ -1511,54 +1514,45 @@ impl AppEventSender {
         })
     }
 
-    /// [`Waker`] that causes a [`send_update`](Self::send_update).
+    /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
     pub fn waker(&self) -> Waker {
-        let sync = match &self.0 {
-            AppEventSenderData::Winit(el) => AppEventSenderDataSync::Winit(Mutex::new(el.clone())),
-            AppEventSenderData::Headless(s) => AppEventSenderDataSync::Headless(s.clone()),
-            AppEventSenderData::Adapter(a) => AppEventSenderDataSync::Adapter(Mutex::new(a.clone_boxed())),
-        };
-        Arc::new(sync).into()
-    }
-}
-enum AppEventSenderData {
-    Winit(glutin::event_loop::EventLoopProxy<AppEvent>),
-    Headless(flume::Sender<AppEvent>),
-    Adapter(Box<dyn AppEventSenderAdapter>),
-}
-impl Clone for AppEventSenderData {
-    fn clone(&self) -> Self {
-        match self {
-            AppEventSenderData::Winit(el) => AppEventSenderData::Winit(el.clone()),
-            AppEventSenderData::Headless(s) => AppEventSenderData::Headless(s.clone()),
-            AppEventSenderData::Adapter(a) => AppEventSenderData::Adapter(a.clone_boxed()),
+        match self.0.clone() {
+            AppEventSenderData::Winit(w) => Arc::new(WinitWaker(w)).into(),
+            AppEventSenderData::Headless(h) => Arc::new(HeadlessWaker(h)).into(),
+            AppEventSenderData::Adapter(a) => Arc::new(AdapterWaker(a)).into(),
         }
     }
 }
-enum AppEventSenderDataSync {
+struct WinitWaker(Mutex<glutin::event_loop::EventLoopProxy<AppEvent>>);
+impl std::task::Wake for WinitWaker {
+    fn wake(self: std::sync::Arc<Self>) {
+        let _ = self.0.lock().send_event(AppEvent(AppEventData::Update));
+    }
+}
+struct HeadlessWaker(flume::Sender<AppEvent>);
+impl std::task::Wake for HeadlessWaker {
+    fn wake(self: std::sync::Arc<Self>) {
+        let _ = self.0.send(AppEvent(AppEventData::Update));
+    }
+}
+struct AdapterWaker(Mutex<Box<dyn AppEventSenderAdapter>>);
+impl std::task::Wake for AdapterWaker {
+    fn wake(self: std::sync::Arc<Self>) {
+        let _ = self.0.lock().send_event(AppEvent(AppEventData::Update));
+    }
+}
+
+enum AppEventSenderData {
     Winit(Mutex<glutin::event_loop::EventLoopProxy<AppEvent>>),
     Headless(flume::Sender<AppEvent>),
     Adapter(Mutex<Box<dyn AppEventSenderAdapter>>),
 }
-impl Wake for AppEventSenderDataSync {
-    fn wake(self: Arc<Self>) {
-        let update = AppEvent(AppEventData::Update);
-        match &*self {
-            AppEventSenderDataSync::Winit(m) => {
-                let _ = match m.lock() {
-                    Ok(el) => el.send_event(update),
-                    Err(e) => e.into_inner().send_event(update),
-                };
-            }
-            AppEventSenderDataSync::Headless(s) => {
-                let _ = s.send(update);
-            }
-            AppEventSenderDataSync::Adapter(m) => {
-                let _ = match m.lock() {
-                    Ok(el) => el.send_event(update),
-                    Err(e) => e.into_inner().send_event(update),
-                };
-            }
+impl Clone for AppEventSenderData {
+    fn clone(&self) -> Self {
+        match self {
+            AppEventSenderData::Winit(el) => AppEventSenderData::Winit(Mutex::new(el.lock().clone())),
+            AppEventSenderData::Headless(s) => AppEventSenderData::Headless(s.clone()),
+            AppEventSenderData::Adapter(a) => AppEventSenderData::Adapter(Mutex::new(a.lock().clone_boxed())),
         }
     }
 }

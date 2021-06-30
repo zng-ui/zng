@@ -7,22 +7,19 @@
 
 #[cfg(feature = "app_profiler")]
 mod profiler_impl {
-    use lazy_static::*;
     use serde_json::*;
 
     use crate::text::Text;
+    use flume::{unbounded, Receiver, Sender};
+    use parking_lot::{const_mutex, Mutex};
     use std::cell::RefCell;
     use std::fs::File;
     use std::io::BufWriter;
     use std::string::String;
-    use std::sync::mpsc::{channel, Receiver, Sender};
-    use std::sync::Mutex;
     use std::thread;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    lazy_static! {
-        static ref GLOBAL_PROFILER: Mutex<Profiler> = Mutex::new(Profiler::new());
-    }
+    static GLOBAL_PROFILER: Mutex<Option<Profiler>> = const_mutex(None);
 
     thread_local!(static THREAD_PROFILER: RefCell<Option<ThreadProfiler>> = RefCell::new(None));
 
@@ -65,7 +62,7 @@ mod profiler_impl {
 
     impl Profiler {
         fn new() -> Profiler {
-            let (tx, rx) = channel();
+            let (tx, rx) = unbounded();
 
             Profiler {
                 rx,
@@ -188,7 +185,10 @@ mod profiler_impl {
     /// Writes the global profile to a specific file.
     #[inline]
     pub fn write_profile(filename: &str, ignore_0ms: bool) {
-        GLOBAL_PROFILER.lock().unwrap().write_profile(filename, ignore_0ms);
+        GLOBAL_PROFILER
+            .lock()
+            .get_or_insert_with(Profiler::new)
+            .write_profile(filename, ignore_0ms);
     }
 
     /// Registers the current thread with the global profiler.
@@ -196,7 +196,7 @@ mod profiler_impl {
     /// Does nothing if the thread is already registered.
     #[inline]
     pub fn register_thread_with_profiler() {
-        GLOBAL_PROFILER.lock().unwrap().register_thread();
+        GLOBAL_PROFILER.lock().get_or_insert_with(Profiler::new).register_thread();
     }
 
     fn precise_time_ns() -> u64 {

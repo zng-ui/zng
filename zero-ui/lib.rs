@@ -412,17 +412,17 @@
 //!         // the status sender.
 //!         let status = task_status.sender(ctx);
 //!         task::spawn(async move {
-//!             status.send(Status::Info("Starting..".to_text()));
+//!             status.send(Status::Info("Starting..".to_text())).ok();
 //!
 //!             heavy_lifting(status.clone()).await;             
 //!
-//!             status.send(Status::Idle);             
+//!             status.send(Status::Idle).ok();             
 //!         });
 //!     });
 //! };
 //!
 //! async fn heavy_lifting(status: VarSender<Status>) {
-//!     status.send(Status::Info("Working..".to_text()));
+//!     status.send(Status::Info("Working..".to_text())).ok();
 //!     todo!()
 //! }
 //! ```
@@ -1418,7 +1418,8 @@ pub mod prelude {
         node_vec, nodes,
         render::WidgetPath,
         service::Services,
-        take_if, take_on, take_on_init, task::{self, rayon::prelude::*},
+        take_if, take_on, take_on_init,
+        task::{self, rayon::prelude::*},
         text::{
             font_features::{
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
@@ -1518,7 +1519,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
-        pub use crate::core::task::{self, AppTask, WidgetTask, rayon::prelude::*};
+        pub use crate::core::task::{self, rayon::prelude::*, AppTask, WidgetTask};
         #[doc(no_inline)]
         pub use crate::core::text::Text;
         #[doc(no_inline)]
@@ -1568,7 +1569,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
-        pub use crate::core::task::{self, AppTask, WidgetTask, rayon::prelude::*};
+        pub use crate::core::task::{self, rayon::prelude::*, AppTask, WidgetTask};
         #[doc(no_inline)]
         pub use crate::core::text::*;
         #[doc(no_inline)]

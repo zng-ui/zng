@@ -3,12 +3,10 @@
 //! The primary `struct` of this module is [`Timers`]. You can use it to
 //! create UI bound timers that run using only the main thread and can awake the app event loop
 //! to notify updates.
+use parking_lot::Mutex;
 use std::{
     fmt, mem,
-    sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        Mutex,
-    },
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::{Duration, Instant},
 };
 
@@ -257,7 +255,7 @@ impl Timers {
             if let Some(var) = t.weak_var.updgrade() {
                 if !t.handle.is_dropped() {
                     let timer = var.get(vars);
-                    let mut deadline = timer.0 .0.data().deadline.lock().unwrap();
+                    let mut deadline = timer.0 .0.data().deadline.lock();
                     if deadline.next_deadline() <= now {
                         // timer elapses, but only update if is enabled:
                         if timer.is_enabled() {
@@ -301,7 +299,7 @@ impl Timers {
             }
 
             let state = e.handle.data();
-            let mut deadline = state.deadline.lock().unwrap();
+            let mut deadline = state.deadline.lock();
             if deadline.next_deadline() <= now {
                 // timer elapsed, but only flag for handler call if is enabled:
                 if state.enabled.load(Ordering::Relaxed) {
@@ -558,7 +556,7 @@ impl TimerHandle {
     /// The timer interval. Enabled handlers are called every time this interval elapses.
     #[inline]
     pub fn interval(&self) -> Duration {
-        self.0.data().deadline.lock().unwrap().interval
+        self.0.data().deadline.lock().interval
     }
 
     /// Sets the [`interval`](Self::interval).
@@ -567,13 +565,13 @@ impl TimerHandle {
     /// thread it will only apply on the next app update.
     #[inline]
     pub fn set_interval(&self, new_interval: Duration) {
-        self.0.data().deadline.lock().unwrap().interval = new_interval;
+        self.0.data().deadline.lock().interval = new_interval;
     }
 
     /// Last elapsed time, or the start time if the timer has not elapsed yet.
     #[inline]
     pub fn timestamp(&self) -> Instant {
-        self.0.data().deadline.lock().unwrap().last
+        self.0.data().deadline.lock().last
     }
 
     /// The next deadline.
@@ -581,7 +579,7 @@ impl TimerHandle {
     /// This is the [`timestamp`](Self::timestamp) plus the [`interval`](Self::interval).
     #[inline]
     pub fn deadline(&self) -> Instant {
-        self.0.data().deadline.lock().unwrap().next_deadline()
+        self.0.data().deadline.lock().next_deadline()
     }
 
     /// If the handler is called when the timer elapses.
