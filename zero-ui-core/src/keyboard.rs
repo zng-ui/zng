@@ -4,32 +4,31 @@
 //! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 
-use crate::app::*;
+use crate::app::{raw_events::*, *};
 use crate::context::*;
 use crate::event::*;
-use crate::focus::{Focus, FocusExt};
+use crate::focus::FocusExt;
 use crate::render::WidgetPath;
 use crate::service::*;
-use crate::window::{WindowEvent, WindowId, Windows};
+use crate::var::{RcVar, ReadOnlyRcVar, Var, Vars};
+use crate::window::WindowId;
 
 pub use glutin::event::{KeyboardInput, ModifiersState, ScanCode};
 
 event_args! {
-    /// Keyboard event args.
+    /// Arguments for [`KeyInputEvent`].
     pub struct KeyInputArgs {
-        /// Id of window that received the event.
+        /// Window that received the event.
         pub window_id: WindowId,
 
-        /// Id of device that generated the event.
-        ///
-        /// Is `None` if the event was generated programmatically.
-        pub device_id: Option<DeviceId>,
+        /// Device that generated the event.
+        pub device_id: DeviceId,
 
         /// Raw code of key.
         pub scan_code: ScanCode,
 
         /// If the key was pressed or released.
-        pub state: ElementState,
+        pub state: KeyState,
 
         /// Symbolic name of [`scan_code`](KeyInputArgs::scan_code).
         pub key: Option<Key>,
@@ -45,45 +44,18 @@ event_args! {
 
         ..
 
-        /// If the widget is focused or contains the focused widget.
+        /// Returns `true` if the widget is the [`target`](Self::target) or is a parent of the target.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
         }
     }
 
-    /// Raw keyboard event args.
-    pub struct RawKeyInputArgs {
-        /// Id of window that received the event.
-        pub window_id: WindowId,
-
-        /// Id of device that generated the event.
-        ///
-        /// Is `None` if the event was generated programmatically.
-        pub device_id: Option<DeviceId>,
-
-        /// Raw code of key.
-        pub scan_code: ScanCode,
-
-        /// If the key was pressed or released.
-        pub state: ElementState,
-
-        /// Symbolic name of [`scan_code`](KeyInputArgs::scan_code).
-        pub key: Option<Key>,
-
-        ..
-
-        /// Always `false`
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            false
-        }
-    }
-
-    /// Character received event args.
+    /// Arguments for [`CharInputEvent`].
     pub struct CharInputArgs {
-        /// Id of window that received the event.
+        /// Window that received the event.
         pub window_id: WindowId,
 
-        /// The character.
+        /// Unicode character.
         pub character: char,
 
         /// The focused element at the time of the key input.
@@ -91,13 +63,13 @@ event_args! {
 
         ..
 
-        /// If the widget is focused or contains the focused widget.
+        /// Returns `true` if the widget is the [`target`](Self::target) or is a parent of the target.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
         }
     }
 
-    /// Keyboard modifiers changed event args.
+    /// Arguments for [`ModifiersChangedEvent`].
     pub struct ModifiersChangedArgs {
         /// Previous modifiers state.
         pub prev_modifiers: ModifiersState,
@@ -105,35 +77,24 @@ event_args! {
         /// Current modifiers state.
         pub modifiers: ModifiersState,
 
-        /// The focused element at the time of the update.
-        pub target: WidgetPath,
-
         ..
 
-        /// If the widget is focused or contains the focused widget.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.path.widget_id())
+        /// Returns `true` for all widgets.
+        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+            true
         }
     }
 }
 
 event! {
-    /// Key pressed or released event.
+    /// Key pressed, repeat pressed or released event.
     ///
     /// # Provider
     ///
     /// This event is provided by the [`KeyboardManager`] extension.
     pub KeyInputEvent: KeyInputArgs;
 
-    /// Key pressed or released without focus target.
-    /// You can invoke this event to fake a key-press that [`Keyboard`] accepts.
-    ///
-    /// # Provider
-    ///
-    /// This event is provided by the [`KeyboardManager`] extension.
-    pub RawKeyInputEvent: RawKeyInputArgs;
-
-    /// Key pressed or repeat event.
+    /// Key pressed or repeat pressed event.
     ///
     /// # Provider
     ///
@@ -147,7 +108,7 @@ event! {
     /// This event is provided by the [`KeyboardManager`] extension.
     pub KeyUpEvent: KeyInputArgs;
 
-    /// Modifiers state changed event.
+    /// Modifiers key state changed event.
     ///
     /// # Provider
     ///
@@ -162,7 +123,9 @@ event! {
     pub CharInputEvent: CharInputArgs;
 }
 
-/// Application extension that provides keyboard events.
+/// Application extension that provides keyboard events targeting the focused widget.
+///
+/// This [extension] processes the raw keyboard events retargeting then to the focused widget, generating derived events and variables.
 ///
 /// # Events
 ///
@@ -182,87 +145,38 @@ event! {
 ///
 /// # Default
 ///
-/// This extension is included in the [default app](crate::app::App::default), events provided by it
+/// This extension is included in the [default app], events provided by it
 /// are required by multiple other extensions.
 ///
 /// # Dependencies
 ///
-/// This extension requires the [`Focus`] and [`Windows`] services before the first window event. It does not
+/// This extension requires the [`Focus`] and [`Windows`] services before the first raw key input event. It does not
 /// require anything for initialization.
+///
+/// [extension]: AppExtension
+/// [default app]: crate::app::App::default
+/// [`Focus`]: crate::focus::Focus
+/// [`Windows`]: crate::window::Windows
 #[derive(Default)]
 pub struct KeyboardManager;
-impl KeyboardManager {
-    fn target(window_id: WindowId, services: &mut Services) -> Option<WidgetPath> {
-        if let Some(focused) = services.get::<Focus>().and_then(|f| f.focused().cloned()) {
-            Some(focused)
-        } else {
-            services
-                .get::<Windows>()
-                .and_then(|f| f.window(window_id).ok())
-                .map(|w| w.frame_info().root().path())
-        }
-    }
-}
 impl AppExtension for KeyboardManager {
     fn init(&mut self, r: &mut AppContext) {
         r.services.register(Keyboard::default());
     }
 
-    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        match *event {
-            WindowEvent::KeyboardInput {
-                device_id,
-                input:
-                    KeyboardInput {
-                        scancode,
-                        state,
-                        virtual_keycode: key,
-                        ..
-                    },
-                ..
-            } => {
-                RawKeyInputEvent.notify(
-                    ctx.events,
-                    RawKeyInputArgs::now(window_id, Some(device_id), scancode, state, key.map(Into::into)),
-                );
-            }
-
-            WindowEvent::ModifiersChanged(m) => {
-                if let Some(target) = Self::target(window_id, ctx.services) {
-                    ctx.services.keyboard().set_modifiers(m, target, ctx.events);
-                }
-            }
-
-            WindowEvent::ReceivedCharacter(c) => {
-                if let Some(target) = Self::target(window_id, ctx.services) {
-                    ctx.services.keyboard().char_input(c, target, ctx.events);
-                }
-            }
-
-            _ => {}
-        }
-    }
-
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawKeyInputEvent.update(args) {
-            if let Some(target) = ctx.services.focus().focused() {
-                let args = KeyInputArgs::new(
-                    args.timestamp,
-                    args.window_id,
-                    args.device_id,
-                    args.scan_code,
-                    args.state,
-                    args.key,
-                    // TODO
-                    ModifiersState::empty(),
-                    false,
-                    target.clone(),
-                );
-
-                KeyInputEvent.notify(ctx.events, args.clone());
-                match args.state {
-                    ElementState::Pressed => KeyDownEvent.notify(ctx.events, args),
-                    ElementState::Released => KeyUpEvent.notify(ctx.events, args),
+            let focused = ctx.services.focus().focused().cloned();
+            let keyboard = ctx.services.keyboard();
+            keyboard.key_input(ctx.events, ctx.vars, args, focused);
+        } else if let Some(args) = RawModifiersChangedEvent.update(args) {
+            let keyboard = ctx.services.keyboard();
+            keyboard.set_modifiers(ctx.events, ctx.vars, args.modifiers);
+        } else if let Some(args) = RawCharInputEvent.update(args) {
+            let focused = ctx.services.focus().focused().cloned();
+            if let Some(target) = focused {
+                if target.window_id() == args.window_id {
+                    CharInputEvent.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));
                 }
             }
         }
@@ -277,76 +191,142 @@ impl AppExtension for KeyboardManager {
 #[derive(Service, Default)]
 pub struct Keyboard {
     modifiers: ModifiersState,
-    last_key_down: Option<(Option<DeviceId>, ScanCode)>,
+    modifiers_var: RcVar<ModifiersState>,
+
+    codes: Vec<ScanCode>,
+    codes_var: RcVar<Vec<ScanCode>>,
+
+    keys: Vec<Key>,
+    keys_var: RcVar<Vec<Key>>,
+
+    last_key_down: Option<(DeviceId, ScanCode)>,
 }
 impl Keyboard {
-    /// Process a software keyboard input.
-    #[inline]
-    pub fn input(&mut self, key: Key, state: ElementState, target: WidgetPath, events: &mut Events) {
-        self.do_input(None, key as ScanCode, Some(key), state, target, events);
-    }
+    fn set_modifiers(&mut self, events: &mut Events, vars: &Vars, modifiers: ModifiersState) {
+        if self.modifiers_var.set_ne(vars, modifiers) {
+            let prev_modifiers = self.modifiers;
+            self.modifiers = modifiers;
 
-    /// Process a external keyboard input.
-    #[inline]
-    pub fn device_input(
-        &mut self,
-        device_id: DeviceId,
-        scan_code: ScanCode,
-        key: Option<Key>,
-        state: ElementState,
-        target: WidgetPath,
-        events: &mut Events,
-    ) {
-        self.do_input(Some(device_id), scan_code, key, state, target, events);
-    }
-
-    /// Set the keyboard modifiers state.
-    pub fn set_modifiers(&mut self, modifiers: ModifiersState, target: WidgetPath, events: &mut Events) {
-        if self.modifiers != modifiers {
-            let prev_modifiers = std::mem::replace(&mut self.modifiers, modifiers);
-            let args = ModifiersChangedArgs::now(prev_modifiers, modifiers, target);
-            ModifiersChangedEvent.notify(events, args);
+            ModifiersChangedEvent.notify(events, ModifiersChangedArgs::now(prev_modifiers, modifiers));
         }
     }
 
-    /// Character input.
-    pub fn char_input(&mut self, character: char, target: WidgetPath, events: &mut Events) {
-        let args = CharInputArgs::now(target.window_id(), character, target);
-        CharInputEvent.notify(events, args);
+    fn key_input(&mut self, events: &mut Events, vars: &Vars, args: &RawKeyInputArgs, focused: Option<WidgetPath>) {
+        let mut repeat = false;
+
+        // update state and vars
+        match args.state {
+            KeyState::Pressed => {
+                repeat = self
+                    .last_key_down
+                    .map(|(d, s)| args.device_id == d && args.scan_code == s)
+                    .unwrap_or_default();
+                if !repeat {
+                    self.last_key_down = Some((args.device_id, args.scan_code));
+                }
+
+                if !self.codes.contains(&args.scan_code) {
+                    self.codes.push(args.scan_code);
+                    self.codes_var.set(vars, self.codes.clone());
+                }
+
+                if let Some(key) = args.key {
+                    if !self.keys.contains(&key) {
+                        self.keys.push(key);
+                        self.keys_var.set(vars, self.keys.clone());
+                    }
+                }
+            }
+            KeyState::Released => {
+                self.last_key_down = None;
+
+                if let Some(i) = self.codes.iter().position(|&c| c == args.scan_code) {
+                    self.codes.swap_remove(i);
+                    self.codes_var.set(vars, self.codes.clone());
+                }
+
+                if let Some(key) = args.key {
+                    if let Some(i) = self.keys.iter().position(|&c| c == key) {
+                        self.keys.swap_remove(i);
+                        self.keys_var.set(vars, self.keys.clone());
+                    }
+                }
+            }
+        }
+
+        // notify events
+        if let Some(target) = focused {
+            if target.window_id() == args.window_id {
+                let args = KeyInputArgs::now(
+                    args.window_id,
+                    args.device_id,
+                    args.scan_code,
+                    args.state,
+                    args.key,
+                    self.modifiers,
+                    repeat,
+                    target,
+                );
+                KeyInputEvent.notify(events, args.clone());
+
+                match args.state {
+                    KeyState::Pressed => KeyDownEvent.notify(events, args),
+                    KeyState::Released => KeyUpEvent.notify(events, args),
+                }
+            }
+        }
     }
 
-    /// Current modifiers pressed.
+    /// Returns the currently pressed modifier keys.
     #[inline]
     pub fn modifiers(&self) -> ModifiersState {
         self.modifiers
     }
 
-    fn do_input(
-        &mut self,
-        device_id: Option<DeviceId>,
-        scan_code: ScanCode,
-        key: Option<Key>,
-        state: ElementState,
-        target: WidgetPath,
-        events: &mut Events,
-    ) {
-        let mut repeat = false;
-        if state == ElementState::Pressed {
-            repeat = self.last_key_down == Some((device_id, scan_code));
-            if !repeat {
-                self.last_key_down = Some((device_id, scan_code));
-            }
-        } else {
-            self.last_key_down = None;
-        }
+    /// Returns a read-only variable that updates when the [`modifiers`](Self::modifiers) change.
+    #[inline]
+    pub fn modifiers_var(&self) -> ReadOnlyRcVar<ModifiersState> {
+        self.modifiers_var.clone().into_read_only()
+    }
 
-        let args = KeyInputArgs::now(target.window_id(), device_id, scan_code, state, key, self.modifiers, repeat, target);
+    /// Returns the [`ScanCode`] of the keys currently pressed.
+    #[inline]
+    pub fn codes(&self) -> &[ScanCode] {
+        &self.codes
+    }
 
-        KeyInputEvent.notify(events, args.clone());
+    /// Returns a read-only variable that updates when the [`codes`](Self::codes) change.
+    #[inline]
+    pub fn codes_var(&self) -> ReadOnlyRcVar<Vec<ScanCode>> {
+        self.codes_var.clone().into_read_only()
+    }
 
-        match args.state {
-            ElementState::Pressed => KeyDownEvent.notify(events, args),
-            ElementState::Released => KeyUpEvent.notify(events, args),
+    /// Returns the [`Key`] identifier of the keys currently pressed.
+    #[inline]
+    pub fn keys(&self) -> &[Key] {
+        &self.keys
+    }
+
+    /// Returns a read-only variable that updates when the [`keys`](Self::keys) change.
+    #[inline]
+    pub fn keys_var(&self) -> ReadOnlyRcVar<Vec<Key>> {
+        self.keys_var.clone().into_read_only()
+    }
+}
+
+/// State a keyboard [`Key`] has entered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum KeyState {
+    /// The key was pressed.
+    Pressed,
+    /// The key was released.
+    Released,
+}
+impl From<glutin::event::ElementState> for KeyState {
+    fn from(s: glutin::event::ElementState) -> Self {
+        match s {
+            glutin::event::ElementState::Pressed => KeyState::Pressed,
+            glutin::event::ElementState::Released => KeyState::Released,
         }
     }
 }
@@ -774,10 +754,12 @@ impl From<Key> for VKey {
     }
 }
 
+// TODO refactor this.
+
 /// Extension trait that adds keyboard simulation methods to [`HeadlessApp`].
 pub trait HeadlessAppKeyboardExt {
     /// Does a keyboard input event.
-    fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: ElementState);
+    fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState);
 
     /// Does a keyboard modifiers changed event.
     fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState);
@@ -789,13 +771,16 @@ pub trait HeadlessAppKeyboardExt {
     fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, key: Key);
 }
 impl HeadlessAppKeyboardExt for HeadlessApp {
-    fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: ElementState) {
+    fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState) {
         #[allow(deprecated)]
-        let raw_event = WindowEvent::KeyboardInput {
-            device_id: unsafe { DeviceId::dummy() },
+        let raw_event = glutin::event::WindowEvent::KeyboardInput {
+            device_id: unsafe { glutin::event::DeviceId::dummy() },
             input: KeyboardInput {
                 scancode: 0,
-                state,
+                state: match state {
+                    KeyState::Pressed => glutin::event::ElementState::Pressed,
+                    KeyState::Released => glutin::event::ElementState::Released,
+                },
                 virtual_keycode: Some(key.into()),
 
                 // what can we
@@ -808,13 +793,13 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
     }
 
     fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState) {
-        let raw_event = WindowEvent::ModifiersChanged(modifiers);
+        let raw_event = glutin::event::WindowEvent::ModifiersChanged(modifiers);
         self.window_event(window_id, &raw_event);
     }
 
     fn press_key(&mut self, window_id: WindowId, key: Key) {
-        self.on_keyboard_input(window_id, key, ElementState::Pressed);
-        self.on_keyboard_input(window_id, key, ElementState::Released);
+        self.on_keyboard_input(window_id, key, KeyState::Pressed);
+        self.on_keyboard_input(window_id, key, KeyState::Released);
         self.update(false);
     }
 
@@ -823,40 +808,40 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
             self.press_key(window_id, key);
         } else {
             if modifiers.logo() {
-                self.on_keyboard_input(window_id, Key::LLogo, ElementState::Pressed);
+                self.on_keyboard_input(window_id, Key::LLogo, KeyState::Pressed);
             }
             if modifiers.ctrl() {
-                self.on_keyboard_input(window_id, Key::LCtrl, ElementState::Pressed);
+                self.on_keyboard_input(window_id, Key::LCtrl, KeyState::Pressed);
             }
             if modifiers.shift() {
-                self.on_keyboard_input(window_id, Key::LShift, ElementState::Pressed);
+                self.on_keyboard_input(window_id, Key::LShift, KeyState::Pressed);
             }
             if modifiers.alt() {
-                self.on_keyboard_input(window_id, Key::LAlt, ElementState::Pressed);
+                self.on_keyboard_input(window_id, Key::LAlt, KeyState::Pressed);
             }
             self.on_modifiers_changed(window_id, modifiers);
 
             // pressed the modifiers.
             self.update(false);
 
-            self.on_keyboard_input(window_id, key, ElementState::Pressed);
-            self.on_keyboard_input(window_id, key, ElementState::Released);
+            self.on_keyboard_input(window_id, key, KeyState::Pressed);
+            self.on_keyboard_input(window_id, key, KeyState::Released);
 
             // pressed the key.
             self.update(false);
 
             self.on_modifiers_changed(window_id, ModifiersState::default());
             if modifiers.logo() {
-                self.on_keyboard_input(window_id, Key::LLogo, ElementState::Released);
+                self.on_keyboard_input(window_id, Key::LLogo, KeyState::Released);
             }
             if modifiers.ctrl() {
-                self.on_keyboard_input(window_id, Key::LCtrl, ElementState::Released);
+                self.on_keyboard_input(window_id, Key::LCtrl, KeyState::Released);
             }
             if modifiers.shift() {
-                self.on_keyboard_input(window_id, Key::LShift, ElementState::Released);
+                self.on_keyboard_input(window_id, Key::LShift, KeyState::Released);
             }
             if modifiers.alt() {
-                self.on_keyboard_input(window_id, Key::LAlt, ElementState::Released);
+                self.on_keyboard_input(window_id, Key::LAlt, KeyState::Released);
             }
 
             // released the modifiers.

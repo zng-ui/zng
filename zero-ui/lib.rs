@@ -63,6 +63,7 @@
 //!     content = text("Click Me!");
 //!     font_size = 28;
 //! }
+//! # ;
 //! ```
 //!
 //! The example demonstrates the [`button!`] widget, you may thing the [`on_click`] and [`font_size`] are implemented in the widget,
@@ -114,7 +115,7 @@
 //!
 //! #[widget($crate::red_button)]
 //! mod red_button {
-//      use super::*;
+//!      use super::*;
 //!     inherit!(zero_ui::widgets::button);
 //!     
 //!     properties! {
@@ -262,10 +263,10 @@
 //! let moving_btn = button! {
 //!     margin = offset.clone();
 //!     on_click = hn!(|ctx, _| {
-//!         offset.modify(ctx, |m|n.left += 50.0);
+//!         offset.modify(ctx, |m|m.left += 50.0);
 //!     });
 //!     content = text("Click to Move!")
-//! }
+//! };
 //! ```
 //!
 //! The button moves to the right when clicked, the `margin` starts at `10` and every click the variable is modified, this causes
@@ -312,7 +313,7 @@
 //!         // 3 methods doing the same thing.
 //!         flag.set(ctx.vars, new_value);
 //!         flag.set_ne(ctx.vars, new_value);
-//!         flag.modify(ctx.vars, |f| *f = new_value);
+//!         flag.modify(ctx.vars, |f| **f = new_value);
 //!     });
 //! };
 //! ```
@@ -367,7 +368,7 @@
 //!         content = button! {
 //!             content = text(count_text);
 //!             on_click = hn!(|ctx, _| {
-//!                 count.modify(ctx, |c| *c += 1);
+//!                 count.modify(ctx, |c| **c += 1);
 //!             });
 //!         }
 //!     }
@@ -388,7 +389,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! #[derive(Clone, Copy, Debug)]
+//! #[derive(Clone, Debug)]
 //! enum Status {
 //!     Idle,
 //!     Info(Text)
@@ -1397,7 +1398,7 @@ pub mod widgets;
 pub mod prelude {
     #[doc(no_inline)]
     pub use crate::core::{
-        app::{App, ElementState},
+        app::App,
         async_clone_move,
         border::{BorderSides, BorderStyle, LineOrientation},
         clone_move,
@@ -1412,8 +1413,8 @@ pub mod prelude {
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         handler::*,
-        keyboard::{CharInputArgs, Key, KeyInputArgs, ModifiersChangedArgs, ModifiersState},
-        mouse::{MouseButton, MouseMoveArgs},
+        keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
+        mouse::{ButtonState, MouseButton, MouseMoveArgs},
         node_vec, nodes,
         render::WidgetPath,
         service::Services,
@@ -1499,8 +1500,6 @@ pub mod prelude {
     /// ```
     pub mod new_property {
         #[doc(no_inline)]
-        pub use crate::core::app::ElementState;
-        #[doc(no_inline)]
         pub use crate::core::border::*;
         #[doc(no_inline)]
         pub use crate::core::color::{self, *};
@@ -1512,6 +1511,10 @@ pub mod prelude {
         pub use crate::core::gesture::*;
         #[doc(no_inline)]
         pub use crate::core::handler::*;
+        #[doc(no_inline)]
+        pub use crate::core::keyboard::KeyState;
+        #[doc(no_inline)]
+        pub use crate::core::mouse::ButtonState;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]

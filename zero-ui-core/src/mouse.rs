@@ -4,17 +4,15 @@
 
 use super::units::{LayoutPoint, LayoutRect, LayoutSize};
 use super::WidgetId;
-use crate::app::*;
+use crate::app::{raw_events::*, *};
 use crate::context::*;
 use crate::event::*;
 use crate::keyboard::ModifiersState;
 use crate::render::*;
 use crate::service::*;
-use crate::window::{WindowEvent, WindowId, Windows, WindowsExt};
+use crate::window::{WindowId, Windows, WindowsExt};
 use std::{fmt, time::*};
 use std::{mem, num::NonZeroU8};
-
-type WPos = glutin::dpi::PhysicalPosition<f64>;
 
 pub use glutin::event::MouseButton;
 
@@ -70,7 +68,7 @@ event_args! {
         pub modifiers: ModifiersState,
 
         /// The state the [`button`](MouseInputArgs::button) was changed to.
-        pub state: ElementState,
+        pub state: ButtonState,
 
         /// Hit-test result for the mouse point in the window.
         pub hits: FrameHitInfo,
@@ -407,9 +405,25 @@ impl Default for MouseManager {
         }
     }
 }
+/// State a mouse button has entered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ButtonState {
+    /// The button was pressed.
+    Pressed,
+    /// The button was released.
+    Released,
+}
+impl From<glutin::event::ElementState> for ButtonState {
+    fn from(s: glutin::event::ElementState) -> Self {
+        match s {
+            glutin::event::ElementState::Pressed => ButtonState::Pressed,
+            glutin::event::ElementState::Released => ButtonState::Released,
+        }
+    }
+}
 
 impl MouseManager {
-    fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ElementState, button: MouseButton, ctx: &mut AppContext) {
+    fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ButtonState, button: MouseButton, ctx: &mut AppContext) {
         let position = if self.pos_window == Some(window_id) {
             self.pos
         } else {
@@ -427,7 +441,7 @@ impl MouseManager {
             (frame_info.root().path(), position)
         };
 
-        if state == ElementState::Pressed {
+        if state == ButtonState::Pressed {
             self.capture_count += 1;
             if self.capture_count == 1 {
                 mouse.start_window_capture(target.clone(), ctx.events);
@@ -465,7 +479,7 @@ impl MouseManager {
         MouseInputEvent.notify(ctx.events, args.clone());
 
         match state {
-            ElementState::Pressed => {
+            ButtonState::Pressed => {
                 // on_mouse_down
                 MouseDownEvent.notify(ctx.events, args);
 
@@ -500,7 +514,7 @@ impl MouseManager {
                 }
                 self.last_pressed = now;
             }
-            ElementState::Released => {
+            ButtonState::Released => {
                 // on_mouse_up
                 MouseUpEvent.notify(ctx.events, args);
 
@@ -534,7 +548,7 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, position: WPos, ctx: &mut AppContext) {
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, position: (i32, i32), ctx: &mut AppContext) {
         let mut moved = Some(window_id) != self.pos_window;
 
         if moved {
@@ -546,7 +560,7 @@ impl MouseManager {
             self.pos_dpi = windows.window(window_id).unwrap().scale_factor();
         }
 
-        let pos = LayoutPoint::new(position.x as f32 / self.pos_dpi, position.y as f32 / self.pos_dpi);
+        let pos = LayoutPoint::new(position.0 as f32 / self.pos_dpi, position.1 as f32 / self.pos_dpi);
 
         moved |= pos != self.pos;
 
@@ -705,17 +719,21 @@ impl AppExtension for MouseManager {
         r.services.register(Mouse::new(r.updates.sender()));
     }
 
-    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        match *event {
-            WindowEvent::CursorMoved { device_id, position, .. } => self.on_cursor_moved(window_id, device_id, position, ctx),
-            WindowEvent::MouseInput {
-                state, device_id, button, ..
-            } => self.on_mouse_input(window_id, device_id, state, button, ctx),
-            WindowEvent::ModifiersChanged(m) => self.modifiers = m,
-            WindowEvent::CursorLeft { device_id } => self.on_cursor_left(window_id, device_id, ctx),
-            WindowEvent::Focused(false) => self.on_window_blur(window_id, ctx),
-            WindowEvent::Destroyed => self.on_window_closed(window_id, ctx),
-            _ => {}
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawCursorMovedEvent.update(args) {
+            self.on_cursor_moved(args.window_id, args.device_id, args.position, ctx);
+        } else if let Some(args) = RawMouseInputEvent.update(args) {
+            self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
+        } else if let Some(args) = RawModifiersChangedEvent.update(args) {
+            self.modifiers = args.modifiers;
+        } else if let Some(args) = RawCursorLeftEvent.update(args) {
+            self.on_cursor_left(args.window_id, args.device_id, ctx);
+        } else if let Some(args) = RawWindowFocusEvent.update(args) {
+            if !args.focused {
+                self.on_window_blur(args.window_id, ctx);
+            }
+        } else if let Some(args) = RawWindowClosedEvent.update(args) {
+            self.on_window_closed(args.window_id, ctx);
         }
     }
 

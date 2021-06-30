@@ -502,3 +502,6 @@ impl<T: VarValue> ResponderVar<T> {
         self.clone().into_read_only()
     }
 }
+
+#[doc(hidden)]
+pub type ReadOnlyRcVar<T> = ReadOnlyVar<T, RcVar<T>>;

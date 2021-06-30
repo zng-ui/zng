@@ -1,7 +1,7 @@
 //! Aggregate events.
 
 use super::{service::Service, units::LayoutPoint, WidgetId};
-use crate::app::*;
+use crate::app::{raw_events::RawWindowFocusEvent, *};
 use crate::command::Command;
 use crate::context::*;
 use crate::event::*;
@@ -10,7 +10,7 @@ use crate::keyboard::*;
 use crate::mouse::*;
 use crate::render::*;
 use crate::var::RcVar;
-use crate::window::{WindowEvent, WindowId, Windows};
+use crate::window::{WindowId, Windows};
 use std::num::NonZeroU32;
 use std::{
     convert::{TryFrom, TryInto},
@@ -559,7 +559,7 @@ impl KeyInputArgs {
     /// See also [`ShortcutArgs`].
     #[inline]
     pub fn gesture(&self) -> Option<KeyGesture> {
-        if self.state == ElementState::Released {
+        if self.state == KeyState::Released {
             return None;
         }
 
@@ -718,9 +718,11 @@ impl AppExtension for GestureManager {
         r.services.register(Gestures::new());
     }
 
-    fn window_event(&mut self, _: &mut AppContext, _: WindowId, event: &WindowEvent) {
-        if let WindowEvent::Focused(false) = event {
-            self.pressed_modifier = None;
+    fn event_preview<EV: EventUpdateArgs>(&mut self, _: &mut AppContext, args: &EV) {
+        if let Some(args) = RawWindowFocusEvent.update(args) {
+            if !args.focused {
+                self.pressed_modifier = None;
+            }
         }
     }
 
@@ -735,7 +737,7 @@ impl AppExtension for GestureManager {
             if !args.stop_propagation_requested() {
                 if let Some(key) = args.key {
                     match args.state {
-                        ElementState::Pressed => {
+                        KeyState::Pressed => {
                             if let Ok(gesture_key) = GestureKey::try_from(key) {
                                 let s_args = ShortcutArgs::new(
                                     args.timestamp,
@@ -755,7 +757,7 @@ impl AppExtension for GestureManager {
                                 self.pressed_modifier = None;
                             }
                         }
-                        ElementState::Released => {
+                        KeyState::Released => {
                             if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                                 if Some(mod_gesture) == self.pressed_modifier.take() && args.modifiers.is_empty() {
                                     let s_args = ShortcutArgs::new(

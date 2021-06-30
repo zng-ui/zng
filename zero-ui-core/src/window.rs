@@ -1,6 +1,6 @@
 //! App windows manager.
 use crate::{
-    app::{self, AppEventSender, AppExtended, AppExtension, AppProcessExt, ShutdownRequestedArgs, WindowTarget},
+    app::{self, raw_events::*, AppEventSender, AppExtended, AppExtension, AppProcessExt, ShutdownRequestedArgs, WindowTarget},
     context::*,
     event::*,
     profiler::profile_scope,
@@ -22,7 +22,7 @@ use std::{
 };
 use webrender::api::{Epoch, PipelineId, RenderApi};
 
-pub use glutin::{event::WindowEvent, window::CursorIcon};
+pub use glutin::window::{CursorIcon, Theme as WindowTheme};
 
 unique_id! {
     /// Unique identifier of a headless window.
@@ -203,16 +203,16 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
 
         if let Some(focused) = focused {
             // blur_window
-            let event = WindowEvent::Focused(false);
+            let event = glutin::event::WindowEvent::Focused(false);
             self.window_event(focused, &event);
         }
-        let event = WindowEvent::Focused(true);
+        let event = glutin::event::WindowEvent::Focused(true);
         self.window_event(window_id, &event);
         self.update(false);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
-        let event = WindowEvent::Focused(false);
+        let event = glutin::event::WindowEvent::Focused(false);
         self.window_event(window_id, &event);
         self.update(false);
     }
@@ -249,7 +249,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
-        let event = WindowEvent::CloseRequested;
+        let event = glutin::event::WindowEvent::CloseRequested;
         self.window_event(window_id, &event);
 
         let mut requested = false;
@@ -456,82 +456,69 @@ impl AppExtension for WindowManager {
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
-    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        match event {
-            WindowEvent::Focused(focused) => {
-                if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == window_id) {
-                    window.is_focused = *focused;
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawWindowFocusEvent.update(args) {
+            if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == args.window_id) {
+                window.is_focused = args.focused;
 
-                    let args = WindowIsFocusedArgs::now(window_id, window.is_focused, false);
-                    self.notify_focus(args, ctx.events);
+                let args = WindowIsFocusedArgs::now(args.window_id, window.is_focused, false);
+                self.notify_focus(args, ctx.events);
+            }
+        } else if let Some(args) = RawWindowResizedEvent.update(args) {
+            if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == args.window_id) {
+                let new_size = window.size();
+
+                // set the window size variable.
+                if window.vars.size().set_ne(ctx.vars, new_size) {
+                    // is new size:
+                    ctx.updates.layout();
+                    window.expect_layout_update();
+                    window.resize_renderer();
+
+                    // raise window_resize
+                    WindowResizeEvent.notify(ctx.events, WindowResizeArgs::now(args.window_id, new_size));
                 }
             }
-            WindowEvent::Resized(_) => {
-                if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == window_id) {
-                    let new_size = window.size();
+        } else if let Some(args) = RawWindowMovedEvent.update(args) {
+            if let Some(window) = ctx.services.windows().windows.iter().find(|w| w.id == args.window_id) {
+                let new_position = window.position();
 
-                    // set the window size variable.
-                    if window.vars.size().set_ne(ctx.vars, new_size) {
-                        // is new size:
-                        ctx.updates.layout();
-                        window.expect_layout_update();
-                        window.resize_renderer();
+                // TODO check if in new monitor.
 
-                        // raise window_resize
-                        WindowResizeEvent.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
+                // set the window position variable if it is not read-only.
+                window.vars.position().set_ne(ctx.vars, new_position);
+
+                // raise window_move
+                WindowMoveEvent.notify(ctx.events, WindowMoveArgs::now(args.window_id, new_position));
+            }
+        } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
+            if let Some(win) = ctx.services.windows().windows.iter().find(|w| w.id == args.window_id) {
+                *win.close_response.borrow_mut() = Some(response_var().0);
+                ctx.updates.update();
+            }
+        } else if let Some(args) = RawWindowScaleFactorChangedEvent.update(args) {
+            if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == args.window_id) {
+                let scale_factor = args.scale_factor as f32;
+                let new_size = LayoutSize::new(args.size.0 as f32 / scale_factor, args.size.1 as f32 / scale_factor);
+
+                // winit has not set the new_inner_size yet, so
+                // we can determinate if the system only changed the size
+                // to visually match the new scale_factor or if the window was
+                // really resized.
+                if window.vars.size().copy(ctx.vars) == new_size.into() {
+                    // if it only changed to visually match, the WindowEvent::Resized
+                    // will not cause a re-layout, so we need to do it here, but window.resize_renderer()
+                    // calls window.size(), so we need to set the new_inner_size before winit.
+                    if let Some(w) = &window.window {
+                        w.set_inner_size(glutin::dpi::PhysicalSize::new(args.size.0, args.size.1));
                     }
+                    ctx.updates.layout();
+                    window.expect_layout_update();
+                    window.resize_renderer();
                 }
+
+                WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(args.window_id, scale_factor, new_size));
             }
-            WindowEvent::Moved(_) => {
-                if let Some(window) = ctx.services.windows().windows.iter().find(|w| w.id == window_id) {
-                    let new_position = window.position();
-
-                    // TODO check if in new monitor.
-
-                    // set the window position variable if it is not read-only.
-                    window.vars.position().set_ne(ctx.vars, new_position);
-
-                    // raise window_move
-                    WindowMoveEvent.notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
-                }
-            }
-            WindowEvent::CloseRequested => {
-                if let Some(win) = ctx.services.windows().windows.iter().find(|w| w.id == window_id) {
-                    *win.close_response.borrow_mut() = Some(response_var().0);
-                    ctx.updates.update();
-                }
-            }
-            WindowEvent::ScaleFactorChanged {
-                scale_factor,
-                new_inner_size,
-            } => {
-                if let Some(window) = ctx.services.windows().windows.iter_mut().find(|w| w.id == window_id) {
-                    let scale_factor = *scale_factor as f32;
-                    let new_size = LayoutSize::new(
-                        new_inner_size.width as f32 / scale_factor,
-                        new_inner_size.height as f32 / scale_factor,
-                    );
-
-                    // winit has not set the new_inner_size yet, so
-                    // we can determinate if the system only changed the size
-                    // to visually match the new scale_factor or if the window was
-                    // really resized.
-                    if window.vars.size().copy(ctx.vars) == new_size.into() {
-                        // if it only changed to visually match, the WindowEvent::Resized
-                        // will not cause a re-layout, so we need to do it here, but window.resize_renderer()
-                        // calls window.size(), so we need to set the new_inner_size before winit.
-                        if let Some(w) = &window.window {
-                            w.set_inner_size(**new_inner_size);
-                        }
-                        ctx.updates.layout();
-                        window.expect_layout_update();
-                        window.resize_renderer();
-                    }
-
-                    WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(window_id, scale_factor, new_size));
-                }
-            }
-            _ => {}
         }
     }
 
@@ -2587,13 +2574,13 @@ impl OpenWindow {
 
     /// Sets a window subclass that calls a raw event handler.
     ///
-    /// Use this to receive Windows OS events not covered in [`WindowEvent`].
+    /// Use this to receive Windows OS events not covered in [`raw_events`].
     ///
     /// Returns if adding a subclass handler succeeded.
     ///
     /// # Handler
     ///
-    /// The handler inputs are the first 4 arguments of a [`SUBCLASSPROC`](https://docs.microsoft.com/en-us/windows/win32/api/commctrl/nc-commctrl-subclassproc).
+    /// The handler inputs are the first 4 arguments of a [`SUBCLASSPROC`].
     /// You can use closure capture to include extra data.
     ///
     /// The handler must return `Some(LRESULT)` to stop the propagation of a specific message.
@@ -2603,6 +2590,9 @@ impl OpenWindow {
     /// # Panics
     ///
     /// Panics in headless mode.
+    ///
+    /// [`raw_events`]: crate::app::raw_events
+    /// [`SUBCLASSPROC`]: https://docs.microsoft.com/en-us/windows/win32/api/commctrl/nc-commctrl-subclassproc
     pub fn set_raw_windows_event_handler<
         H: FnMut(
                 winapi::shared::windef::HWND,

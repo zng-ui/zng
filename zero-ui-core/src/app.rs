@@ -1,7 +1,7 @@
 //! App startup and app extension API.
 
 use crate::context::*;
-use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdateArgs, Events};
+use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::profiler::*;
 use crate::timer::Timers;
 use crate::var::{response_var, ResponderVar, ResponseVar};
@@ -12,9 +12,9 @@ use crate::{
     mouse::MouseManager,
     service::Service,
     text::FontManager,
-    window::{WindowEvent, WindowId, WindowManager},
+    window::{WindowId, WindowManager},
 };
-use glutin::event::Event as GEvent;
+use glutin::event::{DeviceEvent, Event as RawEvent, WindowEvent};
 pub use glutin::event_loop::ControlFlow;
 use std::future::Future;
 use std::task::{Wake, Waker};
@@ -25,8 +25,6 @@ use std::{
     sync::{Arc, Mutex},
     time::Instant,
 };
-
-pub use glutin::event::{DeviceEvent, DeviceId, ElementState};
 
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///
@@ -133,28 +131,18 @@ pub trait AppExtension: 'static {
         let _ = ctx;
     }
 
-    /// If the application should listen to device events.
+    /// If the application should notify raw device events.
+    ///
+    /// Device events are raw events not targeting any window, like a mouse move on any part of the screen.
+    /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
+    /// this is `false` you still get the mouse move over windows of the app.
     ///
     /// This is called zero or one times after [`init`](Self::init).
     ///
-    /// This is `false` by default.
+    /// Returns `false` by default.
     #[inline]
     fn enable_device_events(&self) -> bool {
         false
-    }
-
-    /// Called when the OS sends a global device event.
-    ///
-    /// This is only called is [`enable_device_events`](Self::enable_device_events) is `true`.
-    #[inline]
-    fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
-        let _ = (ctx, device_id, event);
-    }
-
-    /// Called when the OS sends an event to a window.
-    #[inline]
-    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        let _ = (ctx, window_id, event);
     }
 
     /// Called just before [`update_ui`](Self::update_ui).
@@ -262,8 +250,6 @@ pub trait AppExtensionBoxed: 'static {
     fn is_or_contain_boxed(&self, app_extension_id: TypeId) -> bool;
     fn init_boxed(&mut self, ctx: &mut AppContext);
     fn enable_device_events_boxed(&self) -> bool;
-    fn device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent);
-    fn window_event_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent);
     fn update_preview_boxed(&mut self, ctx: &mut AppContext);
     fn update_ui_boxed(&mut self, ctx: &mut AppContext);
     fn update_boxed(&mut self, ctx: &mut AppContext);
@@ -291,14 +277,6 @@ impl<T: AppExtension> AppExtensionBoxed for T {
 
     fn enable_device_events_boxed(&self) -> bool {
         self.enable_device_events()
-    }
-
-    fn device_event_boxed(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
-        self.device_event(ctx, device_id, event);
-    }
-
-    fn window_event_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        self.window_event(ctx, window_id, event);
     }
 
     fn update_preview_boxed(&mut self, ctx: &mut AppContext) {
@@ -360,14 +338,6 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
 
     fn enable_device_events(&self) -> bool {
         self.as_ref().enable_device_events_boxed()
-    }
-
-    fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
-        self.as_mut().device_event_boxed(ctx, device_id, event);
-    }
-
-    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        self.as_mut().window_event_boxed(ctx, window_id, event);
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
@@ -584,6 +554,7 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     /// Includes an application extension.
     ///
     /// # Panics
+    ///
     /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
     /// extension type.
     #[inline]
@@ -597,6 +568,21 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
 
         AppExtended { extensions }
     }
+
+    /// If the application should notify raw device events.
+    ///
+    /// Device events are raw events not targeting any window, like a mouse move on any part of the screen.
+    /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
+    /// this is `false` you still get the mouse move over windows of the app.
+    pub fn enable_device_events(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        struct EnableDeviceEvents;
+        impl AppExtension for EnableDeviceEvents {
+            fn enable_device_events(&self) -> bool {
+                true
+            }
+        }
+        self.extend(EnableDeviceEvents)
+    }
 }
 
 #[cfg(not(debug_assertions))]
@@ -604,6 +590,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Includes an application extension.
     ///
     /// # Panics
+    ///
     /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
     /// extension type.
     #[inline]
@@ -614,6 +601,21 @@ impl<E: AppExtension> AppExtended<E> {
         AppExtended {
             extensions: (self.extensions, extension),
         }
+    }
+
+    /// If the application should notify raw device events.
+    ///
+    /// Device events are raw events not targeting any window, like a mouse move on any part of the screen.
+    /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
+    /// this is `false` you still get the mouse move over windows of the app.
+    pub fn enable_device_events(self) -> AppExtended<impl AppExtension> {
+        struct EnableDeviceEvents;
+        impl AppExtension for EnableDeviceEvents {
+            fn enable_device_events(&self) -> bool {
+                true
+            }
+        }
+        self.extend(EnableDeviceEvents)
     }
 }
 
@@ -739,7 +741,7 @@ impl<E: AppExtension> RunningApp<E> {
         event_loop.run(move |event, window_target, control_flow| {
             let window_target = WindowTarget::from_winit(window_target);
 
-            if let GEvent::LoopDestroyed = &event {
+            if let RawEvent::LoopDestroyed = &event {
                 app.take().unwrap().shutdown(window_target);
                 return;
             }
@@ -747,22 +749,22 @@ impl<E: AppExtension> RunningApp<E> {
             let app = app.as_mut().expect("app already shutdown");
 
             match event {
-                GEvent::NewEvents(c) => {
+                RawEvent::NewEvents(c) => {
                     if let glutin::event::StartCause::ResumeTimeReached { .. } = c {
                         app.wait_until_elapsed();
                     }
                 }
-                GEvent::WindowEvent { window_id, event } => app.window_event(window_target, window_id.into(), &event),
-                GEvent::DeviceEvent { device_id, event } => app.device_event(window_target, device_id, &event),
-                GEvent::UserEvent(app_event) => app.app_event(window_target, app_event),
-                GEvent::Suspended => app.suspended(window_target),
-                GEvent::Resumed => app.resumed(window_target),
-                GEvent::MainEventsCleared => {
+                RawEvent::WindowEvent { window_id, event } => app.window_event(window_target, window_id.into(), &event),
+                RawEvent::DeviceEvent { device_id, event } => app.device_event(window_target, device_id.into(), &event),
+                RawEvent::UserEvent(app_event) => app.app_event(window_target, app_event),
+                RawEvent::Suspended => app.suspended(window_target),
+                RawEvent::Resumed => app.resumed(window_target),
+                RawEvent::MainEventsCleared => {
                     *control_flow = app.update(window_target, &mut ());
                 }
-                GEvent::RedrawRequested(window_id) => app.redraw_requested(window_target, window_id.into()),
-                GEvent::RedrawEventsCleared => {}
-                GEvent::LoopDestroyed => unreachable!(),
+                RawEvent::RedrawRequested(window_id) => app.redraw_requested(window_target, window_id.into()),
+                RawEvent::RedrawEventsCleared => {}
+                RawEvent::LoopDestroyed => unreachable!(),
             }
         })
     }
@@ -778,18 +780,169 @@ impl<E: AppExtension> RunningApp<E> {
         self.maybe_has_updates = true;
     }
 
+    /// Notify an event directly to the app extensions.
+    pub fn notify_event<Ev: crate::event::Event>(&mut self, window_target: WindowTarget, _event: Ev, args: Ev::Args) {
+        let update = EventUpdate::<Ev>(args);
+        let mut ctx = self.owned_ctx.borrow(window_target);
+        self.extensions.event_preview(&mut ctx, &update);
+        self.extensions.event_ui(&mut ctx, &update);
+        self.extensions.event(&mut ctx, &update);
+        self.maybe_has_updates = true;
+    }
+
     /// Process window event.
     pub fn window_event(&mut self, window_target: WindowTarget, window_id: WindowId, event: &WindowEvent) {
-        let mut ctx = self.owned_ctx.borrow(window_target);
-        self.extensions.window_event(&mut ctx, window_id, event);
+        use raw_events::*;
+
+        match event {
+            WindowEvent::Resized(size) => {
+                let args = RawWindowResizedArgs::now(window_id, (size.width, size.height));
+                self.notify_event(window_target, RawWindowResizedEvent, args);
+            }
+            WindowEvent::Moved(pos) => {
+                let args = RawWindowMovedArgs::now(window_id, (pos.x, pos.y));
+                self.notify_event(window_target, RawWindowMovedEvent, args);
+            }
+            WindowEvent::CloseRequested => {
+                let args = RawWindowCloseRequestedArgs::now(window_id);
+                self.notify_event(window_target, RawWindowCloseRequestedEvent, args);
+            }
+            WindowEvent::Destroyed => {
+                let args = RawWindowClosedArgs::now(window_id);
+                self.notify_event(window_target, RawWindowClosedEvent, args);
+            }
+            WindowEvent::DroppedFile(file) => {
+                let args = RawDroppedFileArgs::now(window_id, file);
+                self.notify_event(window_target, RawDroppedFileEvent, args);
+            }
+            WindowEvent::HoveredFile(file) => {
+                let args = RawHoveredFileArgs::now(window_id, file);
+                self.notify_event(window_target, RawHoveredFileEvent, args);
+            }
+            WindowEvent::HoveredFileCancelled => {
+                let args = RawHoveredFileCancelledArgs::now(window_id);
+                self.notify_event(window_target, RawHoveredFileCancelledEvent, args);
+            }
+            WindowEvent::ReceivedCharacter(c) => {
+                let args = RawCharInputArgs::now(window_id, *c);
+                self.notify_event(window_target, RawCharInputEvent, args);
+            }
+            WindowEvent::Focused(f) => {
+                let args = RawWindowFocusArgs::now(window_id, *f);
+                self.notify_event(window_target, RawWindowFocusEvent, args);
+            }
+            WindowEvent::KeyboardInput { device_id, input, .. } => {
+                let args = RawKeyInputArgs::now(
+                    window_id,
+                    *device_id,
+                    input.scancode,
+                    input.state,
+                    input.virtual_keycode.map(Into::into),
+                );
+                self.notify_event(window_target, RawKeyInputEvent, args);
+            }
+            WindowEvent::ModifiersChanged(modifiers) => {
+                let args = RawModifiersChangedArgs::now(window_id, *modifiers);
+                self.notify_event(window_target, RawModifiersChangedEvent, args);
+            }
+            WindowEvent::CursorMoved { device_id, position, .. } => {
+                let args = RawCursorMovedArgs::now(window_id, *device_id, (position.x as i32, position.y as i32));
+                self.notify_event(window_target, RawCursorMovedEvent, args);
+            }
+            WindowEvent::CursorEntered { device_id } => {
+                let args = RawCursorArgs::now(window_id, *device_id);
+                self.notify_event(window_target, RawCursorEnteredEvent, args);
+            }
+            WindowEvent::CursorLeft { device_id } => {
+                let args = RawCursorArgs::now(window_id, *device_id);
+                self.notify_event(window_target, RawCursorLeftEvent, args);
+            }
+            WindowEvent::MouseWheel {
+                device_id, delta, phase, ..
+            } => {
+                // TODO
+                let _ = (delta, phase);
+                let args = RawMouseWheelArgs::now(window_id, *device_id);
+                self.notify_event(window_target, RawMouseWheelEvent, args);
+            }
+            WindowEvent::MouseInput {
+                device_id, state, button, ..
+            } => {
+                let args = RawMouseInputArgs::now(window_id, *device_id, *state, *button);
+                self.notify_event(window_target, RawMouseInputEvent, args);
+            }
+            WindowEvent::TouchpadPressure {
+                device_id,
+                pressure,
+                stage,
+            } => {
+                // TODO
+                let _ = (pressure, stage);
+                let args = RawTouchpadPressureArgs::now(window_id, *device_id);
+                self.notify_event(window_target, RawTouchpadPressureEvent, args);
+            }
+            WindowEvent::AxisMotion { device_id, axis, value } => {
+                let args = RawAxisMotionArgs::now(window_id, *device_id, *axis, *value);
+                self.notify_event(window_target, RawAxisMotionEvent, args);
+            }
+            WindowEvent::Touch(t) => {
+                // TODO
+                let args = RawTouchArgs::now(window_id, t.device_id);
+                self.notify_event(window_target, RawTouchEvent, args);
+            }
+            WindowEvent::ScaleFactorChanged {
+                scale_factor,
+                new_inner_size,
+            } => {
+                let args = RawWindowScaleFactorChangedArgs::now(window_id, *scale_factor, (new_inner_size.width, new_inner_size.height));
+                self.notify_event(window_target, RawWindowScaleFactorChangedEvent, args);
+            }
+            WindowEvent::ThemeChanged(t) => {
+                let args = RawWindowThemeChangedArgs::now(window_id, *t);
+                self.notify_event(window_target, RawWindowThemeChangedEvent, args);
+            }
+        }
         self.maybe_has_updates = true;
     }
 
     /// Process device event.
     pub fn device_event(&mut self, window_target: WindowTarget, device_id: DeviceId, event: &DeviceEvent) {
+        use raw_device_events::*;
         if self.device_events {
-            let mut ctx = self.owned_ctx.borrow(window_target);
-            self.extensions.device_event(&mut ctx, device_id, event);
+            match event {
+                DeviceEvent::Added => {
+                    let args = DeviceArgs::now(device_id);
+                    self.notify_event(window_target, DeviceAddedEvent, args);
+                }
+                DeviceEvent::Removed => {
+                    let args = DeviceArgs::now(device_id);
+                    self.notify_event(window_target, DeviceRemovedEvent, args);
+                }
+                DeviceEvent::MouseMotion { delta } => {
+                    let args = MouseMotionArgs::now(device_id, *delta);
+                    self.notify_event(window_target, MouseMotionEvent, args);
+                }
+                DeviceEvent::MouseWheel { delta } => {
+                    let args = MouseWheelArgs::now(device_id, *delta);
+                    self.notify_event(window_target, MouseWheelEvent, args);
+                }
+                DeviceEvent::Motion { axis, value } => {
+                    let args = MotionArgs::now(device_id, *axis, *value);
+                    self.notify_event(window_target, MotionEvent, args);
+                }
+                DeviceEvent::Button { button, state } => {
+                    let args = ButtonArgs::now(device_id, *button, *state);
+                    self.notify_event(window_target, ButtonEvent, args);
+                }
+                DeviceEvent::Key(k) => {
+                    let args = KeyArgs::now(device_id, k.scancode, k.state, k.virtual_keycode.map(Into::into));
+                    self.notify_event(window_target, KeyEvent, args);
+                }
+                DeviceEvent::Text { codepoint } => {
+                    let args = TextArgs::now(device_id, *codepoint);
+                    self.notify_event(window_target, TextEvent, args);
+                }
+            }
             self.maybe_has_updates = true;
         }
     }
@@ -1125,18 +1278,6 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
-        self.0.device_event(ctx, device_id, event);
-        self.1.device_event(ctx, device_id, event);
-    }
-
-    #[inline]
-    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        self.0.window_event(ctx, window_id, event);
-        self.1.window_event(ctx, window_id, event);
-    }
-
-    #[inline]
     fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         self.0.new_frame_ready(ctx, window_id);
         self.1.new_frame_ready(ctx, window_id);
@@ -1222,18 +1363,6 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
 
     fn enable_device_events(&self) -> bool {
         self.iter().any(|e| e.enable_device_events())
-    }
-
-    fn device_event(&mut self, ctx: &mut AppContext, device_id: DeviceId, event: &DeviceEvent) {
-        for ext in self {
-            ext.device_event(ctx, device_id, event);
-        }
-    }
-
-    fn window_event(&mut self, ctx: &mut AppContext, window_id: WindowId, event: &WindowEvent) {
-        for ext in self {
-            ext.window_event(ctx, window_id, event);
-        }
     }
 
     fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
@@ -1632,4 +1761,716 @@ impl log::Log for DebugLogger {
     }
 
     fn flush(&self) {}
+}
+
+unique_id! {
+    /// Unique identifier for a fake event source.
+    ///
+    /// See [`DeviceId`] for more details.
+    pub struct FakeDeviceId;
+}
+
+/// Unique identifier for a device event source from the operating system.
+///
+/// See [`DeviceId`] for more details.
+pub type SystemDeviceId = glutin::event::DeviceId;
+
+/// Unique identifier of a device event source.
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub enum DeviceId {
+    /// The id for a *real* system device, note that this device can be virtual too,
+    /// only it is a virtual device managed by the operating system.
+    System(SystemDeviceId),
+    /// The id for an event source that notifies the [`raw_events`].
+    Fake(FakeDeviceId),
+}
+impl DeviceId {
+    /// New unique [`Fake`](Self::Fake) window id.
+    #[inline]
+    pub fn new_unique() -> Self {
+        DeviceId::Fake(FakeDeviceId::new_unique())
+    }
+}
+impl From<SystemDeviceId> for DeviceId {
+    fn from(id: SystemDeviceId) -> Self {
+        DeviceId::System(id)
+    }
+}
+impl From<FakeDeviceId> for DeviceId {
+    fn from(id: FakeDeviceId) -> Self {
+        DeviceId::Fake(id)
+    }
+}
+impl fmt::Debug for DeviceId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DeviceId::System(s) => {
+                let window_id = format!("{:?}", s);
+                let window_id_raw = window_id.trim_start_matches("DeviceId(").trim_end_matches(')');
+                if f.alternate() {
+                    write!(f, "DeviceId::System({})", window_id_raw)
+                } else {
+                    write!(f, "DeviceId({})", window_id_raw)
+                }
+            }
+            DeviceId::Fake(s) => {
+                if f.alternate() {
+                    write!(f, "DeviceId::Fake({})", s.get())
+                } else {
+                    write!(f, "DeviceId({})", s.get())
+                }
+            }
+        }
+    }
+}
+impl fmt::Display for DeviceId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DeviceId::System(s) => {
+                let window_id = format!("{:?}", s);
+                let window_id_raw = window_id.trim_start_matches("DeviceId(").trim_end_matches(')');
+                write!(f, "DeviceId({})", window_id_raw)
+            }
+            DeviceId::Fake(s) => {
+                write!(f, "DeviceId({})", s.get())
+            }
+        }
+    }
+}
+
+/// Events directly from `winit` targeting the app windows.
+///
+/// These events get processed by [app extensions] to generate the events used in widgets, for example
+/// the [`KeyboardManager`] uses the [`RawKeyInputEvent`] into focus targeted events.
+///
+/// # Virtual Input
+///
+/// You can [`notify`] these events to fake hardware input, please be careful that you mimic the exact sequence a real
+/// hardware would generate, [app extensions] can assume that the raw events are correct. The [`DeviceId`] for fake
+/// input must be the unique but constant for each distinctive *fake event source*.
+///
+/// [app extensions]: crate::app::AppExtension
+/// [`KeyboardManager`]: crate::keyboard::KeyboardManager
+/// [`RawKeyInputEvent`]: crate::app::raw_events::RawKeyInputEvent
+/// [`notify`]: crate::event::Event::notify
+/// [`DeviceId`]: crate::app::DeviceId
+pub mod raw_events {
+    use std::path::PathBuf;
+
+    use super::raw_device_events::AxisId;
+    use super::DeviceId;
+    use crate::mouse::{ButtonState, MouseButton};
+    use crate::window::WindowTheme;
+    use crate::{event::*, window::WindowId};
+
+    use crate::keyboard::{Key, KeyState, ModifiersState};
+    pub use glutin::event::ScanCode;
+
+    event_args! {
+        /// Arguments for the [`RawKeyInputEvent`].
+        pub struct RawKeyInputArgs {
+            /// Window that received the event.
+            pub window_id: WindowId,
+
+            /// Keyboard device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Raw code of key.
+            pub scan_code: ScanCode,
+
+            /// If the key was pressed or released.
+            pub state: KeyState,
+
+            /// Symbolic name of [`scan_code`](Self::scan_code).
+            pub key: Option<Key>,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawModifiersChangedEvent`].
+        pub struct RawModifiersChangedArgs {
+            /// Window that received the event.
+            pub window_id: WindowId,
+
+            /// New modifiers state.
+            pub modifiers: ModifiersState,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawCharInputEvent`].
+        pub struct RawCharInputArgs {
+            /// Window that received the event.
+            pub window_id: WindowId,
+
+            /// Unicode character.
+            pub character: char,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawWindowFocusEvent`].
+        pub struct RawWindowFocusArgs {
+            /// Window that was focuses/blurred.
+            pub window_id: WindowId,
+
+            /// If the window received focus.
+            pub focused: bool,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawWindowMovedEvent`].
+        pub struct RawWindowMovedArgs {
+            /// Window that was moved.
+            pub window_id: WindowId,
+
+            /// Window (x, y) position in raw pixels.
+            pub position: (i32, i32),
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawWindowResizedEvent`].
+        pub struct RawWindowResizedArgs {
+            /// Window that was resized.
+            pub window_id: WindowId,
+
+            /// Window (width, height) size in raw pixels.
+            pub size: (u32, u32),
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawWindowCloseRequestedEvent`].
+        pub struct RawWindowCloseRequestedArgs {
+            /// Window that was requested to close.
+            pub window_id: WindowId,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawWindowClosedEvent`].
+        pub struct RawWindowClosedArgs {
+            /// Window that was destroyed.
+            pub window_id: WindowId,
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for the [`RawDroppedFileEvent`].
+        pub struct RawDroppedFileArgs {
+            /// Window where it was dropped.
+            pub window_id: WindowId,
+
+            /// Path to file that was dropped.
+            pub file: PathBuf,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawHoveredFileEvent`].
+        pub struct RawHoveredFileArgs {
+            /// Window where it was dragged over.
+            pub window_id: WindowId,
+
+            /// Path to file that was dragged over the window.
+            pub file: PathBuf,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawHoveredFileCancelledEvent`].
+        ///
+        /// The file is the one that was last [hovered] into the window.
+        ///
+        /// [hovered]: RawHoveredFileEvent
+        pub struct RawHoveredFileCancelledArgs {
+            /// Window where the file was previously dragged over.
+            pub window_id: WindowId,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawCursorMovedEvent`].
+        pub struct RawCursorMovedArgs {
+            /// Window the cursor was moved over.
+            pub window_id: WindowId,
+
+            /// Device that generated this event.
+            pub device_id: DeviceId,
+
+            /// Position of the cursor over the [window](Self::window_id) in raw pixels.
+            pub position: (i32, i32),
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawCursorEnteredEvent`] and [`RawCursorLeftEvent`].
+        pub struct RawCursorArgs {
+            /// Window the cursor entered or left.
+            pub window_id: WindowId,
+
+            /// Device that generated this event.
+            pub device_id: DeviceId,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawMouseWheelEvent`].
+        pub struct RawMouseWheelArgs {
+            /// Window that is hovered by the cursor.
+            pub window_id: WindowId,
+
+            /// Device that generated this event.
+            pub device_id: DeviceId,
+
+            // TODO
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawMouseInputEvent`].
+        pub struct RawMouseInputArgs {
+            /// Window that is hovered by the cursor.
+            pub window_id: WindowId,
+
+            /// Device that generated this event.
+            pub device_id: DeviceId,
+
+            /// If the button was pressed or released.
+            pub state: ButtonState,
+
+            /// What button was pressed or released.
+            pub button: MouseButton,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawTouchpadPressureEvent`].
+        pub struct RawTouchpadPressureArgs {
+            /// Window that is touched.
+            pub window_id: WindowId,
+
+            /// Device that generated this event.
+            pub device_id: DeviceId,
+
+            // TODO
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawAxisMotionEvent`].
+        pub struct RawAxisMotionArgs {
+            /// Window that received the event.
+            pub window_id: WindowId,
+
+            /// Device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Analog axis.
+            pub axis: AxisId,
+
+            /// Motion amount.
+            pub value: f64,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawTouchEvent`].
+        pub struct RawTouchArgs {
+            /// Window that was touched.
+            pub window_id: WindowId,
+
+            /// Device that generated this event.
+            pub device_id: DeviceId,
+
+            // TODO
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawWindowScaleFactorChangedEvent`].
+        pub struct RawWindowScaleFactorChangedArgs {
+            /// Window for which the scale has changed.
+            pub window_id: WindowId,
+
+            /// New pixel scale factor.
+            pub scale_factor: f64,
+
+            /// New window size in raw pixels.
+            ///
+            /// The operating system can change the window raw size to match the new scale factor.
+            pub size: (u32, u32),
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawWindowThemeChangedEvent`].
+        pub struct RawWindowThemeChangedArgs {
+            /// Window for which the theme was changed.
+            pub window_id: WindowId,
+
+            /// New theme.
+            pub theme: WindowTheme,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+    }
+
+    event! {
+        /// A key press or release targeting a window.
+        ///
+        /// This event represents a key input directly from the operating system. It is processed
+        /// by [`KeyboardManager`] to generate the [`KeyInputEvent`] that actually targets the focused widget.
+        ///
+        /// *See also the [module level documentation](self) for details of how you can fake this event*
+        ///
+        /// [`KeyboardManager`]: crate::keyboard::KeyboardManager
+        /// [`KeyInputEvent`]: crate::keyboard::KeyInputEvent
+        pub RawKeyInputEvent: RawKeyInputArgs;
+
+        /// A modifier key press or release updated the state of the modifier keys.
+        ///
+        /// This event represents a key input directly from the operating system. It is processed
+        /// by [`KeyboardManager`] to generate the keyboard events that are used in general.
+        ///
+        /// *See also the [module level documentation](self) for details of how you can fake this event*
+        ///
+        /// [`KeyboardManager`]: crate::keyboard::KeyboardManager
+        pub RawModifiersChangedEvent: RawModifiersChangedArgs;
+
+        /// A window received an Unicode character.
+        pub RawCharInputEvent: RawCharInputArgs;
+
+        /// A window received or lost focus.
+        pub RawWindowFocusEvent: RawWindowFocusArgs;
+
+        /// A window was moved.
+        pub RawWindowMovedEvent: RawWindowMovedArgs;
+
+        /// A window was resized.
+        pub RawWindowResizedEvent: RawWindowResizedArgs;
+
+        /// A window was requested to close.
+        pub RawWindowCloseRequestedEvent: RawWindowCloseRequestedArgs;
+
+        /// A window was destroyed.
+        pub RawWindowClosedEvent: RawWindowClosedArgs;
+
+        /// A file was drag-dropped on a window.
+        pub RawDroppedFileEvent: RawDroppedFileArgs;
+
+        /// A file was dragged over a window.
+        ///
+        /// If the file is dropped [`RawDroppedFileEvent`] will raise.
+        pub RawHoveredFileEvent: RawHoveredFileArgs;
+
+        /// A dragging file was moved away from the window or the operation was cancelled.
+        ///
+        /// The file is the last one that emitted a [`RawHoveredFileEvent`].
+        pub RawHoveredFileCancelledEvent: RawHoveredFileCancelledArgs;
+
+        /// Cursor pointer moved over a window.
+        pub RawCursorMovedEvent: RawCursorMovedArgs;
+
+        /// Cursor pointer started hovering a window.
+        pub RawCursorEnteredEvent: RawCursorArgs;
+
+        /// Cursor pointer stopped hovering a window.
+        pub RawCursorLeftEvent: RawCursorArgs;
+
+        /// Mouse wheel scrolled when the cursor was over a window.
+        pub RawMouseWheelEvent: RawMouseWheelArgs;
+
+        /// Mouse button was pressed or released when the cursor was over a window.
+        pub RawMouseInputEvent: RawMouseInputArgs;
+
+        /// Touchpad touched when the cursor was over a window.
+        pub RawTouchpadPressureEvent: RawTouchpadPressureArgs;
+
+        /// Motion on some analog axis send to a window.
+        pub RawAxisMotionEvent: RawAxisMotionArgs;
+
+        /// A window was touched.
+        pub RawTouchEvent: RawTouchArgs;
+
+        /// Pixel scale factor for a window changed.
+        ///
+        /// This can happen when the window is dragged to another screen or if the user
+        /// change the screen scaling configuration.
+        pub RawWindowScaleFactorChangedEvent: RawWindowScaleFactorChangedArgs;
+
+        /// System theme changed for a window.
+        pub RawWindowThemeChangedEvent: RawWindowThemeChangedArgs;
+    }
+}
+
+/// Events directly from `winit` not targeting any windows.
+///
+/// These events get emitted only if the app [`enable_device_events`]. When enabled they
+/// can be used like [`raw_events`].
+///
+/// [`enable_device_events`]: AppExtended::enable_device_events
+pub mod raw_device_events {
+    use super::DeviceId;
+    use crate::{
+        event::*,
+        keyboard::{Key, KeyState, ScanCode},
+        mouse::ButtonState,
+    };
+
+    pub use glutin::event::{AxisId, ButtonId, MouseScrollDelta};
+
+    event_args! {
+        /// Arguments for [`DeviceAddedEvent`] and [`DeviceRemovedEvent`].
+        pub struct DeviceArgs {
+            /// Device that was added/removed.
+            pub device_id: DeviceId,
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for [`MouseMotionEvent`].
+        pub struct MouseMotionArgs {
+            /// Mouse device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Motion (x, y) delta.
+            pub delta: (f64, f64),
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for [`MouseWheelEvent`].
+        pub struct MouseWheelArgs {
+            /// Mouse device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Wheel motion delta, value be in pixels if the *wheel* is a touchpad.
+            pub delta: MouseScrollDelta,
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for [`MotionEvent`].
+        pub struct MotionArgs {
+            /// Device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Analog axis.
+            pub axis: AxisId,
+
+            /// Motion amount.
+            pub value: f64,
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for the [`ButtonEvent`].
+        pub struct ButtonArgs {
+            /// Device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Button raw id.
+            pub button: ButtonId,
+
+            /// If the button was pressed or released.
+            pub state: ButtonState,
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for the [`KeyEvent`].
+        pub struct KeyArgs {
+            /// Keyboard device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Raw code of key.
+            pub scan_code: ScanCode,
+
+            /// If the key was pressed or released.
+            pub state: KeyState,
+
+            /// Symbolic name of [`scan_code`](Self::scan_code).
+            pub key: Option<Key>,
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for the [`TextEvent`].
+        pub struct TextArgs {
+            /// Device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Character received.
+            pub code_point: char,
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+    }
+
+    event! {
+        /// A device event source was added/installed.
+        pub DeviceAddedEvent: DeviceArgs;
+
+        /// A device event source was removed/un-installed.
+        pub DeviceRemovedEvent: DeviceArgs;
+
+        /// Mouse device unfiltered move delta.
+        pub MouseMotionEvent: MouseMotionArgs;
+
+        /// Mouse device unfiltered wheel motion delta.
+        pub MouseWheelEvent: MouseWheelArgs;
+
+        /// Motion on some analog axis.
+        ///
+        /// This event will be reported for all arbitrary input devices that `winit` supports on this platform,
+        /// including mouse devices. If the device is a mouse device then this will be reported alongside the [`MouseMotionEvent`].
+        pub MotionEvent: MotionArgs;
+
+        /// Button press/release from a device, probably a mouse.
+        pub ButtonEvent: ButtonArgs;
+
+        /// Keyboard device key press.
+        pub KeyEvent: KeyArgs;
+
+        /// Raw text input.
+        pub TextEvent: TextArgs;
+    }
 }

@@ -288,8 +288,9 @@ pub mod window {
             #[cfg(windows)]
             fn setup_alt_f4_block(&self, ctx: &mut WidgetContext, opened_window: WindowId) {
                 use zero_ui_core::{
-                    app::ElementState,
-                    keyboard::{Key, RawKeyInputArgs, RawKeyInputEvent},
+                    app::raw_events::{RawKeyInputArgs, RawKeyInputEvent},
+                    app::DeviceId,
+                    keyboard::{Key, KeyState},
                 };
 
                 let window_id = ctx.path.window_id();
@@ -298,17 +299,18 @@ pub mod window {
                 }
 
                 let sender = ctx.events.sender(RawKeyInputEvent);
+                let sender_device_id = DeviceId::new_unique();
 
                 let window = ctx.services.windows().window(window_id).unwrap();
                 if let WindowMode::Headed = window.mode() {
                     let allow_alt_f4 = self.allow_alt_f4.clone();
                     window.set_raw_windows_event_handler(move |_, msg, wparam, _| {
                         if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && !allow_alt_f4.get() {
-                            sender.send(RawKeyInputArgs::now(
+                            let _ = sender.send(RawKeyInputArgs::now(
                                 window_id,
-                                None,
+                                sender_device_id,
                                 wparam as u32,
-                                ElementState::Pressed,
+                                KeyState::Pressed,
                                 Some(Key::F4),
                             ));
                             return Some(0);

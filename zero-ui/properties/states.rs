@@ -169,12 +169,12 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             } else if let Some(args) = MouseInputEvent.update(args) {
                 if IsEnabled::get(ctx) && args.is_primary() {
                     match args.state {
-                        ElementState::Pressed => {
+                        ButtonState::Pressed => {
                             if args.concerns_capture(ctx) {
                                 self.is_down = true;
                             }
                         }
-                        ElementState::Released => {
+                        ButtonState::Released => {
                             self.is_down = false;
                         }
                     }
@@ -254,12 +254,12 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             if let Some(args) = MouseInputEvent.update(args) {
                 if IsEnabled::get(ctx) && args.is_primary() {
                     match args.state {
-                        ElementState::Pressed => {
+                        ButtonState::Pressed => {
                             if args.concerns_capture(ctx) {
                                 self.is_down = true;
                             }
                         }
-                        ElementState::Released => {
+                        ButtonState::Released => {
                             self.is_down = false;
                         }
                     }

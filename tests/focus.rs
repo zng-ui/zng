@@ -1606,7 +1606,7 @@ impl TestApp {
     }
 
     pub fn just_release_alt(&mut self) {
-        self.app.on_keyboard_input(self.window_id, Key::LAlt, ElementState::Released);
+        self.app.on_keyboard_input(self.window_id, Key::LAlt, KeyState::Released);
         self.app.update(false);
     }
 

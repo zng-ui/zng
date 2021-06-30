@@ -76,7 +76,7 @@
 //! Focus information exists as metadata associated with a window frame. This metadata can be manually queried by
 //! creating a [`FrameFocusInfo`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
 
-use crate::app::{AppEventSender, AppExtension, DeviceEvent, DeviceId};
+use crate::app::{AppEventSender, AppExtension};
 use crate::context::*;
 use crate::event::*;
 use crate::gesture::{shortcut, ShortcutEvent};
@@ -546,6 +546,8 @@ impl AppExtension for FocusManager {
                     ReturnFocusChangedEvent.notify(ctx.events, args);
                 }
             }
+        } else if let Some(args) = crate::app::raw_device_events::KeyEvent.update(args) {
+            self.last_keyboard_event = args.timestamp;
         }
 
         if let Some(request) = request {
@@ -566,12 +568,6 @@ impl AppExtension for FocusManager {
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             self.notify(focus.fulfill_request(request, windows), focus, windows, ctx.events);
-        }
-    }
-
-    fn device_event(&mut self, _: &mut AppContext, _: DeviceId, event: &DeviceEvent) {
-        if let DeviceEvent::Key(_) = event {
-            self.last_keyboard_event = Instant::now();
         }
     }
 

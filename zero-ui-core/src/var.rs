@@ -109,7 +109,6 @@ impl std::fmt::Display for VarIsReadOnly {
 /// A value type using [`IntoVar`] twice to support a shorthand initialization syntax:
 ///
 /// ```
-/// # fn main() { }
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::*;
 /// #[derive(Debug, Clone)]
@@ -121,7 +120,7 @@ impl std::fmt::Display for VarIsReadOnly {
 ///     type Var = OwnedVar<Size>;
 ///
 ///     fn into_var(self) -> Self::Var {
-///         OwnedVar(Size { width: self.0, height: self.1 })
+///         OwnedVar(Size { width: self.0 as f32, height: self.1 as f32 })
 ///     }
 /// }
 /// impl IntoVar<Size> for (f32, f32) {
@@ -134,31 +133,31 @@ impl std::fmt::Display for VarIsReadOnly {
 /// #[property(size)]
 /// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///     // ...
-///     # todo!()
+///     # child
 /// }
 /// # #[widget($crate::blank)]
 /// # mod blank { }
-///
+/// # fn main() {
 /// // shorthand #1:
-/// blank! {
+/// let wgt = blank! {
 ///     size = (800, 600);
-/// }
+/// };
 ///
 /// // shorthand #2:
-/// blank! {
+/// let wgt = blank! {
 ///     size = (800.1, 600.2);
-/// }
+/// };
 ///
 /// // blanket impl:
-/// blank! {
+/// let wgt = blank! {
 ///     size = Size { width: 800.0, height: 600.0 };
-/// }
+/// };
+/// # }
 /// ```
 ///
 /// A property implemented using [`IntoVar`]:
 ///
 /// ```
-/// # fn main() { }
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
 /// # use zero_ui_core::context::*;
@@ -170,7 +169,7 @@ impl std::fmt::Display for VarIsReadOnly {
 ///         bar: V
 ///     }
 ///     #[impl_ui_node(child)]
-///     impl<C: UiNode, V: Var<Text>> UiNode for FooNode<C, V> {
+///     impl<C: UiNode, V: Var<u32>> UiNode for FooNode<C, V> {
 ///         fn init(&mut self, ctx: &mut WidgetContext) {
 ///             self.child.init(ctx);
 ///             println!("init: {}", self.bar.get(ctx));
@@ -189,26 +188,27 @@ impl std::fmt::Display for VarIsReadOnly {
 ///
 /// # #[widget($crate::blank)]
 /// # pub mod blank { }
-///
+/// # fn main() {
 /// // literal assign:
-/// blank! {
+/// let wgt = blank! {
 ///     foo = 42;
-/// }
+/// };
 ///
 /// // variable assign:
 /// let variable = var(42);
-/// blank! {
+/// let wgt = blank! {
 ///     foo = variable;
-/// }
+/// };
 ///
 /// // widget when:
-/// blank! {
+/// let wgt = blank! {
 ///     foo = 42;
 ///
 ///     when !self.enabled {
 ///         foo = 32;
 ///     }
-/// }
+/// };
+/// # }
 /// ```
 ///
 /// The property implementation is minimal and yet it supports a variety of different inputs that
