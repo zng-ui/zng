@@ -312,14 +312,15 @@ impl<C: Command> CommandNameExt for C {
     fn name_with_shortcut(self) -> BoxedVar<Text>
     where
         Self: crate::gesture::CommandShortcutExt,
-    {        
+    {
         crate::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
             if shortcut.is_empty() {
                 name.clone()
             } else {
                 crate::formatx!("{} ({})", name, shortcut[0])
             }
-        }).boxed()
+        })
+        .boxed()
     }
 }
 

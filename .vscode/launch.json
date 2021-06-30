@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "configurations": [
 
+
         
         {
             "type": "lldb",
@@ -91,6 +92,24 @@
                 ],
                 "filter": {
                     "name": "headless",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Example: window",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=window",
+                    "--package=zero-ui"
+                ],
+                "filter": {
+                    "name": "window",
                     "kind": "example"
                 }
             },

@@ -78,11 +78,19 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
 }
 impl<T: VarValue> Clone for BoxedVar<T> {
     fn clone(&self) -> Self {
-        self.clone_boxed()
+        self.as_ref().clone_boxed()
     }
 }
 impl<T: VarValue> Var<T> for BoxedVar<T> {
     type AsReadOnly = BoxedVar<T>;
+
+    #[inline]
+    fn boxed(self) -> BoxedVar<T>
+    where
+        Self: VarBoxed<T> + Sized,
+    {
+        self
+    }
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
