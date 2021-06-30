@@ -96,4 +96,24 @@ command! {
         .init_name("Close Window")
         .init_info("Close the current window.")
         .init_shortcut([shortcut!(ALT+F4), shortcut!(CTRL+W)]);
+
+    /// Represents the context menu **open** action.
+    ///
+    /// # Metadata
+    ///
+    /// This command initializes with the following metadata:
+    ///
+    /// | metadata     | value                                                 |
+    /// |--------------|-------------------------------------------------------|
+    /// | [`name`]     | "Context Menu"                                        |
+    /// | [`info`]     | "Open the context menu."                              |
+    /// | [`shortcut`] | `SHIFT+F10`, `Apps`                                   |
+    ///
+    /// [`name`]: CommandNameExt
+    /// [`info`]: CommandInfoExt
+    /// [`shortcut`]: CommandShortcutExt
+    pub ContextMenuCommand
+        .init_name("Context Menu")
+        .init_info("Open the context menu.")
+        .init_shortcut([shortcut!(SHIFT+F10), shortcut!(Apps)]);
 }

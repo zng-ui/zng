@@ -17,7 +17,7 @@ use crate::{
     event::{Event, Events, WithEvents},
     state_key,
     text::Text,
-    var::{var, var_from, RcVar, ReadOnlyVar, Vars},
+    var::{var, var_from, BoxedVar, RcVar, ReadOnlyVar, Var, Vars},
 };
 
 /// Declares new [`Command`](crate::command::Command) types.
@@ -55,7 +55,7 @@ macro_rules! command {
             /// The `parameter` is an optional value for the command handler.
             #[inline]
             #[allow(unused)]
-            pub fn notify(self, events: &mut $crate::event::Events, parameter: Option<std::rc::Rc<dyn std::any::Any>>) {
+            pub fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, parameter: Option<std::rc::Rc<dyn std::any::Any>>) {
                 <Self as $crate::event::Event>::notify(self, events, $crate::command::CommandArgs::now(parameter));
             }
 
@@ -280,6 +280,12 @@ pub trait CommandNameExt: Command {
 
     /// Sets the initial name if it is not set.
     fn init_name(self, name: impl Into<Text>) -> Self;
+
+    /// Gets a read-only variable that formats the name and first shortcut in the following format: name (first_shortcut)
+    /// Note: If no shortcuts are available this method returns the same as [`name`](Self::name)
+    fn name_with_shortcut(self) -> BoxedVar<Text>
+    where
+        Self: crate::gesture::CommandShortcutExt;
 }
 state_key! {
     struct CommandNameKey: RcVar<Text>;
@@ -301,6 +307,19 @@ impl<C: Command> CommandNameExt for C {
             entry.or_insert_with(|| var(name.into()));
         });
         self
+    }
+
+    fn name_with_shortcut(self) -> BoxedVar<Text>
+    where
+        Self: crate::gesture::CommandShortcutExt,
+    {        
+        crate::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
+            if shortcut.is_empty() {
+                name.clone()
+            } else {
+                crate::formatx!("{} ({})", name, shortcut[0])
+            }
+        }).boxed()
     }
 }
 

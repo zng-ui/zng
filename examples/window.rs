@@ -37,7 +37,8 @@ fn main() {
                                 inspect(),
                                 headless(),
                                 always_on_top(),
-                                taskbar_visible()
+                                taskbar_visible(),
+                                close_window()
                             ]),
                         ];
                     },
@@ -237,6 +238,15 @@ fn taskbar_visible() -> impl Widget {
                     taskbar_visible;
                 }
             }, None);
+        })
+    }
+}
+
+fn close_window() -> impl Widget {
+    button! {
+        content = text(CloseWindowCommand.name());
+        on_click = hn!(|ctx, _| {
+            CloseWindowCommand.notify(ctx, None);
         })
     }
 }

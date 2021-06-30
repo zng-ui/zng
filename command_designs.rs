@@ -5,48 +5,6 @@
 //
 
 // 
-// How to declare
-//
-mod declare_stuff{
-  trait Command: 'static {
-    fn enabled() -> Var<bool> {}
-    fn visible() -> Var<bool> {}
-    fn text() -> Var<Text> {}
-    fn shortcuts() -> Var<Shortcuts> {}
-  }
-
-  struct Commands {}
-  impl Commands { // Sender
-    fn execute<C: Command>(&mut self, command: C) {
-      // emits command event
-    }
-
-    fn on_shortcut_collision(handler: Fn(MultipleCommandsSameShortcut)) {
-
-    }
-  }  
-  impl Commands { // Receiver
-    fn handler<C: Command>(&mut self, command: C) -> Rc<bool> {
-      // keep weak ref returns strong
-    }
-  }
-
-  command! {
-      /// Command docs.
-      pub CopyCommand
-          .init_name("Copy")
-          .init_gesture(shortcuts![CTRL+C]);      
-
-      /// Other command docs.
-      pub PasteCommand;
-  }
-
-  fn app_run(ctx: _) {
-    CopyCommand.name().set(ctx, "Copiar")
-  }
-}
-
-// 
 // How to use (Send)
 //
 mod send_stuff {
