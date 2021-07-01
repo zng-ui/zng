@@ -1,72 +1,46 @@
-//
-// //
-// // Initial Design
-// //
-//
-
-// 
-// How to use (Send)
-//
-mod send_stuff {
-  button!{
-    command = CopyCommand;
-    //enabled = CopyCommand::enabled();
-    //visibility = CopyCommand::visible().map(Visibility::from);
-    content = text(CopyCommand::text());
-  }
-
-  #[property(context)]
-  fn command<C: Command>(child: impl UiNode, command: C) -> impl UiNode {
-    let node = on_click(child, move |ctx, _| ctx.services.commands().execute(command) );
-    let node = enabled(node, C::enabled());
-    let node = visibility(node, C::visible().map(Visibility::from));
-    node
-  }
-}
-// 
-// How to use (Receive)
-//
-#[property(event)]
-pub fn on_copy(child: impl UiNode, can_run: impl FnMut(&mut WidgetContext) -> bool, run: impl FnMut(&mut WidgetContext, CommandArgs)) -> impl UiNode {
-  struct OnCopyNode<C, Q, R> {
-    child: C,
-    can_run: Q,
-    run: R,
-    handler: CommandHandler,
-  }
-  impl UiNode for OnCopyNode {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-      self.handler = ctx.services.commands().handler::<CopyCommand>();
-      if self.can_run(ctx) {
-        self.handler.set(true);
-      }
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-      if self.can_run(ctx) {
-        if self.handler.run_requested() {
-          self.run(ctx);
-        }
-      } else {
-        self.handler.set(false);
-      }
-    }
-  }
-}
-
 #[widget($crate::text_box)]
 pub mod text_box {
   properties! {
     on_copy = {
-      can_run: |ctx| IsEnabled::get(ctx) && IsVisible::get(ctx),
-      run: |ctx| {
+      enabled: |ctx| IsEnabled::get(ctx) && IsVisible::get(ctx),
+      handler: hn!(|ctx| {
         let text = ctx.widget_state[TextBoxTextState];
         ctx.services.clipboard().set_text(text);
-      }
+      })
     };
+
+    on_pre_save = {
+      enabled: ?
+      handlr: pre_handler
+    }
   }
 }
 
+context_var! {
+  struct CanSaveCommandVar: bool = false;
+}
+
+struct SaveCommand;
+
+#[property(context)]
+pub fn can_save(child: impl UiNode, can_save: impl FnMut(&mut WidgetContext) -> bool) -> impl UiNode {
+    can_command(child, SaveCommand, CanSaveCommandVar, can_save)
+}
+
+#[property(event)]
+pub fn on_pre_save(child: impl UiNode, handler: impl WidgetHandler<CommandArgs>) -> impl UiNode {
+    on_pre_command(child, SaveCommand, CanSaveCommandVar, handler)
+}
+
+#[property(event)]
+pub fn on_save(child: impl UiNode, handler: impl WidgetHandler<CommandArgs>) -> impl UiNode {
+    on_command(child, SaveCommand, CanSaveCommandVar, handler)
+}
+
+command_properties! {
+  /// Docs 
+  pub save: SaveCommand;
+}
 
 // 
 // How to bind shortcuts
@@ -128,24 +102,4 @@ fn text_box_on_init(&mut self, ctx: &mut WidgetContext) {
 
 fn text_box_on_update(&mut self, ctx: &mut WidgetContext) {
   self.copy_handle.set_enabled(self.text_selected.is_some())
-}
-
-
-struct CommandHandle(Rc<Cell<usize>>, bool);
-impl CommandHandle {
-  fn set_enabled(&mut self, enabled: bool) {
-    if self.1 != enabled {
-      self.1 = enabled;
-      if enabled {
-        self.0.set(self.0.get() + 1)
-      } else {
-        self.0.set(self.0.get() - 1)
-      }
-    }
-  }
-}
-impl Drop for CommandHandle {
-  fn drop(&mut self) {
-    self.set_enabled(false)
-  }
 }

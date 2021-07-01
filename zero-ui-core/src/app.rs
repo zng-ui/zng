@@ -1761,7 +1761,7 @@ unique_id! {
     /// Unique identifier for a fake event source.
     ///
     /// See [`DeviceId`] for more details.
-    pub struct FakeDeviceId;
+    pub struct SyntheticDeviceId;
 }
 
 /// Unique identifier for a device event source from the operating system.
@@ -1772,17 +1772,18 @@ pub type SystemDeviceId = glutin::event::DeviceId;
 /// Unique identifier of a device event source.
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub enum DeviceId {
-    /// The id for a *real* system device, note that this device can be virtual too,
-    /// only it is a virtual device managed by the operating system.
+    /// The id for a system device, this device can be real hardware or virtual but managed by the system.
     System(SystemDeviceId),
-    /// The id for an event source that notifies the [`raw_events`].
-    Fake(FakeDeviceId),
+    /// The id for an in-app event source that notifies the [`raw_events`].
+    Synthetic(SyntheticDeviceId),
 }
 impl DeviceId {
-    /// New unique [`Fake`](Self::Fake) window id.
+    /// New unique [`Synthetic`] window id.
+    ///
+    /// [`Synthetic`]: Self::Synthetic
     #[inline]
     pub fn new_unique() -> Self {
-        DeviceId::Fake(FakeDeviceId::new_unique())
+        DeviceId::Synthetic(SyntheticDeviceId::new_unique())
     }
 }
 impl From<SystemDeviceId> for DeviceId {
@@ -1790,9 +1791,9 @@ impl From<SystemDeviceId> for DeviceId {
         DeviceId::System(id)
     }
 }
-impl From<FakeDeviceId> for DeviceId {
-    fn from(id: FakeDeviceId) -> Self {
-        DeviceId::Fake(id)
+impl From<SyntheticDeviceId> for DeviceId {
+    fn from(id: SyntheticDeviceId) -> Self {
+        DeviceId::Synthetic(id)
     }
 }
 impl fmt::Debug for DeviceId {
@@ -1807,9 +1808,9 @@ impl fmt::Debug for DeviceId {
                     write!(f, "DeviceId({})", window_id_raw)
                 }
             }
-            DeviceId::Fake(s) => {
+            DeviceId::Synthetic(s) => {
                 if f.alternate() {
-                    write!(f, "DeviceId::Fake({})", s.get())
+                    write!(f, "DeviceId::Synthetic({})", s.get())
                 } else {
                     write!(f, "DeviceId({})", s.get())
                 }
@@ -1825,7 +1826,7 @@ impl fmt::Display for DeviceId {
                 let window_id_raw = window_id.trim_start_matches("DeviceId(").trim_end_matches(')');
                 write!(f, "DeviceId({})", window_id_raw)
             }
-            DeviceId::Fake(s) => {
+            DeviceId::Synthetic(s) => {
                 write!(f, "DeviceId({})", s.get())
             }
         }
@@ -1837,11 +1838,11 @@ impl fmt::Display for DeviceId {
 /// These events get processed by [app extensions] to generate the events used in widgets, for example
 /// the [`KeyboardManager`] uses the [`RawKeyInputEvent`] into focus targeted events.
 ///
-/// # Virtual Input
+/// # Synthetic Input
 ///
 /// You can [`notify`] these events to fake hardware input, please be careful that you mimic the exact sequence a real
 /// hardware would generate, [app extensions] can assume that the raw events are correct. The [`DeviceId`] for fake
-/// input must be the unique but constant for each distinctive *fake event source*.
+/// input must be unique but constant for each distinctive *synthetic event source*.
 ///
 /// [app extensions]: crate::app::AppExtension
 /// [`KeyboardManager`]: crate::keyboard::KeyboardManager

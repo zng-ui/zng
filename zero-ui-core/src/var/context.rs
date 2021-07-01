@@ -229,7 +229,13 @@ macro_rules! __context_var_inner {
                 $crate::var::Var::get($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
-            // TODO copy, clone
+            /// Returns a clone of the value in the current `vars` context.
+            #[inline]
+            #[allow(unused)]
+            pub fn get_clone<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $type {
+                $crate::var::Var::get_clone($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+            }
+            // TODO fn copy()
 
             /// References the value in the current `vars` context if it is marked as new.
             #[inline]
