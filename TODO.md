@@ -13,6 +13,10 @@ Things that must be done first because they influence the core API design that i
   https://deterministic.space/machine-readable-inline-markdown-code-cocumentation.html
   https://github.com/rust-lang/rfcs/blob/30221dc3e025eb9f8f84ccacbc9622e3a75dff5e/text/1574-more-api-documentation-conventions.md
   https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
+  * FIX: Reexported properties in widgets become the target of intra-doc links in some cases.
+  - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
+  - Maybe generate a dummy function just for re-exporting?
+  * Show property type in widget docs.
 
 * Focusable
   * Support more then one ALT scopes?
@@ -161,6 +165,4 @@ Hard to-do but does not mess with the core API.
 ## Docs
 
 * Link property declaration to their source-code point.
-* FIX: Reexported properties in widgets become the target of intra-doc links in some cases.
-  - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
 * Make a tool that can be used with ".cargo/config.toml build.rustdoc" to replace JS hacks with generated HTML.

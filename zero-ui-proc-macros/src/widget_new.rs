@@ -399,8 +399,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             "property `{}` is not assigned and has no default value",
                             util::display_path(&property)
                         );
+
+                        let property_path = match property.get_ident() {
+                            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                                let p_ident = ident!("__p_{}", maybe_inherited);
+                                quote! { #module::#p_ident }
+                            }
+                            _ => property.to_token_stream(),
+                        };
+
                         property_inits.extend(quote_spanned! {util::path_span(&property)=>
-                            #property::code_gen!{
+                            #property_path::code_gen!{
                                 if !default=>
                                 std::compile_error!{#error}
                             }
@@ -589,6 +598,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // properties that are only introduced in user when conditions.
     for (p, (cfg, i)) in user_when_properties {
         let args_ident = ident!("__ud{}_{}", i, util::path_to_ident_str(&p));
+
+        let p = match p.get_ident() {
+            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                let p_ident = ident!("__p_{}", maybe_inherited);
+                parse_quote! { #module::#p_ident }
+            }
+            _ => p,
+        };
 
         property_inits.extend(quote! {
             #cfg
