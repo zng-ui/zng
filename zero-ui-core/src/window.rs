@@ -1808,7 +1808,9 @@ impl OpenWindow {
         };
         match mode {
             WindowMode::Headed => {
-                let window_ = WindowBuilder::new().with_visible(false); // not visible until first render, to avoid flickering
+                let window_ = WindowBuilder::new()
+                    .with_inner_size(glutin::dpi::LogicalSize::new(800.0, 600.0))
+                    .with_visible(false); // not visible until first render, to avoid flickering
 
                 let sender = app_sender.clone();
                 let r = Renderer::new_with_glutin(window_, window_target, renderer_config, move |args: NewFrameArgs| {
@@ -1879,7 +1881,7 @@ impl OpenWindow {
             root_id,
             kiosk,
             headless_position: LayoutPoint::zero(),
-            headless_size: LayoutSize::new(800.0, 600.0), // same as winit
+            headless_size: LayoutSize::new(800.0, 600.0),
             headless_state: WindowState::Normal,
             headless_screen,
             taskbar_visible: true,
@@ -1986,7 +1988,7 @@ impl OpenWindow {
                     let s = m.size();
                     if s.width == 0 {
                         // Web
-                        LayoutSize::new(800.0, 600.0)
+                        LayoutSize::new(1920.0, 1080.0)
                     } else {
                         // Monitor
                         LayoutSize::new(s.width as f32 / pixel_factor, s.height as f32 / pixel_factor)
@@ -1994,7 +1996,7 @@ impl OpenWindow {
                 })
                 .unwrap_or_else(|| {
                     // No Monitor
-                    LayoutSize::new(800.0, 600.0)
+                    LayoutSize::new(1920.0, 1080.0)
                 })
         } else {
             self.headless_screen.screen_size

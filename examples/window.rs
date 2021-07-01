@@ -4,7 +4,7 @@ use zero_ui::prelude::*;
 fn main() {
     App::default().run_window(|_| {
         let position = var_from((f32::NAN, f32::NAN));
-        let size = var_from((800, 600));
+        let size = var_from((900, 600));
 
         let title = merge_var!(position.clone(), size.clone(), |p: &Point, s: &Size| {
             formatx!("Window Example - position: {:.0}, size: {:.0}", p, s)
