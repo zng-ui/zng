@@ -54,7 +54,7 @@
 //! # Building Blocks
 //!
 //! Zero-Ui apps are completely formed from modular building blocks and those blocks are formed from more basic blocks still,
-//! most of the high level blocks compile down to the most basic at zero-cost. This can be surprising when you see put together:
+//! the high level blocks compile down to the most basic at zero-cost. This can be surprising when you see put together:
 //!
 //! ```
 //! # use zero_ui::prelude::*;
@@ -485,19 +485,6 @@
 //! In other operating systems the `windows_subsystem` attribute does nothing and does not cause an error, so you can just copy & paste
 //! that attribute line in your crate to support Windows releases.
 //!
-/*
-<script>
-// hide macros from doc root
-document.addEventListener('DOMContentLoaded', function() {
-    var macros = document.getElementById('macros');
-    macros.nextElementSibling.remove();
-    macros.remove();
-
-    var side_bar_anchor = document.querySelector("li a[href='#macros']").remove();
- })
-</script>
-*/
-//!
 //! [`button!`]: mod@crate::widgets::button
 //! [`text()`]: fn@crate::widgets::text::text
 //! [`text!`]: mod@crate::widgets::text::text
@@ -519,6 +506,18 @@ document.addEventListener('DOMContentLoaded', function() {
 //! [#widget]: macro@crate::core::widget
 //! [#property]: macro@crate::core::property
 //! [#impl_ui_node]: macro@crate::core::impl_ui_node
+/*
+<script>
+// hide macros from doc root
+document.addEventListener('DOMContentLoaded', function() {
+    var macros = document.getElementById('macros');
+    macros.nextElementSibling.remove();
+    macros.remove();
+
+    var side_bar_anchor = document.querySelector("li a[href='#macros']").remove();
+ })
+</script>
+*/
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]

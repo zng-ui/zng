@@ -2,7 +2,7 @@ error[E0308]: mismatched types
  --> $DIR/child_type_constrains_ui_node.rs:4:29
   |
 4 | pub fn invalid_child(child: NilUiNode, input: bool) -> impl UiNode {
-  |                             ^^^^^^^^^ expected struct `NilUiNode`, found type parameter `impl zero_ui::core::UiNode`
+  |                             ^^^^^^^^^ expected struct `zero_ui::core::NilUiNode`, found type parameter `impl zero_ui::core::UiNode`
   |
-  = note:      expected struct `NilUiNode`
+  = note:      expected struct `zero_ui::core::NilUiNode`
           found type parameter `impl zero_ui::core::UiNode`

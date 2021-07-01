@@ -601,7 +601,7 @@ where
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.handler.update(ctx);
-                        
+
             if let Some(enabled) = self.enabled.copy_new(ctx) {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }

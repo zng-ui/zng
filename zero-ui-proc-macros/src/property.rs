@@ -634,16 +634,51 @@ mod analysis {
 
         let macro_ident = ident!("{}_{}", fn_.sig.ident, util::uuid());
 
+        let export = !matches!(&fn_.vis, syn::Visibility::Inherited);
+
+        let fn_attrs = output::OutputAttributes {
+            docs: attrs.docs,
+            inline: attrs.inline,
+            cfg: attrs.cfg.clone(),
+            attrs: attrs.others.into_iter().chain(attrs.lints).collect(),
+            is_capture_only: args.priority.is_capture_only(),
+        };
+
+        // create a *real-alias* with docs that are inlined in widgets
+        // we need to do this because of https://github.com/rust-lang/rust/issues/83976
+        let mut alias_tokens = TokenStream::new();
+        if export && !fn_and_errors_only {
+            let mut docs_copy = TokenStream::new();
+            fn_attrs.to_tokens(&mut docs_copy, true);
+
+            let vis = &fn_.vis;
+            let mut alias_fn = fn_.clone();
+            let id = alias_fn.sig.ident;
+            let alias_ident = ident_spanned!(id.span()=> "__wgt_{}", id);
+
+            alias_fn.sig.ident = ident!("wgt_docs_export");
+            alias_fn.block = parse_quote!({});
+            alias_fn.sig.output = syn::ReturnType::Default;
+
+            let cfg = &attrs.cfg;
+
+            alias_tokens.extend(quote! {
+                #cfg
+                #[doc(hidden)]
+                #[allow(unused)]
+                #vis mod #alias_ident {
+                    use super::*;
+
+                    #docs_copy
+                    #alias_fn
+                }
+            });
+        }
+
         output::Output {
             errors,
             fn_and_errors_only,
-            fn_attrs: output::OutputAttributes {
-                docs: attrs.docs,
-                inline: attrs.inline,
-                cfg: attrs.cfg.clone(),
-                attrs: attrs.others.into_iter().chain(attrs.lints).collect(),
-                is_capture_only: args.priority.is_capture_only(),
-            },
+            fn_attrs,
             types: output::OutputTypes {
                 cfg: attrs.cfg.clone(),
                 ident: fn_.sig.ident.clone(),
@@ -669,11 +704,12 @@ mod analysis {
                 args_ident: ident!("{}_Args", fn_.sig.ident),
                 args_impl_ident: ident!("{}_ArgsImpl", fn_.sig.ident),
                 has_default_value,
+                alias_fn: alias_tokens,
             },
             macro_: output::OutputMacro {
                 cfg: attrs.cfg,
                 macro_ident,
-                export: !matches!(fn_.vis, syn::Visibility::Inherited),
+                export,
                 priority: args.priority,
                 allowed_in_when,
                 arg_idents,
@@ -779,7 +815,7 @@ mod output {
                 self.fn_attrs.to_tokens_fn_only(tokens);
                 self.fn_.to_tokens(tokens);
             } else {
-                self.fn_attrs.to_tokens(tokens);
+                self.fn_attrs.to_tokens(tokens, false);
                 self.fn_.to_tokens(tokens);
                 self.types.to_tokens(tokens);
                 self.macro_.to_tokens(tokens);
@@ -804,10 +840,15 @@ mod output {
                 attr.to_tokens(tokens);
             }
         }
-    }
-    impl ToTokens for OutputAttributes {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            docs_with_first_line_js(tokens, &self.docs, js_tag!("property_header.js"));
+
+        pub fn to_tokens(&self, tokens: &mut TokenStream, wgt: bool) {
+            if wgt {
+                for attr in &self.docs {
+                    attr.to_tokens(tokens);
+                }
+            } else {
+                docs_with_first_line_js(tokens, &self.docs, js_tag!("property_header.js"));
+            }
             if self.is_capture_only {
                 tokens.extend(quote! {
                     ///
@@ -821,23 +862,30 @@ mod output {
                     /// <pre id='ffn' class='rust fn'></pre>
                     /// <div class='docblock'>
                     ///
-                    /// This property is a function that can be called directly.
+                    /// Properties are functions that can be called directly.
                     ///
-                    ///
-                    /// The property is ***set*** around the first input [`UiNode`](crate::core::UiNode),
-                    /// the other inputs are the property arguments. The function output is a new [`UiNode`](crate::core::UiNode) that
+                    /// The property is ***set*** around the first input [`UiNode`],
+                    /// the other inputs are the property arguments. The function output is a new [`UiNode`] that
                     /// includes the property behavior.
+                    ///
+                    /// [`UiNode`]: zero_ui::core::UiNode
                 });
             }
 
             doc_extend!(
                 tokens,
                 "<script>{}property({})</script>",
-                js!("property_full.js"),
+                if wgt {
+                    js!("property_wgt_export.js")
+                } else {
+                    js!("property_full.js")
+                },
                 self.is_capture_only
             );
-            self.inline.to_tokens(tokens);
+
             self.cfg.to_tokens(tokens);
+
+            self.inline.to_tokens(tokens);
             for attr in &self.attrs {
                 attr.to_tokens(tokens);
             }
@@ -1448,6 +1496,7 @@ mod output {
         pub macro_ident: Ident,
         pub args_ident: Ident,
         pub args_impl_ident: Ident,
+        pub alias_fn: TokenStream,
     }
     impl ToTokens for OutputMod {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -1458,6 +1507,7 @@ mod output {
                 macro_ident,
                 args_ident,
                 args_impl_ident,
+                alias_fn,
                 ..
             } = self;
 
@@ -1503,7 +1553,22 @@ mod output {
                 TokenStream::new()
             };
 
+            let alias_reexport = if !alias_fn.is_empty() {
+                let ident = ident!("__wgt_{}", ident);
+                quote! {
+                    #[doc(inline)]
+                    #vis use super::#ident::wgt_docs_export;
+                }
+            } else {
+                quote! {
+                    #[doc(hidden)]
+                    #vis fn wgt_docs_export() {}
+                }
+            };
+
             tokens.extend(quote! {
+                #alias_fn
+
                 #cfg
                 #[doc(hidden)]
                 #vis mod #ident {
@@ -1521,6 +1586,8 @@ mod output {
                     pub use #crate_core::var::{when_var, switch_var};
                     #[doc(hidden)]
                     pub use #crate_core::property_new as __property_new;
+
+                    #alias_reexport
                 }
             })
         }

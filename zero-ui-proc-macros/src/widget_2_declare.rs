@@ -397,10 +397,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // generate re-export.
         let path = &inherited_properties[&ip.ident].module;
         let p_ident = ident!("__p_{}", ip.ident);
+        let p_doc_ident = ident!("__pdoc_{}", ip.ident);
         property_reexports.extend(quote! {
             #cfg
-            #[doc(inline)]
+            #[doc(hidden)]
             pub use #path::#p_ident;
+
+            #cfg
+            #[doc(inline)]
+            pub use #path::#p_doc_ident;
         });
 
         // generate values re-export.
@@ -479,6 +484,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // re-export property
         let path = &p.path;
         let p_ident = ident!("__p_{}", p.ident);
+        let p_doc_ident = ident!("__pdoc_{}", p.ident);
 
         match p.kind() {
             PropertyItemKind::Ident => {
@@ -487,8 +493,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     // re-export inherited property.
                     property_reexports.extend(quote! {
                         #cfg
-                        #[doc(inline)]
+                        #[doc(hidden)]
                         pub use #inherited_source::#p_ident;
+
+                        #cfg
+                        #[doc(inline)]
+                        pub use #inherited_source::#p_doc_ident;
                     });
                     continue;
                 }
@@ -498,10 +508,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let inherited_source = &inherited.module;
                     // re-export inherited property as a new name.
                     let inherited_ident = ident!("__p_{}", maybe_inherited);
+                    let inherited_doc_ident = ident!("__pdoc_{}", maybe_inherited);
                     property_reexports.extend(quote! {
                         #cfg
-                        #[doc(inline)]
+                        #[doc(hidden)]
                         pub use #inherited_source::#inherited_ident as #p_ident;
+
+                        #cfg
+                        #[doc(inline)]
+                        pub use #inherited_source::#inherited_doc_ident as #p_doc_ident;
                     });
                     continue;
                 }
@@ -511,8 +526,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // not inherited.
         property_reexports.extend(quote! {
             #cfg
-            #[doc(inline)]
+            #[doc(hidden)]
             pub use #path::export as #p_ident;
+
+            #cfg
+            #[doc(inline)]
+            pub use #path::wgt_docs_export as #p_doc_ident;
         });
     }
     let property_reexports = property_reexports;
@@ -785,6 +804,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         let p_ident = ident!("__p_{}", w_prop);
+        let p_doc_ident = ident!("__pdoc_{}", w_prop);
         let d_ident = ident!("__d_{}", w_prop);
 
         // reexport property and default value.
@@ -792,8 +812,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #w_prop::code_gen! {
                 if default=>
 
-                #[doc(inline)]
+                #[doc(hidden)]
                 pub use #w_prop::export as #p_ident;
+
+                #[doc(inline)]
+                pub use #w_prop::wgt_docs_export as #p_doc_ident;
 
                 #[doc(hidden)]
                 pub fn #d_ident() -> impl self::#p_ident::Args {
@@ -1077,7 +1100,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             docs,
             &format!("wp-{}", property.ident),
             &property.ident.to_string(),
-            &format!("fn.__p_{}.html", property.ident),
+            &format!("fn.__pdoc_{}.html", property.ident),
             property.has_default,
         );
 

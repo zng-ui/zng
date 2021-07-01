@@ -5,14 +5,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // patch title
     document.querySelector('h1 span').childNodes[0].nodeValue = 'Widget Module ';
 
-    // remove property functions __p_* and collect the summary of each.
+    // remove property functions __pdoc_* and collect the summary of each.
     document.widget_property_summaries = {};
     let functions_h2 = document.querySelector('h2#functions.section-header');
     functions_h2.nextElementSibling.querySelectorAll('tr').forEach(function(tr) {
         let td = tr.querySelectorAll('td');
-        if (td[0].innerText.includes('__p_')) {
-            td[1].querySelector('script').remove();
+        if (td[0].innerText.includes('__pdoc_')) {
             document.widget_property_summaries[td[0].innerText] = td[1].innerHTML;
+            tr.remove();
+        } else if (td[0].innerText.includes('__p_')) {
             tr.remove();
         }
     });
@@ -63,7 +64,7 @@ window.addEventListener('message', function(a) {
         // fullfill summary requests for properties without help.
         inner_docs.querySelectorAll('.default-help').forEach(function(div) {
             let parse = document.createElement('div');
-            parse.innerHTML = document.widget_property_summaries['__p_' + div.getAttribute('data-ident')];
+            parse.innerHTML = document.widget_property_summaries['__pdoc_' + div.getAttribute('data-ident')];
             div.replaceWith(parse.childNodes[0])
         });
     }

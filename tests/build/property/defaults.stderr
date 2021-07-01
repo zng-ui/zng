@@ -66,66 +66,66 @@ note: associated function defined here
    |
    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
+error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is not satisfied
   --> $DIR/defaults.rs:39:28
    |
 39 | #[property(context, default(2555, true))]
    | ---------------------------^^^^^^^^^^^^--
    | |                          |
-   | |                          the trait `IntoVar<bool>` is not implemented for `{integer}`
+   | |                          the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
    | required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
    |
    = help: the following implementations were found:
-             <&'static [u8; N] as IntoVar<WindowIcon>>
-             <&'static [u8] as IntoVar<WindowIcon>>
-             <&'static str as IntoVar<FontName>>
-             <&'static str as IntoVar<FontNames>>
+             <&'static [u8; N] as zero_ui::prelude::IntoVar<WindowIcon>>
+             <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
+             <&'static str as zero_ui::prelude::IntoVar<FontName>>
+             <&'static str as zero_ui::prelude::IntoVar<FontNames>>
            and 265 others
 
-error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
+error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:39:35
    |
 39 | #[property(context, default(2555, true))]
    | ----------------------------------^^^^---
    | |                                 |
-   | |                                 the trait `IntoVar<u32>` is not implemented for `bool`
+   | |                                 the trait `zero_ui::prelude::IntoVar<u32>` is not implemented for `bool`
    | required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
    |
    = help: the following implementations were found:
-             <bool as IntoVar<AutoSize>>
-             <bool as IntoVar<CaptureMode>>
-             <bool as IntoVar<FactorNormal>>
-             <bool as IntoVar<FontFeatureState>>
+             <bool as zero_ui::prelude::IntoVar<AutoSize>>
+             <bool as zero_ui::prelude::IntoVar<CaptureMode>>
+             <bool as zero_ui::prelude::IntoVar<FactorNormal>>
+             <bool as zero_ui::prelude::IntoVar<FontFeatureState>>
            and 3 others
 
-error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
+error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is not satisfied
   --> $DIR/defaults.rs:45:28
    |
 45 | #[property(context, default(a: 2555, b: true))]
    | ---------------------------^^^^^^^^^^^^^^^^^^--
    | |                          |
-   | |                          the trait `IntoVar<bool>` is not implemented for `{integer}`
+   | |                          the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
    | required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
    |
    = help: the following implementations were found:
-             <&'static [u8; N] as IntoVar<WindowIcon>>
-             <&'static [u8] as IntoVar<WindowIcon>>
-             <&'static str as IntoVar<FontName>>
-             <&'static str as IntoVar<FontNames>>
+             <&'static [u8; N] as zero_ui::prelude::IntoVar<WindowIcon>>
+             <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
+             <&'static str as zero_ui::prelude::IntoVar<FontName>>
+             <&'static str as zero_ui::prelude::IntoVar<FontNames>>
            and 265 others
 
-error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
+error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:45:41
    |
 45 | #[property(context, default(a: 2555, b: true))]
    | ----------------------------------------^^^^---
    | |                                       |
-   | |                                       the trait `IntoVar<u32>` is not implemented for `bool`
+   | |                                       the trait `zero_ui::prelude::IntoVar<u32>` is not implemented for `bool`
    | required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
    |
    = help: the following implementations were found:
-             <bool as IntoVar<AutoSize>>
-             <bool as IntoVar<CaptureMode>>
-             <bool as IntoVar<FactorNormal>>
-             <bool as IntoVar<FontFeatureState>>
+             <bool as zero_ui::prelude::IntoVar<AutoSize>>
+             <bool as zero_ui::prelude::IntoVar<CaptureMode>>
+             <bool as zero_ui::prelude::IntoVar<FactorNormal>>
+             <bool as zero_ui::prelude::IntoVar<FontFeatureState>>
            and 3 others

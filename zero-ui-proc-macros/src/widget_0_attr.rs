@@ -438,6 +438,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             }
 
             let p_mod_ident = ident!("__p_{}", p_ident);
+            let p_doc_ident = ident!("__pdoc_{}", p_ident);
             let inputs = new_type.fn_input_tokens(p_ident);
 
             let docs = &attrs.docs;
@@ -446,6 +447,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 #(#docs)*
                 #[#crate_core::property(capture_only, allowed_in_when = #allowed_in_when)]
                 pub fn #p_mod_ident(#inputs) -> ! { }
+
+                #[doc(inline)]
+                pub use #p_mod_ident::wgt_docs_export as #p_doc_ident;
             });
 
             // so "widget_2_declare.rs" skips reexporting this one.
