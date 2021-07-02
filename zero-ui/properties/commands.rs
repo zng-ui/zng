@@ -77,26 +77,6 @@ command! {
         .init_info("Insert content from the clipboard.")
         .init_shortcut([shortcut!(CTRL+V), shortcut!(SHIFT+Insert)]);
 
-    /// Represents the window **close** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Close Window"                                        |
-    /// | [`info`]     | "Close the current window."                           |
-    /// | [`shortcut`] | `ALT+F4`, `CTRL+W`                                    |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub CloseWindowCommand
-        .init_name("Close Window")
-        .init_info("Close the current window.")
-        .init_shortcut([shortcut!(ALT+F4), shortcut!(CTRL+W)]);
-
     /// Represents the context menu **open** action.
     ///
     /// # Metadata

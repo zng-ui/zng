@@ -66,7 +66,7 @@
 //! # ;
 //! ```
 //!
-//! The example demonstrates the [`button!`] widget, you may thing the [`on_click`] and [`font_size`] are implemented in the widget,
+//! The example demonstrates the [`button!`] widget, you may think that [`on_click`] and [`font_size`] are implemented in the widget,
 //! but they are not. The button widget only knows that it has a `content` that is another widget, it makes this content looks like a button.
 //!
 //! In this case [`text()`] is another widget that renders text, and [`font_size`] is a property that sets the font size for all texts

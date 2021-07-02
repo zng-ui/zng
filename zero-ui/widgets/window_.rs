@@ -1,5 +1,4 @@
 use crate::core::focus::*;
-use crate::core::gesture::*;
 use crate::core::window::{HeadlessScreen, RedrawArgs, StartPosition, Window};
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
@@ -24,12 +23,6 @@ use crate::properties::events::window::*;
 /// See [`run_window`](crate::core::window::AppRunWindow::run_window) for more details.
 #[widget($crate::widgets::window)]
 pub mod window {
-    use std::cell::Cell;
-    use std::rc::Rc;
-
-    use crate::core::command::CommandHandle;
-    use crate::core::window::{WindowFocusChangedEvent, WindowId, WindowMode, WindowOpenEvent, WindowsExt};
-    use crate::properties::commands::CloseWindowCommand;
 
     use super::*;
 
@@ -181,9 +174,6 @@ pub mod window {
         /// Windows remember the last focused widget and return focus when the window is focused.
         focus_scope_behavior = FocusScopeOnFocus::LastFocused;
 
-        /// Test inspector.
-        on_shortcut as on_shortcut_inspect = print_frame_inspector();
-
         /// If the user can resize the window.
         ///
         /// Note that the window can still change size, this only disables
@@ -266,111 +256,8 @@ pub mod window {
         on_pre_redraw: impl FnMut(&mut RedrawArgs) + 'static,
         on_redraw: impl FnMut(&mut RedrawArgs) + 'static,
     ) -> Window {
-        struct OnCloseWindowNode<C: UiNode> {
-            child: C,
-            handle: CommandHandle,
-            #[cfg(windows)]
-            allow_alt_f4: Rc<Cell<bool>>,
-        }
-        impl<C: UiNode> OnCloseWindowNode<C> {
-            // if our window is focused.
-            fn window_is_focused(&self, ctx: &mut WidgetContext) -> bool {
-                let window_id = ctx.path.window_id();
-                ctx.services
-                    .focus()
-                    .focused()
-                    .map(|p| p.window_id() == window_id)
-                    .unwrap_or_default()
-            }
-
-            // in Windows, when using a real window, block the system's ALT+F4 when that shortcut
-            // is not present in the command.
-            #[cfg(windows)]
-            fn setup_alt_f4_block(&self, ctx: &mut WidgetContext, opened_window: WindowId) {
-                use zero_ui_core::{
-                    app::raw_events::{RawKeyInputArgs, RawKeyInputEvent},
-                    app::DeviceId,
-                    keyboard::{Key, KeyState},
-                };
-
-                let window_id = ctx.path.window_id();
-                if opened_window != window_id {
-                    return;
-                }
-
-                let sender = ctx.events.sender(RawKeyInputEvent);
-                let sender_device_id = DeviceId::new_unique();
-
-                let window = ctx.services.windows().window(window_id).unwrap();
-                if let WindowMode::Headed = window.mode() {
-                    let allow_alt_f4 = self.allow_alt_f4.clone();
-                    window.set_raw_windows_event_handler(move |_, msg, wparam, _| {
-                        if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && !allow_alt_f4.get() {
-                            let _ = sender.send(RawKeyInputArgs::now(
-                                window_id,
-                                sender_device_id,
-                                wparam as u32,
-                                KeyState::Pressed,
-                                Some(Key::F4),
-                            ));
-                            return Some(0);
-                        }
-                        None
-                    });
-                }
-            }
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode> UiNode for OnCloseWindowNode<C> {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                let enabled = self.window_is_focused(ctx);
-                self.handle = CloseWindowCommand.new_handle(ctx, enabled);
-                self.allow_alt_f4
-                    .set(CloseWindowCommand.shortcut().get(ctx).0.contains(&shortcut![ALT + F4]));
-                self.child.init(ctx)
-            }
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.child.deinit(ctx);
-                #[cfg(windows)]
-                self.allow_alt_f4.set(true);
-            }
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                if let Some(args) = CloseWindowCommand.update(args) {
-                    // command requested, run it only if we are focused.
-                    if self.window_is_focused(ctx) {
-                        let _ = ctx.services.windows().close(ctx.path.window_id());
-                    }
-                    self.child.event(ctx, args)
-                } else if let Some(args) = WindowFocusChangedEvent.update(args) {
-                    // toggle enabled if our window activated/deactivated.
-                    if args.window_id == ctx.path.window_id() {
-                        self.handle.set_enabled(args.focused);
-                    }
-                    self.child.event(ctx, args);
-                } else if let Some(args) = WindowOpenEvent.update(args) {
-                    #[cfg(windows)]
-                    self.setup_alt_f4_block(ctx, args.window_id);
-
-                    self.child.event(ctx, args);
-                } else {
-                    self.child.event(ctx, args)
-                }
-            }
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                // update the ALT+F4 block flag in Windows.
-                #[cfg(windows)]
-                if let Some(s) = CloseWindowCommand.shortcut().get_new(ctx) {
-                    self.allow_alt_f4.set(s.0.contains(&shortcut![ALT + F4]));
-                }
-
-                self.child.update(ctx);
-            }
-        }
-        let child = OnCloseWindowNode {
-            child,
-            handle: CommandHandle::dummy(),
-            allow_alt_f4: Rc::default(),
-        };
+        let child = commands::close_node(child);
+        let child = commands::inspect_node(child);
         Window::new(
             root_id,
             start_position,
@@ -652,32 +539,206 @@ pub mod window {
             y = position.y,
         }
     }
-}
 
-#[cfg(not(debug_assertions))]
-fn print_frame_inspector() -> impl WidgetHandler<ShortcutArgs> {
-    hn!(|_, _| {})
-}
+    /// Commands that control the window.
+    pub mod commands {
+        use std::{cell::Cell, rc::Rc};
+        use zero_ui::core::{
+            command::*,
+            context::WidgetContext,
+            event::EventUpdateArgs,
+            focus::FocusExt,
+            gesture::*,
+            window::{WindowFocusChangedEvent, WindowOpenEvent, WindowsExt},
+            *,
+        };
 
-#[cfg(debug_assertions)]
-fn print_frame_inspector() -> impl WidgetHandler<ShortcutArgs> {
-    use crate::core::debug::{write_frame, WriteFrameState};
+        command! {
+            /// Represents the window **close** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                 |
+            /// |--------------|-------------------------------------------------------|
+            /// | [`name`]     | "Close Window"                                        |
+            /// | [`info`]     | "Close the current window."                           |
+            /// | [`shortcut`] | `ALT+F4`, `CTRL+W`                                    |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            pub CloseCommand
+                .init_name("Close Window")
+                .init_info("Close the current window.")
+                .init_shortcut([shortcut!(ALT+F4), shortcut!(CTRL+W)]);
 
-    let mut state = WriteFrameState::none();
-    hn!(|ctx, args: &ShortcutArgs| {
-        if args.shortcut == shortcut!(CTRL | SHIFT + I) {
-            args.stop_propagation();
-
-            let frame = ctx
-                .services
-                .req::<crate::core::window::Windows>()
-                .window(ctx.path.window_id())
-                .unwrap()
-                .frame_info();
-
-            write_frame(frame, &state, &mut std::io::stderr());
-
-            state = WriteFrameState::new(&frame);
+            /// Represent the window **inspect** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                 |
+            /// |--------------|-------------------------------------------------------|
+            /// | [`name`]     | "Inspect…"                                            |
+            /// | [`info`]     | "Inspect the current window."                         |
+            /// | [`shortcut`] | `CTRL+SHIFT+I`, `F12`                                 |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            pub InspectCommand
+                .init_name("Inspect…")
+                .init_info("Inspect the current window.")
+                .init_shortcut([shortcut!(CTRL|SHIFT+I), shortcut!(F12)]);
         }
-    })
+
+        pub(super) fn close_node(child: impl UiNode) -> impl UiNode {
+            #[cfg(windows)]
+            use zero_ui::core::window::WindowId;
+
+            struct OnCloseNode<C: UiNode> {
+                child: C,
+                handle: CommandHandle,
+                #[cfg(windows)]
+                allow_alt_f4: Rc<Cell<bool>>,
+            }
+            impl<C: UiNode> OnCloseNode<C> {
+                // if our window is focused.
+                fn window_is_focused(&self, ctx: &mut WidgetContext) -> bool {
+                    let window_id = ctx.path.window_id();
+                    ctx.services
+                        .focus()
+                        .focused()
+                        .map(|p| p.window_id() == window_id)
+                        .unwrap_or_default()
+                }
+
+                // in Windows, when using a real window, block the system's ALT+F4 when that shortcut
+                // is not present in the command.
+                #[cfg(windows)]
+                fn setup_alt_f4_block(&self, ctx: &mut WidgetContext, opened_window: WindowId) {
+                    use zero_ui_core::{
+                        app::raw_events::{RawKeyInputArgs, RawKeyInputEvent},
+                        app::DeviceId,
+                        keyboard::{Key, KeyState},
+                        window::WindowMode,
+                    };
+
+                    let window_id = ctx.path.window_id();
+                    if opened_window != window_id {
+                        return;
+                    }
+
+                    let sender = ctx.events.sender(RawKeyInputEvent);
+                    let sender_device_id = DeviceId::new_unique();
+
+                    let window = ctx.services.windows().window(window_id).unwrap();
+                    if let WindowMode::Headed = window.mode() {
+                        let allow_alt_f4 = self.allow_alt_f4.clone();
+                        window.set_raw_windows_event_handler(move |_, msg, wparam, _| {
+                            if msg == winapi::um::winuser::WM_SYSKEYDOWN
+                                && wparam as i32 == winapi::um::winuser::VK_F4
+                                && !allow_alt_f4.get()
+                            {
+                                let _ = sender.send(RawKeyInputArgs::now(
+                                    window_id,
+                                    sender_device_id,
+                                    wparam as u32,
+                                    KeyState::Pressed,
+                                    Some(Key::F4),
+                                ));
+                                return Some(0);
+                            }
+                            None
+                        });
+                    }
+                }
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for OnCloseNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let enabled = self.window_is_focused(ctx);
+                    self.handle = CloseCommand.new_handle(ctx, enabled);
+                    self.allow_alt_f4
+                        .set(CloseCommand.shortcut().get(ctx).0.contains(&shortcut![ALT + F4]));
+                    self.child.init(ctx)
+                }
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.child.deinit(ctx);
+                    #[cfg(windows)]
+                    self.allow_alt_f4.set(true);
+                }
+                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                    if let Some(args) = CloseCommand.update(args) {
+                        // command requested, run it only if we are focused.
+                        if self.window_is_focused(ctx) {
+                            let _ = ctx.services.windows().close(ctx.path.window_id());
+                        }
+                        self.child.event(ctx, args)
+                    } else if let Some(args) = WindowFocusChangedEvent.update(args) {
+                        // toggle enabled if our window activated/deactivated.
+                        if args.window_id == ctx.path.window_id() {
+                            self.handle.set_enabled(args.focused);
+                        }
+                        self.child.event(ctx, args);
+                    } else if let Some(args) = WindowOpenEvent.update(args) {
+                        #[cfg(windows)]
+                        self.setup_alt_f4_block(ctx, args.window_id);
+
+                        self.child.event(ctx, args);
+                    } else {
+                        self.child.event(ctx, args)
+                    }
+                }
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    // update the ALT+F4 block flag in Windows.
+                    #[cfg(windows)]
+                    if let Some(s) = CloseCommand.shortcut().get_new(ctx) {
+                        self.allow_alt_f4.set(s.0.contains(&shortcut![ALT + F4]));
+                    }
+
+                    self.child.update(ctx);
+                }
+            }
+
+            OnCloseNode {
+                child,
+                handle: CommandHandle::dummy(),
+                allow_alt_f4: Rc::default(),
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        pub(super) fn inspect_node(child: impl UiNode) -> impl UiNode {
+            child
+        }
+        #[cfg(debug_assertions)]
+        pub(super) fn inspect_node(child: impl UiNode) -> impl UiNode {
+            use crate::core::debug::{write_frame, WriteFrameState};
+            let mut state = WriteFrameState::none();
+
+            on_command(
+                child,
+                InspectCommand,
+                true,
+                hn!(|ctx, args: &CommandArgs| {
+                    args.stop_propagation();
+
+                    let frame = ctx
+                        .services
+                        .req::<crate::core::window::Windows>()
+                        .window(ctx.path.window_id())
+                        .unwrap()
+                        .frame_info();
+
+                    write_frame(frame, &state, &mut std::io::stderr());
+
+                    state = WriteFrameState::new(&frame);
+                }),
+            )
+        }
+    }
 }

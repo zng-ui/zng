@@ -243,10 +243,11 @@ fn taskbar_visible() -> impl Widget {
 }
 
 fn close_window() -> impl Widget {
+    use zero_ui::widgets::window::commands::CloseCommand;
     button! {
-        content = text(CloseWindowCommand.name());
+        content = text(CloseCommand.name());
         on_click = hn!(|ctx, _| {
-            CloseWindowCommand.notify(ctx, None);
+            CloseCommand.notify(ctx, None);
         })
     }
 }

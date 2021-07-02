@@ -18,7 +18,7 @@ use crate::{
     handler::WidgetHandler,
     impl_ui_node, state_key,
     text::Text,
-    var::{var, var_from, BoxedVar, RcVar, ReadOnlyVar, Var, Vars},
+    var::{var, var_from, BoxedVar, IntoVar, RcVar, ReadOnlyVar, Var, Vars},
     UiNode,
 };
 
@@ -498,7 +498,7 @@ pub fn on_command<U, C, E, H>(child: U, command: C, enabled: E, handler: H) -> i
 where
     U: UiNode,
     C: Command,
-    E: Var<bool>,
+    E: IntoVar<bool>,
     H: WidgetHandler<CommandArgs>,
 {
     struct OnCommandNode<U, C, E, H> {
@@ -552,7 +552,7 @@ where
     OnCommandNode {
         child,
         command,
-        enabled,
+        enabled: enabled.into_var(),
         handler,
         handle: None,
     }
@@ -564,7 +564,7 @@ pub fn on_pre_command<U, C, E, H>(child: U, command: C, enabled: E, handler: H) 
 where
     U: UiNode,
     C: Command,
-    E: Var<bool>,
+    E: IntoVar<bool>,
     H: WidgetHandler<CommandArgs>,
 {
     struct OnPreviewCommandNode<U, C, E, H> {
@@ -616,7 +616,7 @@ where
     OnPreviewCommandNode {
         child,
         command,
-        enabled,
+        enabled: enabled.into_var(),
         handler,
         handle: None,
     }
