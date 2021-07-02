@@ -636,12 +636,14 @@ mod analysis {
 
         let export = !matches!(&fn_.vis, syn::Visibility::Inherited);
 
+        let is_capture_only = args.priority.is_capture_only();
         let fn_attrs = output::OutputAttributes {
             docs: attrs.docs,
             inline: attrs.inline,
             cfg: attrs.cfg.clone(),
             attrs: attrs.others.into_iter().chain(attrs.lints).collect(),
-            is_capture_only: args.priority.is_capture_only(),
+            is_capture_only,
+            is_wgt_capture_only: is_capture_only && fn_.sig.ident.to_string().starts_with("__p_"),
         };
 
         // create a *real-alias* with docs that are inlined in widgets
@@ -830,6 +832,7 @@ mod output {
         pub cfg: Option<Attribute>,
         pub attrs: Vec<Attribute>,
         pub is_capture_only: bool,
+        pub is_wgt_capture_only: bool,
     }
 
     impl OutputAttributes {
@@ -846,6 +849,8 @@ mod output {
                 for attr in &self.docs {
                     attr.to_tokens(tokens);
                 }
+            } else if self.is_wgt_capture_only {
+                tokens.extend(quote! { #[doc(hidden)] });
             } else {
                 docs_with_first_line_js(tokens, &self.docs, js_tag!("property_header.js"));
             }

@@ -112,5 +112,14 @@ function property(capture_only) {
         if (modules_sidebar.querySelector('li') === null) {
             modules_sidebar.remove();
         }
+
+        // message type to widget page
+        let message = {
+            property_type: {
+                fn: fn.innerHTML,
+                id: `wp-${m.name.replace('__pdoc_', '')}`
+            },
+        };
+        window.parent.postMessage(message, "*")
     });
 }

@@ -380,7 +380,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let i = &inherited_properties[ident];
                 i.inherit_use.clone()
             }),
-            has_default: *default,
         });
 
         // collect property data for macros.
@@ -462,7 +461,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
             inherited_from_path: None,
-            has_default: *default,
         });
 
         // collect property data for macros.
@@ -800,7 +798,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             docs: TokenStream::default(),
             doc_hidden: false,
             inherited_from_path: inherited_properties.get(w_prop).map(|i| i.inherit_use.clone()),
-            has_default: true,
         });
 
         let p_ident = ident!("__p_{}", w_prop);
@@ -940,7 +937,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let auto_docs = auto_docs(docs_required, docs_default, docs_state, docs_other, docs_whens);
+    let auto_docs = auto_docs(docs_required, docs_default, docs_state, docs_other, docs_whens, mixin);
 
     let macro_ident = ident!("__{}_{}", ident, util::uuid());
 
@@ -990,7 +987,6 @@ struct PropertyDocs {
     docs: TokenStream,
     doc_hidden: bool,
     inherited_from_path: Option<syn::Path>,
-    has_default: bool,
 }
 struct WhenDocs {
     docs: TokenStream,
@@ -1004,6 +1000,7 @@ fn auto_docs(
     state: Vec<PropertyDocs>,
     mut other: Vec<PropertyDocs>,
     whens: Vec<WhenDocs>,
+    mixin: bool,
 ) -> TokenStream {
     #[allow(unused)]
     use util::is_doc_hidden;
@@ -1033,15 +1030,16 @@ fn auto_docs(
         "Properties that probe the widget state.",
     );
 
-    other.push(PropertyDocs {
-        ident: "*".to_owned(),
-        docs: quote_spanned! {Span::call_site()=>
-            /// Widgets are open ended, all property functions can be used in any widget.
-        },
-        doc_hidden: false,
-        inherited_from_path: None,
-        has_default: false,
-    });
+    if !mixin {
+        other.push(PropertyDocs {
+            ident: "*".to_owned(),
+            docs: quote_spanned! {Span::call_site()=>
+                /// Widgets are open ended, all property functions can be used in any widget.
+            },
+            doc_hidden: false,
+            inherited_from_path: None,
+        });
+    }
     docs_section(
         &mut r,
         other,
@@ -1101,7 +1099,6 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             &format!("wp-{}", property.ident),
             &property.ident.to_string(),
             &format!("fn.__pdoc_{}.html", property.ident),
-            property.has_default,
         );
 
         if property.docs.is_empty() {
@@ -1141,12 +1138,13 @@ fn docs_section_header(docs: &mut TokenStream, title: &'static str, id: &'static
 fn docs_close_section(docs: &mut TokenStream) {
     doc_extend!(docs, "</div>");
 }
-fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &str, has_default: bool) {
+fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &str) {
     doc_extend!(docs, "\n\n");
-    if has_default {
+
+    if id.ends_with('*') {
         doc_extend!(
             docs,
-            r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a> = <span title='Property is set by the widget.'>…</span></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+            r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a> = *</code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
             id,
             property,
             url
@@ -1154,7 +1152,7 @@ fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &
     } else {
         doc_extend!(
             docs,
-            r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+            r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a> = <span class='ptype-request' title='Loading property type…'>…<iframe src='{2}' style='position: absolute;width:0;height:0;border:0;'></iframe></span></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
             id,
             property,
             url

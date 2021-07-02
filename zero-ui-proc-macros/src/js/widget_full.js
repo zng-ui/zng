@@ -67,5 +67,10 @@ window.addEventListener('message', function(a) {
             parse.innerHTML = document.widget_property_summaries['__pdoc_' + div.getAttribute('data-ident')];
             div.replaceWith(parse.childNodes[0])
         });
+    } else if (a.data.property_type !== undefined) {
+        let inputs = a.data.property_type.fn.replace(/^\w+ = /, '');
+        let target = this.document.getElementById(a.data.property_type.id).querySelector('span.ptype-request');
+        target.removeAttribute('title');
+        target.innerHTML = inputs;
     }
 });

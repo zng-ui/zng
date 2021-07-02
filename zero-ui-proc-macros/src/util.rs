@@ -315,7 +315,8 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
 
                 let doc = &doc[..doc.len() - 1]; // remove \" end
 
-                doc_extend!(output, "{}{}\n\n", doc, js);
+                // replace ' with &#39; because rustdoc incorrectly replaces then with fancy quotes in the summary.
+                doc_extend!(output, "{}{}\n\n", doc, js.replace("'", "&#39;"));
                 skip = 1;
             }
         }
