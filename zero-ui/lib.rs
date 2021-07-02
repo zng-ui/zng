@@ -1577,7 +1577,7 @@ pub mod prelude {
         pub use crate::core::var::*;
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, node_vec, nodes, widget,
+            impl_ui_node, is_layout_any_size, node_vec, nodes, property, widget,
             widget_base::{Visibility, VisibilityContext, WidgetListVisibilityExt, WidgetVisibilityExt},
             widget_mixin, widget_vec, widgets, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
         };
