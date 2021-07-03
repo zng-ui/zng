@@ -860,7 +860,7 @@ mod output {
                     /// This property is `capture_only`, it can only be used in widget declarations
                     /// to define a property that is captured by the widget.
                 });
-            } else {
+            } else if !wgt {
                 tokens.extend(quote! {
                     /// </div>
                     /// <h2 id='function' class='small-section-header'>Function<a href='#function' class='anchor'></a></h2>
