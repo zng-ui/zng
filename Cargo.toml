@@ -8,7 +8,24 @@ edition = "2018"
 path = "zero-ui/lib.rs"
 
 [features]
+# Enable the zero_ui::core::profiler module.
+#
+# USAGE:
+#
+# `#[cfg(feature = "app_profiler")` or just use the `profile_scope!` macro.
 app_profiler = ["zero-ui-core/app_profiler"]
+
+# # Other Features
+#
+# ## `doc_nightly`
+#
+# Activates nightly only `rustdoc` features. The crate is already configured to use this feature
+# in "docs.rs" and `do doc`.
+# 
+# Use `#![cfg_attr(doc_nightly, feature(doc_foo))]` in the `lib.rs` to activate a `rustdoc` feature. Then
+# use `#[cfg_attr(doc_nightly, doc(foo))]` in an item.
+# 
+# Use `RUSTDOCFLAGS="--cfg doc_nightly" cargo +nightly doc` to run `cargo doc` without using `do`.
 
 [dependencies]
 # local
@@ -25,7 +42,7 @@ meval = "0.2"
 trybuild = "1"
 log = "0.4"
 # enable test util
-zero-ui-core = { path = "zero-ui-core", features = ["pub_test"] }
+zero-ui-core = { path = "zero-ui-core", features = ["test_util"] }
 
 [workspace]
 members = ["zero-ui-proc-macros", "zero-ui-core"]

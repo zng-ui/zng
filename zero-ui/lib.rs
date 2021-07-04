@@ -4,6 +4,8 @@
 // that does not import `use` clauses declared inside the parent function.
 #![allow(clippy::needless_doctest_main)]
 #![warn(missing_docs)]
+#![cfg_attr(doc_nightly, feature(doc_cfg))]
+#![cfg_attr(doc_nightly, feature(doc_notable_trait))]
 
 //! Zero-Ui is the pure Rust GUI framework with batteries included.
 //!
@@ -1372,6 +1374,7 @@ pub mod core {
     /// [#widget]: macro@widget
     pub use zero_ui_core::widget_mixin;
 
+    #[doc(inline)]
     pub use zero_ui_core::*;
 }
 

@@ -1,6 +1,6 @@
 // Script inserted at the start of each property function docs.
 // In the functions list page it creates a new 'Property Functions' section.
-var local = document.currentScript.closest('tr');
+var local = document.currentScript.closest('p');
 if (document.property_fns === undefined) {
     document.property_fns = new Array(local);
     document.addEventListener('DOMContentLoaded', move_properties);
@@ -13,12 +13,11 @@ function move_properties() {
     if (functions !== null) {
         // we are in the functions list page:
 
-        let property_fns = document.property_fns.filter(function(tr) {
-            (document.documentElement.contains(tr))
+        let property_fns = document.property_fns.filter(function(p) {
+            return document.documentElement.contains(p);
         });
-        document.property_fns = null;
 
-        if (property_fns.length > 0) {
+        if (property_fns.length != 0) {
             // create section header
             let pf = document.createElement('h2');
             pf.id = 'property-functions';

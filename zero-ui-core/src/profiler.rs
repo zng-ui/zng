@@ -6,6 +6,7 @@
 //! Profiler can be viewed using the `chrome://tracing` app.
 
 #[cfg(feature = "app_profiler")]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "app_profiler")))]
 mod profiler_impl {
     use serde_json::*;
 
@@ -153,6 +154,7 @@ mod profiler_impl {
     /// # Macro
     ///
     /// For basic usage like in the example there is also the [`profile_scope!`](macro.profile_scope.html) macro.
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "app_profiler")))]
     pub struct ProfileScope {
         name: Text,
         t0: u64,
@@ -184,6 +186,7 @@ mod profiler_impl {
 
     /// Writes the global profile to a specific file.
     #[inline]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "app_profiler")))]
     pub fn write_profile(filename: &str, ignore_0ms: bool) {
         GLOBAL_PROFILER
             .lock()
@@ -195,6 +198,7 @@ mod profiler_impl {
     ///
     /// Does nothing if the thread is already registered.
     #[inline]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "app_profiler")))]
     pub fn register_thread_with_profiler() {
         GLOBAL_PROFILER.lock().get_or_insert_with(Profiler::new).register_thread();
     }

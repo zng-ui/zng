@@ -301,6 +301,8 @@ pub fn is_doc_hidden_tt(docs: TokenStream) -> bool {
     is_doc_hidden(&attrs)
 }
 
+/// Insert `<script>{js}</script>` ad the end of the first `docs` line escaped to activate in the item
+/// parent module summary list page.
 pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js: &'static str) {
     if docs.is_empty() {
         doc_extend!(output, "{}", js);
@@ -315,8 +317,8 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
 
                 let doc = &doc[..doc.len() - 1]; // remove \" end
 
-                // replace ' with &#39; because rustdoc incorrectly replaces then with fancy quotes in the summary.
-                doc_extend!(output, "{}{}\n\n", doc, js.replace("'", "&#39;"));
+                // replace characters `rustdoc` incorrectly changes.
+                doc_extend!(output, "{}<script>{}</script>\n\n", doc, js.replace("'", "&#39;"));
                 skip = 1;
             }
         }

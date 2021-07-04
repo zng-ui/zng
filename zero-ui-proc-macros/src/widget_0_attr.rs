@@ -53,7 +53,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     wgt_attrs.extend(quote! { #(#others)* });
     wgt_attrs.extend(quote! { #(#lints)* });
 
-    util::docs_with_first_line_js(&mut wgt_attrs, &docs, js_tag!("widget_header.js"));
+    util::docs_with_first_line_js(&mut wgt_attrs, &docs, js!("widget_header.js"));
     wgt_attrs.extend(quote! {
         ///
         ///

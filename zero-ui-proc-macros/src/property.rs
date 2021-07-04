@@ -852,7 +852,7 @@ mod output {
             } else if self.is_wgt_capture_only {
                 tokens.extend(quote! { #[doc(hidden)] });
             } else {
-                docs_with_first_line_js(tokens, &self.docs, js_tag!("property_header.js"));
+                docs_with_first_line_js(tokens, &self.docs, js!("property_header.js"));
             }
             if self.is_capture_only {
                 tokens.extend(quote! {

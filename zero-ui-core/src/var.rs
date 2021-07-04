@@ -60,6 +60,7 @@ impl<T: fmt::Debug + Clone + 'static> VarValue for T {}
 /// usually a parent widget.
 ///
 /// Use [`context_var!`] to declare.
+#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait ContextVar: Clone + Copy + 'static {
     /// The variable type.
     type Type: VarValue;
@@ -237,6 +238,7 @@ pub trait IntoValue<T: VarValue>: Into<T> + Clone {}
 impl<T: VarValue> IntoValue<T> for T {}
 
 /// Represents an observable value.
+#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     /// The variable type that represents a read-only version of this type.
     type AsReadOnly: Var<T>;

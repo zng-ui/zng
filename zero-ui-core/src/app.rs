@@ -113,6 +113,7 @@ impl<'a, M> Future for RecvFut<'a, M> {
 }
 
 /// An [`App`] extension.
+#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait AppExtension: 'static {
     /// Type id of this extension.
     #[inline]
@@ -714,7 +715,7 @@ pub struct RunningApp<E: AppExtension> {
 impl<E: AppExtension> RunningApp<E> {
     fn start(mut extensions: E, event_sender: AppEventSender, window_target: WindowTarget) -> Self {
         if App::is_running() {
-            if cfg!(any(test, doc, feature = "pub_test")) {
+            if cfg!(any(test, doc, feature = "test_util")) {
                 panic!("only one app or `TestWidgetContext` is allowed per thread")
             } else {
                 panic!("only one app is allowed per thread")

@@ -4,6 +4,8 @@
 // that does not import `use` clauses declared inside the parent function.
 #![allow(clippy::needless_doctest_main)]
 #![warn(missing_docs)]
+#![cfg_attr(doc_nightly, feature(doc_cfg))]
+#![cfg_attr(doc_nightly, feature(doc_notable_trait))]
 
 //! Core infrastructure required for creating components and running an app.
 

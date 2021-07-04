@@ -31,7 +31,12 @@ fn doc(mut args: Vec<&str>) {
         take_flag(&mut args, &["-o", "--open"])
     };
 
-    cmd_req("cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
+    cmd_env_req(
+        "cargo",
+        &["+nightly", "doc", "--all-features", "--no-deps", "--workspace"],
+        &args,
+        &[("RUSTDOCFLAGS", "--cfg doc_nightly")],
+    );
 
     if custom_open {
         // Open the main crate.

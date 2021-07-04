@@ -90,6 +90,7 @@ impl UpdateDisplayRequest {
 ///
 /// The type that implements this trait is the key. You
 /// can use the [`state_key!`](crate::context::state_key) macro.
+#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait StateKey: 'static {
     /// The value type.
     type Type: 'static;
@@ -914,17 +915,14 @@ impl<'a> WindowContext<'a> {
     }
 }
 
-/// <span class="stab portability" title="This is supported on `any(test, doc, feature="pub_test")` only"><code>any(test, doc, feature="pub_test")</code></span> A mock [`WidgetContext`] for testing widgets.
+/// A mock [`WidgetContext`] for testing widgets.
 ///
 /// Only a single instance of this type can exist per-thread at a time, see [`new`](Self::new) for details.
 ///
 /// This is less cumbersome to use then a full headless app, but also more limited. Use a [`HeadlessApp`](crate::app::HeadlessApp)
 /// for more complex integration tests.
-///
-/// # Conditional Compilation
-///
-/// This is only compiled with the `any(test, doc, feature="pub_test")` feature enabled.
-#[cfg(any(test, doc, feature = "pub_test"))]
+#[cfg(any(test, doc, feature = "test_util"))]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
 pub struct TestWidgetContext {
     /// Id of the pretend window that owns the pretend root widget.
     ///
@@ -978,14 +976,14 @@ pub struct TestWidgetContext {
     /// TODO testable timers.
     pub timers: Timers,
 }
-#[cfg(any(test, doc, feature = "pub_test"))]
+#[cfg(any(test, doc, feature = "test_util"))]
 impl Default for TestWidgetContext {
     /// [`TestWidgetContext::new`]
     fn default() -> Self {
         Self::new()
     }
 }
-#[cfg(any(test, doc, feature = "pub_test"))]
+#[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
     /// or if an app is running in the current thread.

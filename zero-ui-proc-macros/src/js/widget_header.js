@@ -1,7 +1,7 @@
 // Script inserted at the start of each widget module docs.
 // In the modules list page it creates a new "Widget Modules" section.
 
-var local = document.currentScript.closest('tr');
+var local = document.currentScript.closest('p');
 if (local !== null) {
     if (document.widget_modules === undefined) {
         document.widget_modules = new Array(local);

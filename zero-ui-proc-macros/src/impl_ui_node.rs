@@ -572,7 +572,6 @@ struct DelegateValidator<'a> {
     pub ident: &'a Ident,
     pub list_variant: Ident,
     pub list_specific_variant: Ident,
-    pub attrs: &'a [Attribute],
     args_count: u8,
     pub delegates: bool,
 }
@@ -583,7 +582,6 @@ impl<'a> DelegateValidator<'a> {
                 ident: &m.sig.ident,
                 list_variant: ident!("{}_all", m.sig.ident),
                 list_specific_variant: ident!("widget_{}", m.sig.ident),
-                attrs: &m.attrs,
                 args_count: (m.sig.inputs.len() - 1) as u8,
                 delegates: false,
             }

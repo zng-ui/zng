@@ -32,6 +32,7 @@ impl fmt::Display for WidgetId {
 }
 
 /// An Ui tree node.
+#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait UiNode: 'static {
     /// Called every time the node is plugged in an Ui tree.
     fn init(&mut self, ctx: &mut WidgetContext);
@@ -230,9 +231,9 @@ macro_rules! declare_widget_test_calls {
     ($(
         $method:ident
     ),+) => {$(paste::paste! {
-        #[doc = "<span class='stab portability' title='This is supported on `any(test, doc, feature=\"pub_test\")` only'><code>any(test, doc, feature=\"pub_test\")</code></span>"]
         #[doc = "Run [`UiNode::"$method"`] using the [`TestWidgetContext`]."]
-        #[cfg(any(test, doc, feature = "pub_test"))]
+        #[cfg(any(test, doc, feature = "test_util"))]
+        #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
         fn [<test_ $method>](&mut self, ctx: &mut TestWidgetContext) {
             // `self` already creates an `widget_context`, we assume, so this
             // call is for a dummy parent of `self`.
@@ -244,6 +245,7 @@ macro_rules! declare_widget_test_calls {
 }
 
 /// Represents an widget [`UiNode`].
+#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait Widget: UiNode {
     /// Id of the widget.
     fn id(&self) -> WidgetId;
@@ -268,33 +270,33 @@ pub trait Widget: UiNode {
         init, deinit, update
     }
 
-    /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
     /// Run [`UiNode::measure`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "pub_test"))]
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_measure(&mut self, ctx: &mut TestWidgetContext, available_size: LayoutSize) -> LayoutSize {
         ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| {
             self.measure(ctx, available_size)
         })
     }
-    /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
     /// Run [`UiNode::arrange`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "pub_test"))]
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_arrange(&mut self, ctx: &mut TestWidgetContext, final_size: LayoutSize) {
         ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| self.arrange(ctx, final_size))
     }
 
     // TODO don't require user to init frame?
 
-    /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
     /// Run [`UiNode::render`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "pub_test"))]
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render(&self, ctx: &mut TestWidgetContext, frame: &mut FrameBuilder) {
         ctx.render_context(|ctx| self.render(ctx, frame));
     }
 
-    /// <span class='stab portability' title='This is supported on `any(test, doc, feature="pub_test")` only'><code>any(test, doc, feature="pub_test")</code></span>
     /// Run [`UiNode::render_update`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "pub_test"))]
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render_update(&self, ctx: &mut TestWidgetContext, update: &mut FrameUpdate) {
         ctx.render_context(|ctx| self.render_update(ctx, update));
     }

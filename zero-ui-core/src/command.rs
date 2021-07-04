@@ -156,6 +156,7 @@ pub use crate::command;
 /// Identifies a command type.
 ///
 /// Use [`command!`](macro@crate::command::command) to declare.
+#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait Command: Event<Args = CommandArgs> {
     /// Runs `f` with access to the metadata state-map.
     fn with_meta<F, R>(self, f: F) -> R

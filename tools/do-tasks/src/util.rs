@@ -15,8 +15,12 @@ pub fn cmd_env(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&s
     cmd_impl(cmd, default_args, user_args, envs, false)
 }
 // Like [`cmd`] but exists the task runner if the command fails.
-pub fn cmd_req(cmd: &str, default_args: &[&str], user_args: &[&str]) {
-    cmd_impl(cmd, default_args, user_args, &[], true)
+//pub fn cmd_req(cmd: &str, default_args: &[&str], user_args: &[&str]) {
+//    cmd_impl(cmd, default_args, user_args, &[], true)
+//}
+// Like [`cmd_env`] but exists the task runner if the command fails.
+pub fn cmd_env_req(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)]) {
+    cmd_impl(cmd, default_args, user_args, envs, true)
 }
 fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)], required: bool) {
     let info = TaskInfo::get();

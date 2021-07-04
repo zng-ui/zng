@@ -54,6 +54,7 @@ pub trait CancelableEventArgs: EventArgs {
 /// Identifies an event type.
 ///
 /// Use [`event!`](macro@event) to declare.
+#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait Event: Debug + Clone + Copy + 'static {
     /// Event arguments type.
     type Args: EventArgs;
