@@ -1,11 +1,11 @@
 // Script inserted at the start of each property function docs.
 // In the functions list page it creates a new 'Property Functions' section.
-var local = document.currentScript.closest('p');
+var div = document.currentScript.closest('div');
 if (document.property_fns === undefined) {
-    document.property_fns = new Array(local);
+    document.property_fns = new Array(div);
     document.addEventListener('DOMContentLoaded', move_properties);
 } else {
-    document.property_fns.push(local);
+    document.property_fns.push(div);
 }
 
 function move_properties() {
@@ -13,8 +13,8 @@ function move_properties() {
     if (functions !== null) {
         // we are in the functions list page:
 
-        let property_fns = document.property_fns.filter(function(p) {
-            return document.documentElement.contains(p);
+        let property_fns = document.property_fns.filter(function(div) {
+            return document.documentElement.contains(div);
         });
 
         if (property_fns.length != 0) {
@@ -36,13 +36,12 @@ function move_properties() {
             ul.insertBefore(li, side_functions);
 
             // create table
-            let table = document.createElement('table');
-            table.style = 'display:block;';
-            let tbody = document.createElement('tbody');
-            property_fns.forEach(function(tr) {
-                tbody.appendChild(tr);
+            let table = document.createElement('div');
+            table.classList.add('item-table');
+            property_fns.forEach(function(div) {
+                table.appendChild(div.previousElementSibling);
+                table.appendChild(div);
             });
-            table.appendChild(tbody);
             functions.parentNode.insertBefore(table, pf.nextSibling);
 
             // remove empty section
@@ -57,6 +56,6 @@ function move_properties() {
     // the header script ends up in the sidebar tooltip, remove it here.
     // note, the bad tooltips still show from an item page we don't control (like a struct in the same mod).
     document.querySelectorAll('div.block.fn li a, div.block.mod li a').forEach(function(a) {
-        a.title = a.title.replace(/var local=doc.*/, '');
+        a.title = a.title.replace(/var div=doc.*/, '');
     });
 }

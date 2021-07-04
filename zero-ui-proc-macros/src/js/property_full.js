@@ -48,7 +48,7 @@ function property(capture_only) {
         // the header script ends up in the sidebar tooltip, remove it here.
         // note, the bad tooltips still show from an item page we don't control (like a struct in the same mod).
         document.querySelectorAll('div.block.fn li a, div.block.mod li a').forEach(function(a) {
-            a.title = a.title.replace(/var local=doc.*/, '');
+            a.title = a.title.replace(/var div=doc.*/, '');
         });
     });
 }

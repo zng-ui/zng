@@ -1,10 +1,10 @@
 // Script inserted at the start of each widget module docs.
 // In the modules list page it creates a new "Widget Modules" section.
 
-var local = document.currentScript.closest('p');
-if (local !== null) {
+var div = document.currentScript.closest('div');
+if (div !== null) {
     if (document.widget_modules === undefined) {
-        document.widget_modules = new Array(local);
+        document.widget_modules = new Array(div);
 
         document.addEventListener('DOMContentLoaded', function() {
             var modules = document.querySelector('h2#modules.section-header');
@@ -27,14 +27,13 @@ if (local !== null) {
                 ul.insertBefore(li, side_modules.nextSibling);
 
                 // create table
-                var table = document.createElement('table');
-                table.style = 'display:block;';
-                var tbody = document.createElement('tbody');
-                document.widget_modules.forEach(function(tr) {
-                    tbody.appendChild(tr);
+                var table = document.createElement('div');
+                table.classList.add('item-table');
+                document.widget_modules.forEach(function(div) {
+                    table.appendChild(div.previousElementSibling);
+                    table.appendChild(div);
                 });
                 document.widget_modules = null;
-                table.appendChild(tbody);
                 modules.parentNode.insertBefore(table, pm.nextSibling);
 
                 // remove empty modules
@@ -47,11 +46,11 @@ if (local !== null) {
                 // the header script ends up in the sidebar tooltip, remove it here.
                 // note, the bad tooltips still show from an item page we don't control (like a struct in the same mod).
                 document.querySelectorAll('div.block.fn li a, div.block.mod li a').forEach(function(a) {
-                    a.title = a.title.replace(/var local=doc.*/, '');
+                    a.title = a.title.replace(/var div=doc.*/, '');
                 });
             }
         });
     } else {
-        document.widget_modules.push(local);
+        document.widget_modules.push(div);
     }
 }
