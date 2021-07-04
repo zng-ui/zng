@@ -1129,7 +1129,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
 fn docs_section_header(docs: &mut TokenStream, title: &'static str, id: &'static str, tool_tip: &'static str) {
     doc_extend!(
         docs,
-        r##"<h2 id="{0}" class="small-section-header" title="{2}">{1}<a href="#{0}" class="anchor"></a></h2><div class="methods" style="display: block;">"##,
+        r##"<h2 id="{0}" class="small-section-header" title="{2}">{1}<a href="#{0}" class="anchor"></a></h2><div class="impl-items"">"##,
         id,
         title,
         tool_tip,
@@ -1144,15 +1144,13 @@ fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &
     if id.ends_with('*') {
         doc_extend!(
             docs,
-            r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a> = *</code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{0}" class="method in-band"><a class="anchor" href="#{0}" style="margin-left:-4px"></a><code style="font-style:italic"><a href="#{0}" class="fnname" style="margin-left:8px">all-properties</a> = T</code></div></summary><div class="docblock">"##,
             id,
-            property,
-            url
         );
     } else {
         doc_extend!(
             docs,
-            r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a> = <span class='ptype-request' title='Loading property type…'>…<iframe src='{2}' style='position: absolute;width:0;height:0;border:0;'></iframe></span></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{0}" class="method in-band"><a class="anchor" href="#{0}" style="margin-left:-4px"></a><code><a href="{2}" class="fnname" style="margin-left:8px">{1}</a> = <span class='ptype-request' title='Loading property type…'>…<iframe src='{2}' style='position: absolute;width:0;height:0;border:0;'></iframe></span></code></div></summary><div class="docblock">"##,
             id,
             property,
             url
@@ -1162,7 +1160,7 @@ fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &
     doc_extend!(docs, "\n\n");
 }
 fn docs_close_property(docs: &mut TokenStream) {
-    doc_extend!(docs, "\n\n</div>\n\n");
+    doc_extend!(docs, "\n\n</div></details>\n\n");
 }
 
 struct Items {
