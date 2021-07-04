@@ -157,8 +157,6 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     let (impl_generics, _, where_clause) = generics.split_for_impl();
     let self_ty = input.self_ty;
 
-    let mut inline_all = InlineEverything::new();
-
     let in_node_impl = ui_node_path.is_some();
 
     // we use the UiNode path provided by the user if possible
@@ -167,18 +165,20 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         .map(|p| p.to_token_stream())
         .unwrap_or_else(|| quote! { #crate_::UiNode });
 
-    let mut impl_node = parse_quote! {
-        impl #impl_generics #ui_node_path for #self_ty #where_clause {
-            #(#node_items)*
-            #(#default_ui_items)*
-        }
-    };
-    inline_all.visit_item_impl_mut(&mut impl_node);
+    let mut inline_all = InlineEverything::new();
+    for mtd in node_items.iter_mut() {
+        inline_all.visit_impl_item_mut(mtd);
+    }
 
     let result = if in_node_impl {
         quote! {
             #errors
-            #impl_node
+
+            impl #impl_generics #ui_node_path for #self_ty #where_clause {
+                #(#node_items)*
+                #(#default_ui_items)*
+                #(#other_items)*
+            }
         }
     } else {
         let input_attrs = input.attrs;
@@ -189,7 +189,10 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                 #(#other_items)*
             }
 
-            #impl_node
+            impl #impl_generics #ui_node_path for #self_ty #where_clause {
+                #(#node_items)*
+                #(#default_ui_items)*
+            }
         }
     };
 
@@ -228,8 +231,9 @@ macro_rules! make_absents {
         let user_mtds = $user_mtds;
         $(
         if !user_mtds.contains(&ident!(stringify!($ident))) {
-            absents.push(parse_quote!{
-               fn $ident $($tt)*
+            absents.push(parse_quote! {
+                #[inline]
+                fn $ident $($tt)*
             });
         }
         )+

@@ -330,9 +330,9 @@ pub mod window {
                 $ident:ident: $Type:ty,
             )+) => {
                 $(paste::paste! {
-                    #[doc = "Sets the [`" $ident "`](WindowVars::" $ident ") window var."]
+                    #[doc = "Sets the [`"$ident"`](WindowVars::"$ident") window var."]
                     ///
-                    #[doc = "Sets `" $ident "` back if the window var updates with a new value."]
+                    #[doc = "Sets `"$ident"` back if the window var updates with a new value."]
                     #[property(context)]
                     pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
                         struct [<Window $ident:camel Node>] <C, V> {
@@ -405,9 +405,9 @@ pub mod window {
             ($(
                 $ident:ident ( $member_a:ident, $member_b:ident ) : $Type:ty,
             )+) => {$(paste::paste! {
-                #[doc = "Sets the [`" $ident "`](WindowVars::" $ident ") window var."]
+                #[doc = "Sets the [`"$ident"`](WindowVars::"$ident") window var."]
                 ///
-                #[doc = "Sets `" $ident "` back if the window var updates with a new value."]
+                #[doc = "Sets `"$ident"` back if the window var updates with a new value."]
                 #[property(context)]
                 pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
                     struct [<Window $ident:camel Node>] <C, V> {
@@ -472,9 +472,9 @@ pub mod window {
             ($(
                 $ident:ident = $var:ident . $member:ident,
             )+) => {$(paste::paste! {
-                #[doc = "Sets the `" $member "` member of the [`" $var "`](WindowVars::" $var ") window var."]
+                #[doc = "Sets the `"$member"` member of the [`"$var"`](WindowVars::"$var") window var."]
                 ///
-                #[doc = "Sets `" $ident "` back if the window var updates with a new value."]
+                #[doc = "Sets `"$ident"` back if the window var updates with a new value."]
                 #[property(context)]
                 pub fn $ident(child: impl UiNode, $ident: impl IntoVar<Length>) -> impl UiNode {
                     struct [<Window $ident:camel Node>] <C, V> {

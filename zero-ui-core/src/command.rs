@@ -18,7 +18,7 @@ use crate::{
     handler::WidgetHandler,
     impl_ui_node, state_key,
     text::Text,
-    var::{var, var_from, BoxedVar, IntoVar, RcVar, ReadOnlyVar, Var, Vars},
+    var::{var, var_from, BoxedVar, ContextVar, IntoVar, RcVar, ReadOnlyVar, Var, Vars},
     UiNode,
 };
 
@@ -621,6 +621,180 @@ where
         handle: None,
     }
 }
+
+/// Helper for declaring command properties.
+pub fn can_command(
+    child: impl UiNode,
+    enabled: impl ContextVar<Type = bool>,
+    update: impl FnMut(&mut WidgetContext) -> bool + 'static,
+) -> impl UiNode {
+    struct CanCommandNode<C, E, U> {
+        child: C,
+        enabled: E,
+        update: U,
+
+        enabled_value: bool,
+        enabled_version: u32,
+    }
+    #[impl_ui_node(child)]
+    impl<C, E, U> UiNode for CanCommandNode<C, E, U>
+    where
+        C: UiNode,
+        E: ContextVar<Type = bool>,
+        U: FnMut(&mut WidgetContext) -> bool + 'static,
+    {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let value = (self.update)(ctx);
+            let is_new = self.enabled_value != value;
+            if is_new {
+                self.enabled_value = value;
+                self.enabled_version = self.enabled_version.wrapping_add(1);
+            }
+
+            ctx.vars.with_context_var(self.enabled, &value, is_new, self.enabled_version, || {
+                self.child.init(ctx);
+            });
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let value = (self.update)(ctx);
+            let is_new = self.enabled_value != value;
+            if is_new {
+                self.enabled_value = value;
+                self.enabled_version = self.enabled_version.wrapping_add(1);
+            }
+
+            ctx.vars.with_context_var(self.enabled, &value, is_new, self.enabled_version, || {
+                self.child.update(ctx);
+            });
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let value = self.enabled_value;
+            ctx.vars.with_context_var(self.enabled, &value, false, self.enabled_version, || {
+                self.child.deinit(ctx);
+            });
+        }
+
+        fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            let value = self.enabled_value;
+            ctx.vars.with_context_var(self.enabled, &value, false, self.enabled_version, || {
+                self.child.event(ctx, args);
+            });
+        }
+
+        fn measure(
+            &mut self,
+            ctx: &mut crate::context::LayoutContext,
+            available_size: crate::units::LayoutSize,
+        ) -> crate::units::LayoutSize {
+            let value = self.enabled_value;
+            ctx.vars.with_context_var(self.enabled, &value, self.enabled_version, || {
+                self.child.measure(ctx, available_size)
+            })
+        }
+
+        fn arrange(&mut self, ctx: &mut crate::context::LayoutContext, final_size: crate::units::LayoutSize) {
+            let value = self.enabled_value;
+            ctx.vars.with_context_var(self.enabled, &value, self.enabled_version, || {
+                self.child.arrange(ctx, final_size);
+            });
+        }
+
+        fn render(&self, ctx: &mut crate::context::RenderContext, frame: &mut crate::render::FrameBuilder) {
+            let value = self.enabled_value;
+            ctx.vars.with_context_var(self.enabled, &value, self.enabled_version, || {
+                self.child.render(ctx, frame);
+            });
+        }
+
+        fn render_update(&self, ctx: &mut crate::context::RenderContext, update: &mut crate::render::FrameUpdate) {
+            let value = self.enabled_value;
+            ctx.vars.with_context_var(self.enabled, &value, self.enabled_version, || {
+                self.child.render_update(ctx, update);
+            });
+        }
+    }
+    CanCommandNode {
+        child,
+        enabled,
+        update,
+
+        enabled_value: false,
+        enabled_version: 0,
+    }
+}
+
+/// Declare command properties.
+#[macro_export]
+macro_rules! command_property {
+    ($(
+        $(#[$on_command_attrs:meta])*
+        $vis:vis fn $command:ident: $Command:path;
+    )+) => {$($crate::paste! {
+
+        $crate::var::context_var! {
+            struct [<Can $Command Var>]: bool = const true;
+        }
+
+        $(#[$on_command_attrs])*
+        ///
+        /// # Enable
+        ///
+        #[doc = "You can control if this property is enabled by setting the [`can_"$command"`](fn.can_"$command".html)."]
+        /// property in the same widget or a parent widget.
+        ///
+        /// # Preview
+        ///
+        #[doc = "You can preview this command event using [`on_pre_"$command"`](fn.on_pre_"$command".html)."]
+        /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
+        ///
+        /// # Async
+        ///
+        /// You can use async event handlers with this property.
+        #[$crate::property(event, default( $crate::handler::hn!(|_, _|{}) ))]
+        pub fn [<on_ $command>](
+            child: impl $crate::UiNode,
+            handler: impl $crate::handler::WidgetHandler<$crate::command::CommandArgs>
+        ) -> impl $crate::UiNode {
+            $crate::command::on_command(child, $Command, [<Can $Command Var>], handler)
+        }
+
+        #[doc = "Preview [`on_"$command"`](fn.on_"$command".html) command event."]
+        ///
+        /// # Preview
+        ///
+        /// Preview event properties call the handler before the main event property and before the widget content, if you stop
+        /// the propagation of a preview event the main event handler is not called.
+        ///
+        /// # Async
+        ///
+        /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
+        /// subsequent code runs in widget updates.
+        #[$crate::property(event, default( $crate::handler::hn!(|_, _|{}) ))]
+        pub fn [<on_pre_ $command>](
+            child: impl $crate::UiNode,
+            handler: impl $crate::handler::WidgetHandler<$crate::command::CommandArgs>
+        ) -> impl $crate::UiNode {
+            $crate::command::on_pre_command(child, $Command, [<Can $Command Var>], handler)
+        }
+
+        #[doc = "Enable/Disable the [`on_"$command"`](fn.on_"$command".html) command event in the widget or its content."]
+        ///
+        /// # Commands
+        ///
+        /// TODO
+        #[$crate::property(context, allowed_in_when = false, default( |_|true ))]
+        pub fn [<can_ $command>](
+            child: impl $crate::UiNode,
+            update: impl FnMut(&mut $crate::context::WidgetContext) -> bool + 'static
+        ) -> impl $crate::UiNode {
+            $crate::command::can_command(child, [<Can $Command Var>], update)
+        }
+    })+}
+}
+#[doc(inline)]
+pub use crate::command_property;
 
 #[cfg(test)]
 mod tests {

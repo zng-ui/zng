@@ -1409,7 +1409,7 @@ impl GenericFonts {
 }
 macro_rules! impl_fallback_accessors {
     ($($name:ident),+ $(,)?) => {$($crate::paste! {
-    #[doc = "Gets the fallback *" $name "* font for the given script."]
+    #[doc = "Gets the fallback *"$name"* font for the given script."]
     ///
     /// Returns a font name and the [`Script`] it was registered with. The script
     /// can be the same as requested or [`Script::Unknown`].
@@ -1418,7 +1418,7 @@ macro_rules! impl_fallback_accessors {
         Self::get_fallback(&self.$name, script)
     }
 
-    #[doc = "Sets the fallback *" $name "* font for the given script."]
+    #[doc = "Sets the fallback *"$name"* font for the given script."]
     ///
     /// Returns the previous registered font for the script.
     ///

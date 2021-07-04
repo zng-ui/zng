@@ -79,7 +79,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 
 /// Single color background property.
 ///
-/// This property applies a [`fill_color`] as [`background`](fn@background).
+/// This property applies a [`fill_color`] as [`background`].
 ///
 /// # Example
 ///
@@ -93,6 +93,8 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 /// }
 /// # ;
 /// ```
+///
+/// [`background`]: fn@background
 #[property(inner, default(colors::BLACK.transparent()))]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     background(child, fill_color(color))
@@ -100,7 +102,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 
 /// Linear gradient background property.
 ///
-/// This property applies a [`linear_gradient`] as [`background`](fn@background).
+/// This property applies a [`linear_gradient`] as [`background`].
 ///
 /// # Example
 ///
@@ -117,6 +119,8 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// }
 /// # ;
 /// ```
+///
+/// [`background`]: fn@background
 #[property(inner, default(0.deg(), {
     let c = colors::BLACK.transparent();
     crate::core::gradient::stops![c, c]
@@ -198,7 +202,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
 /// Foreground highlight border overlay.
 ///
-/// This property draws a [`border`](fn@crate::properties::border) with extra `offsets` control
+/// This property draws a [`border`] with extra `offsets` control
 /// as a [`foreground`] overlay. The border has no content.
 ///
 /// # Example
@@ -219,6 +223,9 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 /// ```
 ///
 /// The example renders a solid blue 1 pixel border overlay, the border lines are inset 3 pixels in the container.
+///
+/// [`foreground`]: fn@foreground
+/// [`border`]: fn@crate::properties::border
 #[property(inner, default(0, 0, BorderStyle::Hidden, 0))]
 pub fn foreground_highlight(
     child: impl UiNode,
@@ -249,6 +256,8 @@ pub fn foreground_highlight(
 /// ```
 ///
 /// The example adds a green tint to the container content.
+///
+/// [`foreground`]: fn@foreground
 #[property(inner, default(colors::BLACK.transparent()))]
 pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     foreground(child, fill_color(color))
@@ -256,7 +265,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 
 /// Linear gradient overlay property.
 ///
-/// This property applies a [`linear_gradient`] as [`foreground`] using the [`Clamp`](ExtendMode::Clamp) extend mode.
+/// This property applies a [`linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
 ///
 /// # Example
 ///
@@ -275,6 +284,9 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// ```
 ///
 /// The example adds a *shadow* gradient to a 10px strip in the top part of the container content.
+///
+/// [`foreground`]: fn@foreground
+/// [`Clamp`]: ExtendMode::Clamp
 #[property(inner, default(0.deg(), {
     let c = colors::BLACK.transparent();
     crate::core::gradient::stops![c, c]

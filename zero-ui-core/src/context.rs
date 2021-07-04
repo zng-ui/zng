@@ -1421,10 +1421,10 @@ impl<'a> RenderContext<'a> {
 macro_rules! contextual_ctx {
     ($($Context:ident),+ $(,)?) => {$(paste::paste! {
 
-#[doc = " Represents a *contextual* reference to [`" $Context "`]."]
+#[doc = " Represents a *contextual* reference to [`"$Context"`]."]
 ///
-#[doc = "This type exist to provide access to a [`" $Context "`] inside [`UiTask`](crate::task::UiTask) futures."]
-#[doc = "Every time the task updates the executor loads a exclusive reference to the context using the paired [`" $Context "Scope`]"]
+#[doc = "This type exist to provide access to a [`"$Context"`] inside [`UiTask`](crate::task::UiTask) futures."]
+#[doc = "Every time the task updates the executor loads a exclusive reference to the context using the paired [`"$Context"Scope`]"]
 /// to provide the context for that update. Inside the future you can then call [`with`](Self::with) to get the exclusive
 /// reference to the context.
 pub struct [<$Context Mut>] {

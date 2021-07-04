@@ -1405,7 +1405,7 @@ pub mod prelude {
             self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
             sepia, Rgba,
         },
-        command::{CommandInfoExt, CommandNameExt},
+        command::{command_property, CommandInfoExt, CommandNameExt},
         context::WidgetContext,
         event::Events,
         focus::{DirectionalNav, Focus, FocusChangedArgs, FocusExt, ReturnFocusChangedArgs, TabIndex, TabNav},
@@ -1504,6 +1504,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::color::{self, *};
         #[doc(no_inline)]
+        pub use crate::core::command::*;
+        #[doc(no_inline)]
         pub use crate::core::context::*;
         #[doc(no_inline)]
         pub use crate::core::event::*;
@@ -1559,6 +1561,8 @@ pub mod prelude {
         pub use crate::core::border::*;
         #[doc(no_inline)]
         pub use crate::core::color::*;
+        #[doc(no_inline)]
+        pub use crate::core::command::*;
         #[doc(no_inline)]
         pub use crate::core::context::*;
         #[doc(no_inline)]

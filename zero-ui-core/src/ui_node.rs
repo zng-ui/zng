@@ -231,7 +231,7 @@ macro_rules! declare_widget_test_calls {
         $method:ident
     ),+) => {$(paste::paste! {
         #[doc = "<span class='stab portability' title='This is supported on `any(test, doc, feature=\"pub_test\")` only'><code>any(test, doc, feature=\"pub_test\")</code></span>"]
-        #[doc = "Run [`UiNode::" $method "`] using the [`TestWidgetContext`]."]
+        #[doc = "Run [`UiNode::"$method"`] using the [`TestWidgetContext`]."]
         #[cfg(any(test, doc, feature = "pub_test"))]
         fn [<test_ $method>](&mut self, ctx: &mut TestWidgetContext) {
             // `self` already creates an `widget_context`, we assume, so this
