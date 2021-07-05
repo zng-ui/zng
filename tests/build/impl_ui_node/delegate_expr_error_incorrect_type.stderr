@@ -15,7 +15,7 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
 9 | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
   |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
   |
-  = note: required by `zero_ui::core::UiNode::init`
+  = note: required by `zero_ui::prelude::UiNode::init`
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
  --> $DIR/delegate_expr_error_incorrect_type.rs:9:55
@@ -23,7 +23,7 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
 9 | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
   |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
   |
-  = note: required by `zero_ui::core::UiNode::deinit`
+  = note: required by `zero_ui::prelude::UiNode::deinit`
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
  --> $DIR/delegate_expr_error_incorrect_type.rs:9:55
@@ -31,7 +31,7 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
 9 | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
   |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
   |
-  = note: required by `zero_ui::core::UiNode::update`
+  = note: required by `zero_ui::prelude::UiNode::update`
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
   --> $DIR/delegate_expr_error_incorrect_type.rs:9:55
@@ -42,7 +42,7 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
   ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
    |
    |     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A);
-   |                 --------------- required by this bound in `zero_ui::core::UiNode::event`
+   |                 --------------- required by this bound in `zero_ui::prelude::UiNode::event`
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
    --> $DIR/delegate_expr_error_incorrect_type.rs:9:27

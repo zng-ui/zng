@@ -26,13 +26,13 @@ error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement
    = note: required because of the requirements on the impl of `zero_ui::prelude::IntoVar<<impl invalid2_Args as invalid2_Args>::T_value>` for `<impl invalid2_Args as invalid2_Args>::T_value`
    = note: required by `allowed_in_when_property_requires_IntoVar_members`
 
-error[E0277]: the trait bound `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>: zero_ui::core::UiNode` is not satisfied
+error[E0277]: the trait bound `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>: zero_ui::prelude::UiNode` is not satisfied
   --> $DIR/allowed_in_when_validation.rs:12:44
    |
 11 | #[property(context)] // error because no allowed_in_when = false
    | -------------------- required by `invalid2_ArgsImpl::<T_value>::new`
 12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
-   |                                            ^^^^ the trait `zero_ui::core::UiNode` is not implemented for `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>`
+   |                                            ^^^^ the trait `zero_ui::prelude::UiNode` is not implemented for `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>`
 
 error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement `Debug`
   --> $DIR/allowed_in_when_validation.rs:11:1

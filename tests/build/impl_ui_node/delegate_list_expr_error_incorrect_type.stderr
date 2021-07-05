@@ -15,7 +15,7 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
 9 | #[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
   |                                                                 ^ the trait `UiNodeList` is not implemented for `NotANodeList`
   |
-  = note: required by `zero_ui::core::UiNodeList::init_all`
+  = note: required by `zero_ui::prelude::UiNodeList::init_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
  --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65
@@ -23,7 +23,7 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
 9 | #[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
   |                                                                 ^ the trait `UiNodeList` is not implemented for `NotANodeList`
   |
-  = note: required by `zero_ui::core::UiNodeList::deinit_all`
+  = note: required by `zero_ui::prelude::UiNodeList::deinit_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
  --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65
@@ -31,7 +31,7 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
 9 | #[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
   |                                                                 ^ the trait `UiNodeList` is not implemented for `NotANodeList`
   |
-  = note: required by `zero_ui::core::UiNodeList::update_all`
+  = note: required by `zero_ui::prelude::UiNodeList::update_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65
@@ -42,7 +42,7 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   ::: $WORKSPACE/zero-ui-core/src/ui_list.rs
    |
    |     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
-   |                      --------------- required by this bound in `zero_ui::core::UiNodeList::event_all`
+   |                      --------------- required by this bound in `zero_ui::prelude::UiNodeList::event_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
    --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:32
@@ -64,7 +64,7 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   ::: $WORKSPACE/zero-ui-core/src/ui_list.rs
    |
    |         O: FnMut(usize) -> LayoutPoint;
-   |            --------------------------- required by this bound in `zero_ui::core::UiNodeList::render_all`
+   |            --------------------------- required by this bound in `zero_ui::prelude::UiNodeList::render_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
  --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65
@@ -72,7 +72,7 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
 9 | #[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
   |                                                                 ^ the trait `UiNodeList` is not implemented for `NotANodeList`
   |
-  = note: required by `zero_ui::core::UiNodeList::render_update_all`
+  = note: required by `zero_ui::prelude::UiNodeList::render_update_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65
@@ -83,7 +83,7 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   ::: $WORKSPACE/zero-ui-core/src/ui_list.rs
    |
    |         F: FnMut(usize, &mut LayoutContext) -> LayoutSize;
-   |            ---------------------------------------------- required by this bound in `zero_ui::core::UiNodeList::arrange_all`
+   |            ---------------------------------------------- required by this bound in `zero_ui::prelude::UiNodeList::arrange_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65
@@ -94,4 +94,4 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   ::: $WORKSPACE/zero-ui-core/src/ui_list.rs
    |
    |     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
-   |                       - required by this bound in `zero_ui::core::UiNodeList::measure_all`
+   |                       - required by this bound in `zero_ui::prelude::UiNodeList::measure_all`
