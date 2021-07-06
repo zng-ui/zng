@@ -25,6 +25,7 @@ Things that must be done first because they influence the core API design that i
 
 * Widget
   * new functions for each property priority.
+  * let properties reference other properties.
 
 * Commands.
 
