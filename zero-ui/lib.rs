@@ -429,19 +429,194 @@
 //! }
 //! ```
 //!
-//! ## Handlers
+//! ## Event Handlers
+//! 
+//! Events are unit structs that implement [`Event`], they represent an action or occurrence such as a key press or an window opening.
+//! Events are naturally **broadcast**, every window and widget *receives* every event message. The event messages are
+//! structs that implement [`EventArgs`], and these *arguments* can be checked to see if the event is relevant in an widget context
+//! by calling [`concerns_widget`]. Early listeners can also use the [`EventArgs`] to signal later listeners that an event has ben
+//! handled by calling [`stop_propagation`].
+//!
+//! You usually don't setup an widget event handler directly, but instead use a property that does the message filtering and only
+//! calls your handler if the message is valid in the widget and not already handled. These *event properties* follow a common pattern,
+//! each is named with the `on_` prefix and each receive an [`WidgetHandler<T>`] as input. The handler is essentially a closure that
+//! takes the [`WidgetContext`] and event arguments as input, the handler trait allows properties to receive both **mut** and **once**
+//! closures as well as both sync and **async** closures. These closures can be declared using macros that also enable ***clone-move***
+//! capturing.
+//!
+//! ### Synchronous Handlers
+//!
+//! Synchronous event handlers block the UI thread when they are running, only after they return the next handler is called.
+//! They can spawn async parallel tasks but they cannot `.await`. You can use the [`hn!`] and [`hn_once!`] macros to declare these
+//! handlers, they essentially declare a `FnMut` and `FnOnce` that capture by `move`. The macros can be used to *capture-by-clone* too.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! let mut count = 0;
+//!
+//! button! {
+//!     on_click = hn!(|_, _| {
+//!         count += 1;
+//!         println!("Clicked {} time{}", count, if count > 1 { "s" } else { "" });
+//!     });
+//!     content = text("Click Me!");
+//! }
+//! # ;
+//! ```
+//!
+//! The [`hn_once!`] is very similar to write but it will only handle the event one time and you can consume the captured values during
+//! the call. In the example below the captured `data` can be dropped inside the handler because it will only run once.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! let mut count = 0;
+//! let data = vec![0, 1, 0];
+//!
+//! # button! {
+//! on_click = hn_once!(|_, _| {
+//!     count += 1;
+//!     assert_eq!(1, count);
+//!     drop(data);
+//! });
+//! #   content = text("Click Me!");
+//! # }
+//! # ;
+//! ```
+//!
+//! The first parameter is an `&mut` exclusive borrow of the [`WidgetContext`], the second parameter is a `&` shared borrow of the
+//! event arguments. You can use the first parameter just by naming it, but to use the second parameter must declare the arguments
+//! type before you can use it. This is due to a limitation in Rust's type inference.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! # button! {
+//! on_click = hn!(|ctx, args: &ClickArgs| {
+//!     args.stop_propagation();
+//!     println!("Click handled by {}", args.target);
+//! });
+//! #   content = text("Click Me!");
+//! # }
+//! # ;
+//! ```
+//!
+//! The handler macros can all *capture-by-move*, named variables are cloned before moving into the closure, so the original
+//! variable is still free to use after the handler is declared.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! let count = var(0u32);
+//!
+//! button! {
+//!     on_click = hn!(count, |ctx, _| {
+//!         count.modify(ctx, |c| **c += 1);
+//!     });
+//!     content = text(count.map_to_text());
+//! }
+//! # ;
+//! ```
+//!
+//! ### Async Handlers
+//!
+//! Asynchronous event handlers can use `.await` to yield execution to the next handler without finishing handling the event. If
+//! your handler code depends on the result of an IO, network or compute operation, you should use an async handler. The [`async_hn!`]
+//! and [`async_hn_once!`] macros can be used to declare async handlers.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! # let status = var("Waiting Click..".to_text());
+//! button! {
+//!     on_click = async_hn!(status, |ctx, _| {
+//!         status.set(ctx, "Loading..");
+//!         let data = task.wait(|| std::fs::read("some/data"));
+//!         status.set(ctx, formatx!("Loaded {} bytes. Saving..", data.len()))
+//!         task::wait(move || std::fs::write("data.bin", data)).await;
+//!         status.set(ctx, "Done.");
+//!     });
+//!#    content = text("Save");
+//! }
+//! # ;
+//! ```
+//!
+//! The first parameter is an [`WidgetContextMut`] value, the second parameter is a clone of the event arguments. Like [`hn!`] you
+//! can use the first parameter just by naming it, but the second parameter must declare the arguments type.
+//!
+//! ```
+//! # use zero_ui::prelude::*;
+//! # let status = var("Waiting Double Click..".to_text());
+//! # async fn some_task(status: RcVar<Text>) { }
+//! button! {
+//!     on_click = async_hn!(status, |ctx, args: ClickArgs| {
+//!         if args.is_double() {
+//!             some_task(status.clone()).await;
+//!             status.set(ctx, "Done.");
+//!         }
+//!     });
+//!#    content = text("Run");
+//! }
+//! # ;
+//! ```
+//!
+//! Like [`hn!`] the macro closure captures by `move` and can be used to *capture-by-clone*. This feature is even more important
+//! in async closures due to the fact they spawn [futures] that also capture by move, when a variable is captured by clone it is
+//! automatically cloned again for each handler call making the variable accessible to potentially more then one handler task at
+//! the same time.
+//!
+//! You can use [`async_hn_once!`] to avoid this second cloning, in this case the event is only handled once so any captured
+//! variable can be safely moved in the async task.
+//!
+//! ```
+//! todo!()
+//! ```
+//!
+//! ### Event Routes
+//!
+//! Event properties are usually declared in pairs, a *on_event* and a *on_pre_event*. The *pre* event is the **preview**, it is
+//! called before the main event and can be used to stop the main handler from seeing the event by calling [`stop_propagation`].
+//!
+//! ```
+//! todo!()
+//! ```
+//!
+//! The preview handlers are called before the widget content receives the event message and the main handlers are called after.
+//! Most event arguments implement their [`concerns_widget`] filter to apply to a target widget **and** its parent widgets. This
+//! makes the event propagation follow a **route** in the UI tree. Starting from the window root, every widget all the way to the
+//! target widget gets to *preview* the event, if none stops the propagation the main handlers are called, first in the target
+//! widget and then all the way back to the window.
+//!
+//! ```
+//! todo!()
+//! ```
+//!
+//! The preview route is sometimes called *tunneling* or *capturing* and the main route is sometimes called *bubbling*. Not
+//! all event properties exist in this two routes, some events are *direct*, meaning they exist in the scope of an widget only
+//! the preview handler is called and then the main handler, but only in the same widget. And finally some rare events are
+//! unfiltered and visible in all widgets, this is a *broadcast* event, each window receives the event, *oldest-first*, and in
+//! each window every widget receives the event, *depth-first*, the preview handlers in this case only preview their branch
+//! of the UI tree.
 //!
 //! ## Commands
+//! 
+//! Some special events represent an app action and do not have a predefined *emitter*.
 //!
 //! ## Contexts
+//! 
+//! 
 //!
 //! ## Services
+//! 
+//!  
 //!
 //! ## States
+//! 
+//!  
 //!
 //! ## Tasks
+//! 
+//!  
 //!
 //! ## App Extensions
+//! 
+//!  
 //!
 //! # Logging
 //!
@@ -508,6 +683,18 @@
 //! [#widget]: macro@crate::core::widget
 //! [#property]: macro@crate::core::property
 //! [#impl_ui_node]: macro@crate::core::impl_ui_node
+//! [`Event`]: crate::core::event::Event
+//! [`EventArgs`]: crate::core::event::EventArgs
+//! [`concerns_widget`]: crate::core::event::EventArgs::concerns_widget
+//! [`stop_propagation`]: crate::core::event::EventArgs::stop_propagation
+//! [`WidgetHandler<T>`]: crate::core::handler::WidgetHandler
+//! [`hn!`]: macro@crate::core::handler::hn
+//! [`hn_once!`]: macro@crate::core::handler::hn_once
+//! [`async_hn!`]: macro@crate::core::handler::async_hn
+//! [`async_hn_once!`]: macro@crate::core::handler::async_hn_once
+//! [`WidgetContext`]: crate::core::context::WidgetContext
+//! [`WidgetContextMut`]: crate::core::context::WidgetContextMut
+//! [futures]: std::future::Future
 /*
 <script>
 // hide macros from doc root

@@ -13,7 +13,6 @@ Things that must be done first because they influence the core API design that i
   https://deterministic.space/machine-readable-inline-markdown-code-cocumentation.html
   https://github.com/rust-lang/rfcs/blob/30221dc3e025eb9f8f84ccacbc9622e3a75dff5e/text/1574-more-api-documentation-conventions.md
   https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
-  * Test in docs.rs environment https://github.com/rust-lang/docs.rs/blob/master/README.md#build-subcommand
 
 * Focusable
   * Support more then one ALT scopes?
@@ -164,5 +163,6 @@ Hard to-do but does not mess with the core API.
 
 ## Docs
 
+* Widget image/videos rendering from doc-tests.
 * Link property declaration to their source-code point.
-* Make a tool that can be used with ".cargo/config.toml build.rustdoc" to replace JS hacks with generated HTML.
+* Make a tool that can be used replace JS hacks with generated HTML.
