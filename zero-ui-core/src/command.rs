@@ -18,7 +18,7 @@ use crate::{
     handler::WidgetHandler,
     impl_ui_node, state_key,
     text::Text,
-    var::{var, var_from, BoxedVar, ContextVar, IntoVar, RcVar, ReadOnlyVar, Var, Vars},
+    var::{var, var_from, BoxedVar, IntoVar, RcVar, ReadOnlyVar, Var, Vars},
     UiNode,
 };
 
@@ -623,109 +623,6 @@ where
     }
 }
 
-/// Helper for declaring command properties.
-pub fn can_command(
-    child: impl UiNode,
-    enabled: impl ContextVar<Type = bool>,
-    update: impl FnMut(&mut WidgetContext) -> bool + 'static,
-) -> impl UiNode {
-    struct CanCommandNode<C, E, U> {
-        child: C,
-        enabled: E,
-        update: U,
-
-        enabled_value: bool,
-        enabled_version: u32,
-    }
-    #[impl_ui_node(child)]
-    impl<C, E, U> UiNode for CanCommandNode<C, E, U>
-    where
-        C: UiNode,
-        E: ContextVar<Type = bool>,
-        U: FnMut(&mut WidgetContext) -> bool + 'static,
-    {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            let value = (self.update)(ctx);
-            let is_new = self.enabled_value != value;
-            if is_new {
-                self.enabled_value = value;
-                self.enabled_version = self.enabled_version.wrapping_add(1);
-            }
-
-            ctx.vars.with_context_var(self.enabled, &value, is_new, self.enabled_version, || {
-                self.child.init(ctx);
-            });
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            let value = (self.update)(ctx);
-            let is_new = self.enabled_value != value;
-            if is_new {
-                self.enabled_value = value;
-                self.enabled_version = self.enabled_version.wrapping_add(1);
-            }
-
-            ctx.vars.with_context_var(self.enabled, &value, is_new, self.enabled_version, || {
-                self.child.update(ctx);
-            });
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            let value = self.enabled_value;
-            ctx.vars.with_context_var(self.enabled, &value, false, self.enabled_version, || {
-                self.child.deinit(ctx);
-            });
-        }
-
-        fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            let value = self.enabled_value;
-            ctx.vars.with_context_var(self.enabled, &value, false, self.enabled_version, || {
-                self.child.event(ctx, args);
-            });
-        }
-
-        fn measure(
-            &mut self,
-            ctx: &mut crate::context::LayoutContext,
-            available_size: crate::units::LayoutSize,
-        ) -> crate::units::LayoutSize {
-            let value = self.enabled_value;
-            ctx.vars.with_context_var(self.enabled, &value, self.enabled_version, || {
-                self.child.measure(ctx, available_size)
-            })
-        }
-
-        fn arrange(&mut self, ctx: &mut crate::context::LayoutContext, final_size: crate::units::LayoutSize) {
-            let value = self.enabled_value;
-            ctx.vars.with_context_var(self.enabled, &value, self.enabled_version, || {
-                self.child.arrange(ctx, final_size);
-            });
-        }
-
-        fn render(&self, ctx: &mut crate::context::RenderContext, frame: &mut crate::render::FrameBuilder) {
-            let value = self.enabled_value;
-            ctx.vars.with_context_var(self.enabled, &value, self.enabled_version, || {
-                self.child.render(ctx, frame);
-            });
-        }
-
-        fn render_update(&self, ctx: &mut crate::context::RenderContext, update: &mut crate::render::FrameUpdate) {
-            let value = self.enabled_value;
-            ctx.vars.with_context_var(self.enabled, &value, self.enabled_version, || {
-                self.child.render_update(ctx, update);
-            });
-        }
-    }
-    CanCommandNode {
-        child,
-        enabled,
-        update,
-
-        enabled_value: false,
-        enabled_version: 0,
-    }
-}
-
 /// Declare command properties.
 #[macro_export]
 macro_rules! command_property {
@@ -785,13 +682,14 @@ macro_rules! command_property {
         /// # Commands
         ///
         /// TODO
-        #[$crate::property(context, allowed_in_when = false, default( |_|true ))]
+        #[$crate::property(context, allowed_in_when = false, default( true ))]
         pub fn [<can_ $command>](
             child: impl $crate::UiNode,
-            update: impl FnMut(&mut $crate::context::WidgetContext) -> bool + 'static
+            enabled: impl $crate::var::IntoVar<bool>
         ) -> impl $crate::UiNode {
-            $crate::command::can_command(child, [<Can $Command Var>], update)
+            $crate::var::with_context_var(child, [<Can $Command Var>], enabled)
         }
+
     })+}
 }
 #[doc(inline)]

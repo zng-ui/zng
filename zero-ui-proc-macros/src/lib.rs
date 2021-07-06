@@ -1,4 +1,4 @@
-//! [`zero-ui`](../zero_ui_proc_macros/index.html) proc-macros.
+//! [`zero-ui`](../zero_ui/index.html) proc-macros.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
@@ -30,7 +30,7 @@ mod widget_new;
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the [`zero_ui::core::impl_ui_node`](../zero_ui/core/attr.impl_ui_node.html) page.
+/// Read the documentation in the [`zero_ui_core::impl_ui_node`](../zero_ui_core/attr.impl_ui_node.html) page.
 #[proc_macro_attribute]
 pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui_node::gen_impl_ui_node(args, input)
@@ -40,7 +40,7 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the [`zero_ui::core::property`](../zero_ui/core/attr.property.html) page.
+/// Read the documentation in the [`zero_ui_core::property`](../zero_ui_core/attr.property.html) page.
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand(args, input)
@@ -68,7 +68,7 @@ pub fn derive_service(item: TokenStream) -> TokenStream {
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the [`zero_ui::core::widget`](../zero_ui/core/attr.widget.html) page.
+/// Read the documentation in the [`zero_ui_core::widget`](../zero_ui_core/attr.widget.html) page.
 #[proc_macro_attribute]
 pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
     widget_0_attr::expand(false, false, args, input)
@@ -85,7 +85,7 @@ pub fn widget_base(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the [`zero_ui::core::widget_mixin`](../zero_ui/core/attr.widget_mixin.html) page.
+/// Read the documentation in the [`zero_ui_core::widget_mixin`](../zero_ui_core/attr.widget_mixin.html) page.
 #[proc_macro_attribute]
 pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
     widget_0_attr::expand(true, false, args, input)

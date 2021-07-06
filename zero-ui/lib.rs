@@ -430,7 +430,7 @@
 //! ```
 //!
 //! ## Event Handlers
-//! 
+//!
 //! Events are unit structs that implement [`Event`], they represent an action or occurrence such as a key press or an window opening.
 //! Events are naturally **broadcast**, every window and widget *receives* every event message. The event messages are
 //! structs that implement [`EventArgs`], and these *arguments* can be checked to see if the event is relevant in an widget context
@@ -595,27 +595,27 @@
 //! of the UI tree.
 //!
 //! ## Commands
-//! 
+//!
 //! Some special events represent an app action and do not have a predefined *emitter*.
 //!
 //! ## Contexts
-//! 
-//! 
+//!
+//!
 //!
 //! ## Services
-//! 
+//!
 //!  
 //!
 //! ## States
-//! 
+//!
 //!  
 //!
 //! ## Tasks
-//! 
+//!
 //!  
 //!
 //! ## App Extensions
-//! 
+//!
 //!  
 //!
 //! # Logging
@@ -877,7 +877,7 @@ pub mod prelude {
             widget_vec, widgets, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
         };
         #[doc(no_inline)]
-        pub use crate::properties::{set_widget_state, with_context_var};
+        pub use crate::properties::set_widget_state;
     }
 
     /// All the types you need to declare a new widget or widget mix-in.

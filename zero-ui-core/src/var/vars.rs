@@ -1,10 +1,15 @@
 use retain_mut::RetainMut;
+use zero_ui_proc_macros::impl_ui_node;
 
 use super::*;
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
-    context::Updates,
+    context::{LayoutContext, RenderContext, Updates, WidgetContext},
     crate_util::{Handle, HandleOwner, RunOnDrop},
+    event::EventUpdateArgs,
+    render::{FrameBuilder, FrameUpdate},
+    units::LayoutSize,
+    UiNode,
 };
 use std::{
     any::type_name,
@@ -996,6 +1001,283 @@ impl VarBinding {
     #[inline]
     pub fn unbind(&self) {
         self.unbind.set(true);
+    }
+}
+
+/// Helper for declaring properties that sets a context var.
+///
+/// # Example
+///
+/// ```
+/// # fn main() -> () { }
+/// use zero_ui::properties::with_context_var;
+/// use zero_ui::core::{UiNode, var::{IntoVar, context_var}, property};
+///
+/// context_var! {
+///     pub struct FontSizeVar: u32 = const 14;
+/// }
+///
+/// /// Sets the [`FontSizeVar`] context var.
+/// #[property(context, default(FontSizeVar))]
+/// pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
+///     with_context_var(child, FontSizeVar, size)
+/// }
+/// ```
+pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
+    struct WithContextVarNode<U, C, V> {
+        child: U,
+        var: C,
+        value: V,
+    }
+    impl<U, T, C, V> UiNode for WithContextVarNode<U, C, V>
+    where
+        U: UiNode,
+        T: VarValue,
+        C: ContextVar<Type = T>,
+        V: Var<T>,
+    {
+        #[inline(always)]
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.init(ctx));
+        }
+        #[inline(always)]
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.deinit(ctx));
+        }
+        #[inline(always)]
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.update(ctx));
+        }
+        #[inline(always)]
+        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.event(ctx, args));
+        }
+        #[inline(always)]
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_bind(self.var, &self.value, || child.measure(ctx, available_size))
+        }
+        #[inline(always)]
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.arrange(ctx, final_size));
+        }
+        #[inline(always)]
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            let child = &self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.render(ctx, frame));
+        }
+        #[inline(always)]
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            let child = &self.child;
+            ctx.vars
+                .with_context_bind(self.var, &self.value, || child.render_update(ctx, update));
+        }
+    }
+    WithContextVarNode {
+        child,
+        var,
+        value: value.into_var(),
+    }
+}
+
+/// Helper for declaring properties that sets a context var for the widget only.
+///
+/// This is similar to [`with_context_var`] except the context var value is visible only inside
+/// the `child` nodes that are part of the same widget that is the parent of the return node.
+///
+/// # Example
+///
+/// ```
+/// # fn main() -> () { }
+/// use zero_ui::properties::with_context_var_wgt_only;
+/// use zero_ui::core::{UiNode, var::{IntoVar, context_var}, property, border::BorderRadius};
+///
+/// context_var! {
+///     pub struct CornersClipVar: BorderRadius = once BorderRadius::zero();
+/// }
+///
+/// /// Sets widget content clip corner radius.
+/// #[property(context)]
+/// pub fn corners_clip(child: impl UiNode, radius: impl IntoVar<BorderRadius>) -> impl UiNode {
+///     with_context_var_wgt_only(child, CornersClipVar, radius)
+/// }
+/// ```
+pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
+    struct WithContextVarWidgetOnlyNode<U, C, V> {
+        child: U,
+        var: C,
+        value: V,
+    }
+    #[impl_ui_node(child)]
+    impl<U, T, C, V> UiNode for WithContextVarWidgetOnlyNode<U, C, V>
+    where
+        U: UiNode,
+        T: VarValue,
+        C: ContextVar<Type = T>,
+        V: Var<T>,
+    {
+        #[inline(always)]
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.init(ctx));
+        }
+        #[inline(always)]
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.deinit(ctx));
+        }
+        #[inline(always)]
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.update(ctx));
+        }
+        #[inline(always)]
+        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.event(ctx, args));
+        }
+        #[inline(always)]
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.measure(ctx, available_size))
+        }
+        #[inline(always)]
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.arrange(ctx, final_size))
+        }
+        #[inline(always)]
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, &self.value, || self.child.render(ctx, frame));
+        }
+        #[inline(always)]
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, &self.value, || self.child.render_update(ctx, update));
+        }
+    }
+    WithContextVarWidgetOnlyNode {
+        child,
+        var,
+        value: value.into_var(),
+    }
+}
+/// Helper for declaring properties that sets a context var.
+///
+/// # Example
+///
+/// ```
+/// todo!()
+/// ```
+pub fn with_context_var_expr<T: VarValue>(
+    child: impl UiNode,
+    var: impl ContextVar<Type = T>,
+    init: T,
+    update: impl FnMut(&mut WidgetContext) -> Option<T> + 'static,
+) -> impl UiNode {
+    struct WithContextVarExprNode<C, V, U, T> {
+        child: C,
+        var: V,
+        update: U,
+
+        value: T,
+        version: u32,
+    }
+    #[impl_ui_node(child)]
+    impl<C, V, U, T> UiNode for WithContextVarExprNode<C, V, U, T>
+    where
+        C: UiNode,
+        V: ContextVar<Type = T>,
+        U: FnMut(&mut WidgetContext) -> Option<T> + 'static,
+        T: VarValue,
+    {
+        #[inline(always)]
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var(self.var, &self.value, false, self.version, || {
+                child.init(ctx);
+            });
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let mut is_new = false;
+            if let Some(value) = (self.update)(ctx) {
+                self.value = value;
+                self.version = self.version.wrapping_add(1);
+                is_new = true;
+            }
+            let child = &mut self.child;
+
+            ctx.vars.with_context_var(self.var, &self.value, is_new, self.version, || {
+                child.update(ctx);
+            });
+        }
+
+        #[inline(always)]
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var(self.var, &self.value, false, self.version, || {
+                child.deinit(ctx);
+            });
+        }
+
+        #[inline(always)]
+        fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var(self.var, &self.value, false, self.version, || {
+                child.event(ctx, args);
+            });
+        }
+
+        #[inline(always)]
+        fn measure(
+            &mut self,
+            ctx: &mut crate::context::LayoutContext,
+            available_size: crate::units::LayoutSize,
+        ) -> crate::units::LayoutSize {
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_var(self.var, &self.value, self.version, || child.measure(ctx, available_size))
+        }
+
+        #[inline(always)]
+        fn arrange(&mut self, ctx: &mut crate::context::LayoutContext, final_size: crate::units::LayoutSize) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var(self.var, &self.value, self.version, || {
+                child.arrange(ctx, final_size);
+            });
+        }
+
+        #[inline(always)]
+        fn render(&self, ctx: &mut crate::context::RenderContext, frame: &mut crate::render::FrameBuilder) {
+            let value = &self.value;
+            ctx.vars.with_context_var(self.var, value, self.version, || {
+                self.child.render(ctx, frame);
+            });
+        }
+
+        #[inline(always)]
+        fn render_update(&self, ctx: &mut crate::context::RenderContext, update: &mut crate::render::FrameUpdate) {
+            let value = &self.value;
+            ctx.vars.with_context_var(self.var, value, self.version, || {
+                self.child.render_update(ctx, update);
+            });
+        }
+    }
+    WithContextVarExprNode {
+        child,
+        var,
+        update,
+
+        value: init,
+        version: 0,
     }
 }
 

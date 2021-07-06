@@ -21,6 +21,7 @@ fn main() {
             chrome = chrome.clone();
             background_color = background_color.clone();
             title;
+            can_inspect = false;
             content = h_stack! {
                 spacing = 40;
                 items = widgets![
@@ -149,11 +150,14 @@ fn screenshot() -> impl Widget {
 }
 
 fn inspect() -> impl Widget {
+    use zero_ui::widgets::window::commands::InspectCommand;
     button! {
-        content = text("inspector");
-        on_click = hn!(|_,_| {
-            println!("in debug only, press CTRL+SHIFT+I")
-        });
+        content = text(InspectCommand.name());
+        enabled = InspectCommand.enabled();
+        visibility = InspectCommand.has_handlers().map_into();
+        on_click = hn!(|ctx, _| {
+            InspectCommand.notify(ctx, None);
+        })
     }
 }
 

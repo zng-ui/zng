@@ -46,3 +46,8 @@ zero-ui-core = { path = "zero-ui-core", features = ["test_util"] }
 
 [workspace]
 members = ["zero-ui-proc-macros", "zero-ui-core"]
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "doc_nightly"]

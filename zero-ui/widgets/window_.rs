@@ -198,6 +198,11 @@ pub mod window {
         /// The default value is `true`.
         properties::taskbar_visible;
 
+        /// If the InspectCommand can be used to inspect this window.
+        ///
+        /// The default value is `true`.
+        self::commands::can_inspect;
+
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
@@ -720,10 +725,8 @@ pub mod window {
             use crate::core::debug::{write_frame, WriteFrameState};
             let mut state = WriteFrameState::none();
 
-            on_command(
+            on_inspect(
                 child,
-                InspectCommand,
-                true,
                 hn!(|ctx, args: &CommandArgs| {
                     args.stop_propagation();
 
@@ -739,6 +742,11 @@ pub mod window {
                     state = WriteFrameState::new(&frame);
                 }),
             )
+        }
+
+        command_property! {
+            /// TODO
+            pub fn inspect: InspectCommand;
         }
     }
 }
