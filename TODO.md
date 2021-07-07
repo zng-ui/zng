@@ -26,7 +26,7 @@ Things that must be done first because they influence the core API design that i
   * Mnemonics.
 
 * Widget
-  * new functions for each property priority.
+  * Private nodes in widget, see `widget_private_nodes_design.rs`.
   * let properties reference other properties.
 
 * Commands.
