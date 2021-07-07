@@ -1004,6 +1004,8 @@ struct WidgetItems {
     new_child_fn: Option<ItemFn>,
     new_fn: Option<ItemFn>,
     others: Vec<Item>,
+    // new_child_fns: FnvHashMap<Priority, Vec<ItemFn>>
+    // new_fns: FnvHashMap<Priority, Vec<ItemFn>>
 }
 impl WidgetItems {
     fn new(items: Vec<Item>, errors: &mut Errors) -> Self {

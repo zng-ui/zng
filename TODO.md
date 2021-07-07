@@ -28,6 +28,7 @@ Things that must be done first because they influence the core API design that i
 * Widget
   * Private nodes in widget, see `widget_private_nodes_design.rs`.
   * let properties reference other properties.
+  * Support doc(cfg).
 
 * Commands.
   * Disable commands in a context only.

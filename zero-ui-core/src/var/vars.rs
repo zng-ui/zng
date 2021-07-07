@@ -1345,12 +1345,6 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
 ///
 /// The generated [`UiNode`] delegates each method to `child` inside a call to [`Vars::with_context_var`].
 ///
-/// # Examples
-///
-/// ```
-/// todo!()
-/// ```
-///
 /// [`is_new`]: Var::is_new
 pub fn with_context_var_expr<T: VarValue>(
     child: impl UiNode,
@@ -1458,12 +1452,6 @@ pub fn with_context_var_expr<T: VarValue>(
 }
 
 /// Helper for declaring properties that sets a context var using a closure for the widget only.
-///
-/// # Example
-///
-/// ```
-/// todo!()
-/// ```
 pub fn with_context_var_wgt_only_expr<T: VarValue>(
     child: impl UiNode,
     var: impl ContextVar<Type = T>,
