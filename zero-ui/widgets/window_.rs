@@ -668,7 +668,7 @@ pub mod window {
                     let enabled = self.window_is_focused(ctx);
                     self.handle = CloseCommand.new_handle(ctx, enabled);
                     self.allow_alt_f4
-                        .set(CloseCommand.shortcut().get(ctx).0.contains(&shortcut![ALT + F4]));
+                        .set(CloseCommand.shortcut().get(ctx).contains(shortcut![ALT + F4]));
                     self.child.init(ctx)
                 }
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -702,7 +702,7 @@ pub mod window {
                     // update the ALT+F4 block flag in Windows.
                     #[cfg(windows)]
                     if let Some(s) = CloseCommand.shortcut().get_new(ctx) {
-                        self.allow_alt_f4.set(s.0.contains(&shortcut![ALT + F4]));
+                        self.allow_alt_f4.set(s.contains(shortcut![ALT + F4]));
                     }
 
                     self.child.update(ctx);

@@ -591,7 +591,12 @@ impl Vars {
     ///
     /// ```
     /// # use zero_ui_core::{var::*, *};
-    /// fn bind_square(vars: &Vars, source_var: &impl Var<u64>, squared_var: &impl Var<u64>, count_var: &impl Var<u32>) {
+    /// fn bind_square(
+    ///     vars: &Vars,
+    ///     source_var: &impl Var<u64>,
+    ///     squared_var: &impl Var<u64>,
+    ///     count_var: &impl Var<u32>
+    /// ) {
     ///     count_var.set(vars, 0u32).ok();
     ///     vars.bind(clone_move!(source_var, squared_var, count_var, |vars, binding| {
     ///         if let Some(i) = source_var.copy_new(vars) {

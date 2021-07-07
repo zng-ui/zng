@@ -219,7 +219,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = ShortcutEvent.update(args) {
                 self.child.event(ctx, args);
-                if !args.stop_propagation_requested() && self.shortcuts.get(ctx).0.contains(&args.shortcut) {
+                if !args.stop_propagation_requested() && self.shortcuts.get(ctx).contains(args.shortcut) {
                     // focus on shortcut
                     ctx.services.focus().focus_widget_or_related(ctx.path.widget_id(), true);
                     args.stop_propagation();

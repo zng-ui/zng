@@ -508,6 +508,11 @@ impl Shortcuts {
             _ => Err(character),
         }
     }
+
+    /// If the `shortcut` is present in the shortcuts.
+    pub fn contains(&self, shortcut: Shortcut) -> bool {
+        self.0.contains(&shortcut)
+    }
 }
 impl TryFrom<char> for Shortcuts {
     type Error = char;
@@ -794,9 +799,9 @@ impl AppExtension for GestureManager {
             // Generate click events from shortcuts.
             if !args.stop_propagation_requested() {
                 let gestures = ctx.services.gestures();
-                let click = if gestures.click_focused.0.contains(&args.shortcut) {
+                let click = if gestures.click_focused.contains(args.shortcut) {
                     Some(ShortcutClick::Primary)
-                } else if gestures.context_click_focused.0.contains(&args.shortcut) {
+                } else if gestures.context_click_focused.contains(args.shortcut) {
                     Some(ShortcutClick::Context)
                 } else {
                     None
@@ -822,7 +827,7 @@ impl AppExtension for GestureManager {
                     let command = ctx
                         .events
                         .commands()
-                        .find(|c| c.enabled_value() && c.shortcut().get(ctx.vars).0.contains(&args.shortcut));
+                        .find(|c| c.enabled_value() && c.shortcut().get(ctx.vars).contains(args.shortcut));
                     if let Some(command) = command {
                         command.notify(ctx.events, None);
                         args.stop_propagation()
