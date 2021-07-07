@@ -232,9 +232,17 @@ pub mod window {
                         .unwrap()
                         .frame_info();
 
-                    write_frame(frame, &state, &mut std::io::stderr());
+                    let mut buffer = vec![];
+                    write_frame(frame, &state, &mut buffer);
 
                     state = WriteFrameState::new(&frame);
+
+                    task::spawn_wait(move || {
+                        use std::io::*;
+                        stdout()
+                            .write_all(&buffer)
+                            .unwrap_or_else(|e| log::error!("error printing frame {}", e));
+                    });
                 }
             })
         };

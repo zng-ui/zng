@@ -231,7 +231,8 @@ where
     response
 }
 
-/// Spawn a parallel `task` that mostly blocks awaiting for an IO operation.
+/// Create a parallel `task` that mostly blocks awaiting for an IO operation. The `task` does not start until the first
+/// `.await` call.
 ///
 /// # Parallel
 ///
@@ -260,6 +261,15 @@ where
     T: Send + 'static,
 {
     blocking::unblock(task).await
+}
+
+/// Fire and forget a [`wait`] task. The `task` starts executing immediately.
+#[inline]
+pub fn spawn_wait<F>(task: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    spawn(async move { wait(task).await });
 }
 
 impl<'a, 'w> AppContext<'a, 'w> {
