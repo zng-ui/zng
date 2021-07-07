@@ -137,6 +137,8 @@ macro_rules! impl_rc_when_var {
             }
         }
 
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> crate::private::Sealed for $RcMergeVar<O, D, $($C),+ , $($V),+> {}
+
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Var<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
             type AsReadOnly = ReadOnlyVar<O, Self>;
 
@@ -175,7 +177,7 @@ macro_rules! impl_rc_when_var {
             }
             fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
                 match Rc::try_unwrap(self.0) {
-                    Ok(r) => vars.with(|vars| {
+                    Ok(r) => vars.with_vars_read(|vars| {
                         $(
                             if *r.conditions.$n.get(vars) {
                                 r.values.$n.into_value(vars)
@@ -202,7 +204,7 @@ macro_rules! impl_rc_when_var {
                 })
             }
             fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-                vars.with(|vars| {
+                vars.with_vars_read(|vars| {
                     let mut changed = false;
 
                     $(
@@ -362,6 +364,7 @@ impl<O: VarValue> Clone for RcWhenVar<O> {
         Self(Rc::clone(&self.0))
     }
 }
+impl<O: VarValue> crate::private::Sealed for RcWhenVar<O> {}
 impl<O: VarValue> Var<O> for RcWhenVar<O> {
     type AsReadOnly = ReadOnlyVar<O, Self>;
 
@@ -428,7 +431,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     /// If `self` is not the only reference returns a clone of the value.
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
         match Rc::try_unwrap(self.0) {
-            Ok(r) => vars.with(move |vars| {
+            Ok(r) => vars.with_vars_read(move |vars| {
                 for (c, v) in Vec::from(r.whens) {
                     if *c.get(vars) {
                         return v.into_value(vars);
@@ -445,7 +448,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     ///
     /// The version is new when any of the condition and value variables version is new.
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with(|vars| {
+        vars.with_vars_read(|vars| {
             let mut changed = false;
 
             let dv = self.0.default_.version(vars);

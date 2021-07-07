@@ -39,13 +39,13 @@ impl<T: VarValue> RcVar<T> {
     where
         T: Copy,
     {
-        vars.with(|vars| *self.get(vars))
+        vars.with_vars_read(|vars| *self.get(vars))
     }
 
     /// Clone the current value.
     #[inline]
     pub fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
-        vars.with(|vars| self.get(vars).clone())
+        vars.with_vars_read(|vars| self.get(vars).clone())
     }
 
     /// Reference the current value if it [is new](Self::is_new).
@@ -83,7 +83,7 @@ impl<T: VarValue> RcVar<T> {
     /// Gets the current value version.
     #[inline]
     pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with(|_| self.0.version.get())
+        vars.with_vars_read(|_| self.0.version.get())
     }
 
     /// Schedule a value modification for this variable.
@@ -208,6 +208,7 @@ impl<T: VarValue> WeakVar<T> {
     }
 }
 
+impl<T: VarValue> crate::private::Sealed for RcVar<T> {}
 impl<T: VarValue> Var<T> for RcVar<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
 
@@ -412,7 +413,7 @@ impl<T: VarValue> ResponseVar<T> {
     /// If the variable contains a response.
     #[inline]
     pub fn responded<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with(|vars| self.rsp(vars).is_some())
+        vars.with_vars_read(|vars| self.rsp(vars).is_some())
     }
 
     /// Copy the response value if a response was set.
@@ -421,13 +422,13 @@ impl<T: VarValue> ResponseVar<T> {
     where
         T: Copy,
     {
-        vars.with(|vars| self.rsp(vars).copied())
+        vars.with_vars_read(|vars| self.rsp(vars).copied())
     }
 
     /// Clone the response value if a response was set.
     #[inline]
     pub fn rsp_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<T> {
-        vars.with(|vars| self.rsp(vars).cloned())
+        vars.with_vars_read(|vars| self.rsp(vars).cloned())
     }
 
     /// Copy the response value if a response was set for this update.
@@ -449,7 +450,7 @@ impl<T: VarValue> ResponseVar<T> {
     /// If the variable has **not** responded returns `self` in the error.
     #[inline]
     pub fn try_into_rsp<Vr: WithVarsRead>(self, vars: &Vr) -> Result<T, Self> {
-        vars.with(|vars| {
+        vars.with_vars_read(|vars| {
             if self.responded(vars) {
                 match self.into_value(vars) {
                     Response::Done(r) => Ok(r),

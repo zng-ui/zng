@@ -526,11 +526,15 @@
 //! # let status = var("Waiting Click..".to_text());
 //! button! {
 //!     on_click = async_hn!(status, |ctx, _| {
-//!         status.set(ctx, "Loading..");
-//!         let data = task.wait(|| std::fs::read("some/data"));
-//!         status.set(ctx, formatx!("Loaded {} bytes. Saving..", data.len()))
-//!         task::wait(move || std::fs::write("data.bin", data)).await;
-//!         status.set(ctx, "Done.");
+//!         status.set(&ctx, "Loading..");
+//!         match task::wait(|| std::fs::read("some/data")).await {
+//!             Ok(data) => {
+//!                 status.set(&ctx, formatx!("Loaded {} bytes. Saving..", data.len()));
+//!                 task::wait(move || std::fs::write("data.bin", data)).await;
+//!                 status.set(&ctx, "Done.");
+//!             },
+//!             Err(e) => status.set(&ctx, e.to_text()),
+//!         }
 //!     });
 //!#    content = text("Save");
 //! }
@@ -548,7 +552,7 @@
 //!     on_click = async_hn!(status, |ctx, args: ClickArgs| {
 //!         if args.is_double() {
 //!             some_task(status.clone()).await;
-//!             status.set(ctx, "Done.");
+//!             status.set(&ctx, "Done.");
 //!         }
 //!     });
 //!#    content = text("Run");
@@ -562,19 +566,42 @@
 //! the same time.
 //!
 //! You can use [`async_hn_once!`] to avoid this second cloning, in this case the event is only handled once so any captured
-//! variable can be safely moved in the async task.
+//! data can be safely moved in the async task, and the task can move the data further.
 //!
 //! ```
-//! todo!()
+//! # use zero_ui::prelude::*;
+//! # let status = var("Waiting Click..".to_text());
+//! let data = vec![0, 1];
+//! button! {
+//!     on_click = async_hn_once!(|ctx, _| {
+//!         task::wait(move || std::fs::write("data.bin", data)).await;
+//!     });
+//!#    content = text("Save");
+//! }
+//! # ;
 //! ```
 //!
 //! ### Event Routes
 //!
 //! Event properties are usually declared in pairs, a *on_event* and a *on_pre_event*. The *pre* event is the **preview**, it is
-//! called before the main event and can be used to stop the main handler from seeing the event by calling [`stop_propagation`].
+//! called before the main event and can be used to stop the main handler from seeing the event using [`stop_propagation`] method
+//! that is available in all event arguments.
 //!
 //! ```
-//! todo!()
+//! # use zero_ui::prelude::*;
+//! button! {
+//!     on_pre_click = hn!(|_, a: &ClickArgs|{
+//!         if a.is_double() {
+//!             a.stop_propagation();
+//!         }
+//!     });
+//!     on_click = hn!(|_, a: &ClickArgs|{
+//!         assert!(!a.is_double());
+//!         println!("Clicked!");
+//!     });
+//! #   content = text("!");
+//! }
+//! # ;
 //! ```
 //!
 //! The preview handlers are called before the widget content receives the event message and the main handlers are called after.
@@ -584,11 +611,37 @@
 //! widget and then all the way back to the window.
 //!
 //! ```
-//! todo!()
+//! # use zero_ui::prelude::*;
+//! window! {
+//!     on_pre_click = hn!(|_, _| println!("window.on_pre_click"));
+//!     on_click = hn!(|_, _| println!("window.on_click"));
+//!
+//!     content = container! {
+//!         on_pre_click = hn!(|_, _| println!("container.on_pre_click"));
+//!         on_click = hn!(|_, _| println!("container.on_click"));
+//!
+//!         content = button! {
+//!             on_pre_click = hn!(|_, _| println!("button.on_pre_click"));
+//!             on_click = hn!(|_, _| println!("button.on_click"));
+//!
+//!             content = text("Click Me!");
+//!         };
+//!     };
+//! }
+//! # ;
+//! ```
+//! A Click in the button prints:
+//! ```text
+//! window.on_pre_click
+//! container.on_pre_click
+//! button.on_pre_click
+//! button.on_click
+//! container.on_click
+//! window.on_click
 //! ```
 //!
 //! The preview route is sometimes called *tunneling* or *capturing* and the main route is sometimes called *bubbling*. Not
-//! all event properties exist in this two routes, some events are *direct*, meaning they exist in the scope of an widget only
+//! all event properties exist in these two routes, some events are *direct*, meaning they exist in the scope of an widget only,
 //! the preview handler is called and then the main handler, but only in the same widget. And finally some rare events are
 //! unfiltered and visible in all widgets, this is a *broadcast* event, each window receives the event, *oldest-first*, and in
 //! each window every widget receives the event, *depth-first*, the preview handlers in this case only preview their branch

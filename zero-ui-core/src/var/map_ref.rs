@@ -80,7 +80,14 @@ where
         }
     }
 }
-
+impl<A, B, M, S> crate::private::Sealed for MapRefVar<A, B, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: Fn(&A) -> &B + Clone + 'static,
+    S: Var<A>,
+{
+}
 impl<A, B, M, S> Var<B> for MapRefVar<A, B, M, S>
 where
     A: VarValue,
@@ -332,7 +339,15 @@ where
         }
     }
 }
-
+impl<A, B, M, N, S> crate::private::Sealed for MapBidiRefVar<A, B, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: Fn(&A) -> &B + Clone + 'static,
+    N: Fn(&mut A) -> &mut B + Clone + 'static,
+    S: Var<A>,
+{
+}
 impl<A, B, M, N, S> Var<B> for MapBidiRefVar<A, B, M, N, S>
 where
     A: VarValue,

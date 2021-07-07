@@ -81,6 +81,7 @@ impl<T: VarValue> Clone for BoxedVar<T> {
         self.as_ref().clone_boxed()
     }
 }
+impl<T: VarValue> crate::private::Sealed for BoxedVar<T> {}
 impl<T: VarValue> Var<T> for BoxedVar<T> {
     type AsReadOnly = BoxedVar<T>;
 
@@ -109,12 +110,12 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
 
     #[inline]
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
-        vars.with(|vars| self.into_value_boxed(vars))
+        vars.with_vars_read(|vars| self.into_value_boxed(vars))
     }
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with(|vars| self.as_ref().version_boxed(vars))
+        vars.with_vars_read(|vars| self.as_ref().version_boxed(vars))
     }
 
     #[inline]

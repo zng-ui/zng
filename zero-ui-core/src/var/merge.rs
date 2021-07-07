@@ -424,6 +424,8 @@ macro_rules! impl_rc_merge_var {
                 $RcMergeVar(Rc::clone(&self.0))
             }
         }
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        crate::private::Sealed for $RcMergeVar<$($I,)+ O, $($V,)+ F> {}
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         Var<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
@@ -449,7 +451,7 @@ macro_rules! impl_rc_merge_var {
 
             #[inline]
             fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
-                vars.with(|vars| {
+                vars.with_vars_read(|vars| {
                     self.update_output(vars);
 
                     match Rc::try_unwrap(self.0) {
@@ -464,7 +466,7 @@ macro_rules! impl_rc_merge_var {
             }
 
             fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-               vars.with(|vars| {
+               vars.with_vars_read(|vars| {
                     self.update_output(vars);
                     self.0.output_version.get()
                })

@@ -30,6 +30,7 @@ impl<C: ContextVar> Default for ContextVarProxy<C> {
     }
 }
 
+impl<C: ContextVar> crate::private::Sealed for ContextVarProxy<C> {}
 impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     type AsReadOnly = Self;
 
@@ -60,7 +61,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with(|v| v.context_var::<C>().2)
+        vars.with_vars_read(|v| v.context_var::<C>().2)
     }
 
     #[inline]

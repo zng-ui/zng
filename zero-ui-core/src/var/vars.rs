@@ -26,32 +26,76 @@ type Retain = bool;
 
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 
-/// Read-only access to [`Vars`].
+/// Read-only access to variables.
 ///
-/// In some contexts variables can be set, so a full [`Vars`] reference if given, in other contexts
+/// In some contexts variables can be set, so a full [`Vars`] reference is given, in other contexts
 /// variables can only be read, so a [`VarsRead`] reference is given.
 ///
-/// [`Vars`] auto-dereferences to to this type.
+/// [`Vars`] dereferences to to this type and a reference to it is available in [`LayoutContext`] and [`RenderContext`].
+/// Methods that expect the [`VarsRead`] reference usually abstract using the [`WithVarsRead`] trait, that allows passing in
+/// the full context reference or references to async contexts.
+///
+/// There is only one
 ///
 /// # Examples
 ///
-/// You can [`get`](Var::get) a value using a [`VarsRead`] reference.
+/// You can [`get`] a variable value using the [`VarsRead`] reference:
 ///
 /// ```
 /// # use zero_ui_core::var::{Var, VarsRead};
-/// fn read_only(var: &impl Var<bool>, vars: &VarsRead) -> bool {
+/// fn get(var: &impl Var<bool>, vars: &VarsRead) -> bool {
 ///     *var.get(vars)
 /// }
 /// ```
 ///
-/// And because of auto-dereference you can can the same method using a full [`Vars`] reference.
+/// And because of auto-dereference you can can use the same method using a full [`Vars`] reference:
 ///
 /// ```
 /// # use zero_ui_core::var::{Var, Vars};
-/// fn read_write(var: &impl Var<bool>, vars: &Vars) -> bool {
+/// fn get(var: &impl Var<bool>, vars: &Vars) -> bool {
 ///     *var.get(vars)
 /// }
 /// ```
+///
+/// But [`get`] actually receives any [`WithVarsRead`] implementer so you can just use the full context reference, if you are
+/// not borrowing another part of it:
+///
+/// ```
+/// # use zero_ui_core::{var::{Var, VarsRead}, context::LayoutContext};
+/// fn get(var: &impl Var<bool>, ctx: &LayoutContext) -> bool {
+///     *var.get(ctx)
+/// }
+/// ```
+///
+/// # Context Vars
+///
+/// Context variables can be changed in a context using the [`VarsRead`] instance, the `with_context*` methods call
+/// a closure while a context variable is set to a value or bound to another variable. These methods are *duplicated*
+/// in [`Vars`], the difference is that in [`VarsRead`] the context vars cannot be [new], because variables cannot be
+/// new in [`LayoutContext`] and [`RenderContext`].
+///
+/// ```
+/// # use zero_ui_core::{*, context::*, var::*, render::*};
+/// # context_var! { pub struct FooVar: bool = const false; }
+/// # struct FooNode<C, V> { child: C, var: V }
+/// # #[impl_ui_node(child)]
+/// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
+///     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+///         ctx.vars.with_context_bind(FooVar, &self.var, || self.child.render(ctx, frame));
+///     }
+/// }
+/// ```
+///
+/// The example binds a `FooVar` to another `var` for the duration of the [`render`] call. The `var` value and version
+/// are accessible in inner widgets using only the `FooVar`.
+///
+/// Note that the example is incomplete, [`render_update`] should also be implemented at least. You can use the [`with_context_var`]
+/// helper function to declare a node that binds a context var in all [`UiNode`] methods.
+///
+/// [new]: Var::is_new
+/// [`render`]: UiNode::render
+/// [`render_update`]: UiNode::render_update
+/// [`get`]: Var::get
 pub struct VarsRead {
     _singleton: SingletonVars,
     update_id: u32,
@@ -92,9 +136,13 @@ impl VarsRead {
         )
     }
 
-    /// Calls `f` with the context var value.
+    /// Calls `f` with the context var set to `value`.
     ///
-    /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
+    /// Unlike [`Vars::with_context_var`] in this method the context-var is never [new].
+    ///
+    /// See also the [`with_context_var_expr`] helper function for declaring a property that sets a context var.
+    ///
+    /// [new]: Var::is_new
     #[inline(always)]
     pub fn with_context_var<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, f: F) -> R
     where
@@ -123,12 +171,13 @@ impl VarsRead {
         // _prev restores the parent reference here on drop
     }
 
-    /// Calls `f` with the context var value.
+    /// Calls `f` with the context var set to `value`, but only for the current widget not its descendants.
     ///
-    /// The value is visible for the duration of `f` and only for the parts of it that are inside the current widget context.
+    /// Unlike [`Vars::with_context_var_wgt_only`] in this method the context-var is never [new].
     ///
-    /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
-    /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
+    /// See also the [`with_context_var_wgt_only_expr`] helper function to declare a property that sets a context var.
+    ///
+    /// [new]: Var::is_new
     #[inline(always)]
     pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, f: F) -> R
     where
@@ -166,7 +215,13 @@ impl VarsRead {
         f()
     }
 
-    /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
+    /// Calls `f` while `context_var` is bound to `other_var`.
+    ///
+    /// Unlike [`Vars::with_context_bind`] in this method the context-var is never [new].
+    ///
+    /// See also the [`with_context_var`] helper function to declare a property that sets a context var.
+    ///
+    /// [new]: Var::is_new
     #[inline(always)]
     pub fn with_context_bind<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
     where
@@ -177,7 +232,13 @@ impl VarsRead {
         self.with_context_var_impl(context_var, other_var.get(self), false, other_var.version(self), f)
     }
 
-    /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
+    /// Calls `f` while `context_var` is bound to `other_var`, but only for the current widget not its descendants.
+    ///
+    /// Unlike [`Vars::with_context_bind`] in this method the context-var is never [new].
+    ///
+    /// See also the [`with_context_var_wgt_only`] helper function to declare a property that sets a context var.
+    ///
+    /// [new]: Var::is_new
     #[inline(always)]
     pub fn with_context_bind_wgt_only<C: ContextVar, R, F: FnOnce() -> R, V: Var<C::Type>>(
         &self,
@@ -189,6 +250,8 @@ impl VarsRead {
     }
 
     /// Clears widget only context var values, calls `f` and restores widget only context var values.
+    ///
+    /// This is called by the layout and render contexts.
     #[inline(always)]
     pub(crate) fn with_widget_clear<R, F: FnOnce() -> R>(&self, f: F) -> R {
         let wgt_clear = std::mem::take(&mut *self.widget_clear.borrow_mut());
@@ -210,10 +273,8 @@ impl VarsRead {
     ///
     /// Every time the variable updates a clone of the value is sent to the receiver. The current value is sent immediately.
     ///
-    /// Drop the receiver to release one reference to `var`.
-    ///
-    /// You can use [`Var::receiver`] to call this function using any [`WithVarsRead`] context.
-    pub fn receiver<T, V>(&self, var: &V) -> VarReceiver<T>
+    /// This is called by [`Var::receiver`].
+    pub(super) fn receiver<T, V>(&self, var: &V) -> VarReceiver<T>
     where
         T: VarValue + Send,
         V: Var<T>,
@@ -243,9 +304,85 @@ impl VarsRead {
 
 type PendingUpdate = Box<dyn FnOnce(u32) -> bool>;
 
-/// Access to application variables.
+/// Read-write access to variables.
 ///
-/// An instance of this struct in [`AppContext`](crate::context::AppContext) and derived contexts.
+/// Only a single instance of this struct exists per-app and a reference to it is available in
+/// [`AppContext`], [`WindowContext`] and [`WidgetContext`].
+///
+/// This struct dereferences to [`VarsRead`] and implements [`WithVarsRead`] so you can use it
+/// in any context that requests read-only access to variables, but it also allows setting or modifying
+/// variables and checking if a variable value [`is_new`].
+///
+/// # Examples
+///
+/// You can [`get`] and [`set`] variables using the [`Vars`] reference:
+///
+/// ```
+/// # use zero_ui_core::var::*;
+/// fn get_set(var: &impl Var<bool>, vars: &Vars) {
+///     let flag = *var.get(vars);
+///     var.set(vars, !flag).ok();
+/// }
+/// ```
+///
+/// But most methods actually receives any [`WithVars`] implementer so you can just use the full context reference, if you are
+/// not borrowing another part of it:
+///
+/// ```
+/// # use zero_ui_core::{var::*, context::WidgetContext};
+/// fn get_set(var: &impl Var<bool>, ctx: &mut WidgetContext) {
+///     let flag = *var.get(ctx);
+///     var.set(ctx, !flag).ok();
+/// }
+/// ```
+///
+/// Variable values are stored in the variable not in the [`Vars`] and yet methods like [`get`] tie-in the [`Vars`] lifetime
+/// with the variable lifetime when you borrow the value, this is a compile time validation that no variable values are borrowed
+/// when they are replaced. Internally a runtime validation verifies that [`Vars`] is the only instance in the thread and it
+/// must be exclusively borrowed to apply the variable changes, this let variables be implemented very cheaply without needing
+/// to use a mechanism like `RefCell`.
+///
+/// # Context Vars
+///
+/// Context variables can be changed in a context using the [`Vars`] instance, the `with_context*` methods call
+/// a closure while a context variable is set to a value or bound to another variable. These methods are *duplicated*
+/// in [`VarsRead`], the difference is that in here the variable can be [new].
+///
+/// ```
+/// # use zero_ui_core::{*, context::*, var::*};
+/// # context_var! { pub struct FooVar: bool = const false; }
+/// # struct FooNode<C, V> { child: C, var: V }
+/// # #[impl_ui_node(child)]
+/// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
+///     fn update(&mut self, ctx: &mut WidgetContext) {
+///         let child = &mut self.child;
+///         ctx.vars.with_context_bind(FooVar, &self.var, || child.update(ctx));
+///     }
+/// }
+/// ```
+///
+/// The example binds a `FooVar` to another `var` for the duration of the [`update`] call. The `var` value and version
+/// are accessible in inner widgets using only the `FooVar`.
+///
+/// Note that the example is incomplete, [`init`], [`deinit`] and the other methods should also be implemented. You can use
+/// the [`with_context_var`] helper function to declare a node that binds a context var in all [`UiNode`] methods.
+///
+/// # Binding
+///
+/// Variables can be *bound* to one another using the `bind_*` methods of [`Var<T>`]. Those methods are implemented using [`bind`]
+/// which creates an special update handler that can modify any captured variables *once* before the rest of the app sees the update.
+/// You can use [`bind`] to create more exotic bindings that don't have the same shape as a mapping.
+///
+/// [`AppContext`]: crate::context::AppContext
+/// [`WindowContext`]: crate::context::WindowContext
+/// [`is_new`]: crate::var::Var::is_new
+/// [new]: crate::var::Var::is_new
+/// [`get`]: crate::var::Var::is_new
+/// [`set`]: crate::var::Var::is_new
+/// [`bind`]: crate::var::Vars::bind
+/// [`init`]: crate::UiNode::init
+/// [`update`]: crate::UiNode::init
+/// [`deinit`]: crate::UiNode::deinit
 pub struct Vars {
     read: VarsRead,
 
@@ -287,32 +424,40 @@ impl Vars {
         }
     }
 
-    /// Calls `f` with the context var value.
+    /// Calls `f` with the context var set to `value`.
     ///
     /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
+    ///
+    /// See also the [`with_context_var_expr`] helper function for declaring a property that sets a context var.
     #[inline(always)]
     pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
         self.with_context_var_impl(context_var, value, is_new, version, f)
     }
 
-    /// Calls `f` with the context var value.
+    /// Calls `f` with the context var set to `value`, but only for the current widget not its descendants.
     ///
     /// The value is visible for the duration of `f` and only for the parts of it that are inside the current widget context.
     ///
     /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
     /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
+    ///
+    /// See also the [`with_context_var_wgt_only_expr`] helper function for declaring a property that sets a context var.
     #[inline(always)]
     pub fn with_context_var_wgt_only<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
         self.with_context_var_wgt_only_impl(context_var, value, is_new, version, f)
     }
 
-    /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
+    /// Calls `f` while `context_var` is bound to `other_var`.
+    ///
+    /// See also the [`with_context_var`] helper function to declare a property that sets a context var.
     #[inline(always)]
     pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: Var<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
         self.with_context_var_impl(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }
 
-    /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
+    /// Calls `f` while `context_var` is bound to `other_var`, but only for the current widget not its descendants.
+    ///
+    /// See also the [`with_context_var_wgt_only`] helper function to declare a property that sets a context var.
     #[inline(always)]
     pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: Var<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
         self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
@@ -366,14 +511,12 @@ impl Vars {
         self.receivers.borrow_mut().retain(|f| f(self));
     }
 
-    /// Creates a sender that can set `var` from other threads and without access to [`Vars`].
+    /// Creates a channel that can set `var` from other threads.
     ///
-    /// If the variable is read-only when a value is received it is silently dropped.
+    /// The channel wakes the app and causes a variable update.
     ///
-    /// Drop the sender to release one reference to `var`.
-    ///
-    /// You can use [`Var::sender`] to call this function using any [`WithVars`] context.
-    pub fn sender<T, V>(&self, var: &V) -> VarSender<T>
+    /// This is called by [`Var::receiver`].
+    pub(super) fn sender<T, V>(&self, var: &V) -> VarSender<T>
     where
         T: VarValue + Send,
         V: Var<T>,
@@ -401,14 +544,12 @@ impl Vars {
         }
     }
 
-    /// Creates a sender that modify `var` from other threads and without access to [`Vars`].
+    /// Creates a channel that can modify `var` from other threads.
     ///
     /// If the variable is read-only when a modification is received it is silently dropped.
     ///
-    /// Drop the sender to release one reference to `var`.
-    ///
-    /// You can use [`Var::modify_sender`] to call this function using any [`WithVars`] context.
-    pub fn modify_sender<T, V>(&self, var: &V) -> VarModifySender<T>
+    /// This is called by [`Var::modify_sender`].
+    pub(super) fn modify_sender<T, V>(&self, var: &V) -> VarModifySender<T>
     where
         T: VarValue,
         V: Var<T>,
@@ -436,58 +577,53 @@ impl Vars {
         }
     }
 
-    /// Attach a listener to a variable, it is called when the variable was modified/touched and can modify
-    /// the variable before the app update happens.
-    pub fn bind_one<T, V, M>(&self, var: &V, mut on_touch: M) -> VarBindingHandle
+    /// Adds a handler to all var updates that can modify captured variables **without** causing a second update.
+    ///
+    /// This is used by the [`Var`] map binding methods, it enables the effect of bound variables getting a new
+    /// value in the same update as the variables that caused the new value.
+    ///
+    /// Returns a [`VarBindingHandle`] that can be used to monitor the binding status and to [`unbind`] or to
+    /// make the binding [`permanent`].
+    ///
+    /// # Examples
+    ///
+    /// The example updates `squared_var` and `count_var` *at the same time* as `source_var`:
+    ///
+    /// ```
+    /// # use zero_ui_core::{var::*, *};
+    /// fn bind_square(vars: &Vars, source_var: &impl Var<u64>, squared_var: &impl Var<u64>, count_var: &impl Var<u32>) {
+    ///     count_var.set(vars, 0u32).ok();
+    ///     vars.bind(clone_move!(source_var, squared_var, count_var, |vars, binding| {
+    ///         if let Some(i) = source_var.copy_new(vars) {
+    ///             if let Some(squared) = i.checked_mul(i) {
+    ///                 squared_var.set(vars, squared).ok();
+    ///                 count_var.modify(vars, |c| **c += 1).ok();
+    ///             } else {
+    ///                 binding.unbind();
+    ///             }
+    ///         }
+    ///     })).permanent();
+    /// }
+    /// ```
+    ///
+    /// Note that the binding can be undone from the inside, the closure second parameter is a [`VarBinding`]. In
+    /// the example this is the only way to stop the binding, because we called [`permanent`]. Bindings hold a clone
+    /// of the variables and exist for the duration of the app if not unbound.
+    ///
+    /// In the example all three variables will update *at the same time* until the binding finishes. They will
+    /// **not** update just from creating the binding, the `squared_var` will have its old value until `source_var` updates, you
+    /// can cause an update immediately after creating a binding by calling [`Var::touch`].
+    ///
+    /// You can *chain* bindings, if you have two bindings `VarA -> VarB` and `VarB -> VarC`, `VarC` will update
+    /// when `VarA` updates. It is not possible to create an infinite loop however, because `binding` is not called again in an
+    /// app update if it modifies any variable, so if you add an extra binding `VarC -> VarA` it will run, but it will not cause
+    /// the first binding to run again.
+    ///
+    /// [`unbind`]: VarBindingHandle::unbind
+    /// [`permanent`]: VarBindingHandle::permanent
+    pub fn bind<B>(&self, mut binding: B) -> VarBindingHandle
     where
-        T: VarValue,
-        V: Var<T>,
-        M: FnMut(&Vars, &VarBinding, &V) + 'static,
-    {
-        let var = var.clone();
-        self.register_binding(move |vars, retain, last_update_id| {
-            if var.is_new(vars) {
-                *last_update_id = vars.binding_update_id;
-
-                let info = VarBinding::new();
-                on_touch(vars, &info, &var);
-
-                if info.unbind.get() {
-                    *retain = false;
-                }
-            }
-        })
-    }
-
-    /// Attach a listener to two variables, it is called when either variables was modified/touched and can modify
-    /// the variables before the app update happens.
-    pub fn bind_two<A, B, VA, VB, M>(&self, var_a: &VA, var_b: &VB, mut on_touch: M) -> VarBindingHandle
-    where
-        A: VarValue,
-        B: VarValue,
-        VA: Var<A>,
-        VB: Var<B>,
-        M: FnMut(&Vars, &VarBinding, &VA, &VB) + 'static,
-    {
-        let var_a = var_a.clone();
-        let var_b = var_b.clone();
-        self.register_binding(move |vars, retain, last_update_id| {
-            if var_a.is_new(vars) || var_b.is_new(vars) {
-                *last_update_id = vars.binding_update_id;
-
-                let info = VarBinding::new();
-                on_touch(vars, &info, &var_a, &var_b);
-
-                if info.unbind.get() {
-                    *retain = false;
-                }
-            }
-        })
-    }
-
-    fn register_binding<B>(&self, mut binding: B) -> VarBindingHandle
-    where
-        B: FnMut(&Vars, &mut bool, &mut u32) + 'static,
+        B: FnMut(&Vars, &VarBinding) + 'static,
     {
         let (handle_owner, handle) = VarBindingHandle::new();
 
@@ -500,8 +636,17 @@ impl Vars {
                 return retain;
             }
 
+            let changes_count = vars.pending.borrow().len();
+
             if retain {
-                binding(vars, &mut retain, &mut last_update_id);
+                let info = VarBinding::new();
+                binding(vars, &info);
+                retain = !info.unbind.get();
+            }
+
+            if retain && vars.pending.borrow().len() > changes_count {
+                // binding caused change, stop it from running this app update.
+                last_update_id = vars.binding_update_id;
             }
 
             retain
@@ -603,12 +748,12 @@ impl WithVars for crate::context::WidgetContextMut {
 /// types and [`Vars`] it-self.
 pub trait WithVarsRead {
     /// Calls `action` with the [`Vars`] reference.
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R;
 }
 impl WithVarsRead for Vars {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -616,7 +761,7 @@ impl WithVarsRead for Vars {
     }
 }
 impl WithVarsRead for VarsRead {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -624,7 +769,7 @@ impl WithVarsRead for VarsRead {
     }
 }
 impl<'a, 'w> WithVarsRead for crate::context::AppContext<'a, 'w> {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -632,7 +777,7 @@ impl<'a, 'w> WithVarsRead for crate::context::AppContext<'a, 'w> {
     }
 }
 impl<'a> WithVarsRead for crate::context::WindowContext<'a> {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -640,7 +785,7 @@ impl<'a> WithVarsRead for crate::context::WindowContext<'a> {
     }
 }
 impl<'a> WithVarsRead for crate::context::WidgetContext<'a> {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -648,7 +793,7 @@ impl<'a> WithVarsRead for crate::context::WidgetContext<'a> {
     }
 }
 impl WithVarsRead for crate::context::AppContextMut {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -656,7 +801,7 @@ impl WithVarsRead for crate::context::AppContextMut {
     }
 }
 impl WithVarsRead for crate::context::WidgetContextMut {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -664,7 +809,7 @@ impl WithVarsRead for crate::context::WidgetContextMut {
     }
 }
 impl<'a> WithVarsRead for crate::context::LayoutContext<'a> {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -672,7 +817,7 @@ impl<'a> WithVarsRead for crate::context::LayoutContext<'a> {
     }
 }
 impl<'a> WithVarsRead for crate::context::RenderContext<'a> {
-    fn with<R, A>(&self, action: A) -> R
+    fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
     {
@@ -738,7 +883,7 @@ impl<'a> AsRef<Vars> for crate::context::WidgetContext<'a> {
 
 /// A variable update receiver that can be used from any thread and without access to [`Vars`].
 ///
-/// Use [`VarsRead::receiver`] to create a receiver, drop to stop listening.
+/// Use [`Var::receiver`] to create a receiver, drop to stop listening.
 pub struct VarReceiver<T: VarValue + Send> {
     receiver: flume::Receiver<T>,
 }
@@ -836,7 +981,7 @@ impl<T: VarValue + Send> IntoIterator for VarReceiver<T> {
 
 /// A variable update sender that can set a variable from any thread and without access to [`Vars`].
 ///
-/// Use [`Vars::sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
+/// Use [`Var::sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
 pub struct VarSender<T>
 where
     T: VarValue + Send,
@@ -874,7 +1019,7 @@ where
 
 /// A variable modification sender that can be used to modify a variable from any thread and without access to [`Vars`].
 ///
-/// Use [`Vars::modify_sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
+/// Use [`Var::modify_sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
 pub struct VarModifySender<T>
 where
     T: VarValue,
@@ -938,8 +1083,10 @@ pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (Respons
 
 /// Represents a variable binding created by one of the `bind` methods of [`Vars`] or [`Var`].
 ///
-/// Drop all clones of this handle to drop the binding, or call [`permanent`](Self::permanent) to drop the handle
+/// Drop all clones of this handle to drop the binding, or call [`permanent`] to drop the handle
 /// but keep the binding alive for the duration of the app.
+///
+/// [`permanent`]: VarBindingHandle::permanent
 #[derive(Clone)]
 #[must_use = "the var binding is undone if the handle is dropped"]
 pub struct VarBindingHandle(Handle<()>);
@@ -1006,23 +1153,38 @@ impl VarBinding {
 
 /// Helper for declaring properties that sets a context var.
 ///
-/// # Example
+/// The method presents the `value` as the [`ContextVar<Type=T>`] in the widget and widget descendants.
+/// The context var [`version`] and [`is_new`] status are always equal to the `value` var status.
+///
+/// The generated [`UiNode`] delegates each method to `child` inside a call to [`Vars::with_context_bind`].
+///
+/// # Examples
+///
+/// A simple context property declaration:
 ///
 /// ```
 /// # fn main() -> () { }
-/// use zero_ui::properties::with_context_var;
-/// use zero_ui::core::{UiNode, var::{IntoVar, context_var}, property};
-///
+/// # use zero_ui_core::{*, var::*};
 /// context_var! {
-///     pub struct FontSizeVar: u32 = const 14;
+///     pub struct FooVar: u32 = const 0;
 /// }
 ///
-/// /// Sets the [`FontSizeVar`] context var.
-/// #[property(context, default(FontSizeVar))]
-/// pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
-///     with_context_var(child, FontSizeVar, size)
+/// /// Sets the [`FooVar`] in the widgets and its content.
+/// #[property(context, default(FooVar))]
+/// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
+///     with_context_var(child, FooVar, value)
 /// }
 /// ```
+///
+/// When set in a widget, the `value` is accessible in all inner nodes of the widget, using `FooVar.get`, and if `value` is set to a
+/// variable the `FooVar` will also reflect its [`is_new`] and [`version`].
+///
+/// Also note that the property [`default`] is set to the same `FooVar`, this causes the property to *pass-through* the outer context
+/// value, as if it was not set.
+///
+/// [`version`]: Var::version
+/// [`is_new`]: Var::is_new
+/// [`default`]: crate::property#default
 pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
     struct WithContextVarNode<U, C, V> {
         child: U,
@@ -1091,19 +1253,17 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
 /// This is similar to [`with_context_var`] except the context var value is visible only inside
 /// the `child` nodes that are part of the same widget that is the parent of the return node.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # fn main() -> () { }
-/// use zero_ui::properties::with_context_var_wgt_only;
-/// use zero_ui::core::{UiNode, var::{IntoVar, context_var}, property, border::BorderRadius};
-///
+/// # use zero_ui_core::{*, var::*, border::BorderRadius};
 /// context_var! {
 ///     pub struct CornersClipVar: BorderRadius = once BorderRadius::zero();
 /// }
 ///
 /// /// Sets widget content clip corner radius.
-/// #[property(context)]
+/// #[property(context, default(CornersClipVar))]
 /// pub fn corners_clip(child: impl UiNode, radius: impl IntoVar<BorderRadius>) -> impl UiNode {
 ///     with_context_var_wgt_only(child, CornersClipVar, radius)
 /// }
@@ -1140,17 +1300,20 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
         #[inline(always)]
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.event(ctx, args));
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, &self.value, || child.event(ctx, args));
         }
         #[inline(always)]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let child = &mut self.child;
-            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.measure(ctx, available_size))
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, &self.value, || child.measure(ctx, available_size))
         }
         #[inline(always)]
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.arrange(ctx, final_size))
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, &self.value, || child.arrange(ctx, final_size))
         }
         #[inline(always)]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -1169,17 +1332,25 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
         value: value.into_var(),
     }
 }
-/// Helper for declaring properties that sets a context var.
+/// Helper for declaring properties that sets a context var using a closure.
 ///
-/// # Example
+/// The method presents the `initial_value` in the widget and widget descendants. In every [`UiNode::update`]
+/// the `update` closure is called, if it returns a new value the context var *updates*, for the same [`UiNode::update`]
+/// it [`is_new`] and it the new value is retained and presented in each subsequent [`UiNode`] method call.
+///
+/// The generated [`UiNode`] delegates each method to `child` inside a call to [`Vars::with_context_var`].
+///
+/// # Examples
 ///
 /// ```
 /// todo!()
 /// ```
+///
+/// [`is_new`]: Var::is_new
 pub fn with_context_var_expr<T: VarValue>(
     child: impl UiNode,
     var: impl ContextVar<Type = T>,
-    init: T,
+    initial_value: T,
     update: impl FnMut(&mut WidgetContext) -> Option<T> + 'static,
 ) -> impl UiNode {
     struct WithContextVarExprNode<C, V, U, T> {
@@ -1276,7 +1447,115 @@ pub fn with_context_var_expr<T: VarValue>(
         var,
         update,
 
-        value: init,
+        value: initial_value,
+        version: 0,
+    }
+}
+
+/// Helper for declaring properties that sets a context var using a closure for the widget only.
+///
+/// # Example
+///
+/// ```
+/// todo!()
+/// ```
+pub fn with_context_var_wgt_only_expr<T: VarValue>(
+    child: impl UiNode,
+    var: impl ContextVar<Type = T>,
+    initial_value: T,
+    update: impl FnMut(&mut WidgetContext) -> Option<T> + 'static,
+) -> impl UiNode {
+    struct WithContextVarWidgetOnlyExprNode<C, V, U, T> {
+        child: C,
+        var: V,
+        update: U,
+
+        value: T,
+        version: u32,
+    }
+    #[impl_ui_node(child)]
+    impl<C, V, U, T> UiNode for WithContextVarWidgetOnlyExprNode<C, V, U, T>
+    where
+        C: UiNode,
+        V: ContextVar<Type = T>,
+        U: FnMut(&mut WidgetContext) -> Option<T> + 'static,
+        T: VarValue,
+    {
+        #[inline(always)]
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var_wgt_only(self.var, &self.value, false, self.version, || {
+                child.init(ctx);
+            });
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let mut is_new = false;
+            if let Some(value) = (self.update)(ctx) {
+                self.value = value;
+                self.version = self.version.wrapping_add(1);
+                is_new = true;
+            }
+            let child = &mut self.child;
+
+            ctx.vars.with_context_var_wgt_only(self.var, &self.value, is_new, self.version, || {
+                child.update(ctx);
+            });
+        }
+
+        #[inline(always)]
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var_wgt_only(self.var, &self.value, false, self.version, || {
+                child.deinit(ctx);
+            });
+        }
+
+        #[inline(always)]
+        fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var_wgt_only(self.var, &self.value, false, self.version, || {
+                child.event(ctx, args);
+            });
+        }
+
+        #[inline(always)]
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: crate::units::LayoutSize) -> crate::units::LayoutSize {
+            let child = &mut self.child;
+            ctx.vars
+                .with_context_var_wgt_only(self.var, &self.value, self.version, || child.measure(ctx, available_size))
+        }
+
+        #[inline(always)]
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: crate::units::LayoutSize) {
+            let child = &mut self.child;
+            ctx.vars.with_context_var_wgt_only(self.var, &self.value, self.version, || {
+                child.arrange(ctx, final_size);
+            });
+        }
+
+        #[inline(always)]
+        fn render(&self, ctx: &mut RenderContext, frame: &mut crate::render::FrameBuilder) {
+            let value = &self.value;
+            ctx.vars.with_context_var_wgt_only(self.var, value, self.version, || {
+                self.child.render(ctx, frame);
+            });
+        }
+
+        #[inline(always)]
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut crate::render::FrameUpdate) {
+            let value = &self.value;
+            ctx.vars.with_context_var_wgt_only(self.var, value, self.version, || {
+                self.child.render_update(ctx, update);
+            });
+        }
+    }
+    WithContextVarWidgetOnlyExprNode {
+        child,
+        var,
+        update,
+
+        value: initial_value,
         version: 0,
     }
 }

@@ -136,6 +136,9 @@ macro_rules! impl_rc_switch_var {
         }
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
+        crate::private::Sealed for $RcSwitchVar<O, $($V,)+ VI> { }
+
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         Var<O> for $RcSwitchVar<O, $($V,)+ VI> {
             type AsReadOnly = ReadOnlyVar<O, Self>;
 
@@ -159,7 +162,7 @@ macro_rules! impl_rc_switch_var {
             fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
                 match Rc::try_unwrap(self.0) {
                     Ok(r) => {
-                        vars.with(move |vars| {
+                        vars.with_vars_read(move |vars| {
                             match *r.index.get(vars) {
                                 $($n => r.vars.$n.into_value(vars),)+
                                 _ => panic!("switch_var index out of range"),
@@ -181,7 +184,7 @@ macro_rules! impl_rc_switch_var {
             }
 
             fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-                vars.with(|vars| {
+                vars.with_vars_read(|vars| {
                     let i_ver = self.0.index.version(vars);
                 let var_vers = ($(self.0.vars.$n.version(vars)),+);
 
@@ -366,6 +369,7 @@ impl<O: VarValue, VI: Var<usize>> Clone for RcSwitchVar<O, VI> {
         RcSwitchVar(Rc::clone(&self.0))
     }
 }
+impl<O: VarValue, VI: Var<usize>> crate::private::Sealed for RcSwitchVar<O, VI> {}
 impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     type AsReadOnly = ReadOnlyVar<O, Self>;
 
@@ -389,13 +393,13 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
 
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
         match Rc::try_unwrap(self.0) {
-            Ok(r) => vars.with(move |vars| Vec::from(r.vars).swap_remove(r.index.copy(vars)).into_value(vars)),
+            Ok(r) => vars.with_vars_read(move |vars| Vec::from(r.vars).swap_remove(r.index.copy(vars)).into_value(vars)),
             Err(e) => RcSwitchVar(e).get_clone(vars),
         }
     }
 
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with(|vars| {
+        vars.with_vars_read(|vars| {
             let mut changed = false;
 
             let i_ver = self.0.index.version(vars);

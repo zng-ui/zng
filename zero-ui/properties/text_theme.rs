@@ -670,7 +670,7 @@ impl<'a> TextContext<'a> {
     /// Gets the properties that affect the text characters.
     #[inline]
     pub fn text<Vr: WithVarsRead>(vars: &Vr) -> (TextTransformFn, WhiteSpace) {
-        vars.with(|vars| (TextTransformVar::get(vars).clone(), *WhiteSpaceVar::get(vars)))
+        vars.with_vars_read(|vars| (TextTransformVar::get(vars).clone(), *WhiteSpaceVar::get(vars)))
     }
     /// Gets [`text`](Self::text) if any of the properties updated.
     pub fn text_update<Vw: WithVars>(vars: &Vw) -> Option<(TextTransformFn, WhiteSpace)> {
@@ -714,7 +714,7 @@ impl<'a> TextContext<'a> {
     /// Gets the properties that affects what font synthesis is used.
     #[inline]
     pub fn font_synthesis<Vr: WithVarsRead>(vars: &Vr) -> (FontSynthesis, FontStyle, FontWeight) {
-        vars.with(|vars| (*FontSynthesisVar::get(vars), *FontStyleVar::get(vars), *FontWeightVar::get(vars)))
+        vars.with_vars_read(|vars| (*FontSynthesisVar::get(vars), *FontStyleVar::get(vars), *FontWeightVar::get(vars)))
     }
 
     /// Gets [`font_synthesis`](Self::font_synthesis) if any of the properties changed.

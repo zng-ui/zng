@@ -26,7 +26,12 @@ where
         ReadOnlyVar(self.0.clone(), PhantomData)
     }
 }
-
+impl<T, V> crate::private::Sealed for ReadOnlyVar<T, V>
+where
+    T: VarValue,
+    V: Var<T>,
+{
+}
 impl<T, V> Var<T> for ReadOnlyVar<T, V>
 where
     T: VarValue,

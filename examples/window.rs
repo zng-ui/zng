@@ -185,7 +185,7 @@ fn headless() -> impl Widget {
                     on_open = hn_once!(|ctx, args: &WindowOpenArgs| {
                         let window = ctx.services.windows().window(args.window_id).unwrap();
                         let img = window.frame_pixels();
-                        let enabled = ctx.vars.sender(&enabled);
+                        let enabled = enabled.sender(ctx.vars);
                         task::spawn(async move {
                             println!("saving screenshot..");
                             img.save("screenshot.png").unwrap();

@@ -303,7 +303,7 @@ impl IsEnabled {
     /// Gets the enabled state in the current `vars` context.
     #[inline]
     pub fn get<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with(|vars| *IsEnabledVar::get(vars))
+        vars.with_vars_read(|vars| *IsEnabledVar::get(vars))
     }
 
     /// Gets the new enabled state in the current `vars` context.
@@ -631,7 +631,7 @@ impl VisibilityContext {
     /// Gets the visibility state in the current `vars` context.
     #[inline]
     pub fn get<Vr: WithVarsRead>(vars: &Vr) -> Visibility {
-        vars.with(|vars| *VisibilityVar::get(vars))
+        vars.with_vars_read(|vars| *VisibilityVar::get(vars))
     }
 }
 
@@ -721,7 +721,7 @@ pub struct IsHitTestable;
 impl IsHitTestable {
     /// Gets the hit-testable state in the current `vars` context.
     pub fn get<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with(|vars| *IsHitTestableVar::get(vars))
+        vars.with_vars_read(|vars| *IsHitTestableVar::get(vars))
     }
 }
 

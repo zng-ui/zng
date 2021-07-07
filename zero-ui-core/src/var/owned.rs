@@ -3,6 +3,7 @@ use super::*;
 /// A [`Var`] that owns the value and keeps it locally.
 #[derive(Clone)]
 pub struct OwnedVar<T: VarValue>(pub T);
+impl<T: VarValue> crate::private::Sealed for OwnedVar<T> {}
 impl<T: VarValue> Var<T> for OwnedVar<T> {
     type AsReadOnly = Self;
 

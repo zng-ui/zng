@@ -238,8 +238,12 @@ pub trait IntoValue<T: VarValue>: Into<T> + Clone {}
 impl<T: VarValue> IntoValue<T> for T {}
 
 /// Represents an observable value.
+///
+/// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
+///
+/// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 #[cfg_attr(doc_nightly, doc(notable_trait))]
-pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
+pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'static {
     /// The variable type that represents a read-only version of this type.
     type AsReadOnly: Var<T>;
 
@@ -256,13 +260,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
     where
         T: Copy,
     {
-        vars.with(|v| *self.get(v))
+        vars.with_vars_read(|v| *self.get(v))
     }
 
     /// Clone the value.
     #[inline]
     fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
-        vars.with(|v| self.get(v).clone())
+        vars.with_vars_read(|v| self.get(v).clone())
     }
 
     /// References the value if [`is_new`](Self::is_new).
@@ -747,7 +751,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         T: Send,
         Vr: WithVarsRead,
     {
-        vars.with(|vars| vars.receiver(self))
+        vars.with_vars_read(|vars| vars.receiver(self))
     }
 
     /// Create a binding with `to_var`. When `self` updates the `to_var` is assigned a clone of the new value.
@@ -792,10 +796,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         M: FnMut(&VarBinding, &T) -> T2 + 'static,
     {
         vars.with_vars(|vars| {
+            let from_var = self.clone();
             let to_var = to_var.clone();
-            vars.bind_one(self, move |vars, info, from_var| {
-                let new_value = map(info, from_var.get(vars));
-                let _ = to_var.set(vars, new_value);
+            vars.bind(move |vars, info| {
+                if let Some(new_value) = from_var.get_new(vars) {
+                    let new_value = map(info, new_value);
+                    let _ = to_var.set(vars, new_value);
+                }
             })
         })
     }
@@ -840,7 +847,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         N: FnMut(&VarBinding, &T2) -> T + 'static,
     {
         vars.with_vars(|vars| {
-            vars.bind_two(self, other_var, move |vars, info, from_var, to_var| {
+            let from_var = self.clone();
+            let to_var = other_var.clone();
+            vars.bind(move |vars, info| {
                 if let Some(new_value) = from_var.get_new(vars) {
                     let new_value = map(&info, new_value);
                     let _ = to_var.set(vars, new_value);
@@ -881,10 +890,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         M: FnMut(&VarBinding, &T) -> Option<T2> + 'static,
     {
         vars.with_vars(|vars| {
+            let from_var = self.clone();
             let to_var = to_var.clone();
-            vars.bind_one(self, move |vars, info, from_var| {
-                if let Some(new_value) = map(&info, from_var.get(vars)) {
-                    let _ = to_var.set(vars, new_value);
+            vars.bind(move |vars, info| {
+                if let Some(new_value) = from_var.get_new(vars) {
+                    if let Some(new_value) = map(&info, new_value) {
+                        let _ = to_var.set(vars, new_value);
+                    }
                 }
             })
         })
@@ -989,7 +1001,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + 'static {
         N: FnMut(&VarBinding, &T2) -> Option<T> + 'static,
     {
         vars.with_vars(|vars| {
-            vars.bind_two(self, other_var, move |vars, info, from_var, to_var| {
+            let from_var = self.clone();
+            let to_var = other_var.clone();
+            vars.bind(move |vars, info| {
                 if let Some(new_value) = from_var.get_new(vars) {
                     if let Some(new_value) = map(info, new_value) {
                         let _ = to_var.set(vars, new_value);

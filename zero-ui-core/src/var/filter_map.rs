@@ -138,7 +138,7 @@ where
     /// Gets the up-to-date value version.
     #[inline]
     pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with(|vars| {
+        vars.with_vars_read(|vars| {
             let _ = self.get(vars);
             self.0.source.version(vars)
         })
@@ -167,6 +167,15 @@ where
     fn clone(&self) -> Self {
         RcFilterMapVar(Rc::clone(&self.0))
     }
+}
+impl<A, B, I, M, S> crate::private::Sealed for RcFilterMapVar<A, B, I, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    S: Var<A>,
+{
 }
 impl<A, B, I, M, S> Var<B> for RcFilterMapVar<A, B, I, M, S>
 where
@@ -378,7 +387,7 @@ where
     /// Gets the up-to-date value version.
     #[inline]
     pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with(|vars| {
+        vars.with_vars_read(|vars| {
             let _ = self.get(vars);
             self.0.source.version(vars)
         })
@@ -512,6 +521,16 @@ where
     fn clone(&self) -> Self {
         RcFilterMapBidiVar(Rc::clone(&self.0))
     }
+}
+impl<A, B, I, M, N, S> crate::private::Sealed for RcFilterMapBidiVar<A, B, I, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    N: FnMut(B) -> Option<A> + 'static,
+    S: Var<A>,
+{
 }
 impl<A, B, I, M, N, S> Var<B> for RcFilterMapBidiVar<A, B, I, M, N, S>
 where

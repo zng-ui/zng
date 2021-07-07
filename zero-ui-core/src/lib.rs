@@ -368,6 +368,10 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// Properties with the `is_` prefix are special, they output information about the widget instead of shaping it. They are automatically set
 /// to a new probing variable when used in an widget when condition expression.
 ///
+/// # Default
+///
+/// TODO
+///
 /// [`UiNode`]: crate::UiNode
 /// [`StateVar`]: crate::var::StateVar
 /// [`with_context_var`]: crate::properties::with_context_var
@@ -1024,3 +1028,8 @@ pub use zero_ui_proc_macros::widget;
 pub use zero_ui_proc_macros::widget_mixin;
 
 mod tests;
+
+mod private {
+    // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
+    pub trait Sealed {}
+}

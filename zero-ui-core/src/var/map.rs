@@ -115,7 +115,14 @@ where
         RcMapVar(Rc::clone(&self.0))
     }
 }
-
+impl<A, B, M, S> crate::private::Sealed for RcMapVar<A, B, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    S: Var<A>,
+{
+}
 impl<A, B, M, S> Var<B> for RcMapVar<A, B, M, S>
 where
     A: VarValue,
@@ -414,7 +421,15 @@ where
         RcMapBidiVar(Rc::clone(&self.0))
     }
 }
-
+impl<A, B, M, N, S> crate::private::Sealed for RcMapBidiVar<A, B, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    N: FnMut(B) -> A + 'static,
+    S: Var<A>,
+{
+}
 impl<A, B, M, N, S> Var<B> for RcMapBidiVar<A, B, M, N, S>
 where
     A: VarValue,
