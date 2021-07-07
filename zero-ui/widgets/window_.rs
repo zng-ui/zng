@@ -198,10 +198,46 @@ pub mod window {
         /// The default value is `true`.
         properties::taskbar_visible;
 
-        /// If the InspectCommand can be used to inspect this window.
+        /// If the [`on_inspect`] responds to [`InspectCommand`] calls.
         ///
         /// The default value is `true`.
+        ///
+        /// [`on_inspect`]: #wp-on_inspect
+        /// [`InspectCommand`]: self::commands::InspectCommand
+        #[cfg(debug_assertions)]
         self::commands::can_inspect;
+
+        /// Toggles the "Debug Inspector" for the window.
+        ///
+        /// You can execute this handler using the [`InspectCommand`].
+        ///
+        /// This property is the [`on_pre_inspect`] so window handlers see it first.
+        ///
+        /// [`can_inspect`]: #wp-can_inspect
+        /// [`InspectCommand`]: self::commands::InspectCommand
+        /// [`on_pre_inspect`]: fn@self::commands::on_pre_inspect
+        #[cfg(debug_assertions)]
+        self::commands::on_pre_inspect as on_inspect = {
+            use crate::core::debug::{write_frame, WriteFrameState};
+
+            let mut state = WriteFrameState::none();
+            hn!(|ctx, args: &CommandArgs| {
+                if ctx.services.focus().is_window_focused(ctx.path.window_id()) {
+                    args.stop_propagation();
+
+                    let frame = ctx
+                        .services
+                        .req::<crate::core::window::Windows>()
+                        .window(ctx.path.window_id())
+                        .unwrap()
+                        .frame_info();
+
+                    write_frame(frame, &state, &mut std::io::stderr());
+
+                    state = WriteFrameState::new(&frame);
+                }
+            })
+        };
 
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
@@ -262,7 +298,7 @@ pub mod window {
         on_redraw: impl FnMut(&mut RedrawArgs) + 'static,
     ) -> Window {
         let child = commands::close_node(child);
-        let child = commands::inspect_node(child);
+        //let child = commands::inspect_node(child);
         Window::new(
             root_id,
             start_position,
@@ -587,7 +623,7 @@ pub mod window {
             ///
             /// | metadata     | value                                                 |
             /// |--------------|-------------------------------------------------------|
-            /// | [`name`]     | "Inspect…"                                            |
+            /// | [`name`]     | "Debug Inspector"                                     |
             /// | [`info`]     | "Inspect the current window."                         |
             /// | [`shortcut`] | `CTRL+SHIFT+I`, `F12`                                 |
             ///
@@ -595,7 +631,7 @@ pub mod window {
             /// [`info`]: CommandInfoExt
             /// [`shortcut`]: CommandShortcutExt
             pub InspectCommand
-                .init_name("Inspect…")
+                .init_name("Debug Inspector")
                 .init_info("Inspect the current window.")
                 .init_shortcut([shortcut!(CTRL|SHIFT+I), shortcut!(F12)]);
         }
@@ -611,16 +647,6 @@ pub mod window {
                 allow_alt_f4: Rc<Cell<bool>>,
             }
             impl<C: UiNode> OnCloseNode<C> {
-                // if our window is focused.
-                fn window_is_focused(&self, ctx: &mut WidgetContext) -> bool {
-                    let window_id = ctx.path.window_id();
-                    ctx.services
-                        .focus()
-                        .focused()
-                        .map(|p| p.window_id() == window_id)
-                        .unwrap_or_default()
-                }
-
                 // in Windows, when using a real window, block the system's ALT+F4 when that shortcut
                 // is not present in the command.
                 #[cfg(windows)]
@@ -665,7 +691,7 @@ pub mod window {
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for OnCloseNode<C> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
-                    let enabled = self.window_is_focused(ctx);
+                    let enabled = ctx.services.focus().is_window_focused(ctx.path.window_id());
                     self.handle = CloseCommand.new_handle(ctx, enabled);
                     self.allow_alt_f4
                         .set(CloseCommand.shortcut().get(ctx).contains(shortcut![ALT + F4]));
@@ -679,8 +705,9 @@ pub mod window {
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                     if let Some(args) = CloseCommand.update(args) {
                         // command requested, run it only if we are focused.
-                        if self.window_is_focused(ctx) {
-                            let _ = ctx.services.windows().close(ctx.path.window_id());
+                        let window_id = ctx.path.window_id();
+                        if ctx.services.focus().is_window_focused(window_id) {
+                            let _ = ctx.services.windows().close(window_id);
                         }
                         self.child.event(ctx, args)
                     } else if let Some(args) = WindowFocusChangedEvent.update(args) {
@@ -716,36 +743,8 @@ pub mod window {
             }
         }
 
-        #[cfg(not(debug_assertions))]
-        pub(super) fn inspect_node(child: impl UiNode) -> impl UiNode {
-            child
-        }
-        #[cfg(debug_assertions)]
-        pub(super) fn inspect_node(child: impl UiNode) -> impl UiNode {
-            use crate::core::debug::{write_frame, WriteFrameState};
-            let mut state = WriteFrameState::none();
-
-            on_inspect(
-                child,
-                hn!(|ctx, args: &CommandArgs| {
-                    args.stop_propagation();
-
-                    let frame = ctx
-                        .services
-                        .req::<crate::core::window::Windows>()
-                        .window(ctx.path.window_id())
-                        .unwrap()
-                        .frame_info();
-
-                    write_frame(frame, &state, &mut std::io::stderr());
-
-                    state = WriteFrameState::new(&frame);
-                }),
-            )
-        }
-
         command_property! {
-            /// TODO
+            /// Property event for the [`InspectCommand`].
             pub fn inspect: InspectCommand;
         }
     }

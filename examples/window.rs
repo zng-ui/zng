@@ -21,7 +21,6 @@ fn main() {
             chrome = chrome.clone();
             background_color = background_color.clone();
             title;
-            can_inspect = false;
             content = h_stack! {
                 spacing = 40;
                 items = widgets![

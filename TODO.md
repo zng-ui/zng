@@ -14,6 +14,8 @@ Things that must be done first because they influence the core API design that i
   https://github.com/rust-lang/rfcs/blob/30221dc3e025eb9f8f84ccacbc9622e3a75dff5e/text/1574-more-api-documentation-conventions.md
   https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
   * Fix docs of command_property! macro.
+  * Fix modules not showing in window!.
+  * Fix when docs.
 
 * Focusable
   * Support more then one ALT scopes?
@@ -28,6 +30,8 @@ Things that must be done first because they influence the core API design that i
   * let properties reference other properties.
 
 * Commands.
+  * Disable commands in a context only.
+  * Execute only in a context.
 
 * Timers.
   * Unify with app handlers (missing on_interval docs).

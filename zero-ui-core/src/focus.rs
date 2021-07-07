@@ -650,6 +650,14 @@ impl Focus {
         self.return_focused.get(&scope_id)
     }
 
+    /// If the [`focused`] path is in the given `window_id`.
+    ///
+    /// [`focused`]: Self::focused
+    #[inline]
+    pub fn is_window_focused(&self, window_id: WindowId) -> bool {
+        self.focused().map(|p| p.window_id() == window_id).unwrap_or_default()
+    }
+
     /// Current ALT return focus.
     #[inline]
     #[must_use]

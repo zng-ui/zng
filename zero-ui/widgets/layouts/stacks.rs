@@ -66,7 +66,7 @@ where
 
                 if first {
                     first = false;
-                } else {
+                } else if D::ort_length(r.size) > 0.00001 {
                     *origin += spacing;
                     *total_len += spacing;
                 }

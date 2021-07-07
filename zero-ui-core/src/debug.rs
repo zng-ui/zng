@@ -676,6 +676,22 @@ impl ValueInfo {
             "<[nodes!]>".to_text()
         } else if name.ends_with("{{closure}}") {
             "<{{closure}}>".to_text()
+        } else if name.contains("::FnMutWidgetHandler<") {
+            "hn!({{closure}})".to_text()
+        } else if name.contains("::FnOnceWidgetHandler<") {
+            "hn_once!({{closure}})".to_text()
+        } else if name.contains("::AsyncFnMutWidgetHandler<") {
+            "async_hn!({{closure}})".to_text()
+        } else if name.contains("::AsyncFnOnceWidgetHandler<") {
+            "async_hn_once!({{closure}})".to_text()
+        } else if name.contains("::FnMutAppHandler<") {
+            "app_hn!({{closure}})".to_text()
+        } else if name.contains("::FnOnceAppHandler<") {
+            "app_hn_once!({{closure}})".to_text()
+        } else if name.contains("::AsyncFnMutAppHandler<") {
+            "async_app_hn!({{closure}})".to_text()
+        } else if name.contains("::AsyncFnOnceAppHandler<") {
+            "async_app_hn_once!({{closure}})".to_text()
         } else {
             // TODO short name
             formatx!("<{}>", name)
