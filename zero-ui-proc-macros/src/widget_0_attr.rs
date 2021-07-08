@@ -365,22 +365,22 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         #(#properties : impl self::#p_new::Args,)*
                         #(#assigned_flags: bool,)*
                         __widget_name: &'static str,
-                        __new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
+                        mut __captures: std::vec::Vec<(#crate_core::debug::WidgetNewFnV1, Vec<#crate_core::debug::CapturedPropertyV1>)>,
                         __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
                         __decl_location: #crate_core::debug::SourceLocation,
                         __instance_location: #crate_core::debug::SourceLocation,
                     ) #output {
-                        let __child = #crate_core::UiNode::boxed(__child);
-                        let __new_captures = std::vec![
-                            #(self::#p_new::captured_debug(&#properties, #names, #locations, #assigned_flags),)*
-                        ];
+                        let __child = #crate_core::UiNode::boxed(__child);                        
+                        __captures.push((
+                            #crate_core::debug::WidgetNewFnV1::New, 
+                            std::vec![#(self::#p_new::captured_debug(&#properties, #names, #locations, #assigned_flags),)*]
+                        ));
                         let __child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
                             __child,
                             __widget_name,
                             __decl_location,
                             __instance_location,
-                            __new_child_captures,
-                            __new_captures,
+                            __captures,
                             __whens,
                         );
                         self::__new(__child, #(#properties),*)
@@ -886,7 +886,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     }
 
     #[cfg(debug_assertions)]
-    let debug_reexport = quote! {debug::{source_location, WhenInfoV1}};
+    let debug_reexport = quote! {debug::{source_location, WhenInfoV1, WidgetNewFnV1}};
     #[cfg(not(debug_assertions))]
     let debug_reexport = TokenStream::default();
 

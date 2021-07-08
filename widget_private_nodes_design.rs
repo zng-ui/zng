@@ -42,7 +42,7 @@ fn new(child: impl UiNode) -> W { }
 //
 // ## Disadvantages:
 //
-// * They cannot be made from more then one property.
+// * They cannot be made from more than one property.
 // * Most of the time the code is private for the widget, 
 //   so a property must be declared just for the widget.
 // * You need to set it to a value that will probably not change.

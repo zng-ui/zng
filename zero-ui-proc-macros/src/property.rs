@@ -34,6 +34,8 @@ pub use input::keyword;
 pub use input::Priority;
 
 mod input {
+    use std::fmt;
+
     use syn::{parse::*, punctuated::Punctuated, spanned::Spanned, *};
 
     pub mod keyword {
@@ -140,6 +142,9 @@ mod input {
         pub fn is_capture_only(self) -> bool {
             matches!(self, Priority::CaptureOnly(_))
         }
+        pub fn is_context(self) -> bool {
+            matches!(self, Priority::Context(_))
+        }
         pub fn all_settable() -> [Self; 5] {
             use crate::property::keyword::*;
             [
@@ -169,6 +174,29 @@ mod input {
                 input.parse().map(Priority::CaptureOnly)
             } else {
                 Err(lookahead.error())
+            }
+        }
+    }
+    impl fmt::Display for Priority {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            if f.alternate() {
+                match self {
+                    Priority::Context(_) => write!(f, "Context"),
+                    Priority::Event(_) => write!(f, "Event"),
+                    Priority::Outer(_) => write!(f, "Outer"),
+                    Priority::Size(_) => write!(f, "Size"),
+                    Priority::Inner(_) => write!(f, "Inner"),
+                    Priority::CaptureOnly(_) => write!(f, "CaptureOnly"),
+                }
+            } else {
+                match self {
+                    Priority::Context(_) => write!(f, "context"),
+                    Priority::Event(_) => write!(f, "event"),
+                    Priority::Outer(_) => write!(f, "outer"),
+                    Priority::Size(_) => write!(f, "size"),
+                    Priority::Inner(_) => write!(f, "inner"),
+                    Priority::CaptureOnly(_) => write!(f, "capture_only"),
+                }
             }
         }
     }

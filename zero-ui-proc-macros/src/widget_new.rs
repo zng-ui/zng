@@ -87,8 +87,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .filter(|p| p.default)
         .map(|p| &p.ident)
         .collect();
-    // properties that are captured in new_child or new.
-    let captured_properties: HashSet<_> = widget_data.new_child.iter().chain(widget_data.new.iter()).collect();
+    // properties that are captured.
+    let captured_properties: HashSet<_> = widget_data.captures.iter().flat_map(|c| &c.1).collect();
 
     // inherited properties unset by the user.
     let mut unset_properties = HashSet::new();
@@ -669,6 +669,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // node__ @ call_site
     let node__ = ident!("node__");
+    let caps: Vec<Vec<_>> = widget_data
+        .captures
+        .iter()
+        .map(|c| {
+            c.1.iter()
+                .map(|p| {
+                    wgt_properties
+                        .get(&parse_quote! {#p})
+                        .map(|(id, _)| id.to_token_stream())
+                        .unwrap_or_else(|| quote! { std::unreachable!() })
+                })
+                .collect()
+        })
+        .collect();
 
     for (set_calls, child_priority) in vec![(child_prop_set_calls, true), (prop_set_calls, false)] {
         #[cfg(not(debug_assertions))]
@@ -692,7 +706,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             })
         }
 
-        for priority in &crate::property::Priority::all_settable() {
+        for (i, priority) in crate::property::Priority::all_settable().iter().enumerate() {
             #[cfg(debug_assertions)]
             for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in set_calls.iter().rev() {
                 // __set @ value span
@@ -714,6 +728,33 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         set #priority, #node__, #p_mod, #p_var_ident, #set
                     }
                 });
+            }
+            // if is the function new, continue
+            if !child_priority && priority.is_context() {
+                continue;
+            }
+            let cap_i = i + if child_priority { 1 } else { 6 };
+            let caps = &caps[cap_i];
+            #[cfg(not(debug_assertions))]
+            {
+                let new_fn_ident = ident!("__new_{}{}", if child_priority { "child_" } else { "" }, priority);
+                property_set_calls.extend(quote! {
+                    #[allow(unreachable_code)]
+                    let #node__ = #module::#new_fn_ident(#node__, #(#caps),*);
+                })
+            }
+            #[cfg(debug_assertions)]
+            {
+                let new_fn_ident = ident!("__new_{}{}_debug", if child_priority { "child_" } else { "" }, priority);
+                let new_variant_ident = ident!("New{}{:#}", if child_priority { "Child" } else { "" }, priority);
+                let cap_user_set = widget_data.captures[cap_i].1.iter().map(|id| overriden_properties.contains(id));
+                property_set_calls.extend(quote! {
+                    #[allow(unused_mut)]
+                    let mut capture_infos__ = std::vec![];
+                    #[allow(unreachable_code)]
+                    let #node__ = #module::#new_fn_ident(#node__, #(#caps,)* #(#cap_user_set,)* &mut capture_infos__);
+                    captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, captured_infos__));
+                })
             }
         }
     }
@@ -773,71 +814,45 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // Generate new function calls:
-    let mut allow_unreachable = false;
 
-    let new_child_caps: Vec<_> = widget_data
-        .new_child
-        .iter()
-        .map(|p| {
-            wgt_properties
-                .get(&parse_quote! {#p})
-                .map(|(id, _)| id.to_token_stream())
-                .unwrap_or_else(|| {
-                    allow_unreachable = true;
-                    quote! { std::unreachable!() }
-                })
-        })
-        .collect();
-
-    let new_caps: Vec<_> = widget_data
-        .new
-        .iter()
-        .map(|p| {
-            wgt_properties
-                .get(&parse_quote! {#p})
-                .map(|(id, _)| id.to_token_stream())
-                .unwrap_or_else(|| {
-                    allow_unreachable = true;
-                    quote! { std::unreachable!() }
-                })
-        })
-        .collect();
-
-    let allow_unreachable = if allow_unreachable {
-        // we have filled-in missing captured with a panic, because of this we need
-        // too suppress the `unreachable_code` lint. Missing captured already generated
-        // a compile error so the panic cannot actually execute.
-        quote! { #[allow(unreachable_code)] }
-    } else {
-        TokenStream::default()
-    };
+    let new_child_caps = &caps[0];
+    let new_caps = caps.last().unwrap();
 
     #[cfg(debug_assertions)]
     let new_child_call = {
-        let cap_user_set = widget_data.new_child.iter().map(|id| overriden_properties.contains(id));
+        let cap_user_set = widget_data.captures[0].1.iter().map(|id| overriden_properties.contains(id));
         quote! {
             #[allow(unused_mut)]
+            let mut captures__ = std::vec![];
+            #[allow(unused_mut)]
             let mut captured_new_child__ = std::vec![];
-            #allow_unreachable
+            #[allow(unreachable_code)]
             let node__ = #module::__new_child_debug(#(#new_child_caps,)* #(#cap_user_set,)* &mut captured_new_child__);
+            captures__.push((#module::__core::WidgetNewFnV1::NewChild, captured_new_child__))
         }
     };
     #[cfg(not(debug_assertions))]
     let new_child_call = quote! {
-        #allow_unreachable
+        #[allow(unreachable_code)]
         let node__ = #module::__new_child(#(#new_child_caps),*);
     };
     #[cfg(debug_assertions)]
     let new_call = {
-        let cap_user_set = widget_data.new.iter().map(|id| overriden_properties.contains(id));
+        let cap_user_set = widget_data
+            .captures
+            .last()
+            .unwrap()
+            .1
+            .iter()
+            .map(|id| overriden_properties.contains(id));
         quote! {
-            #allow_unreachable
+            #[allow(unreachable_code)]
             #module::__new_debug(
                 node__,
                 #(#new_caps,)*
                 #(#cap_user_set,)*
                 #module::__widget_name(),
-                captured_new_child__,
+                captures__,
                 when_infos__,
                 #module::__decl_location(),
                 #module::__core::source_location!()
@@ -846,7 +861,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
     #[cfg(not(debug_assertions))]
     let new_call = quote! {
-        #allow_unreachable
+        #[allow(unreachable_code)]
         #module::__new(node__, #(#new_caps),*)
     };
 
