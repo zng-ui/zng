@@ -1,8 +1,10 @@
+use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
     mem,
 };
 
+use fnv::FnvHashMap;
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
@@ -95,8 +97,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         uses,
         inherits,
         mut properties,
-        mut new_child_fn,
-        mut new_fn,
+        mut new_fns,
         mut others,
     } = WidgetItems::new(items, &mut errors);
 
@@ -106,33 +107,30 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
     if mixin {
-        if let Some(child_fn_) = new_child_fn.take() {
-            errors.push("widget mixins do not have a `new_child` function", child_fn_.sig.ident.span());
-            others.push(syn::Item::Fn(child_fn_))
-        }
-
-        if let Some(fn_) = new_fn.take() {
-            errors.push("widget mixins do not have a `new` function", fn_.sig.ident.span());
+        for (_, fn_) in new_fns {
+            errors.push(
+                format!("widget mixins do not have a `{}` function", &fn_.sig.ident),
+                fn_.sig.ident.span(),
+            );
             others.push(syn::Item::Fn(fn_))
         }
     }
 
     if is_base {
-        debug_assert!(new_child_fn.is_some());
-        debug_assert!(new_fn.is_some());
+        #[cfg(debug_assertions)]
+        for priority in FnPriority::all() {
+            assert!(new_fns.contains_key(priority));
+        }
     }
 
-    // Does some validation of `new_child` and `new` signatures.
+    // Does some validation of new signatures.
     // Further type validation is done by `rustc` when we call the function
-    // in the generated `__new_child` and `__new` functions.
-    if let Some(fn_) = &new_child_fn {
+    // in the generated `__new_child` .. `__new` functions.
+    for (priority, fn_) in &new_fns {
         validate_new_fn(fn_, &mut errors);
-    }
-    if let Some(fn_) = &mut new_fn {
-        validate_new_fn(fn_, &mut errors);
-        if fn_.sig.inputs.is_empty() {
+        if *priority != FnPriority::NewChild && fn_.sig.inputs.is_empty() {
             errors.push(
-                "`new` must take at least one input that implements `UiNode`",
+                format!("`{}` must take at least one input that implements `UiNode`", fn_.sig.ident),
                 fn_.sig.paren_token.span,
             );
             fn_.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
@@ -140,48 +138,79 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     }
 
     // collects name of captured properties and validates inputs.
-    let (new_child, new_child_ty_sp) = new_child_fn
-        .as_ref()
-        .map(|f| new_fn_captures(f.sig.inputs.iter(), &mut errors))
-        .unwrap_or_default();
+    let mut new_child_captures = None;
+    let mut new_captures = vec![];
+    if let Some(fn_) = new_fns.get(&FnPriority::NewChild) {
+        let mut args = fn_.sig.inputs.iter();
+        new_child_captures = Some(new_fn_captures(args, &mut errors));
+    }
+    for priority in FnPriority::all().iter().skip(1) {
+        if let Some(fn_) = new_fns.get(priority) {
+            let mut args = fn_.sig.inputs.iter();
 
-    let ((new, new_ty_sp), new_arg0_ty_span) = new_fn
-        .as_ref()
-        .map(|f| {
-            // skip the first arg because we expect the arg0 to be `impl UiNode`
-            // but we still need the span of the arg0 type for error messages.
-            let mut args = f.sig.inputs.iter();
+            // child: impl UiNode span.
             let new_arg0_ty_span = args.next().map(|a| if let FnArg::Typed(pt) = a { pt.ty.span() } else { a.span() });
-            (new_fn_captures(args, &mut errors), new_arg0_ty_span)
-        })
-        .unwrap_or_default();
+
+            let (properties, spans) = new_fn_captures(args, &mut errors);
+
+            new_captures.push((*priority, new_arg0_ty_span, properties, spans));
+        }
+    }
     let mut captures = HashSet::new();
-    for capture in new_child.iter().chain(&new) {
-        if !captures.insert(capture) {
-            errors.push(format_args!("property `{}` already captured", capture), capture.span());
+    if let Some((properties, _)) = &new_child_captures {
+        for property in properties {
+            if !captures.insert(property) {
+                errors.push(format_args!("property `{}` already captured", property), property.span());
+            }
+        }
+    }
+    for (_, _, properties, _) in &new_captures {
+        for property in properties {
+            if !captures.insert(property) {
+                errors.push(format_args!("property `{}` already captured", property), property.span());
+            }
         }
     }
     let captures = captures;
 
-    // generate `__new_child` and `__new` if new functions are defined in the widget.
+    let new_child__ = new_fns.get(&FnPriority::NewChild).map(|f| {
+        let captures = new_child_captures.as_ref().unwrap();
+
+        let (p_new_child, generic_tys): (Vec<_>, Vec<_>) = captures
+            .0
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (ident!("__p_{}", id), ident!("{}__type_must_match_property_definition_{}", id, i)))
+            .unzip();
+
+        let span = match &f.sig.output {
+            syn::ReturnType::Default => f.block.span(),
+            syn::ReturnType::Type(_, t) => t.span(),
+        };
+    });
+
+    // generate `__new_child` .. `__new` if new functions are defined in the widget.
     //
     // we use generic types to provide an error message for compile errors like the one in
     // `widget/new_fn_mismatched_capture_type1.rs`
-    let new_child__ = new_child_fn.as_ref().map(|f| {
-        let (p_new_child, generic_tys): (Vec<_>, Vec<_>) = new_child
+
+    let new_child__ = new_fns.get(&FnPriority::NewChild).as_ref().map(|f| {
+        let (properties, spans) = new_child_captures.as_ref().unwrap();
+
+        let (p_new_child, generic_tys): (Vec<_>, Vec<_>) = properties
             .iter()
             .enumerate()
-            .map(|(i, id)| (ident!("__p_{}", id), ident!("{}_type_must_match_property_definition_{}", id, i)))
+            .map(|(i, p)| (ident!("__p_{}", p), ident!("{}_type_must_match_property_definition_{}", p, i)))
             .unzip();
         let span = match &f.sig.output {
             syn::ReturnType::Default => f.block.span(),
             syn::ReturnType::Type(_, t) => t.span(),
         };
-        let spanned_new_child_ty: Vec<_> = new_child
+        let spanned_new_child_ty: Vec<_> = properties
             .iter()
-            .zip(new_child_ty_sp)
+            .zip(spans)
             .enumerate()
-            .map(|(i, (id, ty_span))| ident_spanned!(ty_span=> "__{}_{}", i, id))
+            .map(|(i, (id, ty_span))| ident_spanned!(*ty_span=> "__{}_{}", i, id))
             .collect();
         let spanned_unwrap = p_new_child.iter().zip(spanned_new_child_ty.iter()).map(|(p, id)| {
             quote_spanned! {id.span()=>
@@ -203,13 +232,13 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
         #[cfg(debug_assertions)]
         {
-            let names = new_child.iter().map(|id| id.to_string());
-            let locations = new_child.iter().map(|id| {
+            let names = properties.iter().map(|id| id.to_string());
+            let locations = properties.iter().map(|id| {
                 quote_spanned! {id.span()=>
                     #crate_core::debug::source_location!()
                 }
             });
-            let assigned_flags: Vec<_> = new_child
+            let assigned_flags: Vec<_> = properties
                 .iter()
                 .enumerate()
                 .map(|(i, id)| ident!("__{}_{}_user_set", i, id))
@@ -218,93 +247,148 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 #[doc(hidden)]
                 #[allow(clippy::too_many_arguments)]
                 pub fn __new_child_debug(
-                    #(#new_child : impl self::#p_new_child::Args,)*
+                    #(#properties : impl self::#p_new_child::Args,)*
                     #(#assigned_flags: bool,)*
-                     __captures_info: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>
+                    __captures_info: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>
                 ) -> impl #crate_core::UiNode {
-                    #(__captures_info.push(#p_new_child::captured_debug(&#new_child, #names, #locations, #assigned_flags));)*
-                    self::__new_child(#(#new_child),*)
+                    #(__captures_info.push(#p_new_child::captured_debug(&#properties, #names, #locations, #assigned_flags));)*
+                    self::__new_child(#(#properties),*)
                 }
             });
         }
 
         r
     });
-    let new__ = new_fn.as_ref().map(|f| {
-        let (p_new, generic_tys): (Vec<_>, Vec<_>) = new
+    let mut new__ = TokenStream::new();
+    for (priority, arg0_span, properties, spans) in &new_captures {
+        let (p_new, generic_tys): (Vec<_>, Vec<_>) = properties
             .iter()
             .enumerate()
-            .map(|(i, id)| (ident!("__p_{}", id), ident!("{}_type_must_match_property_definition_{}", id, i)))
+            .map(|(i, p)| (ident!("__p_{}", p), ident!("{}_type_must_match_property_definition_{}", p, i)))
             .unzip();
-        let new_arg0_ty_span = new_arg0_ty_span.unwrap();
-        let child_ident = ident_spanned!(new_arg0_ty_span=> "__child");
-        let child_ty = quote_spanned! {new_arg0_ty_span=>
+
+        let arg0_span = arg0_span.clone().unwrap_or_else(Span::call_site);
+
+        let child_ident = ident_spanned!(arg0_span=> "__child");
+        let child_ty = quote_spanned! {arg0_span=>
             impl #crate_core::UiNode
         };
-        let spanned_new_ty: Vec<_> = new
+
+        let spanned_new_ty: Vec<_> = properties
             .iter()
-            .zip(new_ty_sp)
+            .zip(spans)
             .enumerate()
-            .map(|(i, (id, ty_span))| ident_spanned!(ty_span=> "__{}_{}", i, id))
+            .map(|(i, (id, ty_span))| ident_spanned!(*ty_span=> "__{}_{}", i, id))
             .collect();
+
         let spanned_unwrap = p_new.iter().zip(spanned_new_ty.iter()).map(|(p, id)| {
             quote_spanned! {id.span()=>
                 self::#p::Args::unwrap(#id)
             }
         });
-        let output = &f.sig.output;
-        #[allow(unused_mut)]
-        let mut r = quote! {
-            #[doc(hidden)]
-            #[allow(clippy::too_many_arguments)]
-            pub fn __new<#(#generic_tys: self::#p_new::Args),*>(#child_ident: #child_ty, #(#spanned_new_ty: #generic_tys),*) #output {
-                self::new(#child_ident, #(#spanned_unwrap),*)
-            }
-        };
 
-        #[cfg(debug_assertions)]
-        {
-            let names = new.iter().map(|id| id.to_string());
-            let locations = new.iter().map(|id| {
-                quote_spanned! {id.span()=>
-                    #crate_core::debug::source_location!()
-                }
-            });
-            let assigned_flags: Vec<_> = new.iter().enumerate().map(|(i, id)| ident!("__{}_{}_user_set", i, id)).collect();
+        let f = new_fns.get(priority).unwrap();
 
-            r.extend(quote! {
+        if *priority != FnPriority::New {
+            let new_name = ident!("__{}", priority);
+            let new_ident = &f.sig.ident;
+            new__.extend(quote! {
                 #[doc(hidden)]
                 #[allow(clippy::too_many_arguments)]
-                pub fn __new_debug(
-                    __child: impl #crate_core::UiNode,
-                    #(#new : impl self::#p_new::Args,)*
-                    #(#assigned_flags: bool,)*
-                    __widget_name: &'static str,
-                    __new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
-                    __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
-                    __decl_location: #crate_core::debug::SourceLocation,
-                    __instance_location: #crate_core::debug::SourceLocation,
-                ) #output {
-                    let __child = #crate_core::UiNode::boxed(__child);
-                    let __new_captures = std::vec![
-                        #(self::#p_new::captured_debug(&#new, #names, #locations, #assigned_flags),)*
-                    ];
-                    let __child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
-                        __child,
-                        __widget_name,
-                        __decl_location,
-                        __instance_location,
-                        __new_child_captures,
-                        __new_captures,
-                        __whens,
-                    );
-                    self::__new(__child, #(#new),*)
+                pub fn #new_name<#(#generic_tys: self::#p_new::Args),*>(
+                    #child_ident: #child_ty,
+                    #(#spanned_new_ty: #generic_tys),*
+                ) -> impl #crate_core::UiNode {
+                    self::#new_ident(#child_ident, #(#spanned_unwrap),*)
                 }
             });
-        }
 
-        r
-    });
+            #[cfg(debug_assertions)]
+            {
+                let new_debug_name = ident!("__{}_debug", priority);
+                let names = properties.iter().map(|id| id.to_string());
+                let locations = properties.iter().map(|id| {
+                    quote_spanned! {id.span()=>
+                        #crate_core::debug::source_location!()
+                    }
+                });
+                let assigned_flags: Vec<_> = properties
+                    .iter()
+                    .enumerate()
+                    .map(|(i, id)| ident!("__{}_{}_user_set", i, id))
+                    .collect();
+
+                new__.extend(quote! {
+                    #[doc(hidden)]
+                    #[allow(clippy::too_many_arguments)]
+                    pub fn #new_debug_name(
+                        __new_debug: impl #crate_core::UiNode,
+                        #(#properties : impl self::#p_new::Args,)*
+                        #(#assigned_flags: bool,)*
+                        __captures_info: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>
+                    ) -> impl #crate_core::UiNode {
+                        #(__captures_info.push(#p_new::captured_debug(&#properties, #names, #locations, #assigned_flags));)*
+                        self::#new_name(#(#properties),*)
+                    }
+                });
+            }
+        } else {
+            let output = &f.sig.output;
+            #[allow(unused_mut)]
+            new__.extend(quote! {
+                #[doc(hidden)]
+                #[allow(clippy::too_many_arguments)]
+                pub fn __new<#(#generic_tys: self::#p_new::Args),*>(#child_ident: #child_ty, #(#spanned_new_ty: #generic_tys),*) #output {
+                    self::new(#child_ident, #(#spanned_unwrap),*)
+                }
+            });
+
+            #[cfg(debug_assertions)]
+            {
+                let names = properties.iter().map(|id| id.to_string());
+                let locations = properties.iter().map(|id| {
+                    quote_spanned! {id.span()=>
+                        #crate_core::debug::source_location!()
+                    }
+                });
+                let assigned_flags: Vec<_> = properties
+                    .iter()
+                    .enumerate()
+                    .map(|(i, id)| ident!("__{}_{}_user_set", i, id))
+                    .collect();
+
+                new__.extend(quote! {
+                    #[doc(hidden)]
+                    #[allow(clippy::too_many_arguments)]
+                    pub fn __new_debug(
+                        __child: impl #crate_core::UiNode,
+                        #(#properties : impl self::#p_new::Args,)*
+                        #(#assigned_flags: bool,)*
+                        __widget_name: &'static str,
+                        __new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
+                        __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
+                        __decl_location: #crate_core::debug::SourceLocation,
+                        __instance_location: #crate_core::debug::SourceLocation,
+                    ) #output {
+                        let __child = #crate_core::UiNode::boxed(__child);
+                        let __new_captures = std::vec![
+                            #(self::#p_new::captured_debug(&#properties, #names, #locations, #assigned_flags),)*
+                        ];
+                        let __child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
+                            __child,
+                            __widget_name,
+                            __decl_location,
+                            __instance_location,
+                            __new_child_captures,
+                            __new_captures,
+                            __whens,
+                        );
+                        self::__new(__child, #(#properties),*)
+                    }
+                });
+            }
+        }
+    }
 
     #[cfg(debug_assertions)]
     let debug_info = {
@@ -810,6 +894,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     let final_macro_ident = ident!("__{}_{}_final", ident, util::uuid());
 
+    let new_fns = new_fns.values();
+
     let r = quote! {
         #wgt_cfg
         mod #errors_mod {
@@ -829,8 +915,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             #debug_info
 
-            #new_child_fn
-            #new_fn
+            #(#new_fns)*
 
             #property_declarations
             #property_defaults
@@ -997,23 +1082,88 @@ fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {
     }
 }
 
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub(crate) enum FnPriority {
+    NewChild,
+
+    NewChildInner,
+    NewChildSize,
+    NewChildOuter,
+    NewChildEvent,
+    NewChildContext,
+
+    NewInner,
+    NewSize,
+    NewOuter,
+    NewEvent,
+
+    New,
+}
+impl FnPriority {
+    pub fn from_ident(ident: &Ident) -> Option<Self> {
+        match ident.to_string().as_str() {
+            "new_child" => Some(Self::NewChild),
+            "new_child_inner" => Some(Self::NewChildInner),
+            "new_child_size" => Some(Self::NewChildSize),
+            "new_child_outer" => Some(Self::NewChildOuter),
+            "new_child_event" => Some(Self::NewChildEvent),
+            "new_child_context" => Some(Self::NewChildContext),
+            "new_inner" => Some(Self::NewInner),
+            "new_size" => Some(Self::NewSize),
+            "new_outer" => Some(Self::NewOuter),
+            "new_event" => Some(Self::NewEvent),
+            "new" => Some(Self::New),
+            _ => None,
+        }
+    }
+
+    pub fn all() -> &'static [FnPriority] {
+        &[
+            Self::NewChild,
+            Self::NewChildInner,
+            Self::NewChildSize,
+            Self::NewChildOuter,
+            Self::NewChildEvent,
+            Self::NewChildContext,
+            Self::NewInner,
+            Self::NewSize,
+            Self::NewOuter,
+            Self::NewEvent,
+            Self::New,
+        ]
+    }
+}
+impl fmt::Display for FnPriority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            FnPriority::NewChild => write!(f, "new_child"),
+            FnPriority::NewChildInner => write!(f, "new_child_inner"),
+            FnPriority::NewChildSize => write!(f, "new_child_size"),
+            FnPriority::NewChildOuter => write!(f, "new_child_outer"),
+            FnPriority::NewChildEvent => write!(f, "new_child_event"),
+            FnPriority::NewChildContext => write!(f, "new_child_context"),
+            FnPriority::NewInner => write!(f, "new_inner"),
+            FnPriority::NewSize => write!(f, "new_size"),
+            FnPriority::NewOuter => write!(f, "new_outer"),
+            FnPriority::NewEvent => write!(f, "new_event"),
+            FnPriority::New => write!(f, "new"),
+        }
+    }
+}
+
 struct WidgetItems {
     uses: Vec<ItemUse>,
     inherits: Vec<Inherit>,
     properties: Vec<Properties>,
-    new_child_fn: Option<ItemFn>,
-    new_fn: Option<ItemFn>,
+    new_fns: FnvHashMap<FnPriority, ItemFn>,
     others: Vec<Item>,
-    // new_child_fns: FnvHashMap<Priority, Vec<ItemFn>>
-    // new_fns: FnvHashMap<Priority, Vec<ItemFn>>
 }
 impl WidgetItems {
     fn new(items: Vec<Item>, errors: &mut Errors) -> Self {
         let mut uses = vec![];
         let mut inherits = vec![];
         let mut properties = vec![];
-        let mut new_child_fn = None;
-        let mut new_fn = None;
+        let mut new_fns = FnvHashMap::default();
         let mut others = vec![];
 
         for item in items {
@@ -1059,26 +1209,14 @@ impl WidgetItems {
                         None => unreachable!(),
                     }
                 }
-                // match fn new(..) or fn new_child(..).
+                // match fn new(..), new_inner(..) .. fn new_child(..).
                 Item::Fn(fn_)
                     if {
-                        if fn_.sig.ident == "new" {
-                            known_fn = Some(KnownFn::New);
-                        } else if fn_.sig.ident == "new_child" {
-                            known_fn = Some(KnownFn::NewChild);
-                        }
+                        known_fn = FnPriority::from_ident(&fn_.sig.ident);
                         known_fn.is_some()
                     } =>
                 {
-                    match known_fn {
-                        Some(KnownFn::New) => {
-                            new_fn = Some(fn_);
-                        }
-                        Some(KnownFn::NewChild) => {
-                            new_child_fn = Some(fn_);
-                        }
-                        None => unreachable!(),
-                    }
+                    new_fns.insert(known_fn.unwrap(), fn_);
                 }
                 // other user items.
                 item => others.push(item),
@@ -1089,8 +1227,7 @@ impl WidgetItems {
             uses,
             inherits,
             properties,
-            new_child_fn,
-            new_fn,
+            new_fns,
             others,
         }
     }

@@ -199,6 +199,73 @@ pub struct UiNodeCounts {
     pub render_update: usize,
 }
 
+/// Represents the widget *new* functions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum WidgetNewFn {
+    /// `new_child`
+    NewChild,
+
+    /// `new_child_inner`
+    NewChildInner,
+    /// `new_child_size`
+    NewChildSize,
+    /// `new_child_outer`
+    NewChildOuter,
+    /// `new_child_event`
+    NewChildEvent,
+    /// `new_child_context`
+    NewChildContext,
+
+    /// `new_inner`
+    NewInner,
+    /// `new_size`
+    NewSize,
+    /// `new_outer`
+    NewOuter,
+    /// `new_event`
+    NewEvent,
+
+    /// `new`
+    New,
+}
+impl WidgetNewFn {
+    /// All the new functions from `NewChild` to `New`.
+    pub fn all() -> &'static [WidgetNewFn] {
+        &[
+            Self::NewChild,
+            Self::NewChildInner,
+            Self::NewChildSize,
+            Self::NewChildOuter,
+            Self::NewChildEvent,
+            Self::NewChildContext,
+            Self::NewInner,
+            Self::NewSize,
+            Self::NewOuter,
+            Self::NewEvent,
+            Self::New,
+        ]
+    }
+}
+impl fmt::Display for WidgetNewFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::NewChild => write!(f, "new_child"),
+            Self::NewChildInner => write!(f, "new_child_inner"),
+            Self::NewChildSize => write!(f, "new_child_size"),
+            Self::NewChildOuter => write!(f, "new_child_outer"),
+            Self::NewChildEvent => write!(f, "new_child_event"),
+            Self::NewChildContext => write!(f, "new_child_context"),
+            Self::NewInner => write!(f, "new_inner"),
+            Self::NewSize => write!(f, "new_size"),
+            Self::NewOuter => write!(f, "new_outer"),
+            Self::NewEvent => write!(f, "new_event"),
+            Self::New => write!(f, "new"),
+        }
+    }
+}
+#[doc(hidden)]
+pub type WidgetNewFnV1 = WidgetNewFn;
+
 /// Debug info about a widget instance.
 #[derive(Debug, Clone)]
 pub struct WidgetInstanceInfo {
@@ -214,10 +281,8 @@ pub struct WidgetInstanceInfo {
     /// Source-code location of the widget instantiation.
     pub instance_location: SourceLocation,
 
-    /// Properties this widget captured in the new_child function.
-    pub captured_new_child: Box<[CapturedPropertyInfo]>,
-    /// Properties this widget captured in the new function.
-    pub captured_new: Box<[CapturedPropertyInfo]>,
+    /// Properties this widget captured in the new functions.
+    pub captures: FnvHashMap<WidgetNewFn, Box<[CapturedPropertyInfo]>>,
 
     /// When blocks setup by this widget instance.
     pub whens: Box<[WhenInfo]>,
@@ -315,6 +380,7 @@ pub struct WhenInfoV1 {
     pub decl_location: SourceLocation,
     pub user_declared: bool,
 }
+
 #[allow(missing_docs)] // this is all hidden
 impl WidgetInstanceInfoNode {
     pub fn new_v1(
@@ -322,49 +388,44 @@ impl WidgetInstanceInfoNode {
         widget_name: &'static str,
         decl_location: SourceLocation,
         instance_location: SourceLocation,
-        mut captured_new_child: Vec<CapturedPropertyV1>,
-        mut captured_new: Vec<CapturedPropertyV1>,
+        mut captures: Vec<(WidgetNewFnV1, Vec<CapturedPropertyV1>)>,
         mut whens: Vec<WhenInfoV1>,
     ) -> Self {
-        let debug_vars = captured_new_child
-            .iter_mut()
-            .chain(captured_new.iter_mut())
-            .map(|c| std::mem::take(&mut c.arg_debug_vars))
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+        let mut debug_vars = Vec::with_capacity(captures.len());
+        let mut captures_final = FnvHashMap::with_capacity(captures.len());
 
-        let mut new_child = vec![];
-        let mut new = vec![];
+        for (fn_, properties) in captures {
+            let mut infos = Vec::with_capacity(properties.len());
+            let mut vars = Vec::with_capacity(properties.len());
 
-        for ((is_nc, c), dbg_vars) in captured_new_child
-            .into_iter()
-            .map(|c| (true, c))
-            .chain(captured_new.into_iter().map(|c| (false, c)))
-            .zip(debug_vars.iter())
-        {
-            let fn_ = if is_nc { &mut new_child } else { &mut new };
+            for p in properties {
+                let dbg_vars = std::mem::take(&mut p.arg_debug_vars);
+                infos.push(CapturedPropertyInfo {
+                    property_name: c.property_name,
+                    instance_location: c.instance_location,
+                    args: p
+                        .arg_names
+                        .iter()
+                        .map(|n| PropertyArgInfo {
+                            name: n,
+                            // TODO is this right?
+                            value: ValueInfo {
+                                debug: "".into(),
+                                debug_alt: "".into(),
+                                type_name: "".into(),
+                            },
+                            value_version: 0,
+                            can_update: false,
+                        })
+                        .collect(),
+                    can_debug_args: !dbg_vars.is_empty(),
+                    user_assigned: p.user_assigned,
+                });
+                vars.push(dbg_vars);
+            }
 
-            fn_.push(CapturedPropertyInfo {
-                property_name: c.property_name,
-                instance_location: c.instance_location,
-                args: c
-                    .arg_names
-                    .iter()
-                    .map(|n| PropertyArgInfo {
-                        name: n,
-                        // TODO is this right?
-                        value: ValueInfo {
-                            debug: "".into(),
-                            debug_alt: "".into(),
-                            type_name: "".into(),
-                        },
-                        value_version: 0,
-                        can_update: false,
-                    })
-                    .collect(),
-                can_debug_args: !dbg_vars.is_empty(),
-                user_assigned: c.user_assigned,
-            });
+            debug_vars.extend(vars);
+            captures_final.insert(fn_, infos.into_boxed_slice());
         }
 
         let when_vars = whens
@@ -393,12 +454,11 @@ impl WidgetInstanceInfoNode {
                 widget_name,
                 decl_location,
                 instance_location,
-                captured_new_child: new_child.into_boxed_slice(),
-                captured_new: new.into_boxed_slice(),
+                captures: captures_final,
                 whens,
                 parent_property: "",
             })),
-            debug_vars,
+            debug_vars: debug_vars.into_boxed_slice(),
             when_vars,
         }
     }

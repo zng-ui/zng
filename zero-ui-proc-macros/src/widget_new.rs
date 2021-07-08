@@ -11,7 +11,10 @@ use syn::{
     token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{self, parse_all, parse_outer_attrs, parse_punct_terminated2, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors};
+use crate::{
+    util::{self, parse_all, parse_outer_attrs, parse_punct_terminated2, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors},
+    widget_0_attr::FnPriority,
+};
 
 #[allow(unused_macros)]
 macro_rules! quote {
@@ -879,8 +882,7 @@ struct WidgetData {
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
-    new_child: Vec<Ident>,
-    new: Vec<Ident>,
+    captures: Vec<(FnPriority, Vec<Ident>)>,
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -890,8 +892,17 @@ impl Parse for WidgetData {
             properties_child: parse_all(&non_user_braced!(&input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(&input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&non_user_braced!(&input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
-            new_child: parse_all(&non_user_braced!(&input, "new_child")).unwrap_or_else(|e| non_user_error!(e)),
-            new: parse_all(&non_user_braced!(&input, "new")).unwrap_or_else(|e| non_user_error!(e)),
+            captures: {
+                let input = non_user_braced!(&input, "captures");
+                let mut caps = vec![];
+                for priority in FnPriority::all() {
+                    caps.push((
+                        *priority,
+                        parse_all(&non_user_braced!(&input, priority.to_string())).unwrap_or_else(|e| non_user_error!(e)),
+                    ));
+                }
+                caps
+            },
         });
 
         r
