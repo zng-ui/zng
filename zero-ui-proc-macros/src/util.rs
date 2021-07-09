@@ -113,6 +113,9 @@ macro_rules! non_user_error {
     ($e:expr) => {
         panic!("[{}:{}] invalid non-user input: {}", file!(), line!(), $e)
     };
+    ($fmt:tt, $($args:tt)+) => {
+        non_user_error! { format_args!($fmt, $($args)+) }
+    }
 }
 
 /// Include minified JS string from the "src/js" dir.

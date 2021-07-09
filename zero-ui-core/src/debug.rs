@@ -1,6 +1,8 @@
 #![cfg(debug_assertions)]
 //! Helper types for debugging an UI tree.
 
+use fnv::FnvHashMap;
+
 use super::{
     context::LayoutContext,
     context::{state_key, WidgetContext},
@@ -353,14 +355,17 @@ context_var! {
     struct ParentPropertyName: &'static str = const "";
 }
 
+type PropertyMembersVars = Box<[BoxedVar<ValueInfo>]>;
+type PropertiesVars = Box<[PropertyMembersVars]>;
+
 // Node inserted just before calling the widget new function in debug mode.
 // It registers the `WidgetInstanceInfo` metadata.
 #[doc(hidden)]
 pub struct WidgetInstanceInfoNode {
     child: BoxedUiNode,
     info: WidgetInstance,
-    // debug vars per property.
-    debug_vars: Box<[Box<[BoxedVar<ValueInfo>]>]>,
+    // debug vars, [capture-fn => properties[members[var]]]
+    debug_vars: FnvHashMap<WidgetNewFn, PropertiesVars>,
     // when condition result variables.
     when_vars: Box<[BoxedVar<bool>]>,
 }
@@ -388,21 +393,23 @@ impl WidgetInstanceInfoNode {
         widget_name: &'static str,
         decl_location: SourceLocation,
         instance_location: SourceLocation,
-        mut captures: Vec<(WidgetNewFnV1, Vec<CapturedPropertyV1>)>,
+        captures: Vec<(WidgetNewFnV1, Vec<CapturedPropertyV1>)>,
         mut whens: Vec<WhenInfoV1>,
     ) -> Self {
-        let mut debug_vars = Vec::with_capacity(captures.len());
-        let mut captures_final = FnvHashMap::with_capacity(captures.len());
+        let mut debug_vars = FnvHashMap::default();
+        debug_vars.reserve(captures.len());
+        let mut captures_final = FnvHashMap::default();
+        captures_final.reserve(captures.len());
 
         for (fn_, properties) in captures {
             let mut infos = Vec::with_capacity(properties.len());
             let mut vars = Vec::with_capacity(properties.len());
 
-            for p in properties {
-                let dbg_vars = std::mem::take(&mut p.arg_debug_vars);
+            for mut p in properties {
+                let dbg_vars: PropertyMembersVars = std::mem::take(&mut p.arg_debug_vars);
                 infos.push(CapturedPropertyInfo {
-                    property_name: c.property_name,
-                    instance_location: c.instance_location,
+                    property_name: p.property_name,
+                    instance_location: p.instance_location,
                     args: p
                         .arg_names
                         .iter()
@@ -424,7 +431,8 @@ impl WidgetInstanceInfoNode {
                 vars.push(dbg_vars);
             }
 
-            debug_vars.extend(vars);
+            let vars: PropertiesVars = vars.into_boxed_slice();
+            debug_vars.insert(fn_, vars);
             captures_final.insert(fn_, infos.into_boxed_slice());
         }
 
@@ -458,7 +466,7 @@ impl WidgetInstanceInfoNode {
                 whens,
                 parent_property: "",
             })),
-            debug_vars: debug_vars.into_boxed_slice(),
+            debug_vars,
             when_vars,
         }
     }
@@ -476,18 +484,16 @@ impl UiNode for WidgetInstanceInfoNode {
         let mut info_borrow = self.info.borrow_mut();
         let info = &mut *info_borrow;
 
-        for (property, vars) in info
-            .captured_new_child
-            .iter_mut()
-            .chain(info.captured_new.iter_mut())
-            .zip(self.debug_vars.iter())
-        {
-            for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
-                arg.value = var.get_clone(ctx);
-                arg.value_version = var.version(ctx);
-                arg.can_update = var.can_update();
+        for (fn_, p) in &mut info.captures {
+            for (p, vars) in p.iter_mut().zip(self.debug_vars.get(fn_).unwrap().iter()) {
+                for (arg, var) in p.args.iter_mut().zip(vars.iter()) {
+                    arg.value = var.get_clone(ctx);
+                    arg.value_version = var.version(ctx);
+                    arg.can_update = var.can_update();
+                }
             }
         }
+
         for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
             when.condition = var.copy(ctx);
             when.condition_version = var.version(ctx);
@@ -502,16 +508,13 @@ impl UiNode for WidgetInstanceInfoNode {
         let mut info_borrow = self.info.borrow_mut();
         let info = &mut *info_borrow;
 
-        for (property, vars) in info
-            .captured_new_child
-            .iter_mut()
-            .chain(info.captured_new.iter_mut())
-            .zip(self.debug_vars.iter())
-        {
-            for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
-                if let Some(update) = var.get_new(ctx) {
-                    arg.value = update.clone();
-                    arg.value_version = var.version(ctx);
+        for (fn_, p) in &mut info.captures {
+            for (p, vars) in p.iter_mut().zip(self.debug_vars.get(fn_).unwrap().iter()) {
+                for (arg, var) in p.args.iter_mut().zip(vars.iter()) {
+                    if let Some(update) = var.clone_new(ctx) {
+                        arg.value = update;
+                        arg.value_version = var.version(ctx);
+                    }
                 }
             }
         }
@@ -996,7 +999,7 @@ impl WriteFrameState {
             if let Some(info) = w.instance() {
                 let info = info.borrow();
                 let mut properties = HashMap::new();
-                for p in info.captured_new_child.iter().chain(info.captured_new.iter()) {
+                for p in info.captures.values().flat_map(|c| c.iter()) {
                     for arg in p.args.iter() {
                         properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
                     }
@@ -1107,18 +1110,23 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
             };
         }
 
-        for p in wgt.captured_new_child.iter() {
-            let group = ("new_child", true);
-            write_property!(p, group);
+        if let Some(p) = wgt.captures.get(&WidgetNewFn::NewChild) {
+            for p in p.iter() {
+                let group = ("new_child", true);
+                write_property!(p, group);
+            }
         }
         for prop in widget.properties() {
+            // TODO other capture functions
             let p = prop.borrow();
             let group = (p.priority.token_str(), p.child);
             write_property!(p, group);
         }
-        for p in wgt.captured_new.iter() {
-            let group = ("new", false);
-            write_property!(p, group);
+        if let Some(p) = wgt.captures.get(&WidgetNewFn::New) {
+            for p in p.iter() {
+                let group = ("new", false);
+                write_property!(p, group);
+            }
         }
 
         fmt.writeln();

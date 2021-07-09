@@ -141,7 +141,7 @@ fn trace_focus(events: &mut Events) {
 #[cfg(debug_assertions)]
 mod inspect {
     use super::*;
-    use zero_ui::core::debug::WidgetDebugInfo;
+    use zero_ui::core::debug::{WidgetDebugInfo, WidgetNewFn};
     use zero_ui::core::focus::WidgetInfoFocusExt;
 
     pub fn focus(path: &Option<WidgetPath>, services: &mut Services) -> String {
@@ -165,7 +165,7 @@ mod inspect {
                     let info = text_wgt.instance().expect("expected debug info").borrow();
                     format!(
                         "button({})",
-                        info.captured_new_child
+                        info.captures.get(&WidgetNewFn::NewChild).unwrap()
                             .iter()
                             .find(|p| p.property_name == "text")
                             .expect("expected text in capture_new")

@@ -60,20 +60,6 @@ pub mod implicit_base {
         NilUiNode
     }
 
-    /*
-            "new_child" => Some(Self::NewChild),
-            "new_child_inner" => Some(Self::NewChildInner),
-            "new_child_size" => Some(Self::NewChildSize),
-            "new_child_outer" => Some(Self::NewChildOuter),
-            "new_child_event" => Some(Self::NewChildEvent),
-            "new_child_context" => Some(Self::NewChildContext),
-            "new_inner" => Some(Self::NewInner),
-            "new_size" => Some(Self::NewSize),
-            "new_outer" => Some(Self::NewOuter),
-            "new_event" => Some(Self::NewEvent),
-            "new" => Some(Self::New),
-    */
-
     /// No-op, returns `child` unaltered.
     pub fn new_child_inner(child: impl UiNode) -> impl UiNode {
         child

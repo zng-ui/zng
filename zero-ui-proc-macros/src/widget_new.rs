@@ -88,7 +88,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|p| &p.ident)
         .collect();
     // properties that are captured.
-    let captured_properties: HashSet<_> = widget_data.captures.iter().flat_map(|c| &c.1).collect();
+    let captured_properties: HashSet<_> = widget_data.new_captures.iter().flatten().collect();
 
     // inherited properties unset by the user.
     let mut unset_properties = HashSet::new();
@@ -670,10 +670,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // node__ @ call_site
     let node__ = ident!("node__");
     let caps: Vec<Vec<_>> = widget_data
-        .captures
+        .new_captures
         .iter()
         .map(|c| {
-            c.1.iter()
+            c.iter()
                 .map(|p| {
                     wgt_properties
                         .get(&parse_quote! {#p})
@@ -747,13 +747,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             {
                 let new_fn_ident = ident!("__new_{}{}_debug", if child_priority { "child_" } else { "" }, priority);
                 let new_variant_ident = ident!("New{}{:#}", if child_priority { "Child" } else { "" }, priority);
-                let cap_user_set = widget_data.captures[cap_i].1.iter().map(|id| overriden_properties.contains(id));
+                let cap_user_set = widget_data.new_captures[cap_i].iter().map(|id| overriden_properties.contains(id));
                 property_set_calls.extend(quote! {
                     #[allow(unused_mut)]
                     let mut capture_infos__ = std::vec![];
                     #[allow(unreachable_code)]
                     let #node__ = #module::#new_fn_ident(#node__, #(#caps,)* #(#cap_user_set,)* &mut capture_infos__);
-                    captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, captured_infos__));
+                    captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, capture_infos__));
                 })
             }
         }
@@ -820,7 +820,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     #[cfg(debug_assertions)]
     let new_child_call = {
-        let cap_user_set = widget_data.captures[0].1.iter().map(|id| overriden_properties.contains(id));
+        let cap_user_set = widget_data.new_captures[0].iter().map(|id| overriden_properties.contains(id));
         quote! {
             #[allow(unused_mut)]
             let mut captures__ = std::vec![];
@@ -828,7 +828,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let mut captured_new_child__ = std::vec![];
             #[allow(unreachable_code)]
             let node__ = #module::__new_child_debug(#(#new_child_caps,)* #(#cap_user_set,)* &mut captured_new_child__);
-            captures__.push((#module::__core::WidgetNewFnV1::NewChild, captured_new_child__))
+            captures__.push((#module::__core::WidgetNewFnV1::NewChild, captured_new_child__));
         }
     };
     #[cfg(not(debug_assertions))]
@@ -839,10 +839,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(debug_assertions)]
     let new_call = {
         let cap_user_set = widget_data
-            .captures
+            .new_captures
             .last()
             .unwrap()
-            .1
             .iter()
             .map(|id| overriden_properties.contains(id));
         quote! {
@@ -875,6 +874,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #new_call
         }
     };
+
     r.into()
 }
 
@@ -897,7 +897,7 @@ struct WidgetData {
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
-    captures: Vec<(FnPriority, Vec<Ident>)>,
+    new_captures: Vec<Vec<Ident>>,
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -907,16 +907,12 @@ impl Parse for WidgetData {
             properties_child: parse_all(&non_user_braced!(&input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(&input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&non_user_braced!(&input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
-            captures: {
-                let input = non_user_braced!(&input, "captures");
-                let mut caps = vec![];
-                for priority in FnPriority::all() {
-                    caps.push((
-                        *priority,
-                        parse_all(&non_user_braced!(&input, priority.to_string())).unwrap_or_else(|e| non_user_error!(e)),
-                    ));
-                }
-                caps
+            new_captures: {
+                let input = non_user_braced!(&input, "new_captures");
+                FnPriority::all()
+                    .iter()
+                    .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
+                    .collect()
             },
         });
 

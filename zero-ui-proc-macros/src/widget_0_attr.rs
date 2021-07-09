@@ -154,7 +154,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             } else {
                 ty_spans.push(Span::call_site());
             }
-            let (caps, ty_spans) = new_fn_captures(args, &mut errors);
+            let (caps, cap_ty_spans) = new_fn_captures(args, &mut errors);
+            ty_spans.extend(cap_ty_spans);
 
             for cap in &caps {
                 if let Some(other_fn) = captured_properties.insert(cap.clone(), *priority) {
@@ -210,8 +211,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             let mut child_decl = TokenStream::new();
             let mut child_pass = TokenStream::new();
             if *priority != FnPriority::NewChild {
-                let child_ident = ident_spanned!(arg_ty_spans[0]=> "__child");
-                let child_ty = quote_spanned! {arg_ty_spans[0]=>
+                let span = *arg_ty_spans.get(0).unwrap_or_else(|| non_user_error!(""));
+                let child_ident = ident_spanned!(span=> "__child");
+                let child_ty = quote_spanned! {span=>
                     impl #crate_core::UiNode
                 };
                 child_decl = quote! { #child_ident: #child_ty, };
@@ -233,13 +235,14 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             };
 
             // declare `__new_*`
+            let new_id = ident!("{}", priority);
             let new__ = ident!("__{}", priority);
             #[allow(unused_mut)]
             let mut r = quote! {
                 #[doc(hidden)]
                 #[allow(clippy::too_many_arguments)]
                 pub fn #new__<#(#generic_tys: #prop_idents::Args),*>(#child_decl #(#spanned_inputs : #generic_tys),*) #output {
-                    self::new_child(#child_pass #(#spanned_unwrap),*)
+                    self::#new_id(#child_pass #(#spanned_unwrap),*)
                 }
             };
 
@@ -296,7 +299,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             __captures_info: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>
                         ) #output {
                             #(__captures_info.push(#prop_idents::captured_debug(&#caps, #names, #locations, #assigned_flags));)*
-                            self::__new_child(#child_pass #(#caps),*)
+                            self::#new__(#child_pass #(#caps),*)
                         }
                     });
                 };
