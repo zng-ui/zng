@@ -118,6 +118,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // inherits new functions.
     let mut new_reexports = TokenStream::default();
     let mut inherited_new_sources = vec![];
+    let mut inherited_caps = HashMap::new();
     if !mixin && !is_base {
         let parent = inherits
             .iter()
@@ -141,6 +142,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     });
                 }
                 new_captures[i] = parent.new_captures[i].clone();
+                for cap in &new_captures[i] {
+                    inherited_caps.insert(cap.clone(), *priority);
+                }
                 inherited_new_sources.push(Some(parent));
             } else {
                 inherited_new_sources.push(None);
@@ -149,15 +153,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         // validate captures again, if there is an error here we assume is
         // because of inheritance, stage-0 already validates errors in the same widget.
-        let mut all_caps = HashMap::new();
-        for (priority, caps) in FnPriority::all().iter().zip(&new_captures) {
-            for p in caps {
-                if let Some(other_fn) = all_caps.insert(p, *priority) {
-                    all_caps.insert(p, other_fn);
-                    errors.push(
-                        format_args!("property `{}` is already captured in inherited fn `{}`", p, other_fn),
-                        p.span(),
-                    );
+        for (i, decl) in new_declarations.iter().enumerate() {
+            if !decl.is_empty() {
+                for p in &new_captures[i] {
+                    if let Some(other_fn) = inherited_caps.get(p) {
+                        errors.push(
+                            format_args!("property `{}` is already captured in inherited fn `{}`", p, other_fn),
+                            p.span(),
+                        );
+                    }
                 }
             }
         }
