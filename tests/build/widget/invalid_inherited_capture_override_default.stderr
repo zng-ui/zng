@@ -1,4 +1,4 @@
-error: inherited property `id` is captured in `zero_ui::core::widget_base::implicit_base`'s `new`, but is then overwritten in `super::base2_mixin`
+error: inherited property `id` is captured in inherited fn `new` from `zero_ui::core::widget_base::implicit_base`, but the property is then overwritten in `super::base2_mixin`
 a new `new` must be declared to resolve this conflict.
   --> $DIR/invalid_inherited_capture_override_default.rs:15:21
    |

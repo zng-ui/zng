@@ -153,6 +153,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         for (priority, caps) in FnPriority::all().iter().zip(&new_captures) {
             for p in caps {
                 if let Some(other_fn) = all_caps.insert(p, *priority) {
+                    all_caps.insert(p, other_fn);
                     errors.push(
                         format_args!("property `{}` is already captured in inherited fn `{}`", p, other_fn),
                         p.span(),
@@ -192,7 +193,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     if new_source.inherit_use != p.inherit_use {
                         errors.push(
                             format_args!(
-                                "inherited property `{prop}` is captured in inherited fn `{fn_}` from `{fn_source}` but the property is then overriden in `{p_source}`\n\
+                                "inherited property `{prop}` is captured in inherited fn `{fn_}` from `{fn_source}`, but the property is then overwritten in `{p_source}`\n\
                                 a new `{fn_}` must be declared to resolve this conflict.",
                                 prop = property,
                                 fn_ = FnPriority::all()[i],
