@@ -1,11 +1,11 @@
-error: `new` cannot be `unsafe`
- --> $DIR/new_fns_cannot_be_unsafe.rs:7:5
-  |
-7 |     unsafe fn new(child: impl UiNode, id: WidgetId) -> impl UiNode {
-  |     ^^^^^^
-
 error: `new_child` cannot be `unsafe`
   --> $DIR/new_fns_cannot_be_unsafe.rs:10:5
    |
 10 |     unsafe fn new_child() -> NilUiNode {
    |     ^^^^^^
+
+error: `new` cannot be `unsafe`
+ --> $DIR/new_fns_cannot_be_unsafe.rs:7:5
+  |
+7 |     unsafe fn new(child: impl UiNode, id: WidgetId) -> impl UiNode {
+  |     ^^^^^^

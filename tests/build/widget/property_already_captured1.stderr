@@ -1,10 +1,4 @@
-error: property `id` already captured in `new_child`
-  --> $DIR/property_already_captured1.rs:12:32
-   |
-12 |     fn new(child: impl UiNode, id: WidgetId) {
-   |                                ^^
-
-error: property `id` is already captured in inherited fn `new_child`
+error: property `id` already captured
   --> $DIR/property_already_captured1.rs:12:32
    |
 12 |     fn new(child: impl UiNode, id: WidgetId) {

@@ -159,7 +159,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             for cap in &caps {
                 if let Some(other_fn) = captured_properties.insert(cap.clone(), *priority) {
-                    captured_properties.insert(cap.clone(), other_fn);
                     errors.push(format_args!("property `{}` already captured in `{}`", cap, other_fn), cap.span());
                 }
             }
