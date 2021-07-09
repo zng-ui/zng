@@ -153,6 +153,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         for (priority, caps) in FnPriority::all().iter().zip(&new_captures) {
             for p in caps {
                 if let Some(other_fn) = all_caps.insert(p, *priority) {
+                    all_caps.insert(p, other_fn);
                     errors.push(
                         format_args!("property `{}` is already captured in inherited fn `{}`", p, other_fn),
                         p.span(),
