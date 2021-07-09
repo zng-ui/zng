@@ -16,7 +16,6 @@ proc-macro-crate = "1"
 once_cell = "1"
 uuid = { version = "0.8", features = ["v4"] }
 regex = "1.4"
-fnv = "1"
 
 [build-dependencies]
 minifier = "0.0.41"

@@ -7,6 +7,7 @@ use syn::{parse::Parse, Ident, LitBool};
 
 use crate::{
     util::{self, parse_all, Errors},
+    widget_0_attr::FnPriority,
     widget_new::{BuiltProperty, BuiltWhen, BuiltWhenAssign},
 };
 
@@ -41,10 +42,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         properties_child,
         properties,
         whens,
-        new_child_declared,
-        mut new_child,
-        new_declared,
-        mut new,
+        mut new_declarations,
+        mut new_captures,
     } = widget;
 
     macro_rules! quote {
@@ -116,69 +115,53 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
     let inherits = inherits;
 
-    // inherits `new_child` and `new`.
-    let mut new_child_reexport = TokenStream::default();
-    let mut new_reexport = TokenStream::default();
-    let mut inherited_new_child_source = None;
-    let mut inherited_new_source = None;
+    // inherits new functions.
+    let mut new_reexports = TokenStream::default();
+    let mut inherited_new_sources = vec![];
     if !mixin && !is_base {
         let parent = inherits
             .iter()
             .find(|i| !i.mixin)
             .unwrap_or_else(|| non_user_error!("expected a parent widget"));
 
-        if new_child_declared.is_empty() {
-            let source_mod = &parent.module;
-            new_child_reexport = quote! {
-                #[doc(hidden)]
-                pub use #source_mod::__new_child;
-            };
-            #[cfg(debug_assertions)]
-            new_child_reexport.extend(quote! {
-                #[doc(hidden)]
-                pub use #source_mod::__new_child_debug;
-            });
-            new_child = parent.new_child.clone();
-            inherited_new_child_source = Some(parent);
-        }
-        if new_declared.is_empty() {
-            let source_mod = &parent.module;
-            new_reexport = quote! {
-                #[doc(hidden)]
-                pub use #source_mod::__new;
-            };
-            #[cfg(debug_assertions)]
-            new_child_reexport.extend(quote! {
-                #[doc(hidden)]
-                pub use #source_mod::__new_debug;
-            });
-
-            new = parent.new.clone();
-            inherited_new_source = Some(parent);
-        }
-
-        if !new_child_declared.is_empty() && new_declared.is_empty() {
-            for user_cap in &new_child {
-                if new.iter().any(|id| id == user_cap) {
-                    errors.push(
-                        format_args!("property `{}` already captured in inherited fn `new`", user_cap),
-                        user_cap.span(),
-                    );
+        for (i, priority) in FnPriority::all().iter().enumerate() {
+            if new_declarations[i].is_empty() {
+                let source_mod = &parent.module;
+                let new_ident = ident!("__{}", priority);
+                new_reexports.extend(quote! {
+                    #[doc(hidden)]
+                    pub use #source_mod::#new_ident;
+                });
+                #[cfg(debug_assertions)]
+                {
+                    let new_ident = ident!("__{}_debug", priority);
+                    new_reexports.extend(quote! {
+                        #[doc(hidden)]
+                        pub use #source_mod::#new_ident;
+                    });
                 }
+                new_captures[i] = parent.new_captures[i].clone();
+                inherited_new_sources.push(Some(parent));
+            } else {
+                inherited_new_sources.push(None);
             }
-        } else if !new_declared.is_empty() && new_child_declared.is_empty() {
-            for user_cap in &new {
-                if new_child.iter().any(|id| id == user_cap) {
+        }
+
+        // validate captures again, if there is an error here we assume is
+        // because of inheritance, stage-0 already validates errors in the same widget.
+        let mut all_caps = HashMap::new();
+        for (priority, caps) in FnPriority::all().iter().zip(&new_captures) {
+            for p in caps {
+                if let Some(other_fn) = all_caps.insert(p, *priority) {
                     errors.push(
-                        format_args!("property `{}` already captured in inherited fn `new_child`", user_cap),
-                        user_cap.span(),
+                        format_args!("property `{}` is already captured in inherited fn `{}`", p, other_fn),
+                        p.span(),
                     );
                 }
             }
         }
     }
-    let new_child = new_child;
-    let new = new;
+    let new_captures = new_captures;
 
     // collect inherited properties. Late inherits of the same ident override early inherits.
     // [property_ident => inherit]
@@ -202,40 +185,23 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     inherited_props_child.reverse();
     inherited_props.reverse();
 
-    if let Some(new_child_source) = inherited_new_child_source {
-        for property in &new_child {
-            if let Some(p) = inherited_properties.get_mut(property) {
-                if new_child_source.inherit_use != p.inherit_use {
-                    errors.push(
-                        format_args!(
-                            "inherited property `{}` is captured in `{}`'s `new_child`, but is then overwritten in `{}`\n\
-                            a new `new_child` must be declared to resolve this conflict.",
-                            property,
-                            util::display_path(&new_child_source.inherit_use),
-                            util::display_path(&p.inherit_use)
-                        ),
-                        util::path_span(&p.inherit_use),
-                    );
-                    invalid_inherits = true;
-                }
-            }
-        }
-    }
-    if let Some(new_source) = inherited_new_source {
-        for property in &new {
-            if let Some(p) = inherited_properties.get_mut(property) {
-                if new_source.inherit_use != p.inherit_use {
-                    errors.push(
-                        format_args!(
-                            "inherited property `{}` is captured in `{}`'s `new`, but is then overwritten in `{}`\n\
-                            a new `new` must be declared to resolve this conflict.",
-                            property,
-                            util::display_path(&new_source.inherit_use),
-                            util::display_path(&p.inherit_use)
-                        ),
-                        util::path_span(&p.inherit_use),
-                    );
-                    invalid_inherits = true;
+    for (i, new_source) in inherited_new_sources.iter().enumerate() {
+        if let Some(new_source) = new_source {
+            for property in &new_captures[i] {
+                if let Some(p) = inherited_properties.get_mut(property) {
+                    if new_source.inherit_use != p.inherit_use {
+                        errors.push(
+                            format_args!(
+                                "inherited property `{prop}` is captured in inherited fn `{fn_}` from `{fn_source}` but the property is then overriden in `{p_source}`\n\
+                                a new `{fn_}` must be declared to resolve this conflict.",
+                                prop = property,
+                                fn_ = FnPriority::all()[i],
+                                fn_source = util::display_path(&new_source.inherit_use),
+                                p_source = util::display_path(&p.inherit_use)
+                            ),
+                            util::path_span(&p.inherit_use)
+                        );
+                    }
                 }
             }
         }
@@ -257,21 +223,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // apply removes.
     for ident in &properties_remove {
         let cannot_remove_reason = if inherited_required.contains(ident) {
-            Some("required")
-        } else if new_child.contains(ident) {
-            if new_child_declared.is_empty() {
-                Some("captured in inherited fn `new_child`")
-            } else {
-                Some("captured in fn `new_child`")
-            }
-        } else if new.contains(ident) {
-            if new_declared.is_empty() {
-                Some("captured in inherited fn `new`")
-            } else {
-                Some("captured in fn `new`")
-            }
+            Some("required".to_string())
         } else {
-            None
+            new_captures
+                .iter()
+                .enumerate()
+                .find_map(|(i, caps)| if caps.contains(ident) { Some(i) } else { None })
+                .map(|i| {
+                    format!(
+                        "captured in {}fn `{}`",
+                        if inherited_new_sources[i].is_some() { "inherited " } else { "" },
+                        FnPriority::all()[i]
+                    )
+                })
         };
         if let Some(reason) = cannot_remove_reason {
             // cannot remove
@@ -289,9 +253,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // remove properties that are no longer captured.
-    let captured_properties: HashSet<_> = new_child.iter().chain(&new).collect();
+    let captured_properties: HashSet<_> = new_captures.iter().flatten().collect();
     for inherited in inherits.iter() {
-        for ident in inherited.new.iter().chain(inherited.new_child.iter()) {
+        for ident in inherited.new_captures.iter().flatten() {
             if !captured_properties.contains(ident) {
                 // if no longer captured
                 if inherited_required.contains(ident) {
@@ -643,12 +607,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .collect();
 
     // validate captures exist.
-    let mut validate_captures = |declared: TokenStream, captures| {
-        if declared.is_empty() {
-            return declared;
+    for (decl, caps) in new_declarations.iter_mut().zip(&new_captures) {
+        if decl.is_empty() {
+            continue;
         }
         let mut invalid = false;
-        for capture in captures {
+        for capture in caps {
             if !wgt_all_properties.contains::<Ident>(capture) {
                 errors.push(
                     format_args!("property `{}` is not inherited nor declared by the widget", capture),
@@ -658,13 +622,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
         if invalid {
-            TokenStream::default()
-        } else {
-            declared
+            *decl = TokenStream::default()
         }
-    };
-    let new_child_declared = validate_captures(new_child_declared, &new_child);
-    let new_declared = validate_captures(new_declared, &new);
+    }
 
     // assert that properties not captured are not capture-only.
     let mut assert_not_captures = TokenStream::new();
@@ -685,7 +645,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     } else {
         for p in properties_child.iter().chain(properties.iter()) {
-            if new_child.contains(&p.ident) || new.contains(&p.ident) {
+            if captured_properties.contains(&p.ident) {
                 continue;
             }
 
@@ -857,6 +817,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
     }
 
+    let new_idents = FnPriority::all().iter().map(|p| ident!("{}", p));
+
     let built_data = quote! {
         module { #module }
         properties_child {
@@ -868,11 +830,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         whens {
             #wgt_whens
         }
-        new_child {
-            #(#new_child)*
-        }
-        new {
-            #(#new)*
+        captures {
+            #(
+                #new_idents { #(#new_captures)* }
+            )*
         }
     };
 
@@ -959,14 +920,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #errors
         #assert_not_captures
 
-        #new_child_declared
-        #new_declared
+        #(#new_declarations)*
 
         #property_reexports
         #when_reexports
 
-        #new_child_reexport
-        #new_reexport
+        #new_reexports
 
         #when_condition_default_props
 
@@ -1197,8 +1156,7 @@ struct InheritedItem {
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
-    new_child: Vec<Ident>,
-    new: Vec<Ident>,
+    new_captures: Vec<Vec<Ident>>,
 }
 impl Parse for InheritedItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1214,8 +1172,13 @@ impl Parse for InheritedItem {
             properties_child: parse_all(&non_user_braced!(input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&non_user_braced!(input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
-            new_child: parse_all(&non_user_braced!(input, "new_child")).unwrap_or_else(|e| non_user_error!(e)),
-            new: parse_all(&non_user_braced!(input, "new")).unwrap_or_else(|e| non_user_error!(e)),
+            new_captures: {
+                let input = non_user_braced!(input, "new_captures");
+                FnPriority::all()
+                    .iter()
+                    .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
+                    .collect()
+            },
         })
     }
 }
@@ -1235,15 +1198,13 @@ struct WidgetItem {
     properties: Vec<PropertyItem>,
     whens: Vec<BuiltWhen>,
 
-    new_child_declared: TokenStream,
-    new_child: Vec<Ident>,
-    new_declared: TokenStream,
-    new: Vec<Ident>,
+    new_declarations: Vec<TokenStream>,
+    new_captures: Vec<Vec<Ident>>,
 }
 impl Parse for WidgetItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         macro_rules! named_braces {
-            ($name:tt) => {
+            ($name:expr) => {
                 non_user_braced!(input, $name)
             };
         }
@@ -1267,10 +1228,20 @@ impl Parse for WidgetItem {
             properties: parse_all(&named_braces!("properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&named_braces!("whens")).unwrap_or_else(|e| non_user_error!(e)),
 
-            new_child_declared: named_braces!("new_child_declared").parse().unwrap(),
-            new_child: parse_all(&named_braces!("new_child")).unwrap_or_else(|e| non_user_error!(e)),
-            new_declared: named_braces!("new_declared").parse().unwrap(),
-            new: parse_all(&named_braces!("new")).unwrap_or_else(|e| non_user_error!(e)),
+            new_declarations: {
+                let input = named_braces!("new_declarations");
+                FnPriority::all()
+                    .iter()
+                    .map(|p| non_user_braced!(&input, p.to_string()).parse().unwrap())
+                    .collect()
+            },
+            new_captures: {
+                let input = named_braces!("new_captures");
+                FnPriority::all()
+                    .iter()
+                    .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
+                    .collect()
+            },
         })
     }
 }
