@@ -1,11 +1,11 @@
-error: `new_child` cannot declare lifetimes
-  --> $DIR/new_fns_cannot_declare_lifetimes.rs:15:18
-   |
-15 |     fn new_child<'a>(margin: impl IntoVar<SideOffsets> + 'a) -> NilUiNode {
-   |                  ^^
-
 error: `new` cannot declare lifetimes
   --> $DIR/new_fns_cannot_declare_lifetimes.rs:12:12
    |
 12 |     fn new<'a>(child: impl UiNode + 'a, id: WidgetId) -> impl UiNode {
    |            ^^
+
+error: `new_child` cannot declare lifetimes
+  --> $DIR/new_fns_cannot_declare_lifetimes.rs:15:18
+   |
+15 |     fn new_child<'a>(margin: impl IntoVar<SideOffsets> + 'a) -> NilUiNode {
+   |                  ^^

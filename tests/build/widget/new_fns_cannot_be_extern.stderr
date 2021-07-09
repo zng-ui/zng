@@ -1,11 +1,11 @@
-error: `new` cannot be `extern`
- --> $DIR/new_fns_cannot_be_extern.rs:7:5
-  |
-7 |     extern "C" fn new(child: impl UiNode, id: WidgetId) -> impl UiNode {
-  |     ^^^^^^
-
 error: `new_child` cannot be `extern`
   --> $DIR/new_fns_cannot_be_extern.rs:10:5
    |
 10 |     extern "C" fn new_child() -> NilUiNode {
    |     ^^^^^^
+
+error: `new` cannot be `extern`
+ --> $DIR/new_fns_cannot_be_extern.rs:7:5
+  |
+7 |     extern "C" fn new(child: impl UiNode, id: WidgetId) -> impl UiNode {
+  |     ^^^^^^
