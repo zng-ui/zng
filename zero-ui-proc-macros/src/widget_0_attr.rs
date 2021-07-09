@@ -106,7 +106,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
     if mixin {
-        for (_, fn_) in new_fns.drain() {
+        for (_, fn_) in new_fns.drain(..) {
             errors.push(
                 format!("widget mixins do not have a `{}` function", &fn_.sig.ident),
                 fn_.sig.ident.span(),
@@ -118,7 +118,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     if is_base {
         #[cfg(debug_assertions)]
         for priority in FnPriority::all() {
-            assert!(new_fns.contains_key(priority));
+            assert!(new_fns.iter().any(|(k, _)| k == priority));
         }
     }
 
@@ -142,7 +142,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut captured_properties = HashMap::new();
 
     for priority in FnPriority::all() {
-        if let Some(fn_) = new_fns.get(priority) {
+        if let Some((_, fn_)) = new_fns.iter().find(|(k, _)| k == priority) {
             let mut args = fn_.sig.inputs.iter();
             let mut ty_spans = vec![];
             if *priority != FnPriority::NewChild {
@@ -178,7 +178,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut new_declarations = vec![]; // [FnPriority:TokenStream]
 
     for (i, priority) in FnPriority::all().iter().enumerate() {
-        if let Some(fn_) = new_fns.get(priority) {
+        if let Some((_, fn_)) = new_fns.iter().find(|(k, _)| k == priority) {
             let caps = &new_captures[i];
             let arg_ty_spans = &new_arg_ty_spans[i];
 
@@ -815,7 +815,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     let final_macro_ident = ident!("__{}_{}_final", ident, util::uuid());
 
-    let new_fns = new_fns.values();
+    let new_fns = new_fns.iter().map(|(_, v)| v);
 
     let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{}", p)).collect();
 
@@ -1084,7 +1084,7 @@ struct WidgetItems {
     uses: Vec<ItemUse>,
     inherits: Vec<Inherit>,
     properties: Vec<Properties>,
-    new_fns: HashMap<FnPriority, ItemFn>,
+    new_fns: Vec<(FnPriority, ItemFn)>,
     others: Vec<Item>,
 }
 impl WidgetItems {
@@ -1092,7 +1092,7 @@ impl WidgetItems {
         let mut uses = vec![];
         let mut inherits = vec![];
         let mut properties = vec![];
-        let mut new_fns = HashMap::default();
+        let mut new_fns = vec![];
         let mut others = vec![];
 
         for item in items {
@@ -1141,7 +1141,10 @@ impl WidgetItems {
                         known_fn.is_some()
                     } =>
                 {
-                    new_fns.insert(known_fn.unwrap(), fn_);
+                    let key = known_fn.unwrap();
+                    if !new_fns.iter().any(|(k, _)| k == &key) {
+                        new_fns.push((key, fn_));
+                    }
                 }
                 // other user items.
                 item => others.push(item),

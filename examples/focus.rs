@@ -165,7 +165,9 @@ mod inspect {
                     let info = text_wgt.instance().expect("expected debug info").borrow();
                     format!(
                         "button({})",
-                        info.captures.get(&WidgetNewFn::NewChild).unwrap()
+                        info.captures
+                            .get(&WidgetNewFn::NewChild)
+                            .unwrap()
                             .iter()
                             .find(|p| p.property_name == "text")
                             .expect("expected text in capture_new")
