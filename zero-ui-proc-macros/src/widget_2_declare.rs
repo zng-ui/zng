@@ -192,7 +192,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     if new_source.inherit_use != p.inherit_use {
                         errors.push(
                             format_args!(
-                                "inherited property `{prop}` is captured in inherited fn `{fn_}` from `{fn_source}` but the property is then overriden in `{p_source}`\n\
+                                "inherited property `{prop}` is captured in inherited fn `{fn_}` from `{fn_source}`, but the property is then overwritten in `{p_source}`\n\
                                 a new `{fn_}` must be declared to resolve this conflict.",
                                 prop = property,
                                 fn_ = FnPriority::all()[i],
