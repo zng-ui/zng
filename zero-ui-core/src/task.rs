@@ -510,3 +510,218 @@ impl std::task::Wake for RayonTask {
         self.poll()
     }
 }
+
+/// Async channels.
+///
+/// The channel can work across UI tasks and parallel tasks, it can be [`bounded`] or [`unbounded`] and is MPMC.
+///
+/// This module is a thin wrapper around the [`flume`] crate's channel that just limits the API
+/// surface to only `async` methods. You can convert from/into that [`flume`] channel.
+///
+/// [`bounded`]: channel::bounded
+/// [`unbounded`]: channel::unbounded
+/// [`flume`]: https://docs.rs/flume/0.10.7/flume/
+pub mod channel {
+    use std::{
+        any::type_name,
+        fmt,
+        time::{Duration, Instant},
+    };
+
+    pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
+
+    /// The transmitting end of a channel.
+    ///
+    /// Use [`bounded`],[`unbounded`] or [`rendezvous`] to create a channel.
+    pub struct Sender<T>(flume::Sender<T>);
+    impl<T> fmt::Debug for Sender<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "Sender<{}>", type_name::<T>())
+        }
+    }
+    impl<T> Clone for Sender<T> {
+        fn clone(&self) -> Self {
+            Sender(self.0.clone())
+        }
+    }
+    impl<T> From<flume::Sender<T>> for Sender<T> {
+        fn from(s: flume::Sender<T>) -> Self {
+            Sender(s)
+        }
+    }
+    impl<T> From<Sender<T>> for flume::Sender<T> {
+        fn from(s: Sender<T>) -> Self {
+            s.0
+        }
+    }
+    impl<T> Sender<T> {
+        /// Send a value into the channel.
+        ///
+        /// If the channel is bounded and is full, the returned future will await.
+        ///
+        /// Returns an error if all receivers have been dropped.
+        pub async fn send(&self, msg: T) -> Result<(), SendError<T>> {
+            self.0.send_async(msg).await
+        }
+
+        /// Send a value into the channel.
+        ///
+        /// If the channel is bounded and is full, the returned future will await.
+        ///
+        /// Returns an error if all receivers have been dropped or the `timeout` is reached.
+        pub async fn send_timeout(&self, msg: T, timeout: Duration) -> Result<(), SendTimeoutError<T>> {
+            let _ = msg;
+            todo!("implement parallel timers {:?}", timeout)
+        }
+
+        /// Send a value into the channel.
+        ///
+        /// If the channel is bounded and is full, the returned future will await.
+        ///
+        /// Returns an error if all receivers have been dropped or the `deadline` has passed.
+        pub async fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), SendTimeoutError<T>> {
+            let now = Instant::now();
+            if deadline < now {
+                Err(SendTimeoutError::Timeout(msg))
+            } else {
+                self.send_timeout(msg, now - deadline).await
+            }
+        }
+
+        /// Returns true if all senders for this channel have been dropped.
+        #[inline]
+        pub fn is_disconnected(&self) -> bool {
+            self.0.is_disconnected()
+        }
+
+        /// Returns `true` if the channel is empty.
+        ///
+        /// Note: [`rendezvous`] channels are always empty.
+        #[inline]
+        pub fn is_empty(&self) -> bool {
+            self.0.is_empty()
+        }
+
+        /// Returns `true` if the channel is full.
+        ///
+        /// Note: [`rendezvous`] channels are always full.
+        #[inline]
+        pub fn is_full(&self) -> bool {
+            self.0.is_full()
+        }
+
+        /// Returns the number of messages in the channel.
+        #[inline]
+        pub fn len(&self) -> usize {
+            self.0.len()
+        }
+
+        /// If the channel is bounded, returns its capacity.
+        #[inline]
+        pub fn capacity(&self) -> Option<usize> {
+            self.0.capacity()
+        }
+    }
+
+    /// The receiving end of a channel.
+    ///
+    /// Use [`bounded`],[`unbounded`] or [`rendezvous`] to create a channel.
+    ///
+    /// # Work Stealing
+    ///
+    /// Cloning the receiver **does not** turn this channel into a broadcast channel.
+    /// Each message will only be received by a single receiver. You can use this to
+    /// to implement work stealing.
+    pub struct Receiver<T>(flume::Receiver<T>);
+    impl<T> fmt::Debug for Receiver<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "Receiver<{}>", type_name::<T>())
+        }
+    }
+    impl<T> Clone for Receiver<T> {
+        fn clone(&self) -> Self {
+            Receiver(self.0.clone())
+        }
+    }
+    impl<T> Receiver<T> {
+        /// Wait for an incoming value from the channel associated with this receiver.
+        ///
+        /// Returns an error if all senders have been dropped.
+        pub async fn recv(&self) -> Result<T, RecvError> {
+            self.0.recv_async().await
+        }
+
+        /// Wait for an incoming value from the channel associated with this receiver.
+        ///
+        /// Returns an error if all senders have been dropped or the `timeout` is reached.
+        pub async fn recv_timeout(&self, timeout: Duration) -> Result<T, RecvTimeoutError> {
+            todo!("implement parallel timers {:?}", timeout)
+        }
+
+        /// Wait for an incoming value from the channel associated with this receiver.
+        ///  
+        /// Returns an error if all senders have been dropped or the `deadline` has passed.
+        pub async fn recv_deadline(&self, deadline: Instant) -> Result<T, RecvTimeoutError> {
+            let now = Instant::now();
+            if deadline < now {
+                Err(RecvTimeoutError::Timeout)
+            } else {
+                self.recv_timeout(now - deadline).await
+            }
+        }
+
+        /// Returns `true` if all senders for this channel have been dropped.
+        #[inline]
+        pub fn is_disconnected(&self) -> bool {
+            self.0.is_disconnected()
+        }
+
+        /// Returns `true` if the channel is empty.
+        ///
+        /// Note: [`rendezvous`] channels are always empty.
+        #[inline]
+        pub fn is_empty(&self) -> bool {
+            self.0.is_empty()
+        }
+
+        /// Returns `true` if the channel is full.
+        ///
+        /// Note: [`rendezvous`] channels are always full.
+        #[inline]
+        pub fn is_full(&self) -> bool {
+            self.0.is_full()
+        }
+
+        /// Returns the number of messages in the channel.
+        #[inline]
+        pub fn len(&self) -> usize {
+            self.0.len()
+        }
+
+        /// If the channel is bounded, returns its capacity.
+        #[inline]
+        pub fn capacity(&self) -> Option<usize> {
+            self.0.capacity()
+        }
+    }
+
+    /// Create a channel with no maximum capacity.
+    #[inline]
+    pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
+        let (s, r) = flume::unbounded();
+        (Sender(s), Receiver(r))
+    }
+
+    /// Create a channel with a maximum capacity.
+    #[inline]
+    pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
+        let (s, r) = flume::bounded(capacity);
+        (Sender(s), Receiver(r))
+    }
+
+    /// Create a [`bounded`] channel with `0` capacity.
+    #[inline]
+    pub fn rendezvous<T>() -> (Sender<T>, Receiver<T>) {
+        bounded::<T>(0)
+    }
+}
