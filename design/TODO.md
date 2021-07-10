@@ -37,6 +37,7 @@ Things that must be done first because they influence the core API design that i
 * Timers.
   * Unify with app handlers (missing on_interval docs).
   * Configurable `Instant::now` source, to advance time instantly in tests.
+  * Time scale, for recording?
 
 * Var.
   * Bind-into.
@@ -50,6 +51,7 @@ Things that must be done first because they influence the core API design that i
 
 * Window
   * Finish window vars.
+  * Use var binding.
   * Drag regions.
   * Custom resize borders.
   * Modal.
