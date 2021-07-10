@@ -76,9 +76,17 @@
 //! [`async-std`]: https://docs.rs/async-std
 //! [`smol`]: https://docs.rs/smol
 //! [`tokio`]: https://docs.rs/tokio
-use std::{future::Future, pin::Pin, sync::Arc, task::Waker};
+
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Poll, Waker},
+    time::{Duration, Instant},
+};
 
 use parking_lot::Mutex;
+use pin_project::pin_project;
 
 use crate::{
     context::*,
@@ -511,6 +519,116 @@ impl std::task::Wake for RayonTask {
     }
 }
 
+/// A future that is [`Pending`] once.
+///
+/// After the first `.await` the future is always [`Ready`].
+///
+/// # Warning
+///
+/// This does not schedule an [`wake`], if the executor does not poll this future again it will wait forever.
+///
+/// [`Pending`]: std::task::Poll::Pending
+/// [`Ready`]: std::task::Poll::Ready
+/// [`wake`]: std::task::Waker::wake
+pub async fn yield_one() {
+    struct YieldOneFut(bool);
+    impl Future for YieldOneFut {
+        type Output = ();
+
+        fn poll(mut self: Pin<&mut Self>, _: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+            if self.0 {
+                Poll::Ready(())
+            } else {
+                self.0 = true;
+                Poll::Pending
+            }
+        }
+    }
+
+    YieldOneFut(false).await
+}
+
+/// A future that is [`Pending`] until the `timeout` is reached.
+///
+/// [`Pending`]: std::task::Poll::Pending
+#[inline]
+pub async fn timeout(timeout: Duration) {
+    futures_timer::Delay::new(timeout).await
+}
+
+/// A future that is [`Pending`] until the `deadline` has passed.
+///
+/// [`Pending`]: std::task::Poll::Pending
+pub async fn deadline(deadline: Instant) {
+    let now = Instant::now();
+    if deadline > now {
+        timeout(deadline - now).await
+    }
+}
+
+/// Implement a [`Future`] from a closure.
+pub async fn poll_fn<T, F: FnMut(&mut std::task::Context) -> Poll<T>>(fn_: F) -> T {
+    struct PollFn<F>(F);
+    impl<F> Unpin for PollFn<F> {}
+    impl<T, F: FnMut(&mut std::task::Context<'_>) -> Poll<T>> Future for PollFn<F> {
+        type Output = T;
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+            (&mut self.0)(cx)
+        }
+    }
+
+    PollFn(fn_).await
+}
+
+/// Error then the timeout or deadline is reached before the task is done in [`with_timeout`] and [`with_deadline`].
+#[derive(Debug, Clone, Copy)]
+pub struct TimeoutError;
+
+/// Add a [`timeout`] to a future.
+///
+/// Returns the `fut` output or [`TimeoutError`] if the timeout elapses first.
+pub async fn with_timeout<O, F: Future<Output = O>>(fut: F, timeout: Duration) -> Result<F::Output, TimeoutError> {
+    #[pin_project]
+    struct WithTimeoutFut<F, T> {
+        #[pin]
+        fut: F,
+        #[pin]
+        t_fut: T,
+    }
+    impl<O, F: Future<Output = O>, T: Future<Output = ()>> Future for WithTimeoutFut<F, T> {
+        type Output = Result<O, TimeoutError>;
+
+        fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+            let s = self.project();
+            match s.fut.poll(cx) {
+                Poll::Ready(r) => Poll::Ready(Ok(r)),
+                Poll::Pending => match s.t_fut.poll(cx) {
+                    Poll::Ready(_) => Poll::Ready(Err(TimeoutError)),
+                    Poll::Pending => Poll::Pending,
+                },
+            }
+        }
+    }
+    WithTimeoutFut {
+        fut,
+        t_fut: self::timeout(timeout),
+    }
+    .await
+}
+
+/// Add a [`deadline`] to a future.
+///
+/// Returns the `fut` output or [`TimeoutError`] if the deadline elapses first.
+pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) -> Result<F::Output, TimeoutError> {
+    let now = Instant::now();
+    if deadline < now {
+        Err(TimeoutError)
+    } else {
+        with_timeout(fut, deadline - now).await
+    }
+}
+
 /// Async channels.
 ///
 /// The channel can work across UI tasks and parallel tasks, it can be [`bounded`] or [`unbounded`] and is MPMC.
@@ -570,8 +688,17 @@ pub mod channel {
         ///
         /// Returns an error if all receivers have been dropped or the `timeout` is reached.
         pub async fn send_timeout(&self, msg: T, timeout: Duration) -> Result<(), SendTimeoutError<T>> {
-            let _ = msg;
-            todo!("implement parallel timers {:?}", timeout)
+            match super::with_timeout(self.send(msg), timeout).await {
+                Ok(r) => match r {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(SendTimeoutError::Disconnected(e.0)),
+                },
+                Err(_t) => {
+                    // TODO: wait for https://github.com/zesterer/flume/pull/84
+                    //
+                    todo!("wait for send_timeout_async impl")
+                }
+            }
         }
 
         /// Send a value into the channel.
@@ -584,7 +711,7 @@ pub mod channel {
             if deadline < now {
                 Err(SendTimeoutError::Timeout(msg))
             } else {
-                self.send_timeout(msg, now - deadline).await
+                self.send_timeout(msg, deadline - now).await
             }
         }
 

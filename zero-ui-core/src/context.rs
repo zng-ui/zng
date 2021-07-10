@@ -9,7 +9,6 @@ use super::AnyMap;
 use super::WidgetId;
 use retain_mut::RetainMut;
 use std::cell::Cell;
-use std::future::Future;
 use std::ptr;
 use std::rc::Rc;
 use std::{any::type_name, fmt, mem};
@@ -132,6 +131,7 @@ use crate::event::BoxedEventUpdate;
 use crate::handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle};
 #[doc(inline)]
 pub use crate::state_key;
+use crate::task;
 use crate::timer::Timers;
 use crate::{var::VarsRead, window::WindowMode};
 
@@ -1504,7 +1504,7 @@ impl [<$Context Scope>] {
 contextual_ctx!(AppContext, WidgetContext);
 
 impl AppContextMut {
-    /// Returns a future that *yields* one update.
+    /// Yield for one update.
     ///
     /// Async event handlers run in app updates, the code each `.await` runs in a different update, but only if
     /// the `.await` does not return immediately. This future always awaits once for each new update, so the
@@ -1512,8 +1512,6 @@ impl AppContextMut {
     ///
     /// Note that this does not cause an immediate update, if no update was requested it will *wait* until one is.
     /// To force an update and then yield use [`update`](Self::update) instead.
-    ///
-    /// You can reuse this future but it is very cheap to just make a new one.
     ///
     /// ```
     /// # use zero_ui_core::context::*;
@@ -1526,8 +1524,8 @@ impl AppContextMut {
     /// })
     /// # }
     /// ```
-    pub fn yield_one(&self) -> YieldOneUpdateFut<Self> {
-        YieldOneUpdateFut::new(self)
+    pub async fn yield_one(&self) {
+        task::yield_one().await
     }
 
     /// Requests one update and returns a future that *yields* one update.
@@ -1571,7 +1569,7 @@ impl AppContextMut {
 }
 
 impl WidgetContextMut {
-    /// Returns a future that *yields* one update.
+    /// Yield for one update.
     ///
     /// Async event handlers run in widget updates, the code each `.await` runs in a different update, but only if
     /// the `.await` does not return immediately. This future always awaits once for each new update, so the
@@ -1593,8 +1591,9 @@ impl WidgetContextMut {
     /// })
     /// # }
     /// ```
-    pub fn yield_one(&self) -> YieldOneUpdateFut<Self> {
-        YieldOneUpdateFut::new(self)
+    #[inline]
+    pub async fn yield_one(&self) {
+        task::yield_one().await
     }
 
     /// Requests one update and returns a future that *yields* one update.
@@ -1631,60 +1630,6 @@ impl WidgetContextMut {
     pub async fn update(&self) {
         self.with(|c| c.updates.update());
         self.yield_one().await
-    }
-}
-
-/// A future that *yields* in UI bound async code.
-///
-/// Use the `yield_one` method in [`AppContextMut`](AppContextMut::yield_one) or
-/// [`WidgetContextMut`](AppContextMut::yield_one) to create this future.
-///
-/// Async event handlers run in app updates, the code each `.await` runs in a different app update, but only if
-/// the `.await` does not return immediately. This future always waits once for each new update, so the
-/// code after awaiting is guaranteed to run in a different update.
-///
-/// Note that this does not cause an immediate subsequent update, if no update was requested it will wait until one is.
-/// Updates can be requested using [`AppContextMut::update`] or [`WidgetContextMut::update`], or any of the app interactions
-/// that cause update, that is, variable assigns, event notifications, timers, calls to [`Updates::update`] or
-/// [`AppEventSender::send_update`] and more.
-///
-/// You can reuse this future but it is very cheap to just make a new one.
-///
-/// ```
-/// # use zero_ui_core::context::*;
-/// # use zero_ui_core::handler::*;
-/// # fn __() -> impl WidgetHandler<()> {
-/// async_hn!(|ctx, _| {
-///     println!("First update");
-///     ctx.yield_one().await;
-///     println!("Second update");
-/// })
-/// # }
-/// ```
-pub struct YieldOneUpdateFut<'a, C: WithUpdates> {
-    _ctx: &'a C,
-    pending: Cell<bool>,
-}
-impl<'a, C: WithUpdates> YieldOneUpdateFut<'a, C> {
-    #[allow(missing_docs)]
-    pub fn new(ctx: &'a C) -> Self {
-        YieldOneUpdateFut {
-            _ctx: ctx,
-            pending: Cell::new(true),
-        }
-    }
-}
-impl<'a, C: WithUpdates> Future for YieldOneUpdateFut<'a, C> {
-    type Output = ();
-
-    fn poll(self: std::pin::Pin<&mut Self>, _: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
-        if self.pending.get() {
-            self.pending.set(false);
-            std::task::Poll::Pending
-        } else {
-            self.pending.set(true);
-            std::task::Poll::Ready(())
-        }
     }
 }
 
