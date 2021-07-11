@@ -122,7 +122,7 @@ pub use rayon;
 ///
 /// The `task` lives inside the [`Waker`] when awaiting and inside [`rayon::spawn`] when running.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::{context::WidgetContext, task::{self, rayon::iter::*}, var::{ResponseVar, response_channel}};
@@ -165,7 +165,7 @@ where
 /// The [`spawn`] documentation explains how `task` is *parallel* and *async*. The returned future is
 /// *disconnected* from the `task` future, in that polling it does not poll the `task` future and dropping it does not cancel the task.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::{task::{self, rayon::iter::*}};
@@ -202,7 +202,7 @@ where
 ///
 /// The [`spawn`] documentation explains how `task` is *parallel* and *async*. The `task` starts executing immediately.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::{context::WidgetContext, task::{self, rayon::iter::*}, var::ResponseVar};
@@ -245,15 +245,15 @@ where
 ///
 /// # Parallel
 ///
-/// The `task` runs in the [`blocking`](https://docs.rs/blocking) thread-pool which is optimized for awaiting blocking operations.
+/// The `task` runs in the [`blocking`] thread-pool which is optimized for awaiting blocking operations.
 /// If the `task` is computation heavy you should use [`run`] and then `wait` inside that task for the
 /// parts that are blocking.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::{context::WidgetContext, task::{self, rayon::iter::*}, var::{ResponseVar, response_channel}};
+/// # use zero_ui_core::task;
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # async fn example() {
 /// task::wait(|| std::fs::read_to_string("file.txt")).await
@@ -263,6 +263,24 @@ where
 /// The example reads a file, that is a blocking file IO operation, most of the time is spend waiting for the operating system,
 /// so we offload this to a `wait` task. The task can be `.await` inside a [`run`] task or inside one of the UI tasks
 /// like in a async event handler.
+///
+/// # Read/Write Tasks
+///
+/// For [`io::Read`] and [`io::Write`] operations you can also use [`ReadTask`] and [`WriteTask`] where you don't
+/// have or want the full file in memory.
+///
+/// ```no_run
+/// # use zero_ui_core::task::{self, ReadTask, WriteTask};
+/// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+/// let input_file = task::wait(|| std::fs::File::open("large-input.bin")).await?;
+/// let output_file = task::wait(|| std::fs::File::create("large-output.bin")).await?;
+///
+/// let reader = ReadTask::new(input_file, 8);
+/// let writer = WriteTask::new(input_file, 8);
+/// # Ok(()) }
+/// ```
+///
+/// [`blocking`]: https://docs.rs/blocking
 #[inline]
 pub async fn wait<T, F>(task: F) -> T
 where
@@ -1096,6 +1114,143 @@ pub mod channel {
     }
 }
 
+/// Represents a running buffered [`io::Read::read_to_end`] operation.
+pub struct ReadTask<R: io::Read> {
+    receiver: channel::Receiver<Result<Vec<u8>, ReadTaskError<R>>>,
+    stop_recv: channel::Receiver<R>,
+    payload_len: usize,
+}
+impl<R> ReadTask<R>
+where
+    R: io::Read + Send + 'static,
+{
+    /// Start the write task.
+    ///
+    /// The `payload_len` is the maximum number of bytes returned at a time, the `channel_capacity` is the number
+    /// of pending payloads that can be pre-read. The recommended is 1 mebibyte len and 8 payloads.
+    pub fn spawn(read: R, payload_len: usize, channel_capacity: usize) -> Self {
+        let (sender, receiver) = channel::bounded(channel_capacity);
+        let (stop_sender, stop_recv) = channel::bounded(1);
+        self::spawn(async move {
+            let mut read = read;
+
+            loop {
+                let r = self::wait(move || {
+                    let mut payload = Vec::with_capacity(payload_len);
+                    loop {
+                        match read.read(&mut payload) {
+                            Ok(c) => {
+                                if c < payload_len {
+                                    payload.truncate(c);
+                                }
+                                return Ok((payload, read));
+                            }
+                            Err(e) if e.kind() == io::ErrorKind::Interrupted => {
+                                continue;
+                            }
+                            Err(e) => return Err(ReadTaskError::new(Some(read), e)),
+                        }
+                    }
+                })
+                .await;
+
+                match r {
+                    Ok((p, r)) => {
+                        read = r;
+
+                        if p.len() < payload_len {
+                            let _ = sender.send(Ok(p));
+                            let _ = stop_sender.send(read);
+                            break;
+                        } else if sender.send(Ok(p)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = sender.send(Err(e));
+                        break;
+                    }
+                }
+            }
+        });
+        ReadTask {
+            receiver,
+            stop_recv,
+            payload_len,
+        }
+    }
+
+    /// Maximum number of bytes per payload.
+    #[inline]
+    pub fn payload_len(&self) -> usize {
+        self.payload_len
+    }
+
+    /// Returns the next payload.
+    ///
+    /// The payload length can be equal to or less then [`payload_len`]. If it is less, the stream
+    /// has reached `EOF` and subsequent read calls will always return the [disconnected] error.
+    ///
+    /// [`payload_len`]: ReadTask::payload_len
+    /// [disconnected]: ReadTaskError::is_disconnected
+    pub async fn read(&self) -> Result<Vec<u8>, ReadTaskError<R>> {
+        self.receiver.recv().await.map_err(|_| ReadTaskError::disconnected())?
+    }
+
+    /// Take back the [`io::Read`], any pending reads are dropped.
+    pub async fn stop(self) -> Result<R, ReadTaskError<R>> {
+        drop(self.receiver);
+        self.stop_recv.recv().await.map_err(|_| ReadTaskError::disconnected())
+    }
+}
+
+/// Error from [`ReadTask`].
+pub struct ReadTaskError<R: io::Read> {
+    /// The [`io::Read`] that caused the error.
+    ///
+    /// Is `None` the error represents a lost connection with the task.
+    pub read: Option<R>,
+    /// The error.
+    pub error: io::Error,
+}
+impl<R: io::Read> ReadTaskError<R> {
+    fn disconnected() -> Self {
+        Self::new(
+            None,
+            io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "`ReadTask` worker is shutdown, probably caused by an error or panic",
+            ),
+        )
+    }
+
+    fn new(read: Option<R>, error: io::Error) -> Self {
+        Self { read, error }
+    }
+
+    /// If the error represents a lost connection with the task.
+    ///
+    /// This can happen after an error was already returned or if a panic killed the [`wait`] thread.
+    pub fn is_disconnected(&self) -> bool {
+        self.read.is_none()
+    }
+}
+impl<R: io::Read> fmt::Debug for ReadTaskError<R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.error, f)
+    }
+}
+impl<R: io::Read> fmt::Display for ReadTaskError<R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.error, f)
+    }
+}
+impl<R: io::Read> std::error::Error for ReadTaskError<R> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
+    }
+}
+
 /// Represents a running [`io::Write`] controller.
 ///
 /// This task is recommended for buffered multi megabyte write operations, it spawns a
@@ -1145,7 +1300,7 @@ pub mod channel {
 /// [`finish`]: WriteTask::finish
 /// [`BrokenPipe`]: io::ErrorKind::BrokenPipe
 pub struct WriteTask<W: io::Write> {
-    sender: channel::Sender<IoWriteMsg<W>>,
+    sender: channel::Sender<WriteTaskMsg<W>>,
 }
 impl<W> WriteTask<W>
 where
@@ -1153,7 +1308,7 @@ where
 {
     /// Start the write task.
     ///
-    /// The `channel_capacity` is the number of pending operations that can be cached in the channel.
+    /// The `channel_capacity` is the number of pending operations that can be in the channel.
     /// Recommended is `8` using 1 mebibyte payloads.
     pub fn spawn(write: W, channel_capacity: usize) -> Self {
         let (sender, receiver) = channel::bounded(channel_capacity);
@@ -1162,7 +1317,7 @@ where
 
             while let Ok(msg) = receiver.recv().await {
                 match msg {
-                    IoWriteMsg::WriteAll(bytes, rsp) => {
+                    WriteTaskMsg::WriteAll(bytes, rsp) => {
                         let r = self::wait(move || match write.write_all(&bytes) {
                             Ok(_) => Ok(write),
                             Err(e) => Err(WriteTaskError::new(Some(write), bytes, e)),
@@ -1182,7 +1337,7 @@ where
                             }
                         }
                     }
-                    IoWriteMsg::Flush(rsp) => {
+                    WriteTaskMsg::Flush(rsp) => {
                         let r = self::wait(move || match write.flush() {
                             Ok(_) => Ok(write),
                             Err(e) => Err(WriteTaskError::new(Some(write), vec![], e)),
@@ -1202,7 +1357,7 @@ where
                             }
                         }
                     }
-                    IoWriteMsg::Finish(rsp) => {
+                    WriteTaskMsg::Finish(rsp) => {
                         let r = self::wait(move || match write.flush() {
                             Ok(_) => Ok(write),
                             Err(e) => Err(WriteTaskError::new(Some(write), vec![], e)),
@@ -1227,8 +1382,8 @@ where
     /// [`Write::write_all`]: io::Write::write_all.
     pub async fn write_all(&self, bytes: Vec<u8>) -> Result<(), WriteTaskError<W>> {
         let (rsv, rcv) = channel::rendezvous();
-        self.sender.send(IoWriteMsg::WriteAll(bytes, rsv)).await.map_err(|e| {
-            if let IoWriteMsg::WriteAll(bytes, _) = e.0 {
+        self.sender.send(WriteTaskMsg::WriteAll(bytes, rsv)).await.map_err(|e| {
+            if let WriteTaskMsg::WriteAll(bytes, _) = e.0 {
                 WriteTaskError::disconnected(bytes)
             } else {
                 unreachable!()
@@ -1246,7 +1401,7 @@ where
     pub async fn flush(&self) -> Result<(), WriteTaskError<W>> {
         let (rsv, rcv) = channel::rendezvous();
         self.sender
-            .send(IoWriteMsg::Flush(rsv))
+            .send(WriteTaskMsg::Flush(rsv))
             .await
             .map_err(|_| WriteTaskError::disconnected(vec![]))?;
         rcv.recv().await.map_err(|_| WriteTaskError::disconnected(vec![]))?
@@ -1256,7 +1411,7 @@ where
     pub async fn finish(self) -> Result<W, WriteTaskError<W>> {
         let (rsv, rcv) = channel::rendezvous();
         self.sender
-            .send(IoWriteMsg::Finish(rsv))
+            .send(WriteTaskMsg::Finish(rsv))
             .await
             .map_err(|_| WriteTaskError::disconnected(vec![]))?;
 
@@ -1264,13 +1419,11 @@ where
     }
 }
 
-enum IoWriteMsg<W: io::Write> {
+enum WriteTaskMsg<W: io::Write> {
     WriteAll(Vec<u8>, channel::Sender<Result<(), WriteTaskError<W>>>),
     Flush(channel::Sender<Result<(), WriteTaskError<W>>>),
     Finish(channel::Sender<Result<W, WriteTaskError<W>>>),
 }
-
-const WRITE_DISCONNECTED_ERR: &str = "`IoWriteTask` work is shutdown, probably caused by an error or panic";
 
 /// Error from [`WriteTask`].
 pub struct WriteTaskError<W: io::Write> {
@@ -1285,7 +1438,14 @@ pub struct WriteTaskError<W: io::Write> {
 }
 impl<W: io::Write> WriteTaskError<W> {
     fn disconnected(payload: Vec<u8>) -> Self {
-        Self::new(None, payload, io::Error::new(io::ErrorKind::BrokenPipe, WRITE_DISCONNECTED_ERR))
+        Self::new(
+            None,
+            payload,
+            io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "`WriteTask` worker is shutdown, probably caused by an error or panic",
+            ),
+        )
     }
 
     fn new(write: Option<W>, payload: Vec<u8>, error: io::Error) -> Self {
