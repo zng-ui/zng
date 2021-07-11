@@ -254,7 +254,6 @@ where
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::task;
-/// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # async fn example() {
 /// task::wait(|| std::fs::read_to_string("file.txt")).await
 /// # ; }
@@ -266,17 +265,56 @@ where
 ///
 /// # Read/Write Tasks
 ///
-/// For [`io::Read`] and [`io::Write`] operations you can also use [`ReadTask`] and [`WriteTask`] where you don't
-/// have or want the full file in memory.
+/// For [`io::Read`] and [`io::Write`] operations you can also use [`ReadTask`] and [`WriteTask`] when you don't
+/// have or want the full file in memory. The example demonstrates a program that could be processing gibibytes of
+/// data, but only allocates around 16 mebibytes for the task, in the worst case.
 ///
 /// ```no_run
-/// # use zero_ui_core::task::{self, ReadTask, WriteTask};
+/// # use zero_ui_core::task::{self, ReadTask, WriteTask, rayon::prelude::*};
 /// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+/// // acquire files, using `wait` directly.
 /// let input_file = task::wait(|| std::fs::File::open("large-input.bin")).await?;
 /// let output_file = task::wait(|| std::fs::File::create("large-output.bin")).await?;
 ///
-/// let reader = ReadTask::new(input_file, 8);
-/// let writer = WriteTask::new(input_file, 8);
+/// // start reading the input, immediately tries to read 8 chunks of 1 mebibyte each.
+/// let payload_len = 1024 * 1024;
+/// let r = ReadTask::spawn(input_file, payload_len, 8);
+/// // start an idle write, with a queue of up to 8 write requests.
+/// let w = WriteTask::spawn(output_file, 8);
+/// 
+/// // both tasks use `wait` internally.
+///
+/// let mut eof = false;
+/// while !eof {
+///     // read 1 mebibyte, awaits here if no payload was read yet.
+///     let mut data = r.read().await?;
+///
+///     // when EOF is reached, the data is not the full payload.
+///     if data.len() < payload_len {
+///         eof = true;
+///
+///         let garbage = data.len() % 4;
+///         if garbage != 0 {
+///             data.truncate(data.len() - garbage);
+///         }
+///         
+///         if data.is_empty() {
+///             break;
+///         }
+///     }
+///
+///     // assuming the example is inside a `run` call,
+///     // use rayon to transform the data in parallel.
+///     data.par_chunks_mut(4).for_each(|c| c[3] = 255);
+///     
+///     // queue the data for writing, awaits here if the queue is full.
+///     w.write(data).await?;
+/// }
+///
+/// // get the files back for more small operations using `wait` directly.
+/// let input_file = r.stop().await?;
+/// let output_file = w.finish().await?;
+/// task::wait(move || output_file.sync_all()).await?;
 /// # Ok(()) }
 /// ```
 ///
@@ -1186,7 +1224,7 @@ where
         self.payload_len
     }
 
-    /// Returns the next payload.
+    /// Request the next payload.
     ///
     /// The payload length can be equal to or less then [`payload_len`]. If it is less, the stream
     /// has reached `EOF` and subsequent read calls will always return the [disconnected] error.
@@ -1254,7 +1292,7 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
 /// Represents a running [`io::Write`] controller.
 ///
 /// This task is recommended for buffered multi megabyte write operations, it spawns a
-/// worker that uses [`wait`] to write received bytes that can be send using [`write_all`].
+/// worker that uses [`wait`] to write received bytes that can be send using [`write`].
 /// If you already have all the bytes you want to write in memory, just move then to a [`wait`]
 /// and use the `std` sync file operations to write then, otherwise use this struct.
 ///
@@ -1271,7 +1309,7 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
 /// use zero_ui_core::task::{self, WriteTask};
 ///
 /// let file = task::wait(|| std::fs::File::create("output.bin")).await?;
-/// let write = WriteTask::spawn(file, 8);
+/// let w = WriteTask::spawn(file, 8);
 ///
 /// let mut total = 0usize;
 /// let limit = 1024 * 1024 * 1024;
@@ -1279,10 +1317,10 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
 ///     let payload = compute_1mebibyte().await;
 ///     total += payload.len();
 ///
-///     write.write_all(payload).await?;
+///     w.write(payload).await?;
 ///
 ///     if total >= limit {
-///         let file = write.finish().await?;
+///         let file = w.finish().await?;
 ///         task::wait(move || file.sync_all()).await?;
 ///         break;
 ///     }
@@ -1296,7 +1334,7 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
 /// subsequent send attempts return the [`BrokenPipe`] error. To recover from errors keep track of the last successful write offset,
 /// then on error reacquire write access and seek that offset before starting a new [`WriteTask`].
 ///
-/// [`write_all`]: WriteTask::write_all
+/// [`write`]: WriteTask::write
 /// [`finish`]: WriteTask::finish
 /// [`BrokenPipe`]: io::ErrorKind::BrokenPipe
 pub struct WriteTask<W: io::Write> {
@@ -1380,7 +1418,7 @@ where
     /// Await to get the `write_all` call result.
     ///
     /// [`Write::write_all`]: io::Write::write_all.
-    pub async fn write_all(&self, bytes: Vec<u8>) -> Result<(), WriteTaskError<W>> {
+    pub async fn write(&self, bytes: Vec<u8>) -> Result<(), WriteTaskError<W>> {
         let (rsv, rcv) = channel::rendezvous();
         self.sender.send(WriteTaskMsg::WriteAll(bytes, rsv)).await.map_err(|e| {
             if let WriteTaskMsg::WriteAll(bytes, _) = e.0 {
