@@ -78,7 +78,9 @@
 //! [`tokio`]: https://docs.rs/tokio
 
 use std::{
+    fmt,
     future::Future,
+    io,
     pin::Pin,
     sync::Arc,
     task::{Poll, Waker},
@@ -1091,5 +1093,224 @@ pub mod channel {
     #[inline]
     pub fn rendezvous<T>() -> (Sender<T>, Receiver<T>) {
         bounded::<T>(0)
+    }
+}
+
+/// Represents a running [`io::Write`] controller.
+///
+/// This task is recommended for buffered multi megabyte write operations, it spawns a
+/// worker that uses [`wait`] to write received bytes that can be send using [`write_all`].
+/// If you already have all the bytes you want to write in memory, just move then to a [`wait`]
+/// and use the `std` sync file operations to write then, otherwise use this struct.
+///
+/// You can get the [`io::Write`] back by calling [`finish`], or in most error cases.
+///
+/// # Examples
+///
+/// The example writes 1 gibibyte of data generated in batches of 1 mebibyte, if the storage is slow a maximum
+/// of 8 megabytes only will exist in memory at a time.
+///
+/// ```no_run
+/// # async fn compute_1mebibyte() -> Vec<u8> { vec![1; 1024 * 1024] }
+/// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+/// use zero_ui_core::task::{self, WriteTask};
+///
+/// let file = task::wait(|| std::fs::File::create("output.bin")).await?;
+/// let write = WriteTask::spawn(file, 8);
+///
+/// let mut total = 0usize;
+/// let limit = 1024 * 1024 * 1024;
+/// loop {
+///     let payload = compute_1mebibyte().await;
+///     total += payload.len();
+///
+///     write.write_all(payload).await?;
+///
+///     if total >= limit {
+///         let file = write.finish().await?;
+///         task::wait(move || file.sync_all()).await?;
+///         break;
+///     }
+/// }
+/// # Ok(()) }
+/// ```
+///
+/// # Errors
+///
+/// Methods of this struct return [`WriteTaskError`], on the first error the task *shuts-down* and drops the wrapped [`io::Write`],
+/// subsequent send attempts return the [`BrokenPipe`] error. To recover from errors keep track of the last successful write offset,
+/// then on error reacquire write access and seek that offset before starting a new [`WriteTask`].
+///
+/// [`write_all`]: WriteTask::write_all
+/// [`finish`]: WriteTask::finish
+/// [`BrokenPipe`]: io::ErrorKind::BrokenPipe
+pub struct WriteTask<W: io::Write> {
+    sender: channel::Sender<IoWriteMsg<W>>,
+}
+impl<W> WriteTask<W>
+where
+    W: io::Write + Send + 'static,
+{
+    /// Start the write task.
+    ///
+    /// The `channel_capacity` is the number of pending operations that can be cached in the channel.
+    /// Recommended is `8` using 1 mebibyte payloads.
+    pub fn spawn(write: W, channel_capacity: usize) -> Self {
+        let (sender, receiver) = channel::bounded(channel_capacity);
+        self::spawn(async move {
+            let mut write = write;
+
+            while let Ok(msg) = receiver.recv().await {
+                match msg {
+                    IoWriteMsg::WriteAll(bytes, rsp) => {
+                        let r = self::wait(move || match write.write_all(&bytes) {
+                            Ok(_) => Ok(write),
+                            Err(e) => Err(WriteTaskError::new(Some(write), bytes, e)),
+                        })
+                        .await;
+
+                        match r {
+                            Ok(w) => {
+                                write = w;
+                                if rsp.send(Ok(())).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                let _ = rsp.send(Err(e));
+                                break;
+                            }
+                        }
+                    }
+                    IoWriteMsg::Flush(rsp) => {
+                        let r = self::wait(move || match write.flush() {
+                            Ok(_) => Ok(write),
+                            Err(e) => Err(WriteTaskError::new(Some(write), vec![], e)),
+                        })
+                        .await;
+
+                        match r {
+                            Ok(w) => {
+                                write = w;
+                                if rsp.send(Ok(())).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                let _ = rsp.send(Err(e));
+                                break;
+                            }
+                        }
+                    }
+                    IoWriteMsg::Finish(rsp) => {
+                        let r = self::wait(move || match write.flush() {
+                            Ok(_) => Ok(write),
+                            Err(e) => Err(WriteTaskError::new(Some(write), vec![], e)),
+                        })
+                        .await;
+
+                        let _ = rsp.send(r);
+                        break;
+                    }
+                }
+            }
+        });
+        WriteTask { sender }
+    }
+
+    /// Request a [`Write::write_all`] call.
+    ///
+    /// The recommended size for `bytes` is around 1 mebibyte.
+    ///
+    /// Await to get the `write_all` call result.
+    ///
+    /// [`Write::write_all`]: io::Write::write_all.
+    pub async fn write_all(&self, bytes: Vec<u8>) -> Result<(), WriteTaskError<W>> {
+        let (rsv, rcv) = channel::rendezvous();
+        self.sender.send(IoWriteMsg::WriteAll(bytes, rsv)).await.map_err(|e| {
+            if let IoWriteMsg::WriteAll(bytes, _) = e.0 {
+                WriteTaskError::disconnected(bytes)
+            } else {
+                unreachable!()
+            }
+        })?;
+
+        rcv.recv().await.map_err(|_| WriteTaskError::disconnected(vec![]))?
+    }
+
+    /// Request a [`Write::flush`] call.
+    ///
+    /// Await to get the `flush` call result.
+    ///
+    /// [`Write::flush`]: io::Write::flush
+    pub async fn flush(&self) -> Result<(), WriteTaskError<W>> {
+        let (rsv, rcv) = channel::rendezvous();
+        self.sender
+            .send(IoWriteMsg::Flush(rsv))
+            .await
+            .map_err(|_| WriteTaskError::disconnected(vec![]))?;
+        rcv.recv().await.map_err(|_| WriteTaskError::disconnected(vec![]))?
+    }
+
+    /// Flush and take back the [`io::Write`].
+    pub async fn finish(self) -> Result<W, WriteTaskError<W>> {
+        let (rsv, rcv) = channel::rendezvous();
+        self.sender
+            .send(IoWriteMsg::Finish(rsv))
+            .await
+            .map_err(|_| WriteTaskError::disconnected(vec![]))?;
+
+        rcv.recv().await.map_err(|_| WriteTaskError::disconnected(vec![]))?
+    }
+}
+
+enum IoWriteMsg<W: io::Write> {
+    WriteAll(Vec<u8>, channel::Sender<Result<(), WriteTaskError<W>>>),
+    Flush(channel::Sender<Result<(), WriteTaskError<W>>>),
+    Finish(channel::Sender<Result<W, WriteTaskError<W>>>),
+}
+
+const WRITE_DISCONNECTED_ERR: &str = "`IoWriteTask` work is shutdown, probably caused by an error or panic";
+
+/// Error from [`WriteTask`].
+pub struct WriteTaskError<W: io::Write> {
+    /// The [`io::Write`] that caused the error.
+    ///
+    /// Is `None` the error represents a lost connection with the task.
+    pub write: Option<W>,
+    /// The bytes that where not fully written before the error happened.
+    pub payload: Vec<u8>,
+    /// The error.
+    pub error: io::Error,
+}
+impl<W: io::Write> WriteTaskError<W> {
+    fn disconnected(payload: Vec<u8>) -> Self {
+        Self::new(None, payload, io::Error::new(io::ErrorKind::BrokenPipe, WRITE_DISCONNECTED_ERR))
+    }
+
+    fn new(write: Option<W>, payload: Vec<u8>, error: io::Error) -> Self {
+        Self { write, payload, error }
+    }
+
+    /// If the error represents a lost connection with the task.
+    ///
+    /// This can happen after an error was already returned or if a panic killed the [`wait`] thread.
+    pub fn is_disconnected(&self) -> bool {
+        self.write.is_none()
+    }
+}
+impl<W: io::Write> fmt::Debug for WriteTaskError<W> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.error, f)
+    }
+}
+impl<W: io::Write> fmt::Display for WriteTaskError<W> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.error, f)
+    }
+}
+impl<W: io::Write> std::error::Error for WriteTaskError<W> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
     }
 }
