@@ -61,6 +61,7 @@ rayon = "1"
 blocking = "1"
 parking_lot = "0.11"
 futures-timer = "3"
+surf = "2"
 
 # util
 bitflags = "1"

@@ -20,6 +20,9 @@ use fnv::FnvHashMap;
 use std::{fmt, marker::PhantomData, mem, sync::Arc};
 use webrender::api::*;
 
+#[doc(no_inline)]
+pub use webrender;
+
 macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {
         #[cfg(debug_assertions)]
@@ -183,16 +186,28 @@ impl FrameBuilder {
     /// This provides direct access to the underlying WebRender display list builder, modifying it
     /// can interfere with the working of the [`FrameBuilder`].
     ///
-    /// Call [`open_widget_display`](Self::open_widget_display) before modifying the display list.
+    /// Call [`open_widget_display`] before modifying the display list.
     ///
     /// Check the [`FrameBuilder`] source code before modifying the display list.
     ///
     /// Don't try to render using the [`FrameBuilder`] methods inside a custom clip or space, the methods will still
-    /// use the [`clip_id`](Self::clip_id) and [`spatial_id`](Self::spatial_id). Custom items added to the display list
+    /// use the [`clip_id`] and [`spatial_id`]. Custom items added to the display list
     /// should be self-contained and completely custom.
     ///
-    /// If [`is_cancelling_widget`](Self::is_cancelling_widget) don't modify the display list and try to
+    /// If [`is_cancelling_widget`] don't modify the display list and try to
     /// early return pretending the operation worked.
+    ///
+    /// # WebRender
+    ///
+    /// The [`webrender`] crate used in the renderer is re-exported in `zero_ui_core::render::webrender`, and the
+    /// [`webrender_api`] is re-exported in `webrender::api`.
+    ///
+    /// [`open_widget_display`]: Self::open_widget_display
+    /// [`clip_id`]: Self::clip_id
+    /// [`spatial_id`]: Self::spatial_id
+    /// [`is_cancelling_widget`]: Self::is_cancelling_widget
+    /// [`webrender`]: https://docs.rs/webrender
+    /// [`webrender_api`]: https://docs.rs/webrender_api
     #[inline]
     pub fn display_list(&mut self) -> &mut DisplayListBuilder {
         &mut self.display_list

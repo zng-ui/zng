@@ -55,10 +55,56 @@
 //! task, this task is not *async* but it is *parallel*, meaning if does not block but it runs a blocking operation. It runs inside
 //! a [`blocking`] thread-pool, that is optimized for waiting.
 //!
+//! # Async IO
+//!
+//! Zero-Ui uses [`wait`], [`ReadTask`] and [`WriteTask`] to do async IO internally, the read/write tasks represent the
+//! act of reading/writing a large file in segmented payloads, so that the file is not ever fully in memory. For operations
+//! that have all the data required in memory we just use the `std` blocking API inside [`wait`].
+//!
+//! This is a different concept from other async IO implementations that try to provide an *async version* of the blocking API, if
+//! you prefer that style you can use [external crates](#async-crates-integration) for async IO, most of then
+//! [integrate well](#async-crates-integration) with Zero-Ui tasks.
+//!
+//! # HTTP Client
+//!
+//! Zero-Ui uses the [`surf`] crate for making HTTP requests, for functions such as loading an image from a given URL,
+//! this module also re-exports the [`surf`] crate for convenience.
+//!
+//! The [`surf`] crate allows the insertion of *middleware* in its clients, Zero-Ui functions that use an HTTP client usually
+//! provide an API for configuring its HTTP client, if you are implementing a reusable [`AppExtension`] consider doing the same.
+//! For usage in your app just use the [`surf`] functions:
+//!
+//! ```
+//! # use zero_ui_core::{*, var::*, handler::*, text::*, gesture::*};
+//! # #[widget($crate::button)]
+//! # pub mod button { }
+//! # event_property! { pub fn click { event: ClickEvent, args: ClickArgs, } }
+//! # #[property(context)]
+//! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
+//! # fn main() {
+//! let enabled = var(false);
+//! let msg = var("loading..".to_text());
+//! button! {
+//!     on_click = async_hn!(enabled, msg, |ctx, _| {
+//!         enabled.set(&ctx, false);
+//!
+//!         match task::surf::get("https://httpbin.org/get").recv_string().await {
+//!             Ok(json) => msg.set(&ctx, json),
+//!             Err(e) => msg.set(&ctx, formatx!("error: {}", e)),
+//!         }
+//!
+//!         enabled.set(&ctx, true);
+//!     });
+//! }
+//! # ; }
+//! ```
+//!
+//! For multi-megabyte file transfers you can also use [`DownloadTask`] and [`UploadTask`]. For other protocols
+//! or alternative HTTP clients you can use [external crates](#async-crates-integration).
+//!
 //! # Async Crates Integration
 //!
-//! This module provides async parallel tasks and IO unblocking but it does not provide more elaborate async IO or async networking.
-//! You can use external async crates to create these futures and then `.await` then in async code managed by Zero-Ui, but there is some
+//! You can use external async crates to create futures and then `.await` then in async code managed by Zero-Ui, but there is some
 //! consideration needed. Async code needs a runtime to execute and some async functions from external crates expect their own runtime
 //! to work properly, as a rule of thumb if the crate starts their own *event reactor* you can just use then without worry.
 //!
@@ -71,6 +117,8 @@
 //! in any thread at least, so if you have no alternative but to use [`tokio`] we recommend manually starting its runtime in a thread and
 //! then using the `tokio::runtime::Handle` to start futures in the runtime.
 //!
+//! [`surf`]: https://docs.rs/surf
+//! [`AppExtension`]: crate::app::AppExtension
 //! [`blocking`]: https://docs.rs/blocking
 //! [`futures`]: https://docs.rs/futures
 //! [`async-std`]: https://docs.rs/async-std
@@ -97,6 +145,9 @@ use crate::{
 
 #[doc(no_inline)]
 pub use rayon;
+
+#[doc(no_inline)]
+pub use surf;
 
 /// Spawn a parallel async task, this function is not blocking and the `task` starts executing immediately.
 ///
@@ -1553,3 +1604,115 @@ impl<W: io::Write> std::error::Error for WriteTaskError<W> {
         Some(&self.error)
     }
 }
+
+/// Represents a running large file download.
+pub struct DownloadTask {
+    payload_len: usize,
+}
+impl DownloadTask {
+    /// Start downloading.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` is the [`surf`] client that must be used to download, this type is cheap to clone.
+    ///
+    /// * `parallel_count` is the number of payloads that are downloaded in parallel, setting
+    /// this to more then 1 can speedup the overall download time, if you are just downloading to a file and depending
+    /// on the server.
+    ///
+    /// * `disk_cache_capacity` is the number of payloads that can be cached in disk. If this capacity is reached the download
+    /// *pauses* and *resumes* internally. Set to `0` unless you are doing some very slow computation on incoming data.
+    pub fn spawn(
+        client: surf::Client,
+        url: &str,
+        payload_len: usize,
+        channel_capacity: usize,
+        parallel_count: usize,
+        disk_cache_capacity: usize,
+    ) -> Self {
+        todo!(
+            "{:?}, {}, {}, {}, {}, {}",
+            client,
+            url,
+            payload_len,
+            channel_capacity,
+            parallel_count,
+            disk_cache_capacity
+        )
+    }
+
+    /// Maximum number of bytes per payload.
+    #[inline]
+    pub fn payload_len(&self) -> usize {
+        self.payload_len
+    }
+
+    /// Pause the download.
+    ///
+    /// This signals the task stop downloading even if there is space in the cache, if you
+    /// set `cancel_partial_payloads` any partially downloaded payload is dropped.
+    ///
+    /// Note that the task naturally *pauses* when the cache limit is reached if you stop calling [`download`],
+    /// in this case you do not need to call `pause` or [`resume`].
+    ///
+    /// [`download`]: Self::download
+    /// [`resume`]: Self::resume
+    pub async fn pause(&self, cancel_partial_payloads: bool) {
+        todo!("{}", cancel_partial_payloads)
+    }
+
+    /// Resume the download, if the connection was lost attempts to reconnect.
+    pub async fn resume(&self) {
+        todo!()
+    }
+
+    /// Stops the download but retains the disk cache and returns a [`FrozenDownloadTask`]
+    /// that can be serialized/desterilized and resumed.
+    pub async fn freeze(self) -> FrozenDownloadTask {
+        todo!()
+    }
+
+    /// Stops the task, cancels download if it is not finished, clears the disk cache if any was used.
+    pub async fn stop(self) {
+        todo!()
+    }
+
+    /// Receive the next downloaded payload.
+    ///
+    /// The payloads are sequential, even if parallel downloads are enabled.
+    pub async fn download(&self) -> Result<Vec<u8>, DownloadTaskError> {
+        todo!()
+    }
+}
+
+/// A [`DownloadTask`] that can be *reanimated* in another instance of the app.
+pub struct FrozenDownloadTask {}
+impl FrozenDownloadTask {
+    /// Attempt to continue the download task.
+    pub async fn resume(self) -> Result<DownloadTask, DownloadTaskError> {
+        todo!()
+    }
+}
+
+/// An error in [`DownloadTask`] or [`FrozenDownloadTask`]
+pub struct DownloadTaskError {}
+
+/// Represents a running large file upload.
+pub struct UploadTask {}
+impl UploadTask {
+    /// Start uploading.
+    pub fn spawn(client: surf::Client, url: &str, channel_capacity: usize) -> Self {
+        todo!("{:?}, {}, {}", client, url, channel_capacity)
+    }
+
+    /// Send the next payload to upload.
+    ///
+    /// You can *pause* upload simply by not calling this method, if the connection was lost the task
+    /// will attempt to retrieve it before continuing.
+    pub async fn upload(&self, payload: Vec<u8>) -> Result<(), UploadTaskError> {
+        todo!("{:?}", payload)
+    }
+}
+
+/// An error in [`UploadTask`].
+pub struct UploadTaskError {}

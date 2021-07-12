@@ -786,8 +786,14 @@ pub mod widgets;
 ///
 /// # Other Preludes
 ///
-/// There are prelude modules for other contexts, [`new_property`](crate::prelude::new_property) for
-/// creating new properties, [`new_widget`](crate::prelude::new_widget) for creating new widgets.
+/// There are prelude modules for other contexts, [`new_property`] for
+/// creating new properties, [`new_widget`] for creating new widgets.
+///
+/// The [`rayon`] crate's prelude is inlined in the preludes.
+///
+/// [`new_property`]: crate::prelude::new_property
+/// [`new_widget`]: crate::prelude::new_widget
+/// [`rayon`]: https://docs.rs/rayon
 pub mod prelude {
     #[doc(no_inline)]
     pub use crate::core::{
