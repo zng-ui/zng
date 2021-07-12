@@ -281,7 +281,7 @@ where
 /// let r = ReadTask::spawn(input_file, payload_len, 8);
 /// // start an idle write, with a queue of up to 8 write requests.
 /// let w = WriteTask::spawn(output_file, 8);
-/// 
+///
 /// // both tasks use `wait` internally.
 ///
 /// let mut eof = false;
@@ -1153,6 +1153,50 @@ pub mod channel {
 }
 
 /// Represents a running buffered [`io::Read::read_to_end`] operation.
+///
+/// This task is recommended for buffered multi megabyte read operations, it spawns a
+/// worker that uses [`wait`] to read byte payloads that can be received using [`read`].
+/// If you already have all the bytes you want to write in memory, just move then to a [`wait`]
+/// and use the `std` sync file operations to read then, otherwise use this struct.
+///
+/// You can get the [`io::Read`] back by calling [`stop`], or in most error cases.
+///
+/// # Examples
+///
+/// The example reads 1 gibibyte of data, if the storage is faster then the computation a maximum
+/// of 8 megabytes only will exist in memory at a time.
+///
+/// ```no_run
+/// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+/// use zero_ui_core::task::{self, ReadTask, rayon::prelude::*};
+/// let file = task::wait(|| std::fs::File::open("data-1gibibyte.bin")).await?;
+/// let payload_len = 1024 * 1024;
+/// let r = ReadTask::spawn(file, payload_len, 8);
+/// let mut foo = 0usize;
+///
+/// let mut eof = false;
+/// while !eof {
+///     let payload = r.read().await?;
+///     eof = payload.len() < payload_len;
+///     foo += payload.into_par_iter().filter(|&b|b == 0xF0).count();
+/// }
+///
+/// let file = r.stop().await?;
+/// let meta = task::wait(move || file.metadata()).await?;
+///
+/// println!("found 0xF0 {} times in {} bytes", foo, meta.len());
+/// # Ok(()) }
+/// ```
+///
+/// # Errors
+///
+/// Methods of this struct return [`ReadTaskError`], on the first error the task *shuts-down* and drops the wrapped [`io::Read`],
+/// subsequent send attempts return the [`BrokenPipe`] error. To recover from errors keep track of the last successful read offset,
+/// then on error reacquire read access and seek that offset before starting a new [`ReadTask`].
+///
+/// [`read`]: ReadTask::read
+/// [`stop`]: ReadTask::stop
+/// [`BrokenPipe`]: io::ErrorKind::BrokenPipe
 pub struct ReadTask<R: io::Read> {
     receiver: channel::Receiver<Result<Vec<u8>, ReadTaskError<R>>>,
     stop_recv: channel::Receiver<R>,
@@ -1301,7 +1345,7 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
 /// # Examples
 ///
 /// The example writes 1 gibibyte of data generated in batches of 1 mebibyte, if the storage is slow a maximum
-/// of 8 megabytes only will exist in memory at a time.
+/// of 8 mebibytes only will exist in memory at a time.
 ///
 /// ```no_run
 /// # async fn compute_1mebibyte() -> Vec<u8> { vec![1; 1024 * 1024] }
@@ -1313,18 +1357,15 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
 ///
 /// let mut total = 0usize;
 /// let limit = 1024 * 1024 * 1024;
-/// loop {
+/// while total < limit {
 ///     let payload = compute_1mebibyte().await;
 ///     total += payload.len();
 ///
 ///     w.write(payload).await?;
-///
-///     if total >= limit {
-///         let file = w.finish().await?;
-///         task::wait(move || file.sync_all()).await?;
-///         break;
-///     }
 /// }
+///
+/// let file = w.finish().await?;
+/// task::wait(move || file.sync_all()).await?;
 /// # Ok(()) }
 /// ```
 ///
