@@ -69,8 +69,32 @@ pub fn is_layout_any_size(f: f32) -> bool {
 /// Value that indicates that any size is available during layout.
 pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
 
-/// A map of TypeId -> Box<dyn UnsafeAny>.
-type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn unsafe_any::UnsafeAny>>;
+mod any_map {
+    use std::{collections::HashMap, hash::{BuildHasherDefault, Hasher}};
+    // TypeIds are already hashes by the compiler.
+    #[derive(Default)]
+    struct IdHasher(u64);
+    
+    impl Hasher for IdHasher {
+        fn write(&mut self, _: &[u8]) {
+            unreachable!("`TypeId` calls write_u64");
+        }
+        
+        #[inline]
+        fn write_u64(&mut self, id: u64) {
+            self.0 = id;
+        }
+
+        #[inline]
+        fn finish(&self) -> u64 {
+            self.0
+        }
+    }
+    
+    /// A map of TypeId -> Box<dyn UnsafeAny>.
+    pub type AnyMap = HashMap<std::any::TypeId, Box<dyn unsafe_any::UnsafeAny>, BuildHasherDefault<IdHasher>>;
+}
+pub use any_map::AnyMap;
 
 /// Expands an `impl` block into an [`UiNode`] trait implementation.
 ///
