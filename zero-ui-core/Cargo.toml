@@ -47,7 +47,7 @@ winapi = "0.3"
 font-kit = "0.10"
 unicode-script = "0.5"
 unicase = "2"
-rustybuzz = "0.3"
+rustybuzz = "0.4"
 xi-unicode = "0.3"
 
 # render
@@ -61,7 +61,7 @@ rayon = "1"
 blocking = "1"
 parking_lot = "0.11"
 futures-timer = "3"
-isahc = "1"
+isahc = { version = "1", features = ["cookies"] }
 
 # util
 bitflags = "1"

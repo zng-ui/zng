@@ -173,7 +173,7 @@ impl Font {
         // space metrics used for Tab
         let space_buff = self.buffer_segment(" ", config);
         let space_buff = rustybuzz::shape(&face, &config.font_features, space_buff);
-        let space_index = space_buff.glyph_infos()[0].codepoint;
+        let space_index = space_buff.glyph_infos()[0].glyph_id;
         let space_advance = to_layout(space_buff.glyph_positions()[0].x_advance);
 
         for (seg, kind) in text.iter() {
@@ -197,7 +197,7 @@ impl Font {
                         prev_cluster = i.cluster;
                     }
 
-                    GlyphInstance { index: i.codepoint, point }
+                    GlyphInstance { index: i.glyph_id, point }
                 });
 
                 out.glyphs.extend(glyphs);

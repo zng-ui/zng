@@ -1,8 +1,12 @@
 //! Crate visible macros and utilities.
 
-use std::sync::{
-    atomic::{AtomicU8, Ordering},
-    Arc, Weak,
+use std::{
+    collections::HashMap,
+    hash::{BuildHasherDefault, Hasher},
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        Arc, Weak,
+    },
 };
 
 /// Declare a new unique id type.
@@ -349,3 +353,26 @@ impl<D: Send + Sync> Drop for HandleOwner<D> {
 const NONE: u8 = 0;
 const PERMANENT: u8 = 0b01;
 const FORCE_DROP: u8 = 0b11;
+
+// TypeIds are already hashes by the compiler.
+#[derive(Default)]
+pub struct IdHasher(u64);
+
+impl Hasher for IdHasher {
+    fn write(&mut self, _: &[u8]) {
+        unreachable!("`TypeId` calls write_u64");
+    }
+
+    #[inline]
+    fn write_u64(&mut self, id: u64) {
+        self.0 = id;
+    }
+
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+
+/// A map of TypeId -> Box<dyn UnsafeAny>.
+pub type AnyMap = HashMap<std::any::TypeId, Box<dyn unsafe_any::UnsafeAny>, BuildHasherDefault<IdHasher>>;

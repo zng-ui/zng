@@ -1,19 +1,25 @@
 //! Context information for app extensions, windows and widgets.
 
-use super::event::Events;
-use super::service::Services;
-use super::units::{LayoutSize, PixelGrid};
-use super::var::Vars;
-use super::window::WindowId;
-use super::AnyMap;
-use super::WidgetId;
+use crate::{
+    crate_util::AnyMap,
+    event::Events,
+    service::Services,
+    units::{LayoutSize, PixelGrid},
+    var::Vars,
+    window::WindowId,
+    WidgetId,
+};
 use retain_mut::RetainMut;
-use std::cell::Cell;
-use std::ptr;
-use std::rc::Rc;
-use std::{any::type_name, fmt, mem};
-use std::{any::TypeId, time::Instant};
-use std::{marker::PhantomData, sync::Arc};
+use std::{
+    any::{type_name, TypeId},
+    cell::Cell,
+    fmt,
+    marker::PhantomData,
+    mem, ptr,
+    rc::Rc,
+    sync::Arc,
+    time::Instant,
+};
 use unsafe_any::UnsafeAny;
 use webrender::api::RenderApi;
 
