@@ -80,3 +80,5 @@ deinits
 deiniting
 tokio
 mul
+isahc
+uri

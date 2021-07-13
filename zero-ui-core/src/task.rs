@@ -67,12 +67,8 @@
 //!
 //! # HTTP Client
 //!
-//! Zero-Ui uses the [`surf`] crate for making HTTP requests, for functions such as loading an image from a given URL,
-//! this module also re-exports the [`surf`] crate for convenience.
-//!
-//! The [`surf`] crate allows the insertion of *middleware* in its clients, Zero-Ui functions that use an HTTP client usually
-//! provide an API for configuring its HTTP client, if you are implementing a reusable [`AppExtension`] consider doing the same.
-//! For usage in your app just use the [`surf`] functions:
+//! Zero-Ui uses the [`http`] module for making HTTP functions such as loading an image from a given URL,
+//! the [`http`] module is a thin wrapper around the [`isahc`] crate.
 //!
 //! ```
 //! # use zero_ui_core::{*, var::*, handler::*, text::*, gesture::*};
@@ -88,8 +84,8 @@
 //!     on_click = async_hn!(enabled, msg, |ctx, _| {
 //!         enabled.set(&ctx, false);
 //!
-//!         match task::surf::get("https://httpbin.org/get").recv_string().await {
-//!             Ok(json) => msg.set(&ctx, json),
+//!         match task::http::get_text("https://httpbin.org/get").await {
+//!             Ok(r) => msg.set(&ctx, r),
 //!             Err(e) => msg.set(&ctx, formatx!("error: {}", e)),
 //!         }
 //!
@@ -117,7 +113,9 @@
 //! in any thread at least, so if you have no alternative but to use [`tokio`] we recommend manually starting its runtime in a thread and
 //! then using the `tokio::runtime::Handle` to start futures in the runtime.
 //!
-//! [`surf`]: https://docs.rs/surf
+//! [`DownloadTask`]: crate::task::http::DownloadTask
+//! [`UploadTask`]: crate::task::http::UploadTask
+//! [`isahc`]: https://docs.rs/isahc
 //! [`AppExtension`]: crate::app::AppExtension
 //! [`blocking`]: https://docs.rs/blocking
 //! [`futures`]: https://docs.rs/futures
@@ -145,9 +143,6 @@ use crate::{
 
 #[doc(no_inline)]
 pub use rayon;
-
-#[doc(no_inline)]
-pub use surf;
 
 /// Spawn a parallel async task, this function is not blocking and the `task` starts executing immediately.
 ///
@@ -1605,114 +1600,239 @@ impl<W: io::Write> std::error::Error for WriteTaskError<W> {
     }
 }
 
-/// Represents a running large file download.
-pub struct DownloadTask {
-    payload_len: usize,
-}
-impl DownloadTask {
-    /// Start downloading.
+/// HTTP client.
+///
+/// This module is a thin wrapper around the [`isahc`] crate that just that just limits the API
+/// surface to only `async` methods. You can convert from/into that [`isahc`] types and this one.
+///
+/// [`isahc`]: https://docs.rs/isahc
+pub mod http {
+    use std::convert::TryFrom;
+
+    pub use isahc::error::Error;
+    pub use isahc::http::request::Builder as RequestBuilder;
+    pub use isahc::http::{header, Request, StatusCode, Uri};
+
+    use isahc::AsyncReadResponseExt;
+
+    /// Marker trait for types that try-to-convert to [`Uri`].
     ///
-    /// # Arguments
-    ///
-    /// * `client` is the [`surf`] client that must be used to download, this type is cheap to clone.
-    ///
-    /// * `parallel_count` is the number of payloads that are downloaded in parallel, setting
-    /// this to more then 1 can speedup the overall download time, if you are just downloading to a file and depending
-    /// on the server.
-    ///
-    /// * `disk_cache_capacity` is the number of payloads that can be cached in disk. If this capacity is reached the download
-    /// *pauses* and *resumes* internally. Set to `0` unless you are doing some very slow computation on incoming data.
-    pub fn spawn(
-        client: surf::Client,
-        url: &str,
-        payload_len: usize,
-        channel_capacity: usize,
-        parallel_count: usize,
-        disk_cache_capacity: usize,
-    ) -> Self {
-        todo!(
-            "{:?}, {}, {}, {}, {}, {}",
-            client,
-            url,
-            payload_len,
-            channel_capacity,
-            parallel_count,
-            disk_cache_capacity
-        )
+    /// All types `T` that match `Uri: TryFrom<T>, <Uri as TryFrom<T>>::Error: Into<Error>` implement this trait.
+    pub trait TryUri {
+        /// Tries to convert `self` into [`Uri`].
+        fn try_into(self) -> Result<Uri, Error>;
+    }
+    impl<U> TryUri for U
+    where
+        isahc::http::Uri: TryFrom<U>,
+        <isahc::http::Uri as TryFrom<U>>::Error: Into<Error>,
+    {
+        fn try_into(self) -> Result<Uri, Error> {
+            Uri::try_from(self).map_err(Into::into)
+        }
     }
 
-    /// Maximum number of bytes per payload.
+    /// HTTP response.
+    pub struct Response(isahc::Response<isahc::AsyncBody>);
+    impl Response {
+        /// Returns the [`StatusCode`].
+        #[inline]
+        pub fn status(&self) -> StatusCode {
+            self.0.status()
+        }
+
+        /// Returns a reference to the associated header field map.
+        #[inline]
+        pub fn headers(&self) -> &header::HeaderMap<header::HeaderValue> {
+            self.0.headers()
+        }
+
+        /// Read the response body as a string.
+        pub async fn text(&mut self) -> std::io::Result<String> {
+            self.0.text().await
+        }
+
+        /// Read the response body as raw bytes.
+        ///
+        /// Use [`DownloadTask`] to get larger files.
+        pub async fn bytes(&mut self) -> std::io::Result<Vec<u8>> {
+            let cap = self.0.body_mut().len().unwrap_or(1024);
+            let mut bytes = Vec::with_capacity(cap as usize);
+            self.0.copy_to(&mut bytes).await?;
+            Ok(bytes)
+        }
+    }
+    impl From<Response> for isahc::Response<isahc::AsyncBody> {
+        fn from(r: Response) -> Self {
+            r.0
+        }
+    }
+
+    /// HTTP request body.
+    pub struct Body(isahc::AsyncBody);
+    impl From<Body> for isahc::AsyncBody {
+        fn from(r: Body) -> Self {
+            r.0
+        }
+    }
+
+    /// Send a GET request to the `uri`.
     #[inline]
-    pub fn payload_len(&self) -> usize {
-        self.payload_len
+    pub async fn get(uri: impl TryUri) -> Result<Response, Error> {
+        isahc_client().get_async(uri.try_into()?).await.map(Response)
     }
 
-    /// Pause the download.
-    ///
-    /// This signals the task stop downloading even if there is space in the cache, if you
-    /// set `cancel_partial_payloads` any partially downloaded payload is dropped.
-    ///
-    /// Note that the task naturally *pauses* when the cache limit is reached if you stop calling [`download`],
-    /// in this case you do not need to call `pause` or [`resume`].
-    ///
-    /// [`download`]: Self::download
-    /// [`resume`]: Self::resume
-    pub async fn pause(&self, cancel_partial_payloads: bool) {
-        todo!("{}", cancel_partial_payloads)
+    /// Send a GET request to the `uri` and read the response as a string.
+    pub async fn get_text(uri: impl TryUri) -> Result<String, Error> {
+        let mut r = get(uri).await?;
+        let r = r.text().await?;
+        Ok(r)
     }
 
-    /// Resume the download, if the connection was lost attempts to reconnect.
-    pub async fn resume(&self) {
-        todo!()
+    /// Send a GET request to the `uri` and read the response as raw bytes.
+    pub async fn get_bytes(uri: impl TryUri) -> Result<Vec<u8>, Error> {
+        let mut r = get(uri).await?;
+        let r = r.bytes().await?;
+        Ok(r)
     }
 
-    /// Stops the download but retains the disk cache and returns a [`FrozenDownloadTask`]
-    /// that can be serialized/desterilized and resumed.
-    pub async fn freeze(self) -> FrozenDownloadTask {
-        todo!()
+    /// Send a HEAD request to the `uri`.
+    #[inline]
+    pub async fn head(uri: impl TryUri) -> Result<Response, Error> {
+        isahc_client().head_async(uri.try_into()?).await.map(Response)
     }
 
-    /// Stops the task, cancels download if it is not finished, clears the disk cache if any was used.
-    pub async fn stop(self) {
-        todo!()
+    /// Send a PUT request to the `uri` with a given request body.
+    #[inline]
+    pub async fn put(uri: impl TryUri, body: impl Into<Body>) -> Result<Response, Error> {
+        isahc_client().put_async(uri.try_into()?, body.into().0).await.map(Response)
     }
 
-    /// Receive the next downloaded payload.
-    ///
-    /// The payloads are sequential, even if parallel downloads are enabled.
-    pub async fn download(&self) -> Result<Vec<u8>, DownloadTaskError> {
-        todo!()
+    /// Send a POST request to the `uri` with a given request body.
+    #[inline]
+    pub async fn post(uri: impl TryUri, body: impl Into<Body>) -> Result<Response, Error> {
+        isahc_client().post_async(uri.try_into()?, body.into().0).await.map(Response)
     }
+
+    /// Send a DELETE request to the `uri`.
+    #[inline]
+    pub async fn delete(uri: impl TryUri) -> Result<Response, Error> {
+        isahc_client().delete_async(uri.try_into()?).await.map(Response)
+    }
+
+    /// Send a custom [`Request`].
+    #[inline]
+    pub async fn send<B: Into<Body>>(request: impl Into<Request<B>>) -> Result<Response, Error> {
+        isahc_client().send_async(request.into().map(|b| b.into().0)).await.map(Response)
+    }
+
+    /// The [`isahc`] client used by the functions in this module.
+    pub fn isahc_client() -> &'static isahc::HttpClient {
+        use once_cell::sync::Lazy;
+
+        static SHARED: Lazy<isahc::HttpClient> = Lazy::new(|| isahc::HttpClient::new().expect("isahc client failed to initialize"));
+        &SHARED
+    }
+
+    /// Represents a running large file download.
+    pub struct DownloadTask {
+        payload_len: usize,
+    }
+    impl DownloadTask {
+        /// Start downloading.
+        ///
+        /// # Arguments
+        ///
+        /// * `parallel_count` is the number of payloads that are downloaded in parallel, setting
+        /// this to more then 1 can speedup the overall download time, if you are just downloading to a file and depending
+        /// on the server.
+        ///
+        /// * `disk_cache_capacity` is the number of payloads that can be cached in disk. If this capacity is reached the download
+        /// *pauses* and *resumes* internally. Set to `0` unless you are doing some very slow computation on incoming data.
+        pub fn spawn(url: &str, payload_len: usize, channel_capacity: usize, parallel_count: usize, disk_cache_capacity: usize) -> Self {
+            todo!(
+                "{}, {}, {}, {}, {}",
+                url,
+                payload_len,
+                channel_capacity,
+                parallel_count,
+                disk_cache_capacity
+            )
+        }
+
+        /// Maximum number of bytes per payload.
+        #[inline]
+        pub fn payload_len(&self) -> usize {
+            self.payload_len
+        }
+
+        /// Pause the download.
+        ///
+        /// This signals the task stop downloading even if there is space in the cache, if you
+        /// set `cancel_partial_payloads` any partially downloaded payload is dropped.
+        ///
+        /// Note that the task naturally *pauses* when the cache limit is reached if you stop calling [`download`],
+        /// in this case you do not need to call `pause` or [`resume`].
+        ///
+        /// [`download`]: Self::download
+        /// [`resume`]: Self::resume
+        pub async fn pause(&self, cancel_partial_payloads: bool) {
+            todo!("{}", cancel_partial_payloads)
+        }
+
+        /// Resume the download, if the connection was lost attempts to reconnect.
+        pub async fn resume(&self) {
+            todo!()
+        }
+
+        /// Stops the download but retains the disk cache and returns a [`FrozenDownloadTask`]
+        /// that can be serialized/desterilized and resumed.
+        pub async fn freeze(self) -> FrozenDownloadTask {
+            todo!()
+        }
+
+        /// Stops the task, cancels download if it is not finished, clears the disk cache if any was used.
+        pub async fn stop(self) {
+            todo!()
+        }
+
+        /// Receive the next downloaded payload.
+        ///
+        /// The payloads are sequential, even if parallel downloads are enabled.
+        pub async fn download(&self) -> Result<Vec<u8>, DownloadTaskError> {
+            todo!()
+        }
+    }
+
+    /// A [`DownloadTask`] that can be *reanimated* in another instance of the app.
+    pub struct FrozenDownloadTask {}
+    impl FrozenDownloadTask {
+        /// Attempt to continue the download task.
+        pub async fn resume(self) -> Result<DownloadTask, DownloadTaskError> {
+            todo!()
+        }
+    }
+
+    /// An error in [`DownloadTask`] or [`FrozenDownloadTask`]
+    pub struct DownloadTaskError {}
+
+    /// Represents a running large file upload.
+    pub struct UploadTask {}
+    impl UploadTask {
+        /// Start uploading.
+        pub fn spawn(url: &str, channel_capacity: usize) -> Self {
+            todo!("{}, {}", url, channel_capacity)
+        }
+
+        /// Send the next payload to upload.
+        ///
+        /// You can *pause* upload simply by not calling this method, if the connection was lost the task
+        /// will attempt to retrieve it before continuing.
+        pub async fn upload(&self, payload: Vec<u8>) -> Result<(), UploadTaskError> {
+            todo!("{:?}", payload)
+        }
+    }
+
+    /// An error in [`UploadTask`].
+    pub struct UploadTaskError {}
 }
-
-/// A [`DownloadTask`] that can be *reanimated* in another instance of the app.
-pub struct FrozenDownloadTask {}
-impl FrozenDownloadTask {
-    /// Attempt to continue the download task.
-    pub async fn resume(self) -> Result<DownloadTask, DownloadTaskError> {
-        todo!()
-    }
-}
-
-/// An error in [`DownloadTask`] or [`FrozenDownloadTask`]
-pub struct DownloadTaskError {}
-
-/// Represents a running large file upload.
-pub struct UploadTask {}
-impl UploadTask {
-    /// Start uploading.
-    pub fn spawn(client: surf::Client, url: &str, channel_capacity: usize) -> Self {
-        todo!("{:?}, {}, {}", client, url, channel_capacity)
-    }
-
-    /// Send the next payload to upload.
-    ///
-    /// You can *pause* upload simply by not calling this method, if the connection was lost the task
-    /// will attempt to retrieve it before continuing.
-    pub async fn upload(&self, payload: Vec<u8>) -> Result<(), UploadTaskError> {
-        todo!("{:?}", payload)
-    }
-}
-
-/// An error in [`UploadTask`].
-pub struct UploadTaskError {}
