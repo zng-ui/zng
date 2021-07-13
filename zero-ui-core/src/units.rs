@@ -85,32 +85,32 @@ pub fn is_layout_any_size(value: f32) -> bool {
 /// #[impl_ui_node(children)]
 /// impl<C: UiNodeList> UiNode for VerticalStackNode<C> {
 ///     fn measure(
-///         &mut self, 
-///         ctx: &mut LayoutContext, 
+///         &mut self,
+///         ctx: &mut LayoutContext,
 ///         mut available_size: LayoutSize
 ///     ) -> LayoutSize {
-/// 
+///
 ///         // children can be any height
 ///         available_size.height = LAYOUT_ANY_SIZE;
-/// 
+///
 ///         let mut desired_size = LayoutSize::zero();
 ///         self.children.measure_all(
 ///             ctx,
 ///             |_, _| available_size,
 ///             |i, child_ds, _| {
 ///                 desired_size.width = desired_size.width.max(child_ds.width);
-/// 
+///
 ///                 // each child returns a finite height
 ///                 desired_size.height += child_ds.height;
-/// 
+///
 ///             },
 ///         );
 ///         desired_size
 ///     }
 /// }
 /// ```
-/// 
-/// The child nodes in the example return any finite height. See [`UiNode::measure`] and [`UiNode::arrange`] 
+///
+/// The child nodes in the example return any finite height. See [`UiNode::measure`] and [`UiNode::arrange`]
 /// for more information about how to implement layout panel nodes.
 ///
 /// [`UiNode::measure`]: crate::UiNode::measure

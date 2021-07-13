@@ -1605,15 +1605,29 @@ impl<W: io::Write> std::error::Error for WriteTaskError<W> {
 /// This module is a thin wrapper around the [`isahc`] crate that just that just limits the API
 /// surface to only `async` methods. You can convert from/into that [`isahc`] types and this one.
 ///
+/// # Examples
+///
+/// Get some text:
+///
+/// ```
+/// # use zero_ui_core::task;
+/// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+/// let text = task::http::get_text("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
+/// println!("{}!", text);
+/// # Ok(()) }
+/// ```
+///
 /// [`isahc`]: https://docs.rs/isahc
 pub mod http {
     use std::convert::TryFrom;
+    use std::mem;
 
     pub use isahc::error::Error;
     pub use isahc::http::request::Builder as RequestBuilder;
     pub use isahc::http::{header, Request, StatusCode, Uri};
 
     use isahc::AsyncReadResponseExt;
+    use parking_lot::{const_mutex, Mutex};
 
     /// Marker trait for types that try-to-convert to [`Uri`].
     ///
@@ -1661,6 +1675,14 @@ pub mod http {
             self.0.copy_to(&mut bytes).await?;
             Ok(bytes)
         }
+
+        /// Deserialize the response body as JSON.
+        pub async fn json<O>(&mut self) -> Result<O, serde_json::Error>
+        where
+            O: serde::de::DeserializeOwned + std::marker::Unpin,
+        {
+            self.0.json().await
+        }
     }
     impl From<Response> for isahc::Response<isahc::AsyncBody> {
         fn from(r: Response) -> Self {
@@ -1696,6 +1718,16 @@ pub mod http {
         Ok(r)
     }
 
+    /// Send a GET request to the `uri` and de-serializes the response.
+    pub async fn get_json<O>(uri: impl TryUri) -> Result<O, Box<dyn std::error::Error>>
+    where
+        O: serde::de::DeserializeOwned + std::marker::Unpin,
+    {
+        let mut r = get(uri).await?;
+        let r = r.json::<O>().await?;
+        Ok(r)
+    }
+
     /// Send a HEAD request to the `uri`.
     #[inline]
     pub async fn head(uri: impl TryUri) -> Result<Response, Error> {
@@ -1726,23 +1758,62 @@ pub mod http {
         isahc_client().send_async(request.into().map(|b| b.into().0)).await.map(Response)
     }
 
-    /// The [`isahc`] client used by the functions in this module.
+    /// The [`isahc`] client used by the functions in this module and Zero-Ui.
+    ///
+    /// You can replace the default client at the start of the process using [`set_isahc_client_init`].
+    ///
+    /// [`isahc`]: https://docs.rs/isahc
     pub fn isahc_client() -> &'static isahc::HttpClient {
         use crate::units::*;
         use isahc::config::{Configurable, RedirectPolicy};
         use once_cell::sync::Lazy;
 
         static SHARED: Lazy<isahc::HttpClient> = Lazy::new(|| {
-            // browser defaults
-            isahc::HttpClient::builder()
-                .cookies()
-                .redirect_policy(RedirectPolicy::Limit(20))
-                .connect_timeout(90.secs())
-                .auto_referer()
-                .build()
-                .unwrap()
+            let ci = mem::replace(&mut *CLIENT_INIT.lock(), ClientInit::Inited);
+            if let ClientInit::Set(init) = ci {
+                init()
+            } else {
+                // browser defaults
+                isahc::HttpClient::builder()
+                    .cookies()
+                    .redirect_policy(RedirectPolicy::Limit(20))
+                    .connect_timeout(90.secs())
+                    .auto_referer()
+                    .build()
+                    .unwrap()
+            }
         });
         &SHARED
+    }
+
+    static CLIENT_INIT: Mutex<ClientInit> = const_mutex(ClientInit::None);
+
+    enum ClientInit {
+        None,
+        Set(Box<dyn FnOnce() -> isahc::HttpClient + Send>),
+        Inited,
+    }
+
+    /// Set a custom initialization function for the [`isahc_client`].
+    ///
+    /// The [`isahc_client`] is used by all Zero-Ui functions and is initialized on the first usage,
+    /// you can use this function before any HTTP operation to replace the [`isahc`] client
+    /// used by Zero-Ui.
+    ///
+    /// Returns an error if the [`isahc_client`] was already initialized.
+    ///
+    /// [`isahc`]: https://docs.rs/isahc
+    pub fn set_isahc_client_init<I>(init: I) -> Result<(), I>
+    where
+        I: FnOnce() -> isahc::HttpClient + Send + 'static,
+    {
+        let mut ci = CLIENT_INIT.lock();
+        if let ClientInit::Inited = &*ci {
+            Err(init)
+        } else {
+            *ci = ClientInit::Set(Box::new(init));
+            Ok(())
+        }
     }
 
     /// Represents a running large file download.

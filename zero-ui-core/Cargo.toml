@@ -10,7 +10,7 @@ edition = "2018"
 # USAGE:
 #
 # `#[cfg(feature = "app_profiler")` or just use the `profile_scope!` macro.
-app_profiler = ["serde_json"]
+app_profiler = []
 
 # like cfg(test) but also visible in docs and integration tests.
 #
@@ -55,13 +55,13 @@ webrender = "0.61"
 gleam = "0.6.17" #version required by webrender
 image = "0.23"
 
-# sync
+# task
 flume = "0.10"
 rayon = "1"
 blocking = "1"
 parking_lot = "0.11"
 futures-timer = "3"
-isahc = { version = "1", features = ["cookies"] }
+isahc = { version = "1", features = ["cookies", "json"] }
 
 # util
 bitflags = "1"
@@ -80,8 +80,9 @@ log = "0.4"
 unsafe-any = "0.4"
 pin-project = "1"
 
-# app_profiler only
-serde_json = { version = "1", optional = true }
+# serde
+serde = "1"
+serde_json = "1"
 
 [package.metadata.docs.rs]
 all-features = true
