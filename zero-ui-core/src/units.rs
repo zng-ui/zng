@@ -13,6 +13,110 @@ const EPSILON: f32 = 0.00001;
 /// Minimal difference between values in around the 1.0..=100.0 scale.
 const EPSILON_100: f32 = 0.001;
 
+/// If a layout value indicates that any size is available during layout.
+///
+/// Returns `true` if [`UiNode::measure`] implementers must return a finite size that is the nodes ideal
+/// size given infinite space. Nodes that only fill the available space and have no inherent size must collapse (zero size).
+///
+/// # Examples
+///
+/// If the node can decide on a size without a finite `available_size` it must return that size:
+///
+/// ```
+/// # use zero_ui_core::{*, units::*, context::*};
+/// # struct FillOrMaxNode { max_size: LayoutSize }
+/// #[impl_ui_node(none)]
+/// impl UiNode for FillOrMaxNode {
+///     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+///         let mut desired_size = available_size;
+///         if is_layout_any_size(desired_size.width) {
+///             desired_size.width = self.max_size.width;
+///         }
+///         if is_layout_any_size(desired_size.height) {
+///             desired_size.height = self.max_size.height;
+///         }
+///         desired_size
+///     }
+/// }
+/// ```
+///
+/// If the node cannot decide on a size it must collapse:
+///
+/// ```
+/// # use zero_ui_core::{*, units::*, context::*};
+/// # struct FillNode { }
+/// #[impl_ui_node(none)]
+/// impl UiNode for FillNode {
+///     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+///         let mut desired_size = available_size;
+///         if is_layout_any_size(desired_size.width) {
+///             desired_size.width = 0.0;
+///         }
+///         if is_layout_any_size(desired_size.height) {
+///             desired_size.height = 0.0;
+///         }
+///         desired_size
+///     }
+/// }
+/// ```
+///
+/// Note that both nodes don't delegate the measure to inner nodes, these *leaf* nodes need to check
+/// the size, because returning a not-finite value is an error. It is ok to delegate the layout-any-size
+/// value to an inner node, and that is what happens in the default delegating implementation of measure.
+/// See [`UiNode::measure`] for more information about how to implement layout nodes.
+///
+/// [`UiNode::measure`]: crate::UiNode::measure
+#[inline]
+pub fn is_layout_any_size(value: f32) -> bool {
+    value.is_infinite() && value.is_sign_positive()
+}
+
+/// Value that indicates that any size is available during layout.
+///
+/// Use [`is_layout_any_size`] to check if a layout value indicates this.
+///
+/// # Examples
+///
+/// A layout node can use this value to tell its children that they have any space available:
+///
+/// ```
+/// # use zero_ui_core::{*, units::*, context::*};
+/// # struct VerticalStackNode<C> { children: C }
+/// #[impl_ui_node(children)]
+/// impl<C: UiNodeList> UiNode for VerticalStackNode<C> {
+///     fn measure(
+///         &mut self, 
+///         ctx: &mut LayoutContext, 
+///         mut available_size: LayoutSize
+///     ) -> LayoutSize {
+/// 
+///         // children can be any height
+///         available_size.height = LAYOUT_ANY_SIZE;
+/// 
+///         let mut desired_size = LayoutSize::zero();
+///         self.children.measure_all(
+///             ctx,
+///             |_, _| available_size,
+///             |i, child_ds, _| {
+///                 desired_size.width = desired_size.width.max(child_ds.width);
+/// 
+///                 // each child returns a finite height
+///                 desired_size.height += child_ds.height;
+/// 
+///             },
+///         );
+///         desired_size
+///     }
+/// }
+/// ```
+/// 
+/// The child nodes in the example return any finite height. See [`UiNode::measure`] and [`UiNode::arrange`] 
+/// for more information about how to implement layout panel nodes.
+///
+/// [`UiNode::measure`]: crate::UiNode::measure
+/// [`UiNode::arrange`]: crate::UiNode::arrange
+pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
+
 /// [`f32`] equality used in [`units`](crate::units).
 ///
 /// * [`NaN`](f32::is_nan) values are equal.

@@ -1728,15 +1728,15 @@ pub mod http {
 
     /// The [`isahc`] client used by the functions in this module.
     pub fn isahc_client() -> &'static isahc::HttpClient {
+        use crate::units::*;
         use isahc::config::{Configurable, RedirectPolicy};
         use once_cell::sync::Lazy;
-        use crate::units::*;
 
         static SHARED: Lazy<isahc::HttpClient> = Lazy::new(|| {
             // browser defaults
             isahc::HttpClient::builder()
                 .cookies()
-                .redirect_policy(RedirectPolicy::Limit(20)) 
+                .redirect_policy(RedirectPolicy::Limit(20))
                 .connect_timeout(90.secs())
                 .auto_referer()
                 .build()

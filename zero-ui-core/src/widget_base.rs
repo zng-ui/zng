@@ -180,7 +180,7 @@ pub mod implicit_base {
                     }
 
                     fn valid_measure(f: f32) -> bool {
-                        f.is_finite() || crate::is_layout_any_size(f)
+                        f.is_finite() || crate::units::is_layout_any_size(f)
                     }
 
                     if !valid_measure(available_size.width) || !valid_measure(available_size.height) {

@@ -8,10 +8,10 @@ use crate::{
     context::{TestWidgetContext, UpdateDisplayRequest, WidgetContext},
     impl_ui_node, node_vec, nodes,
     render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
-    units::LayoutSize,
+    units::{LayoutSize, LAYOUT_ANY_SIZE},
     widget_base::implicit_base,
     window::WindowId,
-    UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, LAYOUT_ANY_SIZE,
+    UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
 };
 
 #[test]

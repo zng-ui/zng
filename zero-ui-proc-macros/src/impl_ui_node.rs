@@ -261,11 +261,11 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::LayoutSize) -> #crate_::units::LayoutSize {
             let mut size = available_size;
 
-            if #crate_::is_layout_any_size(size.width) {
+            if #crate_::units::is_layout_any_size(size.width) {
                 size.width = 0.0;
             }
 
-            if #crate_::is_layout_any_size(size.height) {
+            if #crate_::units::is_layout_any_size(size.height) {
                 size.height = 0.0;
             }
 

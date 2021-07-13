@@ -98,10 +98,11 @@ pub trait UiNode: 'static {
     ///
     /// # Arguments
     /// * `available_size`: The total available size for the node. Can contain positive infinity to
-    /// indicate the parent will accommodate [any size](crate::is_layout_any_size). Finite values are pixel aligned.
+    /// indicate the parent will accommodate [any size](crate::units::is_layout_any_size). Finite values are pixel aligned.
     /// * `ctx`: Measure context.
     ///
     /// # Return
+    ///
     /// Return the nodes desired size. Must not contain infinity or NaN. Must be pixel aligned.
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
 
