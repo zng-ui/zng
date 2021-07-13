@@ -1617,7 +1617,7 @@ pub mod http {
 
     /// Marker trait for types that try-to-convert to [`Uri`].
     ///
-    /// All types `T` that match `Uri: TryFrom<T>, <Uri as TryFrom<T>>::Error: Into<Error>` implement this trait.
+    /// All types `T` that match `Uri: TryFrom<T>, <Uri as TryFrom<T>>::Error: Into<isahc::http::Error>` implement this trait.
     pub trait TryUri {
         /// Tries to convert `self` into [`Uri`].
         fn try_into(self) -> Result<Uri, Error>;
@@ -1625,10 +1625,10 @@ pub mod http {
     impl<U> TryUri for U
     where
         isahc::http::Uri: TryFrom<U>,
-        <isahc::http::Uri as TryFrom<U>>::Error: Into<Error>,
+        <isahc::http::Uri as TryFrom<U>>::Error: Into<isahc::http::Error>,
     {
         fn try_into(self) -> Result<Uri, Error> {
-            Uri::try_from(self).map_err(Into::into)
+            Uri::try_from(self).map_err(|e| e.into().into())
         }
     }
 
