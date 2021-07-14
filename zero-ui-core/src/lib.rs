@@ -49,6 +49,8 @@ pub mod var;
 pub mod widget_base;
 pub mod window;
 
+mod state;
+
 mod ui_node;
 pub use ui_node::*;
 
