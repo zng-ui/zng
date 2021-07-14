@@ -11,6 +11,8 @@ use std::{
     thread::LocalKey,
 };
 
+use once_cell::sync::Lazy;
+
 use crate::{
     context::{OwnedStateMap, StateMap, WidgetContext},
     crate_util::{Handle, HandleOwner},
@@ -190,6 +192,96 @@ pub trait Command: Event<Args = CommandArgs> {
 
     /// Gets a [`AnyCommand`] that represents this command.
     fn as_any(self) -> AnyCommand;
+
+    fn scoped<S: ScopeId>(self, scope: S) -> ScopedCommand<Self, S> {
+        ScopedCommand(self, scope)
+    }
+}
+
+pub trait ScopeId: fmt::Debug + Copy + 'static {
+    fn boxed(&self) -> Box<dyn ScopeEq>;
+}
+impl ScopeId for crate::WidgetId {
+    fn boxed(&self) -> Box<dyn ScopeEq> {
+        Box::new(*self)
+    }
+ }
+ impl ScopeId for crate::window::WindowId {
+    fn boxed(&self) -> Box<dyn ScopeEq> {
+        Box::new(*self)
+    }
+ }
+
+ pub trait ScopeEq {
+     fn eq(&self, other: &Box<dyn Any>) -> bool;
+ }
+ impl ScopeEq for crate::WidgetId {
+    fn eq(&self, other: &Box<dyn Any>) -> bool {
+        if let Some(id) = other.downcast_ref::<Self>() {
+            *self == *id
+        } else {
+            false
+        }
+    }
+}
+impl ScopeEq for crate::window::WindowId {
+    fn eq(&self, other: &Box<dyn Any>) -> bool {
+        if let Some(id) = other.downcast_ref::<Self>() {
+            *self == *id
+        } else {
+            false
+        }
+    }
+}
+
+ fn test_scope_eq(a: Box<dyn Any>, b: Box<dyn Any>) {
+
+ }
+
+#[derive(Debug, Clone, Copy)]
+pub struct ScopedCommand<C: Command, S: ScopeId>(C, S);
+impl<C: Command, S: ScopeId> Event for ScopedCommand<C, S> {
+    type Args = CommandArgs;
+
+    fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
+        events.with_events(|events| events.notify::<Self>(args));
+    }
+
+    fn update<U: crate::event::EventUpdateArgs>(self, args: &U) -> Option<&crate::event::EventUpdate<Self>> {
+        args.args_for::<Self>()
+    }
+    
+}
+impl<C: Command, S: ScopeId> Command for ScopedCommand<C, S> {
+    fn with_meta<F, R>(self, f: F) -> R
+    where
+        F: FnOnce(&mut StateMap) -> R {
+        todo!()
+    }
+
+    fn enabled(self) -> ReadOnlyVar<bool, RcVar<bool>> {
+        todo!()
+    }
+
+    fn enabled_value(self) -> bool {
+        todo!()
+    }
+
+    fn has_handlers(self) -> ReadOnlyVar<bool, RcVar<bool>> {
+        todo!()
+    }
+
+    fn has_handlers_value(self) -> bool {
+        todo!()
+    }
+
+    fn new_handle<Evs: WithEvents>(self, events: &mut Evs, enabled: bool) -> CommandHandle {
+        todo!()
+    }
+
+    fn as_any(self) -> AnyCommand {
+        todo!()
+    }
 }
 
 /// Represents a [`Command`] type.
