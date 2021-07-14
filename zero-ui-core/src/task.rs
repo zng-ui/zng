@@ -323,10 +323,9 @@ where
 /// let output_file = task::wait(|| std::fs::File::create("large-output.bin")).await?;
 ///
 /// // start reading the input, immediately tries to read 8 chunks of 1 mebibyte each.
-/// let payload_len = 1024 * 1024;
-/// let r = ReadTask::spawn(input_file, payload_len, 8);
+/// let r = ReadTask::default().spawn(input_file);
 /// // start an idle write, with a queue of up to 8 write requests.
-/// let w = WriteTask::spawn(output_file, 8);
+/// let w = WriteTask::default().spawn(output_file);
 ///
 /// // both tasks use `wait` internally.
 ///
@@ -336,7 +335,7 @@ where
 ///     let mut data = r.read().await?;
 ///
 ///     // when EOF is reached, the data is not the full payload.
-///     if data.len() < payload_len {
+///     if data.len() < r.payload_len() {
 ///         eof = true;
 ///
 ///         let garbage = data.len() % 4;
@@ -1216,14 +1215,13 @@ pub mod channel {
 /// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 /// use zero_ui_core::task::{self, ReadTask, rayon::prelude::*};
 /// let file = task::wait(|| std::fs::File::open("data-1gibibyte.bin")).await?;
-/// let payload_len = 1024 * 1024;
-/// let r = ReadTask::spawn(file, payload_len, 8);
+/// let r = ReadTask::default().spawn(file);
 /// let mut foo = 0usize;
 ///
 /// let mut eof = false;
 /// while !eof {
 ///     let payload = r.read().await?;
-///     eof = payload.len() < payload_len;
+///     eof = payload.len() < r.payload_len();
 ///     foo += payload.into_par_iter().filter(|&b|b == 0xF0).count();
 /// }
 ///
@@ -1243,10 +1241,42 @@ pub mod channel {
 /// [`read`]: ReadTask::read
 /// [`stop`]: ReadTask::stop
 /// [`BrokenPipe`]: io::ErrorKind::BrokenPipe
-pub struct ReadTask<R: io::Read> {
+pub struct ReadTask<R> {
     receiver: channel::Receiver<Result<Vec<u8>, ReadTaskError<R>>>,
     stop_recv: channel::Receiver<R>,
     payload_len: usize,
+}
+impl ReadTask<()> {
+    /// Start building a read task.
+    ///
+    /// # Examples
+    ///
+    /// Start a task that reads 1 mebibyte payloads and with a maximum of 8 pre-reads in the channel:
+    ///
+    /// ```
+    /// # use zero_ui_core::task::ReadTask;
+    /// # fn demo(read: impl std::io::Read + Send + 'static) {
+    /// let task = ReadTask::default().spawn(read);
+    /// # }
+    /// ```
+    ///
+    /// Start a task with custom configuration:
+    ///
+    /// ```
+    /// # use zero_ui_core::task::ReadTask;
+    /// # const FRAME_LEN: usize = 1024 * 1024 * 2;
+    /// # const FRAME_COUNT: usize = 3;
+    /// # fn demo(read: impl std::io::Read + Send + 'static) {
+    /// let task = ReadTask::default()
+    ///     .payload_len(FRAME_LEN)
+    ///     .channel_capacity(FRAME_COUNT.min(8))
+    ///     .spawn(read);
+    /// # }
+    /// ```
+    #[inline]
+    pub fn default() -> ReadTaskBuilder {
+        ReadTaskBuilder::default()
+    }
 }
 impl<R> ReadTask<R>
 where
@@ -1256,8 +1286,9 @@ where
     ///
     /// The `payload_len` is the maximum number of bytes returned at a time, the `channel_capacity` is the number
     /// of pending payloads that can be pre-read. The recommended is 1 mebibyte len and 8 payloads.
-    pub fn spawn(read: R, payload_len: usize, channel_capacity: usize) -> Self {
-        let (sender, receiver) = channel::bounded(channel_capacity);
+    fn spawn(builder: ReadTaskBuilder, read: R) -> Self {
+        let payload_len = builder.payload_len;
+        let (sender, receiver) = channel::bounded(builder.channel_capacity);
         let (stop_sender, stop_recv) = channel::bounded(1);
         self::spawn(async move {
             let mut read = read;
@@ -1333,7 +1364,7 @@ where
 }
 
 /// Error from [`ReadTask`].
-pub struct ReadTaskError<R: io::Read> {
+pub struct ReadTaskError<R> {
     /// The [`io::Read`] that caused the error.
     ///
     /// Is `None` the error represents a lost connection with the task.
@@ -1378,6 +1409,61 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
         Some(&self.error)
     }
 }
+/// Builds [`ReadTask`].
+///
+/// Use [`ReadTask::default`] to start.
+#[derive(Debug, Clone)]
+pub struct ReadTaskBuilder {
+    payload_len: usize,
+    channel_capacity: usize,
+}
+impl Default for ReadTaskBuilder {
+    fn default() -> Self {
+        ReadTaskBuilder {
+            payload_len: 1024 * 1024,
+            channel_capacity: 8,
+        }
+    }
+}
+impl ReadTaskBuilder {
+    /// Set the byte count for each payload.
+    ///
+    /// Default is 1 mebibyte (`1024 * 1024`). Minimal value is 1.
+    #[inline]
+    pub fn payload_len(mut self, bytes: usize) -> Self {
+        self.payload_len = bytes;
+        self
+    }
+
+    /// Set the maximum numbers of payloads that be pre-read before the read task awaits
+    /// for payloads to be removed from the channel.
+    ///
+    /// Default is 8. Minimal value is 0 for a [rendezvous] read.
+    ///
+    /// [`write`]: WriteTask::write
+    /// [rendezvous]: channel::rendezvous
+    #[inline]
+    pub fn channel_capacity(mut self, capacity: usize) -> Self {
+        self.channel_capacity = capacity;
+        self
+    }
+
+    fn normalize(&mut self) {
+        if self.payload_len < 1 {
+            self.payload_len = 1;
+        }
+    }
+
+    /// Start an idle [`ReadTask<R>`] that writes to `read`.
+    #[inline]
+    pub fn spawn<R>(mut self, read: R) -> ReadTask<R>
+    where
+        R: io::Read + Send + 'static,
+    {
+        self.normalize();
+        ReadTask::spawn(self, read)
+    }
+}
 
 /// Represents a running [`io::Write`] controller.
 ///
@@ -1399,7 +1485,7 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
 /// use zero_ui_core::task::{self, WriteTask};
 ///
 /// let file = task::wait(|| std::fs::File::create("output.bin")).await?;
-/// let w = WriteTask::spawn(file, 8);
+/// let w = WriteTask::default().spawn(file);
 ///
 /// let mut total = 0usize;
 /// let limit = 1024 * 1024 * 1024;
@@ -1424,19 +1510,45 @@ impl<R: io::Read> std::error::Error for ReadTaskError<R> {
 /// [`write`]: WriteTask::write
 /// [`finish`]: WriteTask::finish
 /// [`BrokenPipe`]: io::ErrorKind::BrokenPipe
-pub struct WriteTask<W: io::Write> {
+pub struct WriteTask<W> {
     sender: channel::Sender<WriteTaskMsg<W>>,
+}
+impl WriteTask<()> {
+    /// Start building a write task.
+    ///
+    /// # Examples
+    ///
+    /// Start a task that writes payloads and with a maximum of 8 pending writes in the channel:
+    ///
+    /// ```
+    /// # use zero_ui_core::task::WriteTask;
+    /// # fn demo(write: impl std::io::Write + Send + 'static) {
+    /// let task = WriteTask::default().spawn(write);
+    /// # }
+    /// ```
+    ///
+    /// Start a task with custom configuration:
+    ///
+    /// ```
+    /// # use zero_ui_core::task::WriteTask;
+    /// # const FRAME_COUNT: usize = 3;
+    /// # fn demo(write: impl std::io::Write + Send + 'static) {
+    /// let task = WriteTask::default()
+    ///     .channel_capacity(FRAME_COUNT.min(8))
+    ///     .spawn(write);
+    /// # }
+    /// ```
+    #[inline]
+    pub fn default() -> WriteTaskBuilder {
+        WriteTaskBuilder::default()
+    }
 }
 impl<W> WriteTask<W>
 where
     W: io::Write + Send + 'static,
 {
-    /// Start the write task.
-    ///
-    /// The `channel_capacity` is the number of pending operations that can be in the channel.
-    /// Recommended is `8` using 1 mebibyte payloads.
-    pub fn spawn(write: W, channel_capacity: usize) -> Self {
-        let (sender, receiver) = channel::bounded(channel_capacity);
+    fn spawn(builder: WriteTaskBuilder, write: W) -> Self {
+        let (sender, receiver) = channel::bounded(builder.channel_capacity);
         self::spawn(async move {
             let mut write = write;
 
@@ -1544,14 +1656,49 @@ where
     }
 }
 
-enum WriteTaskMsg<W: io::Write> {
+/// Builds [`WriteTask`].
+///
+/// Use [`WriteTask::default`] to start.
+#[derive(Debug, Clone)]
+pub struct WriteTaskBuilder {
+    channel_capacity: usize,
+}
+impl Default for WriteTaskBuilder {
+    fn default() -> Self {
+        WriteTaskBuilder { channel_capacity: 8 }
+    }
+}
+impl WriteTaskBuilder {
+    /// Set the maximum numbers of payloads that can be pending before the [`write`]
+    /// method is pending.
+    ///
+    /// Default is 8.
+    ///
+    /// [`write`]: WriteTask::write
+    #[inline]
+    pub fn channel_capacity(mut self, capacity: usize) -> Self {
+        self.channel_capacity = capacity;
+        self
+    }
+
+    /// Start an idle [`WriteTask<W>`] that writes to `write`.
+    #[inline]
+    pub fn spawn<W>(self, write: W) -> WriteTask<W>
+    where
+        W: io::Write + Send + 'static,
+    {
+        WriteTask::spawn(self, write)
+    }
+}
+
+enum WriteTaskMsg<W> {
     WriteAll(Vec<u8>, channel::Sender<Result<(), WriteTaskError<W>>>),
     Flush(channel::Sender<Result<(), WriteTaskError<W>>>),
     Finish(channel::Sender<Result<W, WriteTaskError<W>>>),
 }
 
 /// Error from [`WriteTask`].
-pub struct WriteTaskError<W: io::Write> {
+pub struct WriteTaskError<W> {
     /// The [`io::Write`] that caused the error.
     ///
     /// Is `None` the error represents a lost connection with the task.
@@ -1620,7 +1767,8 @@ impl<W: io::Write> std::error::Error for WriteTaskError<W> {
 /// [`isahc`]: https://docs.rs/isahc
 pub mod http {
     use std::convert::TryFrom;
-    use std::mem;
+    use std::sync::Arc;
+    use std::{fmt, mem};
 
     pub use isahc::error::Error;
     pub use isahc::http::request::Builder as RequestBuilder;
@@ -1821,25 +1969,24 @@ pub mod http {
         payload_len: usize,
     }
     impl DownloadTask {
-        /// Start downloading.
+        /// Start building a download task using the [default client].
         ///
-        /// # Arguments
+        /// [default client]: isahc_client
+        #[inline]
+        pub fn default() -> DownloadTaskBuilder {
+            DownloadTaskBuilder::default()
+        }
+
+        /// Start building a download task with a custom [`isahc`] client.
         ///
-        /// * `parallel_count` is the number of payloads that are downloaded in parallel, setting
-        /// this to more then 1 can speedup the overall download time, if you are just downloading to a file and depending
-        /// on the server.
-        ///
-        /// * `disk_cache_capacity` is the number of payloads that can be cached in disk. If this capacity is reached the download
-        /// *pauses* and *resumes* internally. Set to `0` unless you are doing some very slow computation on incoming data.
-        pub fn spawn(url: &str, payload_len: usize, channel_capacity: usize, parallel_count: usize, disk_cache_capacity: usize) -> Self {
-            todo!(
-                "{}, {}, {}, {}, {}",
-                url,
-                payload_len,
-                channel_capacity,
-                parallel_count,
-                disk_cache_capacity
-            )
+        /// [`isahc`]: https://docs.rs/isahc
+        #[inline]
+        pub fn with_client(client: isahc::HttpClient) -> DownloadTaskBuilder {
+            DownloadTaskBuilder::new(client)
+        }
+
+        fn spawn(builder: DownloadTaskBuilder, uri: Result<Uri, Error>) -> Self {
+            todo!("{:?}, {:?}", builder, uri)
         }
 
         /// Maximum number of bytes per payload.
@@ -1886,6 +2033,136 @@ pub mod http {
         }
     }
 
+    /// Builds [`DownloadTask`].
+    ///
+    /// Use [`DownloadTask::default`] or [`DownloadTask::with_client`] to start.
+    #[derive(Clone)]
+    pub struct DownloadTaskBuilder {
+        client: isahc::HttpClient,
+        payload_len: usize,
+        channel_capacity: usize,
+        parallel_count: usize,
+        disk_cache_capacity: usize,
+        max_speed: usize,
+        request_config: Arc<dyn Fn(RequestBuilder) -> RequestBuilder + Send>,
+    }
+    impl fmt::Debug for DownloadTaskBuilder {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("DownloadTaskBuilder")
+                .field("client", &self.client)
+                .field("payload_len", &self.payload_len)
+                .field("channel_capacity", &self.channel_capacity)
+                .field("parallel_count", &self.parallel_count)
+                .field("disk_cache_capacity", &self.disk_cache_capacity)
+                .field("max_speed", &self.max_speed)
+                .finish_non_exhaustive()
+        }
+    }
+    impl Default for DownloadTaskBuilder {
+        fn default() -> Self {
+            Self::new(isahc_client().clone())
+        }
+    }
+    impl DownloadTaskBuilder {
+        fn new(client: isahc::HttpClient) -> Self {
+            DownloadTaskBuilder {
+                client,
+                payload_len: 1024 * 1024,
+                channel_capacity: 8,
+                parallel_count: 1,
+                disk_cache_capacity: 0,
+                max_speed: 0,
+                request_config: Arc::new(|b| b),
+            }
+        }
+
+        /// Set the number of bytes in each payload.
+        ///
+        /// Default is one mebibyte (`1024 * 1024`).
+        pub fn payload_len(mut self, len: usize) -> Self {
+            self.payload_len = len;
+            self
+        }
+
+        /// Set the number of downloaded payloads that can wait in memory. If this
+        /// capacity is reached the disk cache is used if it is set, otherwise the download *pauses*
+        /// internally until a payload is taken from the channel.
+        ///
+        /// Default is `8`.
+        pub fn channel_capacity(mut self, capacity: usize) -> Self {
+            self.channel_capacity = capacity;
+            self
+        }
+
+        /// Set the number of payloads that can be downloaded in parallel, setting
+        /// this to more then 1 can speedup the overall download time, if you are
+        /// just downloading to a file and depending on the server.
+        ///
+        /// Default is `1`.
+        pub fn parallel_count(mut self, count: usize) -> Self {
+            self.parallel_count = count;
+            self
+        }
+
+        /// Set the number of payloads that can be cached in disk. If this capacity is
+        /// reached the download *pauses* and *resumes* internally.
+        ///
+        /// Default is `0`.
+        pub fn disk_cache_capacity(mut self, payload_count: usize) -> Self {
+            self.disk_cache_capacity = payload_count;
+            self
+        }
+
+        /// Set the maximum download speed, in bytes per second.
+        ///
+        /// Default is `usize::MAX` to indicate no limit. Minimal value is `57344` (56 kibibytes/s).
+        #[inline]
+        pub fn max_speed(mut self, bytes_per_sec: usize) -> Self {
+            self.max_speed = bytes_per_sec;
+            self
+        }
+
+        /// Set a closure that configures requests generated by the download task.
+        ///
+        /// # Examples
+        ///
+        /// Set a custom header:
+        ///
+        /// ```
+        /// # use zero_ui_core::task::http::*;
+        /// # fn demo(builder: DownloadTaskBuilder) -> DownloadTaskBuilder {
+        /// builder.request_config(|c| c.header("X-Foo-For", "Bar"))
+        /// # }
+        /// ```
+        ///
+        /// The closure can be called many times, specially when parallel downloads are enabled.
+        /// Note that you can break the download using this, make sure that you are not changing
+        /// configuration set by the [`DownloadTask`] code before use.
+        #[inline]
+        pub fn request_config<F>(mut self, config: F) -> Self
+        where
+            F: Fn(RequestBuilder) -> RequestBuilder + Send + 'static,
+        {
+            self.request_config = Arc::new(config);
+            self
+        }
+
+        fn normalize(&mut self) {
+            if self.parallel_count == 0 {
+                self.parallel_count = 1;
+            }
+            if self.max_speed < 57344 {
+                self.max_speed = 57344;
+            }
+        }
+
+        /// Start downloading the `uri`.
+        pub fn spawn(mut self, uri: impl TryUri) -> DownloadTask {
+            self.normalize();
+            DownloadTask::spawn(self, uri.try_into())
+        }
+    }
+
     /// A [`DownloadTask`] that can be *reanimated* in another instance of the app.
     pub struct FrozenDownloadTask {}
     impl FrozenDownloadTask {
@@ -1901,9 +2178,24 @@ pub mod http {
     /// Represents a running large file upload.
     pub struct UploadTask {}
     impl UploadTask {
-        /// Start uploading.
-        pub fn spawn(url: &str, channel_capacity: usize) -> Self {
-            todo!("{}, {}", url, channel_capacity)
+        /// Start building an upload task using the [default client].
+        ///
+        /// [default client]: isahc_client
+        #[inline]
+        pub fn default() -> UploadTaskBuilder {
+            UploadTaskBuilder::default()
+        }
+
+        /// Start building an upload task with a custom [`isahc`] client.
+        ///
+        /// [`isahc`]: https://docs.rs/isahc
+        #[inline]
+        pub fn with_client(client: isahc::HttpClient) -> UploadTaskBuilder {
+            UploadTaskBuilder::new(client)
+        }
+
+        fn spawn(builder: UploadTaskBuilder, uri: Result<Uri, Error>) -> Self {
+            todo!("{:?}, {:?}", builder, uri)
         }
 
         /// Send the next payload to upload.
@@ -1912,6 +2204,96 @@ pub mod http {
         /// will attempt to retrieve it before continuing.
         pub async fn upload(&self, payload: Vec<u8>) -> Result<(), UploadTaskError> {
             todo!("{:?}", payload)
+        }
+    }
+
+    /// Build a [`UploadTask`]
+    pub struct UploadTaskBuilder {
+        client: isahc::HttpClient,
+        channel_capacity: usize,
+        max_speed: usize,
+        request_config: Arc<dyn Fn(RequestBuilder) -> RequestBuilder + Send>,
+    }
+    impl fmt::Debug for UploadTaskBuilder {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("UploadTaskBuilder")
+                .field("client", &self.client)
+                .field("channel_capacity", &self.channel_capacity)
+                .field("max_speed", &self.max_speed)
+                .finish_non_exhaustive()
+        }
+    }
+    impl Default for UploadTaskBuilder {
+        fn default() -> Self {
+            Self::new(isahc_client().clone())
+        }
+    }
+    impl UploadTaskBuilder {
+        fn new(client: isahc::HttpClient) -> Self {
+            UploadTaskBuilder {
+                client,
+                channel_capacity: 8,
+                max_speed: 0,
+                request_config: Arc::new(|b| b),
+            }
+        }
+
+        /// Set the number of pending upload payloads that can wait in memory. If this
+        /// capacity is reached the the [`upload`] method is pending until a payload is uploaded.
+        ///
+        /// Default is `8`.
+        ///
+        /// [`upload`]: UploadTask::upload
+        pub fn channel_capacity(mut self, capacity: usize) -> Self {
+            self.channel_capacity = capacity;
+            self
+        }
+
+        /// Set the maximum upload speed, in bytes per second.
+        ///
+        /// Default is `usize::MAX` to indicate no limit. Minimal value is `57344` (56 kibibytes/s).
+        #[inline]
+        pub fn max_speed(mut self, bytes_per_sec: usize) -> Self {
+            self.max_speed = bytes_per_sec;
+            self
+        }
+
+        /// Set a closure that configures requests generated by the upload task.
+        ///
+        /// # Examples
+        ///
+        /// Set a custom header:
+        ///
+        /// ```
+        /// # use zero_ui_core::task::http::*;
+        /// # fn demo(builder: UploadTaskBuilder) -> UploadTaskBuilder {
+        /// builder.request_config(|c| c.header("X-Foo-For", "Bar"))
+        /// # }
+        /// ```
+        ///
+        /// The closure can be called multiple times due to the task internal error recovery.
+        ///
+        /// Note that you can break the upload using this, make sure that you are not changing
+        /// configuration set by the [`DownloadTask`] code before use.
+        #[inline]
+        pub fn request_config<F>(mut self, config: F) -> Self
+        where
+            F: Fn(RequestBuilder) -> RequestBuilder + Send + 'static,
+        {
+            self.request_config = Arc::new(config);
+            self
+        }
+
+        fn normalize(&mut self) {
+            if self.max_speed < 57344 {
+                self.max_speed = 57344;
+            }
+        }
+
+        /// Start an idle upload task to the `uri`.
+        pub fn spawn(mut self, uri: impl TryUri) -> UploadTask {
+            self.normalize();
+            UploadTask::spawn(self, uri.try_into())
         }
     }
 
