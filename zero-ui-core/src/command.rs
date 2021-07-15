@@ -265,9 +265,11 @@ impl<'a> From<&'a WindowContext<'a>> for CommandScope {
 /// # use zero_ui_core::{command::*, context::*};
 /// # command! { pub FooCommand; }
 /// # struct FooNode { cmd: ScopedCommand<FooCommand> }
+/// # impl FooNode {
 /// fn init(&mut self, ctx: &mut WindowContext) {
 ///     self.cmd = FooCommand.scoped(*ctx.window_id);
-/// }  
+/// }
+/// # }
 /// ```
 ///
 /// # Enabled & Has Handlers

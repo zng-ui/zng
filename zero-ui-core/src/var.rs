@@ -45,6 +45,9 @@ pub use when::*;
 mod future;
 pub use future::*;
 
+mod cow;
+pub use cow::*;
+
 /// A type that can be a [`Var`] value.
 ///
 /// # Trait Alias
