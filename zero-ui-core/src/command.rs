@@ -125,7 +125,7 @@ macro_rules! command {
 
             #[inline]
             fn scoped<S: Into<$crate::command::CommandScope>>(self, scope: S) ->  $crate::command::ScopedCommand<Self> {
-                $crate::command::ScopedCommand(self, scope.into())
+                $crate::command::ScopedCommand{ command: self, scope: scope.into() }
             }
         }
     )+};
@@ -201,29 +201,19 @@ pub trait Command: Event<Args = CommandArgs> {
 
     /// The scope the command applies too.
     ///
-    /// Scoped commands represent "a command in a context" as a new command.
+    /// Scoped commands represent "a command in a scope" as a new command.
+    ///
+    /// The default value is [`CommandScope::App`].
     fn scope(self) -> CommandScope {
         CommandScope::App
     }
 
-    /// Create a scoped command derived from the root command `Self`.
+    /// Create a scoped command derived from this command type.
     ///
-    /// Returns a new [`Command`] implementer that represents "`Self` in the scope only".
+    /// Returns a new command that represents the command type in the `scope`.
+    /// See [`ScopedCommand`] for details.
     fn scoped<S: Into<CommandScope>>(self, scope: S) -> ScopedCommand<Self::AppScopeCommand>;
 }
-
-/*
-
-            #[inline]
-            fn new_handle<Evs: $crate::event::WithEvents>(self, events: &mut Evs, enabled: bool) -> $crate::command::CommandHandle {
-                Self::COMMAND.with(|c| c.new_handle(events, &Self::COMMAND, $crate::command::Command::scope(self), enabled))
-            }
-
-            #[inline]
-            fn as_any(self) -> $crate::command::AnyCommand {
-                $crate::command::AnyCommand::new(&Self::COMMAND, $crate::command::CommandScope::App)
-            }
-*/
 
 /// Represents the scope of a [scoped command].
 ///
@@ -261,66 +251,237 @@ impl<'a> From<&'a WindowContext<'a>> for CommandScope {
 }
 
 /// A command that is `C` in a specific scope.
+///
+/// Normal commands apply globally, if there is a handler enabled in any context the status
+/// variables indicate its availability. You can use [`Command::scoped`] to change this by
+/// creating a new *command* that represents a command type in a *scope* only. The scope can
+/// be any of the [`CommandScope`] values.
+///
+/// # Examples
+///
+/// Get the a command type scoped to a window:
+///
+/// ```
+/// # use zero_ui_core::{command::*, context::*};
+/// # command! { pub FooCommand; }
+/// fn init(ctx: &mut WindowContext) {
+///     let cmd = FooCommand.scoped(*ctx.window_id);
+/// }  
+/// ```
+///
+/// # Enabled & Has Handlers
+///
+/// The [`enabled`] and [`has_handlers`] variables are only `true` when there is
+/// a handler created using the same scope, handlers created for other scopes or
+/// [not scoped] do not activate a scoped command. On the other hand, scoped handlers
+/// activate [`enabled`] and [`has_handlers`] of the [not scoped] command **and** of the scoped command.
+///
+/// ```
+/// # use zero_ui_core::{command::*, context::*};
+/// # command! { pub FooCommand; }
+/// # fn init(ctx: &mut WindowContext) {
+/// let a = FooCommand.enabled();
+/// let b = FooCommand.scoped(*ctx.window_id).enabled();
+/// # }  
+/// ```
+///
+/// In the example above, `a` is `true` when there is any handler enabled, scoped or not, but `b` is only
+/// `true` when there is a handler created using the same `window_id` and enabled.
+///
+/// # Metadata
+///
+/// Metadata is *inherited* from the [not scoped] command type but can be overwritten for the scoped command
+/// only, so you can rename or give a different shortcut for the command only in the scope.
+///
+/// ```
+/// # use zero_ui_core::{command::*, context::*};
+/// # command! { pub FooCommand; }
+/// # fn init(ctx: &mut WindowContext) {
+/// let a = FooCommand.name();
+/// let b = FooCommand.scoped(*ctx.window_id).name();
+///
+/// assert!(a.ptr_eq(&b));
+/// # }
+/// ```
+///
+/// TODO make this work
+///
+/// # Notify
+///
+/// Calling [`notify`] from a scoped command **notifies the base type** but sets the [`CommandArgs::scope`]
+/// the event will be handled by handlers for the same scope and by [not scoped] handlers.
+///
+/// ```
+/// # use zero_ui_core::{command::*, context::*};
+/// # command! { pub FooCommand; }
+/// # fn init(ctx: &mut WindowContext) {
+/// let notified = FooCommand.notify(ctx, None);
+/// # }  
+/// ```
+///
+/// In the example above `notified` is `true` if there are any enabled handlers for the same scope or [not scoped].
+///
+/// # Update
+///
+/// Calling [`update`] from a scoped command detects updates for the same command base type if the [`CommandArgs::scope`]
+/// is equal to the command scope or is [not scoped]. Unless the command [not scoped], in this case it will detect updates
+/// from any scope.
+///
+/// ```
+/// # use zero_ui_core::{command::*, context::*, event::*};
+/// # command! { pub FooCommand; }
+/// # struct FooNode;
+/// # impl FooNode {
+/// fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+///     if let Some(args) = FooCommand.scoped(ctx.path.window_id()).update(args) {
+///         println!("{:?}", args.scope);
+///     }
+/// }
+/// # }
+/// ```
+///
+/// The example will print for [`CommandScope::Window`] with the same id and for [`CommandScope::App`].
+///
+/// [`enabled`]: ScopedCommand::enabled
+/// [`notify`]: ScopedCommand::notify
+/// [`update`]: ScopedCommand::update
+/// [`has_handlers`]: ScopedCommand::has_handlers
+/// [not scoped]: CommandScope::App
+/// [`name`]: CommandNameExt::name
 #[derive(Debug, Clone, Copy)]
-pub struct ScopedCommand<C: Command>(pub C, pub CommandScope);
+pub struct ScopedCommand<C: Command> {
+    /// Base command type.
+    pub command: C,
+
+    /// Command scope.
+    pub scope: CommandScope,
+}
+impl<C: Command> ScopedCommand<C> {
+    /// Gets a read-only variable that indicates if the command has at least one enabled handler in the scope.
+    ///
+    /// You can use this in a notifier widget that *knows* the limited scope it applies too, unlike the general
+    /// enabled, the widget will only enable if there is an active handler in the scope.
+    #[inline]
+    #[allow(unused)]
+    pub fn enabled(self) -> ReadOnlyVar<bool, RcVar<bool>> {
+        <Self as Command>::enabled(self)
+    }
+
+    /// Gets a read-only variable that indicates if the command has at least one handler in the scope.
+    #[inline]
+    #[allow(unused)]
+    pub fn has_handlers(self) -> ReadOnlyVar<bool, RcVar<bool>> {
+        <Self as Command>::has_handlers(self)
+    }
+
+    /// Create a new handle to this command.
+    ///
+    /// A handle indicates that there is an active *handler* for the event, the handle can also
+    /// be used to set the [`enabled`](Self::enabled) state.
+    #[inline]
+    #[allow(unused)]
+    pub fn new_handle<Evs: WithEvents>(self, events: &mut Evs, enabled: bool) -> CommandHandle {
+        <Self as Command>::new_handle(self, events, enabled)
+    }
+
+    /// Schedule an event update if the command is enabled.
+    ///
+    /// The event notified is the `C` command, not `Self`. The scope is passed in the [`CommandArgs`].
+    ///
+    /// The `parameter` is an optional value for the command handler.
+    ///
+    /// Returns `true` if notified, only notifies if the command is enabled.
+    pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool {
+        let enabled = self.thread_local_value().with(|c| c.enabled_value());
+        if enabled {
+            events.with_events(|evs| evs.notify::<C>(CommandArgs::now(parameter, self.scope)));
+        }
+        enabled
+    }
+
+    /// Gets the event arguments if the update is for this command and is of a compatible scope.
+    ///
+    /// The scope is compatible if it is [`CommandScope::App`] or is equal to the `scope`.
+    pub fn update<U: crate::event::EventUpdateArgs>(self, args: &U) -> Option<&crate::event::EventUpdate<Self>> {
+        if let Some(args) = args.args_for::<C>() {
+            if args.scope == CommandScope::App || self.scope == CommandScope::App || args.scope == self.scope {
+                Some(args.transmute_event::<Self>())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
 impl<C: Command> Event for ScopedCommand<C> {
     type Args = CommandArgs;
 
     fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
-        events.with_events(|events| events.notify::<Self>(args));
+        if self.enabled_value() {
+            events.with_events(|events| events.notify::<C>(args));
+        }
     }
 
     fn update<U: crate::event::EventUpdateArgs>(self, args: &U) -> Option<&crate::event::EventUpdate<Self>> {
-        args.args_for::<Self>()
+        self.update(args)
     }
 }
 impl<C: Command> Command for ScopedCommand<C> {
     type AppScopeCommand = C;
 
     fn thread_local_value(self) -> &'static LocalKey<CommandValue> {
-        self.0.thread_local_value()
+        self.command.thread_local_value()
     }
 
     fn with_meta<F, R>(self, f: F) -> R
     where
         F: FnOnce(&mut StateMapFb) -> R,
     {
-        self.0.thread_local_value().with(|c| c.with_meta_scoped(f, self.1))
+        let scope = self.scope;
+        self.command.thread_local_value().with(|c| c.with_meta_scoped(f, scope))
     }
 
     fn enabled(self) -> ReadOnlyVar<bool, RcVar<bool>> {
-        self.0.thread_local_value().with(|c| c.enabled_scoped(self.1))
+        let scope = self.scope;
+        self.command.thread_local_value().with(|c| c.enabled_scoped(scope))
     }
 
     fn enabled_value(self) -> bool {
-        self.0.thread_local_value().with(|c| c.enabled_value_scoped(self.1))
+        let scope = self.scope;
+        self.command.thread_local_value().with(|c| c.enabled_value_scoped(scope))
     }
 
     fn has_handlers(self) -> ReadOnlyVar<bool, RcVar<bool>> {
-        self.0.thread_local_value().with(|c| c.has_handlers_scoped(self.1))
+        let scope = self.scope;
+        self.command.thread_local_value().with(|c| c.has_handlers_scoped(scope))
     }
 
     fn has_handlers_value(self) -> bool {
-        self.0.thread_local_value().with(|c| c.has_handlers_value_scoped(self.1))
+        let scope = self.scope;
+        self.command.thread_local_value().with(|c| c.has_handlers_value_scoped(scope))
     }
 
     fn new_handle<Evs: WithEvents>(self, events: &mut Evs, enabled: bool) -> CommandHandle {
-        let key = self.0.thread_local_value();
-        let scope = self.1;
+        let key = self.command.thread_local_value();
+        let scope = self.scope;
         key.with(|c| c.new_handle(events, key, scope, enabled))
     }
 
     fn scope(self) -> CommandScope {
-        self.1
+        self.scope
     }
 
     fn scoped<S: Into<CommandScope>>(self, scope: S) -> ScopedCommand<C> {
-        ScopedCommand(self.0, scope.into())
+        ScopedCommand {
+            command: self.command,
+            scope: scope.into(),
+        }
     }
 
     fn as_any(self) -> AnyCommand {
-        let mut any = self.0.as_any();
-        any.1 = self.1;
+        let mut any = self.command.as_any();
+        any.1 = self.scope;
         any
     }
 }
@@ -379,6 +540,7 @@ impl Event for AnyCommand {
         });
     }
     fn update<U: crate::event::EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
+        // TODO use a closure in the value and then transmute to Self?
         panic!("`AnyCommand` does not support `Event::update`");
     }
 }
@@ -426,7 +588,10 @@ impl Command for AnyCommand {
     }
 
     fn scoped<S: Into<CommandScope>>(self, scope: S) -> ScopedCommand<Self> {
-        ScopedCommand(self, scope.into())
+        ScopedCommand {
+            command: self,
+            scope: scope.into(),
+        }
     }
 }
 

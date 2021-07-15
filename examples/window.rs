@@ -1,8 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
+use zero_ui_core::command::Command;
 
 fn main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|ctx| {
         let position = var_from((f32::NAN, f32::NAN));
         let size = var_from((900, 600));
 
@@ -34,7 +35,7 @@ fn main() {
                             ]),
                             property_stack("miscellaneous", widgets![
                                 screenshot(),
-                                inspect(),
+                                inspect(*ctx.window_id),
                                 headless(),
                                 always_on_top(),
                                 taskbar_visible(),
@@ -148,14 +149,14 @@ fn screenshot() -> impl Widget {
     }
 }
 
-fn inspect() -> impl Widget {
-    use zero_ui::widgets::window::commands::InspectCommand;
+fn inspect(scope: WindowId) -> impl Widget {
+    let cmd = zero_ui::widgets::window::commands::InspectCommand.scoped(scope);
     button! {
-        content = text(InspectCommand.name());
-        enabled = InspectCommand.enabled();
-        visibility = InspectCommand.has_handlers().map_into();
+        content = text(cmd.name());
+        enabled = cmd.enabled();
+        visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {
-            InspectCommand.notify(ctx, None);
+            cmd.notify(ctx, None);
         })
     }
 }

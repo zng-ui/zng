@@ -77,6 +77,7 @@ pub(crate) mod protected {
 }
 
 /// [`EventUpdateArgs`] for event `E`, dereferences to the argument.
+#[repr(transparent)]
 pub struct EventUpdate<E: Event>(pub E::Args);
 impl<E: Event> EventUpdate<E> {
     /// Clone the arguments.
@@ -102,6 +103,12 @@ impl<E: Event> EventUpdate<E> {
             event_name: type_name::<E>(),
             args: Box::new(self),
         }
+    }
+
+    /// Change the event type if the event args type is the same
+    pub(crate) fn transmute_event<E2: Event<Args = E::Args>>(&self) -> &EventUpdate<E2> {
+        // SAFETY: this is a change on the type system only, the data type is the same.
+        unsafe { mem::transmute(self) }
     }
 }
 impl<E: Event> protected::EventUpdateArgs for EventUpdate<E> {}
