@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::{
-    context::{OwnedStateMap, WidgetContext, WindowContext},
+    context::{OwnedStateMap, WidgetContext, WidgetContextMut, WindowContext},
     crate_util::{Handle, HandleOwner},
     event::{Event, Events, WithEvents},
     handler::WidgetHandler,
@@ -251,6 +251,11 @@ impl<'a> From<&'a WindowContext<'a>> for CommandScope {
         CommandScope::Window(*ctx.window_id)
     }
 }
+impl<'a> From<&'a WidgetContextMut> for CommandScope {
+    fn from(ctx: &'a WidgetContextMut) -> Self {
+        CommandScope::Widget(ctx.widget_id())
+    }
+}
 
 /// A command that is a command type in a specific scope.
 ///
@@ -299,17 +304,36 @@ impl<'a> From<&'a WindowContext<'a>> for CommandScope {
 /// only, so you can rename or give a different shortcut for the command only in the scope.
 ///
 /// ```
-/// # use zero_ui_core::{command::*, context::*};
+/// # use zero_ui_core::{var::*, command::*, handler::*};
 /// # command! { pub FooCommand; }
-/// # fn init(ctx: &mut WindowContext) {
-/// let a = FooCommand.name();
-/// let b = FooCommand.scoped(*ctx.window_id).name();
+/// # fn demo() -> impl WidgetHandler<()> {
+/// async_hn!(|ctx, _| {
+///     let cmd = FooCommand;
+///     let cmd_scoped = FooCommand.scoped(ctx.window_id());
 ///
-/// assert!(a.ptr_eq(&b));
+///     // same initial value:
+///     assert_eq!(cmd.name().get_clone(&ctx), cmd_scoped.name().get_clone(&ctx));
+///     
+///     // set a name for all commands, including scoped not overridden:
+///     cmd.name().set(&ctx, "Foo!");
+///     ctx.update().await;
+///     assert_eq!("Foo!", cmd_scoped.name().get_clone(&ctx));
+///
+///     // name is overridden in the scoped command only:
+///     cmd_scoped.name().set(&ctx, "Scope Only!");
+///     ctx.update().await;
+///     assert_eq!("Scoped Only!", cmd_scoped.name().get_clone(&ctx));
+///     assert_eq!("Foo!", cmd.name().get_clone(&ctx));
+///
+///     // scoped command no-longer affected:
+///     cmd.name().set(&ctx, "F");
+///     assert_eq!("F", cmd.name().get_clone(&ctx));
+///     assert_eq!("Scoped Only!", cmd_scoped.name().get_clone(&ctx));
+/// })
 /// # }
 /// ```
 ///
-/// TODO make this work
+/// See [`CommandMetaVar<T>`] for details.
 ///
 /// # Notify
 ///
@@ -644,7 +668,7 @@ impl<'a> CommandMeta<'a> {
             }
         } else {
             self.meta.entry::<S>().or_insert_with(init).clone()
-        }        
+        }
     }
 
     /// Clone a meta value identified by a [`StateKey`] type.
@@ -670,20 +694,18 @@ impl<'a> CommandMeta<'a> {
             scope.set::<S>(value);
         } else {
             self.meta.set::<S>(value);
-        }        
+        }
     }
 
     /// Set the metadata value only if it was not set.
+    ///
+    /// This does not set the scoped override, only the command type metadata.
     pub fn init<S>(&mut self, _key: S, value: S::Type)
     where
         S: StateKey,
         S::Type: Clone,
     {
-        if let Some(scope) = &mut self.scope {
-            todo!()
-        } else {
-            self.meta.entry::<S>().or_insert(value);
-        }            
+        self.meta.entry::<S>().or_insert(value);
     }
 
     /// Clone a meta variable identified by a [`StateKey`] type.
@@ -694,6 +716,8 @@ impl<'a> CommandMeta<'a> {
     /// Note that the the [`StateKey`] type is the variable value type, the variable
     /// type is [`CommandMetaVar<S::Type>`]. This is done to ensure that the associated
     /// metadata implements the *scoped inheritance* of values correctly.
+    ///
+    /// [`into_read_only`]: Var::into_read_only
     pub fn get_var_or_insert<S, F>(&mut self, _key: S, init: F) -> CommandMetaVar<S::Type>
     where
         S: StateKey,
@@ -701,10 +725,17 @@ impl<'a> CommandMeta<'a> {
         S::Type: VarValue,
     {
         if let Some(scope) = &mut self.scope {
-            todo!()
+            let meta = &mut self.meta;
+            scope
+                .entry::<ScopedCommandMetaKey<S>>()
+                .or_insert_with(|| {
+                    let var = meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(init())).clone();
+                    CommandMetaVar::new(var)
+                })
+                .clone()
         } else {
             let var = self.meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(init())).clone();
-            CommandMetaVar::new(var)
+            CommandMetaVar::pass_through(var)
         }
     }
 
@@ -720,16 +751,14 @@ impl<'a> CommandMeta<'a> {
     }
 
     /// Set the metadata variable if it was not set.
+    ///
+    /// This does not set the scoped override, only the command type metadata.
     pub fn init_var<S>(&mut self, _key: S, value: S::Type)
     where
         S: StateKey,
         S::Type: VarValue,
     {
-        if let Some(scope) = &mut self.scope {
-            todo!()
-        } else {
-            self.meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(value));
-        }
+        self.meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(value));
     }
 }
 
@@ -737,7 +766,13 @@ impl<'a> CommandMeta<'a> {
 ///
 /// If you get this variable from a not scoped command, setting it sets
 /// the value for all scopes. If you get this variable using a scoped command
-/// setting it overrides only the value for the scope.
+/// setting it overrides only the value for the scope, see [`ScopedCommand`] for more details.
+///
+/// The aliased type is an [`RcVar`] wrapped in a [`RcCowVar`], for not scoped commands the
+/// [`RcCowVar::pass_through`] is used so that the wrapped [`RcVar`] is set directly on assign
+/// but the variable type matches that from a scoped command.
+///
+/// [`ScopedCommand`]: ScopedCommand#metadata
 pub type CommandMetaVar<T> = RcCowVar<T, RcVar<T>>;
 
 /// Read-only command metadata variable.
@@ -775,9 +810,7 @@ impl<C: Command> CommandNameExt for C {
     }
 
     fn init_name(self, name: impl Into<Text>) -> Self {
-        self.with_meta(|m| {
-            m.init_var(CommandNameKey, name.into());
-        });
+        self.with_meta(|m| m.init_var(CommandNameKey, name.into()));
         self
     }
 
@@ -813,9 +846,7 @@ impl<C: Command> CommandInfoExt for C {
     }
 
     fn init_info(self, info: impl Into<Text>) -> Self {
-        self.with_meta(|m| {
-            m.init_var(CommandNameKey, info.into());
-        });
+        self.with_meta(|m| m.init_var(CommandNameKey, info.into()));
         self
     }
 }

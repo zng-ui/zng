@@ -1345,6 +1345,16 @@ impl WidgetContextMut {
         self.with(|c| c.updates.update());
         self.yield_one().await
     }
+
+    /// Id of the window that owns the context widget.
+    pub fn window_id(&self) -> WindowId {
+        self.with(|ctx| ctx.path.window_id())
+    }
+
+    /// Id of the context widget.
+    pub fn widget_id(&self) -> WidgetId {
+        self.with(|ctx| ctx.path.widget_id())
+    }
 }
 
 #[cfg(test)]

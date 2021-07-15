@@ -1237,9 +1237,7 @@ impl<C: Command> CommandShortcutExt for C {
     }
 
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self {
-        self.with_meta(|m| {
-            m.init_var(CommandShortcutKey, shortcut.into());
-        });
+        self.with_meta(|m| m.init_var(CommandShortcutKey, shortcut.into()));
         self
     }
 }
