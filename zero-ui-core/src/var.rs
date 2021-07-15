@@ -233,30 +233,6 @@ pub trait IntoVar<T: VarValue>: Clone {
     }
 }
 
-/// Like [`Clone`] but clones the data of reference-counted pointers.
-/// 
-/// This trait is implemented for `Rc`, `Arc` and all [`Var`] implementers. Note
-/// that the inner value is only cloned, not *deep-cloned* so if a variable contains
-/// reference counted data it will not fully *deep-clone*.
-pub trait DeepClone {
-    /// Returns a deep copy of the value.
-    fn deep_clone(&self) -> Self;
-}
-impl<T: Clone> DeepClone for std::rc::Rc<T> {
-    fn deep_clone(&self) -> Self {
-        let mut rc = Self::clone(self);
-        let _ = Self::make_mut(&mut rc);
-        rc
-    }
-}
-impl<T: Clone> DeepClone for std::sync::Arc<T> {
-    fn deep_clone(&self) -> Self {
-        let mut arc = Self::clone(self);
-        let _ = Self::make_mut(&mut arc);
-        arc
-    }
-}
-
 /// Like [`IntoVar`], but for values that don't change.
 pub trait IntoValue<T: VarValue>: Into<T> + Clone {}
 impl<T: VarValue> IntoValue<T> for T {}
@@ -267,7 +243,7 @@ impl<T: VarValue> IntoValue<T> for T {}
 ///
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 #[cfg_attr(doc_nightly, doc(notable_trait))]
-pub trait Var<T: VarValue>: Clone + DeepClone + IntoVar<T> + crate::private::Sealed + 'static {
+pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'static {
     /// The variable type that represents a read-only version of this type.
     type AsReadOnly: Var<T>;
 
