@@ -2,14 +2,13 @@
 
 use super::{service::Service, units::LayoutPoint, WidgetId};
 use crate::app::{raw_events::RawWindowFocusEvent, *};
-use crate::command::Command;
+use crate::command::{Command, CommandMetaVar};
 use crate::context::*;
 use crate::event::*;
 use crate::focus::Focus;
 use crate::keyboard::*;
 use crate::mouse::*;
 use crate::render::*;
-use crate::var::RcVar;
 use crate::window::{WindowId, Windows};
 use std::num::NonZeroU32;
 use std::{
@@ -1227,23 +1226,23 @@ impl HeadlessAppGestureExt for HeadlessApp {
 /// and the command is enabled.
 pub trait CommandShortcutExt {
     /// Gets a read-write variable that is zero-or-more shortcuts that invoke the command.
-    fn shortcut(self) -> RcVar<Shortcuts>;
+    fn shortcut(self) -> CommandMetaVar<Shortcuts>;
 
     /// Sets the initial shortcuts.
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self;
 }
 impl<C: Command> CommandShortcutExt for C {
-    fn shortcut(self) -> RcVar<Shortcuts> {
-        self.with_meta(|m| m.entry::<CommandShortcutKey>().or_default().clone())
+    fn shortcut(self) -> CommandMetaVar<Shortcuts> {
+        self.with_meta(|m| m.get_var_or_default(CommandShortcutKey))
     }
 
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self {
         self.with_meta(|m| {
-            m.entry::<CommandShortcutKey>().or_insert_with(|| RcVar::new(shortcut.into()));
+            m.init_var(CommandShortcutKey, shortcut.into());
         });
         self
     }
 }
 state_key! {
-    struct CommandShortcutKey: RcVar<Shortcuts>;
+    struct CommandShortcutKey: Shortcuts;
 }

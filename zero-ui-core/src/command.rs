@@ -7,6 +7,7 @@ use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
     fmt,
+    marker::PhantomData,
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
     thread::LocalKey,
@@ -18,10 +19,10 @@ use crate::{
     event::{Event, Events, WithEvents},
     handler::WidgetHandler,
     impl_ui_node,
-    state::StateMapFb,
+    state::{StateKey, StateMap},
     state_key,
-    text::Text,
-    var::{var, var_from, BoxedVar, IntoVar, RcVar, ReadOnlyVar, Var, Vars},
+    text::{Text, ToText},
+    var::{var, BoxedVar, IntoVar, RcCowVar, RcVar, ReadOnlyVar, Var, VarValue, Vars},
     window::WindowId,
     UiNode, WidgetId,
 };
@@ -149,10 +150,11 @@ pub trait Command: Event<Args = CommandArgs> {
     #[doc(hidden)]
     fn thread_local_value(self) -> &'static LocalKey<CommandValue>;
 
-    /// Runs `f` with access to the metadata state-map.
+    /// Runs `f` with access to the metadata state-map. The first map is the root command map,
+    /// the second optional map is the scoped command map.
     fn with_meta<F, R>(self, f: F) -> R
     where
-        F: FnOnce(&mut StateMapFb) -> R,
+        F: FnOnce(&mut CommandMeta) -> R,
     {
         self.thread_local_value().with(|c| c.with_meta(f))
     }
@@ -439,7 +441,7 @@ impl<C: Command> Command for ScopedCommand<C> {
 
     fn with_meta<F, R>(self, f: F) -> R
     where
-        F: FnOnce(&mut StateMapFb) -> R,
+        F: FnOnce(&mut CommandMeta) -> R,
     {
         let scope = self.scope;
         self.command.thread_local_value().with(|c| c.with_meta_scoped(f, scope))
@@ -557,7 +559,7 @@ impl Command for AnyCommand {
 
     fn with_meta<F, R>(self, f: F) -> R
     where
-        F: FnOnce(&mut StateMapFb) -> R,
+        F: FnOnce(&mut CommandMeta) -> R,
     {
         self.0.with(move |c| c.with_meta_scoped(f, self.1))
     }
@@ -598,10 +600,157 @@ impl Command for AnyCommand {
     }
 }
 
+struct AppCommandMetaKey<S>(PhantomData<S>);
+impl<S: StateKey> StateKey for AppCommandMetaKey<S>
+where
+    S::Type: VarValue,
+{
+    type Type = RcVar<S::Type>;
+}
+
+struct ScopedCommandMetaKey<S>(PhantomData<S>);
+impl<S: StateKey> StateKey for ScopedCommandMetaKey<S>
+where
+    S::Type: VarValue,
+{
+    type Type = RcCowVar<S::Type, RcVar<S::Type>>;
+}
+
+/// Access to metadata of a command.
+pub struct CommandMeta<'a> {
+    meta: &'a mut StateMap,
+    scope: Option<&'a mut StateMap>,
+}
+impl<'a> CommandMeta<'a> {
+    /// Clone a meta value identified by a [`StateKey`] type.
+    ///
+    /// If the key is not set in the app, insert it using `init` to produce a value.
+    pub fn get_or_insert<S, F>(&mut self, _key: S, init: F) -> S::Type
+    where
+        S: StateKey,
+        F: FnOnce() -> S::Type,
+        S::Type: Clone,
+    {
+        if let Some(scope) = &mut self.scope {
+            if let Some(value) = scope.get::<S>() {
+                value.clone()
+            } else if let Some(value) = self.meta.get::<S>() {
+                value.clone()
+            } else {
+                let value = init();
+                let r = value.clone();
+                scope.set::<S>(value);
+                r
+            }
+        } else {
+            self.meta.entry::<S>().or_insert_with(init).clone()
+        }        
+    }
+
+    /// Clone a meta value identified by a [`StateKey`] type.
+    ///
+    /// If the key is not set, insert the default value and returns a clone of it.
+    pub fn get_or_default<S>(&mut self, key: S) -> S::Type
+    where
+        S: StateKey,
+        S::Type: Clone + Default,
+    {
+        self.get_or_insert(key, Default::default)
+    }
+
+    /// Set the meta value associated with the [`StateKey`] type.
+    ///
+    /// Returns the previous value if any was set.
+    pub fn set<S>(&mut self, _key: S, value: S::Type)
+    where
+        S: StateKey,
+        S::Type: Clone,
+    {
+        if let Some(scope) = &mut self.scope {
+            scope.set::<S>(value);
+        } else {
+            self.meta.set::<S>(value);
+        }        
+    }
+
+    /// Set the metadata value only if it was not set.
+    pub fn init<S>(&mut self, _key: S, value: S::Type)
+    where
+        S: StateKey,
+        S::Type: Clone,
+    {
+        if let Some(scope) = &mut self.scope {
+            todo!()
+        } else {
+            self.meta.entry::<S>().or_insert(value);
+        }            
+    }
+
+    /// Clone a meta variable identified by a [`StateKey`] type.
+    ///
+    /// The variable is read-write and is clone-on-write if the command is scoped,
+    /// call [`into_read_only`] to make it read-only.
+    ///
+    /// Note that the the [`StateKey`] type is the variable value type, the variable
+    /// type is [`CommandMetaVar<S::Type>`]. This is done to ensure that the associated
+    /// metadata implements the *scoped inheritance* of values correctly.
+    pub fn get_var_or_insert<S, F>(&mut self, _key: S, init: F) -> CommandMetaVar<S::Type>
+    where
+        S: StateKey,
+        F: FnOnce() -> S::Type,
+        S::Type: VarValue,
+    {
+        if let Some(scope) = &mut self.scope {
+            todo!()
+        } else {
+            let var = self.meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(init())).clone();
+            CommandMetaVar::new(var)
+        }
+    }
+
+    /// Clone a meta variable identified by a [`StateKey`] type.
+    ///
+    /// Inserts a variable with the default value if no variable is in the metadata.
+    pub fn get_var_or_default<S>(&mut self, key: S) -> CommandMetaVar<S::Type>
+    where
+        S: StateKey,
+        S::Type: VarValue + Default,
+    {
+        self.get_var_or_insert(key, Default::default)
+    }
+
+    /// Set the metadata variable if it was not set.
+    pub fn init_var<S>(&mut self, _key: S, value: S::Type)
+    where
+        S: StateKey,
+        S::Type: VarValue,
+    {
+        if let Some(scope) = &mut self.scope {
+            todo!()
+        } else {
+            self.meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(value));
+        }
+    }
+}
+
+/// Read-write command metadata variable.
+///
+/// If you get this variable from a not scoped command, setting it sets
+/// the value for all scopes. If you get this variable using a scoped command
+/// setting it overrides only the value for the scope.
+pub type CommandMetaVar<T> = RcCowVar<T, RcVar<T>>;
+
+/// Read-only command metadata variable.
+///
+/// To convert a [`CommandMetaVar<T>`] into this var call [`into_read_only`].
+///
+/// [`into_read_only`]: Var::into_read_only
+pub type ReadOnlyCommandMetaVar<T> = ReadOnlyVar<T, CommandMetaVar<T>>;
+
 /// Adds the [`name`](CommandNameExt) metadata.
 pub trait CommandNameExt: Command {
     /// Gets a read-write variable that is the display name for the command.
-    fn name(self) -> RcVar<Text>;
+    fn name(self) -> CommandMetaVar<Text>;
 
     /// Sets the initial name if it is not set.
     fn init_name(self, name: impl Into<Text>) -> Self;
@@ -613,23 +762,21 @@ pub trait CommandNameExt: Command {
         Self: crate::gesture::CommandShortcutExt;
 }
 state_key! {
-    struct CommandNameKey: RcVar<Text>;
+    struct CommandNameKey: Text;
 }
 impl<C: Command> CommandNameExt for C {
-    fn name(self) -> RcVar<Text> {
+    fn name(self) -> CommandMetaVar<Text> {
         self.with_meta(|m| {
-            let var = m.entry::<CommandNameKey>().or_insert_with(|| {
+            m.get_var_or_insert(CommandNameKey, || {
                 let name = type_name::<C>();
-                var_from(name.strip_suffix("Command").unwrap_or(name))
-            });
-            var.clone()
+                name.strip_suffix("Command").unwrap_or(name).to_text()
+            })
         })
     }
 
     fn init_name(self, name: impl Into<Text>) -> Self {
         self.with_meta(|m| {
-            let entry = m.entry::<CommandNameKey>();
-            entry.or_insert_with(|| var(name.into()));
+            m.init_var(CommandNameKey, name.into());
         });
         self
     }
@@ -652,22 +799,22 @@ impl<C: Command> CommandNameExt for C {
 /// Adds the [`info`](CommandInfoExt) metadata.
 pub trait CommandInfoExt: Command {
     /// Gets a read-write variable that is a short informational string about the command.
-    fn info(self) -> RcVar<Text>;
+    fn info(self) -> CommandMetaVar<Text>;
 
     /// Sets the initial info if it is not set.
     fn init_info(self, info: impl Into<Text>) -> Self;
 }
 state_key! {
-    struct CommandInfoKey: RcVar<Text>;
+    struct CommandInfoKey: Text;
 }
 impl<C: Command> CommandInfoExt for C {
-    fn info(self) -> RcVar<Text> {
-        self.with_meta(|m| m.entry::<CommandInfoKey>().or_insert_with(|| var_from("")).clone())
+    fn info(self) -> CommandMetaVar<Text> {
+        self.with_meta(|m| m.get_var_or_insert(CommandInfoKey, || "".to_text()))
     }
 
     fn init_info(self, info: impl Into<Text>) -> Self {
         self.with_meta(|m| {
-            m.entry::<CommandInfoKey>().or_insert_with(|| var(info.into()));
+            m.init_var(CommandNameKey, info.into());
         });
         self
     }
@@ -845,16 +992,19 @@ impl CommandValue {
 
     pub fn with_meta<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&mut StateMapFb) -> R,
+        F: FnOnce(&mut CommandMeta) -> R,
     {
         if let Some(init) = self.meta_init.take() {
             init()
         }
-        f(&mut StateMapFb::new(None, &mut self.meta.borrow_mut().0))
+        f(&mut CommandMeta {
+            meta: &mut self.meta.borrow_mut().0,
+            scope: None,
+        })
     }
     pub fn with_meta_scoped<F, R>(&self, f: F, scope: CommandScope) -> R
     where
-        F: FnOnce(&mut StateMapFb) -> R,
+        F: FnOnce(&mut CommandMeta) -> R,
     {
         if let CommandScope::App = scope {
             self.with_meta(f)
@@ -865,7 +1015,10 @@ impl CommandValue {
 
             let mut scopes = self.scopes.borrow_mut();
             let scope = scopes.entry(scope).or_default();
-            f(&mut StateMapFb::new(Some(&mut self.meta.borrow_mut().0), &mut scope.meta.0))
+            f(&mut CommandMeta {
+                meta: &mut self.meta.borrow_mut().0,
+                scope: Some(&mut scope.meta.0),
+            })
         }
     }
 }
