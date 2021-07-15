@@ -3,14 +3,32 @@ use std::{
     rc::{Rc, Weak},
 };
 
+use crate::crate_util::RunOnDrop;
+
 use super::*;
 
 /// A [`Var`] that is a [`Rc`] pointer to its value.
 pub struct RcVar<T: VarValue>(Rc<Data<T>>);
 struct Data<T> {
     value: UnsafeCell<T>,
+    modifying: Cell<bool>,
     last_update_id: Cell<u32>,
     version: Cell<u32>,
+}
+impl<T: Clone> Clone for Data<T> {
+    fn clone(&self) -> Self {
+        if self.modifying.get() {
+            panic!("cannot `deep_clone`, value is mutable borrowed")
+        }
+        // SAFETY: we panic if `value` is exclusive borrowed.
+        let value = unsafe { (&*self.value.get()).clone() };
+        Data {
+            value: UnsafeCell::new(value),
+            modifying: Cell::new(false),
+            last_update_id: Cell::new(self.last_update_id.get()),
+            version: Cell::new(self.version.get()),
+        }
+    }
 }
 impl<T: VarValue> RcVar<T> {
     /// New [`RcVar`].
@@ -19,6 +37,7 @@ impl<T: VarValue> RcVar<T> {
     pub fn new(initial_value: T) -> Self {
         RcVar(Rc::new(Data {
             value: UnsafeCell::new(initial_value),
+            modifying: Cell::new(false),
             last_update_id: Cell::new(0),
             version: Cell::new(0),
         }))
@@ -96,7 +115,12 @@ impl<T: VarValue> RcVar<T> {
         vars.with_vars(|vars| {
             let self_ = self.clone();
             vars.push_change(Box::new(move |update_id| {
+                debug_assert!(!self_.0.modifying.get());
+                self_.0.modifying.set(true);
+                let _drop = RunOnDrop::new(|| self_.0.modifying.set(false));
+
                 // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
+                // the `modifying` flag is only used for `deep_clone`.
                 let mut guard = VarModify::new(unsafe { &mut *self_.0.value.get() });
                 modify(&mut guard);
                 if guard.touched() {
@@ -167,6 +191,19 @@ impl<T: VarValue> RcVar<T> {
     #[inline]
     pub fn downgrade(&self) -> WeakVar<T> {
         WeakVar(Rc::downgrade(&self.0))
+    }
+
+    /// Create a detached var with a clone of the current value.
+    ///
+    /// # Panics
+    ///
+    /// Panics is called inside a [`modify`] callback.
+    ///
+    /// [`modify`]: Self::modify
+    pub fn deep_clone(&self) -> RcVar<T> {
+        let mut rc = Rc::clone(&self.0);
+        let _ = Rc::make_mut(&mut rc);
+        RcVar(rc)
     }
 }
 impl<T: VarValue> Clone for RcVar<T> {

@@ -250,7 +250,7 @@ impl<'a> From<&'a WindowContext<'a>> for CommandScope {
     }
 }
 
-/// A command that is `C` in a specific scope.
+/// A command that is a command type in a specific scope.
 ///
 /// Normal commands apply globally, if there is a handler enabled in any context the status
 /// variables indicate its availability. You can use [`Command::scoped`] to change this by
@@ -264,8 +264,9 @@ impl<'a> From<&'a WindowContext<'a>> for CommandScope {
 /// ```
 /// # use zero_ui_core::{command::*, context::*};
 /// # command! { pub FooCommand; }
-/// fn init(ctx: &mut WindowContext) {
-///     let cmd = FooCommand.scoped(*ctx.window_id);
+/// # struct FooNode { cmd: ScopedCommand<FooCommand> }
+/// fn init(&mut self, ctx: &mut WindowContext) {
+///     self.cmd = FooCommand.scoped(*ctx.window_id);
 /// }  
 /// ```
 ///
