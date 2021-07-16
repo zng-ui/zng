@@ -4,7 +4,7 @@ use crate::context::*;
 use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::profiler::*;
 use crate::timer::Timers;
-use crate::var::{response_var, ResponderVar, ResponseVar};
+use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
 use crate::{
     focus::FocusManager,
     gesture::GestureManager,
@@ -777,6 +777,11 @@ impl<E: AppExtension> RunningApp<E> {
         self.owned_ctx.borrow(window_target)
     }
 
+    /// Borrow the [`Vars`] only.
+    pub fn vars(&self) -> &Vars {
+        self.owned_ctx.vars()
+    }
+
     /// Event loop has awakened because [`WaitUntil`](ControlFlow::WaitUntil) was requested.
     pub fn wait_until_elapsed(&mut self) {
         self.maybe_has_updates = true;
@@ -1143,8 +1148,12 @@ impl HeadlessApp {
 
     /// Borrows the app context.
     pub fn ctx<'a>(&'a mut self) -> AppContext<'a, 'static> {
-        profile_scope!("headless_app::with_context");
         self.app.ctx(WindowTarget::headless())
+    }
+
+    /// Borrow the [`Vars`] only.
+    pub fn vars(&self) -> &Vars {
+        self.app.vars()
     }
 
     /// Does updates unobserved.

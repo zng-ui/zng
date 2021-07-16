@@ -365,6 +365,17 @@ impl WithUpdates for crate::context::WidgetContextMut {
         self.with(move |ctx| action(ctx.updates))
     }
 }
+#[cfg(any(test, doc, feature = "test_util"))]
+impl WithUpdates for crate::context::TestWidgetContext {
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
+        action(&mut self.updates)
+    }
+}
+impl WithUpdates for crate::app::HeadlessApp {
+    fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
+        action(self.ctx().updates)
+    }
+}
 
 /// Owner of [`AppContext`] objects.
 ///
@@ -412,6 +423,11 @@ impl OwnedAppContext {
             updates: &mut self.updates,
             window_target,
         }
+    }
+
+    /// Borrow the [`Vars`] only.
+    pub fn vars(&self) -> &Vars {
+        &self.vars
     }
 
     /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update

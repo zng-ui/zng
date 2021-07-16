@@ -72,10 +72,6 @@ pub trait Event: Debug + Clone + Copy + 'static {
     }
 }
 
-pub(crate) mod protected {
-    pub trait EventUpdateArgs {}
-}
-
 /// [`EventUpdateArgs`] for event `E`, dereferences to the argument.
 #[repr(transparent)]
 pub struct EventUpdate<E: Event>(pub E::Args);
@@ -111,7 +107,7 @@ impl<E: Event> EventUpdate<E> {
         unsafe { mem::transmute(self) }
     }
 }
-impl<E: Event> protected::EventUpdateArgs for EventUpdate<E> {}
+impl<E: Event> crate::private::Sealed for EventUpdate<E> {}
 impl<E: Event> fmt::Debug for EventUpdate<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -149,7 +145,7 @@ impl BoxedEventUpdate {
         }
     }
 }
-impl protected::EventUpdateArgs for BoxedEventUpdate {}
+impl crate::private::Sealed for BoxedEventUpdate {}
 impl fmt::Debug for BoxedEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "boxed {}", self.event_name)
@@ -212,7 +208,7 @@ impl BoxedSendEventUpdate {
         }
     }
 }
-impl protected::EventUpdateArgs for BoxedSendEventUpdate {}
+impl crate::private::Sealed for BoxedSendEventUpdate {}
 impl fmt::Debug for BoxedSendEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "boxed send {}", self.event_name)
@@ -244,7 +240,7 @@ impl<'a> fmt::Debug for AnyEventUpdate<'a> {
         write!(f, "any {}", self.event_name)
     }
 }
-impl<'a> protected::EventUpdateArgs for AnyEventUpdate<'a> {}
+impl<'a> crate::private::Sealed for AnyEventUpdate<'a> {}
 impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
     #[inline(always)]
     fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>> {
@@ -270,7 +266,7 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
 }
 
 /// Represents an event update.
-pub trait EventUpdateArgs: protected::EventUpdateArgs + fmt::Debug {
+pub trait EventUpdateArgs: fmt::Debug + crate::private::Sealed {
     /// Gets the the update arguments if the event updating is `Q`.
     fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>>;
 
@@ -962,6 +958,17 @@ impl WithEvents for crate::context::AppContextMut {
 impl WithEvents for crate::context::WidgetContextMut {
     fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
         self.with(move |ctx| action(ctx.events))
+    }
+}
+#[cfg(any(test, doc, feature = "test_util"))]
+impl WithEvents for crate::context::TestWidgetContext {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        action(&mut self.events)
+    }
+}
+impl WithEvents for crate::app::HeadlessApp {
+    fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
+        action(self.ctx().events)
     }
 }
 

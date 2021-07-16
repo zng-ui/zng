@@ -746,6 +746,23 @@ impl WithVars for crate::context::WidgetContextMut {
         self.with(move |ctx| action(ctx.vars))
     }
 }
+#[cfg(any(test, doc, feature = "test_util"))]
+impl WithVars for crate::context::TestWidgetContext {
+    fn with_vars<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        action(&self.vars)
+    }
+}
+impl WithVars for crate::app::HeadlessApp {
+    fn with_vars<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        action(self.vars())
+    }
+}
 
 /// Represents a type that can provide access to a [`VarsRead`] inside the window of function call.
 ///
@@ -829,6 +846,23 @@ impl<'a> WithVarsRead for crate::context::RenderContext<'a> {
         action(self.vars)
     }
 }
+#[cfg(any(test, doc, feature = "test_util"))]
+impl WithVarsRead for crate::context::TestWidgetContext {
+    fn with_vars_read<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(&self.vars)
+    }
+}
+impl WithVarsRead for crate::app::HeadlessApp {
+    fn with_vars_read<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self.vars())
+    }
+}
 
 impl AsRef<VarsRead> for VarsRead {
     fn as_ref(&self) -> &VarsRead {
@@ -865,6 +899,17 @@ impl<'a> AsRef<VarsRead> for crate::context::RenderContext<'a> {
         self.vars
     }
 }
+#[cfg(any(test, doc, feature = "test_util"))]
+impl AsRef<VarsRead> for crate::context::TestWidgetContext {
+    fn as_ref(&self) -> &VarsRead {
+        &self.vars
+    }
+}
+impl AsRef<VarsRead> for crate::app::HeadlessApp {
+    fn as_ref(&self) -> &VarsRead {
+        self.vars()
+    }
+}
 impl AsRef<Vars> for Vars {
     fn as_ref(&self) -> &Vars {
         self
@@ -883,6 +928,17 @@ impl<'a> AsRef<Vars> for crate::context::WindowContext<'a> {
 impl<'a> AsRef<Vars> for crate::context::WidgetContext<'a> {
     fn as_ref(&self) -> &Vars {
         self.vars
+    }
+}
+#[cfg(any(test, doc, feature = "test_util"))]
+impl AsRef<Vars> for crate::context::TestWidgetContext {
+    fn as_ref(&self) -> &Vars {
+        &self.vars
+    }
+}
+impl AsRef<Vars> for crate::app::HeadlessApp {
+    fn as_ref(&self) -> &Vars {
+        self.vars()
     }
 }
 

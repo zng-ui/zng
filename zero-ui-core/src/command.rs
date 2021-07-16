@@ -105,6 +105,13 @@ macro_rules! command {
             pub fn new_handle<Evs: $crate::event::WithEvents>(self, events: &mut Evs, enabled: bool) -> $crate::command::CommandHandle {
                 <Self as $crate::command::Command>::new_handle(self, events, enabled)
             }
+
+            /// Get a scoped command derived from this command type.
+            #[inline]
+            #[allow(unused)]
+            pub fn scoped<S: Into<$crate::command::CommandScope>>(self, scope: S) -> $crate::command::ScopedCommand<Self> {
+                <Self as $crate::command::Command>::scoped(self, scope)
+            }
         }
         impl $crate::event::Event for $Command {
             type Args = $crate::command::CommandArgs;
@@ -210,7 +217,7 @@ pub trait Command: Event<Args = CommandArgs> {
         CommandScope::App
     }
 
-    /// Create a scoped command derived from this command type.
+    /// Get a scoped command derived from this command type.
     ///
     /// Returns a new command that represents the command type in the `scope`.
     /// See [`ScopedCommand`] for details.
@@ -1287,7 +1294,7 @@ pub use crate::command_property;
 
 #[cfg(test)]
 mod tests {
-    use super::{command, CommandArgs, CommandScope};
+    use super::*;
 
     command! {
         FooCommand;
@@ -1298,4 +1305,6 @@ mod tests {
     fn parameter_none() {
         let _ = CommandArgs::now(None, CommandScope::App);
     }
+
+    // there are also integration tests in tests/command.rs
 }
