@@ -1,11 +1,10 @@
 //! App event API.
 
-use fnv::FnvHashMap;
 use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
-use crate::command::AnyCommand;
+use crate::command::{AnyCommand, CommandScope};
 use crate::context::{AppContext, Updates, WidgetContext};
 use crate::crate_util::{Handle, HandleOwner};
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
@@ -13,6 +12,7 @@ use crate::var::Vars;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 use std::mem;
@@ -605,7 +605,7 @@ pub struct Events {
     pre_handlers: Vec<OnEventHandler>,
     pos_handlers: Vec<OnEventHandler>,
 
-    commands: FnvHashMap<TypeId, AnyCommand>,
+    commands: HashMap<(TypeId, CommandScope), AnyCommand>,
 
     _singleton: SingletonEvents,
 }
@@ -628,7 +628,7 @@ impl Events {
             buffers: vec![],
             pre_handlers: vec![],
             pos_handlers: vec![],
-            commands: FnvHashMap::default(),
+            commands: HashMap::new(),
             _singleton: SingletonEvents::assert_new("Events"),
         }
     }
@@ -644,9 +644,10 @@ impl Events {
     }
 
     pub(crate) fn register_command(&mut self, command: AnyCommand) {
-        if let Some(already) = self.commands.insert(command.command_type_id(), command) {
-            self.commands.insert(already.command_type_id(), already);
-            panic!("command `{:?}` is already registered", command)
+        let id = (command.command_type_id(), command.scope());
+        if let Some(already) = self.commands.insert(id, command) {
+            self.commands.insert(id, already);
+            panic!("command `{:?}:{:?}` is already registered", command, id.1)
         }
     }
 
