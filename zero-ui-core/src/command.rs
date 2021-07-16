@@ -1294,6 +1294,8 @@ pub use crate::command_property;
 
 #[cfg(test)]
 mod tests {
+    use crate::context::TestWidgetContext;
+
     use super::*;
 
     command! {
@@ -1306,5 +1308,58 @@ mod tests {
         let _ = CommandArgs::now(None, CommandScope::App);
     }
 
+    #[test]
+    fn enabled() {
+        let mut ctx = TestWidgetContext::new();
+        assert!(!FooCommand.enabled_value());
+
+        let handle = FooCommand.new_handle(&mut ctx, true);
+        assert!(FooCommand.enabled_value());
+
+        handle.set_enabled(false);
+        assert!(!FooCommand.enabled_value());
+
+        handle.set_enabled(true);
+        assert!(FooCommand.enabled_value());
+
+        drop(handle);
+        assert!(!FooCommand.enabled_value());
+    }
+
+    #[test]
+    fn enabled_scoped() {
+        let mut ctx = TestWidgetContext::new();
+
+        let cmd = FooCommand;
+        let cmd_scoped = FooCommand.scoped(ctx.window_id);
+        assert!(!cmd.enabled_value());
+        assert!(!cmd_scoped.enabled_value());
+
+        let handle_scoped = cmd_scoped.new_handle(&mut ctx, true);
+        assert!(cmd.enabled_value());
+        assert!(cmd_scoped.enabled_value());
+
+        handle_scoped.set_enabled(false);
+        assert!(!cmd.enabled_value());
+        assert!(!cmd_scoped.enabled_value());
+
+        handle_scoped.set_enabled(true);
+        assert!(cmd.enabled_value());
+        assert!(cmd_scoped.enabled_value());
+
+        drop(handle_scoped);
+        assert!(!cmd.enabled_value());
+        assert!(!cmd_scoped.enabled_value());
+    }
+
+    #[test]
+    fn has_handlers() {
+        todo!()
+    }
+
+    #[test]
+    fn has_handlers_scoped() {
+        todo!()
+    }
     // there are also integration tests in tests/command.rs
 }
