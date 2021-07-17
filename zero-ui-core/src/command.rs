@@ -243,18 +243,18 @@ pub trait Command: Event<Args = CommandArgs> {
     fn scoped<S: Into<CommandScope>>(self, scope: S) -> ScopedCommand<Self::AppScopeCommand>;
 }
 
-/// Represents the scope of a [scoped command].
+/// Represents the scope of a [`Command`].
 ///
-/// [scoped command]: Command::scoped
+/// See [`ScopedCommand<C>`] for more details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CommandScope {
-    /// Default scope, the command notifies in all scopes.
+    /// Default scope, this is the scope of command types declared using [`command!`].
     App,
-    /// A window and its content.
+    /// Scope of a window.
     Window(WindowId),
-    /// A widget and its content.
+    /// Scope of a widget.
     Widget(WidgetId),
-    /// A custom scope.
+    /// Custom scope. The first value is *namespace* type, the second value is an unique id within the namespace.
     Custom(TypeId, u64),
 }
 impl From<WidgetId> for CommandScope {
@@ -268,22 +268,25 @@ impl From<WindowId> for CommandScope {
     }
 }
 impl<'a> From<&'a WidgetContext<'a>> for CommandScope {
+    /// Widget scope from the `ctx.path.widget_id()`.
     fn from(ctx: &'a WidgetContext<'a>) -> Self {
         CommandScope::Widget(ctx.path.widget_id())
     }
 }
 impl<'a> From<&'a WindowContext<'a>> for CommandScope {
+    /// Window scope from the `ctx.window_id`.
     fn from(ctx: &'a WindowContext<'a>) -> CommandScope {
         CommandScope::Window(*ctx.window_id)
     }
 }
 impl<'a> From<&'a WidgetContextMut> for CommandScope {
+    /// Widget scope from the `ctx.widget_id()`.
     fn from(ctx: &'a WidgetContextMut) -> Self {
         CommandScope::Widget(ctx.widget_id())
     }
 }
 
-/// A command that is a command type in a specific scope.
+/// A command that is a command type in a scope.
 ///
 /// Normal commands apply globally, if there is a handler enabled in any context the status
 /// variables indicate its availability. You can use [`Command::scoped`] to change this by
@@ -308,21 +311,29 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 /// # Enabled & Has Handlers
 ///
 /// The [`enabled`] and [`has_handlers`] variables are only `true` when there is
-/// a handler created using the same scope, handlers created for other scopes or
-/// [not scoped] do not activate a scoped command. On the other hand, scoped handlers
-/// activate [`enabled`] and [`has_handlers`] of the [not scoped] command **and** of the scoped command.
+/// a handler created using the same scope.
 ///
 /// ```
-/// # use zero_ui_core::{command::*, context::*};
+/// # use zero_ui_core::{command::*, context::*, handler::*, var::*};
 /// # command! { pub FooCommand; }
-/// # fn init(ctx: &mut WindowContext) {
-/// let a = FooCommand.enabled();
-/// let b = FooCommand.scoped(*ctx.window_id).enabled();
+/// # fn demo() -> impl WidgetHandler<()> {
+/// async_hn!(|mut ctx, _| {
+///     let cmd = FooCommand;
+///     let cmd_scoped = cmd.scoped(ctx.window_id());
+///
+///     let enabled = cmd.enabled();
+///     let enabled_scoped = cmd_scoped.enabled();
+///
+///     let handle = cmd_scoped.new_handle(&mut ctx, true);
+///     ctx.update().await;
+///
+///     assert!(!enabled.copy(&ctx));
+///     assert!(enabled_scoped.copy(&ctx));
+/// })
 /// # }  
 /// ```
 ///
-/// In the example above, `a` is `true` when there is any handler enabled, scoped or not, but `b` is only
-/// `true` when there is a handler created using the same `window_id` and enabled.
+/// In the example above, only the `enabled_scoped` is `true` after only the `cmd_scoped` is enabled.
 ///
 /// # Metadata
 ///
@@ -359,28 +370,27 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 /// # }
 /// ```
 ///
-/// See [`CommandMetaVar<T>`] for details.
+/// See [`CommandMetaVar<T>`] for details of how this is implemented.
 ///
 /// # Notify
 ///
 /// Calling [`notify`] from a scoped command **notifies the base type** but sets the [`CommandArgs::scope`]
-/// the event will be handled by handlers for the same scope and by [not scoped] handlers.
+/// the event will be handled by handlers for the same scope.
 ///
 /// ```
 /// # use zero_ui_core::{command::*, context::*};
 /// # command! { pub FooCommand; }
 /// # fn init(ctx: &mut WindowContext) {
-/// let notified = FooCommand.notify(ctx, None);
+/// let notified = FooCommand.scoped(*ctx.window_id).notify(ctx, None);
 /// # }  
 /// ```
 ///
-/// In the example above `notified` is `true` if there are any enabled handlers for the same scope or [not scoped].
+/// In the example above `notified` is `true` only if there are any enabled handlers for the same scope.
 ///
 /// # Update
 ///
-/// Calling [`update`] from a scoped command detects updates for the same command base type if the [`CommandArgs::scope`]
-/// is equal to the command scope or is [not scoped]. Unless the command [not scoped], in this case it will detect updates
-/// from any scope.
+/// Calling [`update`] from a command detects updates for the same command type if the [`CommandArgs::scope`]
+/// is equal to the command scope.
 ///
 /// ```
 /// # use zero_ui_core::{command::*, context::*, event::*};
@@ -395,13 +405,18 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 /// # }
 /// ```
 ///
-/// The example will print for [`CommandScope::Window`] with the same id and for [`CommandScope::App`].
+/// The example will print only for commands on the scope of [`CommandScope::Window`] with the same id.
+///
+/// # App Scope
+///
+/// It is is possible to create a scoped command using the [`App`] scope. In this
+/// case the scoped command struct behaves exactly like a default command type.
 ///
 /// [`enabled`]: ScopedCommand::enabled
 /// [`notify`]: ScopedCommand::notify
 /// [`update`]: ScopedCommand::update
 /// [`has_handlers`]: ScopedCommand::has_handlers
-/// [not scoped]: CommandScope::App
+/// [`App`]: CommandScope::App
 /// [`name`]: CommandNameExt::name
 #[derive(Debug, Clone, Copy)]
 pub struct ScopedCommand<C: Command> {
@@ -441,7 +456,7 @@ impl<C: Command> ScopedCommand<C> {
 
     /// Schedule an event update if the command is enabled.
     ///
-    /// The event notified is the `C` command, not `Self`. The scope is passed in the [`CommandArgs`].
+    /// The event type notified is the `C` type, not `Self`. The scope is passed in the [`CommandArgs`].
     ///
     /// The `parameter` is an optional value for the command handler.
     ///
@@ -456,10 +471,12 @@ impl<C: Command> ScopedCommand<C> {
     }
 
     /// Gets the event arguments if the update is for this command type and scope.
-    pub fn update<U: crate::event::EventUpdateArgs>(self, args: &U) -> Option<&crate::event::EventUpdate<Self>> {
+    ///
+    /// Returns `Some(args)` if the event type is the `C` type, and the [`CommandArgs::scope`] is equal.
+    pub fn update<U: crate::event::EventUpdateArgs>(self, args: &U) -> Option<&crate::event::EventUpdate<C>> {
         if let Some(args) = args.args_for::<C>() {
             if args.scope == self.scope {
-                Some(args.transmute_event::<Self>())
+                Some(args)
             } else {
                 None
             }
@@ -478,7 +495,7 @@ impl<C: Command> Event for ScopedCommand<C> {
     }
 
     fn update<U: crate::event::EventUpdateArgs>(self, args: &U) -> Option<&crate::event::EventUpdate<Self>> {
-        self.update(args)
+        self.update(args).map(|a| a.transmute_event::<Self>())
     }
 }
 impl<C: Command> Command for ScopedCommand<C> {

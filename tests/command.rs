@@ -4,9 +4,24 @@ use zero_ui_core::command::CommandHandle;
 use zero_ui_core::keyboard::HeadlessAppKeyboardExt;
 
 #[test]
-fn scoped_notify() {
+fn notify() {
     let mut app = App::default().run_headless();
-    let window_id = app.open_window(|_| notify_window());
+    app.open_window(|_| listener_window());
+
+    let cmd = FooCommand;
+    assert!(cmd.notify(&mut app, None));
+
+    app.update(false);
+
+    let trace = app.ctx().app_state.req::<TestTrace>();
+    assert_eq!(1, trace.len());
+    assert!(trace.iter().any(|t| t == "no-scope / App"));
+}
+
+#[test]
+fn notify_scoped() {
+    let mut app = App::default().run_headless();
+    let window_id = app.open_window(|_| listener_window());
 
     let cmd = FooCommand;
     let cmd_scoped = cmd.scoped(window_id);
@@ -21,24 +36,9 @@ fn scoped_notify() {
 }
 
 #[test]
-fn not_scoped_notify() {
+fn shortcut() {
     let mut app = App::default().run_headless();
-    app.open_window(|_| notify_window());
-
-    let cmd = FooCommand;
-    assert!(cmd.notify(&mut app, None));
-
-    app.update(false);
-
-    let trace = app.ctx().app_state.req::<TestTrace>();
-    assert_eq!(1, trace.len());
-    assert!(trace.iter().any(|t| t == "no-scope / App"));
-}
-
-#[test]
-fn not_scoped_shortcut() {
-    let mut app = App::default().run_headless();
-    let window_id = app.open_window(|_| notify_window());
+    let window_id = app.open_window(|_| listener_window());
 
     FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
 
@@ -50,9 +50,9 @@ fn not_scoped_shortcut() {
 }
 
 #[test]
-fn scoped_shortcut() {
+fn shortcut_scoped() {
     let mut app = App::default().run_headless();
-    let window_id = app.open_window(|_| notify_window());
+    let window_id = app.open_window(|_| listener_window());
 
     FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
     FooCommand.scoped(window_id).shortcut().set(&app, shortcut!(G)).unwrap();
@@ -73,7 +73,7 @@ fn scoped_shortcut() {
     assert!(trace.iter().any(|t| t == "no-scope / App"));
 }
 
-fn notify_window() -> Window {
+fn listener_window() -> Window {
     struct FooHandlerNode {
         handle: Option<CommandHandle>,
         handle_scoped: Option<CommandHandle>,
