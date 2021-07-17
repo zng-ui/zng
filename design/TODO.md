@@ -32,8 +32,9 @@ Things that must be done first because they influence the core API design that i
   * Support doc(cfg).
 
 * Commands.
-  * Disable commands in a context only.
-  * Execute only in a context.
+  * Review documentation, not-scoped is just app scope, does not activate scoped of same type.
+  * Review command_property! now that scopes are a thing.
+  * Review InspectCommand.
 
 * Timers.
   * Unify with app handlers (missing on_interval docs).

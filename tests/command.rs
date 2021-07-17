@@ -1,6 +1,7 @@
 use zero_ui::core::{command::command, context::state_key, event::EventUpdateArgs, impl_ui_node};
 use zero_ui::prelude::*;
 use zero_ui_core::command::CommandHandle;
+use zero_ui_core::keyboard::HeadlessAppKeyboardExt;
 
 #[test]
 fn scoped_notify() {
@@ -15,9 +16,8 @@ fn scoped_notify() {
     app.update(false);
 
     let trace = app.ctx().app_state.req::<TestTrace>();
-    assert_eq!(2, trace.len());
-    assert!(trace.contains(&format!("no-scope / Window({:?})", window_id)));
-    assert!(trace.contains(&format!("scoped / Window({:?})", window_id)))
+    assert_eq!(1, trace.len());
+    assert!(trace.contains(&format!("scoped-win / Window({:?})", window_id)))
 }
 
 #[test]
@@ -31,20 +31,46 @@ fn not_scoped_notify() {
     app.update(false);
 
     let trace = app.ctx().app_state.req::<TestTrace>();
-    assert_eq!(3, trace.len());
+    assert_eq!(1, trace.len());
     assert!(trace.iter().any(|t| t == "no-scope / App"));
-    assert!(trace.iter().any(|t| t == "scoped / App"));
-    assert!(trace.iter().any(|t| t == "scoped-wgt / App"));
 }
 
 #[test]
-fn shortcut() {
-    todo!()
+fn not_scoped_shortcut() {
+    let mut app = App::default().run_headless();
+    let window_id = app.open_window(|_| notify_window());
+
+    FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
+
+    app.press_key(window_id, Key::F);
+
+    let trace = app.ctx().app_state.req::<TestTrace>();
+    assert_eq!(1, trace.len());
+    assert!(trace.iter().any(|t| t == "no-scope / App"));
 }
 
 #[test]
-fn shortcut_scoped() {
-    todo!()
+fn scoped_shortcut() {
+    let mut app = App::default().run_headless();
+    let window_id = app.open_window(|_| notify_window());
+
+    FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
+    FooCommand.scoped(window_id).shortcut().set(&app, shortcut!(G)).unwrap();
+
+    app.press_key(window_id, Key::G);
+
+    {
+        let trace = app.ctx().app_state.req_mut::<TestTrace>();
+        assert_eq!(1, trace.len());
+        assert!(trace.contains(&format!("scoped-win / Window({:?})", window_id)));
+        trace.clear();
+    }
+
+    app.press_key(window_id, Key::F);
+    let trace = app.ctx().app_state.req::<TestTrace>();
+
+    assert_eq!(1, trace.len());
+    assert!(trace.iter().any(|t| t == "no-scope / App"));
 }
 
 fn notify_window() -> Window {
@@ -72,7 +98,7 @@ fn notify_window() -> Window {
                 ctx.app_state
                     .entry::<TestTrace>()
                     .or_default()
-                    .push(format!("scoped / {:?}", args.scope));
+                    .push(format!("scoped-win / {:?}", args.scope));
             }
 
             if let Some(args) = FooCommand.scoped(ctx.path.widget_id()).update(args) {

@@ -5,15 +5,13 @@
 use std::{
     any::{type_name, Any, TypeId},
     cell::{Cell, RefCell},
-    collections::{hash_map, HashMap},
+    collections::HashMap,
     fmt,
     marker::PhantomData,
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
     thread::LocalKey,
 };
-
-use parking_lot::Mutex;
 
 use crate::{
     context::{OwnedStateMap, WidgetContext, WidgetContextMut, WindowContext},
@@ -53,11 +51,19 @@ macro_rules! command {
                 });
             }
 
-            /// Gets the event arguments if the update is for this event.
+            /// Gets the event arguments if the update is for this command type and scope.
             #[inline(always)]
             #[allow(unused)]
             pub fn update<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<$Command>> {
-                <Self as $crate::event::Event>::update(self, args)
+                if let Some(args) = args.args_for::<Self>() {
+                    if args.scope == $crate::command::CommandScope::App {
+                        Some(args)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
 
             /// Schedule an event update if the command is enabled.
@@ -125,6 +131,10 @@ macro_rules! command {
                 if Self::COMMAND.with(move |c| c.enabled_value(scope)) {
                     events.with_events(|evs| evs.notify::<Self>(args));
                 }
+            }
+
+            fn update<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<Self>> {
+                self.update(args)
             }
         }
         impl $crate::command::Command for $Command {
@@ -445,12 +455,10 @@ impl<C: Command> ScopedCommand<C> {
         enabled
     }
 
-    /// Gets the event arguments if the update is for this command and is of a compatible scope.
-    ///
-    /// The scope is compatible if it is [`CommandScope::App`] or is equal to the `scope`.
+    /// Gets the event arguments if the update is for this command type and scope.
     pub fn update<U: crate::event::EventUpdateArgs>(self, args: &U) -> Option<&crate::event::EventUpdate<Self>> {
         if let Some(args) = args.args_for::<C>() {
-            if args.scope == CommandScope::App || self.scope == CommandScope::App || args.scope == self.scope {
+            if args.scope == self.scope {
                 Some(args.transmute_event::<Self>())
             } else {
                 None
@@ -579,7 +587,7 @@ impl AnyCommand {
 }
 impl fmt::Debug for AnyCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "any {}", self.command_type_name())
+        write!(f, "any {}:{:?}", self.command_type_name(), self.scope())
     }
 }
 impl Event for AnyCommand {
@@ -891,7 +899,6 @@ impl<C: Command> CommandInfoExt for C {
 /// You can use the [`Command::new_handle`] method in a command type to create a handle.
 pub struct CommandHandle {
     handle: Handle<CommandHandleData>,
-    scope: CommandScope,
     local_enabled: Cell<bool>,
 }
 impl CommandHandle {
@@ -904,24 +911,14 @@ impl CommandHandle {
             let data = self.handle.data();
 
             if enabled {
-                let check = data.app_count.fetch_add(1, Ordering::Relaxed);
+                let check = data.enabled_count.fetch_add(1, Ordering::Relaxed);
                 if check == usize::MAX {
-                    data.app_count.store(usize::MAX, Ordering::Relaxed);
+                    data.enabled_count.store(usize::MAX, Ordering::Relaxed);
                     panic!("CommandHandle reached usize::MAX")
                 }
             } else {
-                data.app_count.fetch_sub(1, Ordering::Relaxed);
+                data.enabled_count.fetch_sub(1, Ordering::Relaxed);
             };
-
-            if self.scope != CommandScope::App {
-                let mut counts = data.scoped_counts.lock();
-                let count = counts.get_mut(&self.scope).unwrap();
-                if enabled {
-                    count.1 = count.1.checked_add(1).expect("CommandHandle reached usize::MAX");
-                } else {
-                    count.1 -= 1;
-                }
-            }
         }
     }
 
@@ -929,7 +926,6 @@ impl CommandHandle {
     pub fn dummy() -> Self {
         CommandHandle {
             handle: Handle::dummy(CommandHandleData::default()),
-            scope: CommandScope::App,
             local_enabled: Cell::new(false),
         }
     }
@@ -937,35 +933,17 @@ impl CommandHandle {
 impl Drop for CommandHandle {
     fn drop(&mut self) {
         if self.local_enabled.get() {
-            self.handle.data().app_count.fetch_sub(1, Ordering::Relaxed);
-        }
-        if self.scope != CommandScope::App {
-            let mut counts = self.handle.data().scoped_counts.lock();
-            match counts.entry(self.scope) {
-                hash_map::Entry::Occupied(mut e) => {
-                    let mut count = e.get_mut();
-                    if count.0 == 1 {
-                        e.remove();
-                    } else {
-                        count.0 -= 1;
-                        if self.local_enabled.get() {
-                            count.1 -= 1;
-                        }
-                    }
-                }
-                hash_map::Entry::Vacant(_) => unreachable!(),
-            }
+            self.handle.data().enabled_count.fetch_sub(1, Ordering::Relaxed);
         }
     }
 }
 #[derive(Default)]
 struct CommandHandleData {
-    app_count: AtomicUsize,
-    /// `[scope => (handles, enabled)]`
-    scoped_counts: Mutex<HashMap<CommandScope, (usize, usize)>>,
+    enabled_count: AtomicUsize,
 }
 
 struct ScopedValue {
+    handle: HandleOwner<CommandHandleData>,
     enabled: RcVar<bool>,
     has_handlers: RcVar<bool>,
     meta: OwnedStateMap,
@@ -975,6 +953,7 @@ impl Default for ScopedValue {
         ScopedValue {
             enabled: var(false),
             has_handlers: var(false),
+            handle: HandleOwner::dropped(CommandHandleData::default()),
             meta: OwnedStateMap::default(),
         }
     }
@@ -1024,9 +1003,9 @@ impl CommandValue {
         } else {
             let mut has_handlers = false;
             let mut enabled = false;
-            if let Some(count) = self.handle.data().scoped_counts.lock().get(&scope) {
-                has_handlers = true;
-                enabled = count.1 > 0;
+            if let Some(data) = self.scopes.borrow().get(&scope) {
+                has_handlers = !data.handle.is_dropped();
+                enabled = data.handle.data().enabled_count.load(Ordering::Relaxed) > 0;
             }
 
             let scopes = self.scopes.borrow_mut();
@@ -1050,7 +1029,6 @@ impl CommandValue {
             }
             let r = CommandHandle {
                 handle: self.handle.reanimate(),
-                scope: CommandScope::App,
                 local_enabled: Cell::new(false),
             };
             if enabled {
@@ -1058,19 +1036,21 @@ impl CommandValue {
             }
             r
         } else {
-            let _ = self.scopes.borrow_mut().entry(scope).or_insert_with(|| {
-                // register first time.
+            let mut scopes = self.scopes.borrow_mut();
+            let value = scopes.entry(scope).or_insert_with(|| {
+                // register scope first time.
                 events.with_events(|e| e.register_command(AnyCommand(key, scope)));
                 ScopedValue {
                     enabled: var(enabled),
                     has_handlers: var(true),
+                    handle: HandleOwner::dropped(CommandHandleData::default()),
                     meta: OwnedStateMap::new(),
                 }
             });
-
-            let mut r = self.new_handle(events, key, CommandScope::App, false);
-            r.scope = scope;
-            r.handle.data().scoped_counts.lock().entry(scope).or_insert((1, 0));
+            let r = CommandHandle {
+                handle: value.handle.reanimate(),
+                local_enabled: Cell::new(false),
+            };
             if enabled {
                 r.set_enabled(true);
             }
@@ -1089,17 +1069,11 @@ impl CommandValue {
 
     pub fn enabled_value(&self, scope: CommandScope) -> bool {
         if let CommandScope::App = scope {
-            !self.handle.is_dropped() && self.handle.data().app_count.load(Ordering::Relaxed) > 0
+            !self.handle.is_dropped() && self.handle.data().enabled_count.load(Ordering::Relaxed) > 0
+        } else if let Some(value) = self.scopes.borrow().get(&scope) {
+            !value.handle.is_dropped() && value.handle.data().enabled_count.load(Ordering::Relaxed) > 0
         } else {
-            !self.handle.is_dropped()
-                && self
-                    .handle
-                    .data()
-                    .scoped_counts
-                    .lock()
-                    .get(&scope)
-                    .map(|s| s.1 > 0)
-                    .unwrap_or_default()
+            false
         }
     }
 
@@ -1115,8 +1089,10 @@ impl CommandValue {
     pub fn has_handlers_value(&self, scope: CommandScope) -> bool {
         if let CommandScope::App = scope {
             !self.handle.is_dropped()
+        } else if let Some(value) = self.scopes.borrow().get(&scope) {
+            !value.handle.is_dropped()
         } else {
-            !self.handle.is_dropped() && self.handle.data().scoped_counts.lock().contains_key(&scope)
+            false
         }
     }
 
@@ -1419,7 +1395,7 @@ mod tests {
         assert!(!cmd_scoped.enabled_value());
 
         let handle_scoped = cmd_scoped.new_handle(&mut ctx, true);
-        assert!(cmd.enabled_value());
+        assert!(!cmd.enabled_value());
         assert!(cmd_scoped.enabled_value());
 
         handle_scoped.set_enabled(false);
@@ -1427,7 +1403,7 @@ mod tests {
         assert!(!cmd_scoped.enabled_value());
 
         handle_scoped.set_enabled(true);
-        assert!(cmd.enabled_value());
+        assert!(!cmd.enabled_value());
         assert!(cmd_scoped.enabled_value());
 
         drop(handle_scoped);
@@ -1459,7 +1435,7 @@ mod tests {
 
         let handle = cmd_scoped.new_handle(&mut ctx, false);
 
-        assert!(cmd.has_handlers_value());
+        assert!(!cmd.has_handlers_value());
         assert!(cmd_scoped.has_handlers_value());
 
         drop(handle);

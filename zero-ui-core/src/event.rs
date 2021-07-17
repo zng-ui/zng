@@ -4,7 +4,7 @@ use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
-use crate::command::{AnyCommand, CommandScope};
+use crate::command::AnyCommand;
 use crate::context::{AppContext, Updates, WidgetContext};
 use crate::crate_util::{Handle, HandleOwner};
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
@@ -12,7 +12,6 @@ use crate::var::Vars;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, UiNode};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 use std::mem;
@@ -605,7 +604,7 @@ pub struct Events {
     pre_handlers: Vec<OnEventHandler>,
     pos_handlers: Vec<OnEventHandler>,
 
-    commands: HashMap<(TypeId, CommandScope), AnyCommand>,
+    commands: Vec<AnyCommand>,
 
     _singleton: SingletonEvents,
 }
@@ -628,7 +627,7 @@ impl Events {
             buffers: vec![],
             pre_handlers: vec![],
             pos_handlers: vec![],
-            commands: HashMap::new(),
+            commands: vec![],
             _singleton: SingletonEvents::assert_new("Events"),
         }
     }
@@ -644,11 +643,14 @@ impl Events {
     }
 
     pub(crate) fn register_command(&mut self, command: AnyCommand) {
-        let id = (command.command_type_id(), command.scope());
-        if let Some(already) = self.commands.insert(id, command) {
-            self.commands.insert(id, already);
-            panic!("command `{:?}:{:?}` is already registered", command, id.1)
+        if self
+            .commands
+            .iter()
+            .any(|c| c.command_type_id() == command.command_type_id() && c.scope() == command.scope())
+        {
+            panic!("command `{:?}` is already registered", command)
         }
+        self.commands.push(command);
     }
 
     /// Creates an event buffer that listens to `E`. The event updates are pushed as soon as possible, before
@@ -853,7 +855,7 @@ impl Events {
 
     #[must_use]
     pub(super) fn apply_updates(&mut self, vars: &Vars, updates: &mut Updates) -> Vec<BoxedEventUpdate> {
-        for command in self.commands.values() {
+        for command in &self.commands {
             command.update_state(vars);
         }
         if !self.updates.is_empty() {
@@ -896,7 +898,7 @@ impl Events {
     /// [`Command::new_handle`]: crate::command::Command::new_handle
     #[inline]
     pub fn commands(&self) -> impl Iterator<Item = AnyCommand> + '_ {
-        self.commands.values().copied()
+        self.commands.iter().copied()
     }
 }
 
