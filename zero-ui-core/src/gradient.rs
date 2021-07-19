@@ -924,7 +924,7 @@ macro_rules! __stops {
         }
     };
 }
-/// Creates a [`GradientStops`] containing the arguments.
+///<span data-inline></span> Creates a [`GradientStops`] containing the arguments.
 ///
 /// A minimum of two arguments are required, the first and last argument must be expressions that convert to [`ColorStop`],
 /// the middle arguments mut be expressions that convert to [`GradientStop`].

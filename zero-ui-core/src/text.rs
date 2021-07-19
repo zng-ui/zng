@@ -1103,7 +1103,7 @@ mod tests {
     }
 }
 
-/// Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
+///<span data-inline></span> Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
 /// wrapping the result in a `Cow::Owned`.
 ///
 /// # Example

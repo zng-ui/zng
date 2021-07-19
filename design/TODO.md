@@ -17,7 +17,6 @@ Things that must be done first because they influence the core API design that i
   * Fix modules not showing in window!.
   * Fix when docs.
   * Implement helpers for running async code examples.
-  * Fix macro_rules! macros showing at the start page.
 
 * Focusable
   * Support more then one ALT scopes?

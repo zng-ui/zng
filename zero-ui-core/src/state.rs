@@ -18,7 +18,7 @@ pub trait StateKey: 'static {
     type Type: 'static;
 }
 
-/// Declares new [`StateKey`](crate::context::StateKey) types.
+///<span data-inline></span> Declares new [`StateKey`](crate::context::StateKey) types.
 ///
 /// # Example
 ///

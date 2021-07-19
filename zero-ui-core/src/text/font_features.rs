@@ -1792,7 +1792,7 @@ impl fmt::Debug for FontVariations {
     }
 }
 
-/// Initialize a [`FontVariations`] map.
+///<span data-inline></span> Initialize a [`FontVariations`] map.
 ///
 /// # Example
 ///

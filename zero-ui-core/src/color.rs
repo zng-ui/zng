@@ -4,7 +4,7 @@ use crate::{context::LayoutContext, render::FrameBinding, units::*};
 use std::fmt;
 use webrender::api::{self as wr, FilterOp};
 
-/// Hexadecimal color literal.
+///<span data-inline></span> Hexadecimal color literal.
 ///
 /// # Syntax
 ///

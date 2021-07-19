@@ -38,7 +38,7 @@ impl fmt::Display for SourceLocation {
     }
 }
 
-/// New [`SourceLocation`] that represents the location you call this macro.
+///<span data-inline></span> New [`SourceLocation`] that represents the location you call this macro.
 #[macro_export]
 macro_rules! source_location {
     () => {

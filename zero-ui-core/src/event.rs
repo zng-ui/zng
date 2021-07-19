@@ -977,7 +977,7 @@ impl WithEvents for crate::app::HeadlessApp {
 
 type Retain = bool;
 
-/// Declares new [`EventArgs`](crate::event::EventArgs) types.
+///<span data-inline></span> Declares new [`EventArgs`](crate::event::EventArgs) types.
 ///
 /// # Example
 ///
@@ -1120,7 +1120,7 @@ macro_rules! event_args {
 #[doc(inline)]
 pub use crate::event_args;
 
-/// Declares new [`CancelableEventArgs`](crate::event::CancelableEventArgs) types.
+///<span data-inline></span> Declares new [`CancelableEventArgs`](crate::event::CancelableEventArgs) types.
 ///
 /// Same syntax as [`event_args!`](macro.event_args.html) but the generated args is also cancelable.
 ///
@@ -1285,7 +1285,7 @@ macro_rules! cancelable_event_args {
 #[doc(inline)]
 pub use crate::cancelable_event_args;
 
-/// Declares new [`Event`](crate::event::Event) types.
+///<span data-inline></span> Declares new [`Event`](crate::event::Event) types.
 ///
 /// # Example
 ///
@@ -1398,7 +1398,7 @@ macro_rules! __event_property {
         }
     };
 }
-/// Declare one or more event properties.
+///<span data-inline></span> Declare one or more event properties.
 ///
 /// Each declaration expands to two properties `on_$event`, `on_pre_$event`.
 /// The preview properties call [`on_pre_event`](crate::event::on_pre_event),

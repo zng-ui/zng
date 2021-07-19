@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell, UnsafeCell};
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-/// Initializes a new [`Var`](crate::var::Var) with value made
+///<span data-inline></span> Initializes a new [`Var`](crate::var::Var) with value made
 /// by merging multiple other variables.
 ///
 /// # Arguments

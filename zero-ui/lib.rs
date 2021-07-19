@@ -748,18 +748,6 @@
 //! [`WidgetContext`]: crate::core::context::WidgetContext
 //! [`WidgetContextMut`]: crate::core::context::WidgetContextMut
 //! [futures]: std::future::Future
-/*
-<script>
-// hide macros from doc root
-document.addEventListener('DOMContentLoaded', function() {
-    var macros = document.getElementById('macros');
-    macros.nextElementSibling.remove();
-    macros.remove();
-
-    var side_bar_anchor = document.querySelector("li a[href='#macros']").remove();
- })
-</script>
-*/
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]

@@ -211,7 +211,7 @@ mod profiler_impl {
 #[cfg(feature = "app_profiler")]
 pub use profiler_impl::*;
 
-/// Declares a [`ProfileScope`](crate::profiler::ProfileScope) variable if
+///<span data-inline></span> Declares a [`ProfileScope`](crate::profiler::ProfileScope) variable if
 /// the `app_profiler` feature is active.
 ///
 /// # Example

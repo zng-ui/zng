@@ -2,6 +2,20 @@
 //!
 //! Commands are [events](Event) that represent app actions.
 
+/*!
+<script>
+// hide re-exported `self`. We need to `pub use crate::command;` to inline the macro
+// but that the path to the `command` module too.
+document.addEventListener('DOMContentLoaded', function() {
+    var macros = document.getElementById('modules');
+    macros.nextElementSibling.remove();
+    macros.remove();
+
+    var side_bar_anchor = document.querySelector("li a[href='#modules']").remove();
+ })
+</script>
+ */
+
 use std::{
     any::{type_name, Any, TypeId},
     cell::{Cell, RefCell},
@@ -27,7 +41,7 @@ use crate::{
     UiNode, WidgetId,
 };
 
-/// Declares new [`Command`] types.
+/// <span data-inline></span> Declares new [`Command`] types.
 ///
 /// The macro generates a unit `struct` that implements [`Event`] with arguments type [`CommandArgs`] and implements [`Command`].
 /// The most used methods of [`Event`] and [`Command`] are also *re-exported* as associated methods.
@@ -1472,7 +1486,7 @@ where
     }
 }
 
-/// Declare command properties.
+///<span data-inline></span> Declare command properties.
 #[macro_export]
 macro_rules! command_property {
     ($(

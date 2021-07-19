@@ -284,7 +284,7 @@ macro_rules! __context_var_inner {
     };
 }
 
-/// Declares new [`ContextVar`](crate::var::ContextVar) types.
+///<span data-inline></span> Declares new [`ContextVar`](crate::var::ContextVar) types.
 ///
 /// # Examples
 /// ```

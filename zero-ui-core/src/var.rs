@@ -1153,7 +1153,7 @@ impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
     }
 }
 
-/// New [`impl Var<T>`](Var) from an expression with interpolated *vars*.
+///<span data-inline></span> New [`impl Var<T>`](Var) from an expression with interpolated *vars*.
 ///
 /// # Interpolation
 ///

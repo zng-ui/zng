@@ -9,6 +9,20 @@
 
 //! Core infrastructure required for creating components and running an app.
 
+/*!
+<script>
+// hide macros from doc root
+document.addEventListener('DOMContentLoaded', function() {
+    let removes = document.querySelectorAll('span[data-inline]');
+    for (let remove of removes) {
+        let div = remove.parentElement.parentElement;
+        div.previousElementSibling.remove();
+        div.remove();
+    }
+ })
+</script>
+ */
+
 #[macro_use]
 extern crate bitflags;
 
