@@ -27,7 +27,74 @@ use crate::{
     UiNode, WidgetId,
 };
 
-/// Declares new [`Command`](crate::command::Command) types.
+/// Declares new [`Command`] types.
+///
+/// The macro generates a unit `struct` that implements [`Event`] with arguments type [`CommandArgs`] and implements [`Command`].
+/// The most used methods of [`Event`] and [`Command`] are also *re-exported* as associated methods.
+///
+/// # Conventions
+///
+/// Command types have the `Command` suffix, for example a command for the clipboard *copy* action is called `CopyCommand`.
+/// Public and user facing commands also set the [`CommandNameExt`] and [`CommandInfoExt`] with localized display text.
+///
+/// # Shortcuts
+///
+/// You can give commands one or more shortcuts using the [`CommandShortcutExt`], the [`GestureManager`] notifies commands
+/// that match a pressed shortcut automatically.
+///
+/// # Examples
+///
+/// Declare two commands:
+///
+/// ```
+/// use zero_ui_core::command::command;
+///
+/// command! {
+///     /// Command docs.
+///     pub FooCommand;
+///
+///     pub(crate) BarCommand;
+/// }
+/// ```
+///
+/// You can also initialize metadata:
+///
+/// ```
+/// use zero_ui_core::{command::{command, CommandNameExt, CommandInfoExt}, gesture::{CommandShortcutExt, shortcut}};
+///
+/// command! {
+///     /// Represents the **foo** action.
+///     ///
+///     /// # Metadata
+///     ///
+///     /// This command initializes with the following metadata:
+///     ///
+///     /// | metadata     | value                             |
+///     /// |--------------|-----------------------------------|
+///     /// | [`name`]     | "Foo!"                            |
+///     /// | [`info`]     | "Does the foo! thing."            |
+///     /// | [`shortcut`] | `CTRL+F`                          |
+///     ///
+///     /// [`name`]: CommandNameExt
+///     /// [`info`]: CommandInfoExt
+///     /// [`shortcut`]: CommandShortcutExt
+///     pub FooCommand
+///         .init_name("Foo!")
+///         .init_info("Does the foo! thing.")
+///         .init_shortcut(shortcut!(CTRL+F));
+/// }
+/// ```
+///
+/// The initialization uses the [command extensions] pattern.
+///
+/// [`Command`]: crate::command::Command
+/// [`CommandArgs`]: crate::command::CommandArgs
+/// [`CommandNameExt`]: crate::command::CommandNameExt
+/// [`CommandInfoExt`]: crate::command::CommandInfoExt
+/// [`CommandShortcutExt`]: crate::gesture::CommandShortcutExt
+/// [`GestureManager`]: crate::gesture::GestureManager
+/// [`Event`]: crate::event::Event
+/// [command extensions]: crate::command::Command#extensions
 #[macro_export]
 macro_rules! command {
     ($(
@@ -64,6 +131,13 @@ macro_rules! command {
                 } else {
                     None
                 }
+            }
+
+            /// Gets the event arguments if the update is for this command type disregarding the scope.
+            #[inline(always)]
+            #[allow(unused)]
+            pub fn update_any_scope<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<$Command>> {
+                args.args_for::<Self>()
             }
 
             /// Schedule an event update if the command is enabled.
@@ -157,7 +231,48 @@ pub use crate::command;
 
 /// Identifies a command type.
 ///
-/// Use [`command!`](macro@crate::command::command) to declare.
+/// Use the [`command!`] to declare command types, it declares command types with optional
+/// [metadata](#metadata) initialization.
+///
+/// ```
+/// # use zero_ui_core::command::*;
+/// # pub trait CommandFooBarExt: Sized { fn init_foo(self, foo: bool) -> Self { self } fn init_bar(self, bar: bool) -> Self { self } }
+/// # impl<C: Command> CommandFooBarExt for C { }
+/// command! {
+///     /// Foo-bar command.
+///     pub FooBarCommand
+///         .init_foo(false)
+///         .init_bar(true);
+/// }
+/// ```
+///
+/// # Metadata
+///
+/// Commands can have metadata associated with then, this metadata is extendable and can be used to enable
+/// command features such as command shortcuts. The metadata can be accessed using [`with_meta`], metadata
+/// extensions are implemented using extension traits. See [`CommandMeta`] for more details.
+///
+/// # Handles
+///
+/// Unlike other events, commands only notify if there is at least one handler enabled, handlers
+/// must call [`new_handle`] to indicate that the command is relevant to the current app state and
+/// [set its enabled] flag to indicate that the handler can fulfill command requests.
+///
+/// Properties that setup a handler for a command event should do this automatically and are usually
+/// paired with a *can_foo* context property that sets the enabled flag. You can use [`on_command`]
+/// to declare command handler properties.
+///
+/// # Scopes
+///
+/// Commands are *global* by default, meaning an enabled handle anywhere in the app enables it everywhere.
+/// You can call [`scoped`] to declare *sub-commands* that are new commands that represent a command type in a limited
+/// scope only, See [`ScopedCommand<C>`] for details.
+///
+/// [`command!`]: macro@crate::command::command
+/// [`new_handle`]: Command::new_handle
+/// [set its enabled]: CommandHandle::set_enabled
+/// [`with_meta`]: Command::with_meta
+/// [`scoped`]: Command::scoped
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait Command: Event<Args = CommandArgs> {
     /// The root command type.
@@ -165,6 +280,7 @@ pub trait Command: Event<Args = CommandArgs> {
     /// This should be `Self` by default, and will be once [this] is stable.
     ///
     /// [this]: https://github.com/rust-lang/rust/issues/29661
+    #[doc(hidden)]
     type AppScopeCommand: Command;
 
     /// Thread-local storage for command.
@@ -698,6 +814,66 @@ where
 }
 
 /// Access to metadata of a command.
+///
+/// The metadata storage can be accessed using the [`Command::with_meta`]
+/// method, you should declare and extension trait that adds methods that return [`CommandMetaVar`] or
+/// [`ReadOnlyCommandMetaVar`] that are stored in the [`CommandMeta`]. An initialization builder method for
+/// each value also must be provided to integrate with the [`command!`] macro.
+///
+/// # Examples
+///
+/// ```
+/// use zero_ui_core::{command::*, context::state_key, var::*};
+///
+/// state_key! {
+///     struct CommandFooKey: bool;
+///     struct CommandBarKey: bool;
+/// }
+///
+/// /// FooBar command values.
+/// pub trait CommandFooBarExt {
+///     /// Gets read/write *foo*.
+///     fn foo(self) -> CommandMetaVar<bool>;
+///
+///     /// Gets read-only *bar*.
+///     fn bar(self) -> ReadOnlyCommandMetaVar<bool>;
+///
+///     /// Gets a read-only var derived from other metadata.
+///     fn foo_and_bar(self) -> BoxedVar<bool>;
+///
+///     /// Init *foo*.
+///     fn init_foo(self, foo: bool) -> Self;
+///
+///     /// Init *bar*.
+///     fn init_bar(self, bar: bool) -> Self;
+/// }
+///
+/// impl<C: Command> CommandFooBarExt for C {
+///     fn foo(self) -> CommandMetaVar<bool> {
+///         self.with_meta(|m| m.get_var_or_default(CommandFooKey))
+///     }
+///
+///     fn bar(self) -> ReadOnlyCommandMetaVar<bool> {
+///         self.with_meta(|m| m.get_var_or_insert(CommandBarKey, ||true)).into_read_only()
+///     }
+///
+///     fn foo_and_bar(self) -> BoxedVar<bool> {
+///         merge_var!(self.foo(), self.bar(), |f, b| *f && *b).boxed()
+///     }
+///
+///     fn init_foo(self, foo: bool) -> Self {
+///         self.with_meta(|m| m.init_var(CommandFooKey, foo));
+///         self
+///     }
+///
+///     fn init_bar(self, bar: bool) -> Self {
+///         self.with_meta(|m| m.init_var(CommandBarKey, bar));
+///         self
+///     }
+/// }
+/// ```
+///
+/// [`command!`]: macro@crate::command::command
 pub struct CommandMeta<'a> {
     meta: &'a mut StateMap,
     scope: Option<&'a mut StateMap>,

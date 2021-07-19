@@ -17,6 +17,7 @@ Things that must be done first because they influence the core API design that i
   * Fix modules not showing in window!.
   * Fix when docs.
   * Implement helpers for running async code examples.
+  * Fix macro_rules! macros showing at the start page.
 
 * Focusable
   * Support more then one ALT scopes?
@@ -48,6 +49,10 @@ Things that must be done first because they influence the core API design that i
     * Result.
     * Map/bind parse.
   * Seal.
+
+* Task.
+  * Finish network tasks.
+  * Test, check if WriteTask can be used without blocking after each write.
 
 * Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
 
