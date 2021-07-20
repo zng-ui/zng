@@ -16,7 +16,6 @@ Things that must be done first because they influence the core API design that i
   * Fix docs of command_property! macro.
   * Fix modules not showing in window!.
   * Fix when docs.
-  * Implement helpers for running async code examples.
 
 * Focusable
   * Support more then one ALT scopes?
