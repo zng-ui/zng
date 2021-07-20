@@ -18,7 +18,7 @@ use retain_mut::RetainMut;
 
 use crate::app::{App, HeadlessApp};
 use crate::context::{AppContext, AppContextMut, TestWidgetContext, WidgetContext, WidgetContextMut};
-use crate::crate_util::WeakHandle;
+use crate::crate_util::{Handle, WeakHandle};
 use crate::task::{AppTask, WidgetTask};
 
 /// Marker traits that can be used to constrain what [`AppHandler`] or [ `WidgetHandler`] are accepted.
@@ -535,7 +535,7 @@ pub struct AppHandlerArgs<'a> {
 pub trait AppHandler<A: Clone + 'static>: 'static {
     /// Called every time the event happens.
     ///
-    /// The `args.handle` can be used to unsubscribe the handler. Async handlers are expected to schedule
+    /// The `handler_args` can be used to unsubscribe the handler. Async handlers are expected to schedule
     /// their tasks to run somewhere in the app, usually in the [`Updates::on_update`]. The `handle` is
     /// **not** expected to cancel running async tasks, only to drop `self` before the next event happens.
     ///
@@ -1455,38 +1455,19 @@ macro_rules! __async_clone_move_once {
 impl TestWidgetContext {
     /// Calls a [`WidgetHandler<A>`] once and blocks until the handler task is complete.
     ///
-    /// # Run
-    ///
     /// This function *spins* until the handler returns `false` from [`WidgetHandler::update`]. The updates
     /// are *applied* after each try or until the `timeout` is reached. Returns an error if the `timeout` is reached.
-    pub fn block_on<A, H>(&mut self, handler: &mut H, args: &A, timeout: Duration) -> Result<(), String>
+    pub fn block_on<A>(&mut self, handler: &mut dyn WidgetHandler<A>, args: &A, timeout: Duration) -> Result<(), String>
     where
         A: Clone + 'static,
-        H: WidgetHandler<A>,
     {
-        let pending = self.widget_context(|ctx| handler.event(ctx, args));
-        if pending {
-            if !self.apply_updates().has_updates() {
-                thread::yield_now();
-            }
-            let start_time = Instant::now();
-            while self.widget_context(|ctx| handler.update(ctx)) {
-                if Instant::now().duration_since(start_time) >= timeout {
-                    return Err(format!(
-                        "TestWidgetContext::block_on reached timeout of {:?} before the handler task could finish",
-                        timeout
-                    ));
-                }
-
-                if !self.apply_updates().has_updates() {
-                    thread::yield_now();
-                }
-            }
-        }
-        Ok(())
+        self.block_on_multi(vec![handler], args, timeout)
     }
 
+    /// Calls multiple [`WidgetHandler<A>`] once each and blocks until all handler tasks are complete.
     ///
+    /// This function *spins* until the handler returns `false` from [`WidgetHandler::update`] in all handlers. The updates
+    /// are *applied* after each try or until the `timeout` is reached. Returns an error if the `timeout` is reached.
     pub fn block_on_multi<A>(&mut self, mut handlers: Vec<&mut dyn WidgetHandler<A>>, args: &A, timeout: Duration) -> Result<(), String>
     where
         A: Clone + 'static,
@@ -1525,47 +1506,120 @@ impl TestWidgetContext {
         A: Clone + 'static,
         H: WidgetHandler<A>,
     {
-        Self::new().block_on(&mut handler, &args, Duration::from_secs(5)).unwrap()
+        Self::new().block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap()
     }
 
+    /// Calls the `handlers` once each and [`block_on_multi`] with a 1 second timeout.
     ///
+    /// [`block_on_multi`]: Self::block_on_multi.
+    #[track_caller]
     pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Box<dyn WidgetHandler<A>>>)
     where
         A: Clone + 'static,
     {
         Self::new()
-            .block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, Duration::from_secs(5))
+            .block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
             .unwrap()
     }
 }
 
 impl HeadlessApp {
-    /// Calls a [`AppHandler<A>`] once and blocks until the handler task is complete.
+    /// Calls a [`AppHandler<A>`] once and blocks until the update tasks started during the call complete.
     ///
-    /// # Run
-    ///
-    /// TODO
-    pub fn block_on<A, H>(&mut self, handler: &mut H, args: &A, timeout: Duration) -> Result<(), String>
+    /// This function *spins* until all [update tasks] are completed. Timers or send events can
+    /// be received during execution but the loop does not sleep, it just spins requesting an update
+    /// for each pass.
+    pub fn block_on<A>(&mut self, handler: &mut dyn AppHandler<A>, args: &A, timeout: Duration) -> Result<(), String>
     where
         A: Clone + 'static,
-        H: AppHandler<A>,
     {
-        let _ = (handler, args, timeout);
-        todo!("")
+        self.block_on_multi(vec![handler], args, timeout)
+    }
+
+    /// Calls multiple [`AppHandler<A>`] once each and blocks until all update tasks are complete.
+    ///
+    /// This function *spins* until all [update tasks] are completed. Timers or send events can
+    /// be received during execution but the loop does not sleep, it just spins requesting an update
+    /// for each pass.
+    pub fn block_on_multi<A>(&mut self, handlers: Vec<&mut dyn AppHandler<A>>, args: &A, timeout: Duration) -> Result<(), String>
+    where
+        A: Clone + 'static,
+    {
+        let (pre_len, pos_len) = self.ctx().updates.handler_lens();
+
+        let handler_args = AppHandlerArgs {
+            handle: &Handle::dummy(()).downgrade(),
+            is_preview: false,
+        };
+        for handler in handlers {
+            handler.event(&mut self.ctx(), args, &handler_args);
+        }
+
+        let mut pending = self.ctx().updates.new_update_handlers(pre_len, pos_len);
+
+        if !pending.is_empty() {
+            let start_time = Instant::now();
+            while {
+                pending.retain(|h| h());
+                !pending.is_empty()
+            } {
+                self.ctx().updates.update();
+                let flow = self.update(false);
+                if Instant::now().duration_since(start_time) >= timeout {
+                    return Err(format!(
+                        "TestWidgetContext::block_on reached timeout of {:?} before the handler task could finish",
+                        timeout
+                    ));
+                }
+
+                use crate::app::ControlFlow;
+                match flow {
+                    ControlFlow::Poll => continue,
+                    ControlFlow::Wait | ControlFlow::WaitUntil(_) => {
+                        thread::yield_now();
+                        continue;
+                    }
+                    ControlFlow::Exit => return Ok(()),
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Calls the `handler` once and [`block_on`] it with a 1 second timeout using the default headless app.
     ///
     /// [`block_on`]: Self::block_on.
+    #[track_caller]
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     pub fn doc_test<A, H>(args: A, mut handler: H)
     where
         A: Clone + 'static,
         H: AppHandler<A>,
     {
         let mut app = App::default().run_headless();
-        app.block_on(&mut handler, &args, Duration::from_secs(1)).unwrap();
+        app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
+    }
+
+    /// Calls the `handlers` once each and [`block_on_multi`] with a 1 second timeout.
+    ///
+    /// [`block_on_multi`]: Self::block_on_multi.
+    #[track_caller]
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
+    pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Box<dyn AppHandler<A>>>)
+    where
+        A: Clone + 'static,
+    {
+        let mut app = App::default().run_headless();
+        app.block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
+            .unwrap()
     }
 }
+
+#[cfg(any(test, doc, feature = "test_util"))]
+const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[cfg(test)]
 #[allow(dead_code)]

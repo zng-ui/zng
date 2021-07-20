@@ -327,6 +327,24 @@ impl Updates {
         (mem::take(&mut self.update), mem::take(&mut self.display_update))
     }
 }
+/// crate::app::HeadlessApp::block_on
+impl Updates {
+    pub(crate) fn handler_lens(&self) -> (usize, usize) {
+        (self.pre_handlers.len(), self.pos_handlers.len())
+    }
+    pub(crate) fn new_update_handlers(&self, pre_from: usize, pos_from: usize) -> Vec<Box<dyn Fn() -> bool>> {
+        self.pre_handlers
+            .iter()
+            .skip(pre_from)
+            .chain(self.pos_handlers.iter().skip(pos_from))
+            .map(|h| h.handle.weak_handle())
+            .map(|h| {
+                let r: Box<dyn Fn() -> bool> = Box::new(move || h.upgrade().is_some());
+                r
+            })
+            .collect()
+    }
+}
 
 /// Represents a type that can provide access to [`Updates`] inside the window of function call.
 ///

@@ -291,7 +291,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Note that if [`Var::can_update`] is `false` this will never awake and a warning will be logged.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use zero_ui_core::{context::*, handler::*, var::*};
@@ -343,7 +343,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Note that if [`Var::can_update`] is `false` this will never awake and a warning will be logged.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use zero_ui_core::{context::*, handler::*, var::*};
@@ -390,24 +390,28 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// will unblock once for every time [`is_new`](Var::is_new) returns `true` in a different update.
     ///
     /// Note that if [`Var::can_update`] is `false` this will never awake and a warning will be logged.
+    ///
+    /// # Examples
+    ///
     /// ```
-    /// # use zero_ui_core::{var::*, handler::*, context::*};
+    /// # use zero_ui_core::{context::*, handler::*, var::*};
     /// # let foo_var = var(10i32);
-    /// # TestWidgetContext::doc_test((),
+    /// # TestWidgetContext::doc_test_multi((), vec![
+    /// # Box::new(async_hn!(foo_var, |ctx, _| {
+    /// #     foo_var.set(&ctx, 0);
+    /// #     ctx.update().await;
+    /// #     foo_var.set(&ctx, 10);
+    /// #     ctx.update().await;
+    /// # })),
+    /// # Box::new(
     /// async_hn!(foo_var, |ctx, _| {
-    /// #   foo_var.set(&ctx, 0);
-    /// #   ctx.update().await;
-    /// #
     ///     foo_var.wait_new(&ctx).await;
     ///     assert!(foo_var.is_new(&ctx));
     ///
-    /// #   foo_var.set(&ctx, 10);
-    /// #   ctx.update().await;
-    /// #
     ///     foo_var.wait_new(&ctx).await;
     ///     assert!(foo_var.is_new(&ctx));
     /// })
-    /// # );
+    /// # ),], );
     /// ```
     ///
     /// In the example the handler awaits for the variable to have a new value, the code immediately after
