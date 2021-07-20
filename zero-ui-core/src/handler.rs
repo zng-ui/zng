@@ -16,8 +16,8 @@ use std::{mem, thread};
 
 use retain_mut::RetainMut;
 
-use crate::app::{App, HeadlessApp};
-use crate::context::{AppContext, AppContextMut, TestWidgetContext, WidgetContext, WidgetContextMut};
+use crate::app::HeadlessApp;
+use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
 use crate::crate_util::{Handle, WeakHandle};
 use crate::task::{AppTask, WidgetTask};
 
@@ -1452,7 +1452,8 @@ macro_rules! __async_clone_move_once {
     };
 }
 
-impl TestWidgetContext {
+#[cfg(any(test, doc, feature = "test_util"))]
+impl crate::context::TestWidgetContext {
     /// Calls a [`WidgetHandler<A>`] once and blocks until the handler task is complete.
     ///
     /// This function *spins* until the handler returns `false` from [`WidgetHandler::update`]. The updates
@@ -1598,7 +1599,7 @@ impl HeadlessApp {
         A: Clone + 'static,
         H: AppHandler<A>,
     {
-        let mut app = App::default().run_headless();
+        let mut app = crate::app::App::default().run_headless();
         app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
     }
 
@@ -1612,7 +1613,7 @@ impl HeadlessApp {
     where
         A: Clone + 'static,
     {
-        let mut app = App::default().run_headless();
+        let mut app = crate::app::App::default().run_headless();
         app.block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
             .unwrap()
     }
