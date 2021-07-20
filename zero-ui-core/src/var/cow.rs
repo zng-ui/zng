@@ -98,9 +98,9 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
 
     /// Returns `true` if this variable value is a cloned local.
     ///
-    /// When this is `false` the value is read from another variable, when it is `true`
+    /// When this is `false` the value is read from another variable, when it is `true` it is read from local value.
     pub fn is_cloned<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with_vars_read(|v| self.source(v).is_some())
+        vars.with_vars_read(|v| self.source(v).is_none())
     }
 
     fn source<'a>(&'a self, _vars: &'a VarsRead) -> Option<&'a V> {
@@ -164,7 +164,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             if let Some(source) = self.source(vars) {
                 source.is_new(vars)
             } else {
-                todo!()
+                self.0.last_update_id.get() == vars.update_id()
             }
         })
     }

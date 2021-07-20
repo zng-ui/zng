@@ -8,42 +8,7 @@ use std::{
 
 use super::*;
 
-/// A future awaits for a copy of a variable's [new value](Var::copy_new) after the current update.
-///
-/// Use [`Var::wait_copy`] to create this future.
-///
-/// You can `.await` this in UI thread bound async code, like in async event handlers. The future
-/// will unblock once for every time [`Var::copy_new`] returns `Some(T)` in a different update.
-///
-/// Note that if [`Var::can_update`] is `false` this will never awake.
-///
-/// # Example
-///
-/// ```
-/// # use zero_ui_core::{var::*, context::*, handler::*};
-/// # let foo_var = var(10i32);
-/// # TestWidgetContext::doc_test((),
-/// async_hn!(foo_var, |ctx, _| {
-/// #   foo_var.set(&ctx, 0);
-/// #   ctx.update().await;
-/// #
-///     let value = foo_var.wait_copy(&ctx).await;
-///     assert_eq!(Some(value), foo_var.copy_new(&ctx));
-///
-/// #   foo_var.set(&ctx, 10);
-/// #   ctx.update().await;
-/// #
-///     let value = foo_var.wait_copy(&ctx).await;
-///     assert_eq!(Some(value), foo_var.copy_new(&ctx));
-/// })
-/// # );
-/// ```
-///
-/// In the example the handler awaits for the variable to have a new value, the code immediately after
-/// runs in the app update where the variable is new, the second `.await` does not poll immediately it awaits
-/// for the variable to be new again but in a different update.
-///
-/// You can also reuse the future, but it is very cheap to just create a new one.
+#[doc(hidden)]
 pub struct VarCopyNewFut<'a, C, T, V>
 where
     C: WithVars,
@@ -91,36 +56,7 @@ where
     }
 }
 
-/// A future awaits for a copy of a variable's [new value](Var::clone_new) after the current update.
-///
-/// Use [`Var::wait_clone`] to create this future.
-///
-/// You can `.await` this in UI thread bound async code, like in async event handlers. The future
-/// will unblock once for every time [`Var::clone_new`] returns `Some(T)` in a different update.
-///
-/// Note that if [`Var::can_update`] is `false` this will never awake.
-///
-/// # Example
-///
-/// ```
-/// # use zero_ui_core::{var::*, handler::*, context::*};
-/// # let foo_var = var(10u32);
-/// # TestWidgetContext::doc_test((),
-/// async_hn!(foo_var, |ctx, _| {
-///     let value = foo_var.wait_clone(&ctx).await;
-///     assert_eq!(Some(value), foo_var.clone_new(&ctx));
-///
-///     let value = foo_var.wait_clone(&ctx).await;
-///     assert_eq!(Some(value), foo_var.clone_new(&ctx));
-/// })
-/// # );
-/// ```
-///
-/// In the example the handler awaits for the variable to have a new value, the code immediately after
-/// runs in the app update where the variable is new, the second `.await` does not poll immediately it awaits
-/// for the variable to be new again but in a different update.
-///
-/// You can also reuse the future, but it is very cheap to just create a new one.
+#[doc(hidden)]
 pub struct VarCloneNewFut<'a, C, T, V>
 where
     C: WithVars,
@@ -168,42 +104,7 @@ where
     }
 }
 
-/// A future awaits for when a variable [is new](Var::is_new) after the current update.
-///
-/// Use [`Var::wait_new`] to create this future.
-///
-/// You can `.await` this in UI thread bound async code, like in async event handlers. The future
-/// will unblock once for every time [`Var::is_new`] returns `true` in a different update.
-///
-/// Note that if [`Var::can_update`] is `false` this will never awake.
-///
-/// # Example
-///
-/// ```
-/// # use zero_ui_core::{var::*, context::*, handler::*};
-/// # let foo_var = var(10i32);
-/// # TestWidgetContext::doc_test((),
-/// async_hn!(foo_var, |ctx, _| {
-/// #   foo_var.set(&ctx, 0);
-/// #   ctx.update().await;
-/// #
-///     foo_var.wait_new(&ctx).await;
-///     assert!(foo_var.is_new(&ctx));
-///
-/// #   foo_var.set(&ctx, 0);
-/// #   ctx.update().await;
-/// #
-///     foo_var.wait_new(&ctx).await;
-///     assert!(foo_var.is_new(&ctx));
-/// })
-/// # );
-/// ```
-///
-/// In the example the handler awaits for the variable to have a new value, the code immediately after
-/// runs in the app update where the variable is new, the second `.await` does not poll immediately it awaits
-/// for the variable to be new again but in a different update.
-///
-/// You can also reuse the future, but it is very cheap to just create a new one.
+#[doc(hidden)]
 pub struct VarIsNewFut<'a, C, T, V>
 where
     C: WithVars,

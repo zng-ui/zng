@@ -294,21 +294,24 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{var::*, handler::*, context::*};
+    /// # use zero_ui_core::{context::*, handler::*, var::*};
     /// # let foo_var = var(10i32);
-    /// # TestWidgetContext::doc_test((),
+    /// # TestWidgetContext::doc_test_multi((), vec![
+    /// # Box::new(async_hn!(foo_var, |ctx, _| {
+    /// #     foo_var.set(&ctx, 0);
+    /// #     ctx.update().await;
+    /// #     foo_var.set(&ctx, 10);
+    /// #     ctx.update().await;
+    /// # })),
+    /// # Box::new(
     /// async_hn!(foo_var, |ctx, _| {
-    /// #   foo_var.set(&ctx, 9); ctx.update().await;
-    /// #
     ///     let value = foo_var.wait_copy(&ctx).await;
     ///     assert_eq!(Some(value), foo_var.copy_new(&ctx));
-    /// #
-    /// #   foo_var.set(&ctx, 11); ctx.update().await;
     ///
     ///     let value = foo_var.wait_copy(&ctx).await;
     ///     assert_eq!(Some(value), foo_var.copy_new(&ctx));
     /// })
-    /// # );
+    /// # ),], );
     /// ```
     ///
     /// In the example the handler awaits for the variable to have a new value, the code immediately after
@@ -343,23 +346,24 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// # Example
     ///
     /// ```
-    /// # use zero_ui_core::{var::*, handler::*, context::*};
+    /// # use zero_ui_core::{context::*, handler::*, var::*};
     /// # let foo_var = var(10i32);
-    /// # TestWidgetContext::doc_test((),
+    /// # TestWidgetContext::doc_test_multi((), vec![
+    /// # Box::new(async_hn!(foo_var, |ctx, _| {
+    /// #     foo_var.set(&ctx, 0);
+    /// #     ctx.update().await;
+    /// #     foo_var.set(&ctx, 10);
+    /// #     ctx.update().await;
+    /// # })),
+    /// # Box::new(
     /// async_hn!(foo_var, |ctx, _| {
-    /// #   foo_var.set(&ctx, 0);
-    /// #   ctx.update().await;
-    /// #
     ///     let value = foo_var.wait_clone(&ctx).await;
     ///     assert_eq!(Some(value), foo_var.clone_new(&ctx));
     ///
-    /// #   foo_var.set(&ctx, 10);
-    /// #   ctx.update().await;
-    /// #
     ///     let value = foo_var.wait_clone(&ctx).await;
     ///     assert_eq!(Some(value), foo_var.clone_new(&ctx));
     /// })
-    /// # );
+    /// # ),], );
     /// ```
     ///
     /// In the example the handler awaits for the variable to have a new value, the code immediately after

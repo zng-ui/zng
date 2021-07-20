@@ -487,13 +487,14 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 ///     assert_eq!("Foo!", cmd_scoped.name().get_clone(&ctx));
 ///
 ///     // name is overridden in the scoped command only:
-///     cmd_scoped.name().set(&ctx, "Scope Only!");
+///     cmd_scoped.name().set(&ctx, "Scoped Only!");
 ///     ctx.update().await;
 ///     assert_eq!("Scoped Only!", cmd_scoped.name().get_clone(&ctx));
 ///     assert_eq!("Foo!", cmd.name().get_clone(&ctx));
 ///
 ///     // scoped command no-longer affected:
 ///     cmd.name().set(&ctx, "F");
+///     ctx.update().await;
 ///     assert_eq!("F", cmd.name().get_clone(&ctx));
 ///     assert_eq!("Scoped Only!", cmd_scoped.name().get_clone(&ctx));
 /// })
@@ -1154,6 +1155,7 @@ struct ScopedValue {
     enabled: RcVar<bool>,
     has_handlers: RcVar<bool>,
     meta: OwnedStateMap,
+    registered: bool,
 }
 impl Default for ScopedValue {
     fn default() -> Self {
@@ -1162,6 +1164,7 @@ impl Default for ScopedValue {
             has_handlers: var(false),
             handle: HandleOwner::dropped(CommandHandleData::default()),
             meta: OwnedStateMap::default(),
+            registered: false,
         }
     }
 }
@@ -1245,15 +1248,21 @@ impl CommandValue {
         } else {
             let mut scopes = self.scopes.borrow_mut();
             let value = scopes.entry(scope).or_insert_with(|| {
-                // register scope first time.
+                // register scope first time and can create variables with the updated values already.
                 events.with_events(|e| e.register_command(AnyCommand(key, scope)));
                 ScopedValue {
                     enabled: var(enabled),
                     has_handlers: var(true),
                     handle: HandleOwner::dropped(CommandHandleData::default()),
                     meta: OwnedStateMap::new(),
+                    registered: true,
                 }
             });
+            if !value.registered {
+                // register scope first time.
+                events.with_events(|e| e.register_command(AnyCommand(key, scope)));
+                value.registered = true;
+            }
             let r = CommandHandle {
                 handle: value.handle.reanimate(),
                 local_enabled: Cell::new(false),

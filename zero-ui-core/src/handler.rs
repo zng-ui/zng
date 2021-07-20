@@ -1466,8 +1466,41 @@ impl TestWidgetContext {
     {
         let pending = self.widget_context(|ctx| handler.event(ctx, args));
         if pending {
+            if !self.apply_updates().has_updates() {
+                thread::yield_now();
+            }
             let start_time = Instant::now();
             while self.widget_context(|ctx| handler.update(ctx)) {
+                if Instant::now().duration_since(start_time) >= timeout {
+                    return Err(format!(
+                        "TestWidgetContext::block_on reached timeout of {:?} before the handler task could finish",
+                        timeout
+                    ));
+                }
+
+                if !self.apply_updates().has_updates() {
+                    thread::yield_now();
+                }
+            }
+        }
+        Ok(())
+    }
+
+    ///
+    pub fn block_on_multi<A>(&mut self, mut handlers: Vec<&mut dyn WidgetHandler<A>>, args: &A, timeout: Duration) -> Result<(), String>
+    where
+        A: Clone + 'static,
+    {
+        self.widget_context(|ctx| handlers.retain_mut(|h| h.event(ctx, args)));
+        if !handlers.is_empty() {
+            if !self.apply_updates().has_updates() {
+                thread::yield_now();
+            }
+            let start_time = Instant::now();
+            while {
+                self.widget_context(|ctx| handlers.retain_mut(|h| h.update(ctx)));
+                !handlers.is_empty()
+            } {
                 if Instant::now().duration_since(start_time) >= timeout {
                     return Err(format!(
                         "TestWidgetContext::block_on reached timeout of {:?} before the handler task could finish",
@@ -1492,7 +1525,17 @@ impl TestWidgetContext {
         A: Clone + 'static,
         H: WidgetHandler<A>,
     {
-        Self::new().block_on(&mut handler, &args, Duration::from_secs(1)).unwrap()
+        Self::new().block_on(&mut handler, &args, Duration::from_secs(5)).unwrap()
+    }
+
+    ///
+    pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Box<dyn WidgetHandler<A>>>)
+    where
+        A: Clone + 'static,
+    {
+        Self::new()
+            .block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, Duration::from_secs(5))
+            .unwrap()
     }
 }
 
