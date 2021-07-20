@@ -444,9 +444,9 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 /// a handler created using the same scope.
 ///
 /// ```
-/// # use zero_ui_core::{command::*, context::*, handler::*, var::*};
+/// # use zero_ui_core::{command::*, context::*, handler::*, var::*, units::*};
 /// # command! { pub FooCommand; }
-/// # fn demo() -> impl WidgetHandler<()> {
+/// # TestWidgetContext::doc_test((),
 /// async_hn!(|mut ctx, _| {
 ///     let cmd = FooCommand;
 ///     let cmd_scoped = cmd.scoped(ctx.window_id());
@@ -460,7 +460,7 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 ///     assert!(!enabled.copy(&ctx));
 ///     assert!(enabled_scoped.copy(&ctx));
 /// })
-/// # }  
+/// # );
 /// ```
 ///
 /// In the example above, only the `enabled_scoped` is `true` after only the `cmd_scoped` is enabled.
@@ -471,9 +471,9 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 /// only, so you can rename or give a different shortcut for the command only in the scope.
 ///
 /// ```
-/// # use zero_ui_core::{var::*, command::*, handler::*};
+/// # use zero_ui_core::{var::*, command::*, handler::*, context::*};
 /// # command! { pub FooCommand; }
-/// # fn demo() -> impl WidgetHandler<()> {
+/// # TestWidgetContext::doc_test((),
 /// async_hn!(|ctx, _| {
 ///     let cmd = FooCommand;
 ///     let cmd_scoped = FooCommand.scoped(ctx.window_id());
@@ -497,7 +497,7 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 ///     assert_eq!("F", cmd.name().get_clone(&ctx));
 ///     assert_eq!("Scoped Only!", cmd_scoped.name().get_clone(&ctx));
 /// })
-/// # }
+/// # );
 /// ```
 ///
 /// See [`CommandMetaVar<T>`] for details of how this is implemented.

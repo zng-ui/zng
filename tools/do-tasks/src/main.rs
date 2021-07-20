@@ -112,10 +112,12 @@ fn test(mut args: Vec<&str>) {
         }
     } else if take_flag(&mut args, &["--doc"]) {
         // only doc tests for the main workspace.
-        cmd(
+        let trace = if take_flag(&mut args, &["--trace"]) { "1" } else { "" };
+        cmd_env(
             "cargo",
             &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features", "--doc"],
             &args,
+            &[("RUST_BACKTRACE", trace)],
         );
     } else if let Some(int_tests) = take_option(&mut args, &["-t", "--test"], "<integration-test-name>") {
         // only specific integration test.

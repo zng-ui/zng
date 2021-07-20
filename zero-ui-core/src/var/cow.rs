@@ -21,8 +21,8 @@ use super::*;
 /// contains its own value.
 ///
 /// ```
-/// # use zero_ui_core::{var::*, handler::*};
-/// # fn demo() -> impl WidgetHandler<()> {
+/// # use zero_ui_core::{var::*, handler::*, context::*};
+/// # TestWidgetContext::doc_test((),
 /// async_hn!(|ctx, _| {
 ///     let source = var(0u8);
 ///     let test = RcCowVar::new(source.clone());
@@ -49,7 +49,7 @@ use super::*;
 ///     ctx.update().await;
 ///     assert!(!test.is_new(&ctx));
 /// })
-/// # }
+/// # );
 /// ```
 pub struct RcCowVar<T, V>(Rc<CowData<T, V>>);
 struct CowData<T, V> {

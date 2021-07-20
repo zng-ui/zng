@@ -20,18 +20,23 @@ use super::*;
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::var::*;
-/// # use zero_ui_core::handler::async_hn;
-/// # fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
-/// # let foo_var = var(10u32);
+/// # use zero_ui_core::{var::*, context::*, handler::*};
+/// # let foo_var = var(10i32);
+/// # TestWidgetContext::doc_test((),
 /// async_hn!(foo_var, |ctx, _| {
+/// #   foo_var.set(&ctx, 0);
+/// #   ctx.update().await;
+/// #
 ///     let value = foo_var.wait_copy(&ctx).await;
 ///     assert_eq!(Some(value), foo_var.copy_new(&ctx));
 ///
+/// #   foo_var.set(&ctx, 10);
+/// #   ctx.update().await;
+/// #
 ///     let value = foo_var.wait_copy(&ctx).await;
 ///     assert_eq!(Some(value), foo_var.copy_new(&ctx));
 /// })
-/// # }
+/// # );
 /// ```
 ///
 /// In the example the handler awaits for the variable to have a new value, the code immediately after
@@ -98,10 +103,9 @@ where
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::var::*;
-/// # use zero_ui_core::handler::async_hn;
-/// # fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
+/// # use zero_ui_core::{var::*, handler::*, context::*};
 /// # let foo_var = var(10u32);
+/// # TestWidgetContext::doc_test((),
 /// async_hn!(foo_var, |ctx, _| {
 ///     let value = foo_var.wait_clone(&ctx).await;
 ///     assert_eq!(Some(value), foo_var.clone_new(&ctx));
@@ -109,7 +113,7 @@ where
 ///     let value = foo_var.wait_clone(&ctx).await;
 ///     assert_eq!(Some(value), foo_var.clone_new(&ctx));
 /// })
-/// # }
+/// # );
 /// ```
 ///
 /// In the example the handler awaits for the variable to have a new value, the code immediately after
@@ -176,18 +180,23 @@ where
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::var::*;
-/// # use zero_ui_core::handler::async_hn;
-/// # fn __() -> impl zero_ui_core::handler::WidgetHandler<()> {
-/// # let foo_var = var(10u32);
+/// # use zero_ui_core::{var::*, context::*, handler::*};
+/// # let foo_var = var(10i32);
+/// # TestWidgetContext::doc_test((),
 /// async_hn!(foo_var, |ctx, _| {
+/// #   foo_var.set(&ctx, 0);
+/// #   ctx.update().await;
+/// #
 ///     foo_var.wait_new(&ctx).await;
 ///     assert!(foo_var.is_new(&ctx));
 ///
+/// #   foo_var.set(&ctx, 0);
+/// #   ctx.update().await;
+/// #
 ///     foo_var.wait_new(&ctx).await;
 ///     assert!(foo_var.is_new(&ctx));
 /// })
-/// # }
+/// # );
 /// ```
 ///
 /// In the example the handler awaits for the variable to have a new value, the code immediately after

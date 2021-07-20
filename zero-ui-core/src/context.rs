@@ -1244,15 +1244,14 @@ impl AppContextMut {
     /// To force an update and then yield use [`update`](Self::update) instead.
     ///
     /// ```
-    /// # use zero_ui_core::context::*;
-    /// # use zero_ui_core::handler::*;
-    /// # fn __() -> impl AppHandler<()> {
+    /// # use zero_ui_core::{context::*, handler::*, app::*};
+    /// # HeadlessApp::doc_test((),
     /// async_app_hn!(|ctx, _, _| {
     ///     println!("First update");
     ///     ctx.yield_one().await;
     ///     println!("Second update");
     /// })
-    /// # }
+    /// # );
     /// ```
     pub async fn yield_one(&self) {
         task::yield_one().await
@@ -1264,9 +1263,7 @@ impl AppContextMut {
     /// the `.await` to run immediately after one update is processed.
     ///
     /// ```
-    /// # use zero_ui_core::context::*;
-    /// # use zero_ui_core::handler::*;
-    /// # use zero_ui_core::var::*;
+    /// # use zero_ui_core::{context::*, handler::*, var::*};
     /// # let mut app = zero_ui_core::app::App::blank().run_headless();
     /// let foo_var = var(false);
     /// # app.ctx().updates.run(
@@ -1311,15 +1308,14 @@ impl WidgetContextMut {
     /// You can reuse this future but it is very cheap to just make a new one.
     ///
     /// ```
-    /// # use zero_ui_core::context::*;
-    /// # use zero_ui_core::handler::*;
-    /// # fn __() -> impl WidgetHandler<()> {
+    /// # use zero_ui_core::{context::*, handler::*};
+    /// # TestWidgetContext::doc_test((),
     /// async_hn!(|ctx, _| {
     ///     println!("First update");
     ///     ctx.yield_one().await;
     ///     println!("Second update");
     /// })
-    /// # }
+    /// # );
     /// ```
     #[inline]
     pub async fn yield_one(&self) {
@@ -1335,7 +1331,7 @@ impl WidgetContextMut {
     /// # use zero_ui_core::context::*;
     /// # use zero_ui_core::handler::*;
     /// # use zero_ui_core::var::*;
-    /// # fn __() -> impl WidgetHandler<()> {
+    /// # TestWidgetContext::doc_test((),
     /// async_hn!(|ctx, _| {
     ///     let foo_var = var(false);
     ///     // variable assign will cause an update.
@@ -1351,7 +1347,7 @@ impl WidgetContextMut {
     ///     // we are in the requested update, variable value is no longer new.
     ///     assert_eq!(None, foo_var.copy_new(&ctx));
     /// })
-    /// # }
+    /// # );
     /// ```
     ///
     /// In the example above, the variable assign causes an app update so `yield_one` processes it immediately,

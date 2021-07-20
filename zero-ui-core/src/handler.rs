@@ -11,11 +11,13 @@
 //! provide a very easy way to *clone-move* captured variables into the handler.
 
 use std::future::Future;
-use std::mem;
+use std::time::{Duration, Instant};
+use std::{mem, thread};
 
 use retain_mut::RetainMut;
 
-use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
+use crate::app::{App, HeadlessApp};
+use crate::context::{AppContext, AppContextMut, TestWidgetContext, WidgetContext, WidgetContextMut};
 use crate::crate_util::WeakHandle;
 use crate::task::{AppTask, WidgetTask};
 
@@ -59,10 +61,23 @@ pub mod marker {
 /// See [`hn!`], [`hn_once!`] or [`async_hn!`], [`async_hn_once!`] to start.
 pub trait WidgetHandler<A: Clone + 'static>: 'static {
     /// Called every time the event happens in the widget context.
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A);
+    ///
+    /// Returns `true` when the event handler is async and it has not finished handing the event.
+    ///
+    /// [`update`]: WidgetHandler::update
+    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool;
+
     /// Called every widget update.
-    fn update(&mut self, ctx: &mut WidgetContext) {
+    ///
+    /// Returns `false` when all pending async tasks are completed. Note that event properties
+    /// will call this method every update even if it is returning `false`. The return value is
+    /// used to implement the test [`block_on`] only.
+    ///
+    /// [`update`]: WidgetHandler::update
+    /// [`block_on`]: TestWidgetContext::block_on
+    fn update(&mut self, ctx: &mut WidgetContext) -> bool {
         let _ = ctx;
+        false
     }
 }
 #[doc(hidden)]
@@ -74,8 +89,9 @@ where
     A: Clone + 'static,
     H: FnMut(&mut WidgetContext, &A) + 'static,
 {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) {
-        (self.handler)(ctx, args)
+    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
+        (self.handler)(ctx, args);
+        false
     }
 }
 impl<H> marker::NotAsyncHn for FnMutWidgetHandler<H> {}
@@ -166,10 +182,11 @@ where
     A: Clone + 'static,
     H: FnOnce(&mut WidgetContext, &A) + 'static,
 {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) {
+    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         if let Some(handler) = self.handler.take() {
             handler(ctx, args);
         }
+        false
     }
 }
 impl<H> marker::OnceHn for FnOnceWidgetHandler<H> {}
@@ -245,16 +262,19 @@ where
     F: Future<Output = ()> + 'static,
     H: FnMut(WidgetContextMut, A) -> F + 'static,
 {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) {
+    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         let handler = &mut self.handler;
         let mut task = WidgetTask::new(ctx, |ctx| handler(ctx, args.clone()));
-        if task.update(ctx).is_none() {
+        let need_update = task.update(ctx).is_none();
+        if need_update {
             self.tasks.push(task);
         }
+        need_update
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
+    fn update(&mut self, ctx: &mut WidgetContext) -> bool {
         self.tasks.retain_mut(|t| t.update(ctx).is_none());
+        !self.tasks.is_empty()
     }
 }
 impl<H> marker::AsyncHn for AsyncFnMutWidgetHandler<H> {}
@@ -379,21 +399,28 @@ where
     F: Future<Output = ()> + 'static,
     H: FnOnce(WidgetContextMut, A) -> F + 'static,
 {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) {
+    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         if let AsyncFnOnceWhState::NotCalled(handler) = mem::replace(&mut self.state, AsyncFnOnceWhState::Done) {
             let mut task = WidgetTask::new(ctx, |ctx| handler(ctx, args.clone()));
-            if task.update(ctx).is_none() {
+            let is_pending = task.update(ctx).is_none();
+            if is_pending {
                 self.state = AsyncFnOnceWhState::Pending(task);
             }
+            is_pending
+        } else {
+            false
         }
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
+    fn update(&mut self, ctx: &mut WidgetContext) -> bool {
+        let mut is_pending = false;
         if let AsyncFnOnceWhState::Pending(t) = &mut self.state {
-            if t.update(ctx).is_some() {
+            is_pending = t.update(ctx).is_none();
+            if !is_pending {
                 self.state = AsyncFnOnceWhState::Done;
             }
         }
+        is_pending
     }
 }
 impl<H> marker::AsyncHn for AsyncFnOnceWidgetHandler<H> {}
@@ -1423,6 +1450,78 @@ macro_rules! __async_clone_move_once {
             $($rest)+
         }
     };
+}
+
+impl TestWidgetContext {
+    /// Calls a [`WidgetHandler<A>`] once and blocks until the handler task is complete.
+    ///
+    /// # Run
+    ///
+    /// This function *spins* until the handler returns `false` from [`WidgetHandler::update`]. The updates
+    /// are *applied* after each try or until the `timeout` is reached. Returns an error if the `timeout` is reached.
+    pub fn block_on<A, H>(&mut self, handler: &mut H, args: &A, timeout: Duration) -> Result<(), String>
+    where
+        A: Clone + 'static,
+        H: WidgetHandler<A>,
+    {
+        let pending = self.widget_context(|ctx| handler.event(ctx, args));
+        if pending {
+            let start_time = Instant::now();
+            while self.widget_context(|ctx| handler.update(ctx)) {
+                if Instant::now().duration_since(start_time) >= timeout {
+                    return Err(format!(
+                        "TestWidgetContext::block_on reached timeout of {:?} before the handler task could finish",
+                        timeout
+                    ));
+                }
+
+                if !self.apply_updates().has_updates() {
+                    thread::yield_now();
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Calls the `handler` once and [`block_on`] it with a 1 second timeout.
+    ///
+    /// [`block_on`]: Self::block_on.
+    #[track_caller]
+    pub fn doc_test<A, H>(args: A, mut handler: H)
+    where
+        A: Clone + 'static,
+        H: WidgetHandler<A>,
+    {
+        Self::new().block_on(&mut handler, &args, Duration::from_secs(1)).unwrap()
+    }
+}
+
+impl HeadlessApp {
+    /// Calls a [`AppHandler<A>`] once and blocks until the handler task is complete.
+    ///
+    /// # Run
+    ///
+    /// TODO
+    pub fn block_on<A, H>(&mut self, handler: &mut H, args: &A, timeout: Duration) -> Result<(), String>
+    where
+        A: Clone + 'static,
+        H: AppHandler<A>,
+    {
+        let _ = (handler, args, timeout);
+        todo!("")
+    }
+
+    /// Calls the `handler` once and [`block_on`] it with a 1 second timeout using the default headless app.
+    ///
+    /// [`block_on`]: Self::block_on.
+    pub fn doc_test<A, H>(args: A, mut handler: H)
+    where
+        A: Clone + 'static,
+        H: AppHandler<A>,
+    {
+        let mut app = App::default().run_headless();
+        app.block_on(&mut handler, &args, Duration::from_secs(1)).unwrap();
+    }
 }
 
 #[cfg(test)]
