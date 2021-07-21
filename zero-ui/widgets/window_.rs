@@ -285,15 +285,18 @@ pub mod window {
     /// These properties are already included in the [`window!`](mod@crate::widgets::window) definition,
     /// but you can also use then stand-alone. They configure the window from any widget inside the window.
     pub mod properties {
+        use std::marker::PhantomData;
+
         use crate::core::window::{AutoSize, WindowChrome, WindowIcon, WindowId, WindowVars};
         use crate::prelude::new_property::*;
 
-        fn bind_window_var<T: VarValue + PartialEq>(
-            child: impl UiNode,
-            user_var: impl IntoVar<T>,
-            select: impl Fn(&WindowVars) -> &RcVar<T> + 'static,
-        ) -> impl UiNode {
-            struct BindWindowVarNode<C, V, S> {
+        fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + 'static) -> impl UiNode
+        where
+            T: VarValue + PartialEq,
+            V: Var<T>,
+        {
+            struct BindWindowVarNode<C, V, S, T> {
+                _p: PhantomData<T>,
                 child: C,
                 user_var: V,
                 select: S,
@@ -301,19 +304,20 @@ pub mod window {
             }
 
             #[impl_ui_node(child)]
-            impl<T, C, V, S> UiNode for BindWindowVarNode<C, V, S>
+            impl<T, C, V, SV, S> UiNode for BindWindowVarNode<C, V, S, T>
             where
                 T: VarValue + PartialEq,
                 C: UiNode,
                 V: Var<T>,
-                S: Fn(&WindowVars) -> &RcVar<T> + 'static,
+                SV: Var<T>,
+                S: Fn(&WindowVars) -> SV + 'static,
             {
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let window_var = (self.select)(ctx.window_state.req::<WindowVars>());
                     if self.user_var.can_update() {
-                        self.binding = Some(self.user_var.bind_bidi(ctx.vars, window_var));
+                        self.binding = Some(self.user_var.bind_bidi(ctx.vars, &window_var));
                     }
-                    window_var.set_ne(ctx.vars, self.user_var.get_clone(ctx.vars));
+                    window_var.set_ne(ctx.vars, self.user_var.get_clone(ctx.vars)).unwrap();
                     self.child.init(ctx);
                 }
 
@@ -323,6 +327,7 @@ pub mod window {
                 }
             }
             BindWindowVarNode {
+                _p: PhantomData,
                 child,
                 user_var: user_var.into_var(),
                 select,
@@ -330,67 +335,28 @@ pub mod window {
             }
         }
 
-        #[property(context)]
-        pub fn size2(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
-            bind_window_var(child, size, |w| w.size())
-        }
-
-        // Properties that have a scalar value type, just compare and set.
+        // Properties that set the full value.
         macro_rules! set_properties {
             ($(
                 $ident:ident: $Type:ty,
             )+) => {
                 $(paste::paste! {
-                    #[doc = "Sets the [`"$ident"`](WindowVars::"$ident") window var."]
+                    #[doc = "Binds the [`"$ident"`](WindowVars::"$ident") window var with the property value."]
                     ///
-                    #[doc = "Sets `"$ident"` back if the window var updates with a new value."]
+                    /// The binding is bidirectional and the window variable is assigned on init.
                     #[property(context)]
                     pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
-                        struct [<Window $ident:camel Node>] <C, V> {
-                            child: C,
-                            $ident: V,
-                        }
-                        #[impl_ui_node(child)]
-                        impl<C: UiNode, V: Var<$Type>> [<Window $ident:camel Node>] <C, V> {
-                            fn set(&mut self, ctx: &mut WidgetContext) {
-                                let $ident = self.$ident.get_clone(ctx);
-                                ctx.window_state
-                                    .get::<WindowVars>()
-                                    .expect("no `WindowVars` in `window_state`")
-                                    .$ident()
-                                    .set_ne(ctx.vars, $ident);
-                            }
-
-                            #[UiNode]
-                            fn init(&mut self, ctx: &mut WidgetContext) {
-                                self.set(ctx);
-                                self.child.init(ctx);
-                            }
-
-                            #[UiNode]
-                            fn update(&mut self, ctx: &mut WidgetContext) {
-                                if self.$ident.is_new(ctx) {
-                                    self.set(ctx);
-                                } else if let Some($ident) = ctx
-                                    .window_state
-                                    .get::<WindowVars>()
-                                    .expect("no `WindowVars` in `window_state`")
-                                    .$ident()
-                                    .get_new(ctx) {
-                                    let _ = self.$ident.set_ne(ctx.vars, $ident.clone());
-                                }
-                                self.child.update(ctx);
-                            }
-                        }
-                        [<Window $ident:camel Node>] {
-                            child,
-                            $ident: $ident.into_var()
-                        }
+                        bind_window_var(child, $ident, |w|w.$ident().clone())
                     }
                 })+
             }
         }
         set_properties! {
+            position: Point,
+            size: Size,
+            min_size: Size,
+            max_size: Size,
+
             chrome: WindowChrome,
             icon: WindowIcon,
             title: Text,
@@ -411,143 +377,28 @@ pub mod window {
             transparent: bool,
         }
 
-        // Properties with types composed of two Length members, only pass on finite members.
-        macro_rules! set_or_modify_properties {
+        macro_rules! map_properties {
             ($(
-                $ident:ident ( $member_a:ident, $member_b:ident ) : $Type:ty,
+                $ident:ident . $member:ident = $name:ident : $Type:ty,
             )+) => {$(paste::paste! {
-                #[doc = "Sets the [`"$ident"`](WindowVars::"$ident") window var."]
+                #[doc = "Binds the `"$member"` of the [`"$ident"`](WindowVars::"$ident") window var with the property value."]
                 ///
-                #[doc = "Sets `"$ident"` back if the window var updates with a new value."]
+                /// The binding is bidirectional and the window variable is assigned on init.
                 #[property(context)]
-                pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
-                    struct [<Window $ident:camel Node>] <C, V> {
-                        child: C,
-                        $ident: V,
-                    }
-                    #[impl_ui_node(child)]
-                    impl<C: UiNode, V: Var<$Type>> [<Window $ident:camel Node>] <C, V> {
-                        fn set(&mut self, ctx: &mut WidgetContext) {
-                            let $ident = self.$ident.copy(ctx);
-                            let [<$ident var>] = ctx.window_state.get::<WindowVars>().expect("no `WindowVars` in `window_state`").$ident();
-
-                            if $ident.$member_a.is_finite() {
-                                if $ident.$member_b.is_finite() {
-                                    [<$ident var>].set_ne(ctx.vars, $ident);
-                                } else if $ident.$member_a != [<$ident var>].get(ctx).$member_a {
-                                    [<$ident var>].modify(ctx.vars, move |v|v.$member_a = $ident.$member_a);
-                                }
-                            } else if $ident.$member_b.is_finite() && $ident.$member_b != [<$ident var>].get(ctx).$member_b {
-                                [<$ident var>].modify(ctx.vars, move |v|v.$member_b = $ident.$member_b);
-                            }
-                        }
-
-                        #[UiNode]
-                        fn init(&mut self, ctx: &mut WidgetContext) {
-                            self.set(ctx);
-                            self.child.init(ctx);
-                        }
-
-                        #[UiNode]
-                        fn update(&mut self, ctx: &mut WidgetContext) {
-                            if self.$ident.is_new(ctx) {
-                                self.set(ctx);
-                            } else if let Some($ident) = ctx
-                                .window_state
-                                .get::<WindowVars>()
-                                .expect("no `WindowVars` in `window_state`")
-                                .$ident()
-                                .get_new(ctx)
-                            {
-                                let _ = self.$ident.set_ne(ctx.vars, $ident.clone());
-                            }
-                            self.child.update(ctx);
-                        }
-                    }
-                    [<Window $ident:camel Node>] {
-                        child,
-                        $ident: $ident.into_var()
-                    }
+                pub fn $name(child: impl UiNode, $name: impl IntoVar<$Type>) -> impl UiNode {
+                    bind_window_var(child, $name, |w|w.$ident().map_ref_bidi(|v| &v.$member, |v|&mut v.$member))
                 }
             })+}
         }
-        set_or_modify_properties! {
-            position(x, y): Point,
-            size(width, height): Size,
-            min_size(width, height): Size,
-            max_size(width, height): Size,
-        }
-
-        // Properties that set only a member of a window var.
-        macro_rules! modify_properties {
-            ($(
-                $ident:ident = $var:ident . $member:ident,
-            )+) => {$(paste::paste! {
-                #[doc = "Sets the `"$member"` member of the [`"$var"`](WindowVars::"$var") window var."]
-                ///
-                #[doc = "Sets `"$ident"` back if the window var updates with a new value."]
-                #[property(context)]
-                pub fn $ident(child: impl UiNode, $ident: impl IntoVar<Length>) -> impl UiNode {
-                    struct [<Window $ident:camel Node>] <C, V> {
-                        child: C,
-                        $ident: V,
-                    }
-                    #[impl_ui_node(child)]
-                    impl<C: UiNode, V: Var<Length>> [<Window $ident:camel Node>]<C, V> {
-                        fn set(&mut self, ctx: &mut WidgetContext) {
-                            let $ident = *self.$ident.get(ctx);
-                            if $ident.is_finite() {
-                                let $var = ctx
-                                    .window_state
-                                    .get::<WindowVars>()
-                                    .expect("no `WindowVars` in `window_state`")
-                                    .$var();
-                                if $ident != $var.get(ctx).$member {
-                                    $var.modify(ctx.vars, move |s| s.$member = $ident);
-                                }
-                            }
-                        }
-
-                        #[UiNode]
-                        fn init(&mut self, ctx: &mut WidgetContext) {
-                            self.set(ctx);
-                            self.child.init(ctx);
-                        }
-
-                        #[UiNode]
-                        fn update(&mut self, ctx: &mut WidgetContext) {
-                            if self.$ident.is_new(ctx) {
-                                self.set(ctx);
-                            } else if let Some($var) = ctx
-                                .window_state
-                                .get::<WindowVars>()
-                                .expect("no `WindowVars` in `window_state`")
-                                .$var()
-                                .get_new(ctx)
-                            {
-                                let _ = self.$ident.set_ne(ctx.vars, $var.$member);
-                            }
-                            self.child.update(ctx);
-                        }
-                    }
-                    [<Window $ident:camel Node>] {
-                        child,
-                        $ident: $ident.into_var()
-                    }
-                }
-            })+}
-        }
-        modify_properties! {
-            width = size.width,
-            height = size.height,
-
-            min_width = min_size.width,
-            min_height = min_size.height,
-            max_width = max_size.width,
-            max_height = max_size.height,
-
-            x = position.x,
-            y = position.y,
+        map_properties! {
+            position.x = x: Length,
+            position.y = y: Length,
+            size.width = width: Length,
+            size.height = height: Length,
+            min_size.width = min_width: Length,
+            min_size.height = min_height: Length,
+            max_size.width = max_width: Length,
+            max_size.height = max_height: Length,
         }
     }
 
