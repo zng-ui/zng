@@ -36,7 +36,7 @@ use crate::{
     state::{StateKey, StateMap},
     state_key,
     text::{Text, ToText},
-    var::{var, BoxedVar, IntoVar, RcCowVar, RcVar, ReadOnlyVar, Var, VarValue, Vars},
+    var::*,
     window::WindowId,
     UiNode, WidgetId,
 };
@@ -1365,41 +1365,46 @@ impl CommandArgs {
     }
 }
 
-/// Helper for declaring command properties.
+/// Helper for declaring command handlers.
 #[inline]
-pub fn on_command<U, C, E, H>(child: U, command: C, enabled: E, handler: H) -> impl UiNode
+pub fn on_command<U, C, CB, E, H>(child: U, command_builder: CB, enabled: E, handler: H) -> impl UiNode
 where
     U: UiNode,
     C: Command,
-    E: IntoVar<bool>,
+    CB: FnMut(&mut WidgetContext) -> C + 'static,
+    E: FnMut(&mut WidgetContext) -> bool + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnCommandNode<U, C, E, H> {
+    struct OnCommandNode<U, C, CB, E, H> {
         child: U,
-        command: C,
+        command: Option<C>,
+        command_builder: CB,
         enabled: E,
         handler: H,
         handle: Option<CommandHandle>,
     }
     #[impl_ui_node(child)]
-    impl<U, C, E, H> UiNode for OnCommandNode<U, C, E, H>
+    impl<U, C, CB, E, H> UiNode for OnCommandNode<U, C, CB, E, H>
     where
         U: UiNode,
         C: Command,
-        E: Var<bool>,
+        CB: FnMut(&mut WidgetContext) -> C + 'static,
+        E: FnMut(&mut WidgetContext) -> bool + 'static,
         H: WidgetHandler<CommandArgs>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            let enabled = self.enabled.copy(ctx);
-            self.handle = Some(self.command.new_handle(ctx, enabled));
+            let enabled = (self.enabled)(ctx);
+            let command = (self.command_builder)(ctx);
+            self.handle = Some(command.new_handle(ctx, enabled));
+            self.command = Some(command);
         }
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = self.command.update(args) {
+            if let Some(args) = self.command.expect("OnCommandNode not initialized").update(args) {
                 self.child.event(ctx, args);
 
-                if !args.stop_propagation_requested() && self.enabled.copy(ctx) {
+                if !args.stop_propagation_requested() && (self.enabled)(ctx) {
                     self.handler.event(ctx, args);
                 }
             } else {
@@ -1412,58 +1417,63 @@ where
 
             self.handler.update(ctx);
 
-            if let Some(enabled) = self.enabled.copy_new(ctx) {
-                self.handle.as_ref().unwrap().set_enabled(enabled);
-            }
+            self.handle.as_ref().unwrap().set_enabled((self.enabled)(ctx))
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             self.handle = None;
+            self.command = None;
         }
     }
     OnCommandNode {
         child,
-        command,
-        enabled: enabled.into_var(),
+        command: None,
+        command_builder,
+        enabled,
         handler,
         handle: None,
     }
 }
 
-/// Helper for declaring command properties.
+/// Helper for declaring command preview handlers.
 #[inline]
-pub fn on_pre_command<U, C, E, H>(child: U, command: C, enabled: E, handler: H) -> impl UiNode
+pub fn on_pre_command<U, C, CB, E, H>(child: U, command_builder: CB, enabled: E, handler: H) -> impl UiNode
 where
     U: UiNode,
     C: Command,
-    E: IntoVar<bool>,
+    CB: FnMut(&mut WidgetContext) -> C + 'static,
+    E: FnMut(&mut WidgetContext) -> bool + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnPreviewCommandNode<U, C, E, H> {
+    struct OnPreviewCommandNode<U, C, CB, E, H> {
         child: U,
-        command: C,
+        command: Option<C>,
+        command_builder: CB,
         enabled: E,
         handler: H,
         handle: Option<CommandHandle>,
     }
     #[impl_ui_node(child)]
-    impl<U, C, E, H> UiNode for OnPreviewCommandNode<U, C, E, H>
+    impl<U, C, CB, E, H> UiNode for OnPreviewCommandNode<U, C, CB, E, H>
     where
         U: UiNode,
         C: Command,
-        E: Var<bool>,
+        CB: FnMut(&mut WidgetContext) -> C + 'static,
+        E: FnMut(&mut WidgetContext) -> bool + 'static,
         H: WidgetHandler<CommandArgs>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let enabled = self.enabled.copy(ctx);
-            self.handle = Some(self.command.new_handle(ctx, enabled));
+            let enabled = (self.enabled)(ctx);
+            let command = (self.command_builder)(ctx);
+            self.handle = Some(command.new_handle(ctx, enabled));
+            self.command = Some(command);
             self.child.init(ctx);
         }
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = self.command.update(args) {
-                if !args.stop_propagation_requested() && self.enabled.copy(ctx) {
+            if let Some(args) = self.command.expect("OnPreviewCommandNode not initialized").update(args) {
+                if !args.stop_propagation_requested() && (self.enabled)(ctx) {
                     self.handler.event(ctx, args);
                 }
                 self.child.event(ctx, args);
@@ -1475,97 +1485,26 @@ where
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.handler.update(ctx);
 
-            if let Some(enabled) = self.enabled.copy_new(ctx) {
-                self.handle.as_ref().unwrap().set_enabled(enabled);
-            }
+            self.handle.as_ref().unwrap().set_enabled((self.enabled)(ctx));
+
             self.child.update(ctx);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             self.handle = None;
+            self.command = None;
         }
     }
     OnPreviewCommandNode {
         child,
-        command,
-        enabled: enabled.into_var(),
+        command: None,
+        command_builder,
+        enabled,
         handler,
         handle: None,
     }
 }
-
-///<span data-inline></span> Declare command properties.
-#[macro_export]
-macro_rules! command_property {
-    ($(
-        $(#[$on_command_attrs:meta])*
-        $vis:vis fn $command:ident: $Command:path;
-    )+) => {$($crate::paste! {
-
-        $crate::var::context_var! {
-            struct [<Can $Command Var>]: bool = const true;
-        }
-
-        $(#[$on_command_attrs])*
-        ///
-        /// # Enable
-        ///
-        #[doc = "You can control if this property is enabled by setting the [`can_"$command"`](fn.can_"$command".html)."]
-        /// property in the same widget or a parent widget.
-        ///
-        /// # Preview
-        ///
-        #[doc = "You can preview this command event using [`on_pre_"$command"`](fn.on_pre_"$command".html)."]
-        /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
-        ///
-        /// # Async
-        ///
-        /// You can use async event handlers with this property.
-        #[$crate::property(event, default( $crate::handler::hn!(|_, _|{}) ))]
-        pub fn [<on_ $command>](
-            child: impl $crate::UiNode,
-            handler: impl $crate::handler::WidgetHandler<$crate::command::CommandArgs>
-        ) -> impl $crate::UiNode {
-            $crate::command::on_command(child, $Command, [<Can $Command Var>], handler)
-        }
-
-        #[doc = "Preview [`on_"$command"`](fn.on_"$command".html) command event."]
-        ///
-        /// # Preview
-        ///
-        /// Preview event properties call the handler before the main event property and before the widget content, if you stop
-        /// the propagation of a preview event the main event handler is not called.
-        ///
-        /// # Async
-        ///
-        /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
-        /// subsequent code runs in widget updates.
-        #[$crate::property(event, default( $crate::handler::hn!(|_, _|{}) ))]
-        pub fn [<on_pre_ $command>](
-            child: impl $crate::UiNode,
-            handler: impl $crate::handler::WidgetHandler<$crate::command::CommandArgs>
-        ) -> impl $crate::UiNode {
-            $crate::command::on_pre_command(child, $Command, [<Can $Command Var>], handler)
-        }
-
-        #[doc = "Enable/Disable the [`on_"$command"`](fn.on_"$command".html) command event in the widget or its content."]
-        ///
-        /// # Commands
-        ///
-        /// TODO
-        #[$crate::property(context, allowed_in_when = false, default( true ))]
-        pub fn [<can_ $command>](
-            child: impl $crate::UiNode,
-            enabled: impl $crate::var::IntoVar<bool>
-        ) -> impl $crate::UiNode {
-            $crate::var::with_context_var(child, [<Can $Command Var>], enabled)
-        }
-
-    })+}
-}
-#[doc(inline)]
-pub use crate::command_property;
 
 #[cfg(test)]
 mod tests {

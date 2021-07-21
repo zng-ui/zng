@@ -198,54 +198,11 @@ pub mod window {
         /// The default value is `true`.
         properties::taskbar_visible;
 
-        /// If the [`on_inspect`] responds to [`InspectCommand`] calls.
+        /// If the Debug Inspector can be opened for this window.
         ///
         /// The default value is `true`.
-        ///
-        /// [`on_inspect`]: #wp-on_inspect
-        /// [`InspectCommand`]: self::commands::InspectCommand
         #[cfg(debug_assertions)]
-        self::commands::can_inspect;
-
-        /// Toggles the "Debug Inspector" for the window.
-        ///
-        /// You can execute this handler using the [`InspectCommand`].
-        ///
-        /// This property is the [`on_pre_inspect`] so window handlers see it first.
-        ///
-        /// [`can_inspect`]: #wp-can_inspect
-        /// [`InspectCommand`]: self::commands::InspectCommand
-        /// [`on_pre_inspect`]: fn@self::commands::on_pre_inspect
-        #[cfg(debug_assertions)]
-        self::commands::on_pre_inspect as on_inspect = {
-            use crate::core::debug::{write_frame, WriteFrameState};
-
-            let mut state = WriteFrameState::none();
-            hn!(|ctx, args: &CommandArgs| {
-                if ctx.services.focus().is_window_focused(ctx.path.window_id()) {
-                    args.stop_propagation();
-
-                    let frame = ctx
-                        .services
-                        .req::<crate::core::window::Windows>()
-                        .window(ctx.path.window_id())
-                        .unwrap()
-                        .frame_info();
-
-                    let mut buffer = vec![];
-                    write_frame(frame, &state, &mut buffer);
-
-                    state = WriteFrameState::new(&frame);
-
-                    task::spawn_wait(move || {
-                        use std::io::*;
-                        stdout()
-                            .write_all(&buffer)
-                            .unwrap_or_else(|e| log::error!("error printing frame {}", e));
-                    });
-                }
-            })
-        };
+        can_inspect(impl IntoVar<bool>) = true;
 
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
@@ -294,6 +251,13 @@ pub mod window {
         }
     }
 
+    fn new_event(child: impl UiNode, #[cfg(debug_assertions)] can_inspect: impl IntoVar<bool>) -> impl UiNode {
+        let child = commands::close_node(child);
+        #[cfg(debug_assertions)]
+        let child = commands::inspect_node(child, can_inspect);
+        child
+    }
+
     #[inline]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -305,8 +269,6 @@ pub mod window {
         on_pre_redraw: impl FnMut(&mut RedrawArgs) + 'static,
         on_redraw: impl FnMut(&mut RedrawArgs) + 'static,
     ) -> Window {
-        let child = commands::close_node(child);
-        //let child = commands::inspect_node(child);
         Window::new(
             root_id,
             start_position,
@@ -601,6 +563,7 @@ pub mod window {
             window::{WindowFocusChangedEvent, WindowOpenEvent, WindowsExt},
             *,
         };
+        use zero_ui_core::var::{IntoVar, Var};
 
         command! {
             /// Represents the window **close** action.
@@ -751,9 +714,42 @@ pub mod window {
             }
         }
 
-        command_property! {
-            /// Property event for the [`InspectCommand`].
-            pub fn inspect: InspectCommand;
+        pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl IntoVar<bool>) -> impl UiNode {
+            use crate::core::debug::{write_frame, WriteFrameState};
+
+            let mut state = WriteFrameState::none();
+
+            let can_inspect = can_inspect.into_var();
+
+            on_command(
+                child,
+                |ctx| InspectCommand.scoped(ctx.path.window_id()),
+                move |ctx| can_inspect.copy(ctx),
+                hn!(|ctx, args: &CommandArgs| {
+                    if dbg!(ctx.services.focus().is_window_focused(ctx.path.window_id())) {
+                        args.stop_propagation();
+
+                        let frame = ctx
+                            .services
+                            .req::<crate::core::window::Windows>()
+                            .window(ctx.path.window_id())
+                            .unwrap()
+                            .frame_info();
+
+                        let mut buffer = vec![];
+                        write_frame(frame, &state, &mut buffer);
+
+                        state = WriteFrameState::new(&frame);
+
+                        task::spawn_wait(move || {
+                            use std::io::*;
+                            stdout()
+                                .write_all(&buffer)
+                                .unwrap_or_else(|e| log::error!("error printing frame {}", e));
+                        });
+                    }
+                }),
+            )
         }
     }
 }

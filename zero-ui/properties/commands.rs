@@ -97,14 +97,3 @@ command! {
         .init_info("Open the context menu.")
         .init_shortcut([shortcut!(SHIFT+F10), shortcut!(Apps)]);
 }
-
-command_property! {
-    /// Clipboard paste command.
-    pub fn cut: CutCommand;
-
-    /// Clipboard copy command.
-    pub fn copy: CopyCommand;
-
-    /// Clipboard paste command.
-    pub fn paste: PasteCommand;
-}

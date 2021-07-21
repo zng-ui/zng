@@ -29,12 +29,10 @@ Things that must be done first because they influence the core API design that i
   * Private nodes in widget, see `widget_private_nodes_design.rs`.
   * let properties reference other properties.
   * Support doc(cfg).
+  * Support cfg in captures.
 
 * Commands.
-  * Review documentation, not-scoped is just app scope, does not activate scoped of same type.
-  * Review command_property! now that scopes are a thing.
   * Review InspectCommand.
-
 * Timers.
   * Unify with app handlers (missing on_interval docs).
   * Configurable `Instant::now` source, to advance time instantly in tests.

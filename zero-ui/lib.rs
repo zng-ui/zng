@@ -793,7 +793,7 @@ pub mod prelude {
             self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
             sepia, Rgba,
         },
-        command::{command_property, CommandInfoExt, CommandNameExt},
+        command::{CommandInfoExt, CommandNameExt},
         context::WidgetContext,
         event::Events,
         focus::{DirectionalNav, Focus, FocusChangedArgs, FocusExt, ReturnFocusChangedArgs, TabIndex, TabNav},
