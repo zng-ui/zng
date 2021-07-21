@@ -50,7 +50,7 @@
 //! resolved the responsiveness problem, but there is one extra problem to solve, how to not block one of the worker threads waiting IO.
 //!
 //! We want to keep the [`run`] threads either doing work or available for other tasks, but reading a file is just waiting
-//! for a potentially slow external operation, so if we just call `std::fs::read_to_string` directly we can potentially remove one of
+//! for a potentially slow external operation, so if we just call [`std::fs::read_to_string`] directly we can potentially remove one of
 //! the worker threads from play, reducing the overall tasks performance. To avoid this we move the IO operation inside a [`wait`]
 //! task, this task is not *async* but it is *parallel*, meaning if does not block but it runs a blocking operation. It runs inside
 //! a [`blocking`] thread-pool, that is optimized for waiting.
@@ -128,7 +128,10 @@ use std::{
     future::Future,
     io,
     pin::Pin,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
     task::{Poll, Waker},
     time::{Duration, Instant},
 };
@@ -1046,6 +1049,12 @@ pub mod channel {
         pub fn capacity(&self) -> Option<usize> {
             self.0.capacity()
         }
+
+        /// Takes all sitting in the channel.
+        #[inline]
+        pub fn drain(&self) -> flume::Drain<T> {
+            self.0.drain()
+        }
     }
 
     /// Create a channel with no maximum capacity.
@@ -1511,7 +1520,9 @@ impl ReadTaskBuilder {
 /// [`finish`]: WriteTask::finish
 /// [`BrokenPipe`]: io::ErrorKind::BrokenPipe
 pub struct WriteTask<W> {
-    sender: channel::Sender<WriteTaskMsg<W>>,
+    sender: channel::Sender<WriteTaskMsg>,
+    finish: channel::Receiver<WriteTaskFinishMsg<W>>,
+    state: Arc<WriteTaskState>,
 }
 impl WriteTask<()> {
     /// Start building a write task.
@@ -1549,110 +1560,164 @@ where
 {
     fn spawn(builder: WriteTaskBuilder, write: W) -> Self {
         let (sender, receiver) = channel::bounded(builder.channel_capacity);
+        let (f_sender, f_receiver) = channel::rendezvous();
+        let state = Arc::new(WriteTaskState {
+            bytes_written: AtomicU64::new(0),
+        });
+        let t_state = Arc::clone(&state);
         self::spawn(async move {
             let mut write = write;
+            let mut error = None;
+            let mut error_payload = vec![];
 
             while let Ok(msg) = receiver.recv().await {
                 match msg {
-                    WriteTaskMsg::WriteAll(bytes, rsp) => {
-                        let r = self::wait(move || match write.write_all(&bytes) {
-                            Ok(_) => Ok(write),
-                            Err(e) => Err(WriteTaskError::new(Some(write), bytes, e)),
+                    WriteTaskMsg::WriteAll(p) => {
+                        let (w, p, r) = self::wait(move || {
+                            let r = write.write_all(&p);
+                            (write, p, r)
                         })
                         .await;
-
+                        write = w;
                         match r {
-                            Ok(w) => {
-                                write = w;
-                                if rsp.send(Ok(())).await.is_err() {
-                                    break;
-                                }
+                            Ok(_) => {
+                                t_state.payload_written(p.len());
                             }
                             Err(e) => {
-                                let _ = rsp.send(Err(e));
+                                error = Some(e);
+                                error_payload = p;
                                 break;
                             }
                         }
                     }
                     WriteTaskMsg::Flush(rsp) => {
-                        let r = self::wait(move || match write.flush() {
-                            Ok(_) => Ok(write),
-                            Err(e) => Err(WriteTaskError::new(Some(write), vec![], e)),
+                        let (w, r) = self::wait(move || {
+                            let r = write.flush();
+                            (write, r)
                         })
                         .await;
-
+                        write = w;
                         match r {
-                            Ok(w) => {
-                                write = w;
+                            Ok(_) => {
                                 if rsp.send(Ok(())).await.is_err() {
                                     break;
                                 }
                             }
                             Err(e) => {
-                                let _ = rsp.send(Err(e));
+                                error = Some(e);
                                 break;
                             }
                         }
                     }
-                    WriteTaskMsg::Finish(rsp) => {
-                        let r = self::wait(move || match write.flush() {
-                            Ok(_) => Ok(write),
-                            Err(e) => Err(WriteTaskError::new(Some(write), vec![], e)),
+                    WriteTaskMsg::Finish => {
+                        let (w, r) = self::wait(move || {
+                            let r = write.flush();
+                            (write, r)
                         })
                         .await;
 
-                        let _ = rsp.send(r);
-                        break;
+                        write = w;
+
+                        match r {
+                            Ok(_) => break,
+                            Err(e) => error = Some(e),
+                        }
                     }
                 }
             }
+
+            let _ = f_sender
+                .send(WriteTaskFinishMsg {
+                    write,
+                    result: match error {
+                        Some(e) => Err((error_payload, e)),
+                        None => Ok(()),
+                    },
+                    receiver,
+                })
+                .await;
         });
-        WriteTask { sender }
+        WriteTask {
+            sender,
+            state,
+            finish: f_receiver,
+        }
     }
 
-    /// Request a [`Write::write_all`] call.
+    /// Send a bytes `payload` to the writer worker.
     ///
-    /// The recommended size for `bytes` is around 1 mebibyte.
+    /// Awaits if the channel is full, return `Ok` if the `payload` was send or the [`WriteTaskClosed`]
+    /// error is the write worker has closed because of an IO error.
     ///
-    /// Await to get the `write_all` call result.
+    /// In case of an error you must call [`finish`] to get the actual IO error.
     ///
-    /// [`Write::write_all`]: io::Write::write_all.
-    pub async fn write(&self, bytes: Vec<u8>) -> Result<(), WriteTaskError<W>> {
-        let (rsv, rcv) = channel::rendezvous();
-        self.sender.send(WriteTaskMsg::WriteAll(bytes, rsv)).await.map_err(|e| {
-            if let WriteTaskMsg::WriteAll(bytes, _) = e.0 {
-                WriteTaskError::disconnected(bytes)
+    /// [`finish`]: WriteTask::finish
+    pub async fn write(&self, payload: Vec<u8>) -> Result<(), WriteTaskClosed> {
+        self.sender.send(WriteTaskMsg::WriteAll(payload)).await.map_err(|e| {
+            if let WriteTaskMsg::WriteAll(payload) = e.0 {
+                WriteTaskClosed { payload }
             } else {
                 unreachable!()
             }
         })?;
 
-        rcv.recv().await.map_err(|_| WriteTaskError::disconnected(vec![]))?
+        Ok(())
     }
 
-    /// Request a [`Write::flush`] call.
+    /// Awaits until all previous requested [`write`] are finished.
     ///
-    /// Await to get the `flush` call result.
-    ///
-    /// [`Write::flush`]: io::Write::flush
-    pub async fn flush(&self) -> Result<(), WriteTaskError<W>> {
+    /// [`write`]: Self::write
+    pub async fn flush(&self) -> Result<(), WriteTaskClosed> {
         let (rsv, rcv) = channel::rendezvous();
         self.sender
             .send(WriteTaskMsg::Flush(rsv))
             .await
-            .map_err(|_| WriteTaskError::disconnected(vec![]))?;
-        rcv.recv().await.map_err(|_| WriteTaskError::disconnected(vec![]))?
+            .map_err(|_| WriteTaskClosed { payload: vec![] })?;
+
+        rcv.recv().await.map_err(|_| WriteTaskClosed { payload: vec![] })?
     }
 
-    /// Flush and take back the [`io::Write`].
+    /// Awaits until all previous requested [`write`] are finished, then closes the write worker.
+    ///
+    /// Returns a [`WriteTaskError`] in case the worker closed due to an IO error.
+    ///
+    /// [`write`]: Self::write
     pub async fn finish(self) -> Result<W, WriteTaskError<W>> {
-        let (rsv, rcv) = channel::rendezvous();
         self.sender
-            .send(WriteTaskMsg::Finish(rsv))
+            .send(WriteTaskMsg::Finish)
             .await
-            .map_err(|_| WriteTaskError::disconnected(vec![]))?;
+            .expect("`WriteTask::finish` already called");
 
-        rcv.recv().await.map_err(|_| WriteTaskError::disconnected(vec![]))?
+        let msg = self.finish.recv().await.expect("`WriteTask::finish` already called");
+        match msg.result {
+            Ok(_) => Ok(msg.write),
+            Err((payload, io_err)) => {
+                let mut payloads = vec![payload];
+                for msg in msg.receiver.drain() {
+                    if let WriteTaskMsg::WriteAll(payload) = msg {
+                        payloads.push(payload);
+                    }
+                }
+                Err(WriteTaskError::new(msg.write, self.state.bytes_written(), payloads, io_err))
+            }
+        }
+    }
+
+    /// Number of bytes that where successfully written.
+    #[inline]
+    pub fn bytes_written(&self) -> u64 {
+        self.state.bytes_written()
+    }
+}
+struct WriteTaskState {
+    bytes_written: AtomicU64,
+}
+impl WriteTaskState {
+    fn bytes_written(&self) -> u64 {
+        self.bytes_written.load(Ordering::Relaxed)
+    }
+    fn payload_written(&self, payload_len: usize) {
+        self.bytes_written.fetch_add(payload_len as u64, Ordering::Relaxed);
     }
 }
 
@@ -1691,44 +1756,45 @@ impl WriteTaskBuilder {
     }
 }
 
-enum WriteTaskMsg<W> {
-    WriteAll(Vec<u8>, channel::Sender<Result<(), WriteTaskError<W>>>),
-    Flush(channel::Sender<Result<(), WriteTaskError<W>>>),
-    Finish(channel::Sender<Result<W, WriteTaskError<W>>>),
+enum WriteTaskMsg {
+    WriteAll(Vec<u8>),
+    Flush(channel::Sender<Result<(), WriteTaskClosed>>),
+    Finish,
+}
+struct WriteTaskFinishMsg<W> {
+    write: W,
+    result: Result<(), (Vec<u8>, io::Error)>,
+    receiver: channel::Receiver<WriteTaskMsg>,
 }
 
 /// Error from [`WriteTask`].
+///
+/// The write task worker closes on the first IO error, the [`WriteTask`] send methods
+/// return [`WriteTaskClosed`] when this happens and the [`WriteTask::finish`]
+/// method returns this error that contains the actual IO error.
 pub struct WriteTaskError<W> {
-    /// The [`io::Write`] that caused the error.
+    /// The [`io::Write`].
+    pub write: W,
+
+    /// Number of bytes that where written before the error.
     ///
-    /// Is `None` the error represents a lost connection with the task.
-    pub write: Option<W>,
-    /// The bytes that where not fully written before the error happened.
-    pub payload: Vec<u8>,
+    /// Note that some bytes from the last payload where probably written too, but
+    /// only confirmed written payloads are counted here.
+    pub bytes_written: u64,
+
+    /// The payloads that where not written.
+    pub payloads: Vec<Vec<u8>>,
     /// The error.
     pub error: io::Error,
 }
 impl<W: io::Write> WriteTaskError<W> {
-    fn disconnected(payload: Vec<u8>) -> Self {
-        Self::new(
-            None,
-            payload,
-            io::Error::new(
-                io::ErrorKind::BrokenPipe,
-                "`WriteTask` worker is shutdown, probably caused by an error or panic",
-            ),
-        )
-    }
-
-    fn new(write: Option<W>, payload: Vec<u8>, error: io::Error) -> Self {
-        Self { write, payload, error }
-    }
-
-    /// If the error represents a lost connection with the task.
-    ///
-    /// This can happen after an error was already returned or if a panic killed the [`wait`] thread.
-    pub fn is_disconnected(&self) -> bool {
-        self.write.is_none()
+    fn new(write: W, bytes_written: u64, payloads: Vec<Vec<u8>>, error: io::Error) -> Self {
+        Self {
+            write,
+            bytes_written,
+            payloads,
+            error,
+        }
     }
 }
 impl<W: io::Write> fmt::Debug for WriteTaskError<W> {
@@ -1744,6 +1810,31 @@ impl<W: io::Write> fmt::Display for WriteTaskError<W> {
 impl<W: io::Write> std::error::Error for WriteTaskError<W> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(&self.error)
+    }
+}
+
+/// Error from [`WriteTask`].
+///
+/// This error is returned to indicate that the task worker has permanently stopped because
+/// of an IO error. You can get the IO error by calling [`WriteTask::finish`].
+pub struct WriteTaskClosed {
+    /// Payload that could not be send.
+    ///
+    /// Is empty in case of a [`flush`] call.
+    ///
+    /// [`flush`]: WriteTask::flush
+    payload: Vec<u8>,
+}
+impl fmt::Debug for WriteTaskClosed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WriteTaskDisconnected")
+            .field("payload", &format!("<{} bytes>", self.payload.len()))
+            .finish()
+    }
+}
+impl fmt::Display for WriteTaskClosed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "write task worker has closed")
     }
 }
 

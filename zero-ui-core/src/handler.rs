@@ -74,7 +74,7 @@ pub trait WidgetHandler<A: Clone + 'static>: 'static {
     /// used to implement the test [`block_on`] only.
     ///
     /// [`update`]: WidgetHandler::update
-    /// [`block_on`]: TestWidgetContext::block_on
+    /// [`block_on`]: crate::context::TestWidgetContext::block_on
     fn update(&mut self, ctx: &mut WidgetContext) -> bool {
         let _ = ctx;
         false
