@@ -724,30 +724,28 @@ pub mod window {
             on_command(
                 child,
                 |ctx| InspectCommand.scoped(ctx.path.window_id()),
-                move |ctx| can_inspect.copy(ctx),
+                move |ctx| can_inspect.copy(ctx) && ctx.services.focus().is_window_focused(ctx.path.window_id()),
                 hn!(|ctx, args: &CommandArgs| {
-                    if dbg!(ctx.services.focus().is_window_focused(ctx.path.window_id())) {
-                        args.stop_propagation();
+                    args.stop_propagation();
 
-                        let frame = ctx
-                            .services
-                            .req::<crate::core::window::Windows>()
-                            .window(ctx.path.window_id())
-                            .unwrap()
-                            .frame_info();
+                    let frame = ctx
+                        .services
+                        .req::<crate::core::window::Windows>()
+                        .window(ctx.path.window_id())
+                        .unwrap()
+                        .frame_info();
 
-                        let mut buffer = vec![];
-                        write_frame(frame, &state, &mut buffer);
+                    let mut buffer = vec![];
+                    write_frame(frame, &state, &mut buffer);
 
-                        state = WriteFrameState::new(&frame);
+                    state = WriteFrameState::new(&frame);
 
-                        task::spawn_wait(move || {
-                            use std::io::*;
-                            stdout()
-                                .write_all(&buffer)
-                                .unwrap_or_else(|e| log::error!("error printing frame {}", e));
-                        });
-                    }
+                    task::spawn_wait(move || {
+                        use std::io::*;
+                        stdout()
+                            .write_all(&buffer)
+                            .unwrap_or_else(|e| log::error!("error printing frame {}", e));
+                    });
                 }),
             )
         }

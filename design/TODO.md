@@ -31,8 +31,6 @@ Things that must be done first because they influence the core API design that i
   * Support doc(cfg).
   * Support cfg in captures.
 
-* Commands.
-  * Review InspectCommand.
 * Timers.
   * Unify with app handlers (missing on_interval docs).
   * Configurable `Instant::now` source, to advance time instantly in tests.
@@ -107,6 +105,7 @@ Things that must be done first because they influence the core API design that i
 * ToolTip.
 * Resize parent.
 * MainMenu.
+  * Auto-merge separators depending on the visibility of items in between.
 * Basic markdown view.
 
 ## Virtualizing Widgets
@@ -123,6 +122,11 @@ Widgets that contain many elements that must be loaded on demand.
 
 * Message dialogs (themeable?).
 * File dialogs (not themeable?).
+
+## Commands
+
+* Add common commands with localized name+info.
+* Implement *check-box* commands.
 
 ## Window Widgets
 
