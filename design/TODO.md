@@ -13,9 +13,6 @@ Things that must be done first because they influence the core API design that i
   https://deterministic.space/machine-readable-inline-markdown-code-cocumentation.html
   https://github.com/rust-lang/rfcs/blob/30221dc3e025eb9f8f84ccacbc9622e3a75dff5e/text/1574-more-api-documentation-conventions.md
   https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
-  * Fix docs of command_property! macro.
-  * Fix modules not showing in window!.
-  * Fix when docs.
 
 * Focusable
   * Support more then one ALT scopes?
@@ -42,7 +39,6 @@ Things that must be done first because they influence the core API design that i
   * Map-split.
     * Result.
     * Map/bind parse.
-  * Seal.
 
 * Task.
   * Finish network tasks.
@@ -52,7 +48,6 @@ Things that must be done first because they influence the core API design that i
 
 * Window
   * Finish window vars.
-  * Use var binding.
   * Drag regions.
   * Custom resize borders.
   * Modal.

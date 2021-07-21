@@ -30,13 +30,13 @@ pub mod button {
         on_click;
 
         /// Button background color.
-        background_color = BackgroundVar;
+        background_color = theme::BackgroundVar;
 
         /// Button border.
         border = {
-            widths: BorderWidthsVar,
-            sides: BorderSidesVar,
-            radius: BorderRadiusVar,
+            widths: theme::BorderWidthsVar,
+            sides: theme::BorderSidesVar,
+            radius: theme::BorderRadiusVar,
         };
 
         /// Color of text inside the button [`content`](#wp-content).
@@ -49,62 +49,67 @@ pub mod button {
 
         child {
             /// Content padding.
-            padding = PaddingVar;
+            padding = theme::PaddingVar;
         }
 
         /// When the pointer device is over this button.
         when self.is_cap_hovered {
-            background_color = BackgroundHoveredVar;
+            background_color = theme::BackgroundHoveredVar;
             border = {
-                widths: BorderWidthsHoveredVar,
-                sides: BorderSidesHoveredVar,
-                radius: BorderRadiusHoveredVar,
+                widths: theme::BorderWidthsHoveredVar,
+                sides: theme::BorderSidesHoveredVar,
+                radius: theme::BorderRadiusHoveredVar,
             };
         }
 
         /// When the button is pressed in a way that press release will cause a button click.
         when self.is_pressed  {
-            background_color = BackgroundPressedVar;
+            background_color = theme::BackgroundPressedVar;
             border = {
-                widths: BorderWidthsPressedVar,
-                sides: BorderSidesPressedVar,
-                radius: BorderRadiusPressedVar,
+                widths: theme::BorderWidthsPressedVar,
+                sides: theme::BorderSidesPressedVar,
+                radius: theme::BorderRadiusPressedVar,
             };
         }
 
         /// When the button is disabled.
         when self.is_disabled {
-            background_color = BackgroundDisabledVar;
+            background_color = theme::BackgroundDisabledVar;
             border = {
-                widths: BorderWidthsDisabledVar,
-                sides: BorderSidesDisabledVar,
-                radius: BorderRadiusDisabledVar,
+                widths: theme::BorderWidthsDisabledVar,
+                sides: theme::BorderSidesDisabledVar,
+                radius: theme::BorderRadiusDisabledVar,
             };
             text_color = TextColorDisabledVar;
         }
     }
 
-    context_var! {
-        pub struct BackgroundVar: Rgba = once rgb(0.2, 0.2, 0.2);
-        pub struct BackgroundHoveredVar: Rgba = once rgb(0.25, 0.25, 0.25);
-        pub struct BackgroundPressedVar: Rgba = once rgb(0.3, 0.3, 0.3);
-        pub struct BackgroundDisabledVar: Rgba = once rgb(0.2, 0.2, 0.2);
+    /// Context variables that affect the button appearance.
+    pub mod theme {
+        use super::*;
 
-        pub struct BorderWidthsVar: SideOffsets = once SideOffsets::new_all(1.0);
-        pub struct BorderWidthsHoveredVar: SideOffsets = once SideOffsets::new_all(1.0);
-        pub struct BorderWidthsPressedVar: SideOffsets = once SideOffsets::new_all(1.0);
-        pub struct BorderWidthsDisabledVar: SideOffsets = once SideOffsets::new_all(1.0);
+        context_var! {
+            pub struct BackgroundVar: Rgba = once rgb(0.2, 0.2, 0.2);
+            pub struct BackgroundHoveredVar: Rgba = once rgb(0.25, 0.25, 0.25);
+            pub struct BackgroundPressedVar: Rgba = once rgb(0.3, 0.3, 0.3);
+            pub struct BackgroundDisabledVar: Rgba = once rgb(0.2, 0.2, 0.2);
 
-        pub struct BorderSidesVar: BorderSides = once BorderSides::solid(rgb(0.2, 0.2, 0.2));
-        pub struct BorderSidesHoveredVar: BorderSides = once BorderSides::solid(rgb(0.4, 0.4, 0.4));
-        pub struct BorderSidesPressedVar: BorderSides = once BorderSides::solid(rgb(0.6, 0.6, 0.6));
-        pub struct BorderSidesDisabledVar: BorderSides = once BorderSides::solid(rgb(0.2, 0.2, 0.2));
+            pub struct BorderWidthsVar: SideOffsets = once SideOffsets::new_all(1.0);
+            pub struct BorderWidthsHoveredVar: SideOffsets = once SideOffsets::new_all(1.0);
+            pub struct BorderWidthsPressedVar: SideOffsets = once SideOffsets::new_all(1.0);
+            pub struct BorderWidthsDisabledVar: SideOffsets = once SideOffsets::new_all(1.0);
 
-        pub struct BorderRadiusVar: BorderRadius = once BorderRadius::new_all(0.0);
-        pub struct BorderRadiusHoveredVar: BorderRadius = once BorderRadius::new_all(0.0);
-        pub struct BorderRadiusPressedVar: BorderRadius = once BorderRadius::new_all(0.0);
-        pub struct BorderRadiusDisabledVar: BorderRadius = once BorderRadius::new_all(0.0);
+            pub struct BorderSidesVar: BorderSides = once BorderSides::solid(rgb(0.2, 0.2, 0.2));
+            pub struct BorderSidesHoveredVar: BorderSides = once BorderSides::solid(rgb(0.4, 0.4, 0.4));
+            pub struct BorderSidesPressedVar: BorderSides = once BorderSides::solid(rgb(0.6, 0.6, 0.6));
+            pub struct BorderSidesDisabledVar: BorderSides = once BorderSides::solid(rgb(0.2, 0.2, 0.2));
 
-        pub struct PaddingVar: SideOffsets = once SideOffsets::new(7.0, 15.0, 7.0, 15.0);
+            pub struct BorderRadiusVar: BorderRadius = once BorderRadius::new_all(0.0);
+            pub struct BorderRadiusHoveredVar: BorderRadius = once BorderRadius::new_all(0.0);
+            pub struct BorderRadiusPressedVar: BorderRadius = once BorderRadius::new_all(0.0);
+            pub struct BorderRadiusDisabledVar: BorderRadius = once BorderRadius::new_all(0.0);
+
+            pub struct PaddingVar: SideOffsets = once SideOffsets::new(7.0, 15.0, 7.0, 15.0);
+        }
     }
 }

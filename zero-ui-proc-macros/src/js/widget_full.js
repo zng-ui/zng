@@ -8,30 +8,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // remove property functions __pdoc_* and collect the summary of each.
     document.widget_property_summaries = {};
     let functions_h2 = document.querySelector('h2#functions.section-header');
-    functions_h2.nextElementSibling.querySelectorAll('tr').forEach(function(tr) {
-        let td = tr.querySelectorAll('td');
-        if (td[0].innerText.includes('__pdoc_')) {
-            document.widget_property_summaries[td[0].innerText] = td[1].innerHTML;
-            tr.remove();
-        } else if (td[0].innerText.includes('__p_')) {
-            tr.remove();
+    functions_h2.nextElementSibling.querySelectorAll('a.fn').forEach(function(a) {
+        if (a.innerText.includes('__pdoc_')) {
+            document.widget_property_summaries[a.innerText] = a.parentElement.nextElementSibling.innerHTML;
+            a.parentElement.nextElementSibling.remove();
+            a.parentElement.remove();
+        } else if (a.innerText.includes('__p_')) {
+            a.parentElement.nextElementSibling.remove();
+            a.parentElement.remove();
         }
     });
     // remove functions section if it is empty.
-    if (functions_h2.nextElementSibling.querySelector('tr') === null) {
+    if (functions_h2.nextElementSibling.querySelector('a.fn') === null) {
         functions_h2.nextElementSibling.remove();
         functions_h2.remove();
     }
 
     // remove __inner_docs
     let modules_h2 = document.querySelector('h2#modules.section-header');
-    modules_h2.nextElementSibling.querySelectorAll('tr').forEach(function(tr) {
-        let td = tr.querySelectorAll('td');
-        if (td[0].innerText.includes('__inner_docs')) {
-            tr.remove();
+    modules_h2.nextElementSibling.querySelectorAll('a.mod').forEach(function(a) {
+        if (a.innerText.includes('__inner_docs')) {
+            a.parentElement.nextElementSibling.remove();
+            a.parentElement.remove();
         }
     });
-    if (modules_h2.nextElementSibling.querySelector('tr') === null) {
+    if (modules_h2.nextElementSibling.querySelector('a.mod') === null) {
         modules_h2.nextElementSibling.remove();
         modules_h2.remove();
     }

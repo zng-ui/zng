@@ -1021,7 +1021,7 @@ fn auto_docs(
             doc_extend!(r, "\n\n");
             doc_extend!(
                 r,
-                r##"<h3 id="ww-{0}" class="impl in-band"><code style="margin-left:10px">impl {1}</code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+                r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="ww-{0}" class="method in-band"><a class="anchor" href="#ww-{0}" style="margin-left:-4px"></a><code style="margin-left:8px">{1}</code></div></summary><div class="docblock">"##,
                 i,
                 expr,
             );
@@ -1041,7 +1041,7 @@ fn auto_docs(
                 write!(&mut affected, "<a href='#wp-{0}' {1}><code>{0}</code></a>", assigned, cfg).unwrap();
             }
             doc_extend!(r, "\n\n*Affects {}.*", affected);
-            doc_extend!(r, "\n\n</div>\n\n");
+            doc_extend!(r, "\n\n</div></details>\n\n");
         }
         docs_close_section(&mut r);
     }
@@ -1108,13 +1108,13 @@ fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &
     if id.ends_with('*') {
         doc_extend!(
             docs,
-            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{0}" class="method in-band"><a class="anchor" href="#{0}" style="margin-left:-4px"></a><code style="font-style:italic"><a href="#{0}" class="fnname" style="margin-left:8px">all-properties</a> = T</code></div></summary><div class="docblock">"##,
+            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{0}" class="method in-band"><a class="anchor" href="#{0}" style="margin-left:-4px"></a><code style="font-style:italic; margin-left:8px"><a href="#{0}" class="fnname">all-properties</a> = T</code></div></summary><div class="docblock">"##,
             id,
         );
     } else {
         doc_extend!(
             docs,
-            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{0}" class="method in-band"><a class="anchor" href="#{0}" style="margin-left:-4px"></a><code><a href="{2}" class="fnname" style="margin-left:8px">{1}</a> = <span class='ptype-request' title='Loading property type…'>…<iframe src='{2}' style='position: absolute;width:0;height:0;border:0;'></iframe></span></code></div></summary><div class="docblock">"##,
+            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{0}" class="method in-band"><a class="anchor" href="#{0}" style="margin-left:-4px"></a><code style="margin-left:8px"><a href="{2}" class="fnname">{1}</a> = <span class='ptype-request' title='Loading property type…'>…<iframe src='{2}' style='position: absolute;width:0;height:0;border:0;'></iframe></span></code></div></summary><div class="docblock">"##,
             id,
             property,
             url
