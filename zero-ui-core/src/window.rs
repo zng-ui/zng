@@ -505,7 +505,7 @@ impl AppExtension for WindowManager {
                 // we can determinate if the system only changed the size
                 // to visually match the new scale_factor or if the window was
                 // really resized.
-                if window.vars.size().copy(ctx.vars) == new_size.into() {
+                if window.vars.size().get(ctx.vars) == &new_size.into() {
                     // if it only changed to visually match, the WindowEvent::Resized
                     // will not cause a re-layout, so we need to do it here, but window.resize_renderer()
                     // calls window.size(), so we need to set the new_inner_size before winit.
@@ -2122,7 +2122,7 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(min_size) = self.vars.min_size().copy_new(ctx) {
+            if let Some(min_size) = self.vars.min_size().get_new(ctx.vars) {
                 let factor = self.scale_factor();
                 let prev_min_size = self.min_size;
                 let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
@@ -2148,7 +2148,7 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(max_size) = self.vars.max_size().copy_new(ctx) {
+            if let Some(max_size) = self.vars.max_size().get_new(ctx.vars) {
                 let factor = self.scale_factor();
                 let prev_max_size = self.max_size;
                 let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
@@ -2174,7 +2174,7 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(size) = self.vars.size().copy_new(ctx) {
+            if let Some(size) = self.vars.size().get_new(ctx.vars) {
                 let current_size = self.size();
                 if AutoSize::DISABLED == *self.vars.auto_size().get(ctx) {
                     let factor = self.scale_factor();
@@ -2203,7 +2203,7 @@ impl OpenWindow {
                 }
             }
 
-            if let Some(pos) = self.vars.position().copy_new(ctx) {
+            if let Some(pos) = self.vars.position().get_new(ctx.vars) {
                 let factor = self.scale_factor();
                 let current_pos = self.position();
                 let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {

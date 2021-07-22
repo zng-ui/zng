@@ -53,7 +53,7 @@ pub fn invert_color(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> i
 
 #[property(context, default(0))]
 pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
-    filter(child, radius.into_var().map(|&r| color::blur(r)))
+    filter(child, radius.into_var().map(|r| color::blur(r.clone())))
 }
 
 #[property(context, default(false))]
@@ -75,8 +75,8 @@ pub fn drop_shadow(
 ) -> impl UiNode {
     filter(
         child,
-        merge_var!(offset.into_var(), blur_radius.into_var(), color.into_var(), |&o, &r, &c| {
-            color::drop_shadow(o, r, c)
+        merge_var!(offset.into_var(), blur_radius.into_var(), color.into_var(), |o, r, &c| {
+            color::drop_shadow(o.clone(), r.clone(), c)
         }),
     )
 }

@@ -58,7 +58,7 @@ pub type RenderExtendMode = webrender::api::ExtendMode;
 /// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum LinearGradientAxis {
     /// Line defined by an angle. 0º is a line from bottom-to-top, 90º is a line from left-to-right.
     ///
@@ -131,7 +131,7 @@ impl_from_and_into_var! {
 }
 
 /// A color stop in a gradient.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct ColorStop {
     /// The color.
     pub color: Rgba,
@@ -195,17 +195,7 @@ impl ColorStop {
     /// Use [`ColorStop::is_layout_positional`] is you already have the layout offset, it is faster then calling
     /// this method and then converting to layout.
     pub fn is_positional(&self) -> bool {
-        let f = match self.offset {
-            Length::Exact(f) => f,
-            Length::Relative(f) => f.0,
-            Length::Em(f) => f.0,
-            Length::RootEm(f) => f.0,
-            Length::ViewportWidth(f) => f,
-            Length::ViewportHeight(f) => f,
-            Length::ViewportMin(f) => f,
-            Length::ViewportMax(f) => f,
-        };
-        Self::is_layout_positional(f)
+        !self.offset.is_finite()
     }
 
     /// If a calculated layout offset is [positional](Self::is_positional).
@@ -219,7 +209,7 @@ impl ColorStop {
     /// Note that if this color stop [is positional](Self::is_positional) the returned offset is [`f32::INFINITY`].
     /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
     #[inline]
-    pub fn to_layout(self, length: LayoutLength, ctx: &LayoutContext) -> RenderGradientStop {
+    pub fn to_layout(&self, length: LayoutLength, ctx: &LayoutContext) -> RenderGradientStop {
         RenderGradientStop {
             offset: self.offset.to_layout(length, ctx).get(),
             color: self.color.into(),
@@ -250,7 +240,7 @@ impl_from_and_into_var! {
 pub type RenderGradientStop = webrender::api::GradientStop;
 
 /// A stop in a gradient.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum GradientStop {
     /// Color stop.
     Color(ColorStop),
@@ -542,9 +532,9 @@ impl GradientStops {
         } else if stops.len() == 1 {
             let start = stops[0].into();
             GradientStops {
+                end: Self::end_missing(start.color),
                 start,
                 middle: vec![],
-                end: Self::end_missing(start.color),
             }
         } else {
             let last = stops.len() - 1;
@@ -688,7 +678,7 @@ impl GradientStops {
             let after = render_stops[i + 1];
             let length = after.offset - prev.offset;
             if length > 0.00001 {
-                if let GradientStop::ColorHint(offset) = self.middle[i - 1] {
+                if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
                     let mut offset = offset.to_layout(LayoutLength::new(length), ctx).get();
                     if is_positional(offset) {
                         offset = length / 2.0;

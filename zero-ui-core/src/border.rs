@@ -238,7 +238,7 @@ impl Default for BorderSide {
 }
 
 /// Radius of each corner of a border defined from [`Ellipse`] values.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct BorderRadius {
     /// Top-left corner.
     pub top_left: Ellipse,
@@ -289,9 +289,9 @@ impl BorderRadius {
     pub fn new_all<E: Into<Ellipse>>(ellipse: E) -> Self {
         let e = ellipse.into();
         BorderRadius {
-            top_left: e,
-            top_right: e,
-            bottom_left: e,
+            top_left: e.clone(),
+            top_right: e.clone(),
+            bottom_left: e.clone(),
             bottom_right: e,
         }
     }
@@ -310,7 +310,7 @@ impl BorderRadius {
 
     /// Compute the radii in a layout context.
     #[inline]
-    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutBorderRadius {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutBorderRadius {
         LayoutBorderRadius {
             top_left: self.top_left.to_layout(available_size, ctx),
             top_right: self.top_right.to_layout(available_size, ctx),

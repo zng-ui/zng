@@ -458,7 +458,7 @@ impl fmt::Display for FactorPercent {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
 pub struct FactorNormal(pub f32);
 impl FactorNormal {
     /// Clamp factor to [0.0..=1.0] range.
@@ -466,10 +466,46 @@ impl FactorNormal {
     pub fn clamp_range(self) -> Self {
         FactorNormal(self.0.max(0.0).min(1.0))
     }
+
+    /// Returns the maximum of two factors.
+    #[inline]
+    pub fn max(self, other: impl Into<FactorNormal>) -> FactorNormal {
+        FactorNormal(self.0.max(other.into().0))
+    }
+
+    /// Returns the minimum of two factors.
+    #[inline]
+    pub fn min(self, other: impl Into<FactorNormal>) -> FactorNormal {
+        FactorNormal(self.0.min(other.into().0))
+    }
 }
 impl PartialEq for FactorNormal {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EPSILON)
+    }
+}
+impl ops::Mul for FactorNormal {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        FactorNormal(self.0 * rhs.0)
+    }
+}
+impl ops::MulAssign for FactorNormal {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+impl ops::Div for FactorNormal {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        FactorNormal(self.0 / rhs.0)
+    }
+}
+impl ops::DivAssign for FactorNormal {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
     }
 }
 impl_from_and_into_var! {
@@ -563,7 +599,7 @@ impl FactorUnits for i32 {
 /// * `Exact` lengths uses [`about_eq`] with `0.001` epsilon.
 /// * `Relative`, `Em`, `RootEm` lengths use the [`FactorNormal`] equality.
 /// * Viewport lengths uses [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub enum Length {
     /// The exact length.
     Exact(f32),
@@ -581,6 +617,8 @@ pub enum Length {
     ViewportMin(f32),
     /// Relative to 1% of the largest of the viewport's dimensions.
     ViewportMax(f32),
+    /// Unresolved expression.
+    Expr(Box<LengthExpr>),
 }
 impl<L: Into<Length>> ops::Add<L> for Length {
     type Output = Length;
@@ -597,13 +635,13 @@ impl<L: Into<Length>> ops::Add<L> for Length {
             (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a + b),
             (ViewportMin(a), ViewportMin(b)) => ViewportMin(a + b),
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a + b),
-            _ => panic!("mixed length unit addition not implemented"),
+            (a, b) => Length::Expr(Box::new(LengthExpr::Add(a, b))),
         }
     }
 }
 impl<L: Into<Length>> ops::AddAssign<L> for Length {
     fn add_assign(&mut self, rhs: L) {
-        *self = *self + rhs;
+        *self = self.clone() + rhs;
     }
 }
 impl<L: Into<Length>> ops::Sub<L> for Length {
@@ -621,62 +659,66 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
             (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a - b),
             (ViewportMin(a), ViewportMin(b)) => ViewportMin(a - b),
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a - b),
-            _ => panic!("mixed length unit subtraction not implemented"),
+            (a, b) => Length::Expr(Box::new(LengthExpr::Sub(a, b))),
         }
     }
 }
 impl<L: Into<Length>> ops::SubAssign<L> for Length {
     fn sub_assign(&mut self, rhs: L) {
-        *self = *self - rhs;
+        // TODO avoid clone here
+        *self = self.clone() - rhs;
     }
 }
-impl ops::Mul<f32> for Length {
+impl<F: Into<FactorNormal>> ops::Mul<F> for Length {
     type Output = Length;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: F) -> Self::Output {
         use Length::*;
-
+        let rhs = rhs.into();
         match self {
-            Exact(e) => Exact(e * rhs),
+            Exact(e) => Exact(e * rhs.0),
             Relative(r) => Relative(r * rhs),
             Em(e) => Em(e * rhs),
             RootEm(e) => RootEm(e * rhs),
-            ViewportWidth(w) => ViewportWidth(w * rhs),
-            ViewportHeight(h) => ViewportHeight(h * rhs),
-            ViewportMin(m) => ViewportMin(m * rhs),
-            ViewportMax(m) => ViewportMax(m * rhs),
+            ViewportWidth(w) => ViewportWidth(w * rhs.0),
+            ViewportHeight(h) => ViewportHeight(h * rhs.0),
+            ViewportMin(m) => ViewportMin(m * rhs.0),
+            ViewportMax(m) => ViewportMax(m * rhs.0),
+            e => Expr(Box::new(LengthExpr::Mul(e, rhs))),
         }
     }
 }
 impl ops::MulAssign<f32> for Length {
     fn mul_assign(&mut self, rhs: f32) {
-        *self = *self * rhs;
+        *self = self.clone() * rhs;
     }
 }
-impl ops::Div<f32> for Length {
+impl<F: Into<FactorNormal>> ops::Div<F> for Length {
     type Output = Length;
 
-    fn div(self, rhs: f32) -> Self::Output {
+    fn div(self, rhs: F) -> Self::Output {
         use Length::*;
 
+        let rhs = rhs.into();
+
         match self {
-            Exact(e) => Exact(e / rhs),
+            Exact(e) => Exact(e / rhs.0),
             Relative(r) => Relative(r / rhs),
             Em(e) => Em(e / rhs),
             RootEm(e) => RootEm(e / rhs),
-            ViewportWidth(w) => ViewportWidth(w / rhs),
-            ViewportHeight(h) => ViewportHeight(h / rhs),
-            ViewportMin(m) => ViewportMin(m / rhs),
-            ViewportMax(m) => ViewportMax(m),
+            ViewportWidth(w) => ViewportWidth(w / rhs.0),
+            ViewportHeight(h) => ViewportHeight(h / rhs.0),
+            ViewportMin(m) => ViewportMin(m / rhs.0),
+            ViewportMax(m) => ViewportMax(m / rhs.0),
+            e => Expr(Box::new(LengthExpr::Mul(e, rhs))),
         }
     }
 }
 impl ops::DivAssign<f32> for Length {
     fn div_assign(&mut self, rhs: f32) {
-        *self = *self / rhs;
+        *self = self.clone() / rhs;
     }
 }
-
 impl Default for Length {
     /// Exact `0`.
     fn default() -> Self {
@@ -685,57 +727,63 @@ impl Default for Length {
 }
 impl PartialEq for Length {
     fn eq(&self, other: &Self) -> bool {
-        match (*self, *other) {
-            (Length::Exact(a), Length::Exact(b)) => about_eq(a, b, EPSILON_100),
+        use Length::*;
+        match (self, other) {
+            (Exact(a), Exact(b)) => about_eq(*a, *b, EPSILON_100),
 
-            (Length::Relative(a), Length::Relative(b)) | (Length::Em(a), Length::Em(b)) | (Length::RootEm(a), Length::RootEm(b)) => a == b,
+            (Relative(a), Relative(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) => a == b,
 
-            (Length::ViewportWidth(a), Length::ViewportWidth(b))
-            | (Length::ViewportHeight(a), Length::ViewportHeight(b))
-            | (Length::ViewportMin(a), Length::ViewportMin(b))
-            | (Length::ViewportMax(a), Length::ViewportMax(b)) => about_eq(a, b, EPSILON),
-            _ => false,
+            (ViewportWidth(a), ViewportWidth(b))
+            | (ViewportHeight(a), ViewportHeight(b))
+            | (ViewportMin(a), ViewportMin(b))
+            | (ViewportMax(a), ViewportMax(b)) => about_eq(*a, *b, EPSILON),
+            _ => false, // TODO try to implement for expr?
         }
     }
 }
 impl fmt::Debug for Length {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Length::*;
         if f.alternate() {
             match self {
-                Length::Exact(e) => f.debug_tuple("Length::Exact").field(e).finish(),
-                Length::Relative(e) => f.debug_tuple("Length::Relative").field(e).finish(),
-                Length::Em(e) => f.debug_tuple("Length::Em").field(e).finish(),
-                Length::RootEm(e) => f.debug_tuple("Length::RootEm").field(e).finish(),
-                Length::ViewportWidth(e) => f.debug_tuple("Length::ViewportWidth").field(e).finish(),
-                Length::ViewportHeight(e) => f.debug_tuple("Length::ViewportHeight").field(e).finish(),
-                Length::ViewportMin(e) => f.debug_tuple("Length::ViewportMin").field(e).finish(),
-                Length::ViewportMax(e) => f.debug_tuple("Length::ViewportMax").field(e).finish(),
+                Exact(e) => f.debug_tuple("Length::Exact").field(e).finish(),
+                Relative(e) => f.debug_tuple("Length::Relative").field(e).finish(),
+                Em(e) => f.debug_tuple("Length::Em").field(e).finish(),
+                RootEm(e) => f.debug_tuple("Length::RootEm").field(e).finish(),
+                ViewportWidth(e) => f.debug_tuple("Length::ViewportWidth").field(e).finish(),
+                ViewportHeight(e) => f.debug_tuple("Length::ViewportHeight").field(e).finish(),
+                ViewportMin(e) => f.debug_tuple("Length::ViewportMin").field(e).finish(),
+                ViewportMax(e) => f.debug_tuple("Length::ViewportMax").field(e).finish(),
+                Expr(e) => f.debug_tuple("Length::Expr").field(e).finish(),
             }
         } else {
             match self {
-                Length::Exact(e) => write!(f, "{}", e),
-                Length::Relative(e) => write!(f, "{}.pct()", e.0 * 100.0),
-                Length::Em(e) => write!(f, "{}.em()", e.0),
-                Length::RootEm(e) => write!(f, "{}.rem()", e.0),
-                Length::ViewportWidth(e) => write!(f, "{}.vw()", e),
-                Length::ViewportHeight(e) => write!(f, "{}.vh()", e),
-                Length::ViewportMin(e) => write!(f, "{}.vmin()", e),
-                Length::ViewportMax(e) => write!(f, "{}.vmax()", e),
+                Exact(e) => write!(f, "{}", e),
+                Relative(e) => write!(f, "{}.pct()", e.0 * 100.0),
+                Em(e) => write!(f, "{}.em()", e.0),
+                RootEm(e) => write!(f, "{}.rem()", e.0),
+                ViewportWidth(e) => write!(f, "{}.vw()", e),
+                ViewportHeight(e) => write!(f, "{}.vh()", e),
+                ViewportMin(e) => write!(f, "{}.vmin()", e),
+                ViewportMax(e) => write!(f, "{}.vmax()", e),
+                Expr(e) => write!(f, "{}", e),
             }
         }
     }
 }
 impl fmt::Display for Length {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Length::*;
         match self {
-            Length::Exact(l) => fmt::Display::fmt(l, f),
-            Length::Relative(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
-            Length::Em(e) => write!(f, "{}em", e),
-            Length::RootEm(re) => write!(f, "{}rem", re),
-            Length::ViewportWidth(vw) => write!(f, "{}vw", vw),
-            Length::ViewportHeight(vh) => write!(f, "{}vh", vh),
-            Length::ViewportMin(vmin) => write!(f, "{}vmin", vmin),
-            Length::ViewportMax(vmax) => write!(f, "{}vmax", vmax),
+            Exact(l) => fmt::Display::fmt(l, f),
+            Relative(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
+            Em(e) => write!(f, "{}em", e),
+            RootEm(re) => write!(f, "{}rem", re),
+            ViewportWidth(vw) => write!(f, "{}vw", vw),
+            ViewportHeight(vh) => write!(f, "{}vh", vh),
+            ViewportMin(vmin) => write!(f, "{}vmin", vmin),
+            ViewportMax(vmax) => write!(f, "{}vmax", vmax),
+            Expr(e) => write!(f, "{}", e),
         }
     }
 }
@@ -768,7 +816,7 @@ impl_from_and_into_var! {
 impl Length {
     /// Length of exact zero.
     #[inline]
-    pub fn zero() -> Length {
+    pub const fn zero() -> Length {
         Length::Exact(0.0)
     }
 
@@ -791,74 +839,234 @@ impl Length {
         Length::Exact(font_pt * 96.0 / 72.0)
     }
 
+    /// Returns a length that resolves to the maximum layout length between `self` and `other`.
+    pub fn max(&self, other: impl Into<Length>) -> Length {
+        use Length::*;
+        match (self.clone(), other.into()) {
+            (Exact(a), Exact(b)) => Exact(a.max(b)),
+            (Relative(a), Relative(b)) => Relative(a.max(b)),
+            (Em(a), Em(b)) => Em(a.max(b)),
+            (RootEm(a), RootEm(b)) => RootEm(a.max(b)),
+            (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a.max(b)),
+            (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a.max(b)),
+            (ViewportMin(a), ViewportMin(b)) => ViewportMin(a.max(b)),
+            (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.max(b)),
+            (a, b) => Length::Expr(Box::new(LengthExpr::Max(a, b))),
+        }
+    }
+
+    /// Returns a length that resolves to the minimum layout length between `self` and `other`.
+    pub fn min(&self, other: impl Into<Length>) -> Length {
+        use Length::*;
+        match (self.clone(), other.into()) {
+            (Exact(a), Exact(b)) => Exact(a.min(b)),
+            (Relative(a), Relative(b)) => Relative(a.min(b)),
+            (Em(a), Em(b)) => Em(a.min(b)),
+            (RootEm(a), RootEm(b)) => RootEm(a.min(b)),
+            (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a.min(b)),
+            (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a.min(b)),
+            (ViewportMin(a), ViewportMin(b)) => ViewportMin(a.min(b)),
+            (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.min(b)),
+            (a, b) => Length::Expr(Box::new(LengthExpr::Min(a, b))),
+        }
+    }
+
     /// Compute the length at a context.
-    pub fn to_layout(self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
+    pub fn to_layout(&self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
+        use Length::*;
         let l = match self {
-            Length::Exact(l) => l,
-            Length::Relative(f) => available_size.get() * f.0,
-            Length::Em(f) => *ctx.font_size * f.0,
-            Length::RootEm(f) => *ctx.root_font_size * f.0,
-            Length::ViewportWidth(p) => p * ctx.viewport_size.width / 100.0,
-            Length::ViewportHeight(p) => p * ctx.viewport_size.height / 100.0,
-            Length::ViewportMin(p) => p * *ctx.viewport_min / 100.0,
-            Length::ViewportMax(p) => p * *ctx.viewport_max / 100.0,
+            Exact(l) => *l,
+            Relative(f) => available_size.get() * f.0,
+            Em(f) => *ctx.font_size * f.0,
+            RootEm(f) => *ctx.root_font_size * f.0,
+            ViewportWidth(p) => p * ctx.viewport_size.width / 100.0,
+            ViewportHeight(p) => p * ctx.viewport_size.height / 100.0,
+            ViewportMin(p) => p * *ctx.viewport_min / 100.0,
+            ViewportMax(p) => p * *ctx.viewport_max / 100.0,
+            Expr(e) => e.to_layout(available_size, ctx).0,
         };
         LayoutLength::new(ctx.pixel_grid.snap(l))
     }
 
     /// If this length is zero in any unit.
-    pub fn is_zero(self) -> bool {
+    pub fn is_zero(&self) -> bool {
+        use Length::*;
         match self {
-            Length::Exact(l) => l.abs() < EPSILON_100,
-            Length::Relative(f) => f.0.abs() < EPSILON,
-            Length::Em(f) => f.0.abs() < EPSILON,
-            Length::RootEm(f) => f.0.abs() < EPSILON,
-            Length::ViewportWidth(p) => p.abs() < EPSILON,
-            Length::ViewportHeight(p) => p.abs() < EPSILON,
-            Length::ViewportMin(p) => p.abs() < EPSILON,
-            Length::ViewportMax(p) => p.abs() < EPSILON,
+            Exact(l) => l.abs() < EPSILON_100,
+            Relative(f) => f.0.abs() < EPSILON,
+            Em(f) => f.0.abs() < EPSILON,
+            RootEm(f) => f.0.abs() < EPSILON,
+            ViewportWidth(p) => p.abs() < EPSILON,
+            ViewportHeight(p) => p.abs() < EPSILON,
+            ViewportMin(p) => p.abs() < EPSILON,
+            ViewportMax(p) => p.abs() < EPSILON,
+            Expr(e) => e.is_zero(),
         }
     }
 
     /// If this length is `NaN` in any unit.
-    pub fn is_nan(self) -> bool {
+    pub fn is_nan(&self) -> bool {
+        use Length::*;
         match self {
-            Length::Exact(l) => l.is_nan(),
-            Length::Relative(f) => f.0.is_nan(),
-            Length::Em(f) => f.0.is_nan(),
-            Length::RootEm(f) => f.0.is_nan(),
-            Length::ViewportWidth(p) => p.is_nan(),
-            Length::ViewportHeight(p) => p.is_nan(),
-            Length::ViewportMin(p) => p.is_nan(),
-            Length::ViewportMax(p) => p.is_nan(),
+            Exact(l) => l.is_nan(),
+            Relative(f) => f.0.is_nan(),
+            Em(f) => f.0.is_nan(),
+            RootEm(f) => f.0.is_nan(),
+            ViewportWidth(p) => p.is_nan(),
+            ViewportHeight(p) => p.is_nan(),
+            ViewportMin(p) => p.is_nan(),
+            ViewportMax(p) => p.is_nan(),
+            Expr(e) => e.is_nan(),
         }
     }
 
     /// If this length is a finite number in any unit.
-    pub fn is_finite(self) -> bool {
+    pub fn is_finite(&self) -> bool {
+        use Length::*;
         match self {
-            Length::Exact(e) => e.is_finite(),
-            Length::Relative(f) => f.0.is_finite(),
-            Length::Em(f) => f.0.is_finite(),
-            Length::RootEm(f) => f.0.is_finite(),
-            Length::ViewportWidth(p) => p.is_finite(),
-            Length::ViewportHeight(p) => p.is_finite(),
-            Length::ViewportMin(p) => p.is_finite(),
-            Length::ViewportMax(p) => p.is_finite(),
+            Exact(e) => e.is_finite(),
+            Relative(f) => f.0.is_finite(),
+            Em(f) => f.0.is_finite(),
+            RootEm(f) => f.0.is_finite(),
+            ViewportWidth(p) => p.is_finite(),
+            ViewportHeight(p) => p.is_finite(),
+            ViewportMin(p) => p.is_finite(),
+            ViewportMax(p) => p.is_finite(),
+            Expr(e) => e.is_finite(),
         }
     }
 
     /// If this length is an infinite number in any unit.
-    pub fn is_infinite(self) -> bool {
+    pub fn is_infinite(&self) -> bool {
+        use Length::*;
         match self {
-            Length::Exact(e) => e.is_infinite(),
-            Length::Relative(f) => f.0.is_infinite(),
-            Length::Em(f) => f.0.is_infinite(),
-            Length::RootEm(f) => f.0.is_infinite(),
-            Length::ViewportWidth(p) => p.is_infinite(),
-            Length::ViewportHeight(p) => p.is_infinite(),
-            Length::ViewportMin(p) => p.is_infinite(),
-            Length::ViewportMax(p) => p.is_infinite(),
+            Exact(e) => e.is_infinite(),
+            Relative(f) => f.0.is_infinite(),
+            Em(f) => f.0.is_infinite(),
+            RootEm(f) => f.0.is_infinite(),
+            ViewportWidth(p) => p.is_infinite(),
+            ViewportHeight(p) => p.is_infinite(),
+            ViewportMin(p) => p.is_infinite(),
+            ViewportMax(p) => p.is_infinite(),
+            Expr(e) => e.is_infinite(),
+        }
+    }
+}
+
+// TODO https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Functions
+/// Represents an unresolved [`Length`] expression.
+#[derive(Clone)]
+pub enum LengthExpr {
+    /// Sums the both layout length.
+    Add(Length, Length),
+    /// Subtracts the first layout length from the second.
+    Sub(Length, Length),
+    /// Multiplies the layout length by the factor.
+    Mul(Length, FactorNormal),
+    /// Divide the layout length by the factor.
+    Div(Length, FactorNormal),
+    /// Maximum layout length.
+    Max(Length, Length),
+    /// Minimum layout length.
+    Min(Length, Length),
+}
+impl LengthExpr {
+    /// Evaluate the expression at a layout context.
+    pub fn to_layout(&self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.to_layout(available_size, ctx) + b.to_layout(available_size, ctx),
+            Sub(a, b) => a.to_layout(available_size, ctx) - b.to_layout(available_size, ctx),
+            Mul(l, s) => l.to_layout(available_size, ctx) * s.0,
+            Div(l, s) => l.to_layout(available_size, ctx) / s.0,
+            Max(a, b) => {
+                let a = a.to_layout(available_size, ctx).0;
+                let b = b.to_layout(available_size, ctx).0;
+                LayoutLength::new(a.max(b))
+            }
+            Min(a, b) => {
+                let a = a.to_layout(available_size, ctx).0;
+                let b = b.to_layout(available_size, ctx).0;
+                LayoutLength::new(a.min(b))
+            }
+        }
+    }
+
+    /// Returns `true` if the expression always evaluates to zero.
+    pub fn is_zero(&self) -> bool {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.is_zero() && b.is_zero(),
+            Sub(a, b) => a == b,
+            Mul(l, s) => *s == 0.0.normal() || l.is_zero(),
+            Div(l, s) => *s != 0.0.normal() && l.is_zero(),
+            Max(a, b) => a.is_zero() && b.is_zero(),
+            Min(a, b) => a.is_zero() && b.is_zero(),
+        }
+    }
+    /// Returns `true` if the expression always evaluates to `NaN`.
+    pub fn is_nan(&self) -> bool {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.is_nan() || b.is_nan(),
+            Sub(a, b) => a.is_nan() || b.is_nan(),
+            Mul(l, s) => s.0.is_nan() || l.is_nan(),
+            Div(l, s) => s.0.is_nan() || *s == 0.0.normal() || l.is_nan(),
+            Max(a, b) => a.is_nan() && b.is_nan(),
+            Min(a, b) => a.is_nan() && b.is_nan(),
+        }
+    }
+    /// Returns `true` if the expression can evaluate to a finite value.
+    pub fn is_finite(&self) -> bool {
+        !self.is_infinite()
+    }
+    /// Returns `true` if the expression always evaluates to infinity.
+    pub fn is_infinite(&self) -> bool {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.is_infinite() || b.is_infinite(),
+            Sub(a, b) => a.is_infinite() || b.is_infinite(),
+            Mul(l, s) => s.0.is_infinite() || l.is_infinite(),
+            Div(l, s) => s.0.is_infinite() || l.is_infinite(),
+            Max(a, b) => a.is_infinite() || b.is_infinite(),
+            Min(a, b) => a.is_infinite() || b.is_infinite(),
+        }
+    }
+}
+impl fmt::Debug for LengthExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use LengthExpr::*;
+        if f.alternate() {
+            match self {
+                Add(a, b) => f.debug_tuple("LengthExpr::Add").field(a).field(b).finish(),
+                Sub(a, b) => f.debug_tuple("LengthExpr::Sub").field(a).field(b).finish(),
+                Mul(l, s) => f.debug_tuple("LengthExpr::Mul").field(l).field(s).finish(),
+                Div(l, s) => f.debug_tuple("LengthExpr::Div").field(l).field(s).finish(),
+                Max(a, b) => f.debug_tuple("LengthExpr::Max").field(a).field(b).finish(),
+                Min(a, b) => f.debug_tuple("LengthExpr::Min").field(a).field(b).finish(),
+            }
+        } else {
+            match self {
+                Add(a, b) => write!(f, "({:?} + {:?})", a, b),
+                Sub(a, b) => write!(f, "({:?} - {:?})", a, b),
+                Mul(l, s) => write!(f, "({:?} * {:?}.pct())", l, s.0 * 100.0),
+                Div(l, s) => write!(f, "({:?} / {:?}.pct())", l, s.0 * 100.0),
+                Max(a, b) => write!(f, "max({:?}, {:?})", a, b),
+                Min(a, b) => write!(f, "min({:?}, {:?})", a, b),
+            }
+        }
+    }
+}
+impl fmt::Display for LengthExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => write!(f, "({} + {})", a, b),
+            Sub(a, b) => write!(f, "({} - {})", a, b),
+            Mul(l, s) => write!(f, "({} * {}%)", l, s.0 * 100.0),
+            Div(l, s) => write!(f, "({} / {}%)", l, s.0 * 100.0),
+            Max(a, b) => write!(f, "max({}, {})", a, b),
+            Min(a, b) => write!(f, "min({}, {})", a, b),
         }
     }
 }
@@ -1028,7 +1236,7 @@ macro_rules! impl_length_comp_conversions {
 }
 
 /// 2D point in [`Length`] units.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Point {
     /// *x* offset in length units.
     pub x: Length,
@@ -1137,13 +1345,13 @@ impl Point {
 
     /// Returns `(x, y)`.
     #[inline]
-    pub fn to_tuple(self) -> (Length, Length) {
+    pub fn into_tuple(self) -> (Length, Length) {
         (self.x, self.y)
     }
 
     /// Compute the point in a layout context.
     #[inline]
-    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutPoint {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutPoint {
         LayoutPoint::from_lengths(
             self.x.to_layout(LayoutLength::new(available_size.width), ctx),
             self.y.to_layout(LayoutLength::new(available_size.height), ctx),
@@ -1165,7 +1373,7 @@ impl_from_and_into_var! {
 pub type LayoutPoint = wr::LayoutPoint;
 
 /// 2D size in [`Length`] units.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Size {
     /// *width* in length units.
     pub width: Length,
@@ -1218,13 +1426,13 @@ impl Size {
 
     /// Returns `(width, height)`.
     #[inline]
-    pub fn to_tuple(self) -> (Length, Length) {
+    pub fn into_tuple(self) -> (Length, Length) {
         (self.width, self.height)
     }
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSize {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSize {
         LayoutSize::from_lengths(
             self.width.to_layout(LayoutLength::new(available_size.width), ctx),
             self.height.to_layout(LayoutLength::new(available_size.height), ctx),
@@ -1248,7 +1456,7 @@ pub type LayoutSize = wr::LayoutSize;
 /// Ellipse in [`Length`] units.
 ///
 /// This is very similar to [`Size`] but allows initializing from a single [`Length`].
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Ellipse {
     /// *width* in length units.
     pub width: Length,
@@ -1296,7 +1504,10 @@ impl Ellipse {
     /// New width and height from the same [`Length`].
     pub fn new_all<L: Into<Length>>(width_and_height: L) -> Self {
         let l = width_and_height.into();
-        Ellipse { width: l, height: l }
+        Ellipse {
+            width: l.clone(),
+            height: l,
+        }
     }
 
     /// ***width:*** [`Length::zero`], ***height:*** [`Length::zero`]
@@ -1315,13 +1526,13 @@ impl Ellipse {
 
     /// Returns `(width, height)`.
     #[inline]
-    pub fn to_tuple(self) -> (Length, Length) {
+    pub fn into_tuple(self) -> (Length, Length) {
         (self.width, self.height)
     }
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutEllipse {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutEllipse {
         LayoutEllipse::from_lengths(
             self.width.to_layout(LayoutLength::new(available_size.width), ctx),
             self.height.to_layout(LayoutLength::new(available_size.height), ctx),
@@ -1389,7 +1600,10 @@ impl GridSpacing {
     /// Same spacing for both columns and rows.
     pub fn new_all<S: Into<Length>>(same: S) -> Self {
         let same = same.into();
-        GridSpacing { column: same, row: same }
+        GridSpacing {
+            column: same.clone(),
+            row: same,
+        }
     }
 
     /// Compute the spacing in a layout context.
@@ -1460,7 +1674,7 @@ pub struct LayoutGridSpacing {
 }
 
 /// 2D rect in [`Length`] units.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Rect {
     /// Top-left origin of the rectangle in length units.
     pub origin: Point,
@@ -1519,7 +1733,7 @@ impl Rect {
 
     /// Compute the rectangle in a layout context.
     #[inline]
-    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutRect {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutRect {
         LayoutRect::new(self.origin.to_layout(available_size, ctx), self.size.to_layout(available_size, ctx))
     }
 }
@@ -1567,7 +1781,7 @@ impl_from_and_into_var! {
 pub type LayoutRect = wr::LayoutRect;
 
 /// 2D line in [`Length`] units.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Line {
     /// Start point in length units.
     pub start: Point,
@@ -1686,7 +1900,7 @@ impl Line {
 
     /// Compute the line in a layout context.
     #[inline]
-    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
         LayoutLine {
             start: self.start.to_layout(available_size, ctx),
             end: self.end.to_layout(available_size, ctx),
@@ -1775,7 +1989,7 @@ impl<W: Into<Length>, H: Into<Length>> RectFromTuplesBuilder for (W, H) {
 /// 2D size offsets in [`Length`] units.
 ///
 /// This unit defines spacing around all four sides of a box, a widget margin can be defined using a value of this type.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct SideOffsets {
     /// Spacing above, in length units.
     pub top: Length,
@@ -1820,9 +2034,9 @@ impl SideOffsets {
         let top_bottom = top_bottom.into();
         let left_right = left_right.into();
         SideOffsets {
-            top: top_bottom,
+            top: top_bottom.clone(),
             bottom: top_bottom,
-            left: left_right,
+            left: left_right.clone(),
             right: left_right,
         }
     }
@@ -1831,9 +2045,9 @@ impl SideOffsets {
     pub fn new_all<T: Into<Length>>(all_sides: T) -> Self {
         let all_sides = all_sides.into();
         SideOffsets {
-            top: all_sides,
-            right: all_sides,
-            bottom: all_sides,
+            top: all_sides.clone(),
+            right: all_sides.clone(),
+            bottom: all_sides.clone(),
             left: all_sides,
         }
     }
@@ -1858,7 +2072,7 @@ impl SideOffsets {
 
     /// Compute the offsets in a layout context.
     #[inline]
-    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSideOffsets {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSideOffsets {
         let width = LayoutLength::new(available_size.width);
         let height = LayoutLength::new(available_size.height);
         LayoutSideOffsets::from_lengths(
@@ -1974,7 +2188,9 @@ macro_rules! debug_display_align {
         impl fmt::Display for Alignment {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 let a = *self;
-                $(if a == Alignment::$NAME { write!(f, "{}", stringify!($NAME)) }) else +
+                $(if a == Alignment::$NAME {
+                    write!(f, "{}", stringify!($NAME))
+                }) else +
                 else {
                     write!(f, "({}%, {}%)", a.x.0 * 100.0, a.y.0 * 100.0)
                 }
@@ -1983,7 +2199,12 @@ macro_rules! debug_display_align {
         impl fmt::Debug for Alignment {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 let a = *self;
-                $(if a == Alignment::$NAME { write!(f, "Alignment::{}", stringify!($NAME)) }) else +
+                $(if a == Alignment::$NAME {
+                    if f.alternate() {
+                        write!(f, "Alignment::")?;
+                    }
+                    write!(f, "{}", stringify!($NAME))
+                }) else +
                 else {
                     f.debug_struct("Alignment").field("x", &a.x).field("y", &a.y).finish()
                 }
@@ -2016,7 +2237,7 @@ impl_from_and_into_var! {
 }
 
 /// Text line height.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum LineHeight {
     /// Default height from the font data.
     ///
@@ -2075,7 +2296,7 @@ impl_from_and_into_var! {
 /// extra space added to the computed spacing.
 ///
 /// A "letter" is a character glyph cluster, e.g.: `a`, `â`, `1`, `-`, `漢`.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum LetterSpacing {
     /// Letter spacing can be tweaked when justification is enabled.
     Auto,
@@ -2137,7 +2358,7 @@ impl_from_and_into_var! {
 /// spacing is applied per space character not per word, if there are three spaces between words
 /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
 /// see [`WhiteSpace`](crate::text::WhiteSpace).
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum WordSpacing {
     /// Word spacing can be tweaked when justification is enabled.
     Auto,

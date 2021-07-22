@@ -134,7 +134,10 @@ pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
 /// This property does not affect layout, the widget is moved only during rendering.
 #[property(context, default(0, 0))]
 pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> impl UiNode {
-    transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::translate(x, y)))
+    transform(
+        child,
+        merge_var!(x.into_var(), y.into_var(), |x, y| units::translate(x.clone(), y.clone())),
+    )
 }
 
 /// Translate X transform.
@@ -144,7 +147,7 @@ pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Le
 /// This property does not affect layout, the widget is moved only during rendering.
 #[property(context, default(0))]
 pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
-    transform(child, x.into_var().map(|&x| units::translate_x(x)))
+    transform(child, x.into_var().map(|x| units::translate_x(x.clone())))
 }
 
 /// Translate Y transform.
@@ -154,7 +157,7 @@ pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// This property does not affect layout, the widget is moved only during rendering.
 #[property(context, default(0))]
 pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
-    transform(child, y.into_var().map(|&y| units::translate_y(y)))
+    transform(child, y.into_var().map(|y| units::translate_y(y.clone())))
 }
 
 /// Point relative to the widget bounds around which the widget transform is applied.

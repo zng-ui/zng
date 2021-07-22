@@ -579,25 +579,25 @@ pub struct TextContext<'a> {
 
     /* Affects font instance */
     /// The [`font_size`](fn@font_size) value.
-    pub font_size: Length,
+    pub font_size: &'a Length,
     /// The [`font_variations`](fn@font_variations) value.    
     pub font_variations: &'a FontVariations,
 
     /* Affects measure */
     /// The [`line_height`](fn@line_height) value.
-    pub line_height: LineHeight,
+    pub line_height: &'a LineHeight,
     /// The [`letter_spacing`](fn@letter_spacing) value.
-    pub letter_spacing: LetterSpacing,
+    pub letter_spacing: &'a LetterSpacing,
     /// The [`word_spacing`](fn@word_spacing) value.
-    pub word_spacing: WordSpacing,
+    pub word_spacing: &'a WordSpacing,
     /// The [`line_spacing`](fn@line_spacing) value.
-    pub line_spacing: Length,
+    pub line_spacing: &'a Length,
     /// The [`word_break`](fn@word_break) value.
     pub word_break: WordBreak,
     /// The [`line_break`](fn@line_break) value.
     pub line_break: LineBreak,
     /// The [`tab_length`](fn@tab_length) value.
-    pub tab_length: TabLength,
+    pub tab_length: &'a TabLength,
     /// The [`font_features`](fn@font_features) value.
     pub font_features: &'a FontFeatures,
 
@@ -627,16 +627,16 @@ impl<'a> TextContext<'a> {
             text_transform: TextTransformVar::get(vars).clone(),
             white_space: *WhiteSpaceVar::get(vars),
 
-            font_size: *FontSizeVar::get(vars),
+            font_size: FontSizeVar::get(vars),
             font_variations: FontVariationsVar::get(vars),
 
-            line_height: *LineHeightVar::get(vars),
-            letter_spacing: *LetterSpacingVar::get(vars),
-            word_spacing: *WordSpacingVar::get(vars),
-            line_spacing: *LineSpacingVar::get(vars),
+            line_height: LineHeightVar::get(vars),
+            letter_spacing: LetterSpacingVar::get(vars),
+            word_spacing: WordSpacingVar::get(vars),
+            line_spacing: LineSpacingVar::get(vars),
             word_break: *WordBreakVar::get(vars),
             line_break: *LineBreakVar::get(vars),
-            tab_length: *TabLengthVar::get(vars),
+            tab_length: TabLengthVar::get(vars),
             font_features: FontFeaturesVar::get(vars),
 
             text_align: *TextAlignVar::get(vars),
@@ -685,13 +685,13 @@ impl<'a> TextContext<'a> {
 
     /// Gets the properties that affect the sized font. The [`Length`] is `font_size`.
     #[inline]
-    pub fn font<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (Length, &'a FontVariations) {
+    pub fn font<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a Length, &'a FontVariations) {
         let vars = vars.as_ref();
-        (*FontSizeVar::get(vars), FontVariationsVar::get(vars))
+        (FontSizeVar::get(vars), FontVariationsVar::get(vars))
     }
     /// Gets [`font`](Self::font) if any of the properties updated.
     #[inline]
-    pub fn font_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(Length, &'a FontVariations)> {
+    pub fn font_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(&'a Length, &'a FontVariations)> {
         let vars = vars.as_ref();
         if FontSizeVar::is_new(vars) || FontVariationsVar::is_new(vars) {
             Some(Self::font(vars))
