@@ -359,7 +359,7 @@ where
 ///     if w.write(data).await.is_err() {
 ///         // write IO error is in `finish`, error here
 ///         // just indicates that the task has terminated.
-///         break; 
+///         break;
 ///     }
 /// }
 ///

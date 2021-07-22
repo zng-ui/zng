@@ -752,7 +752,10 @@ impl PartialEq for Length {
             | (ViewportHeight(a), ViewportHeight(b))
             | (ViewportMin(a), ViewportMin(b))
             | (ViewportMax(a), ViewportMax(b)) => about_eq(*a, *b, EPSILON),
-            _ => false, // TODO try to implement for expr?
+
+            (Expr(a), Expr(b)) => a == b,
+
+            _ => false,
         }
     }
 }
@@ -919,8 +922,8 @@ impl Length {
             RootEm(f) => ctx.root_font_size * f.0,
             ViewportWidth(p) => p * ctx.viewport_size.width / 100.0,
             ViewportHeight(p) => p * ctx.viewport_size.height / 100.0,
-            ViewportMin(p) => p * ctx.viewport_min / 100.0,
-            ViewportMax(p) => p * ctx.viewport_max / 100.0,
+            ViewportMin(p) => p * ctx.viewport_min() / 100.0,
+            ViewportMax(p) => p * ctx.viewport_max() / 100.0,
             Expr(e) => e.to_layout(available_size, ctx).0,
         };
         LayoutLength::new(ctx.pixel_grid.snap(l))
@@ -1008,7 +1011,7 @@ impl Length {
 }
 
 /// Represents an unresolved [`Length`] expression.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum LengthExpr {
     /// Sums the both layout length.
     Add(Length, Length),
@@ -2838,6 +2841,49 @@ mod tests {
     #[test]
     pub fn modulo_turn() {
         assert_eq!(0.5.turn(), 1.5.turn().modulo());
+    }
+
+    #[test]
+    pub fn length_expr_same_unit() {
+        let a = Length::from(200);
+        let b = Length::from(300);
+        let c = a + b;
+
+        assert_eq!(c, Length::Exact(500.0));
+    }
+
+    #[test]
+    pub fn length_expr_diff_units() {
+        let a = Length::from(200);
+        let b = Length::from(10.pct());
+        let c = a + b;
+
+        assert_eq!(c, Length::Expr(Box::new(LengthExpr::Add(200.into(), 10.pct().into()))))
+    }
+
+    #[test]
+    pub fn length_expr_eval() {
+        let l = (Length::from(200) - 100.pct()).abs();
+        let l = l.to_layout(LayoutLength::new(600.0), &LayoutMetrics::new(LayoutSize::new(600.0, 400.0), 14.0));
+
+        assert!(about_eq(l.0, (200.0f32 - 600.0).abs(), 0.0001));
+    }
+
+    #[test]
+    pub fn length_expr_clamp() {
+        let l = Length::from(100.pct()).clamp(100, 500);
+        assert!(matches!(l, Length::Expr(_)));
+
+        let metrics = LayoutMetrics::new(LayoutSize::zero(), 0.0);
+
+        let r = l.to_layout(LayoutLength::new(200.0), &metrics);
+        assert!(about_eq(r.0, 200.0, 0.0001));
+
+        let r = l.to_layout(LayoutLength::new(50.0), &metrics);
+        assert!(about_eq(r.0, 100.0, 0.0001));
+
+        let r = l.to_layout(LayoutLength::new(550.0), &metrics);
+        assert!(about_eq(r.0, 500.0, 0.0001));
     }
 
     fn all_equal(rad: AngleRadian, grad: AngleGradian, deg: AngleDegree, turn: AngleTurn) {

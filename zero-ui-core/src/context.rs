@@ -536,14 +536,7 @@ impl<'a, 'w> AppContext<'a, 'w> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics {
-                font_size: 14.0,
-                root_font_size: 14.0,
-                pixel_grid: PixelGrid::new(scale_factor),
-                viewport_size: screen_size,
-                viewport_min: screen_size.width.min(screen_size.height),
-                viewport_max: screen_size.width.max(screen_size.height),
-            },
+            metrics: &LayoutMetrics::new(screen_size, 14.0).with_pixel_grid(PixelGrid::new(scale_factor)),
             path: &mut WidgetContextPath::new(window_id, root_id),
             app_state: &mut self.app_state,
             window_state: &mut StateMap::new(),
@@ -633,14 +626,7 @@ impl<'a> WindowContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics {
-                font_size,
-                root_font_size: font_size,
-                pixel_grid,
-                viewport_size,
-                viewport_min: viewport_size.width.min(viewport_size.height),
-                viewport_max: viewport_size.width.max(viewport_size.height),
-            },
+            metrics: &LayoutMetrics::new(viewport_size, font_size).with_pixel_grid(pixel_grid),
 
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -787,14 +773,9 @@ impl TestWidgetContext {
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         action(&mut LayoutContext {
-            metrics: &LayoutMetrics {
-                font_size,
-                root_font_size,
-                pixel_grid,
-                viewport_size,
-                viewport_min: viewport_size.width.min(viewport_size.height),
-                viewport_max: viewport_size.width.max(viewport_size.height),
-            },
+            metrics: &LayoutMetrics::new(viewport_size, root_font_size)
+                .with_font_size(font_size)
+                .with_pixel_grid(pixel_grid),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             app_state: &mut self.app_state.0,
@@ -1049,10 +1030,53 @@ pub struct LayoutMetrics {
 
     /// Size of the window content.
     pub viewport_size: LayoutSize,
-    /// Smallest dimension of the [`viewport_size`](Self::viewport_size).
-    pub viewport_min: f32,
-    /// Largest dimension of the [`viewport_size`](Self::viewport_size).
-    pub viewport_max: f32,
+}
+impl LayoutMetrics {
+    /// New root [`LayoutMetrics`].
+    ///
+    /// The `font_size` sets both font sizes, the pixel grid is the default `1.0`.
+    pub fn new(viewport_size: LayoutSize, font_size: f32) -> Self {
+        LayoutMetrics {
+            font_size,
+            root_font_size: font_size,
+            pixel_grid: PixelGrid::default(),
+            viewport_size,
+        }
+    }
+
+    /// Smallest dimension of the [`viewport_size`].
+    ///
+    /// [`viewport_size`]: Self::viewport_size
+    #[inline]
+    pub fn viewport_min(&self) -> f32 {
+        self.viewport_size.width.min(self.viewport_size.height)
+    }
+
+    /// Largest dimension of the [`viewport_size`].
+    ///
+    /// [`viewport_size`]: Self::viewport_size
+    #[inline]
+    pub fn viewport_max(&self) -> f32 {
+        self.viewport_size.width.max(self.viewport_size.height)
+    }
+
+    /// Sets the [`font_size`].
+    ///
+    /// [`font_size`]: Self::font_size
+    #[inline]
+    pub fn with_font_size(mut self, font_size: f32) -> Self {
+        self.font_size = font_size;
+        self
+    }
+
+    /// Sets the [`pixel_grid`].
+    ///
+    /// [`pixel_grid`]: Self::pixel_grid
+    #[inline]
+    pub fn with_pixel_grid(mut self, pixel_grid: PixelGrid) -> Self {
+        self.pixel_grid = pixel_grid;
+        self
+    }
 }
 
 /// A widget layout context.
@@ -1096,10 +1120,8 @@ impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.
     #[inline(always)]
     pub fn with_font_size<R>(&mut self, new_font_size: f32, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let mut metrics = self.metrics.clone();
-        metrics.font_size = new_font_size;
         f(&mut LayoutContext {
-            metrics: &metrics,
+            metrics: &self.metrics.clone().with_font_size(new_font_size),
 
             path: self.path,
 
