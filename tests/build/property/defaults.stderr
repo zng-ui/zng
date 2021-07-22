@@ -80,7 +80,7 @@ error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is no
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
              <&'static str as zero_ui::prelude::IntoVar<FontName>>
              <&'static str as zero_ui::prelude::IntoVar<FontNames>>
-           and 270 others
+           and 266 others
 
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:39:35
@@ -112,7 +112,7 @@ error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is no
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
              <&'static str as zero_ui::prelude::IntoVar<FontName>>
              <&'static str as zero_ui::prelude::IntoVar<FontNames>>
-           and 270 others
+           and 266 others
 
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:45:41

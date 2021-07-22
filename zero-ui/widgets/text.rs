@@ -302,7 +302,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // always snap because the scale_factor can have changed.
-        self.size = self.size.snap_to(*ctx.pixel_grid);
+        self.size = self.size.snap_to(ctx.metrics.pixel_grid);
 
         self.size
     }

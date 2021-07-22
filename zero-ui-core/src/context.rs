@@ -1034,8 +1034,8 @@ impl fmt::Display for WidgetContextPath {
 }
 
 /// Layout metrics in a [`LayoutContext`].
-/// 
-/// This type dereferences from [`LayoutContext`].
+///
+/// The [`LayoutContext`] type dereferences to this one.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
     /// Current computed font size.
@@ -1054,15 +1054,10 @@ pub struct LayoutMetrics {
     /// Largest dimension of the [`viewport_size`](Self::viewport_size).
     pub viewport_max: f32,
 }
-impl<'a> Deref for LayoutContext<'a> {
-    type Target = LayoutMetrics;
-
-    fn deref(&self) -> &Self::Target {
-        self.metrics
-    }
-}
 
 /// A widget layout context.
+///
+/// This type dereferences to [`LayoutMetrics`].
 #[derive(Debug)]
 pub struct LayoutContext<'a> {
     /// Contextual layout metrics.
@@ -1089,6 +1084,13 @@ pub struct LayoutContext<'a> {
 
     /// Read-only access to variables.
     pub vars: &'a VarsRead,
+}
+impl<'a> Deref for LayoutContext<'a> {
+    type Target = LayoutMetrics;
+
+    fn deref(&self) -> &Self::Target {
+        self.metrics
+    }
 }
 impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.

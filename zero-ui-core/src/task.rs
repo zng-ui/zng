@@ -356,7 +356,11 @@ where
 ///     data.par_chunks_mut(4).for_each(|c| c[3] = 255);
 ///     
 ///     // queue the data for writing, awaits here if the queue is full.
-///     w.write(data).await?;
+///     if w.write(data).await.is_err() {
+///         // write IO error is in `finish`, error here
+///         // just indicates that the task has terminated.
+///         break; 
+///     }
 /// }
 ///
 /// // get the files back for more small operations using `wait` directly.
@@ -1502,7 +1506,9 @@ impl ReadTaskBuilder {
 ///     let payload = compute_1mebibyte().await;
 ///     total += payload.len();
 ///
-///     w.write(payload).await?;
+///     if w.write(payload).await.is_err() {
+///         break;
+///     }
 /// }
 ///
 /// let file = w.finish().await?;
@@ -1837,6 +1843,7 @@ impl fmt::Display for WriteTaskClosed {
         write!(f, "write task worker has closed")
     }
 }
+impl std::error::Error for WriteTaskClosed {}
 
 /// HTTP client.
 ///

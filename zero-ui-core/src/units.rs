@@ -27,7 +27,7 @@ const EPSILON_100: f32 = 0.001;
 /// # struct FillOrMaxNode { max_size: LayoutSize }
 /// #[impl_ui_node(none)]
 /// impl UiNode for FillOrMaxNode {
-///     fn measure(&mut self, ctx: &mut LayoutMetrics, available_size: LayoutSize) -> LayoutSize {
+///     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
 ///         let mut desired_size = available_size;
 ///         if is_layout_any_size(desired_size.width) {
 ///             desired_size.width = self.max_size.width;
@@ -47,7 +47,7 @@ const EPSILON_100: f32 = 0.001;
 /// # struct FillNode { }
 /// #[impl_ui_node(none)]
 /// impl UiNode for FillNode {
-///     fn measure(&mut self, ctx: &mut LayoutMetrics, available_size: LayoutSize) -> LayoutSize {
+///     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
 ///         let mut desired_size = available_size;
 ///         if is_layout_any_size(desired_size.width) {
 ///             desired_size.width = 0.0;
@@ -86,7 +86,7 @@ pub fn is_layout_any_size(value: f32) -> bool {
 /// impl<C: UiNodeList> UiNode for VerticalStackNode<C> {
 ///     fn measure(
 ///         &mut self,
-///         ctx: &mut LayoutMetrics,
+///         ctx: &mut LayoutContext,
 ///         mut available_size: LayoutSize
 ///     ) -> LayoutSize {
 ///
@@ -927,6 +927,10 @@ impl Length {
     }
 
     /// If this length is zero in any finite layout context.
+    ///
+    /// If is [`Expr`] returns `false`.
+    ///
+    /// [`Expr`]: Length::Expr
     pub fn is_zero(&self) -> bool {
         use Length::*;
         match self {
@@ -938,11 +942,15 @@ impl Length {
             ViewportHeight(p) => p.abs() < EPSILON,
             ViewportMin(p) => p.abs() < EPSILON,
             ViewportMax(p) => p.abs() < EPSILON,
-            Expr(e) => e.is_zero(),
+            Expr(_) => false,
         }
     }
 
     /// If this length is `NaN` in any finite layout context.
+    ///
+    /// If is [`Expr`] returns `false`.
+    ///
+    /// [`Expr`]: Length::Expr
     pub fn is_nan(&self) -> bool {
         use Length::*;
         match self {
@@ -954,11 +962,15 @@ impl Length {
             ViewportHeight(p) => p.is_nan(),
             ViewportMin(p) => p.is_nan(),
             ViewportMax(p) => p.is_nan(),
-            Expr(e) => e.is_nan(),
+            Expr(_) => false,
         }
     }
 
     /// If this length is a finite number in any finite layout context.
+    ///
+    /// If is [`Expr`] returns `false`.
+    ///
+    /// [`Expr`]: Length::Expr
     pub fn is_finite(&self) -> bool {
         use Length::*;
         match self {
@@ -970,11 +982,15 @@ impl Length {
             ViewportHeight(p) => p.is_finite(),
             ViewportMin(p) => p.is_finite(),
             ViewportMax(p) => p.is_finite(),
-            Expr(e) => e.is_finite(),
+            Expr(_) => false,
         }
     }
 
     /// If this length is an infinite number in any finite layout context.
+    ///
+    /// If is [`Expr`] returns `false`.
+    ///
+    /// [`Expr`]: Length::Expr
     pub fn is_infinite(&self) -> bool {
         use Length::*;
         match self {
@@ -986,39 +1002,7 @@ impl Length {
             ViewportHeight(p) => p.is_infinite(),
             ViewportMin(p) => p.is_infinite(),
             ViewportMax(p) => p.is_infinite(),
-            Expr(e) => e.is_infinite(),
-        }
-    }
-
-    /// If this length is positive in any positive finite layout context.
-    pub fn is_sign_positive(&self) -> bool {
-        use Length::*;
-        match self {
-            Exact(e) => e.is_sign_positive(),
-            Relative(r) => r.0.is_sign_positive(),
-            Em(e) => e.0.is_sign_positive(),
-            RootEm(e) => e.0.is_sign_positive(),
-            ViewportWidth(v) => v.is_sign_positive(),
-            ViewportHeight(v) => v.is_sign_positive(),
-            ViewportMin(v) => v.is_sign_positive(),
-            ViewportMax(v) => v.is_sign_positive(),
-            Expr(e) => e.is_sign_positive(),
-        }
-    }
-
-    /// If this length is negative in any positive finite layout context.
-    pub fn is_sign_negative(&self) -> bool {
-        use Length::*;
-        match self {
-            Exact(e) => e.is_sign_negative(),
-            Relative(r) => r.0.is_sign_negative(),
-            Em(e) => e.0.is_sign_negative(),
-            RootEm(e) => e.0.is_sign_negative(),
-            ViewportWidth(v) => v.is_sign_negative(),
-            ViewportHeight(v) => v.is_sign_negative(),
-            ViewportMin(v) => v.is_sign_negative(),
-            ViewportMax(v) => v.is_sign_negative(),
-            Expr(e) => e.is_sign_negative(),
+            Expr(_) => false,
         }
     }
 }
@@ -1039,7 +1023,7 @@ pub enum LengthExpr {
     /// Minimum layout length.
     Min(Length, Length),
     /// Computes the absolute layout length.
-    Abs(Box<LengthExpr>)
+    Abs(Box<LengthExpr>),
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
@@ -1060,82 +1044,7 @@ impl LengthExpr {
                 let b = b.to_layout(available_size, ctx).0;
                 LayoutLength::new(a.min(b))
             }
-            Abs(e) => LayoutLength::new(e.to_layout(available_size, ctx).0.abs())
-        }
-    }
-
-    /// Returns `true` if the expression always evaluates to zero given a finite layout context.
-    pub fn is_zero(&self) -> bool {
-        use LengthExpr::*;
-        match self {
-            Add(a, b) => a.is_zero() && b.is_zero(),
-            Sub(a, b) => a == b,
-            Mul(l, s) => *s == 0.0.normal() || l.is_zero(),
-            Div(l, s) => *s != 0.0.normal() && l.is_zero(),
-            Max(a, b) => a.is_zero() && b.is_zero(),
-            Min(a, b) => a.is_zero() && b.is_zero(),
-            Abs(e) => e.is_zero()
-        }
-    }
-
-    /// Returns `true` if the expression always evaluates to `NaN` given a finite layout context.
-    pub fn is_nan(&self) -> bool {
-        use LengthExpr::*;
-        match self {
-            Add(a, b) => a.is_nan() || b.is_nan(),
-            Sub(a, b) => a.is_nan() || b.is_nan(),
-            Mul(l, s) => s.0.is_nan() || l.is_nan(),
-            Div(l, s) => s.0.is_nan() || *s == 0.0.normal() || l.is_nan(),
-            Max(a, b) => a.is_nan() && b.is_nan(),
-            Min(a, b) => a.is_nan() && b.is_nan(),
-            Abs(e) => e.is_nan()
-        }
-    }
-
-    /// Returns `true` if the expression can evaluate to a finite value given a finite layout context.
-    pub fn is_finite(&self) -> bool {
-        !self.is_infinite()
-    }
-
-    /// Returns `true` if the expression always evaluates to infinity given a finite layout context.
-    pub fn is_infinite(&self) -> bool {
-        use LengthExpr::*;
-        match self {
-            Add(a, b) => a.is_infinite() || b.is_infinite(),
-            Sub(a, b) => a.is_infinite() || b.is_infinite(),
-            Mul(l, s) => s.0.is_infinite() || l.is_infinite(),
-            Div(l, s) => s.0.is_infinite() || l.is_infinite(),
-            Max(a, b) => a.is_infinite() || b.is_infinite(),
-            Min(a, b) => a.is_infinite() || b.is_infinite(),
-            Abs(e) => e.is_infinite()
-        }
-    }
-
-    /// Returns `true` if the expression evaluates to positive value given a positive finite layout context.
-    pub fn is_sign_positive(&self) -> bool {
-        use LengthExpr::*;
-        match self {
-            Add(a, b) => a.is_sign_positive() && b.is_sign_positive(),
-            Sub(a, b) => a.is_sign_negative() && b.is_sign_negative(),
-            Mul(l, s) => l.is_sign_positive() && s.0.is_sign_positive(),
-            Div(l, s) => l.is_sign_positive() && s.0.is_sign_positive(),
-            Max(a, b) => a.is_sign_positive() && b.is_sign_positive(),
-            Min(a, b) => a.is_sign_positive() && b.is_sign_positive(),
-            Abs(_) => true,
-        }
-    }
-
-    /// Returns `true` if the expression evaluates to negative value given a positive finite layout context.
-    pub fn is_sign_negative(&self) -> bool {
-        use LengthExpr::*;
-        match self {
-            Add(a, b) => a.is_sign_negative() || b.is_sign_negative(),
-            Sub(a, b) => a.is_sign_positive() && b.is_sign_negative(),
-            Mul(l, s) => todo!(),
-            Div(l, s) => todo!(),
-            Max(_, _) => todo!(),
-            Min(_, _) => todo!(),
-            Abs(_) => false,
+            Abs(e) => LayoutLength::new(e.to_layout(available_size, ctx).0.abs()),
         }
     }
 }
@@ -1150,7 +1059,7 @@ impl fmt::Debug for LengthExpr {
                 Div(l, s) => f.debug_tuple("LengthExpr::Div").field(l).field(s).finish(),
                 Max(a, b) => f.debug_tuple("LengthExpr::Max").field(a).field(b).finish(),
                 Min(a, b) => f.debug_tuple("LengthExpr::Min").field(a).field(b).finish(),
-                Abs(e) => f.debug_tuple("LengthExpr::Abs").field(e).finish()
+                Abs(e) => f.debug_tuple("LengthExpr::Abs").field(e).finish(),
             }
         } else {
             match self {
@@ -1160,7 +1069,7 @@ impl fmt::Debug for LengthExpr {
                 Div(l, s) => write!(f, "({:?} / {:?}.pct())", l, s.0 * 100.0),
                 Max(a, b) => write!(f, "max({:?}, {:?})", a, b),
                 Min(a, b) => write!(f, "min({:?}, {:?})", a, b),
-                Abs(e) => write!(f, "abs({:?})", e)
+                Abs(e) => write!(f, "abs({:?})", e),
             }
         }
     }
@@ -1175,7 +1084,7 @@ impl fmt::Display for LengthExpr {
             Div(l, s) => write!(f, "({} / {}%)", l, s.0 * 100.0),
             Max(a, b) => write!(f, "max({}, {})", a, b),
             Min(a, b) => write!(f, "min({}, {})", a, b),
-            Abs(e) => write!(f, "abs({})", e)
+            Abs(e) => write!(f, "abs({})", e),
         }
     }
 }
