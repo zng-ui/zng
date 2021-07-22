@@ -200,8 +200,8 @@ pub mod implicit_base {
                 {
                     if !child_size.width.is_finite() || !child_size.height.is_finite() {
                         log::error!(target: "widget_base", "{:?} `UiNode::measure` result is not finite: `{:?}`", self.id, child_size);
-                    } else if !child_size.is_aligned_to(*ctx.pixel_grid) {
-                        let snapped = child_size.snap_to(*ctx.pixel_grid);
+                    } else if !child_size.is_aligned_to(ctx.metrics.pixel_grid) {
+                        let snapped = child_size.snap_to(ctx.metrics.pixel_grid);
                         log::error!(
                             target: "widget_base",
                             "{:?} `UiNode::measure` result not aligned, was: `{:?}`, expected: `{:?}`",
@@ -232,8 +232,8 @@ pub mod implicit_base {
                             self.id,
                             final_size
                         );
-                    } else if !final_size.is_aligned_to(*ctx.pixel_grid) {
-                        self.size = final_size.snap_to(*ctx.pixel_grid);
+                    } else if !final_size.is_aligned_to(ctx.metrics.pixel_grid) {
+                        self.size = final_size.snap_to(ctx.metrics.pixel_grid);
                         log::error!(
                             target: "widget_base",
                             "{:?} `UiNode::arrange` called with not aligned value, was: `{:?}`, expected: `{:?}`",

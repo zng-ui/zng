@@ -1,6 +1,6 @@
 //! Color types, functions and macros, [`Rgba`], [`Filter`], [`hex!`](crate::color::hex), [`opacity`] and more.
 
-use crate::{context::LayoutContext, render::FrameBinding, units::*};
+use crate::{context::LayoutMetrics, render::FrameBinding, units::*};
 use std::fmt;
 use webrender::api::{self as wr, FilterOp};
 
@@ -963,7 +963,7 @@ impl Filter {
     /// and layout context to calculate relative values.
     ///
     /// Relative blur radius lengths are calculated using the `available_size.width` value.
-    pub fn to_render(&self, available_size: LayoutSize, ctx: &LayoutContext) -> RenderFilter {
+    pub fn to_render(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> RenderFilter {
         self.filters
             .iter()
             .map(|f| match f {

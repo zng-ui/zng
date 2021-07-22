@@ -87,7 +87,7 @@ impl fmt::Debug for LinearGradientAxis {
 }
 impl LinearGradientAxis {
     /// Compute a [`LayoutLine`].
-    pub fn layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
+    pub fn layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutLine {
         match self {
             LinearGradientAxis::Angle(rad) => {
                 let dir = LayoutPoint::new(rad.0.sin(), -rad.0.cos());
@@ -105,7 +105,7 @@ impl LinearGradientAxis {
 
                 let line = LayoutLine::new(center - delta, center + delta);
 
-                line.snap_to(*ctx.pixel_grid)
+                line.snap_to(ctx.pixel_grid)
             }
             LinearGradientAxis::Line(line) => line.to_layout(available_size, ctx),
         }
@@ -209,7 +209,7 @@ impl ColorStop {
     /// Note that if this color stop [is positional](Self::is_positional) the returned offset is [`f32::INFINITY`].
     /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
     #[inline]
-    pub fn to_layout(&self, length: LayoutLength, ctx: &LayoutContext) -> RenderGradientStop {
+    pub fn to_layout(&self, length: LayoutLength, ctx: &LayoutMetrics) -> RenderGradientStop {
         RenderGradientStop {
             offset: self.offset.to_layout(length, ctx).get(),
             color: self.color.into(),
@@ -566,7 +566,7 @@ impl GradientStops {
     pub fn layout_linear(
         &self,
         length: LayoutLength,
-        ctx: &LayoutContext,
+        ctx: &LayoutMetrics,
         extend_mode: ExtendMode,
         line: &mut LayoutLine,
         render_stops: &mut Vec<RenderGradientStop>,
@@ -586,7 +586,7 @@ impl GradientStops {
     fn layout(
         &self,
         length: LayoutLength,
-        ctx: &LayoutContext,
+        ctx: &LayoutMetrics,
         extend_mode: ExtendMode,
         render_stops: &mut Vec<RenderGradientStop>,
     ) -> (f32, f32) {

@@ -2126,7 +2126,7 @@ impl OpenWindow {
                 let factor = self.scale_factor();
                 let prev_min_size = self.min_size;
                 let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
-                    min_size.to_layout(*ctx.viewport_size, ctx)
+                    min_size.to_layout(ctx.metrics.viewport_size, ctx)
                 });
 
                 if min_size.width.is_finite() {
@@ -2152,7 +2152,7 @@ impl OpenWindow {
                 let factor = self.scale_factor();
                 let prev_max_size = self.max_size;
                 let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
-                    max_size.to_layout(*ctx.viewport_size, ctx)
+                    max_size.to_layout(ctx.metrics.viewport_size, ctx)
                 });
 
                 if max_size.width.is_finite() {
@@ -2179,7 +2179,7 @@ impl OpenWindow {
                 if AutoSize::DISABLED == *self.vars.auto_size().get(ctx) {
                     let factor = self.scale_factor();
                     let mut size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
-                        size.to_layout(*ctx.viewport_size, ctx)
+                        size.to_layout(ctx.metrics.viewport_size, ctx)
                     });
 
                     if !size.width.is_finite() {
@@ -2207,7 +2207,7 @@ impl OpenWindow {
                 let factor = self.scale_factor();
                 let current_pos = self.position();
                 let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
-                    pos.to_layout(*ctx.viewport_size, ctx)
+                    pos.to_layout(ctx.metrics.viewport_size, ctx)
                 });
 
                 if !pos.x.is_finite() {
@@ -2328,7 +2328,7 @@ impl OpenWindow {
         let scale_factor = self.scale_factor();
 
         w_ctx.root_layout(ctx, self.size(), scale_factor, |root, layout_ctx| {
-            let mut final_size = root.measure(layout_ctx, *layout_ctx.viewport_size);
+            let mut final_size = root.measure(layout_ctx, layout_ctx.metrics.viewport_size);
 
             if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
                 final_size.width = size.width;

@@ -1,11 +1,11 @@
 //! Angle, factor and length units.
 
 use derive_more as dm;
-use std::ops;
 use std::{f32::consts::*, fmt, time::Duration};
+use std::{mem, ops};
 use webrender::api::units as wr;
 
-use crate::context::LayoutContext;
+use crate::context::LayoutMetrics;
 use crate::var::{IntoVar, OwnedVar};
 
 /// Minimal difference between values in around the 0.0..=1.0 scale.
@@ -27,7 +27,7 @@ const EPSILON_100: f32 = 0.001;
 /// # struct FillOrMaxNode { max_size: LayoutSize }
 /// #[impl_ui_node(none)]
 /// impl UiNode for FillOrMaxNode {
-///     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+///     fn measure(&mut self, ctx: &mut LayoutMetrics, available_size: LayoutSize) -> LayoutSize {
 ///         let mut desired_size = available_size;
 ///         if is_layout_any_size(desired_size.width) {
 ///             desired_size.width = self.max_size.width;
@@ -47,7 +47,7 @@ const EPSILON_100: f32 = 0.001;
 /// # struct FillNode { }
 /// #[impl_ui_node(none)]
 /// impl UiNode for FillNode {
-///     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+///     fn measure(&mut self, ctx: &mut LayoutMetrics, available_size: LayoutSize) -> LayoutSize {
 ///         let mut desired_size = available_size;
 ///         if is_layout_any_size(desired_size.width) {
 ///             desired_size.width = 0.0;
@@ -86,7 +86,7 @@ pub fn is_layout_any_size(value: f32) -> bool {
 /// impl<C: UiNodeList> UiNode for VerticalStackNode<C> {
 ///     fn measure(
 ///         &mut self,
-///         ctx: &mut LayoutContext,
+///         ctx: &mut LayoutMetrics,
 ///         mut available_size: LayoutSize
 ///     ) -> LayoutSize {
 ///
@@ -478,6 +478,18 @@ impl FactorNormal {
     pub fn min(self, other: impl Into<FactorNormal>) -> FactorNormal {
         FactorNormal(self.0.min(other.into().0))
     }
+
+    /// Returns `self` if `min <= self <= max`, returns `min` if `self < min` or returns `max` if `self > max`.
+    #[inline]
+    pub fn clamp(self, min: impl Into<FactorNormal>, max: impl Into<FactorNormal>) -> FactorNormal {
+        self.min(max).max(min)
+    }
+
+    /// Computes the absolute value of self.
+    #[inline]
+    pub fn abs(self) -> FactorNormal {
+        FactorNormal(self.0.abs())
+    }
 }
 impl PartialEq for FactorNormal {
     fn eq(&self, other: &Self) -> bool {
@@ -641,7 +653,8 @@ impl<L: Into<Length>> ops::Add<L> for Length {
 }
 impl<L: Into<Length>> ops::AddAssign<L> for Length {
     fn add_assign(&mut self, rhs: L) {
-        *self = self.clone() + rhs;
+        let lhs = mem::replace(self, Length::Exact(f32::NAN));
+        *self = lhs + rhs.into();
     }
 }
 impl<L: Into<Length>> ops::Sub<L> for Length {
@@ -665,8 +678,8 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
 }
 impl<L: Into<Length>> ops::SubAssign<L> for Length {
     fn sub_assign(&mut self, rhs: L) {
-        // TODO avoid clone here
-        *self = self.clone() - rhs;
+        let lhs = mem::replace(self, Length::Exact(f32::NAN));
+        *self = lhs - rhs.into();
     }
 }
 impl<F: Into<FactorNormal>> ops::Mul<F> for Length {
@@ -688,9 +701,10 @@ impl<F: Into<FactorNormal>> ops::Mul<F> for Length {
         }
     }
 }
-impl ops::MulAssign<f32> for Length {
-    fn mul_assign(&mut self, rhs: f32) {
-        *self = self.clone() * rhs;
+impl<F: Into<FactorNormal>> ops::MulAssign<F> for Length {
+    fn mul_assign(&mut self, rhs: F) {
+        let lhs = mem::replace(self, Length::Exact(f32::NAN));
+        *self = lhs * rhs.into();
     }
 }
 impl<F: Into<FactorNormal>> ops::Div<F> for Length {
@@ -714,9 +728,10 @@ impl<F: Into<FactorNormal>> ops::Div<F> for Length {
         }
     }
 }
-impl ops::DivAssign<f32> for Length {
-    fn div_assign(&mut self, rhs: f32) {
-        *self = self.clone() / rhs;
+impl<F: Into<FactorNormal>> ops::DivAssign<F> for Length {
+    fn div_assign(&mut self, rhs: F) {
+        let lhs = mem::replace(self, Length::Exact(f32::NAN));
+        *self = lhs / rhs.into();
     }
 }
 impl Default for Length {
@@ -822,13 +837,13 @@ impl Length {
 
     /// Length that fills the available space.
     #[inline]
-    pub fn fill() -> Length {
+    pub const fn fill() -> Length {
         Length::Relative(FactorNormal(1.0))
     }
 
     /// Length that fills 50% of the available space.
     #[inline]
-    pub fn half() -> Length {
+    pub const fn half() -> Length {
         Length::Relative(FactorNormal(0.5))
     }
 
@@ -871,24 +886,47 @@ impl Length {
         }
     }
 
+    /// Returns a length that constrains the computed layout length between `min` and `max`.
+    #[inline]
+    pub fn clamp(&self, min: impl Into<Length>, max: impl Into<Length>) -> Length {
+        self.max(min).min(max)
+    }
+
+    /// Returns a length that computes the absolute layout length of `self`.
+    #[inline]
+    pub fn abs(&self) -> Length {
+        use Length::*;
+        match self {
+            Exact(e) => Exact(e.abs()),
+            Relative(r) => Relative(r.abs()),
+            Em(e) => Em(e.abs()),
+            RootEm(r) => RootEm(r.abs()),
+            ViewportWidth(w) => ViewportWidth(w.abs()),
+            ViewportHeight(h) => ViewportHeight(h.abs()),
+            ViewportMin(m) => ViewportMin(m.abs()),
+            ViewportMax(m) => ViewportMax(m.abs()),
+            Expr(e) => Expr(Box::new(LengthExpr::Abs(e.clone()))),
+        }
+    }
+
     /// Compute the length at a context.
-    pub fn to_layout(&self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
+    pub fn to_layout(&self, available_size: LayoutLength, ctx: &LayoutMetrics) -> LayoutLength {
         use Length::*;
         let l = match self {
             Exact(l) => *l,
             Relative(f) => available_size.get() * f.0,
-            Em(f) => *ctx.font_size * f.0,
-            RootEm(f) => *ctx.root_font_size * f.0,
+            Em(f) => ctx.font_size * f.0,
+            RootEm(f) => ctx.root_font_size * f.0,
             ViewportWidth(p) => p * ctx.viewport_size.width / 100.0,
             ViewportHeight(p) => p * ctx.viewport_size.height / 100.0,
-            ViewportMin(p) => p * *ctx.viewport_min / 100.0,
-            ViewportMax(p) => p * *ctx.viewport_max / 100.0,
+            ViewportMin(p) => p * ctx.viewport_min / 100.0,
+            ViewportMax(p) => p * ctx.viewport_max / 100.0,
             Expr(e) => e.to_layout(available_size, ctx).0,
         };
         LayoutLength::new(ctx.pixel_grid.snap(l))
     }
 
-    /// If this length is zero in any unit.
+    /// If this length is zero in any finite layout context.
     pub fn is_zero(&self) -> bool {
         use Length::*;
         match self {
@@ -904,7 +942,7 @@ impl Length {
         }
     }
 
-    /// If this length is `NaN` in any unit.
+    /// If this length is `NaN` in any finite layout context.
     pub fn is_nan(&self) -> bool {
         use Length::*;
         match self {
@@ -920,7 +958,7 @@ impl Length {
         }
     }
 
-    /// If this length is a finite number in any unit.
+    /// If this length is a finite number in any finite layout context.
     pub fn is_finite(&self) -> bool {
         use Length::*;
         match self {
@@ -936,7 +974,7 @@ impl Length {
         }
     }
 
-    /// If this length is an infinite number in any unit.
+    /// If this length is an infinite number in any finite layout context.
     pub fn is_infinite(&self) -> bool {
         use Length::*;
         match self {
@@ -951,9 +989,40 @@ impl Length {
             Expr(e) => e.is_infinite(),
         }
     }
+
+    /// If this length is positive in any positive finite layout context.
+    pub fn is_sign_positive(&self) -> bool {
+        use Length::*;
+        match self {
+            Exact(e) => e.is_sign_positive(),
+            Relative(r) => r.0.is_sign_positive(),
+            Em(e) => e.0.is_sign_positive(),
+            RootEm(e) => e.0.is_sign_positive(),
+            ViewportWidth(v) => v.is_sign_positive(),
+            ViewportHeight(v) => v.is_sign_positive(),
+            ViewportMin(v) => v.is_sign_positive(),
+            ViewportMax(v) => v.is_sign_positive(),
+            Expr(e) => e.is_sign_positive(),
+        }
+    }
+
+    /// If this length is negative in any positive finite layout context.
+    pub fn is_sign_negative(&self) -> bool {
+        use Length::*;
+        match self {
+            Exact(e) => e.is_sign_negative(),
+            Relative(r) => r.0.is_sign_negative(),
+            Em(e) => e.0.is_sign_negative(),
+            RootEm(e) => e.0.is_sign_negative(),
+            ViewportWidth(v) => v.is_sign_negative(),
+            ViewportHeight(v) => v.is_sign_negative(),
+            ViewportMin(v) => v.is_sign_negative(),
+            ViewportMax(v) => v.is_sign_negative(),
+            Expr(e) => e.is_sign_negative(),
+        }
+    }
 }
 
-// TODO https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Functions
 /// Represents an unresolved [`Length`] expression.
 #[derive(Clone)]
 pub enum LengthExpr {
@@ -969,10 +1038,12 @@ pub enum LengthExpr {
     Max(Length, Length),
     /// Minimum layout length.
     Min(Length, Length),
+    /// Computes the absolute layout length.
+    Abs(Box<LengthExpr>)
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn to_layout(&self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
+    pub fn to_layout(&self, available_size: LayoutLength, ctx: &LayoutMetrics) -> LayoutLength {
         use LengthExpr::*;
         match self {
             Add(a, b) => a.to_layout(available_size, ctx) + b.to_layout(available_size, ctx),
@@ -989,10 +1060,11 @@ impl LengthExpr {
                 let b = b.to_layout(available_size, ctx).0;
                 LayoutLength::new(a.min(b))
             }
+            Abs(e) => LayoutLength::new(e.to_layout(available_size, ctx).0.abs())
         }
     }
 
-    /// Returns `true` if the expression always evaluates to zero.
+    /// Returns `true` if the expression always evaluates to zero given a finite layout context.
     pub fn is_zero(&self) -> bool {
         use LengthExpr::*;
         match self {
@@ -1002,9 +1074,11 @@ impl LengthExpr {
             Div(l, s) => *s != 0.0.normal() && l.is_zero(),
             Max(a, b) => a.is_zero() && b.is_zero(),
             Min(a, b) => a.is_zero() && b.is_zero(),
+            Abs(e) => e.is_zero()
         }
     }
-    /// Returns `true` if the expression always evaluates to `NaN`.
+
+    /// Returns `true` if the expression always evaluates to `NaN` given a finite layout context.
     pub fn is_nan(&self) -> bool {
         use LengthExpr::*;
         match self {
@@ -1014,13 +1088,16 @@ impl LengthExpr {
             Div(l, s) => s.0.is_nan() || *s == 0.0.normal() || l.is_nan(),
             Max(a, b) => a.is_nan() && b.is_nan(),
             Min(a, b) => a.is_nan() && b.is_nan(),
+            Abs(e) => e.is_nan()
         }
     }
-    /// Returns `true` if the expression can evaluate to a finite value.
+
+    /// Returns `true` if the expression can evaluate to a finite value given a finite layout context.
     pub fn is_finite(&self) -> bool {
         !self.is_infinite()
     }
-    /// Returns `true` if the expression always evaluates to infinity.
+
+    /// Returns `true` if the expression always evaluates to infinity given a finite layout context.
     pub fn is_infinite(&self) -> bool {
         use LengthExpr::*;
         match self {
@@ -1030,6 +1107,35 @@ impl LengthExpr {
             Div(l, s) => s.0.is_infinite() || l.is_infinite(),
             Max(a, b) => a.is_infinite() || b.is_infinite(),
             Min(a, b) => a.is_infinite() || b.is_infinite(),
+            Abs(e) => e.is_infinite()
+        }
+    }
+
+    /// Returns `true` if the expression evaluates to positive value given a positive finite layout context.
+    pub fn is_sign_positive(&self) -> bool {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.is_sign_positive() && b.is_sign_positive(),
+            Sub(a, b) => a.is_sign_negative() && b.is_sign_negative(),
+            Mul(l, s) => l.is_sign_positive() && s.0.is_sign_positive(),
+            Div(l, s) => l.is_sign_positive() && s.0.is_sign_positive(),
+            Max(a, b) => a.is_sign_positive() && b.is_sign_positive(),
+            Min(a, b) => a.is_sign_positive() && b.is_sign_positive(),
+            Abs(_) => true,
+        }
+    }
+
+    /// Returns `true` if the expression evaluates to negative value given a positive finite layout context.
+    pub fn is_sign_negative(&self) -> bool {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.is_sign_negative() || b.is_sign_negative(),
+            Sub(a, b) => a.is_sign_positive() && b.is_sign_negative(),
+            Mul(l, s) => todo!(),
+            Div(l, s) => todo!(),
+            Max(_, _) => todo!(),
+            Min(_, _) => todo!(),
+            Abs(_) => false,
         }
     }
 }
@@ -1044,6 +1150,7 @@ impl fmt::Debug for LengthExpr {
                 Div(l, s) => f.debug_tuple("LengthExpr::Div").field(l).field(s).finish(),
                 Max(a, b) => f.debug_tuple("LengthExpr::Max").field(a).field(b).finish(),
                 Min(a, b) => f.debug_tuple("LengthExpr::Min").field(a).field(b).finish(),
+                Abs(e) => f.debug_tuple("LengthExpr::Abs").field(e).finish()
             }
         } else {
             match self {
@@ -1053,6 +1160,7 @@ impl fmt::Debug for LengthExpr {
                 Div(l, s) => write!(f, "({:?} / {:?}.pct())", l, s.0 * 100.0),
                 Max(a, b) => write!(f, "max({:?}, {:?})", a, b),
                 Min(a, b) => write!(f, "min({:?}, {:?})", a, b),
+                Abs(e) => write!(f, "abs({:?})", e)
             }
         }
     }
@@ -1067,6 +1175,7 @@ impl fmt::Display for LengthExpr {
             Div(l, s) => write!(f, "({} / {}%)", l, s.0 * 100.0),
             Max(a, b) => write!(f, "max({}, {})", a, b),
             Min(a, b) => write!(f, "min({}, {})", a, b),
+            Abs(e) => write!(f, "abs({})", e)
         }
     }
 }
@@ -1351,7 +1460,7 @@ impl Point {
 
     /// Compute the point in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutPoint {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutPoint {
         LayoutPoint::from_lengths(
             self.x.to_layout(LayoutLength::new(available_size.width), ctx),
             self.y.to_layout(LayoutLength::new(available_size.height), ctx),
@@ -1432,7 +1541,7 @@ impl Size {
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSize {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutSize {
         LayoutSize::from_lengths(
             self.width.to_layout(LayoutLength::new(available_size.width), ctx),
             self.height.to_layout(LayoutLength::new(available_size.height), ctx),
@@ -1532,7 +1641,7 @@ impl Ellipse {
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutEllipse {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutEllipse {
         LayoutEllipse::from_lengths(
             self.width.to_layout(LayoutLength::new(available_size.width), ctx),
             self.height.to_layout(LayoutLength::new(available_size.height), ctx),
@@ -1608,7 +1717,7 @@ impl GridSpacing {
 
     /// Compute the spacing in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutGridSpacing {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutGridSpacing {
         LayoutGridSpacing {
             column: self.column.to_layout(LayoutLength::new(available_size.width), ctx).get(),
             row: self.row.to_layout(LayoutLength::new(available_size.height), ctx).get(),
@@ -1733,7 +1842,7 @@ impl Rect {
 
     /// Compute the rectangle in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutRect {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutRect {
         LayoutRect::new(self.origin.to_layout(available_size, ctx), self.size.to_layout(available_size, ctx))
     }
 }
@@ -1900,7 +2009,7 @@ impl Line {
 
     /// Compute the line in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutLine {
         LayoutLine {
             start: self.start.to_layout(available_size, ctx),
             end: self.end.to_layout(available_size, ctx),
@@ -2072,7 +2181,7 @@ impl SideOffsets {
 
     /// Compute the offsets in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSideOffsets {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutSideOffsets {
         let width = LayoutLength::new(available_size.width);
         let height = LayoutLength::new(available_size.height);
         LayoutSideOffsets::from_lengths(
@@ -2659,7 +2768,7 @@ impl Transform {
 
     /// Compute a [`LayoutTransform`].
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutTransform {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutTransform {
         let mut r = LayoutTransform::identity();
         for step in &self.steps {
             r = match step {

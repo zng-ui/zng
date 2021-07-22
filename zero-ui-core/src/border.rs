@@ -4,7 +4,7 @@ use std::fmt;
 
 use webrender::api as w_api;
 
-use crate::{color::*, context::LayoutContext, units::*};
+use crate::{color::*, context::LayoutMetrics, units::*};
 
 /// Orientation of a straight line.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -310,7 +310,7 @@ impl BorderRadius {
 
     /// Compute the radii in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutBorderRadius {
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutBorderRadius {
         LayoutBorderRadius {
             top_left: self.top_left.to_layout(available_size, ctx),
             top_right: self.top_right.to_layout(available_size, ctx),
