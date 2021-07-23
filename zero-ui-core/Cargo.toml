@@ -62,6 +62,7 @@ blocking = "1"
 parking_lot = "0.11"
 futures-timer = "3"
 isahc = { version = "1", features = ["cookies", "json"] }
+pollster = "0.2"
 
 # util
 bitflags = "1"

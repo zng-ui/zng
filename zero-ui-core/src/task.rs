@@ -389,6 +389,47 @@ where
     spawn(async move { wait(task).await });
 }
 
+/// Blocks the thread until the `task` future finishes.
+///
+/// This function is useful for implementing async tests, using it in an app will probably cause
+/// the app to stop responding. To test UI task use [`TestWidgetContext::block_on`] or [`HeadlessApp::block_on`].
+///
+/// The crate [`pollster`] is used to execute the task.
+///
+/// # Examples
+///
+/// Test a [`run`] call:
+///
+/// ```
+/// use zero_ui_core::task;
+/// # use zero_ui_core::units::*;
+/// # async fn foo(u: u8) -> Result<u8, ()> { task::timeout(1.ms()).await; Ok(u) }
+///
+/// #[test]
+/// # fn __() { }
+/// pub fn run_ok() {
+///     let r = task::block_on(task::run(async {
+///         foo(32).await
+///     }));
+///     
+/// #   let value =
+///     r.expect("foo(32) was not Ok");
+/// #   assert_eq!(32, value);
+/// }
+/// # run_ok();
+/// ```
+///
+/// [`TestWidgetContext::block_on`]: crate::context::TestWidgetContext::block_on
+/// [`HeadlessApp::block_on`]: crate::app::HeadlessApp::block_on
+/// [`pollster`]: https://docs.rs/pollster/
+#[inline]
+pub fn block_on<F>(task: F) -> F::Output
+where
+    F: Future,
+{
+    pollster::block_on(task)
+}
+
 impl<'a, 'w> AppContext<'a, 'w> {
     /// Create an app thread bound future executor that executes in the app context.
     ///
@@ -895,6 +936,7 @@ pub mod channel {
         /// Waits until there is space in the channel buffer.
         ///
         /// Returns an error if all receivers have been dropped.
+        #[inline]
         pub async fn send(&self, msg: T) -> Result<(), SendError<T>> {
             self.0.send_async(msg).await
         }
@@ -1308,7 +1350,7 @@ where
 
             loop {
                 let r = self::wait(move || {
-                    let mut payload = Vec::with_capacity(payload_len);
+                    let mut payload = vec![0u8; payload_len];
                     loop {
                         match read.read(&mut payload) {
                             Ok(c) => {
@@ -1331,15 +1373,17 @@ where
                         read = r;
 
                         if p.len() < payload_len {
-                            let _ = sender.send(Ok(p));
-                            let _ = stop_sender.send(read);
+                            println!("!!!");
+                            let _ = sender.send(Ok(p)).await;
+                            let _ = stop_sender.send(read).await;
                             break;
                         } else if sender.send(Ok(p)).await.is_err() {
+                            let _ = stop_sender.send(read).await;
                             break;
                         }
                     }
                     Err(e) => {
-                        let _ = sender.send(Err(e));
+                        let _ = sender.send(Err(e)).await;
                         break;
                     }
                 }
@@ -2397,4 +2441,74 @@ pub mod http {
 
     /// An error in [`UploadTask`].
     pub struct UploadTaskError {}
+}
+
+#[cfg(test)]
+pub mod tests {
+    use crate::units::TimeUnits;
+    use std::sync::atomic::AtomicBool;
+
+    use super::*;
+
+    #[test]
+    pub fn read_task() {
+        block_on(async {
+            let task = ReadTask::default().payload_len(1).spawn(TestRead::default());
+
+            timeout(10.ms()).await;
+
+            let payload = task.read().await.unwrap();
+            assert_eq!(task.payload_len(), payload.len());
+
+            task.read().await.unwrap();
+
+            let expected_read_calls = 8 + 2; // default capacity + 2 read calls.
+            let expected_bytes_read = task.payload_len() * expected_read_calls;
+
+            let read = task.stop().await.unwrap();
+
+            assert_eq!(expected_read_calls, read.read_calls);
+            assert_eq!(expected_bytes_read, read.bytes_read);
+        })
+    }
+
+    #[derive(Default)]
+    pub struct TestRead {
+        bytes_read: usize,
+        read_calls: usize,
+        cause_stop: Arc<Flag>,
+        cause_error: Arc<Flag>,
+        cause_panic: Arc<Flag>,
+    }
+    impl io::Read for TestRead {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            self.read_calls += 1;
+            if self.cause_stop.is_set() {
+                Ok(0)
+            } else if self.cause_error.is_set() {
+                Err(io::Error::new(io::ErrorKind::Other, "test error"))
+            } else if self.cause_panic.is_set() {
+                panic!("test panic");
+            } else {
+                let bytes = (self.bytes_read..self.bytes_read + buf.len()).map(|u| u as u8);
+                for (byte, i) in bytes.zip(buf.iter_mut()) {
+                    *i = byte;
+                }
+                self.bytes_read += buf.len();
+                Ok(buf.len())
+            }
+        }
+    }
+
+    #[derive(Default)]
+    pub struct Flag(AtomicBool);
+    impl Flag {
+        pub fn set(&self) {
+            self.0.store(true, Ordering::Relaxed);
+        }
+
+        pub fn is_set(&self) -> bool {
+            self.0.load(Ordering::Relaxed)
+        }
+    }
 }
