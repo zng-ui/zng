@@ -837,7 +837,7 @@ impl crate::render::Font for Font {
 /// A shared [`Font`].
 pub type FontRef = Rc<Font>;
 
-impl crate::render::Font for Rc<Font> {
+impl crate::render::Font for FontRef {
     fn instance_key(&self, api: &Arc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey {
         self.render_font(api, synthesis)
     }

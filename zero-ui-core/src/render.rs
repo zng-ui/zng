@@ -51,12 +51,32 @@ pub type FrameId = webrender::api::Epoch;
 ///
 /// # Font API
 ///
-/// The default font API is provided by [`FontManager`](crate::text::FontManager) that is included
-/// in the app default extensions. The default font type is [`Font`](crate::text::Font) that implements this trait.
+/// The default font API is provided by [`FontManager`] that is included
+/// in the app default extensions. The default font type is [`Font`] that implements this trait.
+///
+/// [`FontManager`]: crate::text::FontManager
+/// [`Font`]: crate::text::Font
 pub trait Font {
     /// Gets the instance key in the `api` namespace.
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
     fn instance_key(&self, api: &Arc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey;
+}
+
+/// A loaded or loading image.
+///
+/// This trait is an interface for the renderer into the image API used in the application.
+///
+/// # Image API
+///
+/// The default image API is provided by [`ImageManager`] that is included
+/// in the app default extensions. The default image type is [`Image`] that implements this trait.
+///
+/// [`ImageManager`]: crate::image::ImageManager
+/// [`Image`]: crate::image::Image
+pub trait Image {
+    /// Gets the image key in the `api` namespace.
+    /// The image must be loaded asynchronously by `self`.
+    fn image_key(&self, api: &Arc<RenderApi>) -> webrender::api::ImageKey;
 }
 
 /// A full frame builder.
@@ -676,6 +696,18 @@ impl FrameBuilder {
 
             self.display_list
                 .push_text(&self.common_item_properties(rect), rect, glyphs, instance_key, color, None);
+        }
+    }
+
+    pub fn push_image(&mut self, image: &impl Image) {
+        if self.cancel_widget {
+            return;
+        }
+
+        if let Some(api) = &self.api {
+            let image_key = image.image_key(api);
+            
+            // self.display_list.push_image(common, bounds, image_rendering, alpha_type, key, color)
         }
     }
 

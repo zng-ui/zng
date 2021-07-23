@@ -2,6 +2,7 @@
 
 use crate::context::*;
 use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
+use crate::image::ImageManager;
 use crate::profiler::*;
 use crate::timer::Timers;
 use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
@@ -456,6 +457,7 @@ impl App {
     /// * [WindowManager]
     /// * [FontManager]
     /// * [FocusManager]
+    /// * [ImageManager]
     #[inline]
     pub fn default() -> AppExtended<impl AppExtension> {
         App::blank()
@@ -465,6 +467,7 @@ impl App {
             .extend(WindowManager::default())
             .extend(FontManager::default())
             .extend(FocusManager::default())
+            .extend(ImageManager::default())
     }
 }
 
@@ -490,6 +493,7 @@ impl App {
     /// * [WindowManager]
     /// * [FontManager]
     /// * [FocusManager]
+    /// * [ImageManager]
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         App::blank()
             .extend(MouseManager::default())
@@ -498,6 +502,7 @@ impl App {
             .extend(WindowManager::default())
             .extend(FontManager::default())
             .extend(FocusManager::default())
+            .extend(ImageManager::default())
     }
 }
 

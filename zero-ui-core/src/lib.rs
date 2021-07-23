@@ -50,6 +50,7 @@ pub mod handler;
 pub mod focus;
 pub mod gesture;
 pub mod gradient;
+pub mod image;
 pub mod keyboard;
 pub mod mouse;
 pub mod profiler;
