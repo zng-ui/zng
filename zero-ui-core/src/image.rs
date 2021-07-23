@@ -50,4 +50,3 @@ impl crate::render::Image for Image {
         self.render_image(api)
     }
 }
-

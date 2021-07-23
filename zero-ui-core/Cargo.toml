@@ -79,7 +79,6 @@ img-parts = "0.2"
 byteorder = "1"
 log = "0.4"
 unsafe-any = "0.4"
-pin-project = "1"
 
 # serde
 serde = "1"

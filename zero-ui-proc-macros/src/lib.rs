@@ -26,6 +26,8 @@ mod widget_2_declare;
 mod property_new;
 mod widget_new;
 
+mod any_all;
+
 /// Expands an impl into a `UiNode` impl.
 ///
 /// # Full Documentation
@@ -119,4 +121,10 @@ pub fn expr_var(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn when_var(input: TokenStream) -> TokenStream {
     when_var::expand(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn task_any_all(input: TokenStream) -> TokenStream {
+    any_all::expand(input)
 }

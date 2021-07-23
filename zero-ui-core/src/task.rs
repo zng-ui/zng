@@ -126,7 +126,7 @@
 use std::{
     fmt,
     future::Future,
-    io,
+    io, mem,
     pin::Pin,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -137,7 +137,6 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use pin_project::pin_project;
 
 use crate::{
     context::*,
@@ -765,31 +764,10 @@ pub struct TimeoutError;
 ///
 /// Returns the `fut` output or [`TimeoutError`] if the timeout elapses first.
 pub async fn with_timeout<O, F: Future<Output = O>>(fut: F, timeout: Duration) -> Result<F::Output, TimeoutError> {
-    #[pin_project]
-    struct WithTimeoutFut<F, T> {
-        #[pin]
-        fut: F,
-        #[pin]
-        t_fut: T,
-    }
-    impl<O, F: Future<Output = O>, T: Future<Output = ()>> Future for WithTimeoutFut<F, T> {
-        type Output = Result<O, TimeoutError>;
-
-        fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-            let s = self.project();
-            match s.fut.poll(cx) {
-                Poll::Ready(r) => Poll::Ready(Ok(r)),
-                Poll::Pending => match s.t_fut.poll(cx) {
-                    Poll::Ready(_) => Poll::Ready(Err(TimeoutError)),
-                    Poll::Pending => Poll::Pending,
-                },
-            }
-        }
-    }
-    WithTimeoutFut {
-        fut,
-        t_fut: self::timeout(timeout),
-    }
+    any!(async { Ok(fut.await) }, async {
+        self::timeout(timeout).await;
+        Err::<F::Output, _>(TimeoutError)
+    })
     .await
 }
 
@@ -804,6 +782,274 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) 
         with_timeout(fut, deadline - now).await
     }
 }
+
+/// <span data-inline></span> A future that polls all input futures.
+///
+/// The macro input is a comma separated list of future expressions. The macro output is a future
+/// that when ".awaited" produces a tuple of results in the same order as the inputs.
+///
+/// At least one input future is required and any number of futures is accepted. For more then
+/// eight futures a proc-macro is used which may cause code auto-complete to stop working in
+/// some IDEs.
+///
+/// # Examples
+///
+/// Await for three different futures to complete:
+///
+/// ```
+/// use zero_ui_core::task;
+///
+/// # let _ = async {
+/// let (a, b, c) = task::all!(
+///     task::run(async { 'a' }),
+///     task::wait(|| "b"),
+///     async { b"c" }
+/// ).await;
+/// # };
+/// ```
+#[macro_export]
+macro_rules! all {
+    ($fut0:expr $(,)?) => { $crate::__all! { fut0: $fut0; } };
+    ($fut0:expr, $fut1:expr $(,)?) => {
+        $crate::__all! {
+            fut0: $fut0;
+            fut1: $fut1;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr $(,)?) => {
+        $crate::__all! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr $(,)?) => {
+        $crate::__all! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr $(,)?) => {
+        $crate::__all! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr $(,)?) => {
+        $crate::__all! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr $(,)?) => {
+        $crate::__all! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr, $fut7:expr $(,)?) => {
+        $crate::__all! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+            fut7: $fut7;
+        }
+    };
+    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__all; $($fut),+ } }
+}
+#[doc(inline)]
+pub use crate::all;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __all {
+    ($($ident:ident: $fut:expr;)+) => {
+        {
+            $(let mut $ident = $crate::task::AllFut::pin($fut);)+
+            $crate::task::poll_fn(move |cx| {
+                use std::task::Poll;
+
+                let pending = $($ident.poll(cx))|+;
+
+                if pending {
+                    Poll::Pending
+                } else {
+                    Poll::Ready(($($ident.unwrap()),+))
+                }
+            })
+        }
+    }
+}
+#[doc(hidden)]
+pub enum AllFut<F: Future> {
+    Pending(Pin<Box<F>>),
+    Ready(F::Output),
+    Done,
+}
+#[allow(missing_docs)]
+impl<F: Future> AllFut<F> {
+    pub fn pin(fut: F) -> Self {
+        Self::Pending(Box::pin(fut))
+    }
+
+    pub fn poll(&mut self, cx: &mut std::task::Context) -> bool {
+        if let Self::Pending(fut) = self {
+            match fut.as_mut().poll(cx) {
+                Poll::Ready(r) => {
+                    *self = Self::Ready(r);
+                    false
+                }
+                Poll::Pending => true,
+            }
+        } else {
+            false
+        }
+    }
+
+    pub fn unwrap(&mut self) -> F::Output {
+        match mem::replace(self, Self::Done) {
+            Self::Ready(r) => r,
+            _ => unreachable!(),
+        }
+    }
+}
+
+/// <span data-inline></span> Waits for any of the futures to finish.
+///
+/// The macro input is comma separated list of future expressions, the futures must
+/// all have the same output type. The macro output is a future that when ".awaited" produces
+/// a single output type instance returned by the first input future that completes.
+///
+/// At least one input future is required and any number of futures is accepted. For more then
+/// eight futures a proc-macro is used which may cause code auto-complete to stop working in
+/// some IDEs.
+///
+/// # Examples
+///
+/// Await for the first of three futures to complete:
+///
+/// ```
+/// use zero_ui_core::task;
+/// # let _ = async {
+/// let r = task::any!(
+///     task::run(async { 'a' }),
+///     task::wait(|| 'b'),
+///     async { 'c' }
+/// ).await;
+/// # };
+/// ```
+#[macro_export]
+macro_rules! any {
+    ($fut0:expr $(,)?) => { $crate::__any! { fut0: $fut0; } };
+    ($fut0:expr, $fut1:expr $(,)?) => {
+        $crate::__any! {
+            fut0: $fut0;
+            fut1: $fut1;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr $(,)?) => {
+        $crate::__any! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr $(,)?) => {
+        $crate::__any! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr $(,)?) => {
+        $crate::__any! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr $(,)?) => {
+        $crate::__any! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr $(,)?) => {
+        $crate::__any! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr, $fut7:expr $(,)?) => {
+        $crate::__any! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+            fut7: $fut7;
+        }
+    };
+    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__any; $($fut),+ } }
+}
+#[doc(inline)]
+pub use crate::any;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __any {
+    ($($ident:ident: $fut:expr;)+) => {
+        {
+            $(let mut $ident = Box::pin($fut);)+
+            $crate::task::poll_fn(move |cx| {
+                use std::task::Poll;
+                use std::future::Future;
+                $(
+                    if let Poll::Ready(r) = $ident.as_mut().poll(cx) {
+                        return Poll::Ready(r)
+                    }
+                )+
+
+                Poll::Pending
+            })
+        }
+    }
+}
+
+#[doc(hidden)]
+pub use zero_ui_proc_macros::task_any_all as __proc_any_all;
 
 /// Async channels.
 ///
@@ -2450,9 +2696,175 @@ pub mod tests {
 
     use super::*;
 
+    fn async_test<F>(test: F) -> F::Output
+    where
+        F: Future,
+    {
+        block_on(with_timeout(test, Duration::from_secs(1))).unwrap()
+    }
+
+    #[test]
+    pub fn any_one() {
+        let r = async_test(async { any!(async { true }).await });
+
+        assert!(r);
+    }
+
+    #[test]
+    pub fn any_five() {
+        let one_s = Duration::from_secs(1);
+        let r = async_test(async {
+            any!(
+                async {
+                    timeout(one_s).await;
+                    1
+                },
+                async {
+                    timeout(one_s).await;
+                    2
+                },
+                async {
+                    timeout(one_s).await;
+                    3
+                },
+                async {
+                    timeout(one_s).await;
+                    4
+                },
+                async { 5 },
+            )
+            .await
+        });
+
+        assert_eq!(5, r);
+    }
+
+    #[test]
+    pub fn any_nine() {
+        let one_s = Duration::from_secs(1);
+        let r = async_test(async {
+            any!(
+                async {
+                    timeout(one_s).await;
+                    1
+                },
+                async {
+                    timeout(one_s).await;
+                    2
+                },
+                async {
+                    timeout(one_s).await;
+                    3
+                },
+                async {
+                    timeout(one_s).await;
+                    4
+                },
+                async {
+                    timeout(one_s).await;
+                    5
+                },
+                async {
+                    timeout(one_s).await;
+                    6
+                },
+                async {
+                    timeout(one_s).await;
+                    7
+                },
+                async {
+                    timeout(one_s).await;
+                    8
+                },
+                async { 9 },
+            )
+            .await
+        });
+
+        assert_eq!(9, r);
+    }
+
+    #[test]
+    pub fn all_one() {
+        let r = async_test(async { all!(async { true }).await });
+
+        assert!(r);
+    }
+
+    #[test]
+    pub fn all_five() {
+        let r = async_test(async {
+            all!(
+                async { 'a' },
+                async {
+                    yield_one().await;
+                    'b'
+                },
+                async { 'c' },
+                async {
+                    yield_one().await;
+                    'd'
+                },
+                async { 'e' },
+            )
+            .await
+        });
+
+        assert_eq!('a', r.0);
+        assert_eq!('b', r.1);
+        assert_eq!('c', r.2);
+        assert_eq!('d', r.3);
+        assert_eq!('e', r.4);
+    }
+
+    #[test]
+    pub fn all_nine() {
+        let r = async_test(async {
+            all!(
+                async { 'a' },
+                async {
+                    yield_one().await;
+                    'b'
+                },
+                async { 'c' },
+                async {
+                    yield_one().await;
+                    'd'
+                },
+                async { 'e' },
+                async {
+                    yield_one().await;
+                    'f'
+                },
+                async { 'g' },
+                async {
+                    yield_one().await;
+                    'h'
+                },
+                async { 'i' },
+                async {
+                    yield_one().await;
+                    'j'
+                },
+            )
+            .await
+        });
+
+        assert_eq!('a', r.0);
+        assert_eq!('b', r.1);
+        assert_eq!('c', r.2);
+        assert_eq!('d', r.3);
+        assert_eq!('e', r.4);
+        assert_eq!('f', r.5);
+        assert_eq!('g', r.6);
+        assert_eq!('h', r.7);
+        assert_eq!('i', r.8);
+        assert_eq!('j', r.9);
+    }
+
     #[test]
     pub fn read_task() {
-        block_on(async {
+        async_test(async {
             let task = ReadTask::default().payload_len(1).spawn(TestRead::default());
 
             timeout(10.ms()).await;
@@ -2474,7 +2886,7 @@ pub mod tests {
 
     #[test]
     pub fn read_task_error() {
-        block_on(async {
+        async_test(async {
             let read = TestRead::default();
             let flag = read.cause_error.clone();
 
@@ -2484,11 +2896,26 @@ pub mod tests {
 
             flag.set();
 
-            todo!()
+            loop {
+                match task.read().await {
+                    Ok(p) => assert_eq!(p.len(), 1),
+                    Err(e) => {
+                        assert_eq!("test error", e.error.to_string());
+                        assert!(!e.is_disconnected());
+
+                        let e = task.read().await.unwrap_err();
+                        assert!(e.is_disconnected());
+                        break;
+                    }
+                }
+            }
+
+            let e = task.stop().await.unwrap_err();
+            assert!(e.is_disconnected())
         })
     }
 
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     pub struct TestRead {
         bytes_read: usize,
         read_calls: usize,
@@ -2516,7 +2943,7 @@ pub mod tests {
         }
     }
 
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     pub struct Flag(AtomicBool);
     impl Flag {
         pub fn set(&self) {

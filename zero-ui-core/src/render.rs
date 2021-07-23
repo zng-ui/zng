@@ -706,7 +706,7 @@ impl FrameBuilder {
 
         if let Some(api) = &self.api {
             let image_key = image.image_key(api);
-            
+
             // self.display_list.push_image(common, bounds, image_rendering, alpha_type, key, color)
         }
     }
