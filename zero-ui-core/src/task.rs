@@ -770,7 +770,6 @@ pub async fn poll_fn<T, F: FnMut(&mut std::task::Context) -> Poll<T>>(fn_: F) ->
             (&mut self.0)(cx)
         }
     }
-
     PollFn(fn_).await
 }
 
@@ -813,7 +812,9 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) 
 /// use std::task::Poll;
 ///
 /// async fn count_poll<F: Future>(fut: F) -> F::Output {
+///
 ///     task::pin!(fut);
+///
 ///     let mut count = 0;
 ///     task::poll_fn(|cx| {
 ///         count += 1;
@@ -831,6 +832,8 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) 
 macro_rules! pin {
     ($($var:ident),* $(,)?) => {
         $(
+            // SAFETY: $var is moved to the stack, exclusively borrowed and shadowed
+            // by the pinned borrow, there is no way to move $var.
             let mut $var = $var;
             #[allow(unused_mut)]
             let mut $var = unsafe {
@@ -942,11 +945,16 @@ pub use crate::all;
 macro_rules! __all {
     ($($ident:ident: $fut:expr;)+) => {
         {
-            $(let mut $ident = $crate::task::AllFut::pin($fut);)+
+            $(let mut $ident = $crate::task::AllFut::Pending($fut);)+
             $crate::task::poll_fn(move |cx| {
                 use std::task::Poll;
 
-                let pending = $($ident.poll(cx))|+;
+                // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                // Future::poll call, so it will not move.
+                let pending = {
+                    $(let $ident = unsafe { std::pin::Pin::new_unchecked(&mut $ident) };)+
+                    $($ident.poll(cx))|+
+                };
 
                 if pending {
                     Poll::Pending
@@ -959,21 +967,22 @@ macro_rules! __all {
 }
 #[doc(hidden)]
 pub enum AllFut<F: Future> {
-    Pending(Pin<Box<F>>),
+    Pending(F),
     Ready(F::Output),
     Done,
 }
 #[allow(missing_docs)]
 impl<F: Future> AllFut<F> {
-    pub fn pin(fut: F) -> Self {
-        Self::Pending(Box::pin(fut))
-    }
-
-    pub fn poll(&mut self, cx: &mut std::task::Context) -> bool {
-        if let Self::Pending(fut) = self {
+    pub fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context) -> bool {
+        // SAFETY: this is a projection to poll `fut` and we don't replace
+        // `self` when we own the future.
+        let self_ = unsafe { self.get_unchecked_mut() };
+        if let Self::Pending(fut) = self_ {
+            // SAFETY: `self` is pinned and we are not moving `fut`.
+            let mut fut = unsafe { Pin::new_unchecked(fut) };
             match fut.as_mut().poll(cx) {
                 Poll::Ready(r) => {
-                    *self = Self::Ready(r);
+                    *self_ = Self::Ready(r);
                     false
                 }
                 Poll::Pending => true,
@@ -984,6 +993,8 @@ impl<F: Future> AllFut<F> {
     }
 
     pub fn unwrap(&mut self) -> F::Output {
+        // SAFETY: we only need to Pin to poll the future and it
+        // is already dropped here or it will panic.
         match mem::replace(self, Self::Done) {
             Self::Ready(r) => r,
             _ => unreachable!(),
@@ -1091,11 +1102,14 @@ pub use crate::any;
 macro_rules! __any {
     ($($ident:ident: $fut:expr;)+) => {
         {
-            $(let mut $ident = Box::pin($fut);)+
+            $(let mut $ident = $fut;)+
             $crate::task::poll_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
                 $(
+                    // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                    // Future::poll call, so it will not move.
+                    let mut $ident = unsafe { std::pin::Pin::new_unchecked(&mut $ident) };
                     if let Poll::Ready(r) = $ident.as_mut().poll(cx) {
                         return Poll::Ready(r)
                     }
