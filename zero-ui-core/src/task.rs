@@ -741,7 +741,25 @@ pub async fn deadline(deadline: Instant) {
     }
 }
 
-/// Implement a [`Future`] from a closure.
+/// Implements a [`Future`] from a closure.
+///
+/// # Examples
+///
+/// A future that is ready with a closure returns `Some(R)`.
+///
+/// ```
+/// use zero_ui_core::task;
+/// use std::task::Poll;
+///
+/// async fn ready_some<R>(mut closure: impl FnMut() -> Option<R>) -> R {
+///     task::poll_fn(|cx| {
+///         match closure() {
+///             Some(r) => Poll::Ready(r),
+///             None => Poll::Pending
+///         }
+///     }).await
+/// }
+/// ```
 pub async fn poll_fn<T, F: FnMut(&mut std::task::Context) -> Poll<T>>(fn_: F) -> T {
     struct PollFn<F>(F);
     impl<F> Unpin for PollFn<F> {}
@@ -783,7 +801,48 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) 
     }
 }
 
-/// <span data-inline></span> A future that polls all input futures.
+/// <span data-inline></span> Pins variables on the stack.
+///
+/// # Examples
+///
+/// Poll a `!Unpin` future using [`poll_fn`]:
+///
+/// ```
+/// use zero_ui_core::task;
+/// use std::future::Future;
+/// use std::task::Poll;
+///
+/// async fn count_poll<F: Future>(fut: F) -> F::Output {
+///     task::pin!(fut);
+///     let mut count = 0;
+///     task::poll_fn(|cx| {
+///         count += 1;
+///         match fut.as_mut().poll(cx) {
+///             Poll::Ready(r) => {
+///                 println!("polled {} times", count);
+///                 Poll::Ready(r)
+///             },
+///             p => p
+///         }
+///     }).await
+/// }
+/// ```
+#[macro_export]
+macro_rules! pin {
+    ($($var:ident),* $(,)?) => {
+        $(
+            let mut $var = $var;
+            #[allow(unused_mut)]
+            let mut $var = unsafe {
+                std::pin::Pin::new_unchecked(&mut $var)
+            };
+        )*
+    }
+}
+#[doc(inline)]
+pub use crate::pin;
+
+/// <span data-inline></span> A future that polls all input futures and awaits until all are complete.
 ///
 /// The macro input is a comma separated list of future expressions. The macro output is a future
 /// that when ".awaited" produces a tuple of results in the same order as the inputs.
@@ -932,7 +991,7 @@ impl<F: Future> AllFut<F> {
     }
 }
 
-/// <span data-inline></span> Waits for any of the futures to finish.
+/// <span data-inline></span> A future that polls all futures and awaits until any of then are complete.
 ///
 /// The macro input is comma separated list of future expressions, the futures must
 /// all have the same output type. The macro output is a future that when ".awaited" produces
