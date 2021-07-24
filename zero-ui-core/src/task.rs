@@ -850,7 +850,7 @@ pub use crate::pin;
 /// The macro input is a comma separated list of future expressions. The macro output is a future
 /// that when ".awaited" produces a tuple of results in the same order as the inputs.
 ///
-/// At least one input future is required and any number of futures is accepted. For more then
+/// At least one input future is required and any number of futures is accepted. For more than
 /// eight futures a proc-macro is used which may cause code auto-complete to stop working in
 /// some IDEs.
 ///
@@ -1008,7 +1008,7 @@ impl<F: Future> AllFut<F> {
 /// all have the same output type. The macro output is a future that when ".awaited" produces
 /// a single output type instance returned by the first input future that completes.
 ///
-/// At least one input future is required and any number of futures is accepted. For more then
+/// At least one input future is required and any number of futures is accepted. For more than
 /// eight futures a proc-macro is used which may cause code auto-complete to stop working in
 /// some IDEs.
 ///
@@ -2556,7 +2556,7 @@ pub mod http {
         }
 
         /// Set the number of payloads that can be downloaded in parallel, setting
-        /// this to more then 1 can speedup the overall download time, if you are
+        /// this to more than one can speedup the overall download time, if you are
         /// just downloading to a file and depending on the server.
         ///
         /// Default is `1`.
