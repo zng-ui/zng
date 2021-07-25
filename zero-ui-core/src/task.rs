@@ -861,7 +861,7 @@ impl std::error::Error for TimeoutError {}
 pub async fn with_timeout<O, F: Future<Output = O>>(fut: F, timeout: Duration) -> Result<F::Output, TimeoutError> {
     any!(async { Ok(fut.await) }, async {
         self::timeout(timeout).await;
-        Err::<F::Output, _>(TimeoutError { timeout })
+        Err(TimeoutError { timeout })
     })
     .await
 }
@@ -3627,9 +3627,9 @@ pub mod tests {
     pub fn read_task_error() {
         async_test(async {
             let read = TestRead::default();
-            let flag = read.cause_error.clone();
+            let flag = Arc::clone(&read.cause_error);
 
-            let task = ReadTask::default().payload_len(1).spawn(TestRead::default());
+            let task = ReadTask::default().payload_len(1).spawn(read);
 
             timeout(10.ms()).await;
 
