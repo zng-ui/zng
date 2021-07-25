@@ -126,7 +126,7 @@
 use std::{
     fmt,
     future::Future,
-    io, mem,
+    io,
     pin::Pin,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -205,7 +205,24 @@ pub fn spawn<F>(task: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    RayonTask::new(task).poll()
+    // A future that is its own waker that polls inside the rayon primary thread-pool.
+    struct RayonTask(Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>);
+    impl RayonTask {
+        fn poll(self: Arc<RayonTask>) {
+            rayon::spawn(move || {
+                let waker = self.clone().into();
+                let mut cx = std::task::Context::from_waker(&waker);
+                let _ = self.0.lock().as_mut().poll(&mut cx);
+            })
+        }
+    }
+    impl std::task::Wake for RayonTask {
+        fn wake(self: Arc<Self>) {
+            self.poll()
+        }
+    }
+
+    Arc::new(RayonTask(Mutex::new(Box::pin(task)))).poll()
 }
 
 /// Spawn a parallel async task that can also be `.await` for the task result.
@@ -429,6 +446,44 @@ where
     pollster::block_on(task)
 }
 
+/// Continuous poll the `task` until if finishes.
+///
+/// This function is useful for implementing some async tests only, futures don't expect to be polled
+/// continuously. This function is only available in test builds.
+#[cfg(any(test, doc, feature = "test_util"))]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
+pub fn spin_on<F>(task: F) -> F::Output
+where
+    F: Future,
+{
+    pin!(task);
+    block_on(poll_fn(|cx| match task.as_mut().poll(cx) {
+        Poll::Ready(r) => Poll::Ready(r),
+        Poll::Pending => {
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }))
+}
+
+/// Executor used in async doc tests.
+///
+/// If `spin` is `true` the [`spin_on`] executor is used with a timeout of 500 milliseconds.
+/// IF `spin` is `false` the [`block_on`] executor is used with a timeout of 5 seconds.
+#[inline]
+#[cfg(any(test, doc, feature = "test_util"))]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
+pub fn doc_test<F>(spin: bool, task: F) -> F::Output
+where
+    F: Future,
+{
+    if spin {
+        spin_on(with_timeout(task, Duration::from_millis(500))).expect("async doc-test timeout")
+    } else {
+        block_on(with_timeout(task, Duration::from_secs(5))).expect("async doc-test timeout")
+    }
+}
+
 impl<'a, 'w> AppContext<'a, 'w> {
     /// Create an app thread bound future executor that executes in the app context.
     ///
@@ -493,6 +548,8 @@ impl<R> UiTask<R> {
             return self.result.as_ref();
         }
 
+        // TODO this is polling futures that don't notify wake, change
+        // Waker to have a local signal?
         match self
             .future
             .as_mut()
@@ -640,34 +697,6 @@ impl AppTask<()> {
     }
 }
 
-/// A future that is its own waker that polls inside the rayon primary thread-pool.
-struct RayonTask {
-    future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
-}
-impl RayonTask {
-    fn new<F>(future: F) -> Arc<Self>
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        Arc::new(RayonTask {
-            future: Mutex::new(Box::pin(future)),
-        })
-    }
-
-    fn poll(self: Arc<RayonTask>) {
-        rayon::spawn(move || {
-            let waker = self.clone().into();
-            let mut cx = std::task::Context::from_waker(&waker);
-            let _ = self.future.lock().as_mut().poll(&mut cx);
-        })
-    }
-}
-impl std::task::Wake for RayonTask {
-    fn wake(self: Arc<Self>) {
-        self.poll()
-    }
-}
-
 /// A future that is [`Pending`] once.
 ///
 /// After the first `.await` the future is always [`Ready`].
@@ -675,10 +704,14 @@ impl std::task::Wake for RayonTask {
 /// # Warning
 ///
 /// This does not schedule an [`wake`], if the executor does not poll this future again it will wait forever.
+/// You can use [`yield_now`] to force a wake in parallel tasks or use [`AppContextMut::update`] or
+/// [`WidgetContextMut::update`] to force an update in UI tasks.
 ///
 /// [`Pending`]: std::task::Poll::Pending
 /// [`Ready`]: std::task::Poll::Ready
 /// [`wake`]: std::task::Waker::wake
+/// [`AppContextMut::update`]: crate::context::AppContextMut::update
+/// [`WidgetContextMut::update`]: crate::context::WidgetContextMut::update
 pub async fn yield_one() {
     struct YieldOneFut(bool);
     impl Future for YieldOneFut {
@@ -695,6 +728,39 @@ pub async fn yield_one() {
     }
 
     YieldOneFut(false).await
+}
+
+/// A future that is [`Pending`] once and wakes the current task.
+///
+/// After the first `.await` the future is always [`Ready`] and on the first `.await` if calls [`wake`].
+///
+/// # UI Update
+///
+/// In UI tasks you can call [`AppContextMut::update`] or [`WidgetContextMut::update`] instead of this function
+/// for a slightly increase in performance.
+///
+/// [`Pending`]: std::task::Poll::Pending
+/// [`Ready`]: std::task::Poll::Ready
+/// [`wake`]: std::task::Waker::wake
+/// [`AppContextMut::update`]: crate::context::AppContextMut::update
+/// [`WidgetContextMut::update`]: crate::context::WidgetContextMut::update
+pub async fn yield_now() {
+    struct YieldNowFut(bool);
+    impl Future for YieldNowFut {
+        type Output = ();
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+            if self.0 {
+                Poll::Ready(())
+            } else {
+                self.0 = true;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
+        }
+    }
+
+    YieldNowFut(false).await
 }
 
 /// A future that is [`Pending`] until the `timeout` is reached.
@@ -775,7 +841,19 @@ pub async fn poll_fn<T, F: FnMut(&mut std::task::Context) -> Poll<T>>(fn_: F) ->
 
 /// Error when [`with_timeout`] or [`with_deadline`] reach a time limit before a task finishes.
 #[derive(Debug, Clone, Copy)]
-pub struct TimeoutError;
+pub struct TimeoutError {
+    /// Timeout duration.
+    ///
+    /// In [`with_deadline`] it is calculated and is [`Duration::ZERO`]
+    /// if the deadline is in the past from the start.
+    pub timeout: Duration,
+}
+impl fmt::Display for TimeoutError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "future timeout after {:?}", self.timeout)
+    }
+}
+impl std::error::Error for TimeoutError {}
 
 /// Add a [`timeout`] to a future.
 ///
@@ -783,7 +861,7 @@ pub struct TimeoutError;
 pub async fn with_timeout<O, F: Future<Output = O>>(fut: F, timeout: Duration) -> Result<F::Output, TimeoutError> {
     any!(async { Ok(fut.await) }, async {
         self::timeout(timeout).await;
-        Err::<F::Output, _>(TimeoutError)
+        Err::<F::Output, _>(TimeoutError { timeout })
     })
     .await
 }
@@ -794,7 +872,7 @@ pub async fn with_timeout<O, F: Future<Output = O>>(fut: F, timeout: Duration) -
 pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) -> Result<F::Output, TimeoutError> {
     let now = Instant::now();
     if deadline < now {
-        Err(TimeoutError)
+        Err(TimeoutError { timeout: Duration::ZERO })
     } else {
         with_timeout(fut, deadline - now).await
     }
@@ -845,7 +923,7 @@ macro_rules! pin {
 #[doc(inline)]
 pub use crate::pin;
 
-/// <span data-inline></span> A future that polls all input futures and awaits until all are complete.
+/// <span data-inline></span> A future that *zips* other futures.
 ///
 /// The macro input is a comma separated list of future expressions. The macro output is a future
 /// that when ".awaited" produces a tuple of results in the same order as the inputs.
@@ -861,13 +939,13 @@ pub use crate::pin;
 /// ```
 /// use zero_ui_core::task;
 ///
-/// # let _ = async {
+/// # task::doc_test(false, async {
 /// let (a, b, c) = task::all!(
 ///     task::run(async { 'a' }),
 ///     task::wait(|| "b"),
 ///     async { b"c" }
 /// ).await;
-/// # };
+/// # });
 /// ```
 #[macro_export]
 macro_rules! all {
@@ -945,64 +1023,38 @@ pub use crate::all;
 macro_rules! __all {
     ($($ident:ident: $fut:expr;)+) => {
         {
-            $(let mut $ident = $crate::task::AllFut::Pending($fut);)+
+            $(let mut $ident = (Some($fut), None);)+
             $crate::task::poll_fn(move |cx| {
                 use std::task::Poll;
+                use std::future::Future;
 
-                // SAFETY: the closure owns $ident and is an exclusive borrow inside a
-                // Future::poll call, so it will not move.
-                let pending = {
-                    $(let $ident = unsafe { std::pin::Pin::new_unchecked(&mut $ident) };)+
-                    $($ident.poll(cx))|+
-                };
+                let mut pending = false;
+
+                $(
+                    if let Some(fut) = $ident.0.as_mut() {
+                        // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                        // Future::poll call, so it will not move.
+                        let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                        if let Poll::Ready(r) = fut.as_mut().poll(cx) {
+                            $ident.0 = None;
+                            $ident.1 = Some(r);
+                        } else {
+                            pending = true;
+                        }
+                    }
+                )+
 
                 if pending {
                     Poll::Pending
                 } else {
-                    Poll::Ready(($($ident.unwrap()),+))
+                    Poll::Ready(($($ident.1.take().unwrap()),+))
                 }
             })
         }
     }
 }
-#[doc(hidden)]
-pub enum AllFut<F: Future> {
-    Pending(F),
-    Ready(F::Output),
-    Done,
-}
-#[allow(missing_docs)]
-impl<F: Future> AllFut<F> {
-    pub fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context) -> bool {
-        // SAFETY: this is a projection to poll `fut` and we don't replace
-        // `self` when we own the future.
-        let self_ = unsafe { self.get_unchecked_mut() };
-        if let Self::Pending(fut) = self_ {
-            // SAFETY: `self` is pinned and we are not moving `fut`.
-            let mut fut = unsafe { Pin::new_unchecked(fut) };
-            match fut.as_mut().poll(cx) {
-                Poll::Ready(r) => {
-                    *self_ = Self::Ready(r);
-                    false
-                }
-                Poll::Pending => true,
-            }
-        } else {
-            false
-        }
-    }
 
-    pub fn unwrap(&mut self) -> F::Output {
-        // SAFETY: we only need to Pin to poll the future and it
-        // is already dropped here or it will panic.
-        match mem::replace(self, Self::Done) {
-            Self::Ready(r) => r,
-            _ => unreachable!(),
-        }
-    }
-}
-
-/// <span data-inline></span> A future that polls all futures and awaits until any of then are complete.
+/// <span data-inline></span> A future that awaits for the first future that is ready.
 ///
 /// The macro input is comma separated list of future expressions, the futures must
 /// all have the same output type. The macro output is a future that when ".awaited" produces
@@ -1012,19 +1064,23 @@ impl<F: Future> AllFut<F> {
 /// eight futures a proc-macro is used which may cause code auto-complete to stop working in
 /// some IDEs.
 ///
+/// If two futures are ready at the same time the result of the first future in the input list is used.
+/// After one future is ready the other futures are not polled again and are dropped.
+///
 /// # Examples
 ///
 /// Await for the first of three futures to complete:
 ///
 /// ```
 /// use zero_ui_core::task;
-/// # let _ = async {
+///
+/// # task::doc_test(false, async {
 /// let r = task::any!(
 ///     task::run(async { 'a' }),
 ///     task::wait(|| 'b'),
 ///     async { 'c' }
 /// ).await;
-/// # };
+/// # });
 /// ```
 #[macro_export]
 macro_rules! any {
@@ -1123,6 +1179,615 @@ macro_rules! __any {
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::task_any_all as __proc_any_all;
+
+/// <span data-inline></span> A future that waits for the first future that is ready with an `Ok(T)` result.
+///
+/// The macro input is comma separated list of future expressions, the futures must
+/// all have the same output `Result<T, E>` type, but each can have a different `E`. The macro output is a future
+/// that when ".awaited" produces a single output of type `Result<T, (E0, E1, ..)>` that is `Ok(T)` if any of the futures
+/// is `Ok(T)` or is `Err((E0, E1, ..))` is all futures are `Err`.
+///
+/// At least one input future is required and any number of futures is accepted. For more than
+/// eight futures a proc-macro is used which may cause code auto-complete to stop working in
+/// some IDEs.
+///
+/// If two futures are ready and `Ok(T)` at the same time the result of the first future in the input list is used.
+/// After one future is ready and `Ok(T)` the other futures are not polled again and are dropped. After a future
+/// is ready and `Err(E)` it is also not polled again and dropped.
+///
+/// # Examples
+///
+/// Await for the first of three futures to complete with `Ok`:
+///
+/// ```
+/// use zero_ui_core::task;
+/// # #[derive(Debug, PartialEq)]
+/// # pub struct FooError;
+/// # task::doc_test(false, async {
+/// let r = task::any_ok!(
+///     task::run(async { Err::<char, _>("error") }),
+///     task::wait(|| Ok::<_, FooError>('b')),
+///     async { Err::<char, _>(FooError) }
+/// ).await;
+///
+/// assert_eq!(Ok('b'), r);
+/// # });
+/// ```
+#[macro_export]
+macro_rules! any_ok {
+    ($fut0:expr $(,)?) => { $crate::__any_ok! { fut0: $fut0; } };
+    ($fut0:expr, $fut1:expr $(,)?) => {
+        $crate::__any_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr $(,)?) => {
+        $crate::__any_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr $(,)?) => {
+        $crate::__any_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr $(,)?) => {
+        $crate::__any_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr $(,)?) => {
+        $crate::__any_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr $(,)?) => {
+        $crate::__any_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr, $fut7:expr $(,)?) => {
+        $crate::__any_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+            fut7: $fut7;
+        }
+    };
+    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__any_ok; $($fut),+ } }
+}
+#[doc(inline)]
+pub use crate::any_ok;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __any_ok {
+    ($($ident:ident: $fut: expr;)+) => {
+        {
+            $(let mut $ident = (Some($fut), None);)+
+            $crate::task::poll_fn(move |cx| {
+                use std::task::Poll;
+                use std::future::Future;
+
+                let mut pending = false;
+
+                $(
+                    if let Some(fut) = $ident.0.as_mut() {
+                        // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                        // Future::poll call, so it will not move.
+                        let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                        if let Poll::Ready(r) = fut.as_mut().poll(cx) {
+                            match r {
+                                Ok(r) => return Poll::Ready(Ok(r)),
+                                Err(e) => {
+                                    $ident.0 = None;
+                                    $ident.1 = Some(e);
+                                }
+                            }
+                        } else {
+                            pending = true;
+                        }
+                    }
+                )+
+
+                if pending {
+                    Poll::Pending
+                } else {
+                    Poll::Ready(Err((
+                        $($ident.1.take().unwrap()),+
+                    )))
+                }
+            })
+        }
+    }
+}
+
+/// <span data-inline></span> A future that is ready when any of the futures is ready and `Some(T)`.
+///
+/// The macro input is comma separated list of future expressions, the futures must
+/// all have the same output `Option<T>` type. The macro output is a future that when ".awaited" produces
+/// a single output type instance returned by the first input future that completes with a `Some`.
+/// If all futures complete with a `None` the output is `None`.
+///
+/// At least one input future is required and any number of futures is accepted. For more than
+/// eight futures a proc-macro is used which may cause code auto-complete to stop working in
+/// some IDEs.
+///
+/// If two futures are ready and `Some(T)` at the same time the result of the first future in the input list is used.
+/// After one future is ready and `Some(T)` the other futures are not polled again and are dropped. After a future
+/// is ready and `None` it is also not polled again and dropped.
+///
+/// # Examples
+///
+/// Await for the first of three futures to complete with `Some`:
+///
+/// ```
+/// use zero_ui_core::task;
+/// # task::doc_test(false, async {
+/// let r = task::any_some!(
+///     task::run(async { None::<char> }),
+///     task::wait(|| Some('b')),
+///     async { None::<char> }
+/// ).await;
+///
+/// assert_eq!(Some('b'), r);
+/// # });
+/// ```
+#[macro_export]
+macro_rules! any_some {
+    ($fut0:expr $(,)?) => { $crate::__any_some! { fut0: $fut0; } };
+    ($fut0:expr, $fut1:expr $(,)?) => {
+        $crate::__any_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr $(,)?) => {
+        $crate::__any_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr $(,)?) => {
+        $crate::__any_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr $(,)?) => {
+        $crate::__any_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr $(,)?) => {
+        $crate::__any_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr $(,)?) => {
+        $crate::__any_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr, $fut7:expr $(,)?) => {
+        $crate::__any_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+            fut7: $fut7;
+        }
+    };
+    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__any_some; $($fut),+ } }
+}
+#[doc(inline)]
+pub use crate::any_some;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __any_some {
+    ($($ident:ident: $fut: expr;)+) => {
+        {
+            $(let mut $ident = Some($fut);)+
+            $crate::task::poll_fn(move |cx| {
+                use std::task::Poll;
+                use std::future::Future;
+
+                let mut pending = false;
+
+                $(
+                    if let Some(fut) = $ident.as_mut() {
+                        // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                        // Future::poll call, so it will not move.
+                        let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                        if let Poll::Ready(r) = fut.as_mut().poll(cx) {
+                            if let Some(r) = r {
+                                return Poll::Ready(Some(r));
+                            }
+                            $ident = None;
+                        } else {
+                            pending = true;
+                        }
+                    }
+                )+
+
+                if pending {
+                    Poll::Pending
+                } else {
+                    Poll::Ready(None)
+                }
+            })
+        }
+    }
+}
+
+/// <span data-inline></span> A future that is ready when all futures are ready with an `Ok(T)` result or
+/// any is ready with an `Err(E)` result.
+///
+/// The output type is `Result<(T0, T1, ..), E>`, the `Ok` type is a tuple with all the `Ok` values, the error
+/// type is the first error encountered, the input futures must have the same `Err` type but can have different
+/// `Ok` types.
+///
+/// At least one input future is required and any number of futures is accepted. For more than
+/// eight futures a proc-macro is used which may cause code auto-complete to stop working in
+/// some IDEs.
+///
+/// If two futures are ready and `Err(E)` at the same time the result of the first future in the input list is used.
+/// After one future is ready and `Err(T)` the other futures are not polled again and are dropped. After a future
+/// is ready it is also not polled again and dropped.
+///
+/// # Examples
+///
+/// Await for the first of three futures to complete with `Ok(T)`:
+///
+/// ```
+/// use zero_ui_core::task;
+/// # #[derive(Debug, PartialEq)]
+/// # struct FooError;
+/// # task::doc_test(false, async {
+/// let r = task::all_ok!(
+///     task::run(async { Ok::<_, FooError>('a') }),
+///     task::wait(|| Ok::<_, FooError>('b')),
+///     async { Ok::<_, FooError>('c') }
+/// ).await;
+///
+/// assert_eq!(Ok(('a', 'b', 'c')), r);
+/// # });
+/// ```
+///
+/// And in if any completes with `Err(E)`:
+///
+/// ```
+/// use zero_ui_core::task;
+/// # #[derive(Debug, PartialEq)]
+/// # struct FooError;
+/// # task::doc_test(false, async {
+/// let r = task::all_ok!(
+///     task::run(async { Ok('a') }),
+///     task::wait(|| Err::<char, _>(FooError)),
+///     async { Ok('c') }
+/// ).await;
+///
+/// assert_eq!(Err(FooError), r);
+/// # });
+#[macro_export]
+macro_rules! all_ok {
+    ($fut0:expr $(,)?) => { $crate::__all_ok! { fut0: $fut0; } };
+    ($fut0:expr, $fut1:expr $(,)?) => {
+        $crate::__all_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr $(,)?) => {
+        $crate::__all_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr $(,)?) => {
+        $crate::__all_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr $(,)?) => {
+        $crate::__all_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr $(,)?) => {
+        $crate::__all_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr $(,)?) => {
+        $crate::__all_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr, $fut7:expr $(,)?) => {
+        $crate::__all_ok! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+            fut7: $fut7;
+        }
+    };
+    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__all_ok; $($fut),+ } }
+}
+#[doc(inline)]
+pub use crate::all_ok;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __all_ok {
+    ($($ident:ident: $fut: expr;)+) => {
+        {
+            $(let mut $ident = (Some($fut), None);)+
+
+            $crate::task::poll_fn(move |cx| {
+                use std::task::Poll;
+                use std::future::Future;
+
+                let mut pending = false;
+
+                $(
+                    if let Some(fut) = $ident.0.as_mut() {
+                        // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                        // Future::poll call, so it will not move.
+                        let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                        if let Poll::Ready(r) = fut.as_mut().poll(cx) {
+                            match r {
+                                Ok(r) => {
+                                    $ident.0 = None;
+                                    $ident.1 = Some(r);
+                                },
+                                Err(e) => return Poll::Ready(Err(e)),
+                            }
+                        } else {
+                            pending = true;
+                        }
+                    }
+                )+
+
+                if pending {
+                    Poll::Pending
+                } else {
+                    Poll::Ready(Ok((
+                        $($ident.1.take().unwrap()),+
+                    )))
+                }
+            })
+        }
+    }
+}
+
+/// <span data-inline></span> A future that is ready when all futures are ready with `Some(T)` or when any
+/// is ready with `None`
+///
+/// The macro input is comma separated list of future expressions, the futures must
+/// all have the `Option<T>` output type, but each can have a different `T`. The macro output is a future that when ".awaited"
+/// produces `Some<(T0, T1, ..)>` if all futures where `Some(T)` or `None` if any of the futures where `None`.
+///
+/// At least one input future is required and any number of futures is accepted. For more than
+/// eight futures a proc-macro is used which may cause code auto-complete to stop working in
+/// some IDEs.
+///
+/// After one future is ready and `None` the other futures are not polled again and are dropped. After a future
+/// is ready it is also not polled again and dropped.
+///
+/// # Examples
+///
+/// Await for the first of three futures to complete with `Some`:
+///
+/// ```
+/// use zero_ui_core::task;
+/// # task::doc_test(false, async {
+/// let r = task::all_some!(
+///     task::run(async { Some('a') }),
+///     task::wait(|| Some('b')),
+///     async { Some('c') }
+/// ).await;
+///
+/// assert_eq!(Some(('a', 'b', 'c')), r);
+/// # });
+/// ```
+///
+/// Completes with `None` if any future completes with `None`:
+///
+/// ```
+/// # use zero_ui_core::task;
+/// # task::doc_test(false, async {
+/// let r = task::all_some!(
+///     task::run(async { Some('a') }),
+///     task::wait(|| None::<char>),
+///     async { Some('b') }
+/// ).await;
+///
+/// assert_eq!(None, r);
+/// # });
+/// ```
+#[macro_export]
+macro_rules! all_some {
+    ($fut0:expr $(,)?) => { $crate::__all_some! { fut0: $fut0; } };
+    ($fut0:expr, $fut1:expr $(,)?) => {
+        $crate::__all_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr $(,)?) => {
+        $crate::__all_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr $(,)?) => {
+        $crate::__all_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr $(,)?) => {
+        $crate::__all_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr $(,)?) => {
+        $crate::__all_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr $(,)?) => {
+        $crate::__all_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+        }
+    };
+    ($fut0:expr, $fut1:expr, $fut2:expr, $fut3:expr, $fut4:expr, $fut5:expr, $fut6:expr, $fut7:expr $(,)?) => {
+        $crate::__all_some! {
+            fut0: $fut0;
+            fut1: $fut1;
+            fut2: $fut2;
+            fut3: $fut3;
+            fut4: $fut4;
+            fut5: $fut5;
+            fut6: $fut6;
+            fut7: $fut7;
+        }
+    };
+    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__all_some; $($fut),+ } }
+}
+#[doc(inline)]
+pub use crate::all_some;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __all_some {
+    ($($ident:ident: $fut: expr;)+) => {
+        {
+            $(let mut $ident = (Some($fut), None);)+
+            $crate::task::poll_fn(move |cx| {
+                use std::task::Poll;
+                use std::future::Future;
+
+                let mut pending = false;
+
+                $(
+                    if let Some(fut) = $ident.0.as_mut() {
+                        // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                        // Future::poll call, so it will not move.
+                        let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                        if let Poll::Ready(r) = fut.as_mut().poll(cx) {
+                            if r.is_none() {
+                                return Poll::Ready(None);
+                            }
+
+                            $ident.0 = None;
+                            $ident.1 = r;
+                        } else {
+                            pending = true;
+                        }
+                    }
+                )+
+
+                if pending {
+                    Poll::Pending
+                } else {
+                    Poll::Ready(Some((
+                        $($ident.1.take().unwrap()),+
+                    )))
+                }
+            })
+        }
+    }
+}
 
 /// Async channels.
 ///
@@ -2769,6 +3434,7 @@ pub mod tests {
 
     use super::*;
 
+    #[track_caller]
     fn async_test<F>(test: F) -> F::Output
     where
         F: Future,
