@@ -376,3 +376,14 @@ impl Hasher for IdHasher {
 
 /// A map of TypeId -> Box<dyn UnsafeAny>.
 pub type AnyMap = HashMap<std::any::TypeId, Box<dyn unsafe_any::UnsafeAny>, BuildHasherDefault<IdHasher>>;
+
+/// Converts a [`std::panic::catch_unwind`] payload to a str.
+pub fn panic_str<'s>(payload: &'s Box<dyn std::any::Any + Send + 'static>) -> &'s str {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        s
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s
+    } else {
+        "<unknown-panic-message-type>"
+    }
+}

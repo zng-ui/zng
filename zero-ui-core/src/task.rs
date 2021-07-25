@@ -126,7 +126,7 @@
 use std::{
     fmt,
     future::Future,
-    io,
+    io, panic,
     pin::Pin,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -140,6 +140,7 @@ use parking_lot::Mutex;
 
 use crate::{
     context::*,
+    crate_util::panic_str,
     var::{response_channel, ResponseVar, VarValue, WithVars},
 };
 
@@ -386,23 +387,71 @@ where
 /// # Ok(()) }
 /// ```
 ///
+/// # Panic Propagation
+///
+/// If the `task` panics the panic is re-raised in the awaiting thread using [`resume_unwind`]. You
+/// can use [`wait_catch`] to get the panic as an error instead.
+///
 /// [`blocking`]: https://docs.rs/blocking
+/// [`resume_unwind`]: panic::resume_unwind
 #[inline]
 pub async fn wait<T, F>(task: F) -> T
 where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
 {
-    blocking::unblock(task).await
+    match wait_catch(task).await {
+        Ok(r) => r,
+        Err(p) => panic::resume_unwind(p),
+    }
+}
+
+/// Like [`wait`] but catches panics.
+///
+/// This task works the same and has the same utility as [`wait`], except if returns panic messages
+/// as an error instead of propagating the panic.
+///
+/// # Unwind Safety
+///
+/// This function disables the [unwind safety validation], meaning that in case of a panic shared
+/// data can end-up in an invalid, but still memory safe, state. If you are worried about that only use
+/// poisoning mutexes or atomics to mutate shared data or discard all shared data used in the `task`
+/// if this function returns an error.
+///
+/// [unwind safety validation]: std::panic::UnwindSafe
+#[inline]
+pub async fn wait_catch<T, F>(task: F) -> std::thread::Result<T>
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+{
+    blocking::unblock(move || panic::catch_unwind(panic::AssertUnwindSafe(task))).await
 }
 
 /// Fire and forget a [`wait`] task. The `task` starts executing immediately.
+///
+/// # Panic Handling
+///
+/// If the `task` panics the panic message is logged as an error, the panic is otherwise ignored.
+///
+/// # Unwind Safety
+///
+/// This function disables the [unwind safety validation], meaning that in case of a panic shared
+/// data can end-up in an invalid, but still memory safe, state. If you are worried about that only use
+/// poisoning mutexes or atomics to mutate shared data or use [`wait_catch`] to detect a panic or [`wait`]
+/// to propagate a panic.
+///
+/// [unwind safety validation]: std::panic::UnwindSafe
 #[inline]
 pub fn spawn_wait<F>(task: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    spawn(async move { wait(task).await });
+    spawn(async move {
+        if let Err(p) = wait_catch(task).await {
+            log::error!("parallel `spawn_wait` task panicked: {}", panic_str(&p))
+        }
+    });
 }
 
 /// Blocks the thread until the `task` future finishes.
@@ -2333,7 +2382,7 @@ where
             let mut read = read;
 
             loop {
-                let r = self::wait(move || {
+                let r = self::wait_catch(move || {
                     let mut payload = vec![0u8; payload_len];
                     loop {
                         match read.read(&mut payload) {
@@ -2346,18 +2395,27 @@ where
                             Err(e) if e.kind() == io::ErrorKind::Interrupted => {
                                 continue;
                             }
-                            Err(e) => return Err(ReadTaskError::new(Some(read), e)),
+                            Err(error) => return Err(ReadTaskError::Io { read, error }),
                         }
                     }
                 })
                 .await;
 
+                // handle panic
+                let r = match r {
+                    Ok(r) => r,
+                    Err(p) => {
+                        let _ = sender.send(Err(ReadTaskError::Panic(p))).await;
+                        break;
+                    }
+                };
+
+                // handle ok or error
                 match r {
                     Ok((p, r)) => {
                         read = r;
 
                         if p.len() < payload_len {
-                            println!("!!!");
                             let _ = sender.send(Ok(p)).await;
                             let _ = stop_sender.send(read).await;
                             break;
@@ -2394,62 +2452,88 @@ where
     /// [`payload_len`]: ReadTask::payload_len
     /// [disconnected]: ReadTaskError::is_disconnected
     pub async fn read(&self) -> Result<Vec<u8>, ReadTaskError<R>> {
-        self.receiver.recv().await.map_err(|_| ReadTaskError::disconnected())?
+        self.receiver.recv().await.map_err(|_| ReadTaskError::Disconnected)?
     }
 
     /// Take back the [`io::Read`], any pending reads are dropped.
     pub async fn stop(self) -> Result<R, ReadTaskError<R>> {
         drop(self.receiver);
-        self.stop_recv.recv().await.map_err(|_| ReadTaskError::disconnected())
+        self.stop_recv.recv().await.map_err(|_| ReadTaskError::Disconnected)
     }
 }
 
 /// Error from [`ReadTask`].
-pub struct ReadTaskError<R> {
-    /// The [`io::Read`] that caused the error.
-    ///
-    /// Is `None` the error represents a lost connection with the task.
-    pub read: Option<R>,
-    /// The error.
-    pub error: io::Error,
-}
-impl<R: io::Read> ReadTaskError<R> {
-    fn disconnected() -> Self {
-        Self::new(
-            None,
-            io::Error::new(
-                io::ErrorKind::BrokenPipe,
-                "`ReadTask` worker is shutdown, probably caused by an error or panic",
-            ),
-        )
-    }
+pub enum ReadTaskError<R> {
+    /// A read IO error.
+    Io {
+        /// The [`io::Read`] that returned error in a call to [`io::Read::read`].
+        read: R,
+        /// The IO error.
+        error: io::Error,
+    },
 
-    fn new(read: Option<R>, error: io::Error) -> Self {
-        Self { read, error }
-    }
-
-    /// If the error represents a lost connection with the task.
+    /// A panic caused by the [`io::Read`].
     ///
-    /// This can happen after an error was already returned or if a panic killed the [`wait`] thread.
-    pub fn is_disconnected(&self) -> bool {
-        self.read.is_none()
+    /// You can propagate the panic using [`std::panic::resume_unwind`].
+    Panic(Box<dyn std::any::Any + Send + 'static>),
+
+    /// Lost connection with the task worker.
+    ///
+    /// The task worker closes on the first [`Io`] error or the first [`Panic`].
+    ///
+    /// [`Io`]: Self::Io
+    /// [`Panic`]: Self::Panic
+    Disconnected,
+}
+impl<R> ReadTaskError<R> {
+    /// Returns the values of [`Io`] or panics.
+    ///
+    /// # Panics
+    ///
+    /// If the error is a [`Panic`] the panic is propagated using [`resume_unwind`].
+    /// If the error is a [`Disconnected`] panics with the message `"read task worker is closed, it closes after the first error"`.
+    ///
+    /// [`Io`]: Self::Io
+    /// [`Panic`]: Self::Panic
+    /// [`Disconnected`]: Self::Disconnected
+    /// [`resume_unwind`]: std::panic::resume_unwind
+    #[track_caller]
+    pub fn unwrap_io(self) -> (R, io::Error) {
+        match self {
+            ReadTaskError::Io { read, error } => (read, error),
+            ReadTaskError::Panic(p) => std::panic::resume_unwind(p),
+            ReadTaskError::Disconnected => panic!("read task worker is closed, it closes after the first error"),
+        }
     }
 }
-impl<R: io::Read> fmt::Debug for ReadTaskError<R> {
+impl<R> fmt::Debug for ReadTaskError<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.error, f)
+        match self {
+            ReadTaskError::Io { error, .. } => f.debug_struct("Io").field("error", error).finish_non_exhaustive(),
+            ReadTaskError::Panic(p) => write!(f, "Panic({:?})", panic_str(p)),
+            ReadTaskError::Disconnected => write!(f, "Disconnected"),
+        }
     }
 }
-impl<R: io::Read> fmt::Display for ReadTaskError<R> {
+impl<R> fmt::Display for ReadTaskError<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.error, f)
+        match self {
+            ReadTaskError::Io { error, .. } => write!(f, "{}", error),
+            ReadTaskError::Panic(p) => write!(f, "{}", panic_str(p)),
+            ReadTaskError::Disconnected => write!(f, "read task worker is closed, it closes after the first error"),
+        }
     }
 }
-impl<R: io::Read> std::error::Error for ReadTaskError<R> {
+impl<R> std::error::Error for ReadTaskError<R> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.error)
+        if let ReadTaskError::Io { error, .. } = self {
+            Some(error)
+        } else {
+            None
+        }
     }
 }
+
 /// Builds [`ReadTask`].
 ///
 /// Use [`ReadTask::default`] to start.
@@ -3639,18 +3723,47 @@ pub mod tests {
                 match task.read().await {
                     Ok(p) => assert_eq!(p.len(), 1),
                     Err(e) => {
-                        assert_eq!("test error", e.error.to_string());
-                        assert!(!e.is_disconnected());
+                        assert_eq!("test error", e.to_string());
 
                         let e = task.read().await.unwrap_err();
-                        assert!(e.is_disconnected());
+                        assert!(matches!(e, ReadTaskError::Disconnected));
                         break;
                     }
                 }
             }
 
             let e = task.stop().await.unwrap_err();
-            assert!(e.is_disconnected())
+            assert!(matches!(e, ReadTaskError::Disconnected));
+        })
+    }
+
+    #[test]
+    pub fn read_task_panic() {
+        async_test(async {
+            let read = TestRead::default();
+            let flag = Arc::clone(&read.cause_panic);
+
+            let task = ReadTask::default().payload_len(1).spawn(read);
+
+            timeout(10.ms()).await;
+
+            flag.set();
+
+            loop {
+                match task.read().await {
+                    Ok(p) => assert_eq!(p.len(), 1),
+                    Err(e) => {
+                        assert!(e.to_string().contains("test panic"));
+
+                        let e = task.read().await.unwrap_err();
+                        assert!(matches!(e, ReadTaskError::Disconnected));
+                        break;
+                    }
+                }
+            }
+
+            let e = task.stop().await.unwrap_err();
+            assert!(matches!(e, ReadTaskError::Disconnected));
         })
     }
 
