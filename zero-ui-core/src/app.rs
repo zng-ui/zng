@@ -1,6 +1,7 @@
 //! App startup and app extension API.
 
 use crate::context::*;
+use crate::crate_util::PanicPayload;
 use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::profiler::*;
@@ -975,6 +976,7 @@ impl<E: AppExtension> RunningApp<E> {
             AppEventData::Var => {
                 self.owned_ctx.borrow(window_target).vars.receive_sended_modify();
             }
+            AppEventData::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
         self.maybe_has_updates = true;
     }
@@ -1461,6 +1463,8 @@ enum AppEventData {
     NewFrameReady(WindowId),
     /// Do an update cycle.
     Update,
+    /// Resume a panic in the app thread.
+    ResumeUnwind(PanicPayload),
 }
 
 /// An [`AppEvent`] sender that can awake apps and insert events into the main loop.
@@ -1527,6 +1531,15 @@ impl AppEventSender {
             AppEventData::Event(ev) => AppShutdown(ev),
             _ => unreachable!(),
         })
+    }
+
+    /// Resume a panic in the app thread.
+    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppShutdown<PanicPayload>> {
+        self.send_app_event(AppEvent(AppEventData::ResumeUnwind(payload)))
+            .map_err(|e| match e.0 .0 {
+                AppEventData::ResumeUnwind(p) => AppShutdown(p),
+                _ => unreachable!(),
+            })
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).

@@ -387,3 +387,9 @@ pub fn panic_str<'s>(payload: &'s Box<dyn std::any::Any + Send + 'static>) -> &'
         "<unknown-panic-message-type>"
     }
 }
+
+/// Type alias for the *error* of [`PanicResult`].
+pub type PanicPayload = Box<dyn std::any::Any + Send + 'static>;
+
+/// The result that is returned by [`std::panic::catch_unwind`].
+pub type PanicResult<R> = std::thread::Result<R>;

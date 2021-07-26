@@ -140,7 +140,7 @@ use parking_lot::Mutex;
 
 use crate::{
     context::*,
-    crate_util::panic_str,
+    crate_util::{panic_str, PanicPayload, PanicResult},
     var::{response_channel, ResponseVar, VarValue, WithVars},
 };
 
@@ -201,6 +201,19 @@ pub use rayon;
 /// Note that this function is the most basic way to spawn a parallel task where you must setup channels to the rest of the app yourself,
 /// you can use [`respond`] to avoid having to manually create a response channel, or [`run`] to `.await`
 /// the result.
+///
+/// # Panic Handling
+///
+/// If the `task` panics the panic message is logged as an error, the panic is otherwise ignored.
+///
+/// # Unwind Safety
+///
+/// This function disables the [unwind safety validation], meaning that in case of a panic shared
+/// data can end-up in an invalid, but still memory safe, state. If you are worried about that only use
+/// poisoning mutexes or atomics to mutate shared data or use [`run_catch`] to detect a panic or [`run`]
+/// to propagate a panic.
+///
+/// [unwind safety validation]: std::panic::UnwindSafe
 #[inline]
 pub fn spawn<F>(task: F)
 where
@@ -211,9 +224,14 @@ where
     impl RayonTask {
         fn poll(self: Arc<RayonTask>) {
             rayon::spawn(move || {
-                let waker = self.clone().into();
-                let mut cx = std::task::Context::from_waker(&waker);
-                let _ = self.0.lock().as_mut().poll(&mut cx);
+                let r = panic::catch_unwind(panic::AssertUnwindSafe(move || {
+                    let waker = self.clone().into();
+                    let mut cx = std::task::Context::from_waker(&waker);
+                    let _ = self.0.lock().as_mut().poll(&mut cx);
+                }));
+                if let Err(p) = r {
+                    log::error!("panic in `task::spawn`: {}", panic_str(&p));
+                }
             })
         }
     }
@@ -228,8 +246,27 @@ where
 
 /// Spawn a parallel async task that can also be `.await` for the task result.
 ///
-/// The [`spawn`] documentation explains how `task` is *parallel* and *async*. The returned future is
-/// *disconnected* from the `task` future, in that polling it does not poll the `task` future and dropping it does not cancel the task.
+/// # Parallel
+///
+/// The task runs in the primary [`rayon`] thread-pool, every [`poll`](Future::poll) happens inside a call to [`rayon::spawn`].
+///
+/// You can use parallel iterators, `join` or any of rayon's utilities inside `task` to make it multi-threaded,
+/// otherwise it will run in a single thread at a time, still not blocking the UI.
+///
+/// The [`rayon`] crate is re-exported in `task::rayon` for convenience.
+///
+/// # Async
+///
+/// The `task` is also a future so you can `.await`, after each `.await` the task continues executing in whatever `rayon` thread
+/// is free, so the `task` should either be doing CPU intensive work or awaiting, blocking IO operations
+/// block the thread from being used by other tasks reducing overall performance. You can use [`wait`] for IO
+/// or blocking operations and for networking you can use any of the async crates, as long as they start their own *event reactor*.
+///
+/// Of course, if you know that your app is only running one task at a time you can just use the blocking `std` functions
+/// directly, that will still execute in parallel. The UI runs in the main thread and the renderers
+/// have their own `rayon` thread-pool, so blocking one of the task threads does not matter in a small app.
+///
+/// The `task` lives inside the [`Waker`] when awaiting and inside [`rayon::spawn`] when running.
 ///
 /// # Examples
 ///
@@ -248,25 +285,97 @@ where
 ///
 /// The example `.await` for some numbers and then uses a parallel iterator to compute a result, this all runs in parallel
 /// because it is inside a `run` task. The task result is then `.await` inside one of the UI async tasks.
+///
+/// # Cancellation
+///
+/// The task starts running immediately, awaiting the returned future merely awaits for a message from the worker threads and
+/// that means the `task` future is not owned by the returned future. Usually to *cancel* a future you only need to drop it,
+/// in this task dropping the returned future will only drop the `task` once it reaches a `.await` point and detects that the
+/// result channel is disconnected.
+///
+/// If you want to deterministically known that the `task` was cancelled use a cancellation signal.
+///
+/// # Panic Propagation
+///
+/// If the `task` panics the panic is re-raised in the awaiting thread using [`resume_unwind`]. You
+/// can use [`run_catch`] to get the panic as an error instead.
+///
+/// [`resume_unwind`]: panic::resume_unwind
 #[inline]
 pub async fn run<R, T>(task: T) -> R
 where
     R: Send + 'static,
     T: Future<Output = R> + Send + 'static,
 {
-    let (sender, receiver) = flume::bounded(1);
+    match run_catch(task).await {
+        Ok(r) => r,
+        Err(p) => panic::resume_unwind(p),
+    }
+}
 
-    spawn(async move {
-        let r = task.await;
-        let _ = sender.send(r);
-    });
+/// Like [`run`] but catches panics.
+///
+/// This task works the same and has the same utility as [`run`], except if returns panic messages
+/// as an error instead of propagating the panic.
+///
+/// # Unwind Safety
+///
+/// This function disables the [unwind safety validation], meaning that in case of a panic shared
+/// data can end-up in an invalid, but still memory safe, state. If you are worried about that only use
+/// poisoning mutexes or atomics to mutate shared data or discard all shared data used in the `task`
+/// if this function returns an error.
+///
+/// [unwind safety validation]: std::panic::UnwindSafe
+pub async fn run_catch<R, T>(task: T) -> PanicResult<R>
+where
+    R: Send + 'static,
+    T: Future<Output = R> + Send + 'static,
+{
+    // A future that is its own waker that polls inside the rayon primary thread-pool.
+    struct RayonCatchTask<R>(Mutex<Pin<Box<dyn Future<Output = R> + Send>>>, flume::Sender<PanicResult<R>>);
+    impl<R: Send + 'static> RayonCatchTask<R> {
+        fn poll(self: Arc<Self>) {
+            let sender = self.1.clone();
+            if sender.is_disconnected() {
+                return; // cancel.
+            }
+            rayon::spawn(move || {
+                let r = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                    let waker = self.clone().into();
+                    let mut cx = std::task::Context::from_waker(&waker);
+                    self.0.lock().as_mut().poll(&mut cx)
+                }));
 
-    receiver.into_recv_async().await.unwrap()
+                match r {
+                    Ok(Poll::Ready(r)) => {
+                        let _ = sender.send(Ok(r));
+                    }
+                    Err(p) => {
+                        let _ = sender.send(Err(p));
+                    }
+                    _ => {}
+                }
+            })
+        }
+    }
+    impl<R: Send + 'static> std::task::Wake for RayonCatchTask<R> {
+        fn wake(self: Arc<Self>) {
+            self.poll()
+        }
+    }
+
+    let (sender, receiver) = channel::bounded(1);
+
+    Arc::new(RayonCatchTask(Mutex::new(Box::pin(task)), sender.into())).poll();
+
+    receiver.recv().await.unwrap()
 }
 
 /// Spawn a parallel async task that will send its result to a [`ResponseVar`].
 ///
-/// The [`spawn`] documentation explains how `task` is *parallel* and *async*. The `task` starts executing immediately.
+/// The [`run`] documentation explains how `task` is *parallel* and *async*. The `task` starts executing immediately.
+///
+/// This is just a helper method that creates a [`response_channel`] and awaits for the `task` in a [`spawn`] runner.
 ///
 /// # Examples
 ///
@@ -290,7 +399,18 @@ where
 /// ```
 ///
 /// The example `.await` for some numbers and then uses a parallel iterator to compute a result. The result is send to
-/// `sum_response` that is a [`ResponseVar`].
+/// `sum_response` that is a [`ResponseVar<R>`].
+///
+/// # Cancellation
+///
+/// Dropping the [`ResponseVar<R>`] does not cancel the `task`, it will still run to completion.
+///
+/// # Panic Handling
+///
+/// If the `task` panics the panic is logged but otherwise ignored and the variable never responds. See
+/// [`spawn`] for more information about the panic handling of this function.
+///
+/// [`resume_unwind`]: panic::resume_unwind
 #[inline]
 pub fn respond<Vw: WithVars, R, F>(vars: &Vw, task: F) -> ResponseVar<R>
 where
@@ -420,7 +540,7 @@ where
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
 #[inline]
-pub async fn wait_catch<T, F>(task: F) -> std::thread::Result<T>
+pub async fn wait_catch<T, F>(task: F) -> PanicResult<T>
 where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
@@ -1121,14 +1241,16 @@ macro_rules! __all {
 /// Await for the first of three futures to complete:
 ///
 /// ```
-/// use zero_ui_core::task;
+/// use zero_ui_core::{task, units::*};
 ///
 /// # task::doc_test(false, async {
 /// let r = task::any!(
-///     task::run(async { 'a' }),
+///     task::run(async { task::timeout(300.ms()).await; 'a' }),
 ///     task::wait(|| 'b'),
-///     async { 'c' }
+///     async { task::timeout(300.ms()).await; 'c' }
 /// ).await;
+///
+/// assert_eq!('b', r);
 /// # });
 /// ```
 #[macro_export]
@@ -2465,8 +2587,6 @@ where
     }
 }
 
-type PanicPayload = Box<dyn std::any::Any + Send + 'static>;
-
 /// Error from [`ReadTask::read`].
 pub enum ReadTaskError {
     /// A read IO error.
@@ -3648,35 +3768,6 @@ pub mod tests {
     }
 
     #[test]
-    pub fn any_five() {
-        let one_s = Duration::from_secs(1);
-        let r = async_test(async {
-            any!(
-                async {
-                    timeout(one_s).await;
-                    1
-                },
-                async {
-                    timeout(one_s).await;
-                    2
-                },
-                async {
-                    timeout(one_s).await;
-                    3
-                },
-                async {
-                    timeout(one_s).await;
-                    4
-                },
-                async { 5 },
-            )
-            .await
-        });
-
-        assert_eq!(5, r);
-    }
-
-    #[test]
     pub fn any_nine() {
         let one_s = Duration::from_secs(1);
         let r = async_test(async {
@@ -3719,84 +3810,6 @@ pub mod tests {
         });
 
         assert_eq!(9, r);
-    }
-
-    #[test]
-    pub fn all_one() {
-        let r = async_test(async { all!(async { true }).await });
-
-        assert!(r);
-    }
-
-    #[test]
-    pub fn all_five() {
-        let r = async_test(async {
-            all!(
-                async { 'a' },
-                async {
-                    yield_one().await;
-                    'b'
-                },
-                async { 'c' },
-                async {
-                    yield_one().await;
-                    'd'
-                },
-                async { 'e' },
-            )
-            .await
-        });
-
-        assert_eq!('a', r.0);
-        assert_eq!('b', r.1);
-        assert_eq!('c', r.2);
-        assert_eq!('d', r.3);
-        assert_eq!('e', r.4);
-    }
-
-    #[test]
-    pub fn all_nine() {
-        let r = async_test(async {
-            all!(
-                async { 'a' },
-                async {
-                    yield_one().await;
-                    'b'
-                },
-                async { 'c' },
-                async {
-                    yield_one().await;
-                    'd'
-                },
-                async { 'e' },
-                async {
-                    yield_one().await;
-                    'f'
-                },
-                async { 'g' },
-                async {
-                    yield_one().await;
-                    'h'
-                },
-                async { 'i' },
-                async {
-                    yield_one().await;
-                    'j'
-                },
-            )
-            .await
-        });
-
-        assert_eq!('a', r.0);
-        assert_eq!('b', r.1);
-        assert_eq!('c', r.2);
-        assert_eq!('d', r.3);
-        assert_eq!('e', r.4);
-        assert_eq!('f', r.5);
-        assert_eq!('g', r.6);
-        assert_eq!('h', r.7);
-        assert_eq!('i', r.8);
-        assert_eq!('j', r.9);
     }
 
     #[test]
@@ -3879,6 +3892,47 @@ pub mod tests {
         })
     }
 
+    #[test]
+    pub fn write_task() {
+        todo!()
+    }
+
+    #[test]
+    pub fn write_error() {
+        todo!()
+    }
+
+    #[test]
+    pub fn write_panic() {
+        todo!()
+    }
+
+    #[test]
+    pub fn run_wake_imediatly() {
+        async_test(async {
+            run(async {
+                yield_now().await;
+            })
+            .await;
+        });
+    }
+
+    #[test]
+    pub fn run_panic_handling() {
+        async_test(async {
+            let r = run_catch(async {
+                run(async {
+                    timeout(Duration::from_millis(1)).await;
+                    panic!("test panic")
+                })
+                .await;
+            })
+            .await;
+
+            assert!(r.is_err());
+        })
+    }
+
     #[derive(Default, Debug)]
     pub struct TestRead {
         bytes_read: usize,
@@ -3903,6 +3957,39 @@ pub mod tests {
                 }
                 self.bytes_read += buf.len();
                 Ok(buf.len())
+            }
+        }
+    }
+
+    #[derive(Default, Debug)]
+    pub struct TestWrite {
+        bytes_written: usize,
+        write_calls: usize,
+        flush_calls: usize,
+        cause_error: Arc<Flag>,
+        cause_panic: Arc<Flag>,
+    }
+    impl io::Write for TestWrite {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.write_calls += 1;
+            if self.cause_error.is_set() {
+                Err(io::Error::new(io::ErrorKind::Other, "test error"))
+            } else if self.cause_panic.is_set() {
+                panic!("test panic");
+            } else {
+                self.bytes_written += buf.len();
+                Ok(buf.len())
+            }
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            self.flush_calls += 1;
+            if self.cause_error.is_set() {
+                Err(io::Error::new(io::ErrorKind::Other, "test error"))
+            } else if self.cause_panic.is_set() {
+                panic!("test panic");
+            } else {
+                Ok(())
             }
         }
     }

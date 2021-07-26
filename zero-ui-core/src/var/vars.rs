@@ -5,7 +5,7 @@ use super::*;
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
     context::{LayoutContext, RenderContext, Updates, WidgetContext},
-    crate_util::{Handle, HandleOwner, RunOnDrop},
+    crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::LayoutSize,
@@ -1076,6 +1076,11 @@ where
         let _ = self.wake.send_var();
         Ok(())
     }
+
+    /// Resume a panic in the app thread.
+    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppShutdown<PanicPayload>> {
+        self.wake.send_resume_unwind(payload)
+    }
 }
 
 /// A variable modification sender that can be used to modify a variable from any thread and without access to [`Vars`].
@@ -1116,6 +1121,11 @@ where
         self.sender.send(Box::new(modify)).map_err(|_| AppShutdown(()))?;
         let _ = self.wake.send_var();
         Ok(())
+    }
+
+    /// Resume a panic in the app thread.
+    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppShutdown<PanicPayload>> {
+        self.wake.send_resume_unwind(payload)
     }
 }
 
