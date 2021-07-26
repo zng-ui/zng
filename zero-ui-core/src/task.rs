@@ -352,7 +352,7 @@ where
 /// let mut eof = false;
 /// while !eof {
 ///     // read 1 mebibyte, awaits here if no payload was read yet.
-///     let mut data = r.read().await?;
+///     let mut data = r.read().await.map_err(|e|e.unwrap_io())?;
 ///
 ///     // when EOF is reached, the data is not the full payload.
 ///     if data.len() < r.payload_len() {
@@ -381,8 +381,8 @@ where
 /// }
 ///
 /// // get the files back for more small operations using `wait` directly.
-/// let input_file = r.stop().await?;
-/// let output_file = w.finish().await?;
+/// let input_file = r.stop().await.unwrap();
+/// let output_file = w.finish().await.map_err(|e|e.unwrap_io())?;
 /// task::wait(move || output_file.sync_all()).await?;
 /// # Ok(()) }
 /// ```
@@ -2308,12 +2308,12 @@ pub mod channel {
 ///
 /// let mut eof = false;
 /// while !eof {
-///     let payload = r.read().await?;
+///     let payload = r.read().await.map_err(|e|e.unwrap_io())?;
 ///     eof = payload.len() < r.payload_len();
 ///     foo += payload.into_par_iter().filter(|&b|b == 0xF0).count();
 /// }
 ///
-/// let file = r.stop().await?;
+/// let file = r.stop().await.unwrap();
 /// let meta = task::wait(move || file.metadata()).await?;
 ///
 /// println!("found 0xF0 {} times in {} bytes", foo, meta.len());
@@ -2330,7 +2330,7 @@ pub mod channel {
 /// [`stop`]: ReadTask::stop
 /// [`BrokenPipe`]: io::ErrorKind::BrokenPipe
 pub struct ReadTask<R> {
-    receiver: channel::Receiver<Result<Vec<u8>, ReadTaskError<R>>>,
+    receiver: channel::Receiver<Result<Vec<u8>, ReadTaskError>>,
     stop_recv: channel::Receiver<R>,
     payload_len: usize,
 }
@@ -2395,7 +2395,7 @@ where
                             Err(e) if e.kind() == io::ErrorKind::Interrupted => {
                                 continue;
                             }
-                            Err(error) => return Err(ReadTaskError::Io { read, error }),
+                            Err(error) => return Err((error, read)),
                         }
                     }
                 })
@@ -2406,7 +2406,7 @@ where
                     Ok(r) => r,
                     Err(p) => {
                         let _ = sender.send(Err(ReadTaskError::Panic(p))).await;
-                        break;
+                        break; // cause: panic
                     }
                 };
 
@@ -2418,15 +2418,16 @@ where
                         if p.len() < payload_len {
                             let _ = sender.send(Ok(p)).await;
                             let _ = stop_sender.send(read).await;
-                            break;
+                            break; // cause: EOF
                         } else if sender.send(Ok(p)).await.is_err() {
                             let _ = stop_sender.send(read).await;
-                            break;
+                            break; // cause: receiver dropped
                         }
                     }
-                    Err(e) => {
-                        let _ = sender.send(Err(e)).await;
-                        break;
+                    Err((e, r)) => {
+                        let _ = sender.send(Err(ReadTaskError::Io(e))).await;
+                        let _ = stop_sender.send(r).await;
+                        break; // cause: IO error
                     }
                 }
             }
@@ -2447,35 +2448,34 @@ where
     /// Request the next payload.
     ///
     /// The payload length can be equal to or less then [`payload_len`]. If it is less, the stream
-    /// has reached `EOF` and subsequent read calls will always return the [disconnected] error.
+    /// has reached `EOF` and subsequent read calls will always return the [`Closed`] error.
     ///
     /// [`payload_len`]: ReadTask::payload_len
-    /// [disconnected]: ReadTaskError::is_disconnected
-    pub async fn read(&self) -> Result<Vec<u8>, ReadTaskError<R>> {
-        self.receiver.recv().await.map_err(|_| ReadTaskError::Disconnected)?
+    /// [`Closed`]: ReadTaskError::Closed
+    pub async fn read(&self) -> Result<Vec<u8>, ReadTaskError> {
+        self.receiver.recv().await.map_err(|_| ReadTaskError::Closed)?
     }
 
-    /// Take back the [`io::Read`], any pending reads are dropped.
-    pub async fn stop(self) -> Result<R, ReadTaskError<R>> {
+    /// Stops the worker task and takes back the [`io::Read`].
+    ///
+    /// Returns `None` the worker is already stopped due to a panic.
+    pub async fn stop(self) -> Option<R> {
         drop(self.receiver);
-        self.stop_recv.recv().await.map_err(|_| ReadTaskError::Disconnected)
+        self.stop_recv.recv().await.ok()
     }
 }
 
-/// Error from [`ReadTask`].
-pub enum ReadTaskError<R> {
-    /// A read IO error.
-    Io {
-        /// The [`io::Read`] that returned error in a call to [`io::Read::read`].
-        read: R,
-        /// The IO error.
-        error: io::Error,
-    },
+type PanicPayload = Box<dyn std::any::Any + Send + 'static>;
 
-    /// A panic caused by the [`io::Read`].
+/// Error from [`ReadTask::read`].
+pub enum ReadTaskError {
+    /// A read IO error.
+    Io(io::Error),
+
+    /// A panic in the [`io::Read`].
     ///
     /// You can propagate the panic using [`std::panic::resume_unwind`].
-    Panic(Box<dyn std::any::Any + Send + 'static>),
+    Panic(PanicPayload),
 
     /// Lost connection with the task worker.
     ///
@@ -2483,51 +2483,51 @@ pub enum ReadTaskError<R> {
     ///
     /// [`Io`]: Self::Io
     /// [`Panic`]: Self::Panic
-    Disconnected,
+    Closed,
 }
-impl<R> ReadTaskError<R> {
-    /// Returns the values of [`Io`] or panics.
+impl ReadTaskError {
+    /// Returns the error of [`Io`] or panics.
     ///
     /// # Panics
     ///
     /// If the error is a [`Panic`] the panic is propagated using [`resume_unwind`].
-    /// If the error is a [`Disconnected`] panics with the message `"read task worker is closed, it closes after the first error"`.
+    /// If the error is a [`Closed`] panics with the message `"read task worker is closed, it closes after the first error"`.
     ///
     /// [`Io`]: Self::Io
     /// [`Panic`]: Self::Panic
-    /// [`Disconnected`]: Self::Disconnected
+    /// [`Closed`]: Self::Closed
     /// [`resume_unwind`]: std::panic::resume_unwind
     #[track_caller]
-    pub fn unwrap_io(self) -> (R, io::Error) {
+    pub fn unwrap_io(self) -> io::Error {
         match self {
-            ReadTaskError::Io { read, error } => (read, error),
+            ReadTaskError::Io(e) => e,
             ReadTaskError::Panic(p) => std::panic::resume_unwind(p),
-            ReadTaskError::Disconnected => panic!("read task worker is closed, it closes after the first error"),
+            ReadTaskError::Closed => panic!("`ReadTask` worker is closed, it closes after the first error"),
         }
     }
 }
-impl<R> fmt::Debug for ReadTaskError<R> {
+impl fmt::Debug for ReadTaskError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ReadTaskError::Io { error, .. } => f.debug_struct("Io").field("error", error).finish_non_exhaustive(),
+            ReadTaskError::Io(e) => f.debug_tuple("Io").field(e).finish(),
             ReadTaskError::Panic(p) => write!(f, "Panic({:?})", panic_str(p)),
-            ReadTaskError::Disconnected => write!(f, "Disconnected"),
+            ReadTaskError::Closed => write!(f, "Closed"),
         }
     }
 }
-impl<R> fmt::Display for ReadTaskError<R> {
+impl fmt::Display for ReadTaskError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ReadTaskError::Io { error, .. } => write!(f, "{}", error),
+            ReadTaskError::Io(e) => write!(f, "{}", e),
             ReadTaskError::Panic(p) => write!(f, "{}", panic_str(p)),
-            ReadTaskError::Disconnected => write!(f, "read task worker is closed, it closes after the first error"),
+            ReadTaskError::Closed => write!(f, "`ReadTask` worker is closed due to error or panic"),
         }
     }
 }
-impl<R> std::error::Error for ReadTaskError<R> {
+impl std::error::Error for ReadTaskError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        if let ReadTaskError::Io { error, .. } = self {
-            Some(error)
+        if let ReadTaskError::Io(e) = self {
+            Some(e)
         } else {
             None
         }
@@ -2691,11 +2691,22 @@ where
             while let Ok(msg) = receiver.recv().await {
                 match msg {
                     WriteTaskMsg::WriteAll(p) => {
-                        let (w, p, r) = self::wait(move || {
+                        let r = self::wait_catch(move || {
                             let r = write.write_all(&p);
                             (write, p, r)
                         })
                         .await;
+
+                        // handle panic.
+                        let (w, p, r) = match r {
+                            Ok((w, p, r)) => (w, p, r),
+                            Err(p) => {
+                                let _ = f_sender.send(WriteTaskFinishMsg::Panic { payload: p, receiver }).await;
+                                return;
+                            }
+                        };
+
+                        // handle ok/io error.
                         write = w;
                         match r {
                             Ok(_) => {
@@ -2709,11 +2720,22 @@ where
                         }
                     }
                     WriteTaskMsg::Flush(rsp) => {
-                        let (w, r) = self::wait(move || {
+                        let r = self::wait_catch(move || {
                             let r = write.flush();
                             (write, r)
                         })
                         .await;
+
+                        // handle panic.
+                        let (w, r) = match r {
+                            Ok((w, r)) => (w, r),
+                            Err(p) => {
+                                let _ = f_sender.send(WriteTaskFinishMsg::Panic { payload: p, receiver }).await;
+                                return;
+                            }
+                        };
+
+                        // handle ok/io error.
                         write = w;
                         match r {
                             Ok(_) => {
@@ -2728,14 +2750,23 @@ where
                         }
                     }
                     WriteTaskMsg::Finish => {
-                        let (w, r) = self::wait(move || {
+                        let r = self::wait_catch(move || {
                             let r = write.flush();
                             (write, r)
                         })
                         .await;
 
-                        write = w;
+                        // handle panic.
+                        let (w, r) = match r {
+                            Ok((w, r)) => (w, r),
+                            Err(p) => {
+                                let _ = f_sender.send(WriteTaskFinishMsg::Panic { payload: p, receiver }).await;
+                                return;
+                            }
+                        };
 
+                        // handle ok/io error.
+                        write = w;
                         match r {
                             Ok(_) => break,
                             Err(e) => error = Some(e),
@@ -2744,8 +2775,9 @@ where
                 }
             }
 
+            // send non-panic finish message.
             let _ = f_sender
-                .send(WriteTaskFinishMsg {
+                .send(WriteTaskFinishMsg::Io {
                     write,
                     result: match error {
                         Some(e) => Err((error_payload, e)),
@@ -2801,24 +2833,36 @@ where
     ///
     /// [`write`]: Self::write
     pub async fn finish(self) -> Result<W, WriteTaskError<W>> {
-        self.sender
-            .send(WriteTaskMsg::Finish)
-            .await
-            .expect("`WriteTask::finish` already called");
+        self.sender.send(WriteTaskMsg::Finish).await.unwrap();
 
-        let msg = self.finish.recv().await.expect("`WriteTask::finish` already called");
-        match msg.result {
-            Ok(_) => Ok(msg.write),
-            Err((payload, io_err)) => {
-                let mut payloads = vec![payload];
-                for msg in msg.receiver.drain() {
-                    if let WriteTaskMsg::WriteAll(payload) = msg {
-                        payloads.push(payload);
-                    }
-                }
-                Err(WriteTaskError::new(msg.write, self.state.bytes_written(), payloads, io_err))
+        let msg = self.finish.recv().await.unwrap();
+
+        match msg {
+            WriteTaskFinishMsg::Io { write, result, receiver } => match result {
+                Ok(_) => Ok(write),
+                Err((payload, io_err)) => Err(WriteTaskError::io(
+                    write,
+                    self.state.bytes_written(),
+                    Self::drain_payloads(receiver, payload),
+                    io_err,
+                )),
+            },
+            WriteTaskFinishMsg::Panic { payload, receiver } => Err(WriteTaskError::panic(
+                self.state.bytes_written(),
+                Self::drain_payloads(receiver, vec![]),
+                payload,
+            )),
+        }
+    }
+
+    fn drain_payloads(recv: channel::Receiver<WriteTaskMsg>, error_payload: Vec<u8>) -> Vec<Vec<u8>> {
+        let mut payloads = if error_payload.is_empty() { vec![] } else { vec![error_payload] };
+        for msg in recv.drain() {
+            if let WriteTaskMsg::WriteAll(payload) = msg {
+                payloads.push(payload);
             }
         }
+        payloads
     }
 
     /// Number of bytes that where successfully written.
@@ -2879,20 +2923,28 @@ enum WriteTaskMsg {
     Flush(channel::Sender<Result<(), WriteTaskClosed>>),
     Finish,
 }
-struct WriteTaskFinishMsg<W> {
-    write: W,
-    result: Result<(), (Vec<u8>, io::Error)>,
-    receiver: channel::Receiver<WriteTaskMsg>,
+enum WriteTaskFinishMsg<W> {
+    Io {
+        write: W,
+        result: Result<(), (Vec<u8>, io::Error)>,
+        receiver: channel::Receiver<WriteTaskMsg>,
+    },
+    Panic {
+        payload: PanicPayload,
+        receiver: channel::Receiver<WriteTaskMsg>,
+    },
 }
 
-/// Error from [`WriteTask`].
+/// Error from [`WriteTask::finish`].
 ///
-/// The write task worker closes on the first IO error, the [`WriteTask`] send methods
+/// The write task worker closes on the first IO error or panic, the [`WriteTask`] send methods
 /// return [`WriteTaskClosed`] when this happens and the [`WriteTask::finish`]
-/// method returns this error that contains the actual IO error.
+/// method returns this error that contains the actual error.
 pub struct WriteTaskError<W> {
-    /// The [`io::Write`].
-    pub write: W,
+    /// Error source.
+    ///
+    /// If is an IO error also contains the [`io::Write`].
+    pub source: WriteTaskErrorSource<W>,
 
     /// Number of bytes that where written before the error.
     ///
@@ -2902,39 +2954,101 @@ pub struct WriteTaskError<W> {
 
     /// The payloads that where not written.
     pub payloads: Vec<Vec<u8>>,
-    /// The error.
-    pub error: io::Error,
 }
-impl<W: io::Write> WriteTaskError<W> {
-    fn new(write: W, bytes_written: u64, payloads: Vec<Vec<u8>>, error: io::Error) -> Self {
+impl<W> WriteTaskError<W> {
+    fn io(write: W, bytes_written: u64, payloads: Vec<Vec<u8>>, error: io::Error) -> Self {
         Self {
-            write,
+            source: WriteTaskErrorSource::Io { write, error },
             bytes_written,
             payloads,
-            error,
+        }
+    }
+
+    fn panic(bytes_written: u64, payloads: Vec<Vec<u8>>, payload: PanicPayload) -> Self {
+        Self {
+            source: WriteTaskErrorSource::Panic(payload),
+            bytes_written,
+            payloads,
+        }
+    }
+
+    /// Returns the error of [`Io`] or panics.
+    ///
+    /// # Panics
+    ///
+    /// If the error is a [`Panic`] the panic is propagated using [`resume_unwind`].
+    ///
+    /// [`Io`]: WriteTaskErrorSource::Io
+    /// [`Panic`]: WriteTaskErrorSource::Panic
+    /// [`resume_unwind`]: std::panic::resume_unwind
+    #[track_caller]
+    pub fn unwrap_io(self) -> io::Error {
+        match self.source {
+            WriteTaskErrorSource::Io { error, .. } => error,
+            WriteTaskErrorSource::Panic(p) => panic::resume_unwind(p),
+        }
+    }
+
+    /// Returns the [`io::Write`] and error if is an [`Io`] error or panics.
+    ///
+    /// # Panics
+    ///
+    /// If the error is a [`Panic`] the panic is propagated using [`resume_unwind`].
+    ///
+    /// [`Io`]: WriteTaskErrorSource::Io
+    /// [`Panic`]: WriteTaskErrorSource::Panic
+    /// [`resume_unwind`]: std::panic::resume_unwind
+    pub fn unwrap_write(self) -> (W, io::Error) {
+        match self.source {
+            WriteTaskErrorSource::Io { write, error } => (write, error),
+            WriteTaskErrorSource::Panic(p) => panic::resume_unwind(p),
         }
     }
 }
 impl<W: io::Write> fmt::Debug for WriteTaskError<W> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.error, f)
+        match &self.source {
+            WriteTaskErrorSource::Io { error, .. } => write!(f, "Io({:?})", error),
+            WriteTaskErrorSource::Panic(p) => write!(f, "Panic({:?})", panic_str(p)),
+        }
     }
 }
 impl<W: io::Write> fmt::Display for WriteTaskError<W> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.error, f)
+        match &self.source {
+            WriteTaskErrorSource::Io { error, .. } => write!(f, "{}", error),
+            WriteTaskErrorSource::Panic(p) => write!(f, "{}", panic_str(p)),
+        }
     }
 }
 impl<W: io::Write> std::error::Error for WriteTaskError<W> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.error)
+        match &self.source {
+            WriteTaskErrorSource::Io { error, .. } => Some(error),
+            WriteTaskErrorSource::Panic(_) => None,
+        }
     }
+}
+
+/// Source of an [`WriteTaskError<W>`].
+pub enum WriteTaskErrorSource<W> {
+    /// A write error.
+    Io {
+        /// The [`io::Write`].
+        write: W,
+        /// The error.
+        error: io::Error,
+    },
+    /// A panic in the [`io::Write`].
+    ///
+    /// You can propagate the panic using [`std::panic::resume_unwind`].
+    Panic(PanicPayload),
 }
 
 /// Error from [`WriteTask`].
 ///
 /// This error is returned to indicate that the task worker has permanently stopped because
-/// of an IO error. You can get the IO error by calling [`WriteTask::finish`].
+/// of an IO error or panic. You can get the IO error by calling [`WriteTask::finish`].
 pub struct WriteTaskClosed {
     /// Payload that could not be send.
     ///
@@ -2945,7 +3059,7 @@ pub struct WriteTaskClosed {
 }
 impl fmt::Debug for WriteTaskClosed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("WriteTaskDisconnected")
+        f.debug_struct("WriteTaskClosed")
             .field("payload", &format!("<{} bytes>", self.payload.len()))
             .finish()
     }
@@ -3726,14 +3840,13 @@ pub mod tests {
                         assert_eq!("test error", e.to_string());
 
                         let e = task.read().await.unwrap_err();
-                        assert!(matches!(e, ReadTaskError::Disconnected));
+                        assert!(matches!(e, ReadTaskError::Closed));
                         break;
                     }
                 }
             }
 
-            let e = task.stop().await.unwrap_err();
-            assert!(matches!(e, ReadTaskError::Disconnected));
+            assert!(task.stop().await.is_some());
         })
     }
 
@@ -3756,14 +3869,13 @@ pub mod tests {
                         assert!(e.to_string().contains("test panic"));
 
                         let e = task.read().await.unwrap_err();
-                        assert!(matches!(e, ReadTaskError::Disconnected));
+                        assert!(matches!(e, ReadTaskError::Closed));
                         break;
                     }
                 }
             }
 
-            let e = task.stop().await.unwrap_err();
-            assert!(matches!(e, ReadTaskError::Disconnected));
+            assert!(task.stop().await.is_none());
         })
     }
 
