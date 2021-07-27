@@ -10,7 +10,8 @@ fn main() {
                 items = widgets![
                     example(),
                     example(),
-                    disabled()
+                    disabled(),
+                    image_button()
                 ];
             };
         }
@@ -39,5 +40,15 @@ fn disabled() -> impl Widget {
         on_click = hn!(|_, _| panic!("disabled button"));
         enabled = false;
         content = text("Disabled");
+    }
+}
+
+fn image_button() -> impl Widget {
+    button! {
+        on_click = hn!(|_, _| println!("What does this do?"));
+        content = image!{
+            path = "examples/res/icon-bytes.png";
+            size = (32, 32);
+        };
     }
 }

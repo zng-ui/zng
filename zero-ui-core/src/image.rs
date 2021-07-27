@@ -1,6 +1,6 @@
 //! Image cache API.
 
-use std::{error::Error, path::PathBuf, sync::Arc};
+use std::{cell::RefCell, error::Error, path::PathBuf, rc::Rc, sync::Arc};
 
 use crate::{
     app::AppExtension,
@@ -44,9 +44,12 @@ impl AppExtension for ImageManager {
 
 /// A loaded or loading image.
 ///
-/// This struct is an [`Arc`] pointer, cloning it is cheap.
-#[derive(Clone, Debug)]
-pub struct Image(Arc<Mutex<ImageState>>);
+/// This struct is just pointers, cloning it is cheap.
+#[derive(Clone)]
+pub struct Image {
+    state: Arc<Mutex<ImageState>>,
+    render_keys: Rc<RefCell<Vec<RenderImage>>>,
+}
 impl Image {
     /// Start loading an image file.
     pub fn from_file(file: impl Into<PathBuf>) -> Self {
@@ -58,12 +61,15 @@ impl Image {
                 Err(e) => ImageState::Error(Box::new(e)),
             }
         }));
-        Image(state)
+        Image {
+            state,
+            render_keys: Rc::default(),
+        }
     }
 
     /// Start loading an image from the web using a GET request.
     pub fn from_uri(uri: impl TryUri) -> Self {
-        match uri.try_into() {
+        let state = match uri.try_into() {
             Ok(uri) => {
                 let state = Arc::new(Mutex::new(ImageState::Loading));
                 task::spawn(async_clone_move!(state, {
@@ -72,16 +78,23 @@ impl Image {
                         Err(e) => ImageState::Error(e),
                     }
                 }));
-                Image(state)
+                state
             }
-            Err(e) => Image(Arc::new(Mutex::new(ImageState::Error(Box::new(e))))),
+            Err(e) => Arc::new(Mutex::new(ImageState::Error(Box::new(e)))),
+        };
+        Image {
+            state,
+            render_keys: Rc::default(),
         }
     }
 
     /// Create a loaded image.
     pub fn from_decoded(image: DynamicImage) -> Self {
         let state = Arc::new(Mutex::new(Self::decoded_to_state(image)));
-        Image(state)
+        Image {
+            state,
+            render_keys: Rc::default(),
+        }
     }
 
     fn decoded_to_state(image: DynamicImage) -> ImageState {
@@ -146,7 +159,41 @@ impl Image {
     }
 
     fn render_image(&self, api: &Arc<RenderApi>) -> ImageKey {
-        api.generate_image_key()
+        let namespace = api.get_namespace_id();
+        let mut keys = self.render_keys.borrow_mut();
+        for r in keys.iter_mut() {
+            if r.key.0 == namespace {
+                if !r.loaded {                           
+                    if let ImageState::Loaded { descriptor, data } = &*self.state.lock() {
+                        r.loaded = true;
+                        Self::load_image(api, r.key, *descriptor, data.clone())
+                    }
+                }
+                return r.key;
+            }
+        }
+
+        let key = api.generate_image_key();
+
+        let mut loaded = false;        
+        if let ImageState::Loaded { descriptor, data } = &*self.state.lock() {
+            loaded = true;
+            Self::load_image(api, key, *descriptor, data.clone())
+        }
+
+        keys.push(RenderImage {
+            api: Arc::downgrade(api),
+            key,
+            loaded,
+        });        
+
+        key
+    }
+
+    fn load_image(api: &Arc<RenderApi>, key: ImageKey, descriptor: ImageDescriptor, data: ImageData) {
+        let mut txn = webrender::api::Transaction::new();
+        txn.add_image(key, descriptor, data, None);
+        api.update_resources(txn.resource_updates);
     }
 }
 impl crate::render::Image for Image {
@@ -154,9 +201,22 @@ impl crate::render::Image for Image {
         self.render_image(api)
     }
 }
-#[derive(Debug)]
 enum ImageState {
     Loading,
-    Loaded { data: ImageData, descriptor: ImageDescriptor },
+    Loaded { descriptor: ImageDescriptor, data: ImageData },
     Error(Box<dyn Error + Send + Sync>),
+}
+struct RenderImage {
+    api: std::sync::Weak<RenderApi>,
+    key: ImageKey,
+    loaded: bool,
+}
+impl Drop for RenderImage {
+    fn drop(&mut self) {
+        if let Some(api) = self.api.upgrade() {
+            let mut txn = webrender::api::Transaction::new();
+            txn.delete_image(self.key);
+            api.update_resources(txn.resource_updates);
+        }
+    }
 }

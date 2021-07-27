@@ -960,6 +960,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
+        pub use crate::core::image::{Image, ImagesExt};
+        #[doc(no_inline)]
         pub use crate::core::task::{self, rayon::prelude::*, AppTask, WidgetTask};
         #[doc(no_inline)]
         pub use crate::core::text::*;

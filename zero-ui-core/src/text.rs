@@ -881,6 +881,9 @@ impl_from_and_into_var! {
     fn from(t: Text) -> Cow<'static, str> {
         t.0
     }
+    fn from(t: Text) -> std::path::PathBuf {
+        t.into_owned().into()
+    }
 }
 impl From<Text> for Box<dyn std::error::Error> {
     fn from(err: Text) -> Self {

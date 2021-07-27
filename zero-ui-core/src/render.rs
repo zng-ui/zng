@@ -706,8 +706,9 @@ impl FrameBuilder {
 
         if let Some(api) = &self.api {
             let image_key = image.image_key(api);
-
-            // self.display_list.push_image(common, bounds, image_rendering, alpha_type, key, color)
+            todo!();
+            let rect = LayoutRect::from_size(LayoutSize::new(32.0,32.0));
+            self.display_list.push_image(&self.common_item_properties(rect), rect, ImageRendering::Auto, AlphaType::Alpha, image_key, RenderColor::TRANSPARENT)
         }
     }
 
