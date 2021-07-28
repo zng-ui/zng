@@ -58,6 +58,7 @@ pub type FrameId = webrender::api::Epoch;
 /// [`Font`]: crate::text::Font
 pub trait Font {
     /// Gets the instance key in the `api` namespace.
+    ///
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
     fn instance_key(&self, api: &Arc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey;
 }
@@ -65,6 +66,8 @@ pub trait Font {
 /// A loaded or loading image.
 ///
 /// This trait is an interface for the renderer into the image API used in the application.
+///
+/// The ideal image format is BGRA with pre-multiplied alpha.
 ///
 /// # Image API
 ///
@@ -75,8 +78,60 @@ pub trait Font {
 /// [`Image`]: crate::image::Image
 pub trait Image {
     /// Gets the image key in the `api` namespace.
-    /// The image must be loaded asynchronously by `self`.
+    ///
+    /// The image must be loaded asynchronously by `self` and does not need to
+    /// be loaded yet when the key is returned.
     fn image_key(&self, api: &Arc<RenderApi>) -> webrender::api::ImageKey;
+
+    /// Returns a value that indicates if the image is already pre-multiplied.
+    ///
+    /// The faster option is pre-multiplied, that is also the default return value.
+    fn alpha_type(&self) -> webrender::api::AlphaType {
+        webrender::api::AlphaType::PremultipliedAlpha
+    }
+}
+
+/// Image scaling algorithm in the renderer.
+///
+/// If an image is not rendered at the same size as in their source it must be up-scaled or
+/// down-scaled. The algorithm used for this scaling can be selected using this `enum`.
+///
+/// Note that the algorithms used in the renderer value performance over quality and do a good
+/// enough job for small or temporary changes in scale only, such as a small size correction or a scaling animation.
+/// If and image is constantly rendered at a different scale you should considered scaling it on the CPU using a
+/// slower but more complex algorithm or pre-scaling it before including in the app.
+///
+/// You can use the [`Image`] type to re-scale an image.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ImageRendering {
+    /// Let the renderer select the algorithm, currently this is the same as [`CrispEdges`].
+    ///
+    /// [`CrispEdges`]: ImageRendering::CrispEdges
+    Auto = 0,
+    /// The image is scaled with an algorithm that preserves contrast and edges in the image,
+    /// and which does not smooth colors or introduce blur to the image in the process.
+    ///
+    /// Currently the [Bilinear] interpolation algorithm is used.
+    ///
+    /// [Bilinear]: https://en.wikipedia.org/wiki/Bilinear_interpolation
+    CrispEdges = 1,
+    /// When scaling the image up, the image appears to be composed of large pixels.
+    ///
+    /// Currently the [Nearest-neighbor] interpolation algorithm is used.
+    ///
+    /// [Nearest-neighbor]: https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation
+    Pixelated = 2,
+}
+impl From<ImageRendering> for webrender::api::ImageRendering {
+    fn from(r: ImageRendering) -> Self {
+        use webrender::api::ImageRendering::*;
+        match r {
+            ImageRendering::Auto => Auto,
+            ImageRendering::CrispEdges => CrispEdges,
+            ImageRendering::Pixelated => Pixelated,
+        }
+    }
 }
 
 /// A full frame builder.
@@ -653,7 +708,9 @@ impl FrameBuilder {
         self.spatial_id = parent_spatial_id;
     }
 
-    /// Push a border using [`common_item_properties`](FrameBuilder::common_item_properties).
+    /// Push a border using [`common_item_properties`].
+    ///
+    /// [`common_item_properties`]: FrameBuilder::common_item_properties
     #[inline]
     pub fn push_border(&mut self, bounds: LayoutRect, widths: LayoutSideOffsets, sides: BorderSides, radius: LayoutBorderRadius) {
         if self.cancel_widget {
@@ -678,7 +735,9 @@ impl FrameBuilder {
             .push_border(&self.common_item_properties(bounds), bounds, widths, details);
     }
 
-    /// Push a text run using [`common_item_properties`](FrameBuilder::common_item_properties).
+    /// Push a text run using [`common_item_properties`].
+    ///
+    /// [`common_item_properties`]: FrameBuilder::common_item_properties
     #[inline]
     pub fn push_text(&mut self, rect: LayoutRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
         if self.cancel_widget {
@@ -699,6 +758,9 @@ impl FrameBuilder {
         }
     }
 
+    /// Push an image using [`common_item_properties`].
+    ///
+    /// [`common_item_properties`]: FrameBuilder::common_item_properties
     pub fn push_image(&mut self, rect: LayoutRect, image: &impl Image, rendering: ImageRendering) {
         if self.cancel_widget {
             return;
@@ -711,8 +773,8 @@ impl FrameBuilder {
             self.display_list.push_image(
                 &self.common_item_properties(rect),
                 rect,
-                rendering,
-                AlphaType::PremultipliedAlpha,
+                rendering.into(),
+                image.alpha_type(),
                 image_key,
                 RenderColor::WHITE,
             )
