@@ -42,6 +42,7 @@ bencher = "0.1"
 meval = "0.2"
 trybuild = "1"
 log = "0.4"
+image = "0.23"
 # enable test util
 zero-ui-core = { path = "zero-ui-core", features = ["test_util"] }
 

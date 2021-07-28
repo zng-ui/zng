@@ -46,9 +46,11 @@ fn disabled() -> impl Widget {
 fn image_button() -> impl Widget {
     button! {
         on_click = hn!(|_, _| println!("What does this do?"));
-        content = image!{
-            path = "examples/res/icon-bytes.png";
-            size = (32, 32);
+        content = image! {
+            path = "examples/res/img/RGBA16.png";
+            //path = "examples/res/icon-bytes.png";
+            //background_color = colors::MAGENTA;
+            size = (232, 232);
         };
     }
 }

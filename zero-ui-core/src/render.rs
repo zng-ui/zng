@@ -699,16 +699,23 @@ impl FrameBuilder {
         }
     }
 
-    pub fn push_image(&mut self, image: &impl Image) {
+    pub fn push_image(&mut self, rect: LayoutRect, image: &impl Image, rendering: ImageRendering) {
         if self.cancel_widget {
             return;
         }
 
+        self.open_widget_display();
+
         if let Some(api) = &self.api {
             let image_key = image.image_key(api);
-            todo!();
-            let rect = LayoutRect::from_size(LayoutSize::new(32.0,32.0));
-            self.display_list.push_image(&self.common_item_properties(rect), rect, ImageRendering::Auto, AlphaType::Alpha, image_key, RenderColor::TRANSPARENT)
+            self.display_list.push_image(
+                &self.common_item_properties(rect),
+                rect,
+                rendering,
+                AlphaType::PremultipliedAlpha,
+                image_key,
+                RenderColor::WHITE,
+            )
         }
     }
 

@@ -4,7 +4,7 @@ use crate::prelude::new_widget::*;
 pub mod image {
     use super::*;
 
-    properties!{
+    properties! {
         path(impl IntoVar<Text>) = "";
     }
 
@@ -12,19 +12,28 @@ pub mod image {
         struct ImageNode<T> {
             path: T,
             image: Option<Image>,
+            final_size: LayoutSize,
         }
         #[impl_ui_node(none)]
         impl<T: Var<Text>> UiNode for ImageNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.image = Some(Image::from_file(self.path.get_clone(ctx)))
             }
+            fn arrange(&mut self, _: &mut LayoutContext, final_size: LayoutSize) {
+                self.final_size = final_size;
+            }
             fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
-                frame.push_image(self.image.as_ref().unwrap())
+                frame.push_image(
+                    LayoutRect::from(self.final_size),
+                    self.image.as_ref().unwrap(),
+                    webrender::api::ImageRendering::Pixelated,
+                );
             }
         }
         ImageNode {
             path: path.into_var(),
-            image: None
+            image: None,
+            final_size: LayoutSize::zero(),
         }
     }
 }

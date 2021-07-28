@@ -98,58 +98,146 @@ impl Image {
     }
 
     fn decoded_to_state(image: DynamicImage) -> ImageState {
-        use image::{buffer::ConvertBuffer, Bgra, ImageBuffer, Luma, LumaA, RgbaImage};
+        // convert to pre-multiplied BGRA, WebRender converts to this format internally if we don't
 
-        let ((width, height), format, data, opaque) = match image {
-            DynamicImage::ImageLuma8(img) => (img.dimensions(), ImageFormat::R8, img.into_raw(), true),
-            DynamicImage::ImageLumaA8(img) => (img.dimensions(), ImageFormat::RG8, img.into_raw(), false),
+        let mut opaque = true;
+        let ((width, height), bgra) = match image {
+            DynamicImage::ImageLuma8(img) => (img.dimensions(), img.into_raw().into_iter().flat_map(|l| [l, l, l, 255]).collect()),
+            DynamicImage::ImageLumaA8(img) => (
+                img.dimensions(),
+                img.into_raw()
+                    .chunks(2)
+                    .flat_map(|la| {
+                        if la[1] < 255 {
+                            opaque = false;
+                            let l = la[0] as f32 * la[1] as f32 / 255.0;
+                            let l = l as u8;
+                            [l, l, l, la[1]]
+                        } else {
+                            let l = la[0];
+                            [l, l, l, la[1]]
+                        }
+                    })
+                    .collect(),
+            ),
             DynamicImage::ImageRgb8(img) => (
                 img.dimensions(),
-                ImageFormat::RGBA8,
-                ConvertBuffer::<RgbaImage>::convert(&img).into_raw(),
-                true,
+                img.into_raw().chunks(3).flat_map(|c| [c[2], c[1], c[0], 255]).collect(),
             ),
-            DynamicImage::ImageRgba8(img) => (img.dimensions(), ImageFormat::RGBA8, img.into_raw(), false),
+            DynamicImage::ImageRgba8(img) => (img.dimensions(), {
+                let mut buf = img.into_raw();
+                buf.chunks_mut(4).for_each(|c| {
+                    if c[3] < 255 {
+                        opaque = false;
+                        let a = c[3] as f32 / 255.0;
+                        c[0..3].iter_mut().for_each(|c| *c = (*c as f32 * a) as u8);
+                    }
+                    c.swap(0, 2);
+                });
+                buf
+            }),
             DynamicImage::ImageBgr8(img) => (
                 img.dimensions(),
-                ImageFormat::BGRA8,
-                ConvertBuffer::<ImageBuffer<Bgra<u8>, Vec<u8>>>::convert(&img).into_raw(),
-                true,
+                img.into_raw().chunks(3).flat_map(|c| [c[0], c[1], c[2], 255]).collect(),
             ),
-            DynamicImage::ImageBgra8(img) => (img.dimensions(), ImageFormat::BGRA8, img.into_raw(), false),
+            DynamicImage::ImageBgra8(img) => (img.dimensions(), {
+                let mut buf = img.into_raw();
+                buf.chunks_mut(4).for_each(|c| {
+                    if c[3] < 255 {
+                        opaque = false;
+                        let a = c[3] as f32 / 255.0;
+                        c[0..3].iter_mut().for_each(|c| *c = (*c as f32 * a) as u8);
+                    }
+                });
+                buf
+            }),
             DynamicImage::ImageLuma16(img) => (
                 img.dimensions(),
-                ImageFormat::R8, // TODO use R16
-                ConvertBuffer::<ImageBuffer<Luma<u8>, Vec<u8>>>::convert(&img).into_raw(),
-                true,
+                img.into_raw()
+                    .into_iter()
+                    .flat_map(|l| {
+                        let l = (l as f32 / u16::MAX as f32 * 255.0) as u8;
+                        [l, l, l, 255]
+                    })
+                    .collect(),
             ),
             DynamicImage::ImageLumaA16(img) => (
                 img.dimensions(),
-                ImageFormat::RG8, // TODO use RG16
-                ConvertBuffer::<ImageBuffer<LumaA<u8>, Vec<u8>>>::convert(&img).into_raw(),
-                false,
+                img.into_raw()
+                    .chunks(2)
+                    .flat_map(|la| {
+                        let max = u16::MAX as f32;
+                        let l = la[0] as f32 / max;
+                        let a = la[1] as f32 / max * 255.0;
+
+                        if la[1] < u16::MAX {
+                            opaque = false;
+                            let l = (l * a) as u8;
+                            [l, l, l, a as u8]
+                        } else {
+                            let l = (l * 255.0) as u8;
+                            [l, l, l, a as u8]
+                        }
+                    })
+                    .collect(),
             ),
             DynamicImage::ImageRgb16(img) => (
                 img.dimensions(),
-                ImageFormat::RGBA8,
-                ConvertBuffer::<RgbaImage>::convert(&img).into_raw(),
-                true,
+                img.into_raw()
+                    .chunks(3)
+                    .flat_map(|c| {
+                        let to_u8 = 255.0 / u16::MAX as f32;
+                        [
+                            (c[2] as f32 * to_u8) as u8,
+                            (c[1] as f32 * to_u8) as u8,
+                            (c[0] as f32 * to_u8) as u8,
+                            255,
+                        ]
+                    })
+                    .collect(),
             ),
             DynamicImage::ImageRgba16(img) => (
                 img.dimensions(),
-                ImageFormat::RGBA8,
-                ConvertBuffer::<RgbaImage>::convert(&img).into_raw(),
-                false,
+                img.into_raw()
+                    .chunks(4)
+                    .flat_map(|c| {
+                        if c[3] < u16::MAX {
+                            opaque = false;
+                            let max = u16::MAX as f32;
+                            let a = c[3] as f32 / max * 255.0;
+                            [
+                                (c[2] as f32 / max * a) as u8,
+                                (c[1] as f32 / max * a) as u8,
+                                (c[0] as f32 / max * a) as u8,
+                                a as u8,
+                            ]
+                        } else {
+                            let to_u8 = 255.0 / u16::MAX as f32;
+                            [
+                                (c[2] as f32 * to_u8) as u8,
+                                (c[1] as f32 * to_u8) as u8,
+                                (c[0] as f32 * to_u8) as u8,
+                                255,
+                            ]
+                        }
+                    })
+                    .collect(),
             ),
         };
-        let flags = if opaque {
-            ImageDescriptorFlags::IS_OPAQUE
-        } else {
-            ImageDescriptorFlags::empty()
-        };
-        let descriptor = ImageDescriptor::new(width as i32, height as i32, format, flags);
-        let data = ImageData::Raw(Arc::new(data));
-        ImageState::Loaded { data, descriptor }
+
+        ImageState::Loaded {
+            descriptor: ImageDescriptor::new(
+                width as i32,
+                height as i32,
+                ImageFormat::BGRA8,
+                if opaque {
+                    ImageDescriptorFlags::IS_OPAQUE
+                } else {
+                    ImageDescriptorFlags::empty()
+                },
+            ),
+            data: ImageData::Raw(Arc::new(bgra)),
+        }
     }
 
     async fn download_image(uri: task::http::Uri) -> Result<DynamicImage, Box<dyn Error + Send + Sync>> {
@@ -163,7 +251,7 @@ impl Image {
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter_mut() {
             if r.key.0 == namespace {
-                if !r.loaded {                           
+                if !r.loaded {
                     if let ImageState::Loaded { descriptor, data } = &*self.state.lock() {
                         r.loaded = true;
                         Self::load_image(api, r.key, *descriptor, data.clone())
@@ -175,7 +263,7 @@ impl Image {
 
         let key = api.generate_image_key();
 
-        let mut loaded = false;        
+        let mut loaded = false;
         if let ImageState::Loaded { descriptor, data } = &*self.state.lock() {
             loaded = true;
             Self::load_image(api, key, *descriptor, data.clone())
@@ -185,7 +273,7 @@ impl Image {
             api: Arc::downgrade(api),
             key,
             loaded,
-        });        
+        });
 
         key
     }
