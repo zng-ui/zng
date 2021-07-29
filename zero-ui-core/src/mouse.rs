@@ -2,17 +2,19 @@
 //!
 //! The app extension [`MouseManager`] provides the events and service. It is included in the default application.
 
-use super::units::{LayoutPoint, LayoutRect, LayoutSize};
-use super::WidgetId;
-use crate::app::{raw_events::*, *};
-use crate::context::*;
-use crate::event::*;
-use crate::keyboard::ModifiersState;
-use crate::render::*;
-use crate::service::*;
-use crate::window::{WindowId, Windows, WindowsExt};
-use std::{fmt, time::*};
-use std::{mem, num::NonZeroU8};
+use crate::{
+    app::{raw_events::*, *},
+    context::*,
+    event::*,
+    keyboard::ModifiersState,
+    render::*,
+    service::*,
+    units::{LayoutPoint, LayoutRect, LayoutSize},
+    var::impl_from_and_into_var,
+    window::{WindowId, Windows, WindowsExt},
+    WidgetId,
+};
+use std::{fmt, mem, num::NonZeroU8, time::*};
 
 pub use glutin::event::MouseButton;
 

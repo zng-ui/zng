@@ -1,6 +1,7 @@
 //! Font resolving and text shaping.
 
-use super::units::{LayoutPoint, LayoutRect, LayoutSize};
+use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
+use crate::var::impl_from_and_into_var;
 use derive_more as dm;
 use std::{
     borrow::Cow,

@@ -77,55 +77,6 @@ macro_rules! unique_id {
     };
 }
 
-///<span data-inline></span> Implements From and IntoVar without boilerplate.
-#[macro_export]
-macro_rules! impl_from_and_into_var {
-    ($(
-        $(#[$docs:meta])*
-        fn from $(< $($T:ident  $(: $TConstrain:path)?),+ $(,)?>)? (
-            $($name:ident)? // single ident OR
-            $( ( // tuple deconstruct of
-                $(
-                    $($tuple_names:ident)? // single idents OR
-                    $( ( // another tuple deconstruct of
-                        $($tuple_inner_names:ident ),+ // inner idents
-                    ) )?
-                ),+
-            ) )?
-            : $From:ty) -> $To:ty
-            $convert_block:block
-    )+) => {
-        $(
-            impl $(< $($T $(: $TConstrain)?),+ >)? From<$From> for $To {
-                $(#[$docs])*
-                #[inline]
-                fn from(
-                    $($name)?
-                    $( (
-                        $(
-                            $($tuple_names)?
-                            $( (
-                                $($tuple_inner_names),+
-                            ) )?
-                        ),+
-                    ) )?
-                    : $From) -> Self
-                    $convert_block
-
-            }
-
-            impl $(< $($T $(: $TConstrain + Clone)?),+ >)? $crate::var::IntoVar<$To> for $From {
-                type Var = $crate::var::OwnedVar<$To>;
-
-                $(#[$docs])*
-                fn into_var(self) -> Self::Var {
-                    $crate::var::OwnedVar(self.into())
-                }
-            }
-        )+
-    };
-}
-
 /// Generates a type that can only have a single instance per thread.
 macro_rules! thread_singleton {
     ($Singleton:ident) => {

@@ -1,23 +1,26 @@
 //! Aggregate events.
 
-use super::{service::Service, units::LayoutPoint, WidgetId};
-use crate::app::{raw_events::RawWindowFocusEvent, *};
-use crate::command::{Command, CommandMetaVar};
-use crate::context::*;
-use crate::event::*;
-use crate::focus::Focus;
-use crate::keyboard::*;
-use crate::mouse::*;
-use crate::render::*;
-use crate::window::{WindowId, Windows};
-use std::num::NonZeroU32;
-use std::{
-    convert::{TryFrom, TryInto},
-    time::Duration,
+use crate::{
+    app::{raw_events::RawWindowFocusEvent, *},
+    command::{Command, CommandMetaVar},
+    context::*,
+    event::*,
+    focus::Focus,
+    keyboard::*,
+    mouse::*,
+    render::*,
+    service::Service,
+    units::LayoutPoint,
+    var::impl_from_and_into_var,
+    window::{WindowId, Windows},
+    WidgetId,
 };
 use std::{
+    convert::{TryFrom, TryInto},
     fmt::{self, Display},
     mem,
+    num::NonZeroU32,
+    time::Duration,
 };
 
 /// Specific information from the source of a [`ClickArgs`].

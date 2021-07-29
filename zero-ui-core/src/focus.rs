@@ -76,21 +76,25 @@
 //! Focus information exists as metadata associated with a window frame. This metadata can be manually queried by
 //! creating a [`FrameFocusInfo`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
 
-use crate::app::{AppEventSender, AppExtension};
-use crate::context::*;
-use crate::event::*;
-use crate::gesture::{shortcut, ShortcutEvent};
-use crate::mouse::MouseDownEvent;
-use crate::render::DescendantFilter;
-use crate::render::{FrameInfo, WidgetInfo, WidgetPath};
-use crate::service::Service;
-use crate::units::LayoutPoint;
-use crate::widget_base::WidgetEnabledExt;
-use crate::window::{WindowFocusChangedEvent, WindowId, Windows};
-use crate::WidgetId;
+use crate::{
+    app::{AppEventSender, AppExtension},
+    context::*,
+    event::*,
+    gesture::{shortcut, ShortcutEvent},
+    mouse::MouseDownEvent,
+    render::{DescendantFilter, FrameInfo, WidgetInfo, WidgetPath},
+    service::Service,
+    units::LayoutPoint,
+    var::impl_from_and_into_var,
+    widget_base::WidgetEnabledExt,
+    window::{WindowFocusChangedEvent, WindowId, Windows},
+    WidgetId,
+};
 use fnv::FnvHashMap;
-use std::fmt;
-use std::time::{Duration, Instant};
+use std::{
+    fmt,
+    time::{Duration, Instant},
+};
 
 event_args! {
     /// [`FocusChangedEvent`] arguments.

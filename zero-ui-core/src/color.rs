@@ -1,6 +1,6 @@
 //! Color types, functions and macros, [`Rgba`], [`Filter`], [`hex!`](crate::color::hex), [`opacity`] and more.
 
-use crate::{context::LayoutMetrics, render::FrameBinding, units::*};
+use crate::{context::LayoutMetrics, render::FrameBinding, units::*, var::impl_from_and_into_var};
 use std::fmt;
 use webrender::api::{self as wr, FilterOp};
 

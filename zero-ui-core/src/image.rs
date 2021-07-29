@@ -167,7 +167,7 @@ impl Images {
     ///
     /// This is roughly the memory that is freed if [`clean_cache`] is called.
     ///
-    /// [`clean_cache`]: Self: clean_cache.
+    /// [`clean_cache`]: Self::clean_cache
     pub fn cache_only_bytes(&mut self) -> u64 {
         self.cache
             .values()

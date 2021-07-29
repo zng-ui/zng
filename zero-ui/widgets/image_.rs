@@ -8,10 +8,16 @@ pub mod image {
     use crate::core::task::http::Uri;
     use std::path::PathBuf;
 
+    /// The different inputs accepted by the [`source`] property.
+    /// 
+    /// [`source`]: #wp-source
     #[derive(Clone, Debug)]
     pub enum ImageSource {
+        /// Reads the image from file.
         Read(PathBuf),
+        /// Downloads the image using an HTTP GET request.
         Download(Uri),
+        /// Uses the already created image.
         Image(Image),
     }
     impl_from_and_into_var! {

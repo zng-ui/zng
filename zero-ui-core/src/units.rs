@@ -6,7 +6,7 @@ use std::{mem, ops};
 use webrender::api::units as wr;
 
 use crate::context::LayoutMetrics;
-use crate::var::{IntoVar, OwnedVar};
+use crate::var::{impl_from_and_into_var, IntoVar, OwnedVar};
 
 /// Minimal difference between values in around the 0.0..=1.0 scale.
 const EPSILON: f32 = 0.00001;

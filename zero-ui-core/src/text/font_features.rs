@@ -1,8 +1,8 @@
 //! Font features and variation types.
 
 use fnv::FnvHashMap;
-use std::{collections::hash_map::Entry as HEntry, marker::PhantomData, num::NonZeroU32};
-use std::{fmt, mem};
+use std::{collections::hash_map::Entry as HEntry, fmt, marker::PhantomData, mem, num::NonZeroU32};
+use crate::var::impl_from_and_into_var;
 
 // TODO
 // main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings

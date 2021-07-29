@@ -3,7 +3,7 @@
 use std::{fmt, ops};
 
 use crate::event::EventUpdateArgs;
-use crate::var::{context_var, IntoVar, WithVars, WithVarsRead};
+use crate::var::{context_var, impl_from_and_into_var, IntoVar, WithVars, WithVarsRead};
 use crate::{
     context::RenderContext,
     render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey},
