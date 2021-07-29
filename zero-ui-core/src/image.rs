@@ -5,7 +5,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt,
-    path::{Path, PathBuf},
+    path::PathBuf,
     rc::Rc,
     sync::Arc,
     time::{Duration, Instant},
@@ -22,6 +22,15 @@ use crate::{
 use image::DynamicImage;
 use webrender::api::*;
 
+/// Key for a cached image in [`Images`].
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum ImageCacheKey {
+    /// A path to an image file.
+    Path(PathBuf),
+    /// A uri to an image resource.
+    Uri(http::Uri),
+}
+
 /// The [`Image`] cache service.
 ///
 /// # Cache
@@ -33,99 +42,84 @@ use webrender::api::*;
 #[derive(Service)]
 pub struct Images {
     proxies: Vec<Box<dyn ImageCacheProxy>>,
-    file_cache: HashMap<PathBuf, Image>,
-    uri_cache: HashMap<http::Uri, Image>,
+    cache: HashMap<ImageCacheKey, Image>,
     config: ImageCacheConfig,
 }
 impl Images {
     fn new() -> Self {
         Self {
             proxies: vec![],
-            file_cache: HashMap::new(),
-            uri_cache: HashMap::new(),
+            cache: HashMap::new(),
             config: ImageCacheConfig::default(),
         }
     }
 
-    /// Gets a cached image loaded from a `file`.
-    pub fn get_file(&mut self, file: impl Into<PathBuf>) -> Image {
-        let file = file.into();
-        match self.proxy_get(|p| p.get_file(&file)) {
-            ProxyGetResult::None => self.cache_file(file),
-            ProxyGetResult::CacheFile(f) => self.cache_file(f),
-            ProxyGetResult::CacheUri(u) => self.cache_uri(u),
+    /// Gets a cached image loaded from a path or uri.
+    pub fn get(&mut self, key: ImageCacheKey) -> Image {
+        match self.proxy_get(&key) {
+            ProxyGetResult::None => self.cache(key),
+            ProxyGetResult::Cache(k) => self.cache(k),
             ProxyGetResult::Image(r) => r,
         }
     }
-    fn cache_file(&mut self, file: PathBuf) -> Image {
-        if let Some(img) = self.file_cache.get(&file) {
-            img.clone()
-        } else {
-            self.cache_collect();
-
-            let img = Image::from_file(file.clone());
-            self.file_cache.insert(file, img.clone());
-            img
-        }
+    fn cache(&mut self, key: ImageCacheKey) -> Image {
+        self.cache_collect();
+        self.cache
+            .entry(key)
+            .or_insert_with_key(|k| {                
+                match k {
+                    ImageCacheKey::Path(p) => Image::from_file(p.clone()),
+                    ImageCacheKey::Uri(u) => Image::from_uri(u.clone()),
+                }
+            })
+            .clone()
     }
-
-    /// Gets a cached image downloaded from a `uri`.
-    pub fn get_uri(&mut self, uri: impl TryUri) -> Image {
-        match uri.try_into() {
-            Ok(uri) => match self.proxy_get(|p| p.get_uri(&uri)) {
-                ProxyGetResult::None => self.cache_uri(uri),
-                ProxyGetResult::CacheFile(f) => self.cache_file(f),
-                ProxyGetResult::CacheUri(u) => self.cache_uri(u),
-                ProxyGetResult::Image(r) => r,
-            },
-            Err(e) => Image::from_error(Arc::new(e)),
-        }
-    }
-    fn cache_uri(&mut self, uri: http::Uri) -> Image {
-        if let Some(img) = self.uri_cache.get(&uri) {
-            img.clone()
-        } else {
-            self.cache_collect();
-
-            let img = Image::from_uri(uri.clone());
-            self.uri_cache.insert(uri, img.clone());
-            img
-        }
-    }
-
     fn cache_collect(&mut self) {
         // TODO free cache if needed.
         self.clean_cache();
     }
 
-    /// Remove the file from the cache, if it is only held by the cache.
-    pub fn clean_file(&mut self, file: &Path) -> Option<Image> {
-        self.remove_file(file, false)
+    /// Gets a cached image loaded from a `file`.
+    pub fn get_file(&mut self, file: impl Into<PathBuf>) -> Image {
+        let key = ImageCacheKey::Path(file.into());
+        self.get(key)
     }
 
-    /// Remove the file from the cache, even if it is still referenced outside of the cache.
+    /// Gets a cached image downloaded from a `uri`.
+    pub fn get_uri(&mut self, uri: impl TryUri) -> Image {
+        match uri.try_into() {
+            Ok(uri) => self.get(ImageCacheKey::Uri(uri)),
+            Err(e) => Image::from_error(Arc::new(e)),
+        }
+    }
+
+    /// Remove entry from the cache, if it is only held by the cache.
+    pub fn clean_entry(&mut self, key: ImageCacheKey) -> Option<Image> {
+        self.remove(key, false)
+    }
+
+    /// Remove key from the cache, even if it is still referenced outside of the cache.
     ///
     /// Returns `Some(img)` if the image was cached, and you can use [`Image::strong_count`] to determinate
-    /// if dropping the image will remove if from memory.
-    pub fn purge_file(&mut self, file: &Path) -> Option<Image> {
-        self.remove_file(file, true)
+    /// if dropping the image will remove it from memory.
+    pub fn purge_entry(&mut self, key: ImageCacheKey) -> Option<Image> {
+        self.remove(key, true)
     }
 
-    fn remove_file(&mut self, file: &Path, purge: bool) -> Option<Image> {
-        match self.proxy_remove(|p| p.remove_file(file, purge)) {
-            ProxyRemoveResult::None => self.cache_remove_file(file, purge),
-            ProxyRemoveResult::RemoveFile(f, purge) => self.cache_remove_file(&f, purge),
-            ProxyRemoveResult::RemoveUri(u, purge) => self.cache_remove_uri(&u, purge),
+    fn remove(&mut self, key: ImageCacheKey, purge: bool) -> Option<Image> {
+        match self.proxy_remove(&key, purge) {
+            ProxyRemoveResult::None => self.cache_remove(key, purge),
+            ProxyRemoveResult::Remove(k, purge) => self.cache_remove(k, purge),
             ProxyRemoveResult::Removed(r) => r,
         }
     }
 
-    fn cache_remove_file(&mut self, file: &Path, purge: bool) -> Option<Image> {
+    fn cache_remove(&mut self, key: ImageCacheKey, purge: bool) -> Option<Image> {
         if purge {
-            self.file_cache.remove(file)
-        } else if let Some(img) = self.file_cache.get(file) {
-            if img.strong_count() == 1 {
-                self.file_cache.remove(file)
+            self.cache.remove(&key)
+        } else if let std::collections::hash_map::Entry::Occupied(e) = self.cache.entry(key) {
+            if e.get().strong_count() == 1 {
+                Some(e.remove_entry().1)
             } else {
                 None
             }
@@ -134,61 +128,17 @@ impl Images {
         }
     }
 
-    /// Remove the download file from the cache, if it is only held by the cache.
-    pub fn clean_uri(&mut self, uri: &http::Uri) -> Option<Image> {
-        self.remove_uri(uri, false)
-    }
-
-    /// Remove the download file from the cache, even if it is still referenced outside of the cache.
+    /// Associate the `image` with the `key` in the cache.
     ///
-    /// Returns `Some(img)` if the image was cached, and you can use [`Image::strong_count`] to determinate
-    /// if dropping the image will remove if from memory.
-    pub fn purge_uri(&mut self, uri: &http::Uri) -> Option<Image> {
-        self.remove_uri(uri, true)
-    }
-
-    fn remove_uri(&mut self, uri: &http::Uri, purge: bool) -> Option<Image> {
-        match self.proxy_remove(|p| p.remove_uri(uri, purge)) {
-            ProxyRemoveResult::None => self.cache_remove_uri(uri, purge),
-            ProxyRemoveResult::RemoveFile(f, purge) => self.cache_remove_file(&f, purge),
-            ProxyRemoveResult::RemoveUri(u, purge) => self.cache_remove_uri(&u, purge),
-            ProxyRemoveResult::Removed(r) => r,
-        }
-    }
-    fn cache_remove_uri(&mut self, uri: &http::Uri, purge: bool) -> Option<Image> {
-        if purge {
-            self.uri_cache.remove(uri)
-        } else if let Some(img) = self.uri_cache.get(uri) {
-            if img.strong_count() == 1 {
-                self.uri_cache.remove(uri)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Associate the `image` with the `file` in the cache.
-    ///
-    /// Returns `Some(previous)` if the `file` was already associated with an image.
+    /// Returns `Some(previous)` if the `key` was already associated with an image.
     #[inline]
-    pub fn register_file(&mut self, file: impl Into<PathBuf>, image: Image) -> Option<Image> {
-        self.file_cache.insert(file.into(), image)
-    }
-
-    /// Associate the `image` with the `uri` in the cache.
-    ///
-    /// Returns `Some(previous)` if the `uri` was already associated with an image.
-    #[inline]
-    pub fn register_uri(&mut self, uri: http::Uri, image: Image) -> Option<Image> {
-        self.uri_cache.insert(uri, image)
+    pub fn register_entry(&mut self, key: ImageCacheKey, image: Image) -> Option<Image> {
+        self.cache.insert(key, image)
     }
 
     /// Clear cached images that are not referenced outside of the cache.
     pub fn clean_cache(&mut self) {
-        self.file_cache.retain(|_, img| img.strong_count() > 1);
-        self.uri_cache.retain(|_, img| img.strong_count() > 1);
+        self.cache.retain(|_, img| img.strong_count() > 1);
         self.proxies.iter_mut().for_each(|p| p.clear(false));
     }
 
@@ -197,8 +147,7 @@ impl Images {
     /// Image memory only drops when all strong references are removed, so if an image is referenced
     /// outside of the cache it will merely be disconnected from the cache by this method.
     pub fn purge_cache(&mut self) {
-        self.file_cache.clear();
-        self.uri_cache.clear();
+        self.cache.clear();
         self.proxies.iter_mut().for_each(|p| p.clear(true));
     }
 
@@ -213,11 +162,7 @@ impl Images {
 
     /// Compute total number of loaded image bytes that are referenced by the cache.
     pub fn total_bytes(&mut self) -> u64 {
-        self.file_cache
-            .values()
-            .chain(self.uri_cache.values())
-            .map(|i| i.bytes_len() as u64)
-            .sum()
+        self.cache.values().map(|i| i.bytes_len() as u64).sum()
     }
 
     /// Compute the number of loaded image bytes that are held only by the cache.
@@ -226,9 +171,8 @@ impl Images {
     ///
     /// [`clean_cache`]: Self: clean_cache.
     pub fn cache_only_bytes(&mut self) -> u64 {
-        self.file_cache
+        self.cache
             .values()
-            .chain(self.uri_cache.values())
             .filter_map(|i| if i.strong_count() > 1 { Some(i.bytes_len() as u64) } else { None })
             .sum()
     }
@@ -239,18 +183,18 @@ impl Images {
     pub fn install_proxy(&mut self, proxy: Box<dyn ImageCacheProxy>) {
         self.proxies.push(proxy);
     }
-    fn proxy_get(&mut self, request: impl Fn(&mut Box<dyn ImageCacheProxy>) -> ProxyGetResult) -> ProxyGetResult {
+    fn proxy_get(&mut self, key: &ImageCacheKey) -> ProxyGetResult {
         for proxy in &mut self.proxies {
-            let r = request(proxy);
+            let r = proxy.get(key);
             if !matches!(r, ProxyGetResult::None) {
                 return r;
             }
         }
         ProxyGetResult::None
     }
-    fn proxy_remove(&mut self, request: impl Fn(&mut Box<dyn ImageCacheProxy>) -> ProxyRemoveResult) -> ProxyRemoveResult {
+    fn proxy_remove(&mut self, key: &ImageCacheKey, purge: bool) -> ProxyRemoveResult {
         for proxy in &mut self.proxies {
-            let r = request(proxy);
+            let r = proxy.remove(key, purge);
             if !matches!(r, ProxyRemoveResult::None) {
                 return r;
             }
@@ -295,27 +239,15 @@ impl Default for ImageCacheConfig {
 ///
 /// Implementers can intercept cache requests and redirect to another cache request or returns an image directly.
 pub trait ImageCacheProxy {
-    /// Intercept a file request.
-    fn get_file(&mut self, file: &Path) -> ProxyGetResult {
-        let _ = file;
-        ProxyGetResult::None
-    }
-
-    /// Intercept a download request.
-    fn get_uri(&mut self, uri: &http::Uri) -> ProxyGetResult {
-        let _ = uri;
+    /// Intercept a get request.
+    fn get(&mut self, key: &ImageCacheKey) -> ProxyGetResult {
+        let _ = key;
         ProxyGetResult::None
     }
 
     /// Intercept a remove request.
-    fn remove_file(&mut self, file: &Path, purge: bool) -> ProxyRemoveResult {
-        let _ = (file, purge);
-        ProxyRemoveResult::None
-    }
-
-    /// Intercept a remove request.
-    fn remove_uri(&mut self, uri: &http::Uri, purge: bool) -> ProxyRemoveResult {
-        let _ = (uri, purge);
+    fn remove(&mut self, key: &ImageCacheKey, purge: bool) -> ProxyRemoveResult {
+        let _ = (key, purge);
         ProxyRemoveResult::None
     }
 
@@ -330,10 +262,8 @@ pub enum ProxyGetResult {
     ///
     /// The cache checks other proxies and fulfills the request if no proxy intercepts.
     None,
-    /// Load and cache the file.
-    CacheFile(PathBuf),
-    /// Load and cache the Uri.
-    CacheUri(http::Uri),
+    /// Load and cache using the replacement key.
+    Cache(ImageCacheKey),
     /// Return the image instead of hitting the cache.
     Image(Image),
 }
@@ -344,14 +274,10 @@ pub enum ProxyRemoveResult {
     ///
     /// The cache checks other proxies and fulfills the request if no proxy intercepts.
     None,
-    /// Removes another cached file.
+    /// Removes another cached entry.
     ///
-    /// The `bool` indicates if the file should be purged.
-    RemoveFile(PathBuf, bool),
-    /// Removes another cached uri.
-    ///
-    /// The `bool` indicates if the file should be purged.
-    RemoveUri(http::Uri, bool),
+    /// The `bool` indicates if the entry should be purged.
+    Remove(ImageCacheKey, bool),
     /// Consider the request fulfilled.
     Removed(Option<Image>),
 }
