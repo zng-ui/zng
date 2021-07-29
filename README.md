@@ -1,4 +1,4 @@
-![License](https://img.shields.io/crates/l/zero-ui)
+![License](https://img.shields.io/github/license/zero-ui/zero-ui)
 [![Crates.io](https://img.shields.io/crates/v/zero-ui)](https://crates.io/crates/zero-ui)
 [![docs.rs](https://img.shields.io/docsrs/zero-ui)](https://docs.rs/zero-ui)
 
@@ -29,7 +29,7 @@ Then create your first window:
 ```rust
 use zero_ui::prelude::*;
 
-fn main() {
+fn run() {
     App::default().run_window(|_| {
         let size = var_from((800, 600));
         window! {
