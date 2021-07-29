@@ -7,7 +7,7 @@ error[E0433]: failed to resolve: could not find `__widget_macro` in `test_widget
 11 |     let _ = test_widget!();
    |             -------------- in this macro invocation
    |
-   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `test_widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: cannot find macro `not_a_thing` in this scope
  --> $DIR/widget_new_with_error2.rs:6:14

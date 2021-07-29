@@ -4,4 +4,4 @@ error: expected a macro_rules `$crate` path to this widget mod
 4 | #[widget]
   | ^^^^^^^^^
   |
-  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)

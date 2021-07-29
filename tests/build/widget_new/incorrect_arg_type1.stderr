@@ -2,12 +2,9 @@ error[E0277]: the trait bound `bool: IntoVar<SideOffsets>` is not satisfied
  --> $DIR/incorrect_arg_type1.rs:6:18
   |
 6 |         margin = true
-  |                  ^^^^ the trait `IntoVar<SideOffsets>` is not implemented for `bool`
+  |                  ^^^^
+  |                  |
+  |                  expected an implementor of trait `IntoVar<SideOffsets>`
+  |                  help: consider borrowing here: `&true`
   |
-  = help: the following implementations were found:
-            <bool as IntoVar<AutoSize>>
-            <bool as IntoVar<CaptureMode>>
-            <bool as IntoVar<FactorNormal>>
-            <bool as IntoVar<FontFeatureState>>
-          and 3 others
   = note: required by `margin_ArgsImpl::<T_margin>::new`

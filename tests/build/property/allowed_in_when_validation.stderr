@@ -47,7 +47,7 @@ error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement
    |
    = help: the trait `Debug` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
    = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
-   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
   --> $DIR/allowed_in_when_validation.rs:11:1
@@ -61,4 +61,4 @@ error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: C
    |                        -------- required by this bound in `OwnedVar`
    |
    = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
-   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)

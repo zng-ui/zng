@@ -2,12 +2,9 @@ error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
  --> $DIR/incorrect_arg_type3.rs:7:40
   |
 7 |         background_gradient = 0.deg(), true
-  |                                        ^^^^ the trait `IntoVar<GradientStops>` is not implemented for `bool`
+  |                                        ^^^^
+  |                                        |
+  |                                        expected an implementor of trait `IntoVar<GradientStops>`
+  |                                        help: consider borrowing here: `&true`
   |
-  = help: the following implementations were found:
-            <bool as IntoVar<AutoSize>>
-            <bool as IntoVar<CaptureMode>>
-            <bool as IntoVar<FactorNormal>>
-            <bool as IntoVar<FontFeatureState>>
-          and 3 others
   = note: required by `background_gradient_ArgsImpl::<T_axis, T_stops>::new`

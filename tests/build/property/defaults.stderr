@@ -42,7 +42,7 @@ note: associated function defined here
    | ||____________________________________________________________-______________________-
    |  |____________________________________________________________|
    |
-   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0061]: this function takes 2 arguments but 3 arguments were supplied
   --> $DIR/defaults.rs:27:28
@@ -64,7 +64,7 @@ note: associated function defined here
    | ||____________________________________________________________-______________________-
    |  |____________________________________________________________|
    |
-   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is not satisfied
   --> $DIR/defaults.rs:39:28
@@ -80,7 +80,7 @@ error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is no
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
              <&'static str as zero_ui::prelude::IntoVar<FontName>>
              <&'static str as zero_ui::prelude::IntoVar<FontNames>>
-           and 266 others
+           and 272 others
 
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:39:35
@@ -88,15 +88,9 @@ error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not sati
 39 | #[property(context, default(2555, true))]
    | ----------------------------------^^^^---
    | |                                 |
-   | |                                 the trait `zero_ui::prelude::IntoVar<u32>` is not implemented for `bool`
+   | |                                 expected an implementor of trait `zero_ui::prelude::IntoVar<u32>`
+   | |                                 help: consider borrowing here: `&true`
    | required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
-   |
-   = help: the following implementations were found:
-             <bool as zero_ui::prelude::IntoVar<AutoSize>>
-             <bool as zero_ui::prelude::IntoVar<CaptureMode>>
-             <bool as zero_ui::prelude::IntoVar<FactorNormal>>
-             <bool as zero_ui::prelude::IntoVar<FontFeatureState>>
-           and 3 others
 
 error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is not satisfied
   --> $DIR/defaults.rs:45:28
@@ -112,7 +106,7 @@ error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is no
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
              <&'static str as zero_ui::prelude::IntoVar<FontName>>
              <&'static str as zero_ui::prelude::IntoVar<FontNames>>
-           and 266 others
+           and 272 others
 
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
   --> $DIR/defaults.rs:45:41
@@ -120,12 +114,6 @@ error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not sati
 45 | #[property(context, default(a: 2555, b: true))]
    | ----------------------------------------^^^^---
    | |                                       |
-   | |                                       the trait `zero_ui::prelude::IntoVar<u32>` is not implemented for `bool`
+   | |                                       expected an implementor of trait `zero_ui::prelude::IntoVar<u32>`
+   | |                                       help: consider borrowing here: `&true`
    | required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
-   |
-   = help: the following implementations were found:
-             <bool as zero_ui::prelude::IntoVar<AutoSize>>
-             <bool as zero_ui::prelude::IntoVar<CaptureMode>>
-             <bool as zero_ui::prelude::IntoVar<FactorNormal>>
-             <bool as zero_ui::prelude::IntoVar<FontFeatureState>>
-           and 3 others

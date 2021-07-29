@@ -8,4 +8,4 @@ error[E0428]: the name `foo` is defined multiple times
   | ^^^^^^^^^^^^^^^^^^^^^^ `foo` redefined here
   |
   = note: `foo` must be defined only once in the type namespace of this module
-  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)

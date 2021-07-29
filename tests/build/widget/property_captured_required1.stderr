@@ -10,7 +10,7 @@ error: missing required property `foo`
 31 | |     };
    | |_____- in this macro invocation
    |
-   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `base_widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0433]: failed to resolve: use of undeclared crate or module `foo`
   --> $DIR/property_captured_required1.rs:38:9

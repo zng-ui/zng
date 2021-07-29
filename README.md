@@ -1,4 +1,4 @@
-![License](https://img.shields.io/github/license/zero-ui/zero-ui)
+[![License](https://img.shields.io/badge/License-Apache--2.0-informational)](https://choosealicense.com/licenses/apache-2.0/)
 [![Crates.io](https://img.shields.io/crates/v/zero-ui)](https://crates.io/crates/zero-ui)
 [![docs.rs](https://img.shields.io/docsrs/zero-ui)](https://docs.rs/zero-ui)
 

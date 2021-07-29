@@ -7,4 +7,4 @@ error: cannot instantiate widget mix-ins
 7 |     let _ = test_mixin!();
   |             ------------- in this macro invocation
   |
-  = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the macro `$crate::test_mixin::__widget_macro` (in Nightly builds, run with -Z macro-backtrace for more info)
