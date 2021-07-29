@@ -37,7 +37,11 @@ pub mod image {
         #[impl_ui_node(none)]
         impl<T: Var<Text>> UiNode for ImageNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.image = Some(Image::from_file(self.path.get_clone(ctx)))
+                let path = self.path.get_clone(ctx);
+                self.image = Some(ctx.services.images().get_file(path));
+            }
+            fn deinit(&mut self, _: &mut WidgetContext) {
+                self.image = None;
             }
             fn arrange(&mut self, _: &mut LayoutContext, final_size: LayoutSize) {
                 self.final_size = final_size;
@@ -61,7 +65,7 @@ pub mod image {
     ///
     /// Note that this properties are already available in the [`image!`] widget directly without the `image_` prefix.
     ///
-    /// [`image!`]: crate::widgets::image
+    /// [`image!`]: mod@crate::widgets::image
     pub mod properties {
         use super::*;
 

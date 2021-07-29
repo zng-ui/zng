@@ -3313,6 +3313,12 @@ pub mod http {
         Ok(r)
     }
 
+    /// Like [`get_bytes`] but checks a local disk cache first. TODO
+    pub async fn get_bytes_cached(uri: impl TryUri) -> Result<Vec<u8>, Error> {
+        log::warn!("get_bytes_cached is not implemented TODO");
+        get_bytes(uri).await
+    }
+
     /// Send a GET request to the `uri` and de-serializes the response.
     pub async fn get_json<O>(uri: impl TryUri) -> Result<O, Box<dyn std::error::Error>>
     where

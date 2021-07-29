@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -19,15 +20,22 @@ use crate::{
     },
 };
 use image::DynamicImage;
-use parking_lot::Mutex;
 use webrender::api::*;
 
 /// The [`Image`] cache service.
+///
+/// # Cache
+///
+/// The cache holds images in memory, configured TODO.
+///
+/// Image downloads are also cached in disk because the requests are
+/// made using [`http::get_bytes_cached`].
 #[derive(Service)]
 pub struct Images {
     proxies: Vec<Box<dyn ImageCacheProxy>>,
     file_cache: HashMap<PathBuf, Image>,
     uri_cache: HashMap<http::Uri, Image>,
+    config: ImageCacheConfig,
 }
 impl Images {
     fn new() -> Self {
@@ -35,6 +43,7 @@ impl Images {
             proxies: vec![],
             file_cache: HashMap::new(),
             uri_cache: HashMap::new(),
+            config: ImageCacheConfig::default(),
         }
     }
 
@@ -52,6 +61,8 @@ impl Images {
         if let Some(img) = self.file_cache.get(&file) {
             img.clone()
         } else {
+            self.cache_collect();
+
             let img = Image::from_file(file.clone());
             self.file_cache.insert(file, img.clone());
             img
@@ -67,17 +78,24 @@ impl Images {
                 ProxyGetResult::CacheUri(u) => self.cache_uri(u),
                 ProxyGetResult::Image(r) => r,
             },
-            Err(e) => Image::from_error(Box::new(e)),
+            Err(e) => Image::from_error(Arc::new(e)),
         }
     }
     fn cache_uri(&mut self, uri: http::Uri) -> Image {
         if let Some(img) = self.uri_cache.get(&uri) {
             img.clone()
         } else {
+            self.cache_collect();
+
             let img = Image::from_uri(uri.clone());
             self.uri_cache.insert(uri, img.clone());
             img
         }
+    }
+
+    fn cache_collect(&mut self) {
+        // TODO free cache if needed.
+        self.clean_cache();
     }
 
     /// Remove the file from the cache, if it is only held by the cache.
@@ -184,6 +202,37 @@ impl Images {
         self.proxies.iter_mut().for_each(|p| p.clear(true));
     }
 
+    /// Cache configuration.
+    ///
+    /// The cache automatically cleans-up old entries when a memory threshold is reached, this
+    /// cleanup is configured by the values in [`ImageCacheConfig`].
+    #[inline]
+    pub fn config(&mut self) -> &mut ImageCacheConfig {
+        &mut self.config
+    }
+
+    /// Compute total number of loaded image bytes that are referenced by the cache.
+    pub fn total_bytes(&mut self) -> u64 {
+        self.file_cache
+            .values()
+            .chain(self.uri_cache.values())
+            .map(|i| i.bytes_len() as u64)
+            .sum()
+    }
+
+    /// Compute the number of loaded image bytes that are held only by the cache.
+    ///
+    /// This is roughly the memory that is freed if [`clean_cache`] is called.
+    ///
+    /// [`clean_cache`]: Self: clean_cache.
+    pub fn cache_only_bytes(&mut self) -> u64 {
+        self.file_cache
+            .values()
+            .chain(self.uri_cache.values())
+            .filter_map(|i| if i.strong_count() > 1 { Some(i.bytes_len() as u64) } else { None })
+            .sum()
+    }
+
     /// Add a cache proxy.
     ///
     /// Proxies can intercept cache requests and map to a different request or return an image directly.
@@ -207,6 +256,38 @@ impl Images {
             }
         }
         ProxyRemoveResult::None
+    }
+}
+
+/// Configuration of the [`Images`] cache.
+///
+/// Cache cleanup removes images that are only alive because the cache is holding then.
+///
+/// The candidate entry attributes are normalized in between all candidates, weighted by this config
+/// and sum is the priority of the image. Higher priority is more likely to stay in the cache.
+#[derive(Debug, Clone)]
+pub struct ImageCacheConfig {
+    /// Maximum memory in bytes that can be held exclusively by
+    /// the cache before it starts dropping images.
+    ///
+    /// By default is 100 mebibytes.
+    pub memory_threshold: usize,
+
+    /// Priority weight given to the number of requests for the image.
+    pub popularity_weight: f32,
+    /// Priority weight given to the byte size of the image.
+    pub size_weight: f32,
+    /// Priority weight given to the time it took to load the image.
+    pub time_weight: f32,
+}
+impl Default for ImageCacheConfig {
+    fn default() -> Self {
+        ImageCacheConfig {
+            memory_threshold: 1024 * 1024 * 100,
+            popularity_weight: 1.0,
+            size_weight: 0.1,
+            time_weight: 2.0,
+        }
     }
 }
 
@@ -303,7 +384,7 @@ impl AppExtension for ImageManager {
 /// the image data is dropped, including image data in renderers.
 #[derive(Clone)]
 pub struct Image {
-    state: Arc<Mutex<ImageState>>,
+    state: Rc<RefCell<ImageState>>,
     render_keys: Rc<RefCell<Vec<RenderImage>>>,
 }
 impl fmt::Debug for Image {
@@ -315,13 +396,15 @@ impl Image {
     /// Start loading an image file.
     pub fn from_file(file: impl Into<PathBuf>) -> Self {
         let file = file.into();
-        let state = Arc::new(Mutex::new(ImageState::Loading));
-        task::spawn_wait(clone_move!(state, || {
-            *state.lock() = match image::open(file) {
-                Ok(img) => Self::decoded_to_state(img),
-                Err(e) => ImageState::Error(Box::new(e)),
-            }
-        }));
+        let (sender, state) = ImageState::new_loading();
+        task::spawn_wait(move || {
+            let start_time = Instant::now();
+            let r: Result<_, LoadingError> = match image::open(file) {
+                Ok(img) => Ok(Self::decoded_to_state(img, start_time)),
+                Err(e) => Err(Arc::new(e)),
+            };
+            let _ = sender.send(r);
+        });
         Image {
             state,
             render_keys: Rc::default(),
@@ -332,16 +415,18 @@ impl Image {
     pub fn from_uri(uri: impl TryUri) -> Self {
         let state = match uri.try_into() {
             Ok(uri) => {
-                let state = Arc::new(Mutex::new(ImageState::Loading));
-                task::spawn(async_clone_move!(state, {
-                    *state.lock() = match Self::download_image(uri).await {
-                        Ok(img) => Self::decoded_to_state(img),
-                        Err(e) => ImageState::Error(e),
-                    }
-                }));
+                let (sender, state) = ImageState::new_loading();
+                task::spawn(async move {
+                    let start_time = Instant::now();
+                    let r: Result<_, LoadingError> = match Self::download_image(uri).await {
+                        Ok(img) => Ok(Self::decoded_to_state(img, start_time)),
+                        Err(e) => Err(Arc::new(e)),
+                    };
+                    let _ = sender.send(r);
+                });
                 state
             }
-            Err(e) => Arc::new(Mutex::new(ImageState::Error(Box::new(e)))),
+            Err(e) => Rc::new(RefCell::new(ImageState::Error(Arc::new(e)))),
         };
         Image {
             state,
@@ -349,13 +434,16 @@ impl Image {
         }
     }
 
-    /// Create a loaded image.
+    /// Create an image from an image buffer.
     ///
     /// The internal format is BGRA8 with pre-multiplied alpha, all other formats will be converted and if the
     /// format has an alpha component it will be pre-multiplied.
-    pub async fn from_decoded(image: DynamicImage) -> Self {
-        let state = task::run(async move { Arc::new(Mutex::new(Self::decoded_to_state(image))) }).await;
-
+    pub fn from_decoded(image: DynamicImage) -> Self {
+        let (sender, state) = ImageState::new_loading();
+        task::spawn(async move {
+            let loaded = Self::decoded_to_state(image, Instant::now());
+            let _ = sender.send(Ok(loaded));
+        });
         Image {
             state,
             render_keys: Rc::default(),
@@ -367,7 +455,7 @@ impl Image {
     /// The `is_opaque` argument indicates if the `image` is fully opaque, with all alpha values equal to `255`.
     pub fn from_premultiplied(image: image::ImageBuffer<image::Bgra<u8>, Vec<u8>>, is_opaque: bool) -> Self {
         let (width, height) = image.dimensions();
-        let state = Arc::new(Mutex::new(ImageState::Loaded {
+        let state = Rc::new(RefCell::new(ImageState::Loaded(LoadedImage {
             descriptor: ImageDescriptor::new(
                 width as i32,
                 height as i32,
@@ -379,7 +467,8 @@ impl Image {
                 },
             ),
             data: ImageData::Raw(Arc::new(image.into_raw())),
-        }));
+            time: Duration::ZERO,
+        })));
 
         Image {
             state,
@@ -397,7 +486,7 @@ impl Image {
     pub fn from_raw(bgra: Arc<Vec<u8>>, width: u32, height: u32, is_opaque: bool) -> Self {
         assert_eq!(bgra.len(), width as usize * height as usize * 4);
 
-        let state = Arc::new(Mutex::new(ImageState::Loaded {
+        let state = Rc::new(RefCell::new(ImageState::Loaded(LoadedImage {
             descriptor: ImageDescriptor::new(
                 width as i32,
                 height as i32,
@@ -409,7 +498,8 @@ impl Image {
                 },
             ),
             data: ImageData::Raw(bgra),
-        }));
+            time: Duration::ZERO,
+        })));
         Image {
             state,
             render_keys: Rc::default(),
@@ -417,16 +507,33 @@ impl Image {
     }
 
     /// Create an *image* in the the error state with `load_error` representing the error.
-    pub fn from_error(load_error: Box<dyn Error + Send + Sync>) -> Self {
+    pub fn from_error(load_error: LoadingError) -> Self {
         Image {
-            state: Arc::new(Mutex::new(ImageState::Error(load_error))),
+            state: Rc::new(RefCell::new(ImageState::Error(load_error))),
             render_keys: Rc::default(),
         }
     }
 
     /// Returns the loaded image data as a tuple of `(bgra, width, height, is_opaque)`.
     pub fn as_raw(&self) -> Option<(Arc<Vec<u8>>, u32, u32, bool)> {
-        todo!()
+        if self.state.borrow_mut().load() {
+            if let ImageState::Loaded(s) = &*self.state.borrow() {
+                let bgra = match &s.data {
+                    ImageData::Raw(b) => Arc::clone(b),
+                    ImageData::External(_) => unreachable!(),
+                };
+                Some((
+                    bgra,
+                    s.descriptor.size.width as u32,
+                    s.descriptor.size.height as u32,
+                    s.descriptor.is_opaque(),
+                ))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
     /// Returns the number of strong references to this image.
@@ -441,7 +548,7 @@ impl Image {
     /// Weak references do not hold the image in memory but can be used to reacquire the [`Image`].
     pub fn downgrade(&self) -> WeakImage {
         WeakImage {
-            state: Arc::downgrade(&self.state),
+            state: Rc::downgrade(&self.state),
             render_keys: Rc::downgrade(&self.render_keys),
         }
     }
@@ -452,7 +559,83 @@ impl Image {
         Rc::ptr_eq(&self.render_keys, &other.render_keys)
     }
 
-    fn decoded_to_state(image: DynamicImage) -> ImageState {
+    /// Number of BGRA bytes held in memory by this image.
+    ///
+    /// Returns `0` if the image is not loaded or did not load due to an error.
+    #[inline]
+    pub fn bytes_len(&self) -> usize {
+        if !self.is_loaded() {
+            return 0;
+        }
+
+        if let ImageState::Loaded(s) = &*self.state.borrow() {
+            match &s.data {
+                ImageData::Raw(b) => b.len(),
+                ImageData::External(_) => unreachable!(),
+            }
+        } else {
+            0
+        }
+    }
+
+    /// Returns `true` is the image has finished loading or encountered an error.
+    pub fn is_loaded(&self) -> bool {
+        self.state.borrow_mut().load()
+    }
+
+    /// Returns `true` if the image has finished loading with an error.
+    pub fn is_error(&self) -> bool {
+        self.is_loaded() && matches!(&*self.state.borrow(), ImageState::Error(_))
+    }
+
+    /// Returns the loading error if any happened.
+    pub fn error(&self) -> Option<LoadingError> {
+        if self.is_loaded() {
+            if let ImageState::Error(e) = &*self.state.borrow() {
+                Some(Arc::clone(e))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Gets the `(width, height)` in pixels of the image.
+    ///
+    /// Returns `(0, 0)` if the image is not loaded.
+    pub fn pixel_size(&self) -> (u32, u32) {
+        if !self.is_loaded() {
+            return (0, 0);
+        }
+        if let ImageState::Loaded(s) = &*self.state.borrow() {
+            (s.descriptor.size.width as u32, s.descriptor.size.height as u32)
+        } else {
+            (0, 0)
+        }
+    }
+
+    /// Gets the `(dpiX, dpiY)` pixel scaling metadata of the image.
+    pub fn dpi(&self) -> (f32, f32) {
+        // TODO
+        (96.0, 96.0)
+    }
+
+    /// Time from image request to loaded.
+    #[inline]
+    pub fn load_time(&self) -> Option<Duration> {
+        if !self.is_loaded() {
+            return None;
+        }
+
+        if let ImageState::Loaded(s) = &*self.state.borrow() {
+            Some(s.time)
+        } else {
+            None
+        }
+    }
+
+    fn decoded_to_state(image: DynamicImage, start_time: Instant) -> LoadedImage {
         // convert to pre-multiplied BGRA, WebRender converts to this format internally if we don't
 
         let mut opaque = true;
@@ -580,7 +763,7 @@ impl Image {
             ),
         };
 
-        ImageState::Loaded {
+        LoadedImage {
             descriptor: ImageDescriptor::new(
                 width as i32,
                 height as i32,
@@ -592,12 +775,20 @@ impl Image {
                 },
             ),
             data: ImageData::Raw(Arc::new(bgra)),
+            time: Instant::now().duration_since(start_time),
         }
     }
 
-    async fn download_image(uri: task::http::Uri) -> Result<DynamicImage, Box<dyn Error + Send + Sync>> {
-        let r = task::http::get_bytes(uri).await?;
-        let img = image::load_from_memory(&r)?;
+    async fn download_image(uri: task::http::Uri) -> Result<DynamicImage, LoadingError> {
+        // map_err did not work here
+        let r = match task::http::get_bytes_cached(uri).await {
+            Ok(r) => r,
+            Err(e) => return Err(Arc::new(e)),
+        };
+        let img = match image::load_from_memory(&r) {
+            Ok(r) => r,
+            Err(e) => return Err(Arc::new(e)),
+        };
         Ok(img)
     }
 
@@ -606,10 +797,10 @@ impl Image {
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter_mut() {
             if r.key.0 == namespace {
-                if !r.loaded {
-                    if let ImageState::Loaded { descriptor, data } = &*self.state.lock() {
-                        r.loaded = true;
-                        Self::load_image(api, r.key, *descriptor, data.clone())
+                if !r.loaded && self.state.borrow_mut().load() {
+                    r.loaded = true;
+                    if let ImageState::Loaded(s) = &*self.state.borrow() {
+                        Self::load_image(api, r.key, s.descriptor, s.data.clone())
                     }
                 }
                 return r.key;
@@ -618,10 +809,11 @@ impl Image {
 
         let key = api.generate_image_key();
 
-        let mut loaded = false;
-        if let ImageState::Loaded { descriptor, data } = &*self.state.lock() {
-            loaded = true;
-            Self::load_image(api, key, *descriptor, data.clone())
+        let loaded = self.state.borrow_mut().load();
+        if loaded {
+            if let ImageState::Loaded(s) = &*self.state.borrow() {
+                Self::load_image(api, key, s.descriptor, s.data.clone())
+            }
         }
 
         keys.push(RenderImage {
@@ -645,10 +837,47 @@ impl crate::render::Image for Image {
     }
 }
 enum ImageState {
-    Loading,
-    Loaded { descriptor: ImageDescriptor, data: ImageData },
-    Error(Box<dyn Error + Send + Sync>),
+    Loading(flume::Receiver<Result<LoadedImage, LoadingError>>),
+    Loaded(LoadedImage),
+    Error(LoadingError),
 }
+impl ImageState {
+    fn new_loading() -> (flume::Sender<Result<LoadedImage, LoadingError>>, Rc<RefCell<ImageState>>) {
+        let (sender, recv) = flume::bounded(1);
+        (sender, Rc::new(RefCell::new(ImageState::Loading(recv))))
+    }
+
+    /// Returns `true` if the state is loaded or error.
+    fn load(&mut self) -> bool {
+        if let ImageState::Loading(recv) = self {
+            match recv.try_recv() {
+                Ok(r) => {
+                    match r {
+                        Ok(img) => *self = ImageState::Loaded(img),
+                        Err(e) => *self = ImageState::Error(e),
+                    }
+                    true
+                }
+                Err(e) => match e {
+                    flume::TryRecvError::Empty => false,
+                    flume::TryRecvError::Disconnected => {
+                        *self = ImageState::Error(Arc::new(flume::TryRecvError::Disconnected));
+                        true
+                    }
+                },
+            }
+        } else {
+            true
+        }
+    }
+}
+struct LoadedImage {
+    descriptor: ImageDescriptor,
+    data: ImageData,
+    time: Duration,
+}
+type LoadingError = Arc<dyn Error + Send + Sync>;
+
 struct RenderImage {
     api: std::sync::Weak<RenderApi>,
     key: ImageKey,
@@ -669,9 +898,11 @@ impl Drop for RenderImage {
 /// This weak reference does not hold the image in memory, but you can call [`upgrade`]
 /// to attempt to reacquire the image, if it is still in memory.
 ///
+/// Use [`Image::downgrade`] to create an weak image reference.
+///
 /// [`upgrade`]: WeakImage::upgrade
 pub struct WeakImage {
-    state: std::sync::Weak<Mutex<ImageState>>,
+    state: std::rc::Weak<RefCell<ImageState>>,
     render_keys: std::rc::Weak<RefCell<Vec<RenderImage>>>,
 }
 impl WeakImage {
