@@ -23,7 +23,7 @@ use image::DynamicImage;
 use webrender::api::*;
 
 /// Key for a cached image in [`Images`].
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum ImageCacheKey {
     /// A path to an image file.
     Path(PathBuf),
@@ -66,11 +66,9 @@ impl Images {
         self.cache_collect();
         self.cache
             .entry(key)
-            .or_insert_with_key(|k| {                
-                match k {
-                    ImageCacheKey::Path(p) => Image::from_file(p.clone()),
-                    ImageCacheKey::Uri(u) => Image::from_uri(u.clone()),
-                }
+            .or_insert_with_key(|k| match k {
+                ImageCacheKey::Path(p) => Image::from_file(p.clone()),
+                ImageCacheKey::Uri(u) => Image::from_uri(u.clone()),
             })
             .clone()
     }

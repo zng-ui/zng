@@ -2,7 +2,35 @@ use crate::prelude::new_widget::*;
 
 #[widget($crate::widgets::image)]
 pub mod image {
+    use zero_ui_core::image::ImageCacheKey;
+
     use super::*;
+    use crate::core::task::http::Uri;
+    use std::path::PathBuf;
+
+    #[derive(Clone, Debug)]
+    pub enum ImageSource {
+        Read(PathBuf),
+        Download(Uri),
+        Image(Image),
+    }
+    impl_from_and_into_var! {
+        fn from(image: Image) -> ImageSource {
+            ImageSource::Image(image)
+        }
+        fn from(path: PathBuf) -> ImageSource {
+            ImageSource::Read(path)
+        }
+        fn from(uri: Uri) -> ImageSource {
+            ImageSource::Download(uri)
+        }
+        fn from(key: ImageCacheKey) -> ImageSource {
+            match key {
+                ImageCacheKey::Path(path) => ImageSource::Read(path),
+                ImageCacheKey::Uri(uri)  => ImageSource::Download(uri)
+            }
+        }
+    }
 
     properties! {
         child {

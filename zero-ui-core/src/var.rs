@@ -1241,3 +1241,6 @@ use crate::text::{Text, ToText};
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::expr_var as __expr_var;
+
+#[doc(inline)]
+pub use crate::impl_from_and_into_var;

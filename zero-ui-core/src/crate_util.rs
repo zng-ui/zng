@@ -77,7 +77,8 @@ macro_rules! unique_id {
     };
 }
 
-/// Implements From and IntoVar without boilerplate.
+///<span data-inline></span> Implements From and IntoVar without boilerplate.
+#[macro_export]
 macro_rules! impl_from_and_into_var {
     ($(
         $(#[$docs:meta])*
