@@ -4000,7 +4000,7 @@ pub mod tests {
             } = &e
             {
                 assert!(*bytes_written > 0);
-                assert_eq!("test panic", panic_str(&panic_payload))
+                assert_eq!("test panic", panic_str(panic_payload))
             } else {
                 panic!("expected WriteTaskError::Panic")
             }

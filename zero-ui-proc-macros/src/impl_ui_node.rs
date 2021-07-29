@@ -124,7 +124,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         for (manual_impl, level) in node_items.iter().zip(node_items_missing_del_level.into_iter()) {
             let mut validator = DelegateValidator::new(manual_impl);
 
-            if level == util::LintLevel::Allow || skip.contains(&validator.ident) {
+            if level == util::LintLevel::Allow || skip.contains(validator.ident) {
                 continue;
             }
 

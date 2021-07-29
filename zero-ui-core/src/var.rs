@@ -875,11 +875,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
             let to_var = other_var.clone();
             vars.bind(move |vars, info| {
                 if let Some(new_value) = from_var.get_new(vars) {
-                    let new_value = map(&info, new_value);
+                    let new_value = map(info, new_value);
                     let _ = to_var.set(vars, new_value);
                 }
                 if let Some(new_value) = to_var.get_new(vars) {
-                    let new_value = map_back(&info, new_value);
+                    let new_value = map_back(info, new_value);
                     let _ = from_var.set(vars, new_value);
                 }
             })
@@ -918,7 +918,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
             let to_var = to_var.clone();
             vars.bind(move |vars, info| {
                 if let Some(new_value) = from_var.get_new(vars) {
-                    if let Some(new_value) = map(&info, new_value) {
+                    if let Some(new_value) = map(info, new_value) {
                         let _ = to_var.set(vars, new_value);
                     }
                 }
@@ -1034,7 +1034,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
                     }
                 }
                 if let Some(new_value) = to_var.get_new(vars) {
-                    if let Some(new_value) = map_back(&info, new_value) {
+                    if let Some(new_value) = map_back(info, new_value) {
                         let _ = from_var.set(vars, new_value);
                     }
                 }

@@ -538,11 +538,11 @@ impl<'a, 'w> AppContext<'a, 'w> {
         f(&mut LayoutContext {
             metrics: &LayoutMetrics::new(screen_size, 14.0).with_pixel_grid(PixelGrid::new(scale_factor)),
             path: &mut WidgetContextPath::new(window_id, root_id),
-            app_state: &mut self.app_state,
+            app_state: self.app_state,
             window_state: &mut StateMap::new(),
             widget_state: &mut StateMap::new(),
             update_state: &mut StateMap::new(),
-            vars: &self.vars,
+            vars: self.vars,
         })
     }
 }
@@ -635,7 +635,7 @@ impl<'a> WindowContext<'a> {
             widget_state: &mut widget_state.0,
             update_state: self.update_state,
 
-            vars: &self.vars,
+            vars: self.vars,
         })
     }
 
@@ -648,7 +648,7 @@ impl<'a> WindowContext<'a> {
             window_state: self.window_state,
             widget_state: &widget_state.0,
             update_state: self.update_state,
-            vars: &self.vars,
+            vars: self.vars,
         })
     }
 }

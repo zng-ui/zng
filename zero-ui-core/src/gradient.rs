@@ -770,9 +770,9 @@ impl GradientStops {
         // length that must be split between positional stops.
         let (start_offset, layout_length) = {
             // index of stop after the sequence that has a calculated offset.
-            let sequence_ender = (range.end..render_stops.len()).find(|i| !hints.contains(&i)).unwrap();
+            let sequence_ender = (range.end..render_stops.len()).find(|i| !hints.contains(i)).unwrap();
             // index of stop before the sequence that has a calculated offset.
-            let sequence_starter = (0..range.start).rev().find(|i| !hints.contains(&i)).unwrap();
+            let sequence_starter = (0..range.start).rev().find(|i| !hints.contains(i)).unwrap();
 
             let start_offset = render_stops[sequence_starter].offset;
             let length = render_stops[sequence_ender].offset - start_offset;

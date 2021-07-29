@@ -1818,7 +1818,7 @@ impl OpenWindow {
                 })
                 .expect("failed to create a window renderer");
 
-                api = Some(Arc::clone(&r.0.api()));
+                api = Some(Arc::clone(r.0.api()));
                 renderer = Some(RefCell::new(r.0));
 
                 let window_ = r.1;

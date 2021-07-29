@@ -163,7 +163,7 @@ impl Font {
         let mut max_line_x = 0.0;
         let ppem = self.size().get().round() as u16;
 
-        let mut face = rustybuzz::Face::from_slice(&self.face().bytes(), self.face().index()).unwrap();
+        let mut face = rustybuzz::Face::from_slice(self.face().bytes(), self.face().index()).unwrap();
         face.set_pixels_per_em(Some((ppem, ppem)));
         face.set_points_per_em(None); // TODO?
         face.set_variations(self.variations());

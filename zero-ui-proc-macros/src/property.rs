@@ -1006,7 +1006,7 @@ mod output {
                     let mut lid = lid.clone();
                     lid.set_span(ty.span());
                     quote_spanned! {ty.span()=>
-                        {
+                        #[allow(clippy::needless_borrow)] {
                             use #crate_core::debug::debug_var_util::*;
                             (&&&&Wrap(#lid)).debug_var()
                         },

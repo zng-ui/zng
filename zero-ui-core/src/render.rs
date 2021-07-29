@@ -2004,7 +2004,7 @@ impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescen
 
     fn next(&mut self) -> Option<Self::Item> {
         use ego_tree::iter::Edge;
-
+        #[allow(clippy::while_let_on_iterator)] // false positive https://github.com/rust-lang/rust-clippy/issues/7510
         while let Some(edge) = self.traverse.next() {
             if let Edge::Open(node) = edge {
                 let widget = WidgetInfo::new(self.frame, node.id());

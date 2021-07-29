@@ -842,7 +842,7 @@ impl Events {
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate, handle: &dyn AppWeakHandle| {
             if let Some(args) = event.update(args) {
                 if !args.stop_propagation_requested() {
-                    handler.event(ctx, &args, &AppHandlerArgs { handle, is_preview });
+                    handler.event(ctx, args, &AppHandlerArgs { handle, is_preview });
                 }
             }
         };

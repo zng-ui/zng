@@ -400,7 +400,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     _ => {
                         let error = format!(
                             "property `{}` is not assigned and has no default value",
-                            util::display_path(&property)
+                            util::display_path(property)
                         );
 
                         let property_path = match property.get_ident() {
@@ -411,7 +411,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             _ => property.to_token_stream(),
                         };
 
-                        property_inits.extend(quote_spanned! {util::path_span(&property)=>
+                        property_inits.extend(quote_spanned! {util::path_span(property)=>
                             #property_path::code_gen!{
                                 if !default=>
                                 std::compile_error!{#error}

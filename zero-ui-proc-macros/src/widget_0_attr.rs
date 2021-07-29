@@ -100,6 +100,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         mut others,
     } = WidgetItems::new(items, &mut errors);
 
+    #[allow(clippy::needless_collect)] // false positive, see https://github.com/rust-lang/rust-clippy/issues/7512
     let whens: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.whens)).collect();
     let removes: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.removes)).collect();
     let mut child_properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.child_properties)).collect();

@@ -545,7 +545,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let mut assigns_tt = TokenStream::default();
             let mut defaults_tt = TokenStream::default();
             for BuiltWhenAssign { property, cfg, value_fn } in assigns {
-                if properties_remove.contains(&property) {
+                if properties_remove.contains(property) {
                     continue; // inherited was removed.
                 }
 

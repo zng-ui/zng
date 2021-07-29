@@ -902,6 +902,7 @@ pub mod debug_var_util {
         fn from_debug() {
             let value = true;
 
+            #[allow(clippy::needless_borrow)]
             let r = {
                 use crate::debug::debug_var_util::*;
                 (&&&&&&Wrap(&value)).debug_var()

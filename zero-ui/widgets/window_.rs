@@ -589,7 +589,7 @@ pub mod window {
                     let mut buffer = vec![];
                     write_frame(frame, &state, &mut buffer);
 
-                    state = WriteFrameState::new(&frame);
+                    state = WriteFrameState::new(frame);
 
                     task::spawn_wait(move || {
                         use std::io::*;

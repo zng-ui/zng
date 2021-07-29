@@ -872,7 +872,7 @@ impl Focus {
                             FocusTarget::EscapeAlt => {
                                 // Esc does not enable highlight without moving focus.
                                 can_only_highlight = false;
-                                self.alt_return.as_ref().and_then(|(_, p)| frame.get_or_parent(&p))
+                                self.alt_return.as_ref().and_then(|(_, p)| frame.get_or_parent(p))
                             }
                             // cases covered by parent match
                             FocusTarget::Direct { .. }
