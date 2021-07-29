@@ -1001,6 +1001,23 @@ pub mod prelude {
     }
 }
 
+/// Standalone documentation.
+/// 
+/// This module contains empty modules that hold *integration docs*, that is
+/// documentation that cannot really be associated with API items because they encompass
+/// multiple items.
+pub mod docs {
+    /// `README.md`
+    /// 
+    #[doc = include_str!("../README.md")]
+    pub mod readme { }
+
+    /// `CHANGELOG.md`
+    /// 
+    #[doc = include_str!("../CHANGELOG.md")]
+    pub mod changelog { }
+}
+
 // see test-crates/no-direct-deps
 #[doc(hidden)]
 pub fn crate_reference_called() -> bool {
