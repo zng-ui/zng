@@ -21,7 +21,7 @@ First add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-zero-ui = "0.2"
+zero-ui = "0.1"
 ```
 
 Then create your first window:

@@ -312,9 +312,9 @@ pub fn do_after(delay_secs: u64, action: impl FnOnce() + Send + 'static) {
 // Prints an error message, use `error(f!("{}", .."))` for formatting.
 pub fn error(msg: impl std::fmt::Display) {
     if let Some(mut dump) = TaskInfo::get().stderr_dump() {
-        writeln!(dump, "{}error{}: {}{} {}", c_red(), c_wb(), DO, c_w(), msg).ok();
+        writeln!(dump, "{}error{}: {}{}", c_red(), c_wb(), c_w(), msg).ok();
     } else {
-        eprintln!("{}error{}: {}{} {}", c_red(), c_wb(), DO, c_w(), msg);
+        eprintln!("{}error{}: {}{}", c_red(), c_wb(), c_w(), msg);
     }
 }
 

@@ -1243,17 +1243,17 @@ use crate::text::{Text, ToText};
 pub use zero_ui_proc_macros::expr_var as __expr_var;
 
 ///<span data-inline></span> Implements `U: From<T>` and `T: IntoVar<U>` without boilerplate.
-/// 
+///
 /// Unfortunately we cannot provide a blanket impl of `IntoVar` for all `From` in Rust stable, because
 /// that would block all manual implementations of the trait, so you need to implement then manually to
 /// enable the easy-to-use properties that are expected.
-/// 
-/// You can use this macro to implement both `U: From<T>` and `T: IntoVar<U>` at the same time. 
+///
+/// You can use this macro to implement both `U: From<T>` and `T: IntoVar<U>` at the same time.
 /// The macro syntax is one or more functions with signature `fn from(_: T) -> U`. The [`OwnedVar<U>`]
 /// type is selected for variables.
 ///
 /// # Examples
-/// 
+///
 /// The example declares an `enum` that represents the values possible in a property `foo` and
 /// then implements conversions from literals the user may want to type in an widget:
 ///
@@ -1267,13 +1267,13 @@ pub use zero_ui_proc_macros::expr_var as __expr_var;
 /// }
 /// impl_from_and_into_var! {
 ///     fn from(b: bool) -> FooValue {
-///         if b { 
-///             FooValue::On 
-///         } else { 
-///             FooValue::Off 
+///         if b {
+///             FooValue::On
+///         } else {
+///             FooValue::Off
 ///         }
 ///     }
-/// 
+///
 ///     fn from(s: &str) -> FooValue {
 ///         match s {
 ///             "on" => FooValue::On,
@@ -1286,9 +1286,9 @@ pub use zero_ui_proc_macros::expr_var as __expr_var;
 /// # assert(true);
 /// # assert("on");
 /// ```
-/// 
+///
 /// The value then can be used in a property:
-/// 
+///
 /// ```
 /// # use zero_ui_core::{*, var::*};
 /// # #[derive(Debug, Clone)]
@@ -1300,8 +1300,8 @@ pub use zero_ui_proc_macros::expr_var as __expr_var;
 ///     // ..
 /// #   child
 /// }
-/// 
-/// # fn main() { 
+///
+/// # fn main() {
 /// # let _ =
 /// bar! {
 ///     foo = true;

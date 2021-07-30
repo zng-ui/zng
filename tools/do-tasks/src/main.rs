@@ -1,3 +1,4 @@
+mod tests;
 mod util;
 use std::format_args as f;
 use util::*;
@@ -92,6 +93,8 @@ fn test(mut args: Vec<&str>) {
             &args,
             &[("RUST_BACKTRACE", "1")],
         );
+
+        tests::version_in_sync();
     } else if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
         for test_name in unit_tests {
             cmd_env(
@@ -119,6 +122,8 @@ fn test(mut args: Vec<&str>) {
             &args,
             &[("RUST_BACKTRACE", trace)],
         );
+
+        tests::version_in_sync();
     } else if let Some(int_tests) = take_option(&mut args, &["-t", "--test"], "<integration-test-name>") {
         // only specific integration test.
         let mut t_args = vec![nightly, "test", "--workspace", "--no-fail-fast", "--all-features"];

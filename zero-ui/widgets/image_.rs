@@ -9,7 +9,7 @@ pub mod image {
     use std::path::PathBuf;
 
     /// The different inputs accepted by the [`source`] property.
-    /// 
+    ///
     /// [`source`]: #wp-source
     #[derive(Clone, Debug)]
     pub enum ImageSource {
