@@ -13,7 +13,7 @@ fn notify() {
 
     app.update(false);
 
-    let trace = app.ctx().app_state.req::<TestTrace>();
+    let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());
     assert!(trace.iter().any(|t| t == "no-scope / App"));
 }
@@ -30,7 +30,7 @@ fn notify_scoped() {
 
     app.update(false);
 
-    let trace = app.ctx().app_state.req::<TestTrace>();
+    let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());
     assert!(trace.contains(&format!("scoped-win / Window({:?})", window_id)))
 }
@@ -44,7 +44,7 @@ fn shortcut() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.req::<TestTrace>();
+    let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());
     assert!(trace.iter().any(|t| t == "no-scope / App"));
 }
@@ -60,14 +60,14 @@ fn shortcut_scoped() {
     app.press_key(window_id, Key::G);
 
     {
-        let trace = app.ctx().app_state.req_mut::<TestTrace>();
+        let trace = app.ctx().app_state.req_mut(TestTrace);
         assert_eq!(1, trace.len());
         assert!(trace.contains(&format!("scoped-win / Window({:?})", window_id)));
         trace.clear();
     }
 
     app.press_key(window_id, Key::F);
-    let trace = app.ctx().app_state.req::<TestTrace>();
+    let trace = app.ctx().app_state.req(TestTrace);
 
     assert_eq!(1, trace.len());
     assert!(trace.iter().any(|t| t == "no-scope / App"));
@@ -89,21 +89,21 @@ fn listener_window() -> Window {
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = FooCommand.update(args) {
                 ctx.app_state
-                    .entry::<TestTrace>()
+                    .entry(TestTrace)
                     .or_default()
                     .push(format!("no-scope / {:?}", args.scope));
             }
 
             if let Some(args) = FooCommand.scoped(ctx.path.window_id()).update(args) {
                 ctx.app_state
-                    .entry::<TestTrace>()
+                    .entry(TestTrace)
                     .or_default()
                     .push(format!("scoped-win / {:?}", args.scope));
             }
 
             if let Some(args) = FooCommand.scoped(ctx.path.widget_id()).update(args) {
                 ctx.app_state
-                    .entry::<TestTrace>()
+                    .entry(TestTrace)
                     .or_default()
                     .push(format!("scoped-wgt / {:?}", args.scope));
             }

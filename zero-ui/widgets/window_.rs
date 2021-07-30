@@ -287,7 +287,7 @@ pub mod window {
     pub mod properties {
         use std::marker::PhantomData;
 
-        use crate::core::window::{AutoSize, WindowChrome, WindowIcon, WindowId, WindowVars};
+        use crate::core::window::{AutoSize, WindowChrome, WindowIcon, WindowId, WindowVars, WindowVarsKey};
         use crate::prelude::new_property::*;
 
         fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + 'static) -> impl UiNode
@@ -313,7 +313,7 @@ pub mod window {
                 S: Fn(&WindowVars) -> SV + 'static,
             {
                 fn init(&mut self, ctx: &mut WidgetContext) {
-                    let window_var = (self.select)(ctx.window_state.req::<WindowVars>());
+                    let window_var = (self.select)(ctx.window_state.req(WindowVarsKey));
                     if self.user_var.can_update() {
                         self.binding = Some(self.user_var.bind_bidi(ctx.vars, &window_var));
                     }

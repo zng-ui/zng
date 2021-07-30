@@ -1178,8 +1178,11 @@ struct WindowVarsData {
 ///
 /// You can get the controller for any window using [`OpenWindow::vars`].
 ///
-/// You can get the controller for the current context window by getting `WindowVars` from the `window_state`
-/// in [`WindowContext`](WindowContext::window_state) and [`WidgetContext`](WidgetContext::window_state).
+/// You can get the controller for the current context window by getting [`WindowVarsKey`] from the `window_state`
+/// in [`WindowContext`] and [`WidgetContext`].
+///
+/// [`WindowContext`]: WindowContext::window_state
+/// [`WidgetContext`]: WidgetContext::window_state
 pub struct WindowVars {
     vars: Rc<WindowVarsData>,
 }
@@ -1426,8 +1429,9 @@ impl WindowVars {
         &self.vars.modal
     }
 }
-impl StateKey for WindowVars {
-    type Type = Self;
+state_key! {
+    /// Key for the instance of [`WindowsVars`] in the window state.
+    pub struct WindowVarsKey: WindowVars;
 }
 
 /// Arguments for `on_pre_redraw` and `on_redraw`.
@@ -1761,7 +1765,7 @@ impl OpenWindow {
     ) -> Self {
         // get mode.
         let mut mode = if ctx.is_headless() {
-            if ctx.app_state.get::<app::HeadlessRendererEnabledKey>().copied().unwrap_or_default() {
+            if ctx.app_state.get(app::HeadlessRendererEnabledKey).copied().unwrap_or_default() {
                 WindowMode::HeadlessWithRenderer
             } else {
                 WindowMode::Headless
@@ -1795,7 +1799,7 @@ impl OpenWindow {
 
         let vars = WindowVars::new();
         let mut wn_state = OwnedStateMap::default();
-        wn_state.set_single(vars.clone());
+        wn_state.set(WindowVarsKey, vars.clone());
 
         let renderer_config = RendererConfig {
             clear_color: None,
@@ -2851,7 +2855,7 @@ mod headless_tests {
         let root = wn.frame_info().root();
 
         let expected = Some(true);
-        let actual = root.meta().get::<FooMetaKey>().copied();
+        let actual = root.meta().get(FooMetaKey).copied();
         assert_eq!(expected, actual);
 
         let expected = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(520.0, 510.0));
@@ -2860,7 +2864,7 @@ mod headless_tests {
     }
 
     fn test_window(ctx: &mut WindowContext) -> Window {
-        ctx.window_state.req::<WindowVars>().size().set(ctx.vars, (520, 510));
+        ctx.window_state.req(WindowVarsKey).size().set(ctx.vars, (520, 510));
         Window::new(
             WidgetId::new_unique(),
             StartPosition::Default,
@@ -2880,7 +2884,7 @@ mod headless_tests {
     #[impl_ui_node(none)]
     impl UiNode for SetFooMetaNode {
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().set::<FooMetaKey>(true);
+            frame.meta().set(FooMetaKey, true);
         }
     }
 }

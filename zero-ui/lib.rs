@@ -660,10 +660,10 @@
 //! use zero_ui::prelude::*;
 //!
 //! button! {
-//!     on_click = hn!(|_, _| CopyCommand::notify(None));
-//!     content = text(CopyCommand::name());
-//!     enabled = CopyCommand::enabled();
-//!     visibility = CopyCommand::has_handlers().map_into();
+//!     on_click = hn!(|ctx, _| { CopyCommand.notify(ctx, None); });
+//!     content = text(CopyCommand.name());
+//!     enabled = CopyCommand.enabled();
+//!     visibility = CopyCommand.has_handlers().map_into();
 //! }
 //! # ;
 //! ```
@@ -686,27 +686,28 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # fn test() -> impl WidgetHandler<()> {
 //! # let foo_var = var(true);
-//! # let _: WidgetHandler<()> =
+//! # state_key! { pub struct FooKey: bool; }
 //! hn!(|ctx, _| {
-//!     let value_ref = foo_var(ctx.vars);
-//!     let service_ref = ctx.services.keyboard();
-//!     let state_ref = ctx.widget_state;
+//!     let value_ref = foo_var.get(ctx.vars);
+//!     let service_ref = ctx.services.windows();
+//!     let state_ref = ctx.widget_state.get(FooKey);
 //! })
-//! # ;
+//! # }
 //! ```
 //!
 //! The most used context structs are the [`WidgetContext`] and [`AppContext`], but all contexts follow the same pattern, they are shared with
 //! an `&mut` exclusive borrow and contains public members that are also borrows for the shared data. The members are public to allow partial
 //! borrows of the context, so that a variable and a service can be borrowed at the same time, more specialized contexts have all
-//! the general data and add the local parent's data, the [`WidgetContext`] shares all the data from the window parent's [`AppContext`] but 
+//! the general data and add the local parent's data, the [`WidgetContext`] shares all the data from the window parent's [`AppContext`] but
 //! also from the immediate parent widget.
 //!
 //! See the [`context`] module for more information about all the context structs.
 //!
 //! ## Services
 //!
-//! 
+//!
 //!
 //! ## States
 //!

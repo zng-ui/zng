@@ -527,7 +527,7 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        frame.meta().set::<WidgetInstanceInfoKey>(Rc::clone(&self.info));
+        frame.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
         self.child.render(ctx, frame);
     }
 }
@@ -674,7 +674,7 @@ impl UiNode for PropertyInfoNode {
         info.duration.render = d;
         info.count.render += 1;
 
-        frame.meta().entry::<PropertiesInfoKey>().or_default().push(Rc::clone(&self.info));
+        frame.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
     }
 
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
@@ -950,7 +950,7 @@ pub trait WidgetDebugInfo<'a> {
 impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
     #[inline]
     fn debug_enabled(self) -> bool {
-        self.meta().contains::<WidgetInstanceInfoKey>()
+        self.meta().contains(WidgetInstanceInfoKey)
     }
 
     #[inline]
@@ -960,12 +960,12 @@ impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
 
     #[inline]
     fn instance(self) -> Option<&'a WidgetInstance> {
-        self.meta().get::<WidgetInstanceInfoKey>()
+        self.meta().get(WidgetInstanceInfoKey)
     }
 
     #[inline]
     fn properties(self) -> &'a [PropertyInstance] {
-        self.meta().get::<PropertiesInfoKey>().map(|v| &v[..]).unwrap_or(&[])
+        self.meta().get(PropertiesInfoKey).map(|v| &v[..]).unwrap_or(&[])
     }
 }
 

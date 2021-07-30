@@ -21,7 +21,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().focusable = Some(*self.is_focusable.get(ctx));
+            frame.meta().entry(FocusInfoKey).or_default().focusable = Some(*self.is_focusable.get(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -52,7 +52,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().tab_index = Some(*self.tab_index.get(ctx));
+            frame.meta().entry(FocusInfoKey).or_default().tab_index = Some(*self.tab_index.get(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -97,7 +97,7 @@ impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let info = frame.meta().entry::<FocusInfoKey>().or_default();
+        let info = frame.meta().entry(FocusInfoKey).or_default();
         info.scope = Some(self.is_focus_scope.copy(ctx));
         if self.is_alt {
             info.alt_scope = true;
@@ -136,7 +136,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let info = frame.meta().entry::<FocusInfoKey>().or_default();
+            let info = frame.meta().entry(FocusInfoKey).or_default();
             info.on_focus = self.behavior.copy(ctx);
             if info.scope.is_none() {
                 info.scope = Some(true);
@@ -167,7 +167,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().tab_nav = Some(self.tab_nav.copy(ctx));
+            frame.meta().entry(FocusInfoKey).or_default().tab_nav = Some(self.tab_nav.copy(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -194,7 +194,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().directional_nav = Some(self.directional_nav.copy(ctx));
+            frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(self.directional_nav.copy(ctx));
             self.child.render(ctx, frame);
         }
     }
@@ -258,7 +258,7 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.meta().entry::<FocusInfoKey>().or_default().skip_directional = Some(self.enabled.copy(ctx));
+            frame.meta().entry(FocusInfoKey).or_default().skip_directional = Some(self.enabled.copy(ctx));
             self.child.render(ctx, frame);
         }
     }

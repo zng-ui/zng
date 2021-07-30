@@ -21,7 +21,6 @@ use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
     fmt,
-    marker::PhantomData,
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
     thread::LocalKey,
@@ -812,7 +811,8 @@ impl Command for AnyCommand {
     }
 }
 
-struct AppCommandMetaKey<S>(PhantomData<S>);
+#[derive(Clone, Copy)]
+struct AppCommandMetaKey<S>(S);
 impl<S: StateKey> StateKey for AppCommandMetaKey<S>
 where
     S::Type: VarValue,
@@ -820,7 +820,8 @@ where
     type Type = RcVar<S::Type>;
 }
 
-struct ScopedCommandMetaKey<S>(PhantomData<S>);
+#[derive(Clone, Copy)]
+struct ScopedCommandMetaKey<S>(S);
 impl<S: StateKey> StateKey for ScopedCommandMetaKey<S>
 where
     S::Type: VarValue,
@@ -897,25 +898,25 @@ impl<'a> CommandMeta<'a> {
     /// Clone a meta value identified by a [`StateKey`] type.
     ///
     /// If the key is not set in the app, insert it using `init` to produce a value.
-    pub fn get_or_insert<S, F>(&mut self, _key: S, init: F) -> S::Type
+    pub fn get_or_insert<S, F>(&mut self, key: S, init: F) -> S::Type
     where
         S: StateKey,
         F: FnOnce() -> S::Type,
         S::Type: Clone,
     {
         if let Some(scope) = &mut self.scope {
-            if let Some(value) = scope.get::<S>() {
+            if let Some(value) = scope.get(key) {
                 value.clone()
-            } else if let Some(value) = self.meta.get::<S>() {
+            } else if let Some(value) = self.meta.get(key) {
                 value.clone()
             } else {
                 let value = init();
                 let r = value.clone();
-                scope.set::<S>(value);
+                scope.set(key, value);
                 r
             }
         } else {
-            self.meta.entry::<S>().or_insert_with(init).clone()
+            self.meta.entry(key).or_insert_with(init).clone()
         }
     }
 
@@ -933,27 +934,27 @@ impl<'a> CommandMeta<'a> {
     /// Set the meta value associated with the [`StateKey`] type.
     ///
     /// Returns the previous value if any was set.
-    pub fn set<S>(&mut self, _key: S, value: S::Type)
+    pub fn set<S>(&mut self, key: S, value: S::Type)
     where
         S: StateKey,
         S::Type: Clone,
     {
         if let Some(scope) = &mut self.scope {
-            scope.set::<S>(value);
+            scope.set(key, value);
         } else {
-            self.meta.set::<S>(value);
+            self.meta.set(key, value);
         }
     }
 
     /// Set the metadata value only if it was not set.
     ///
     /// This does not set the scoped override, only the command type metadata.
-    pub fn init<S>(&mut self, _key: S, value: S::Type)
+    pub fn init<S>(&mut self, key: S, value: S::Type)
     where
         S: StateKey,
         S::Type: Clone,
     {
-        self.meta.entry::<S>().or_insert(value);
+        self.meta.entry(key).or_insert(value);
     }
 
     /// Clone a meta variable identified by a [`StateKey`] type.
@@ -966,7 +967,7 @@ impl<'a> CommandMeta<'a> {
     /// metadata implements the *scoped inheritance* of values correctly.
     ///
     /// [`into_read_only`]: Var::into_read_only
-    pub fn get_var_or_insert<S, F>(&mut self, _key: S, init: F) -> CommandMetaVar<S::Type>
+    pub fn get_var_or_insert<S, F>(&mut self, key: S, init: F) -> CommandMetaVar<S::Type>
     where
         S: StateKey,
         F: FnOnce() -> S::Type,
@@ -975,14 +976,14 @@ impl<'a> CommandMeta<'a> {
         if let Some(scope) = &mut self.scope {
             let meta = &mut self.meta;
             scope
-                .entry::<ScopedCommandMetaKey<S>>()
+                .entry(ScopedCommandMetaKey(key))
                 .or_insert_with(|| {
-                    let var = meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(init())).clone();
+                    let var = meta.entry(AppCommandMetaKey(key)).or_insert_with(|| var(init())).clone();
                     CommandMetaVar::new(var)
                 })
                 .clone()
         } else {
-            let var = self.meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(init())).clone();
+            let var = self.meta.entry(AppCommandMetaKey(key)).or_insert_with(|| var(init())).clone();
             CommandMetaVar::pass_through(var)
         }
     }
@@ -1001,12 +1002,12 @@ impl<'a> CommandMeta<'a> {
     /// Set the metadata variable if it was not set.
     ///
     /// This does not set the scoped override, only the command type metadata.
-    pub fn init_var<S>(&mut self, _key: S, value: S::Type)
+    pub fn init_var<S>(&mut self, key: S, value: S::Type)
     where
         S: StateKey,
         S::Type: VarValue,
     {
-        self.meta.entry::<AppCommandMetaKey<S>>().or_insert_with(|| var(value));
+        self.meta.entry(AppCommandMetaKey(key)).or_insert_with(|| var(value));
     }
 }
 
