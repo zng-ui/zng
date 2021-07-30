@@ -294,14 +294,7 @@ fn expand(mut args: Vec<&str>) {
         if take_flag(&mut args, &["-r", "--raw"]) {
             cmd(
                 "cargo",
-                &[
-                    "+nightly",
-                    "rustc",
-                    "--profile=check",
-                    "--",
-                    "-Zunstable-options",
-                    "--pretty=expanded",
-                ],
+                &["+nightly", "rustc", "--profile=check", "--", "-Zunpretty=expanded"],
                 &args,
             );
         } else {
