@@ -88,7 +88,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|p| &p.ident)
         .collect();
     // properties that are captured.
-    let captured_properties: HashSet<_> = widget_data.new_captures.iter().flatten().collect();
+    let captured_properties: HashSet<_> = widget_data.new_captures.iter().flat_map(|c| c.iter().map(|c| &c.ident)).collect();
 
     // inherited properties unset by the user.
     let mut unset_properties = HashSet::new();
@@ -675,10 +675,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|c| {
             c.iter()
                 .map(|p| {
+                    let p = &p.ident;
                     wgt_properties
                         .get(&parse_quote! {#p})
-                        .map(|(id, _)| id.to_token_stream())
-                        .unwrap_or_else(|| quote! { std::unreachable!() })
+                        .map(|(id, cfg)| (id.to_token_stream(), cfg.clone()))
+                        .unwrap_or_else(|| (quote! { std::unreachable!() }, quote!()))
                 })
                 .collect()
         })
@@ -735,24 +736,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
             let cap_i = i + if child_priority { 1 } else { 6 };
             let caps = &caps[cap_i];
+            let cap_idents = caps.iter().map(|(i, _)| i);
+            let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();
             #[cfg(not(debug_assertions))]
             {
                 let new_fn_ident = ident!("__new_{}{}", if child_priority { "child_" } else { "" }, priority);
                 property_set_calls.extend(quote! {
                     #[allow(unreachable_code)]
-                    let #node__ = #module::#new_fn_ident(#node__, #(#caps),*);
+                    let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents),*);
                 })
             }
             #[cfg(debug_assertions)]
             {
                 let new_fn_ident = ident!("__new_{}{}_debug", if child_priority { "child_" } else { "" }, priority);
                 let new_variant_ident = ident!("New{}{:#}", if child_priority { "Child" } else { "" }, priority);
-                let cap_user_set = widget_data.new_captures[cap_i].iter().map(|id| overriden_properties.contains(id));
+                let cap_user_set = widget_data.new_captures[cap_i]
+                    .iter()
+                    .map(|c| overriden_properties.contains(&c.ident));
                 property_set_calls.extend(quote! {
                     #[allow(unused_mut)]
                     let mut capture_infos__ = std::vec![];
                     #[allow(unreachable_code)]
-                    let #node__ = #module::#new_fn_ident(#node__, #(#caps,)* #(#cap_user_set,)* &mut capture_infos__);
+                    let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents,)* #(#cap_cfgs #cap_user_set,)* &mut capture_infos__);
                     captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, capture_infos__));
                 })
             }
@@ -816,25 +821,30 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Generate new function calls:
 
     let new_child_caps = &caps[0];
+    let ncc_idents = new_child_caps.iter().map(|(i, _)| i);
+    let ncc_cfgs: Vec<_> = new_child_caps.iter().map(|(_, c)| c).collect();
+
     let new_caps = caps.last().unwrap();
+    let nc_idents = new_caps.iter().map(|(i, _)| i);
+    let nc_cfgs: Vec<_> = new_caps.iter().map(|(_, c)| c).collect();
 
     #[cfg(debug_assertions)]
     let new_child_call = {
-        let cap_user_set = widget_data.new_captures[0].iter().map(|id| overriden_properties.contains(id));
+        let cap_user_set = widget_data.new_captures[0].iter().map(|c| overriden_properties.contains(&c.ident));
         quote! {
             #[allow(unused_mut)]
             let mut captures__ = std::vec![];
             #[allow(unused_mut)]
             let mut captured_new_child__ = std::vec![];
             #[allow(unreachable_code)]
-            let node__ = #module::__new_child_debug(#(#new_child_caps,)* #(#cap_user_set,)* &mut captured_new_child__);
+            let node__ = #module::__new_child_debug(#(#ncc_cfgs #ncc_idents,)* #(#ncc_cfgs #cap_user_set,)* &mut captured_new_child__);
             captures__.push((#module::__core::WidgetNewFnV1::NewChild, captured_new_child__));
         }
     };
     #[cfg(not(debug_assertions))]
     let new_child_call = quote! {
         #[allow(unreachable_code)]
-        let node__ = #module::__new_child(#(#new_child_caps),*);
+        let node__ = #module::__new_child(#(#ncc_cfgs #ncc_idents),*);
     };
     #[cfg(debug_assertions)]
     let new_call = {
@@ -843,13 +853,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .last()
             .unwrap()
             .iter()
-            .map(|id| overriden_properties.contains(id));
+            .map(|c| overriden_properties.contains(&c.ident));
         quote! {
             #[allow(unreachable_code)]
             #module::__new_debug(
                 node__,
-                #(#new_caps,)*
-                #(#cap_user_set,)*
+                #(#nc_cfgs #nc_idents,)*
+                #(#nc_cfgs #cap_user_set,)*
                 #module::__widget_name(),
                 captures__,
                 when_infos__,
@@ -861,7 +871,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(not(debug_assertions))]
     let new_call = quote! {
         #[allow(unreachable_code)]
-        #module::__new(node__, #(#new_caps),*)
+        #module::__new(node__, #(#nc_cfgs #nc_idents),*)
     };
 
     let r = quote! {
@@ -897,7 +907,7 @@ struct WidgetData {
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
-    new_captures: Vec<Vec<Ident>>,
+    new_captures: Vec<Vec<PropertyCapture>>,
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -944,6 +954,23 @@ impl Parse for BuiltProperty {
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
+        });
+        r
+    }
+}
+
+#[derive(Clone)]
+pub struct PropertyCapture {
+    pub ident: Ident,
+    pub cfg: TokenStream,
+}
+impl Parse for PropertyCapture {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
+        let input = non_user_braced!(input);
+        let r = Ok(PropertyCapture {
+            ident,
+            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
         });
         r
     }

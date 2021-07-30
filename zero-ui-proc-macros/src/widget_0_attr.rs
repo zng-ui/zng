@@ -139,6 +139,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     // collects name of captured properties, spans new input types and validates inputs.
     let mut new_captures = vec![]; // [FnPriority:Span]
+    let mut new_captures_cfg = vec![]; // [TokenStream]
     let mut new_arg_ty_spans = vec![]; // [child_ty:Span, cap_ty:Span..]
     let mut captured_properties = HashMap::new();
 
@@ -155,7 +156,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             } else {
                 ty_spans.push(Span::call_site());
             }
-            let (caps, cap_ty_spans) = new_fn_captures(args, &mut errors);
+            let (caps, cfgs, cap_ty_spans) = new_fn_captures(args, &mut errors);
             ty_spans.extend(cap_ty_spans);
 
             for cap in &caps {
@@ -166,9 +167,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             }
 
             new_captures.push(caps);
+            new_captures_cfg.push(cfgs);
             new_arg_ty_spans.push(ty_spans);
         } else {
             new_captures.push(vec![]);
+            new_captures_cfg.push(vec![]);
             new_arg_ty_spans.push(vec![]);
         }
     }
@@ -182,6 +185,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     for (i, priority) in FnPriority::all().iter().enumerate() {
         if let Some((_, fn_)) = new_fns.iter().find(|(k, _)| k == priority) {
             let caps = &new_captures[i];
+            let cfgs = &new_captures_cfg[i];
             let arg_ty_spans = &new_arg_ty_spans[i];
 
             // property modules re-exported by widget
@@ -203,11 +207,16 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 .collect();
 
             // calls to property args unwrap with the span of input types.
-            let spanned_unwrap = prop_idents.iter().zip(spanned_inputs.iter()).map(|(p, id)| {
-                quote_spanned! {id.span()=>
-                    self::#p::Args::unwrap(#id)
-                }
-            });
+            let spanned_unwrap = prop_idents
+                .iter()
+                .zip(spanned_inputs.iter())
+                .zip(cfgs.iter())
+                .map(|((p, id), cfg)| {
+                    quote_spanned! {id.span()=>
+                        #cfg
+                        self::#p::Args::unwrap(#id)
+                    }
+                });
 
             // tokens that handle the `arg0: impl UiNode`.
             let mut child_decl = TokenStream::new();
@@ -243,7 +252,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             let mut r = quote! {
                 #[doc(hidden)]
                 #[allow(clippy::too_many_arguments)]
-                pub fn #new__<#(#generic_tys: #prop_idents::Args),*>(#child_decl #(#spanned_inputs : #generic_tys),*) #output {
+                pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
                     self::#new_id(#child_pass #(#spanned_unwrap),*)
                 }
             };
@@ -266,8 +275,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         #[allow(clippy::too_many_arguments)]
                         pub fn #new_debug__(
                             __child: impl #crate_core::UiNode,
-                            #(#caps : impl self::#prop_idents::Args,)*
-                            #(#assigned_flags: bool,)*
+                            #(#cfgs #caps : impl self::#prop_idents::Args,)*
+                            #(#cfgs #assigned_flags: bool,)*
                             __widget_name: &'static str,
                             mut __captures: std::vec::Vec<(#crate_core::debug::WidgetNewFnV1, Vec<#crate_core::debug::CapturedPropertyV1>)>,
                             __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
@@ -277,7 +286,10 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             let __child = #crate_core::UiNode::boxed(__child);
                             __captures.push((
                                 #crate_core::debug::WidgetNewFnV1::New,
-                                std::vec![#(self::#prop_idents::captured_debug(&#caps, #names, #locations, #assigned_flags),)*]
+                                std::vec![#(
+                                    #cfgs
+                                    self::#prop_idents::captured_debug(&#caps, #names, #locations, #assigned_flags),
+                                )*]
                             ));
                             let __child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
                                 __child,
@@ -287,7 +299,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                                 __captures,
                                 __whens,
                             );
-                            self::__new(__child, #(#caps),*)
+                            self::__new(__child, #(#cfgs #caps),*)
                         }
                     });
                 } else {
@@ -296,12 +308,15 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         #[allow(clippy::too_many_arguments)]
                         pub fn #new_debug__(
                             #child_decl
-                            #(#caps : impl self::#prop_idents::Args,)*
-                            #(#assigned_flags: bool,)*
+                            #(#cfgs #caps : impl self::#prop_idents::Args,)*
+                            #(#cfgs #assigned_flags: bool,)*
                             __captures_info: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>
                         ) #output {
-                            #(__captures_info.push(#prop_idents::captured_debug(&#caps, #names, #locations, #assigned_flags));)*
-                            self::#new__(#child_pass #(#caps),*)
+                            #(
+                                #cfgs
+                                __captures_info.push(#prop_idents::captured_debug(&#caps, #names, #locations, #assigned_flags));
+                            )*
+                            self::#new__(#child_pass #(#cfgs #caps),*)
                         }
                     });
                 };
@@ -891,7 +906,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     }
                     new_captures {
                         #(
-                            #new_idents { #(#new_captures)* }
+                            #new_idents {
+                                #(#new_captures {
+                                    cfg { #new_captures_cfg }
+                                })*
+                            }
                         )*
                     }
                 }
@@ -950,8 +969,12 @@ impl Parse for ArgPath {
     }
 }
 
-fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &'b mut Errors) -> (Vec<Ident>, Vec<Span>) {
+fn new_fn_captures<'a, 'b>(
+    fn_inputs: impl Iterator<Item = &'a FnArg>,
+    errors: &'b mut Errors,
+) -> (Vec<Ident>, Vec<TokenStream>, Vec<Span>) {
     let mut ids = vec![];
+    let mut cfgs = vec![];
     let mut spans = vec![];
     for input in fn_inputs {
         match input {
@@ -976,6 +999,7 @@ fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &
                             // ident: type
                             ids.push(ident_pat.ident.clone());
                             spans.push(pt.ty.span());
+                            cfgs.push(Attributes::new(pt.attrs.clone()).cfg.to_token_stream());
                         }
                     }
                     invalid => {
@@ -991,8 +1015,9 @@ fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &
         }
     }
 
+    debug_assert_eq!(ids.len(), cfgs.len());
     debug_assert_eq!(ids.len(), spans.len());
-    (ids, spans)
+    (ids, cfgs, spans)
 }
 
 fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {

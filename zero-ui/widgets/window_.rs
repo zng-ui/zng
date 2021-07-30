@@ -414,7 +414,6 @@ pub mod window {
             window::{WindowFocusChangedEvent, WindowOpenEvent, WindowsExt},
             *,
         };
-        use zero_ui_core::var::{IntoVar, Var};
 
         command! {
             /// Represents the window **close** action.
@@ -565,8 +564,12 @@ pub mod window {
             }
         }
 
-        pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl IntoVar<bool>) -> impl UiNode {
-            use crate::core::debug::{write_frame, WriteFrameState};
+        #[cfg(debug_assertions)]
+        pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl var::IntoVar<bool>) -> impl UiNode {
+            use crate::core::{
+                debug::{write_frame, WriteFrameState},
+                var::Var,
+            };
 
             let mut state = WriteFrameState::none();
 
