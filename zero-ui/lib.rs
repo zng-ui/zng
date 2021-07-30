@@ -688,7 +688,7 @@
 //! # use zero_ui::prelude::*;
 //! # fn test() -> impl WidgetHandler<()> {
 //! # let foo_var = var(true);
-//! # state_key! { pub struct FooKey: bool; }
+//! # zero_ui::core::state_key! { pub struct FooKey: bool; }
 //! hn!(|ctx, _| {
 //!     let value_ref = foo_var.get(ctx.vars);
 //!     let service_ref = ctx.services.windows();
