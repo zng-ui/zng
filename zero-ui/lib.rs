@@ -649,15 +649,64 @@
 //!
 //! ## Commands
 //!
-//! Some special events represent an app action and do not have a predefined *emitter*.
+//! Command are unit structs that implement [`Command`] and [`Event`]. They are special events that represent an app action and do
+//! not have a predefined *emitter*. Widgets can implement command handlers allowing then to be controlled from user interactions
+//! that are implemented in a different widget. Commands types have associated metadata that can be used for communication
+//! between handlers and emitters, or for enabling new behavior. Every command type has [`enabled`][cmd_enabled] and [`has_handlers`] variables
+//! but extra metadata can be added, using extension traits, most commands have a [`name`][cmd_name] and [`info`][cmd_info] and the gesture module
+//! provides a [`shortcut`][cmd_shortcut] that enables command activation using shortcut presses.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//!
+//! button! {
+//!     on_click = hn!(|_, _| CopyCommand::notify(None));
+//!     content = text(CopyCommand::name());
+//!     enabled = CopyCommand::enabled();
+//!     visibility = CopyCommand::has_handlers().map_into();
+//! }
+//! # ;
+//! ```
+//!  
+//! The example above declares a "Copy" button, the button causes a copy operation on click, but it does not known what
+//! is copied, or how. If there is any [`CopyCommand`] handlers created the button will be visible and if any of these handlers is enabled
+//! the button will be enabled. The button content uses the default display name provided by the [`CopyCommand`].
+//!
+//! Not shown in the example is the fact that the [`CopyCommand`] has default [`shortcut`][cmd_shortcut] values too, so pressing "Ctrl+C"
+//! will also notify the command, because the [`GestureManager`] implements this interaction for all enabled commands that have a shortcut.
+//!
+//! See the [`command`] module for more information, including how to declare new commands, modify command metadata and how to handle a command event.
 //!
 //! ## Contexts
 //!
+//! A simplified overview of the memory ownership in an app is, every widget is owned by their parent widget, and the root widget is owned
+//! by their parent window and every window is owned by the app. When you have a mutable reference in an event handler there is a borrow chain
+//! that goes all the way up to the running app, data from the parent widget, window and app may be of interest for the event handler code.
+//! These *contextual borrows* are packed in a **context struct**.
 //!
+//! ```
+//! # use zero_ui::prelude::*;
+//! # let foo_var = var(true);
+//! # let _: WidgetHandler<()> =
+//! hn!(|ctx, _| {
+//!     let value_ref = foo_var(ctx.vars);
+//!     let service_ref = ctx.services.keyboard();
+//!     let state_ref = ctx.widget_state;
+//! })
+//! # ;
+//! ```
+//!
+//! The most used context structs are the [`WidgetContext`] and [`AppContext`], but all contexts follow the same pattern, they are shared with
+//! an `&mut` exclusive borrow and contains public members that are also borrows for the shared data. The members are public to allow partial
+//! borrows of the context, so that a variable and a service can be borrowed at the same time, more specialized contexts have all
+//! the general data and add the local parent's data, the [`WidgetContext`] shares all the data from the window parent's [`AppContext`] but 
+//! also from the immediate parent widget.
+//!
+//! See the [`context`] module for more information about all the context structs.
 //!
 //! ## Services
 //!
-//!  
+//! 
 //!
 //! ## States
 //!
@@ -747,7 +796,17 @@
 //! [`async_hn_once!`]: macro@crate::core::handler::async_hn_once
 //! [`WidgetContext`]: crate::core::context::WidgetContext
 //! [`WidgetContextMut`]: crate::core::context::WidgetContextMut
+//! [`Command`]: crate::core::command::Command
+//! [`has_handlers`]: crate::core::command::Command::has_handlers
+//! [cmd_enabled]: crate::core::command::Command::enabled
+//! [cmd_name]: crate::core::command::CommandNameExt::name
+//! [cmd_info]: crate::core::command::CommandInfoExt::info
+//! [cmd_shortcut]: crate::core::gesture::CommandShortcutExt::shortcut
+//! [`CopyCommand`]: crate::properties::commands::CopyCommand
+//! [`GestureManager`]: crate::core::gesture::GestureManager
 //! [futures]: std::future::Future
+//! [`AppContext`]: crate::core::context::AppContext
+//! [`context`]: crate::core::context
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]
