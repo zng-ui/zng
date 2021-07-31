@@ -320,7 +320,7 @@
 //! };
 //! ```
 //!
-//! See the [`Var<T>`] documentation for indebt information about accessing variable values.
+//! See the **[`Var<T>`]** documentation for indebt information about accessing variable values.
 //!
 //! ### Variable Mapping
 //!
@@ -675,7 +675,7 @@
 //! Not shown in the example is the fact that the [`CopyCommand`] has default [`shortcut`][cmd_shortcut] values too, so pressing "Ctrl+C"
 //! will also notify the command, because the [`GestureManager`] implements this interaction for all enabled commands that have a shortcut.
 //!
-//! See the [`command`] module for more information, including how to declare new commands, modify command metadata and how to handle a command event.
+//! See the **[`command`]** module for more information, including how to declare new commands, modify command metadata and how to handle a command event.
 //!
 //! ## Contexts
 //!
@@ -703,15 +703,51 @@
 //! the general data and add the local parent's data, the [`WidgetContext`] shares all the data from the window parent's [`AppContext`] but
 //! also from the immediate parent widget.
 //!
-//! See the [`context`] module for more information about all the context structs.
+//! See the **[`context`]** module for more information about all the context structs.
 //!
 //! ## Services
 //!
+//! A service is a type with an instance registered in [`Services`]. The [`Services`] collection is available in most context structs,
+//! and service instances are usually registered during the app initialization by the app extensions, so services are singletons that
+//! represent a set of operations and states, it is a very generalized concept, for example, the [`Windows`] service is used to open
+//! and close windows, list the open windows and control if the app is shutdown when all windows are closed.
 //!
+//! ```
+//! use zero_ui::prelude::*;
+//!
+//! # let _ = 
+//! button! {
+//!     content = text("Open Window");
+//!     on_click = hn!(|ctx, _| {
+//!         ctx.services.req::<Windows>().open(|_| window! {
+//!             content = text("Hello!");
+//!         });
+//!     });
+//! }
+//! # ;
+//! ```
+//! 
+//! The example above, requests the [`Windows`] services, and then creates an [`open`][win_open] request. Services usually
+//! have an extension trait that adds a method to [`Services`] that does the same thing, using the [`WindowsExt`] 
+//! the request becomes `ctx.services.windows().open`.
+//!
+//! Acquiring a service reference exclusively borrows the [`Services`], but you can borrow more then one service at the same time:
+//! 
+//! ```
+//! # use zero_ui::prelude::*;
+//! # fn test(ctx: &mut WidgetContext) {
+//! let (mouse, keyboard) = ctx.services.req::<(Mouse, Keyboard)>();
+//! # }
+//! ```
+//!
+//! There is a quick runtime check that the types are not the same in this case, otherwise like borrowing a single service, it compiles
+//! down to a direct reference to the service instances.
+//!
+//! You can learn more about services in the documentation of the **[`service`]** module.
 //!
 //! ## States
 //!
-//!  
+//! 
 //!
 //! ## Tasks
 //!
@@ -808,6 +844,11 @@
 //! [futures]: std::future::Future
 //! [`AppContext`]: crate::core::context::AppContext
 //! [`context`]: crate::core::context
+//! [`Service`]: crate::core::service::Service
+//! [`Services`]: crate::core::service::Services
+//! [`Windows`]: crate::core::window::Windows
+//! [`WindowsExt`]: crate::core::window::WindowsExt
+//! [win_open]: crate::core::window::Windows::open
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]

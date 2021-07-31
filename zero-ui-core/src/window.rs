@@ -1430,7 +1430,7 @@ impl WindowVars {
     }
 }
 state_key! {
-    /// Key for the instance of [`WindowsVars`] in the window state.
+    /// Key for the instance of [`WindowVars`] in the window state.
     pub struct WindowVarsKey: WindowVars;
 }
 
