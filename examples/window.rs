@@ -175,7 +175,7 @@ fn headless() -> impl Widget {
             enabled.set(ctx.vars, false);
 
             println!("taking `screenshot.png` using a new headless window ..");
-            ctx.services.windows().open(clone_move!(enabled, |_|window! {
+            ctx.services.windows().open_headless(clone_move!(enabled, |_| window! {
                     size = (500, 400);
                     background_color = colors::DARK_GREEN;
                     font_size = 72;
@@ -195,7 +195,7 @@ fn headless() -> impl Widget {
                         window.close();
                     });
                 }),
-                Some(zero_ui::core::window::WindowMode::HeadlessWithRenderer)
+                true
             );
         });
     }
@@ -218,7 +218,7 @@ fn always_on_top() -> impl Widget {
                     size = (400, 300);
                     always_on_top;
                 }
-            }, None);
+            });
         })
     }
 }
@@ -240,7 +240,7 @@ fn taskbar_visible() -> impl Widget {
                     size = (400, 300);
                     taskbar_visible;
                 }
-            }, None);
+            });
         })
     }
 }

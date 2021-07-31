@@ -715,7 +715,7 @@
 //! ```
 //! use zero_ui::prelude::*;
 //!
-//! # let _ = 
+//! # let _ =
 //! button! {
 //!     content = text("Open Window");
 //!     on_click = hn!(|ctx, _| {
@@ -726,17 +726,19 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! The example above, requests the [`Windows`] services, and then creates an [`open`][win_open] request. Services usually
-//! have an extension trait that adds a method to [`Services`] that does the same thing, using the [`WindowsExt`] 
+//! have an extension trait that adds a method to [`Services`] that does the same thing, using the [`WindowsExt`]
 //! the request becomes `ctx.services.windows().open`.
 //!
 //! Acquiring a service reference exclusively borrows the [`Services`], but you can borrow more then one service at the same time:
-//! 
+//!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # use zero_ui::core::keyboard::Keyboard;
+//! # use zero_ui::core::mouse::Mouse;
 //! # fn test(ctx: &mut WidgetContext) {
-//! let (mouse, keyboard) = ctx.services.req::<(Mouse, Keyboard)>();
+//! let (mouse, keyboard) = ctx.services.req_multi::<(Mouse, Keyboard)>();
 //! # }
 //! ```
 //!
@@ -747,7 +749,7 @@
 //!
 //! ## States
 //!
-//! 
+//!
 //!
 //! ## Tasks
 //!

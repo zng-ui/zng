@@ -134,7 +134,7 @@ pub trait AppRunWindowExt {
     ///             title = "Window 1";
     ///             content = text("Window 1");
     ///         }
-    ///     }, None);
+    ///     });
     /// })   
     /// ```
     fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> !;
@@ -142,7 +142,7 @@ pub trait AppRunWindowExt {
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> ! {
         self.run(|ctx| {
-            ctx.services.windows().open(new_window, None);
+            ctx.services.windows().open(new_window);
         })
     }
 }
@@ -172,7 +172,7 @@ pub trait HeadlessAppWindowExt {
 }
 impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
-        let response = self.ctx().services.windows().open(new_window, None);
+        let response = self.ctx().services.windows().open(new_window);
         let mut window_id = None;
         while window_id.is_none() {
             self.update_observe(
@@ -756,12 +756,37 @@ impl Windows {
     ///
     /// The `new_window` argument is the [`WindowContext`] of the new window.
     ///
-    /// The `force_headless` argument can be used to create a headless window in a headed app.
-    ///
     /// Returns a listener that will update once when the window is opened, note that while the `window_id` is
     /// available in the `new_window` argument already, the window is only available in this service after
     /// the returned listener updates.
-    pub fn open(
+    pub fn open(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> ResponseVar<WindowOpenArgs> {
+        self.open_impl(new_window, None)
+    }
+
+    /// Requests a new headless window.
+    ///
+    /// Headless windows don't show on screen, but if `with_renderer` is `true` they will still render frames.
+    ///
+    /// Note that in a headless app the [`open`] method also creates headless windows, this method
+    /// creates headless windows even in a headed app.
+    ///
+    /// [`open`]: Windows::open
+    pub fn open_headless(
+        &mut self,
+        new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
+        with_renderer: bool,
+    ) -> ResponseVar<WindowOpenArgs> {
+        self.open_impl(
+            new_window,
+            Some(if with_renderer {
+                WindowMode::HeadlessWithRenderer
+            } else {
+                WindowMode::Headless
+            }),
+        )
+    }
+
+    fn open_impl(
         &mut self,
         new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
         force_headless: Option<WindowMode>,
@@ -2822,7 +2847,7 @@ mod headless_tests {
         let mut app = App::default().run_headless();
         assert!(!app.renderer_enabled());
 
-        app.ctx().services.windows().open(test_window, None);
+        app.ctx().services.windows().open(test_window);
 
         app.update(false);
     }
@@ -2834,7 +2859,7 @@ mod headless_tests {
         app.enable_renderer(true);
         assert!(app.renderer_enabled());
 
-        app.ctx().services.windows().open(test_window, None);
+        app.ctx().services.windows().open(test_window);
 
         app.update(false);
     }
@@ -2843,7 +2868,7 @@ mod headless_tests {
     pub fn query_frame() {
         let mut app = App::default().run_headless();
 
-        app.ctx().services.windows().open(test_window, None);
+        app.ctx().services.windows().open(test_window);
 
         app.update(false); // process open request.
         app.update(true); // process first render.

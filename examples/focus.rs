@@ -76,7 +76,7 @@ fn functions() -> impl Widget {
                                 button("Button B2", 0),
                             ]
                         };
-                    }, None);
+                    });
                 });
             },
             {
@@ -90,7 +90,7 @@ fn functions() -> impl Widget {
                                     title = "Detached Button";
                                     content = slot(wwk.upgrade().unwrap(), take_on_init());
                                 }
-                            }, None);
+                            });
                         });
                     };
                     btn.boxed()

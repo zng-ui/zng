@@ -10,9 +10,9 @@ use crate::crate_util::AnyMap;
 
 /// A key to a value in a [`StateMap`].
 ///
-/// The type that implements this trait is the key. You can use the [`state_key!`] 
+/// The type that implements this trait is the key. You can use the [`state_key!`]
 /// macro to generate a key type.
-/// 
+///
 /// [`state_key!`]: crate::context::state_key
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait StateKey: Copy + 'static {
@@ -39,9 +39,9 @@ macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
         $(#[$outer])*
         /// # StateKey
-        /// 
+        ///
         /// This `struct` is a [`StateKey`].
-        /// 
+        ///
         /// [`StateKey`]: crate::context::StateKey
         #[derive(Clone, Copy)]
         $vis struct $ident;
