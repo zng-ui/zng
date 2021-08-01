@@ -7,7 +7,6 @@ use std::{
     sync::Arc,
 };
 
-use fnv::FnvHashMap;
 use font_kit::properties::Weight;
 use webrender::api::RenderApi;
 
@@ -430,7 +429,7 @@ pub struct FontFace {
     properties: font_kit::properties::Properties,
     metrics: FontFaceMetrics,
 
-    instances: RefCell<FnvHashMap<FontInstanceKey, FontRef>>,
+    instances: RefCell<fnv::FnvHashMap<FontInstanceKey, FontRef>>,
     render_keys: RefCell<Vec<RenderFontFace>>,
 
     unregistered: Cell<bool>,
@@ -1372,23 +1371,26 @@ impl Drop for RenderFont {
     }
 }
 
+//type ScriptMap<V> = fnv::FnvHashMap<Script, V>;
+type ScriptMap<V> = linear_map::LinearMap<Script, V>;
+
 /// Generic fonts configuration for the app.
 ///
 /// This type can be accessed from the [`Fonts`] service.
 pub struct GenericFonts {
-    serif: FnvHashMap<Script, FontName>,
-    sans_serif: FnvHashMap<Script, FontName>,
-    monospace: FnvHashMap<Script, FontName>,
-    cursive: FnvHashMap<Script, FontName>,
-    fantasy: FnvHashMap<Script, FontName>,
-    fallback: FnvHashMap<Script, FontName>,
+    serif: ScriptMap<FontName>,
+    sans_serif: ScriptMap<FontName>,
+    monospace: ScriptMap<FontName>,
+    cursive: ScriptMap<FontName>,
+    fantasy: ScriptMap<FontName>,
+    fallback: ScriptMap<FontName>,
     update_sender: AppEventSender,
     updates: Vec<FontChangedArgs>,
 }
 impl GenericFonts {
     fn new(update_sender: AppEventSender) -> Self {
-        fn default(name: impl Into<FontName>) -> FnvHashMap<Script, FontName> {
-            let mut f = FnvHashMap::with_capacity_and_hasher(1, fnv::FnvBuildHasher::default());
+        fn default(name: impl Into<FontName>) -> ScriptMap<FontName> {
+            let mut f = ScriptMap::with_capacity(1);
             f.insert(Script::Unknown, name.into());
             f
         }
@@ -1430,7 +1432,7 @@ macro_rules! impl_fallback_accessors {
     })+};
 }
 impl GenericFonts {
-    fn get_fallback(map: &FnvHashMap<Script, FontName>, script: Script) -> (&FontName, Script) {
+    fn get_fallback(map: &ScriptMap<FontName>, script: Script) -> (&FontName, Script) {
         map.get(&script)
             .map(|f| (f, script))
             .unwrap_or_else(|| (&map[&Script::Unknown], Script::Unknown))

@@ -1,7 +1,6 @@
 //! Font features and variation types.
 
 use crate::var::impl_from_and_into_var;
-use fnv::FnvHashMap;
 use std::{collections::hash_map::Entry as HEntry, fmt, marker::PhantomData, mem, num::NonZeroU32};
 
 // TODO
@@ -24,9 +23,11 @@ pub const FEATURE_ENABLED: u32 = 1;
 /// The raw value used when a feature is set to `false`.
 pub const FEATURE_DISABLED: u32 = 0;
 
+type FontFeaturesMap = fnv::FnvHashMap<FontFeatureName, u32>;
+
 /// Font features configuration.
 #[derive(Default, Clone)]
-pub struct FontFeatures(FnvHashMap<FontFeatureName, u32>);
+pub struct FontFeatures(FontFeaturesMap);
 impl FontFeatures {
     /// New default.
     #[inline]
@@ -510,7 +511,7 @@ impl<'a> fmt::Debug for FontFeature<'a> {
 
 /// Represents a set of features in a [`FontFeatures`] configuration, the features state is managed together.
 pub struct FontFeatureSet<'a> {
-    features: &'a mut FnvHashMap<FontFeatureName, u32>,
+    features: &'a mut FontFeaturesMap,
     names: &'static [FontFeatureName],
 }
 impl<'a> FontFeatureSet<'a> {
@@ -607,7 +608,7 @@ impl<'a> fmt::Debug for FontFeatureSet<'a> {
 /// Represents a set of exclusive boolean in a [`FontFeatures`] configuration, only one
 /// of the feature is enabled at a time.
 pub struct FontFeatureExclusiveSet<'a, S: FontFeatureExclusiveSetState> {
-    features: &'a mut FnvHashMap<FontFeatureName, u32>,
+    features: &'a mut FontFeaturesMap,
     _t: PhantomData<S>,
 }
 impl<'a, S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'a, S> {
@@ -683,7 +684,7 @@ impl<'a, S: FontFeatureExclusiveSetState + fmt::Debug> fmt::Debug for FontFeatur
 /// Represents a set of exclusive boolean in a [`FontFeatures`] configuration, one or more
 /// of the features can be active at the same time but they always map to a single *state*.
 pub struct FontFeatureExclusiveSets<'a, S: FontFeatureExclusiveSetsState> {
-    features: &'a mut FnvHashMap<FontFeatureName, u32>,
+    features: &'a mut FontFeaturesMap,
     _t: PhantomData<S>,
 }
 impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {

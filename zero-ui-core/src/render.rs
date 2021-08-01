@@ -4,6 +4,7 @@ use crate::{
     border::{BorderSides, LayoutBorderRadius},
     color::{RenderColor, RenderFilter},
     context::{OwnedStateMap, RenderContext, StateMap},
+    crate_util::IdMap,
     gradient::{RenderExtendMode, RenderGradientStop},
     units::*,
     var::impl_from_and_into_var,
@@ -12,7 +13,6 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use fnv::FnvHashMap;
 use std::{fmt, marker::PhantomData, mem, sync::Arc};
 use webrender::api::*;
 
@@ -1186,17 +1186,19 @@ impl FrameHitInfo {
     #[inline]
     pub fn new(window_id: WindowId, frame_id: FrameId, point: LayoutPoint, hits: HitTestResult) -> Self {
         let mut candidates = Vec::default();
-        let mut actual_hits = FnvHashMap::default();
+        let mut actual_hits = IdMap::default();
 
         for hit in hits.items {
-            if let Some(widget_id) = WidgetId::new(hit.tag.0) {
-                if hit.tag.1 == WIDGET_HIT_AREA {
-                    candidates.push((widget_id, hit.point_relative_to_item));
-                } else {
-                    actual_hits.insert(widget_id, hit.tag.1);
-                }
+            if hit.tag.0 == 0 {
+                continue;
+            }
+
+            // SAFETY: we skip zero so the value is memory safe.
+            let widget_id = unsafe { WidgetId::from_raw(hit.tag.0) };
+            if hit.tag.1 == WIDGET_HIT_AREA {
+                candidates.push((widget_id, hit.point_relative_to_item));
             } else {
-                log::warn!(target: "render", "hit tag {} is not a WidgetId", hit.tag.0);
+                actual_hits.insert(widget_id, hit.tag.1);
             }
         }
 
@@ -1388,8 +1390,8 @@ impl FrameInfoBuilder {
 
         #[cfg(debug_assertions)]
         let (repeats, lookup) = {
-            let mut repeats = FnvHashMap::default();
-            let mut lookup = FnvHashMap::default();
+            let mut repeats = IdMap::default();
+            let mut lookup = IdMap::default();
 
             for (widget_id, node_id) in valid_nodes {
                 if let Some(prev) = lookup.insert(widget_id, node_id) {
@@ -1438,7 +1440,7 @@ pub struct FrameInfo {
     window_id: WindowId,
     frame_id: FrameId,
     tree: Tree<WidgetInfoInner>,
-    lookup: FnvHashMap<WidgetId, ego_tree::NodeId>,
+    lookup: IdMap<WidgetId, ego_tree::NodeId>,
 }
 impl FrameInfo {
     /// Blank window frame that contains only the root widget taking no space.

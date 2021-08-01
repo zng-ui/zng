@@ -1,7 +1,7 @@
 #![cfg(debug_assertions)]
 //! Helper types for debugging an UI tree.
 
-use fnv::FnvHashMap;
+use linear_map::LinearMap;
 
 use super::{
     context::LayoutContext,
@@ -53,6 +53,7 @@ macro_rules! source_location {
 pub use crate::source_location;
 use crate::{
     context::RenderContext,
+    crate_util::IdMap,
     event::EventUpdateArgs,
     formatx,
     text::{Text, ToText},
@@ -284,7 +285,7 @@ pub struct WidgetInstanceInfo {
     pub instance_location: SourceLocation,
 
     /// Properties this widget captured in the new functions.
-    pub captures: FnvHashMap<WidgetNewFn, Box<[CapturedPropertyInfo]>>,
+    pub captures: LinearMap<WidgetNewFn, Box<[CapturedPropertyInfo]>>,
 
     /// When blocks setup by this widget instance.
     pub whens: Box<[WhenInfo]>,
@@ -365,7 +366,7 @@ pub struct WidgetInstanceInfoNode {
     child: BoxedUiNode,
     info: WidgetInstance,
     // debug vars, [capture-fn => properties[members[var]]]
-    debug_vars: FnvHashMap<WidgetNewFn, PropertiesVars>,
+    debug_vars: LinearMap<WidgetNewFn, PropertiesVars>,
     // when condition result variables.
     when_vars: Box<[BoxedVar<bool>]>,
 }
@@ -396,9 +397,9 @@ impl WidgetInstanceInfoNode {
         captures: Vec<(WidgetNewFnV1, Vec<CapturedPropertyV1>)>,
         mut whens: Vec<WhenInfoV1>,
     ) -> Self {
-        let mut debug_vars = FnvHashMap::default();
+        let mut debug_vars = LinearMap::default();
         debug_vars.reserve(captures.len());
-        let mut captures_final = FnvHashMap::default();
+        let mut captures_final = LinearMap::default();
         captures_final.reserve(captures.len());
 
         for (fn_, properties) in captures {
@@ -972,7 +973,7 @@ impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
 /// State for tracking updates in [`write_frame`](write_frame).
 pub struct WriteFrameState {
     #[allow(clippy::type_complexity)]
-    widgets: fnv::FnvHashMap<WidgetInstanceId, WriteWidgetState>,
+    widgets: IdMap<WidgetInstanceId, WriteWidgetState>,
 }
 struct WriteWidgetState {
     outer_size: LayoutSize,
@@ -994,7 +995,7 @@ impl WriteFrameState {
 
     /// State from `frame` that can be compared to future frames.
     pub fn new(frame: &FrameInfo) -> Self {
-        let mut widgets = fnv::FnvHashMap::default();
+        let mut widgets = IdMap::default();
 
         for w in frame.all_widgets() {
             if let Some(info) = w.instance() {

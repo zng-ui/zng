@@ -79,6 +79,7 @@
 use crate::{
     app::{AppEventSender, AppExtension},
     context::*,
+    crate_util::IdMap,
     event::*,
     gesture::{shortcut, ShortcutEvent},
     mouse::MouseDownEvent,
@@ -90,7 +91,6 @@ use crate::{
     window::{WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
-use fnv::FnvHashMap;
 use std::{
     fmt,
     time::{Duration, Instant},
@@ -621,7 +621,7 @@ pub struct Focus {
     request: Option<FocusRequest>,
     app_event_sender: AppEventSender,
     focused: Option<WidgetPath>,
-    return_focused: FnvHashMap<WidgetId, WidgetPath>,
+    return_focused: IdMap<WidgetId, WidgetPath>,
     alt_return: Option<(WidgetId, WidgetPath)>,
     is_highlighting: bool,
 }
@@ -635,7 +635,7 @@ impl Focus {
             app_event_sender,
             focused: None,
             is_highlighting: false,
-            return_focused: FnvHashMap::default(),
+            return_focused: IdMap::default(),
             alt_return: None,
         }
     }
