@@ -1031,6 +1031,8 @@ pub use zero_ui_proc_macros::widget;
 /// <div style='display:none'>
 pub use zero_ui_proc_macros::widget_mixin;
 
+pub use crate_util::IdNameError;
+
 mod tests;
 
 mod private {

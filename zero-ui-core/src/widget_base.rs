@@ -26,14 +26,19 @@ use crate::units::PixelGridExt;
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
-    use crate::context::{OwnedStateMap, RenderContext};
+    use crate::{
+        context::{OwnedStateMap, RenderContext},
+        var::IntoValue,
+    };
 
     use super::*;
 
     properties! {
-        /// Widget id. Set to  an [unique id](WidgetId::new_unique()) by default.
+        /// Widget id. Set to an [`new_unique`] by default.
+        ///
+        /// Can also be set to an `&'static str` unique name.
         #[allowed_in_when = false]
-        id(WidgetId) = WidgetId::new_unique();
+        id(impl IntoValue<WidgetId>) = WidgetId::new_unique();
     }
 
     properties! {
@@ -60,47 +65,47 @@ pub mod implicit_base {
         NilUiNode
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_child_inner(child: impl UiNode) -> impl UiNode {
         child
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_child_size(child: impl UiNode) -> impl UiNode {
         child
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_child_outer(child: impl UiNode) -> impl UiNode {
         child
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_child_event(child: impl UiNode) -> impl UiNode {
         child
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_child_context(child: impl UiNode) -> impl UiNode {
         child
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_inner(child: impl UiNode) -> impl UiNode {
         child
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_size(child: impl UiNode) -> impl UiNode {
         child
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_outer(child: impl UiNode) -> impl UiNode {
         child
     }
 
-    /// No-op, returns `child` unaltered.
+    /// No-op, returns `child`.
     pub fn new_event(child: impl UiNode) -> impl UiNode {
         child
     }
@@ -108,9 +113,13 @@ pub mod implicit_base {
     /// Implicit `new`, captures the `id` property.
     ///
     /// Returns a [`Widget`] node that introduces a new widget context. The node calls
-    /// [`WidgetContext::widget_context`](crate::context::WidgetContext::widget_context) and
-    /// [`FrameBuilder::push_widget`](crate::render::FrameBuilder::push_widget) to define the widget.
-    pub fn new(child: impl UiNode, id: WidgetId) -> impl Widget {
+    /// [`WidgetContext::widget_context`], [`LayoutContext::with_widget`] and [`FrameBuilder::push_widget`]
+    /// to define the widget.
+    ///
+    /// [`WidgetContext::widget_context`]: crate::context::WidgetContext::widget_context
+    /// [`LayoutContext::widget_context`]: crate::context::LayoutContext::widget_context
+    /// [`FrameBuilder::push_widget`]: crate::render::FrameBuilder::push_widget
+    pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
         struct WidgetNode<T> {
             id: WidgetId,
             transform_key: WidgetTransformKey,
@@ -293,7 +302,7 @@ pub mod implicit_base {
         }
 
         WidgetNode {
-            id,
+            id: id.into(),
             transform_key: WidgetTransformKey::new_unique(),
             state: OwnedStateMap::default(),
             child,

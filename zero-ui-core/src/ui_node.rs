@@ -4,11 +4,15 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use crate::units::*;
+use parking_lot::Mutex;
+
 use crate::{
     context::*,
     event::{AnyEventUpdate, Event},
+    var::IntoValue,
+    IdNameError,
 };
+use crate::{crate_util::NameIdMap, units::*};
 use crate::{
     event::EventUpdateArgs,
     impl_ui_node,
@@ -18,18 +22,107 @@ use crate::{
 unique_id! {
     /// Unique id of a widget.
     ///
-    /// # Details
-    /// Underlying value is a `NonZeroU64` generated using a relaxed global atomic `fetch_add`,
-    /// so IDs are unique for the process duration, but order is not guaranteed.
+    /// # Name
     ///
-    /// Panics if you somehow reach `u64::max_value()` calls to `new`.
+    /// Widget ids are very fast but are just a number that is only unique for the same process that generated then.
+    /// You can associate a [`name`] with an id to give it a persistent identifier.
+    ///
+    /// [`name`]: WidgetId::name
     pub struct WidgetId;
+}
+impl WidgetId {
+    fn name_map() -> parking_lot::MappedMutexGuard<'static, NameIdMap<Self>> {
+        static NAME_MAP: Mutex<Option<NameIdMap<WidgetId>>> = parking_lot::const_mutex(None);
+        parking_lot::MutexGuard::map(NAME_MAP.lock(), |m| m.get_or_insert_with(NameIdMap::new))
+    }
+
+    /// Get or generate an id with associated name.
+    ///
+    /// If the `name` is already associated with an id, returns it.
+    /// If the `name` is new, generates a new id and associated it with the name.
+    /// If `name` is an empty string just returns a new id.
+    pub fn named(name: &'static str) -> Self {
+        Self::name_map().get_id_or_insert(name, Self::new_unique)
+    }
+
+    /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
+    ///
+    /// The [`named`] function causes a hash-map lookup, but if you are only naming a widget to find
+    /// it in the Inspector you don't need that lookup in a release build, so you can set the [`id`]
+    /// to this function call instead.
+    ///
+    /// [`named`]: WidgetId::named
+    /// [`new_unique`]: WidgetId::new_unique
+    /// [`id`]: mod@crate::widget_base::implicit_base#wp-id
+    #[inline(always)]
+    pub fn debug_named(name: &'static str) -> Self {
+        #[cfg(debug_assertions)]
+        return Self::named(name);
+
+        #[cfg(not(debug_assertions))]
+        Self::new_unique()
+    }
+
+    /// Generate a new id with associated name.
+    ///
+    /// If the `name` is already associated with an id, returns the [`NameUsed`] error.
+    /// If the `name` is an empty string just returns a new id.
+    ///
+    /// [`NameUsed`]: IdNameError::NameUsed
+    pub fn named_new(name: &'static str) -> Result<Self, IdNameError<Self>> {
+        Self::name_map().new_named(name, Self::new_unique)
+    }
+
+    /// Returns the name associated with the id or `""`.
+    pub fn name(self) -> &'static str {
+        Self::name_map().get_name(self)
+    }
+
+    /// Associate a `name` with the id, if it is not named.
+    ///
+    /// If the `name` is already associated with a different id, returns the [`NameUsed`] error.
+    /// If the id is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
+    /// If the `name` is an empty string or already is the name of the id, does nothing.
+    ///
+    /// [`NameUsed`]: IdNameError::NameUsed
+    /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
+    pub fn set_name(self, name: &'static str) -> Result<(), IdNameError<Self>> {
+        Self::name_map().set(name, self)
+    }
+}
+impl fmt::Debug for WidgetId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = self.name();
+        if f.alternate() {
+            f.debug_struct("WidgetId")
+                .field("id", &self.get())
+                .field("sequential", &self.sequential())
+                .field("name", &name)
+                .finish()
+        } else if !name.is_empty() {
+            write!(f, "WidgetId({:?})", name)
+        } else {
+            write!(f, "WidgetId({:x})", self.get())
+        }
+    }
 }
 impl fmt::Display for WidgetId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "WgtId({})", self.get())
+        let name = self.name();
+        if !name.is_empty() {
+            write!(f, "{}", name)
+        } else {
+            write!(f, "WgtId({})", self.get())
+        }
     }
 }
+impl From<&'static str> for WidgetId {
+    /// Calls [`WidgetId::named`].
+    fn from(name: &'static str) -> Self {
+        WidgetId::named(name)
+    }
+}
+impl IntoValue<WidgetId> for &'static str {}
 
 /// An Ui tree node.
 #[cfg_attr(doc_nightly, doc(notable_trait))]

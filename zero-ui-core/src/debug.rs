@@ -349,6 +349,7 @@ unique_id! {
     ///
     /// This is different from the `WidgetId` in that it cannot be manipulated by the user
     /// and identifies the widget *instantiation* event during debug mode.
+    #[derive(Debug)]
     pub struct WidgetInstanceId;
 }
 

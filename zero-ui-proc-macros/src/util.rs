@@ -437,7 +437,7 @@ pub fn cfg_attr_not(cfg: Option<Attribute>) -> TokenStream {
                 non_user_error!("not a cfg attribute")
             } else {
                 let span = cfg.span();
-                let condition = cfg.tokens;// note: already includes the parenthesis
+                let condition = cfg.tokens; // note: already includes the parenthesis
                 quote_spanned! {span=>
                     #[cfg(not#condition)]
                 }

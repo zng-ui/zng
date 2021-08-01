@@ -654,7 +654,7 @@ pub fn user_cfg_when() {
 #[widget($crate::tests::widget::capture_properties_wgt)]
 pub mod capture_properties_wgt {
     use super::util::trace;
-    use crate::{UiNode, Widget, WidgetId};
+    use crate::{var::IntoValue, UiNode, Widget, WidgetId};
 
     properties! {
         trace as new_child_trace = "new-child";
@@ -672,7 +672,7 @@ pub mod capture_properties_wgt {
         trace(node, msg)
     }
 
-    fn new(node: impl UiNode, id: WidgetId, new_trace: &'static str) -> impl Widget {
+    fn new(node: impl UiNode, id: impl IntoValue<WidgetId>, new_trace: &'static str) -> impl Widget {
         let msg = match new_trace {
             "new" => "custom new",
             "user-new" => "custom new (user)",

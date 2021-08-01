@@ -40,6 +40,7 @@ fn disabled() -> impl Widget {
         on_click = hn!(|_, _| panic!("disabled button"));
         enabled = false;
         content = text("Disabled");
+        id = "disabled-btn"
     }
 }
 

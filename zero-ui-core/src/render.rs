@@ -1094,6 +1094,7 @@ pub type FrameBinding<T> = PropertyBinding<T>; // we rename this to not conflict
 pub type FrameValue<T> = PropertyValue<T>;
 
 unique_id! {
+    #[derive(Debug)]
     struct FrameBindingKeyId;
 }
 

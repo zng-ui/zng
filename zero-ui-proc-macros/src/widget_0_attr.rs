@@ -1134,17 +1134,18 @@ impl WidgetItems {
                     uses.push(use_);
                 }
                 // match properties! or inherit!.
-                Item::Macro(ItemMacro { attrs, mac, ident: None, .. })
-                    if {
-                        if let Some(ident) = mac.path.get_ident() {
-                            if ident == "properties" {
-                                known_macro = Some(KnownMacro::Properties);
-                            } else if ident == "inherit" {
-                                known_macro = Some(KnownMacro::Inherit);
-                            }
+                Item::Macro(ItemMacro {
+                    attrs, mac, ident: None, ..
+                }) if {
+                    if let Some(ident) = mac.path.get_ident() {
+                        if ident == "properties" {
+                            known_macro = Some(KnownMacro::Properties);
+                        } else if ident == "inherit" {
+                            known_macro = Some(KnownMacro::Inherit);
                         }
-                        known_macro.is_some()
-                    } =>
+                    }
+                    known_macro.is_some()
+                } =>
                 {
                     match known_macro {
                         Some(KnownMacro::Properties) => match syn::parse2::<Properties>(mac.tokens) {
@@ -1158,7 +1159,7 @@ impl WidgetItems {
                             Ok(mut ps) => {
                                 ps.attrs.extend(attrs);
                                 inherits.push(ps)
-                            },
+                            }
                             Err(e) => errors.push_syn(e),
                         },
                         None => unreachable!(),

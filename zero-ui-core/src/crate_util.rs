@@ -3,7 +3,8 @@
 use rand::Rng;
 use rustc_hash::FxHasher;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map, HashMap, HashSet},
+    fmt,
     hash::{BuildHasher, BuildHasherDefault, Hasher},
     num::NonZeroU64,
     sync::{
@@ -14,20 +15,21 @@ use std::{
 
 /// Declare a new unique id type.
 macro_rules! unique_id {
-    ($(#[$docs:meta])* $vis:vis struct $Type:ident;) => {
+    ($(#[$attrs:meta])* $vis:vis struct $Type:ident;) => {
 
-        $(#[$docs])*
+        $(#[$attrs])*
+        ///
+        /// # Memory
+        ///
+        /// The internal number is a [`NonZeroU64`], so it always uses 64-bits of memory, be it a direct value or in an `Option`.
         ///
         /// # As Hash
         ///
         /// The generated internal number has good statistical distribution and can be used as its own hash,
         /// although it is not cryptographically safe, as it is simply a sequential counter scrambled using `splitmix64`.
         ///
-        /// # Non-Zero
-        ///
-        /// The internal number is non-zero, an `Option` value of this type uses the same 64-bits because
-        /// the compiler represents `None` using zero.
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        /// [`NonZeroU64`]: std::num::NonZeroU64
+        #[derive(Clone, Copy, PartialEq, Eq, Hash)]
         $vis struct $Type(std::num::NonZeroU64);
 
         impl $Type {
@@ -401,6 +403,101 @@ impl Default for BuildFxHasher {
 pub type FxHashMap<K, V> = HashMap<K, V, BuildFxHasher>;
 /// Patched [`rustc_hash::FxHashSet`].
 pub type FxHashSet<V> = HashSet<V, BuildFxHasher>;
+
+/// Bidirectional map between a `&'static str` and a [`unique_id!`] generated id type.
+pub struct NameIdMap<I> {
+    name_to_id: HashMap<&'static str, I>,
+    id_to_name: FxHashMap<I, &'static str>,
+}
+impl<I: Copy + PartialEq + Eq + std::hash::Hash + fmt::Debug> NameIdMap<I> {
+    pub fn new() -> Self {
+        NameIdMap {
+            name_to_id: HashMap::default(),
+            id_to_name: FxHashMap::default(),
+        }
+    }
+
+    pub fn set(&mut self, name: &'static str, id: I) -> Result<(), IdNameError<I>> {
+        if name.is_empty() {
+            return Ok(());
+        }
+
+        match self.id_to_name.entry(id) {
+            hash_map::Entry::Occupied(e) => {
+                if *e.get() == name {
+                    Ok(())
+                } else {
+                    Err(IdNameError::AlreadyNamed(*e.get()))
+                }
+            },
+            hash_map::Entry::Vacant(e) => match self.name_to_id.entry(name) {
+                hash_map::Entry::Occupied(ne) => Err(IdNameError::NameUsed(*ne.get())),
+                hash_map::Entry::Vacant(ne) => {
+                    e.insert(name);
+                    ne.insert(id);
+                    Ok(())
+                }
+            },
+        }
+    }
+
+    pub fn get_id_or_insert(&mut self, name: &'static str, new_unique: impl FnOnce() -> I) -> I {
+        if name.is_empty() {
+            return new_unique();
+        }
+        match self.name_to_id.entry(name) {
+            hash_map::Entry::Occupied(e) => *e.get(),
+            hash_map::Entry::Vacant(e) => {
+                let id = new_unique();
+                e.insert(id);
+                self.id_to_name.insert(id, name);
+                id
+            }
+        }
+    }
+
+    pub fn new_named(&mut self, name: &'static str, new_unique: impl FnOnce() -> I) -> Result<I, IdNameError<I>> {
+        if name.is_empty() {
+            Ok(new_unique())
+        } else {
+            match self.name_to_id.entry(name) {
+                hash_map::Entry::Occupied(e) => Err(IdNameError::NameUsed(*e.get())),
+                hash_map::Entry::Vacant(e) => {
+                    let id = new_unique();
+                    e.insert(id);
+                    self.id_to_name.insert(id, name);
+                    Ok(id)
+                }
+            }
+        }
+    }
+
+    pub fn get_name(&self, id: I) -> &'static str {
+        self.id_to_name.get(&id).copied().unwrap_or_default()
+    }
+}
+
+/// Error when trying to associate give a name with an existing id.
+#[derive(Clone, Debug, Copy)]
+pub enum IdNameError<I: Clone + Copy + fmt::Debug> {
+    /// The id is already named, id names are permanent.
+    ///
+    /// The associated value if the id name.
+    AlreadyNamed(&'static str),
+    /// The name is already used for another id, names must be unique.
+    ///
+    /// The associated value if the named id.
+    NameUsed(I),
+}
+impl<I: Clone + Copy + fmt::Debug> fmt::Display for IdNameError<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            IdNameError::AlreadyNamed(name) => write!(f, "cannot name the id, it is already called `{:?}`", name),
+            IdNameError::NameUsed(id) => write!(f, "cannot name the id, it is already the name of {:#?}", id),
+        }
+    }
+}
+impl<I: Clone + Copy + fmt::Debug> std::error::Error for IdNameError<I> {}
 
 #[cfg(test)]
 pub mod tests {
