@@ -13,11 +13,11 @@ use webrender::api::RenderApi;
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
-use crate::app::AppEventSender;
 use crate::context::AppContext;
 use crate::event::{event, event_args, EventUpdateArgs};
 use crate::service::Service;
 use crate::units::{layout_to_pt, LayoutLength};
+use crate::{app::AppEventSender, crate_util::FxHashMap};
 use crate::{app::AppExtension, render::TextAntiAliasing};
 
 #[cfg(windows)]
@@ -429,7 +429,7 @@ pub struct FontFace {
     properties: font_kit::properties::Properties,
     metrics: FontFaceMetrics,
 
-    instances: RefCell<fnv::FnvHashMap<FontInstanceKey, FontRef>>,
+    instances: RefCell<FxHashMap<FontInstanceKey, FontRef>>,
     render_keys: RefCell<Vec<RenderFontFace>>,
 
     unregistered: Cell<bool>,

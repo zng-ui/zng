@@ -80,7 +80,8 @@ img-parts = "0.2"
 byteorder = "1"
 log = "0.4"
 unsafe-any = "0.4"
-linear-map = "1.2.0"
+linear-map = "1"
+rand = "0.8"
 
 # serde
 serde = "1"

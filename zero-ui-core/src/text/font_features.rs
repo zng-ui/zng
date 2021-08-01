@@ -1,6 +1,9 @@
 //! Font features and variation types.
 
-use crate::var::impl_from_and_into_var;
+use crate::{
+    crate_util::{FxHashMap, FxHashSet},
+    var::impl_from_and_into_var,
+};
 use std::{collections::hash_map::Entry as HEntry, fmt, marker::PhantomData, mem, num::NonZeroU32};
 
 // TODO
@@ -23,7 +26,7 @@ pub const FEATURE_ENABLED: u32 = 1;
 /// The raw value used when a feature is set to `false`.
 pub const FEATURE_DISABLED: u32 = 0;
 
-type FontFeaturesMap = fnv::FnvHashMap<FontFeatureName, u32>;
+type FontFeaturesMap = FxHashMap<FontFeatureName, u32>;
 
 /// Font features configuration.
 #[derive(Default, Clone)]
@@ -697,7 +700,7 @@ impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
     /// Gets the current state of the features.
     #[inline]
     pub fn state(&self) -> S {
-        let mut active = fnv::FnvHashSet::default();
+        let mut active = FxHashSet::default();
         for &names in self.names() {
             for &name in names {
                 if let Some(&s) = self.features.get(name) {
@@ -727,7 +730,7 @@ impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
         S::auto()
     }
     fn take_state(&mut self) -> S {
-        let mut active = fnv::FnvHashSet::default();
+        let mut active = FxHashSet::default();
         let mut force_auto = false;
 
         for &names in self.names() {
