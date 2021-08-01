@@ -434,12 +434,12 @@ pub fn cfg_attr_not(cfg: Option<Attribute>) -> TokenStream {
     match cfg {
         Some(cfg) => {
             if !cfg.path.get_ident().map(|id| id == "cfg").unwrap_or_default() {
-                non_user_error!("not an cfg attribute")
+                non_user_error!("not a cfg attribute")
             } else {
                 let span = cfg.span();
-                let condition = cfg.tokens;
+                let condition = cfg.tokens;// note: already includes the parenthesis
                 quote_spanned! {span=>
-                    #[cfg(not(#condition))]
+                    #[cfg(not#condition)]
                 }
             }
         }

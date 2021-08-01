@@ -1134,7 +1134,7 @@ impl WidgetItems {
                     uses.push(use_);
                 }
                 // match properties! or inherit!.
-                Item::Macro(ItemMacro { mac, ident: None, .. })
+                Item::Macro(ItemMacro { attrs, mac, ident: None, .. })
                     if {
                         if let Some(ident) = mac.path.get_ident() {
                             if ident == "properties" {
@@ -1155,7 +1155,10 @@ impl WidgetItems {
                             Err(e) => errors.push_syn(e),
                         },
                         Some(KnownMacro::Inherit) => match parse2::<Inherit>(mac.tokens) {
-                            Ok(ps) => inherits.push(ps),
+                            Ok(mut ps) => {
+                                ps.attrs.extend(attrs);
+                                inherits.push(ps)
+                            },
                             Err(e) => errors.push_syn(e),
                         },
                         None => unreachable!(),

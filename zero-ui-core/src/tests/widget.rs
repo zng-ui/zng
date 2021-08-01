@@ -160,6 +160,22 @@ pub fn wgt_remove_property() {
 }
 
 /*
+ * Tests if a cfg removes an inherit.
+ */
+#[widget($crate::tests::widget::cfg_remove_inherit_wgt)]
+pub mod cfg_remove_inherit_wgt {
+    #[cfg(never)]
+    inherit!(super::foo_mixin);
+}
+#[test]
+pub fn wgt_cfg_remove_inherit() {
+    let mut default = cfg_remove_inherit_wgt!();
+    default.test_init(&mut TestWidgetContext::new());
+
+    assert!(!util::traced(&default, "foo_mixin"));
+}
+
+/*
  * Test unsetting default value.
  */
 #[widget($crate::tests::widget::default_value_wgt)]
@@ -696,6 +712,28 @@ pub fn wgt_capture_properties_reassign() {
     assert!(!util::traced(&wgt, "new"));
     assert!(!util::traced(&wgt, "user-new-child"));
     assert!(!util::traced(&wgt, "user-new"));
+}
+#[widget($crate::tests::widget::cfg_capture_wgt)]
+pub mod cfg_capture_wgt {
+    use super::util::trace;
+    use crate::UiNode;
+
+    properties! {
+        #[cfg(never)]
+        trace as never_trace = panic!("never_trace was not removed");
+        trace as non_never_trace = "non-never";
+    }
+
+    fn new_outer(node: impl UiNode, #[cfg(never)] never_trace: NeverTraceNotRemoved, non_never_trace: &'static str) -> impl UiNode {
+        trace(node, non_never_trace)
+    }
+}
+#[test]
+pub fn wgt_cfg_capture() {
+    let mut wgt = cfg_capture_wgt! {};
+    wgt.test_init(&mut TestWidgetContext::new());
+
+    assert!(util::traced(&wgt, "non-never"));
 }
 
 /*
