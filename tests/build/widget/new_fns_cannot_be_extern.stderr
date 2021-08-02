@@ -1,7 +1,7 @@
 error: `new` cannot be `extern`
  --> $DIR/new_fns_cannot_be_extern.rs:7:5
   |
-7 |     extern "C" fn new(child: impl UiNode, id: WidgetId) -> impl UiNode {
+7 |     extern "C" fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
   |     ^^^^^^
 
 error: `new_child` cannot be `extern`

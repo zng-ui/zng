@@ -1,5 +1,5 @@
 error: property `id` is already captured in inherited fn `new`
  --> $DIR/property_already_captured_inherited1.rs:7:18
   |
-7 |     fn new_child(id: WidgetId) -> NilUiNode {
+7 |     fn new_child(id: impl IntoValue<WidgetId>) -> NilUiNode {
   |                  ^^

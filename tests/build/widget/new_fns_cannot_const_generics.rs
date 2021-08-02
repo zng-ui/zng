@@ -2,9 +2,9 @@ use zero_ui::core::widget;
 
 #[widget($crate::test_widget)]
 pub mod test_widget {
-    use zero_ui::core::{UiNode, WidgetId};
+    use zero_ui::core::{UiNode, WidgetId, var::IntoValue};
 
-    fn new<const N: usize>(child: impl UiNode, id: WidgetId) -> [bool; N] {
+    fn new<const N: usize>(child: impl UiNode, id: impl IntoValue<WidgetId>) -> [bool; N] {
         [true; N]
     }
     fn new_child<const N: usize>() -> [bool; N] {

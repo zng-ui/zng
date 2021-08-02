@@ -1,11 +1,11 @@
 error: property `id` already captured in `new`
- --> $DIR/property_already_captured2.rs:7:46
+ --> $DIR/property_already_captured2.rs:7:62
   |
-7 |     fn new(child: impl UiNode, id: WidgetId, id: WidgetId) {
-  |                                              ^^
+7 |     fn new(child: impl UiNode, id: impl IntoValue<WidgetId>, id: impl IntoValue<WidgetId>) {
+  |                                                              ^^
 
 error[E0415]: identifier `id` is bound more than once in this parameter list
- --> $DIR/property_already_captured2.rs:7:46
+ --> $DIR/property_already_captured2.rs:7:62
   |
-7 |     fn new(child: impl UiNode, id: WidgetId, id: WidgetId) {
-  |                                              ^^ used as parameter more than once
+7 |     fn new(child: impl UiNode, id: impl IntoValue<WidgetId>, id: impl IntoValue<WidgetId>) {
+  |                                                              ^^ used as parameter more than once
