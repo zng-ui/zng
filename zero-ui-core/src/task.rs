@@ -704,26 +704,29 @@ impl<'a> WidgetContext<'a> {
     }
 }
 
+enum UiTaskState<R> {
+    Pending {
+        future: Pin<Box<dyn Future<Output = R>>>,
+        event_loop_waker: Waker,
+    },
+    Ready(R),
+}
+
 /// Represents a [`Future`] running in the UI thread.
 ///
 /// The future [`Waker`](std::task::Waker), wakes the app event loop and causes an update, in a update handler
 /// [`update`](UiTask::update) must be called, if this task waked the app the future is polled once.
-pub struct UiTask<R> {
-    future: Pin<Box<dyn Future<Output = R>>>,
-    event_loop_waker: Waker,
-    result: Option<R>,
-}
+pub struct UiTask<R>(UiTaskState<R>);
 impl<R> UiTask<R> {
     /// Create a app thread bound future executor.
     ///
     /// The `task` is inert and must be polled using [`update`](UiTask::update) to start, and it must be polled every
     /// [`UiNode::update`](crate::UiNode::update) after that.
     pub fn new<F: Future<Output = R> + 'static>(updates: &Updates, task: F) -> Self {
-        UiTask {
+        UiTask(UiTaskState::Pending {
             future: Box::pin(task),
             event_loop_waker: updates.sender().waker(),
-            result: None,
-        }
+        })
     }
 
     /// Polls the future if needed, returns a reference to the result if the task is done.
@@ -731,23 +734,27 @@ impl<R> UiTask<R> {
     /// This does not poll the future if the task is done.
     #[inline]
     pub fn update(&mut self) -> Option<&R> {
-        if self.result.is_some() {
-            return self.result.as_ref();
+        if let UiTaskState::Pending { future, event_loop_waker } = &mut self.0 {
+            // TODO this is polling futures that don't notify wake, change
+            // Waker to have a local signal?
+            if let Poll::Ready(r) = future.as_mut().poll(&mut std::task::Context::from_waker(event_loop_waker)) {
+                self.0 = UiTaskState::Ready(r);
+            }
         }
 
-        // TODO this is polling futures that don't notify wake, change
-        // Waker to have a local signal?
-        match self
-            .future
-            .as_mut()
-            .poll(&mut std::task::Context::from_waker(&self.event_loop_waker))
-        {
-            std::task::Poll::Ready(r) => {
-                self.result = Some(r);
-                self.result.as_ref()
-            }
-            std::task::Poll::Pending => None,
+        if let UiTaskState::Ready(r) = &self.0 {
+            Some(r)
+        } else {
+            None
         }
+    }
+
+    /// Returns `true` if the task is done.
+    ///
+    /// This does not poll the future.
+    #[inline]
+    pub fn is_ready(&self) -> bool {
+        matches!(&self.0, UiTaskState::Ready(_))
     }
 
     /// Returns the result if the task is completed.
@@ -756,10 +763,9 @@ impl<R> UiTask<R> {
     /// then call this method to take ownership of the result.
     #[inline]
     pub fn into_result(self) -> Result<R, Self> {
-        if self.result.is_some() {
-            Ok(self.result.unwrap())
-        } else {
-            Err(self)
+        match self.0 {
+            UiTaskState::Ready(r) => Ok(r),
+            p @ UiTaskState::Pending { .. } => Err(Self(p)),
         }
     }
 }
@@ -803,16 +809,23 @@ impl<R> WidgetTask<R> {
         self.scope.with(ctx, move || task.update())
     }
 
+    /// Returns `true` if the task is done.
+    ///
+    /// This does not poll the future.
+    #[inline]
+    pub fn is_ready(&self) -> bool {
+        self.task.is_ready()
+    }
+
     /// Returns the result if the task is completed.
     ///
     /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
     /// then call this method to take ownership of the result.
     #[inline]
     pub fn into_result(self) -> Result<R, Self> {
-        if self.task.result.is_some() {
-            Ok(self.task.result.unwrap())
-        } else {
-            Err(self)
+        match self.task.into_result() {
+            Ok(r) => Ok(r),
+            Err(task) => Err(Self { task, scope: self.scope }),
         }
     }
 }
@@ -856,23 +869,30 @@ impl<R> AppTask<R> {
         self.scope.with(ctx, move || task.update())
     }
 
+    /// Returns `true` if the task is done.
+    ///
+    /// This does not poll the future.
+    #[inline]
+    pub fn is_ready(&self) -> bool {
+        self.task.is_ready()
+    }
+
     /// Returns the result if the task is completed.
     ///
     /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
     /// then call this method to take ownership of the result.
     #[inline]
     pub fn into_result(self) -> Result<R, Self> {
-        if self.task.result.is_some() {
-            Ok(self.task.result.unwrap())
-        } else {
-            Err(self)
+        match self.task.into_result() {
+            Ok(r) => Ok(r),
+            Err(task) => Err(Self { task, scope: self.scope }),
         }
     }
 }
 impl AppTask<()> {
     /// Schedule the app task to run to completion.
     pub fn run(mut self, updates: &mut Updates) {
-        if self.task.result.is_none() {
+        if !self.is_ready() {
             updates
                 .on_pre_update(app_hn!(|ctx, _, handle| {
                     if self.update(ctx).is_some() {

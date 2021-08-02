@@ -429,7 +429,7 @@ impl<I: Copy + PartialEq + Eq + std::hash::Hash + fmt::Debug> NameIdMap<I> {
                 } else {
                     Err(IdNameError::AlreadyNamed(*e.get()))
                 }
-            },
+            }
             hash_map::Entry::Vacant(e) => match self.name_to_id.entry(name) {
                 hash_map::Entry::Occupied(ne) => Err(IdNameError::NameUsed(*ne.get())),
                 hash_map::Entry::Vacant(ne) => {

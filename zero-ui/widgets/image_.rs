@@ -2,7 +2,7 @@ use crate::prelude::new_widget::*;
 
 #[widget($crate::widgets::image)]
 pub mod image {
-    use zero_ui_core::image::ImageCacheKey;
+    use zero_ui::core::image::{CachedImageVar, ImageCacheKey};
 
     use super::*;
     use crate::core::task::http::Uri;
@@ -32,8 +32,8 @@ pub mod image {
         }
         fn from(key: ImageCacheKey) -> ImageSource {
             match key {
-                ImageCacheKey::Path(path) => ImageSource::Read(path),
-                ImageCacheKey::Uri(uri)  => ImageSource::Download(uri)
+                ImageCacheKey::Read(path) => ImageSource::Read(path),
+                ImageCacheKey::Download(uri)  => ImageSource::Download(uri)
             }
         }
     }
@@ -65,27 +65,32 @@ pub mod image {
     fn new_child(source: impl IntoVar<Text>) -> impl UiNode {
         struct ImageNode<T> {
             path: T,
-            image: Option<Image>,
+            image: Option<CachedImageVar>,
             final_size: LayoutSize,
         }
         #[impl_ui_node(none)]
         impl<T: Var<Text>> UiNode for ImageNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let path = self.path.get_clone(ctx);
-                self.image = Some(ctx.services.images().get_file(path));
+                self.image = Some(ctx.services.images().read(path, ctx.vars));
             }
             fn deinit(&mut self, _: &mut WidgetContext) {
                 self.image = None;
             }
+
+            fn update(&mut self, ctx: &mut WidgetContext) {
+                if self.image.as_ref().unwrap().is_new(ctx) {
+                    ctx.updates.render();
+                }
+            }
+
             fn arrange(&mut self, _: &mut LayoutContext, final_size: LayoutSize) {
                 self.final_size = final_size;
             }
-            fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
-                frame.push_image(
-                    LayoutRect::from(self.final_size),
-                    self.image.as_ref().unwrap(),
-                    ImageRendering::Pixelated,
-                );
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx) {
+                    frame.push_image(LayoutRect::from(self.final_size), img, ImageRendering::Pixelated);
+                }
             }
         }
         ImageNode {
