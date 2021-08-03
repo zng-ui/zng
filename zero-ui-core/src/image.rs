@@ -23,12 +23,22 @@ use crate::{
 };
 
 /// Represents a loaded image.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Image {
     bgra: Arc<Vec<u8>>,
     size: (u32, u32),
     opaque: bool,
     render_keys: Rc<RefCell<Vec<RenderImage>>>,
+}
+impl fmt::Debug for Image {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Image")
+            .field("size", &self.size)
+            .field("opaque", &self.opaque)
+            .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
+            .field("render_keys", &format_args!("<{} keys>", self.render_keys.borrow().len()))
+            .finish()
+    }
 }
 impl Image {
     /// Open and decode `path` from the file system.

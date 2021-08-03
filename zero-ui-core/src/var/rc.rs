@@ -96,7 +96,9 @@ impl<T: VarValue> RcVar<T> {
     /// If the current value changed in the last update.
     #[inline]
     pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.0.last_update_id.get() == vars.update_id())
+        vars.with_vars(|vars| {
+            self.0.last_update_id.get() == vars.update_id()
+        })
     }
 
     /// Gets the current value version.

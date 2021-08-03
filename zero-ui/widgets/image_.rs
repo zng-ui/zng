@@ -6,7 +6,7 @@ pub mod image {
 
     use super::*;
     use crate::core::task::http::Uri;
-    use std::path::PathBuf;
+    use std::{convert::TryFrom, path::PathBuf};
 
     /// The different inputs accepted by the [`source`] property.
     ///
@@ -36,6 +36,19 @@ pub mod image {
                 ImageCacheKey::Download(uri)  => ImageSource::Download(uri)
             }
         }
+        fn from(s: &str) -> ImageSource {
+            use crate::core::task::http::uri::*;
+            if let Ok(uri) = Uri::try_from(s) {
+                if let Some(scheme) = uri.scheme() {
+                    if scheme == &Scheme::HTTPS || scheme == &Scheme::HTTP {
+                        return ImageSource::Download(uri);
+                    } else if scheme.as_str() == "file" {
+                        return PathBuf::from(uri.path()).into();
+                    }
+                }
+            }
+            PathBuf::from(s).into()
+        }
     }
 
     properties! {
@@ -43,7 +56,7 @@ pub mod image {
             /// The image source.
             ///
             /// Can be a file path, an URI, binary included in the app and more.
-            source(impl IntoVar<Text>) = "";
+            source(impl IntoVar<ImageSource>);
         }
 
         /// Sets the image scaling algorithm used to rescale the image in the renderer.
@@ -62,25 +75,40 @@ pub mod image {
         properties::image_rendering as rendering;
     }
 
-    fn new_child(source: impl IntoVar<Text>) -> impl UiNode {
+    fn new_child(source: impl IntoVar<ImageSource>) -> impl UiNode {
         struct ImageNode<T> {
-            path: T,
+            source: T,
             image: Option<ImageRequestVar>,
             final_size: LayoutSize,
         }
         #[impl_ui_node(none)]
-        impl<T: Var<Text>> UiNode for ImageNode<T> {
+        impl<T: Var<ImageSource>> UiNode for ImageNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                let path = self.path.get_clone(ctx);
-                self.image = Some(ctx.services.images().read(ctx.vars, path));
+                let img = match self.source.get_clone(ctx) {
+                    ImageSource::Read(path) => ctx.services.images().read(ctx.vars, path),
+                    ImageSource::Download(uri) => ctx.services.images().download(ctx.vars, uri),
+                    ImageSource::Image(img) => todo!(),
+                };
+                self.image = Some(img);
             }
             fn deinit(&mut self, _: &mut WidgetContext) {
                 self.image = None;
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {
-                if self.image.as_ref().unwrap().is_new(ctx) {
-                    ctx.updates.render();
+                if self.source.is_new(ctx) {
+                    self.init(ctx);
+                } else if self.image.as_ref().unwrap().is_new(ctx) {
+                    ctx.updates.layout();
+                }
+            }
+
+            fn measure(&mut self, ctx: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
+                if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx) {
+                    let (w, h) = img.size();
+                    LayoutSize::new(w as f32, h as f32)
+                } else {
+                    LayoutSize::zero()
                 }
             }
 
@@ -94,7 +122,7 @@ pub mod image {
             }
         }
         ImageNode {
-            path: source.into_var(),
+            source: source.into_var(),
             image: None,
             final_size: LayoutSize::zero(),
         }
@@ -123,4 +151,9 @@ pub mod image {
             with_context_var(child, ImageRenderingVar, rendering)
         }
     }
+}
+
+///
+pub fn image(source: impl IntoVar<image::ImageSource>) -> impl Widget {
+    image! { source }
 }

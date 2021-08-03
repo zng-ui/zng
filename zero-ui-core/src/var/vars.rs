@@ -412,7 +412,7 @@ impl Vars {
         Vars {
             read: VarsRead {
                 _singleton: SingletonVars::assert_new("Vars"),
-                update_id: 0u32.wrapping_sub(13),
+                update_id: 1u32,
                 app_event_sender,
                 widget_clear: Default::default(),
                 senders: RefCell::default(),

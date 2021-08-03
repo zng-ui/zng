@@ -3287,7 +3287,7 @@ pub mod http {
 
     pub use isahc::error::Error;
     pub use isahc::http::request::Builder as RequestBuilder;
-    pub use isahc::http::{header, Request, StatusCode, Uri};
+    pub use isahc::http::{header, uri, Request, StatusCode, Uri};
 
     use isahc::AsyncReadResponseExt;
     use parking_lot::{const_mutex, Mutex};

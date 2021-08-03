@@ -60,7 +60,10 @@ impl WidgetId {
         return Self::named(name);
 
         #[cfg(not(debug_assertions))]
-        Self::new_unique()
+        {
+            let _ = name;
+            Self::new_unique()
+        }
     }
 
     /// Generate a new id with associated name.
