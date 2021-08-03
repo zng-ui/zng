@@ -2,7 +2,11 @@ use zero_ui::core::widget;
 
 #[widget($crate::test_widget)]
 pub mod test_widget {
-    use zero_ui::core::{units::SideOffsets, var::{IntoVar, IntoValue}, NilUiNode, UiNode, WidgetId};
+    use zero_ui::core::{
+        units::SideOffsets,
+        var::{IntoValue, IntoVar},
+        NilUiNode, UiNode, WidgetId,
+    };
     use zero_ui::properties::margin;
 
     properties! {
