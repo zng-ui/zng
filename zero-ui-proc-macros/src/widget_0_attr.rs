@@ -1199,7 +1199,7 @@ struct Inherit {
 impl Parse for Inherit {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Inherit {
-            attrs: Attribute::parse_outer(input)?,
+            attrs: vec![],
             path: input.parse()?,
         })
     }

@@ -175,6 +175,34 @@ pub fn wgt_cfg_remove_inherit() {
     assert!(!util::traced(&default, "foo_mixin"));
 }
 
+#[widget($crate::tests::widget::cfg_remove_inherit2_wgt)]
+pub mod cfg_remove_inherit2_wgt {
+    #[cfg(never)]
+    inherit!(super::foo_mixin);
+    inherit!(super::foo_mixin);
+}
+#[test]
+pub fn wgt_cfg_remove_inherit2() {
+    let mut default = cfg_remove_inherit2_wgt!();
+    default.test_init(&mut TestWidgetContext::new());
+
+    assert!(util::traced(&default, "foo_mixin"));
+}
+
+#[widget($crate::tests::widget::cfg_remove_inherit3_wgt)]
+pub mod cfg_remove_inherit3_wgt {
+    #[cfg(never)]
+    inherit!(super::required_mixin);
+    inherit!(super::foo_mixin);
+}
+#[test]
+pub fn wgt_cfg_remove_inherit3() {
+    let mut default = cfg_remove_inherit3_wgt!();
+    default.test_init(&mut TestWidgetContext::new());
+
+    assert!(util::traced(&default, "foo_mixin"));
+}
+
 /*
  * Test unsetting default value.
  */
