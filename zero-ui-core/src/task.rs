@@ -141,7 +141,7 @@ use parking_lot::Mutex;
 use crate::{
     context::*,
     crate_util::{panic_str, PanicPayload, PanicResult},
-    var::{response_channel, ResponseVar, VarValue, WithVars},
+    var::{response_channel, response_var, ResponseVar, Var, VarValue, WithVars},
 };
 
 #[doc(no_inline)]
@@ -428,6 +428,11 @@ where
 /// If the `task` panics the panic is logged but otherwise ignored and the variable never responds. See
 /// [`spawn`] for more information about the panic handling of this function.
 ///
+/// # Send
+///
+/// The response value must be [`Send`], if the `!Send` part of the result is trivial you can use
+/// [`respond_ctor`] to workaround this constrain by sending a *constructor* closure to run in the UI thread.
+///
 /// [`resume_unwind`]: panic::resume_unwind
 #[inline]
 pub fn respond<Vw: WithVars, R, F>(vars: &Vw, task: F) -> ResponseVar<R>
@@ -440,6 +445,49 @@ where
     spawn(async move {
         let r = task.await;
         let _ = sender.send_response(r);
+    });
+
+    response
+}
+
+/// Like [`respond`] but sends a response constructor closure.
+///
+/// The response constructor is a closure that is the result of `task`. It is send to, and evaluated in the UI thread,
+/// this removes the [`Send`] constrain from the response value for cases where the expensive values of the response
+/// are [`Send`], just the final response that is not.
+///
+/// # Examples
+///
+/// Construct a `!Send` struct in the UI thread using a *constructor* closure:
+///
+/// ```
+/// # use std::rc::Rc;
+/// # use zero_ui_core::task;
+/// #[derive(Clone, Debug)]
+/// pub struct NotSend {
+///     pub send_value: bool,
+///     not_send_part: Rc<()>
+/// }
+///
+/// # fn demo(vars: &zero_ui_core::var::Vars) { let _ =
+/// task::respond_ctor(vars, async {
+///     let send_value = task::wait(|| true).await;
+///     move || NotSend { send_value, not_send_part: Rc::new(()) }
+/// })
+/// # ; }
+/// ```
+pub fn respond_ctor<Vw: WithVars, R, C, F>(vars: &Vw, task: F) -> ResponseVar<R>
+where
+    R: VarValue + 'static,
+    C: FnOnce() -> R + Send + 'static,
+    F: Future<Output = C> + Send + 'static,
+{
+    let (responder, response) = response_var();
+    let modify_sender = responder.modify_sender(vars);
+
+    spawn(async move {
+        let ctor = task.await;
+        let _ = modify_sender.send(move |v| **v = crate::var::Response::Done(ctor()));
     });
 
     response

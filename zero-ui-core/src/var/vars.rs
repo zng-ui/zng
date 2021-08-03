@@ -1149,7 +1149,7 @@ impl<T: VarValue + Send> ResponseSender<T> {
 /// New paired [`ResponseSender`] and [`ResponseVar`] in the waiting state.
 pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (ResponseSender<T>, ResponseVar<T>) {
     let (responder, response) = response_var();
-    vars.with_vars(|vars| (vars.sender(&responder), response))
+    vars.with_vars(|vars| (responder.sender(vars), response))
 }
 
 /// Represents a variable binding created by one of the `bind` methods of [`Vars`] or [`Var`].

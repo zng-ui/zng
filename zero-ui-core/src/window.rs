@@ -1847,7 +1847,7 @@ impl OpenWindow {
                 })
                 .expect("failed to create a window renderer");
 
-                api = Some(Arc::clone(r.0.api()));
+                api = Some(Rc::clone(r.0.api()));
                 renderer = Some(RefCell::new(r.0));
 
                 let window_ = r.1;
@@ -1877,7 +1877,7 @@ impl OpenWindow {
                     )
                     .expect("failed to create a headless renderer");
 
-                    api = Some(Arc::clone(rend.api()));
+                    api = Some(Rc::clone(rend.api()));
                     renderer = Some(RefCell::new(rend));
                 } else {
                     renderer = None;
@@ -2761,7 +2761,7 @@ struct OwnedWindowContext {
     root_transform_key: WidgetTransformKey,
     state: OwnedStateMap,
     root: Window,
-    api: Option<Arc<RenderApi>>,
+    api: Option<Rc<RenderApi>>,
     update: UpdateDisplayRequest,
 }
 impl OwnedWindowContext {

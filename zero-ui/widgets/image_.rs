@@ -2,7 +2,7 @@ use crate::prelude::new_widget::*;
 
 #[widget($crate::widgets::image)]
 pub mod image {
-    use zero_ui::core::image::{CachedImageVar, ImageCacheKey};
+    use zero_ui::core::image::{ImageCacheKey, ImageRequestVar};
 
     use super::*;
     use crate::core::task::http::Uri;
@@ -65,14 +65,14 @@ pub mod image {
     fn new_child(source: impl IntoVar<Text>) -> impl UiNode {
         struct ImageNode<T> {
             path: T,
-            image: Option<CachedImageVar>,
+            image: Option<ImageRequestVar>,
             final_size: LayoutSize,
         }
         #[impl_ui_node(none)]
         impl<T: Var<Text>> UiNode for ImageNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let path = self.path.get_clone(ctx);
-                self.image = Some(ctx.services.images().read(path, ctx.vars));
+                self.image = Some(ctx.services.images().read(ctx.vars, path));
             }
             fn deinit(&mut self, _: &mut WidgetContext) {
                 self.image = None;

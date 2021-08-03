@@ -9,7 +9,7 @@ use crate::{
     WidgetId,
 };
 use retain_mut::RetainMut;
-use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, sync::Arc, time::Instant};
+use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, time::Instant};
 use webrender::api::RenderApi;
 
 #[doc(inline)]
@@ -501,7 +501,7 @@ impl<'a, 'w> AppContext<'a, 'w> {
         window_id: WindowId,
         mode: WindowMode,
         window_state: &mut OwnedStateMap,
-        render_api: &Option<Arc<RenderApi>>,
+        render_api: &Option<Rc<RenderApi>>,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, UpdateDisplayRequest) {
         self.updates.win_display_update = UpdateDisplayRequest::None;
@@ -558,7 +558,7 @@ pub struct WindowContext<'a> {
     /// Reference to the render API of the window.
     ///
     /// This is `None` if the [`mode`](Self::mode) is [`Headless`](WindowMode::Headless).
-    pub render_api: &'a Option<Arc<RenderApi>>,
+    pub render_api: &'a Option<Rc<RenderApi>>,
 
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,

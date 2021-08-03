@@ -585,7 +585,7 @@ impl FontFace {
         self.unregistered.set(true);
     }
 
-    fn render_face(&self, api: &Arc<RenderApi>, txn: &mut webrender::api::Transaction) -> webrender::api::FontKey {
+    fn render_face(&self, api: &Rc<RenderApi>, txn: &mut webrender::api::Transaction) -> webrender::api::FontKey {
         let namespace = api.get_namespace_id();
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter() {
@@ -746,7 +746,7 @@ impl Font {
         }
     }
 
-    fn render_font(&self, api: &Arc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey {
+    fn render_font(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey {
         let namespace = api.get_namespace_id();
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter() {
@@ -827,7 +827,7 @@ impl Font {
     }
 }
 impl crate::render::Font for Font {
-    fn instance_key(&self, api: &Arc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey {
+    fn instance_key(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey {
         // how does cache clear works with this?
         self.render_font(api, synthesis)
     }
@@ -837,7 +837,7 @@ impl crate::render::Font for Font {
 pub type FontRef = Rc<Font>;
 
 impl crate::render::Font for FontRef {
-    fn instance_key(&self, api: &Arc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey {
+    fn instance_key(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey {
         self.render_font(api, synthesis)
     }
 }
@@ -1326,13 +1326,13 @@ impl FontFaceLoader {
 }
 
 struct RenderFontFace {
-    api: std::sync::Weak<RenderApi>,
+    api: std::rc::Weak<RenderApi>,
     key: webrender::api::FontKey,
 }
 impl RenderFontFace {
-    fn new(api: &Arc<RenderApi>, key: webrender::api::FontKey) -> Self {
+    fn new(api: &Rc<RenderApi>, key: webrender::api::FontKey) -> Self {
         RenderFontFace {
-            api: Arc::downgrade(api),
+            api: Rc::downgrade(api),
             key,
         }
     }
@@ -1348,14 +1348,14 @@ impl Drop for RenderFontFace {
 }
 
 struct RenderFont {
-    api: std::sync::Weak<RenderApi>,
+    api: std::rc::Weak<RenderApi>,
     synthesis: FontSynthesis,
     key: webrender::api::FontInstanceKey,
 }
 impl RenderFont {
-    fn new(api: &Arc<RenderApi>, synthesis: FontSynthesis, key: webrender::api::FontInstanceKey) -> RenderFont {
+    fn new(api: &Rc<RenderApi>, synthesis: FontSynthesis, key: webrender::api::FontInstanceKey) -> RenderFont {
         RenderFont {
-            api: Arc::downgrade(api),
+            api: Rc::downgrade(api),
             synthesis,
             key,
         }

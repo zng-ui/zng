@@ -1,15 +1,16 @@
 //! Image cache API.
 
-use parking_lot::Mutex;
 use std::{
+    cell::RefCell,
     collections::HashMap,
     error::Error,
     fmt,
     path::PathBuf,
+    rc::{self, Rc},
     sync::{Arc, Weak},
     time::Duration,
 };
-use webrender::api::ImageKey;
+use webrender::api::{ImageKey, RenderApi};
 
 use crate::{
     app::AppExtension,
@@ -27,19 +28,32 @@ pub struct Image {
     bgra: Arc<Vec<u8>>,
     size: (u32, u32),
     opaque: bool,
-    render_keys: Arc<Mutex<Vec<ImageKey>>>,
+    render_keys: Rc<RefCell<Vec<RenderImage>>>,
 }
 impl Image {
     /// Open and decode `path` from the file system.
     ///
-    /// This is not cached, use [`Images::load`] to cache the request.
+    /// This is not cached, use [`Images::read`] to cache the request.
     pub async fn read(path: impl Into<PathBuf>) -> Result<Image, ImageError> {
         let path = path.into();
-        task::run(async move {
-            let img = task::wait(move || image::open(&path)).await?;
-            Ok(Self::convert_decoded(img))
+        let (bgra, size, opaque) = task::run(async move { Self::read_raw(path).await }).await?;
+        Ok(Image::from_raw(bgra, size, opaque))
+    }
+
+    /// Like [`read`] but sets a response variable.
+    ///
+    /// [`read`]: Self::read
+    pub fn read_rsp(vars: &impl WithVars, path: impl Into<PathBuf>) -> ImageRequestVar {
+        let path = path.into();
+        task::respond_ctor(vars, async move {
+            let r = Self::read_raw(path).await;
+            move || r.map(|(b, s, o)| Image::from_raw(b, s, o))
         })
-        .await
+    }
+
+    async fn read_raw(path: PathBuf) -> Result<(Arc<Vec<u8>>, (u32, u32), bool), ImageError> {
+        let img = task::wait(move || image::open(&path)).await?;
+        Ok(Self::convert_decoded(img))
     }
 
     /// Download and decode `uri` using an HTTP GET request.
@@ -47,12 +61,29 @@ impl Image {
     /// This is not cached, use [`Images::download`] to cache the request.
     pub async fn download(uri: impl TryUri) -> Result<Image, ImageError> {
         let uri = uri.try_into()?;
-        task::run(async move {
-            let img = task::http::get_bytes(uri).await?;
-            let img = image::load_from_memory(&img)?;
-            Ok(Self::convert_decoded(img))
+        let (bgra, size, opaque) = task::run(async move { Self::download_raw(uri).await }).await?;
+        Ok(Image::from_raw(bgra, size, opaque))
+    }
+
+    /// Like [`download`] but sets a response variable.
+    ///
+    /// [`download`]: Self::download
+    pub fn download_rsp<Vw, U>(vars: &Vw, uri: U) -> ImageRequestVar
+    where
+        Vw: WithVars,
+        U: TryUri + Send + 'static,
+    {
+        task::respond_ctor(vars, async move {
+            let r = Self::download_raw(uri).await;
+            move || r.map(|(b, s, o)| Image::from_raw(b, s, o))
         })
-        .await
+    }
+
+    async fn download_raw(uri: impl TryUri) -> Result<(Arc<Vec<u8>>, (u32, u32), bool), ImageError> {
+        let uri = uri.try_into()?;
+        let img = task::http::get_bytes_cached(uri).await?;
+        let img = image::load_from_memory(&img)?;
+        Ok(Self::convert_decoded(img))
     }
 
     /// Convert a decoded image from the [`image`] crate to the internal format.
@@ -61,7 +92,18 @@ impl Image {
     ///
     /// [`image`]: https://docs.rs/image/
     pub async fn from_decoded(image: image::DynamicImage) -> Image {
-        task::run(async move { Self::convert_decoded(image) }).await
+        let (bgra, size, opaque) = task::run(async move { Self::convert_decoded(image) }).await;
+        Image::from_raw(bgra, size, opaque)
+    }
+
+    /// Like [`from_decoded`] by sets a response variable.
+    ///
+    /// [`from_decoded`]: Self::from_decoded
+    pub fn from_decoded_rsp(vars: &impl WithVars, image: image::DynamicImage) -> ResponseVar<Image> {
+        task::respond_ctor(vars, async move {
+            let (b, s, o) = Self::convert_decoded(image);
+            move || Image::from_raw(b, s, o)
+        })
     }
 
     /// Create a loaded image from an image buffer that is already BGRA8 with pre-multiplied alpha.
@@ -72,7 +114,7 @@ impl Image {
             size: image.dimensions(),
             opaque,
             bgra: Arc::new(image.into_raw()),
-            render_keys: Arc::default(),
+            render_keys: Rc::default(),
         }
     }
 
@@ -84,7 +126,7 @@ impl Image {
             bgra,
             size,
             opaque,
-            render_keys: Arc::default(),
+            render_keys: Rc::default(),
         }
     }
 
@@ -123,7 +165,7 @@ impl Image {
     ///
     /// Note that the [`Images`] cache holds a strong reference to the image.
     pub fn strong_count(&self) -> usize {
-        Arc::strong_count(&self.render_keys)
+        Rc::strong_count(&self.render_keys)
     }
 
     /// Returns a weak reference to this image.
@@ -134,17 +176,17 @@ impl Image {
             bgra: Arc::downgrade(&self.bgra),
             size: self.size,
             opaque: self.opaque,
-            render_keys: Arc::downgrade(&self.render_keys),
+            render_keys: Rc::downgrade(&self.render_keys),
         }
     }
 
     /// If `self` and `other` are both pointers to the same image data.
     #[inline]
     pub fn ptr_eq(&self, other: &Image) -> bool {
-        Arc::ptr_eq(&self.render_keys, &other.render_keys)
+        Rc::ptr_eq(&self.render_keys, &other.render_keys)
     }
 
-    fn convert_decoded(image: image::DynamicImage) -> Image {
+    fn convert_decoded(image: image::DynamicImage) -> (Arc<Vec<u8>>, (u32, u32), bool) {
         use image::DynamicImage::*;
 
         let mut opaque = true;
@@ -272,22 +314,17 @@ impl Image {
             ),
         };
 
-        Image {
-            bgra: Arc::new(bgra),
-            size,
-            opaque,
-            render_keys: Arc::default(),
-        }
+        (Arc::new(bgra), size, opaque)
     }
 }
 impl crate::render::Image for Image {
-    fn image_key(&self, api: &Arc<webrender::api::RenderApi>) -> ImageKey {
+    fn image_key(&self, api: &Rc<webrender::api::RenderApi>) -> ImageKey {
         use webrender::api::*;
 
         let namespace = api.get_namespace_id();
-        let mut keys = self.render_keys.lock();
-        if let Some(key) = keys.iter().find(|k| k.0 == namespace) {
-            return *key;
+        let mut rms = self.render_keys.borrow_mut();
+        if let Some(rm) = rms.iter().find(|k| k.key.0 == namespace) {
+            return rm.key;
         }
         let key = api.generate_image_key();
 
@@ -309,7 +346,10 @@ impl crate::render::Image for Image {
         );
         api.update_resources(txn.resource_updates);
 
-        keys.push(key);
+        rms.push(RenderImage {
+            key,
+            api: Rc::downgrade(api),
+        });
         key
     }
 }
@@ -326,7 +366,7 @@ pub struct WeakImage {
     bgra: Weak<Vec<u8>>,
     size: (u32, u32),
     opaque: bool,
-    render_keys: Weak<Mutex<Vec<ImageKey>>>,
+    render_keys: rc::Weak<RefCell<Vec<RenderImage>>>,
 }
 impl WeakImage {
     /// Attempts to upgrade to a strong reference.
@@ -334,8 +374,8 @@ impl WeakImage {
     /// Returns `None` if the image no longer exists.
     pub fn upgrade(&self) -> Option<Image> {
         Some(Image {
-            bgra: self.bgra.upgrade()?,
             render_keys: self.render_keys.upgrade()?,
+            bgra: self.bgra.upgrade()?,
             size: self.size,
             opaque: self.opaque,
         })
@@ -352,6 +392,25 @@ impl WeakImage {
     /// Gets the number of [`Image`] references that are holding this image in memory.
     pub fn strong_count(&self) -> usize {
         self.render_keys.strong_count()
+    }
+}
+
+struct RenderImage {
+    key: ImageKey,
+    api: rc::Weak<RenderApi>,
+}
+impl Drop for RenderImage {
+    fn drop(&mut self) {
+        if let Some(api) = self.api.upgrade() {
+            let mut txn = webrender::api::Transaction::new();
+            txn.delete_image(self.key);
+            api.update_resources(txn.resource_updates);
+        }
+    }
+}
+impl fmt::Debug for RenderImage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.key, f)
     }
 }
 
@@ -422,11 +481,11 @@ impl AppExtension for ImageManager {
 /// The cache holds images in memory, configured TODO.
 ///
 /// Image downloads are also cached in disk because the requests are
-/// made using [`http::get_bytes_cached`].
+/// made using [`task::http::get_bytes_cached`].
 #[derive(Service)]
 pub struct Images {
     proxies: Vec<Box<dyn ImageCacheProxy>>,
-    cache: HashMap<ImageCacheKey, CachedImageVar>,
+    cache: HashMap<ImageCacheKey, ImageRequestVar>,
 }
 impl Images {
     fn new() -> Self {
@@ -437,20 +496,20 @@ impl Images {
     }
 
     /// Get or load an image file from a file system `path`.
-    pub fn read<Vw: WithVars>(&mut self, path: impl Into<PathBuf>, vars: &Vw) -> CachedImageVar {
-        self.get(ImageCacheKey::Read(path.into()), vars)
+    pub fn read<Vw: WithVars>(&mut self, vars: &Vw, path: impl Into<PathBuf>) -> ImageRequestVar {
+        self.get(vars, ImageCacheKey::Read(path.into()))
     }
 
     /// Get a cached `uri` or download it.
-    pub fn download<Vw: WithVars>(&mut self, uri: impl TryUri, vars: &Vw) -> CachedImageVar {
+    pub fn download<Vw: WithVars>(&mut self, vars: &Vw, uri: impl TryUri) -> ImageRequestVar {
         match uri.try_into() {
-            Ok(uri) => self.get(ImageCacheKey::Download(uri), vars),
+            Ok(uri) => self.get(vars, ImageCacheKey::Download(uri)),
             Err(e) => response_done_var(Err(e.into())),
         }
     }
 
     /// Get a cached image or add it to the cache.
-    pub fn get<Vw: WithVars>(&mut self, key: ImageCacheKey, vars: &Vw) -> CachedImageVar {
+    pub fn get<Vw: WithVars>(&mut self, vars: &Vw, key: ImageCacheKey) -> ImageRequestVar {
         vars.with_vars(move |vars| self.proxy_then_get(key, vars))
     }
 
@@ -458,23 +517,23 @@ impl Images {
     ///
     /// Returns `Some(previous)` if the `key` was already associated with an image.
     #[inline]
-    pub fn register(&mut self, key: ImageCacheKey, image: CachedImageVar) -> Option<CachedImageVar> {
+    pub fn register(&mut self, key: ImageCacheKey, image: ImageRequestVar) -> Option<ImageRequestVar> {
         self.cache.insert(key, image)
     }
 
     /// Remove the image from the cache, if it is only held by the cache.
-    pub fn clean(&mut self, key: ImageCacheKey) -> Option<CachedImageVar> {
+    pub fn clean(&mut self, key: ImageCacheKey) -> Option<ImageRequestVar> {
         self.proxy_then_remove(key, false)
     }
 
     /// Remove the image from the cache, even if it is still referenced outside of the cache.
     ///
     /// Returns `Some(img)` if the image was cached.
-    pub fn purge(&mut self, key: ImageCacheKey) -> Option<CachedImageVar> {
+    pub fn purge(&mut self, key: ImageCacheKey) -> Option<ImageRequestVar> {
         self.proxy_then_remove(key, true)
     }
 
-    fn proxy_then_remove(&mut self, key: ImageCacheKey, purge: bool) -> Option<CachedImageVar> {
+    fn proxy_then_remove(&mut self, key: ImageCacheKey, purge: bool) -> Option<ImageRequestVar> {
         for proxy in &mut self.proxies {
             let r = proxy.remove(&key, purge);
             match r {
@@ -485,7 +544,7 @@ impl Images {
         }
         self.proxied_remove(key, purge)
     }
-    fn proxied_remove(&mut self, key: ImageCacheKey, purge: bool) -> Option<CachedImageVar> {
+    fn proxied_remove(&mut self, key: ImageCacheKey, purge: bool) -> Option<ImageRequestVar> {
         if purge {
             self.cache.remove(&key)
         } else {
@@ -515,7 +574,7 @@ impl Images {
         self.proxies.push(proxy);
     }
 
-    fn proxy_then_get(&mut self, key: ImageCacheKey, vars: &Vars) -> CachedImageVar {
+    fn proxy_then_get(&mut self, key: ImageCacheKey, vars: &Vars) -> ImageRequestVar {
         for proxy in &mut self.proxies {
             let r = proxy.get(&key);
             match r {
@@ -526,19 +585,19 @@ impl Images {
         }
         self.proxied_get(key, vars)
     }
-    fn proxied_get(&mut self, key: ImageCacheKey, vars: &Vars) -> CachedImageVar {
+    fn proxied_get(&mut self, key: ImageCacheKey, vars: &Vars) -> ImageRequestVar {
         self.cache
             .entry(key)
             .or_insert_with_key(|key| match key {
-                ImageCacheKey::Read(path) => task::respond(vars, Image::read(path.clone())),
-                ImageCacheKey::Download(uri) => task::respond(vars, Image::download(uri.clone())),
+                ImageCacheKey::Read(path) => Image::read_rsp(vars, path.clone()),
+                ImageCacheKey::Download(uri) => Image::download_rsp(vars, uri.clone()),
             })
             .clone()
     }
 }
 
-/// A variable that represents a loading or loaded cached image.
-pub type CachedImageVar = ResponseVar<Result<Image, ImageError>>;
+/// A variable that represents a loading or loaded image.
+pub type ImageRequestVar = ResponseVar<Result<Image, ImageError>>;
 
 /// Key for a cached image in [`Images`].
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -578,7 +637,7 @@ pub enum ProxyGetResult {
     /// Load and cache using the replacement key.
     Cache(ImageCacheKey),
     /// Return the image instead of hitting the cache.
-    Image(CachedImageVar),
+    Image(ImageRequestVar),
 }
 
 /// Result of an [`ImageCacheProxy`] *remove* redirect.
@@ -592,5 +651,5 @@ pub enum ProxyRemoveResult {
     /// The `bool` indicates if the entry should be purged.
     Remove(ImageCacheKey, bool),
     /// Consider the request fulfilled.
-    Removed(Option<CachedImageVar>),
+    Removed(Option<ImageRequestVar>),
 }

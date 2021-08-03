@@ -13,7 +13,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{fmt, marker::PhantomData, mem, sync::Arc};
+use std::{fmt, marker::PhantomData, mem, rc::Rc};
 use webrender::api::*;
 
 #[doc(no_inline)]
@@ -56,7 +56,7 @@ pub trait Font {
     /// Gets the instance key in the `api` namespace.
     ///
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
-    fn instance_key(&self, api: &Arc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey;
+    fn instance_key(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey;
 }
 
 /// A loaded or loading image.
@@ -77,7 +77,7 @@ pub trait Image {
     ///
     /// The image must be loaded asynchronously by `self` and does not need to
     /// be loaded yet when the key is returned.
-    fn image_key(&self, api: &Arc<RenderApi>) -> webrender::api::ImageKey;
+    fn image_key(&self, api: &Rc<RenderApi>) -> webrender::api::ImageKey;
 
     /// Returns a value that indicates if the image is already pre-multiplied.
     ///
@@ -132,7 +132,7 @@ impl From<ImageRendering> for webrender::api::ImageRendering {
 
 /// A full frame builder.
 pub struct FrameBuilder {
-    api: Option<Arc<RenderApi>>,
+    api: Option<Rc<RenderApi>>,
 
     scale_factor: f32,
     display_list: DisplayListBuilder,
@@ -180,7 +180,7 @@ impl FrameBuilder {
         frame_id: FrameId,
         window_id: WindowId,
         pipeline_id: PipelineId,
-        api: Option<Arc<RenderApi>>,
+        api: Option<Rc<RenderApi>>,
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
         root_size: LayoutSize,
@@ -298,7 +298,7 @@ impl FrameBuilder {
     ///
     /// Returns `None` when in [renderless](Self::is_renderless) mode.
     #[inline]
-    pub fn render_api(&self) -> Option<&Arc<RenderApi>> {
+    pub fn render_api(&self) -> Option<&Rc<RenderApi>> {
         self.api.as_ref()
     }
 
@@ -2378,7 +2378,7 @@ mod renderer {
         gl: Rc<dyn gl::Gl>,
 
         renderer: Option<webrender::Renderer>, // Some(_) until drop.
-        api: Arc<webrender::api::RenderApi>,
+        api: Rc<webrender::api::RenderApi>,
         document_id: webrender::api::DocumentId,
         pipeline_id: webrender::api::PipelineId,
 
@@ -2547,7 +2547,7 @@ mod renderer {
 
             let (renderer, sender) = webrender::Renderer::new(Rc::clone(&gl), notifier, opts, None, size).unwrap();
 
-            let api = Arc::new(sender.create_api());
+            let api = Rc::new(sender.create_api());
             let document_id = api.add_document(size, 0);
 
             let pipeline_id = webrender::api::PipelineId(1, 0);
@@ -2595,7 +2595,7 @@ mod renderer {
 
         /// The WebRender API.
         #[inline]
-        pub fn api(&self) -> &Arc<webrender::api::RenderApi> {
+        pub fn api(&self) -> &Rc<webrender::api::RenderApi> {
             &self.api
         }
 
