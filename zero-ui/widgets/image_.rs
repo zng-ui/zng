@@ -6,12 +6,13 @@ pub mod image {
 
     use super::*;
     use crate::core::task::http::Uri;
-    use std::{convert::TryFrom, path::PathBuf};
+    use properties::ImageRenderingVar;
+    use std::{convert::TryFrom, fmt, path::PathBuf};
 
     /// The different inputs accepted by the [`source`] property.
     ///
     /// [`source`]: #wp-source
-    #[derive(Clone, Debug)]
+    #[derive(Clone)]
     pub enum ImageSource {
         /// Reads the image from file.
         Read(PathBuf),
@@ -19,6 +20,21 @@ pub mod image {
         Download(Uri),
         /// Uses the already created image.
         Image(Image),
+        /// Uses a response var that is loaded or will update when it is loaded.
+        ImageRequest(ImageRequestVar),
+    }
+    impl fmt::Debug for ImageSource {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            if f.alternate() {
+                write!(f, "ImageSource::")?;
+            }
+            match self {
+                ImageSource::Read(p) => f.debug_tuple("Read").field(p).finish(),
+                ImageSource::Download(u) => f.debug_tuple("Read").field(u).finish(),
+                ImageSource::Image(i) => f.debug_tuple("Read").field(i).finish(),
+                ImageSource::ImageRequest(_) => write!(f, "ImageRequest(_)"),
+            }
+        }
     }
     impl_from_and_into_var! {
         fn from(image: Image) -> ImageSource {
@@ -87,7 +103,8 @@ pub mod image {
                 let img = match self.source.get_clone(ctx) {
                     ImageSource::Read(path) => ctx.services.images().read(ctx.vars, path),
                     ImageSource::Download(uri) => ctx.services.images().download(ctx.vars, uri),
-                    ImageSource::Image(img) => todo!(),
+                    ImageSource::Image(img) => response_done_var(Ok(img)),
+                    ImageSource::ImageRequest(img) => img,
                 };
                 self.image = Some(img);
             }
@@ -105,8 +122,7 @@ pub mod image {
 
             fn measure(&mut self, ctx: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
                 if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx) {
-                    let (w, h) = img.size();
-                    LayoutSize::new(w as f32, h as f32)
+                    img.layout_size(ctx)
                 } else {
                     LayoutSize::zero()
                 }
@@ -116,8 +132,8 @@ pub mod image {
                 self.final_size = final_size;
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx) {
-                    frame.push_image(LayoutRect::from(self.final_size), img, ImageRendering::Pixelated);
+                if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx.vars) {
+                    frame.push_image(LayoutRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
                 }
             }
         }

@@ -531,12 +531,15 @@ impl<'a, 'w> AppContext<'a, 'w> {
         &mut self,
         screen_size: LayoutSize,
         scale_factor: f32,
+        screen_ppi: f32,
         window_id: WindowId,
         root_id: WidgetId,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(screen_size, 14.0).with_pixel_grid(PixelGrid::new(scale_factor)),
+            metrics: &LayoutMetrics::new(screen_size, 14.0)
+                .with_pixel_grid(PixelGrid::new(scale_factor))
+                .with_screen_ppi(screen_ppi),
             path: &mut WidgetContextPath::new(window_id, root_id),
             app_state: self.app_state,
             window_state: &mut StateMap::new(),
@@ -616,17 +619,21 @@ impl<'a> WindowContext<'a> {
 
     /// Runs a function `f` in the layout context of a widget.
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     pub fn layout_context<R>(
         &mut self,
         font_size: f32,
         pixel_grid: PixelGrid,
+        screen_ppi: f32,
         viewport_size: LayoutSize,
         widget_id: WidgetId,
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(viewport_size, font_size).with_pixel_grid(pixel_grid),
+            metrics: &LayoutMetrics::new(viewport_size, font_size)
+                .with_pixel_grid(pixel_grid)
+                .with_screen_ppi(screen_ppi),
 
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -770,12 +777,14 @@ impl TestWidgetContext {
         font_size: f32,
         viewport_size: LayoutSize,
         pixel_grid: PixelGrid,
+        screen_ppi: f32,
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         action(&mut LayoutContext {
             metrics: &LayoutMetrics::new(viewport_size, root_font_size)
                 .with_font_size(font_size)
-                .with_pixel_grid(pixel_grid),
+                .with_pixel_grid(pixel_grid)
+                .with_screen_ppi(screen_ppi),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             app_state: &mut self.app_state.0,
@@ -1030,6 +1039,21 @@ pub struct LayoutMetrics {
 
     /// Size of the window content.
     pub viewport_size: LayoutSize,
+
+    /// The current screen "pixels-per-inch" resolution.
+    ///
+    /// This value is dependent in the actual physical size of the screen that the user must manually measure.
+    /// For most of the UI you only need the *layout units*, they automatically use the *scale-factor* that is
+    /// in the [`pixel_grid`] value.
+    ///
+    /// If you are implementing some feature like a "print size preview", you need to use this value, and you
+    /// can configure a PPI per screen in the [`Screens`] service.
+    ///
+    /// Default is `96.0`.
+    ///
+    /// [`pixel_grid`]: PixelGrid::scale_factor.
+    /// [`Screens`]: crate::window::Screens.
+    pub screen_ppi: f32,
 }
 impl LayoutMetrics {
     /// New root [`LayoutMetrics`].
@@ -1041,6 +1065,7 @@ impl LayoutMetrics {
             root_font_size: font_size,
             pixel_grid: PixelGrid::default(),
             viewport_size,
+            screen_ppi: 96.0,
         }
     }
 
@@ -1075,6 +1100,15 @@ impl LayoutMetrics {
     #[inline]
     pub fn with_pixel_grid(mut self, pixel_grid: PixelGrid) -> Self {
         self.pixel_grid = pixel_grid;
+        self
+    }
+
+    /// Sets the [`screen_ppi`].
+    ///
+    /// [`screen_ppi`]: Self::screen_ppi
+    #[inline]
+    pub fn with_screen_ppi(mut self, screen_ppi: f32) -> Self {
+        self.screen_ppi = screen_ppi;
         self
     }
 }

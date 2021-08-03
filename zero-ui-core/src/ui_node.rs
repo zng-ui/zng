@@ -371,7 +371,7 @@ pub trait Widget: UiNode {
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_measure(&mut self, ctx: &mut TestWidgetContext, available_size: LayoutSize) -> LayoutSize {
-        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| {
+        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), 96.0, |ctx| {
             self.measure(ctx, available_size)
         })
     }
@@ -379,7 +379,9 @@ pub trait Widget: UiNode {
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_arrange(&mut self, ctx: &mut TestWidgetContext, final_size: LayoutSize) {
-        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), |ctx| self.arrange(ctx, final_size))
+        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), 96.0, |ctx| {
+            self.arrange(ctx, final_size)
+        })
     }
 
     // TODO don't require user to init frame?

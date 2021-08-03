@@ -12,15 +12,10 @@ use std::{
 };
 use webrender::api::{ImageKey, RenderApi};
 
-use crate::{
-    app::AppExtension,
-    service::Service,
-    task::{
+use crate::{app::AppExtension, context::LayoutMetrics, service::Service, task::{
         self,
         http::{TryUri, Uri},
-    },
-    var::{response_done_var, ResponseVar, Vars, WithVars},
-};
+    }, units::*, var::{response_done_var, ResponseVar, Vars, WithVars}};
 
 /// Represents a loaded image.
 #[derive(Clone)]
@@ -152,10 +147,76 @@ impl Image {
         self.size
     }
 
-    /// Gets the `(dpiX, dpiY)` pixel scaling metadata of the image.
-    pub fn dpi(&self) -> (f32, f32) {
+    /// Gets the image resolution in "pixel-per-inch" or "dot-per-inch" units.
+    ///
+    /// If the image format uses a different unit it is converted. Returns `(x, y)` resolutions
+    /// most of the time both values are the same.
+    ///
+    /// # Metadata
+    ///
+    /// Currently the metadata supported are:
+    ///
+    /// * EXIF resolution. TODO
+    /// * Jpeg built-in. TODO
+    /// * PNG built-in. TODO
+    /// * TODO check other `image` formats.
+    pub fn ppi(&self) -> Option<(f32, f32)> {
         // TODO
-        (96.0, 96.0)
+        None
+    }
+
+    /// Calculate an *ideal* layout size for the image.
+    ///
+    /// The image is scaled considering the [`ppi`] and screen scale factor. If the
+    /// image has no [`ppi`] falls-back to the [`screen_dpi`] in both dimensions.
+    ///
+    /// [`ppi`]: Self::ppi
+    /// [`screen_dpi`]: LayoutMetrics::screen_dpi
+    #[inline]
+    pub fn layout_size(&self, ctx: &LayoutMetrics) -> LayoutSize {
+        self.calc_size(ctx, (96.0, 96.0), false, true)
+    }
+
+    /// Calculate a layout size for the image.
+    ///
+    /// # Parameters
+    ///
+    /// * `ctx`: Used to get the screen resolution and snapping to device pixels.
+    /// * `fallback_ppi`: Resolution used if [`ppi`] is `None`.
+    /// * `ignore_image_ppi`: If `true` always uses the `fallback_ppi` as the resolution.
+    /// * `snap`: If the final size is *snapped* to the device pixels.
+    ///
+    /// [`ppi`]: Self::ppi
+    pub fn calc_size(&self, ctx: &LayoutMetrics, fallback_ppi: (f32, f32), ignore_image_ppi: bool, snap: bool) -> LayoutSize {
+        let (dpi_x, dpi_y) = if ignore_image_ppi {
+            fallback_ppi
+        } else {
+            self.ppi().unwrap_or(fallback_ppi)
+        };
+
+        let screen_res = ctx.screen_ppi * ctx.pixel_grid.scale_factor;
+        let (w, h) = self.size();
+
+        let s = LayoutSize::new(w as f32 * dpi_x / screen_res, h as f32 * dpi_y / screen_res);
+
+        if snap {
+            s.snap_to(ctx.pixel_grid)
+        } else {
+            s
+        }
+    }
+
+    /// Gets the flip-rotate transform requested by the image metadata.
+    ///
+    /// Returns the computed flip-rotate render transform. The transform does not include the resolution scaling.
+    ///
+    /// # Metadata
+    ///
+    /// Currently the metadata supported are:
+    ///
+    /// * EXIF flip and rotate. TODO
+    pub fn transform(&self) -> Transform {
+        Transform::identity()
     }
 
     /// Time from image request to loaded.
@@ -165,7 +226,7 @@ impl Image {
         Duration::ZERO
     }
 
-    /// Returns a flag that indicates if the image is fully opaque.
+    /// Returns `true` if all pixels in the image are fully opaque.
     #[inline]
     pub fn opaque(&self) -> bool {
         self.opaque

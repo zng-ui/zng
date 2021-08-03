@@ -12,7 +12,8 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-use glutin::window::WindowBuilder;
+use glutin::{monitor::MonitorHandle, window::WindowBuilder};
+use linear_map::LinearMap;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     cell::{Cell, RefCell},
@@ -430,6 +431,7 @@ event! {
 /// Services this extension provides:
 ///
 /// * [Windows]
+/// * [Screens]
 pub struct WindowManager {
     ui_threads: Arc<ThreadPool>,
 }
@@ -453,6 +455,7 @@ impl Default for WindowManager {
 
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
+        ctx.services.register(Screens::new());
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
@@ -625,6 +628,7 @@ impl WindowManager {
         let (open, close) = ctx.services.windows().take_requests();
 
         for request in open {
+            let ppi_map = ctx.services.screens().ppi.clone();
             let w = OpenWindow::new(
                 request.new,
                 request.force_headless,
@@ -633,6 +637,7 @@ impl WindowManager {
                 ctx.window_target,
                 Arc::clone(&self.ui_threads),
                 ctx.updates.sender(),
+                ppi_map,
             );
             ctx.services.windows().opening_windows.push(w);
         }
@@ -728,7 +733,128 @@ impl WindowManager {
     }
 }
 
+/// Monitor screens service.
+///
+/// # Provider
+///
+/// This service is provided by the [`WindowManager`].
+#[derive(Service)]
+pub struct Screens {
+    ppi: ScreenPpiMap,
+}
+impl Screens {
+    fn new() -> Self {
+        Screens { ppi: Rc::default() }
+    }
+
+    /// Returns the list of screens.
+    pub fn screens(&self) -> Vec<Screen> {
+        // need event loop window target.
+        todo!()
+    }
+
+    /// Returns the primary monitor screen, if a primary screen is identifiable.
+    pub fn primary_screen(&self) -> Option<Screen> {
+        todo!()
+    }
+
+    /// Returns the screen that represents the [`MonitorHandle`].
+    pub fn from_handle(&self, handle: MonitorHandle) -> Screen {
+        Screen {
+            handle,
+            ppi: self.ppi.clone(),
+        }
+    }
+}
+
+type ScreenPpiMap = Rc<RefCell<LinearMap<MonitorHandle, f32>>>;
+
+/// Reference to a monitor screen.
+///
+/// You can get a a [`Screen`] using the
+#[derive(Clone)]
+pub struct Screen {
+    handle: MonitorHandle,
+    ppi: ScreenPpiMap,
+}
+impl fmt::Debug for Screen {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Screen")
+            .field("name", &self.name())
+            .field("ppi", &self.ppi())
+            .finish()
+    }
+}
+impl Screen {
+    /// Returns the screen full size in device pixels.
+    #[inline]
+    pub fn pixel_size(&self) -> (u32, u32) {
+        let s = self.handle.size();
+        (s.width, s.height)
+    }
+
+    /// Returns the screen scale factor.
+    #[inline]
+    pub fn scale_factor(&self) -> f32 {
+        self.handle.scale_factor() as f32
+    }
+
+    /// Returns the actual "pixel-per-inches" size of the screen.
+    ///
+    /// Unfortunately there is no way to programmatically recover this value, the user must manually measure the screen.
+    /// You can change the screen `PPI` by calling [`set_ppi`].
+    ///
+    /// A good fallback value is `96.0`.
+    #[inline]
+    pub fn ppi(&self) -> Option<f32> {
+        self.ppi.borrow().get(&self.handle).copied()
+    }
+
+    /// Sets the actual "pixel-per-inches" size of the screen.
+    ///
+    /// Returns the previous set PPI.
+    #[inline]
+    pub fn set_ppi(&self, ppi: f32) -> Option<f32> {
+        assert!(ppi > 1.0);
+        self.ppi.borrow_mut().insert(self.handle.clone(), ppi)
+    }
+
+    /// Resets the associated PPI value.
+    #[inline]
+    pub fn clean_ppi(&self) -> Option<f32> {
+        self.ppi.borrow_mut().remove(&self.handle)
+    }
+
+    /// Returns the human-readable name for the screen.
+    ///
+    /// Returns `None` if the screen no-longer exists.  
+    #[inline]
+    pub fn name(&self) -> Option<Text> {
+        self.handle.name().map(Into::into)
+    }
+
+    /// Returns the screen full size in layout pixels.
+    ///
+    /// The layout pixels are calculated using the [`scale_factor`].
+    ///
+    /// [`scale_factor`]: Self::scale_factor
+    pub fn layout_size(&self) -> LayoutSize {
+        let (w, h) = self.pixel_size();
+        let s = self.scale_factor();
+        LayoutSize::new(w as f32 / s, h as f32 / s)
+    }
+
+    /// Iterate over all video modes supported by the screen.
+    pub fn video_modes(&self) {
+        todo!()
+    }
+}
+
 /// Windows service.
+///
+/// # Provider
+///
+/// This service is provided by the [`WindowManager`].
 #[derive(Service)]
 pub struct Windows {
     /// If shutdown is requested when a window closes and there are no more windows open, `true` by default.
@@ -1546,13 +1672,19 @@ pub struct HeadlessScreen {
     ///
     /// `(1920.0, 1080.0)` by default.
     pub screen_size: LayoutSize,
+
+    /// Pixel-per-inches used for the headless layout and rendering.
+    ///
+    /// `96.0` by default.
+    pub ppi: f32,
 }
 impl fmt::Debug for HeadlessScreen {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
+        if f.alternate() || about_eq(self.ppi, 96.0, 0.001) {
             f.debug_struct("HeadlessScreen")
                 .field("scale_factor", &self.scale_factor)
                 .field("screen_size", &self.screen_size)
+                .field("ppi", &self.ppi)
                 .finish()
         } else {
             write!(
@@ -1573,7 +1705,11 @@ impl HeadlessScreen {
     /// New with custom size and scale.
     #[inline]
     pub fn new_scaled(screen_size: LayoutSize, scale_factor: f32) -> Self {
-        HeadlessScreen { scale_factor, screen_size }
+        HeadlessScreen {
+            scale_factor,
+            screen_size,
+            ppi: 96.0,
+        }
     }
 
     /// New default size `1920x1080` and custom scale.
@@ -1776,6 +1912,8 @@ pub struct OpenWindow {
     close_response: RefCell<Option<ResponderVar<CloseWindowResult>>>,
     close_canceled: RefCell<Rc<Cell<bool>>>,
     app_sender: AppEventSender,
+
+    screen_ppi: ScreenPpiMap,
 }
 impl OpenWindow {
     #[allow(clippy::too_many_arguments)]
@@ -1787,6 +1925,7 @@ impl OpenWindow {
         window_target: WindowTarget,
         ui_threads: Arc<ThreadPool>,
         app_sender: AppEventSender,
+        screen_ppi: ScreenPpiMap,
     ) -> Self {
         // get mode.
         let mut mode = if ctx.is_headless() {
@@ -1926,6 +2065,8 @@ impl OpenWindow {
             close_canceled: RefCell::default(),
             app_sender,
 
+            screen_ppi,
+
             #[cfg(windows)]
             subclass_id: std::cell::Cell::new(0),
         }
@@ -2007,6 +2148,16 @@ impl OpenWindow {
         }
     }
 
+    /// Current monitor screen that is presenting the headed window.
+    ///
+    /// Returns `None` if the window is headless or the current monitor can't be detected.
+    pub fn current_screen(&self) -> Option<Screen> {
+        self.window.as_ref().and_then(|w| w.current_monitor()).map(|m| Screen {
+            handle: m,
+            ppi: self.screen_ppi.clone(),
+        })
+    }
+
     /// Size of the current monitor screen.
     pub fn screen_size(&self) -> LayoutSize {
         if let Some(window) = &self.window {
@@ -2029,6 +2180,21 @@ impl OpenWindow {
                 })
         } else {
             self.headless_screen.screen_size
+        }
+    }
+
+    /// Pixel-per-inch configured for the current monitor screen.
+    ///
+    /// Returns the [`HeadlessScreen::ppi`] if the window is headless, returns `96.0` for
+    /// headed windows without current screen or when the screen does not have a PPI configured.
+    pub fn screen_ppi(&self) -> f32 {
+        if let Some(window) = &self.window {
+            window
+                .current_monitor()
+                .and_then(|h| self.screen_ppi.borrow().get(&h).copied())
+                .unwrap_or(96.0)
+        } else {
+            self.headless_screen.ppi
         }
     }
 
@@ -2154,7 +2320,7 @@ impl OpenWindow {
             if let Some(min_size) = self.vars.min_size().get_new(ctx.vars) {
                 let factor = self.scale_factor();
                 let prev_min_size = self.min_size;
-                let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                let min_size = ctx.outer_layout_context(self.screen_size(), factor, self.screen_ppi(), self.id, self.root_id, |ctx| {
                     min_size.to_layout(ctx.metrics.viewport_size, ctx)
                 });
 
@@ -2180,7 +2346,7 @@ impl OpenWindow {
             if let Some(max_size) = self.vars.max_size().get_new(ctx.vars) {
                 let factor = self.scale_factor();
                 let prev_max_size = self.max_size;
-                let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                let max_size = ctx.outer_layout_context(self.screen_size(), factor, self.screen_ppi(), self.id, self.root_id, |ctx| {
                     max_size.to_layout(ctx.metrics.viewport_size, ctx)
                 });
 
@@ -2207,7 +2373,7 @@ impl OpenWindow {
                 let current_size = self.size();
                 if AutoSize::DISABLED == *self.vars.auto_size().get(ctx) {
                     let factor = self.scale_factor();
-                    let mut size = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                    let mut size = ctx.outer_layout_context(self.screen_size(), factor, self.screen_ppi(), self.id, self.root_id, |ctx| {
                         size.to_layout(ctx.metrics.viewport_size, ctx)
                     });
 
@@ -2235,7 +2401,7 @@ impl OpenWindow {
             if let Some(pos) = self.vars.position().get_new(ctx.vars) {
                 let factor = self.scale_factor();
                 let current_pos = self.position();
-                let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.id, self.root_id, |ctx| {
+                let mut pos = ctx.outer_layout_context(self.screen_size(), factor, self.screen_ppi(), self.id, self.root_id, |ctx| {
                     pos.to_layout(ctx.metrics.viewport_size, ctx)
                 });
 
@@ -2355,8 +2521,9 @@ impl OpenWindow {
         }
 
         let scale_factor = self.scale_factor();
+        let screen_ppi = self.screen_ppi();
 
-        w_ctx.root_layout(ctx, self.size(), scale_factor, |root, layout_ctx| {
+        w_ctx.root_layout(ctx, self.size(), scale_factor, screen_ppi, |root, layout_ctx| {
             let mut final_size = root.measure(layout_ctx, layout_ctx.metrics.viewport_size);
 
             if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
@@ -2782,14 +2949,21 @@ impl OwnedWindowContext {
         ctx: &mut AppContext,
         window_size: LayoutSize,
         scale_factor: f32,
+        screen_ppi: f32,
         f: impl FnOnce(&mut BoxedUiNode, &mut LayoutContext) -> R,
     ) -> R {
         let root = &mut self.root;
         ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
             let child = &mut root.child;
-            ctx.layout_context(14.0, PixelGrid::new(scale_factor), window_size, root.id, &mut root.state, |ctx| {
-                f(child, ctx)
-            })
+            ctx.layout_context(
+                14.0,
+                PixelGrid::new(scale_factor),
+                screen_ppi,
+                window_size,
+                root.id,
+                &mut root.state,
+                |ctx| f(child, ctx),
+            )
         })
         .0
     }

@@ -44,6 +44,8 @@ Things that must be done first because they influence the core API design that i
   * Map-split.
     * Result.
     * Map/bind parse.
+  * Strong-count.
+  * Set but don't notify in case of single count.
 
 * Task.
   * Finish network tasks.
@@ -59,6 +61,7 @@ Things that must be done first because they influence the core API design that i
   * Modal.
   * Review `redraw` event.
   * Video rendering.
+  * Finish Screens, needs the window target + update all layouts on change.
 
 * Widget Inspector (console).
 

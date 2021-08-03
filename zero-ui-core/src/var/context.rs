@@ -236,7 +236,6 @@ macro_rules! __context_var_inner {
             pub fn get_clone<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $type {
                 $crate::var::Var::get_clone($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
-            // TODO fn copy()
 
             /// References the value in the current `vars` context if it is marked as new.
             #[inline]
@@ -244,6 +243,15 @@ macro_rules! __context_var_inner {
             pub fn get_new<'a, Vw: AsRef<$crate::var::Vars>>(vars: &'a Vw) -> Option<&'a $type> {
                 $crate::var::Var::get_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
+
+            /// Returns a clone of the value in the current `vars` context if it is marked as new.
+            #[inline]
+            #[allow(unused)]
+            pub fn clone_new<Vw: $crate::var::WithVars>(vars: &Vw) -> Option<$type> {
+                $crate::var::Var::clone_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+            }
+
+            // TODO generate copy fns when https://github.com/rust-lang/rust/issues/48214 is stable
 
             /// If the value in the current `vars` context is marked as new.
             #[inline]
