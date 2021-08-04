@@ -1011,7 +1011,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
-        pub use crate::core::task::{self, rayon::prelude::*, AppTask, WidgetTask};
+        pub use crate::core::task::{self, rayon::prelude::*, ui::AppTask, ui::WidgetTask};
         #[doc(no_inline)]
         pub use crate::core::text::Text;
         #[doc(no_inline)]
@@ -1065,7 +1065,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
-        pub use crate::core::task::{self, rayon::prelude::*, AppTask, WidgetTask};
+        pub use crate::core::task::{self, rayon::prelude::*, ui::AppTask, ui::WidgetTask};
         #[doc(no_inline)]
         pub use crate::core::text::*;
         #[doc(no_inline)]

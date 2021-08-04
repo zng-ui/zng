@@ -19,7 +19,7 @@ use retain_mut::RetainMut;
 use crate::app::HeadlessApp;
 use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
 use crate::crate_util::{Handle, WeakHandle};
-use crate::task::{AppTask, WidgetTask};
+use crate::task::ui::{AppTask, WidgetTask};
 
 /// Marker traits that can be used to constrain what [`AppHandler`] or [ `WidgetHandler`] are accepted.
 ///

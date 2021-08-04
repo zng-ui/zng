@@ -276,7 +276,7 @@ impl RequestBuilder {
     ///
     /// By default no timeout is used.
     ///
-    /// https://doc.rust-lang.org/nightly/std/io/enum.ErrorKind.html#variant.TimedOut
+    /// [`TimedOut`]: https://doc.rust-lang.org/nightly/std/io/enum.ErrorKind.html#variant.TimedOut
     pub fn timeout(self, timeout: Duration) -> Self {
         Self(self.0.timeout(timeout))
     }
