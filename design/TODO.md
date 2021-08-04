@@ -6,7 +6,6 @@ Things that must be done first because they influence the core API design that i
 
 * Improve property allowed_in_when validation for generics, generate a `new` like call for each
   argument, instead of all at once.
-* Test `#[cfg(..)]` support in widget declarations.
 * Update the `Mouse` service to be like the new [`Keyboard`] service with button state variables.
 
 * Docs

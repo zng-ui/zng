@@ -12,10 +12,17 @@ use std::{
 };
 use webrender::api::{ImageKey, RenderApi};
 
-use crate::{app::AppExtension, context::LayoutMetrics, service::Service, task::{
+use crate::{
+    app::AppExtension,
+    context::LayoutMetrics,
+    service::Service,
+    task::{
         self,
         http::{TryUri, Uri},
-    }, units::*, var::{response_done_var, ResponseVar, Vars, WithVars}};
+    },
+    units::*,
+    var::{response_done_var, ResponseVar, Vars, WithVars},
+};
 
 /// Represents a loaded image.
 #[derive(Clone)]
@@ -86,7 +93,18 @@ impl Image {
 
     async fn download_raw(uri: impl TryUri) -> Result<(Arc<Vec<u8>>, (u32, u32), bool), ImageError> {
         let uri = uri.try_into()?;
-        let img = task::http::get_bytes_cached(uri).await?;
+        let img = task::http::send(
+            task::http::Request::get(uri)
+                // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
+                // image/avif decoder does not build in Windows
+                .header("Accept", "image/apng,image/*")
+                .body(())
+                .map_err(task::http::Error::from)?,
+        )
+        .await?
+        .bytes()
+        .await
+        .map_err(task::http::Error::from)?;
         let img = image::load_from_memory(&img)?;
         Ok(Self::convert_decoded(img))
     }

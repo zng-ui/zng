@@ -1,7 +1,7 @@
 use crate::prelude::new_widget::*;
 
 /// Image presenter.
-/// 
+///
 /// This widget loads a still image from a variety of sources and presents it.
 #[widget($crate::widgets::image)]
 pub mod image {
@@ -118,7 +118,10 @@ pub mod image {
             fn update(&mut self, ctx: &mut WidgetContext) {
                 if self.source.is_new(ctx) {
                     self.init(ctx);
-                } else if self.image.as_ref().unwrap().is_new(ctx) {
+                } else if let Some(r) = self.image.as_ref().unwrap().rsp_new(ctx.vars) {
+                    if let Err(e) = r {
+                        log::error!("{}", e)
+                    }                    
                     ctx.updates.layout();
                 }
             }
@@ -163,11 +166,11 @@ pub mod image {
         }
 
         /// Sets the [`ImageRendering`] of all inner images.
-        /// 
+        ///
         /// See the [`rendering`] property in the widget for more details.
         ///
         /// This property binds `rendering` to the [`ImageRenderingVar`] in the widget context.
-        /// 
+        ///
         /// [`rendering`]: crate::widgets::image#wp-rendering
         #[property(context)]
         pub fn image_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
@@ -177,17 +180,17 @@ pub mod image {
 }
 
 /// Image presenter.
-/// 
+///
 /// This function is the shorthand form of [`image!`].
-/// 
+///
 /// # Examples
-/// 
+///
 /// Create an image button:
-/// 
+///
 /// ```
 /// use zero_ui::prelude::*;
 /// use image::properties::image_rendering;
-/// 
+///
 /// # let _ =
 /// button! {
 ///     content = image("https://httpbin.org/image");
@@ -195,10 +198,10 @@ pub mod image {
 /// }
 /// # ;
 /// ```
-/// 
+///
 /// Note that you can only define the [`source`] property in the image widget but you can
-/// still use the [`image::properties`] in the parent widget to define other properties. 
-/// 
+/// still use the [`image::properties`] in the parent widget to define other properties.
+///
 /// [`image!`]: mod@image
 /// [`source`]: mod@image#wp-source
 pub fn image(source: impl IntoVar<image::ImageSource>) -> impl Widget {

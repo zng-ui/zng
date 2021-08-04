@@ -3360,6 +3360,12 @@ pub mod http {
             r.0
         }
     }
+    impl From<()> for Body {
+        fn from(_: ()) -> Self {
+            Body(().into())
+        }
+    }
+    // TODO: add the other Froms
 
     /// Send a GET request to the `uri`.
     #[inline]
@@ -3423,8 +3429,8 @@ pub mod http {
 
     /// Send a custom [`Request`].
     #[inline]
-    pub async fn send<B: Into<Body>>(request: impl Into<Request<B>>) -> Result<Response, Error> {
-        isahc_client().send_async(request.into().map(|b| b.into().0)).await.map(Response)
+    pub async fn send<B: Into<Body>>(request: Request<B>) -> Result<Response, Error> {
+        isahc_client().send_async(request.map(|b| b.into().0)).await.map(Response)
     }
 
     /// The [`isahc`] client used by the functions in this module and Zero-Ui.
