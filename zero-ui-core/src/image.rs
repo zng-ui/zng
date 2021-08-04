@@ -168,10 +168,10 @@ impl Image {
     /// Calculate an *ideal* layout size for the image.
     ///
     /// The image is scaled considering the [`ppi`] and screen scale factor. If the
-    /// image has no [`ppi`] falls-back to the [`screen_dpi`] in both dimensions.
+    /// image has no [`ppi`] falls-back to the [`screen_ppi`] in both dimensions.
     ///
     /// [`ppi`]: Self::ppi
-    /// [`screen_dpi`]: LayoutMetrics::screen_dpi
+    /// [`screen_ppi`]: LayoutMetrics::screen_ppi
     #[inline]
     pub fn layout_size(&self, ctx: &LayoutMetrics) -> LayoutSize {
         self.calc_size(ctx, (96.0, 96.0), false, true)

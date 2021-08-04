@@ -1,5 +1,8 @@
 use crate::prelude::new_widget::*;
 
+/// Image presenter.
+/// 
+/// This widget loads a still image from a variety of sources and presents it.
 #[widget($crate::widgets::image)]
 pub mod image {
     use zero_ui::core::image::{ImageCacheKey, ImageRequestVar};
@@ -160,8 +163,12 @@ pub mod image {
         }
 
         /// Sets the [`ImageRendering`] of all inner images.
+        /// 
+        /// See the [`rendering`] property in the widget for more details.
         ///
         /// This property binds `rendering` to the [`ImageRenderingVar`] in the widget context.
+        /// 
+        /// [`rendering`]: crate::widgets::image#wp-rendering
         #[property(context)]
         pub fn image_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
             with_context_var(child, ImageRenderingVar, rendering)
@@ -169,7 +176,31 @@ pub mod image {
     }
 }
 
-///
+/// Image presenter.
+/// 
+/// This function is the shorthand form of [`image!`].
+/// 
+/// # Examples
+/// 
+/// Create an image button:
+/// 
+/// ```
+/// use zero_ui::prelude::*;
+/// use image::properties::image_rendering;
+/// 
+/// # let _ =
+/// button! {
+///     content = image("https://httpbin.org/image");
+///     image_rendering = ImageRendering::Pixelated;
+/// }
+/// # ;
+/// ```
+/// 
+/// Note that you can only define the [`source`] property in the image widget but you can
+/// still use the [`image::properties`] in the parent widget to define other properties. 
+/// 
+/// [`image!`]: mod@image
+/// [`source`]: mod@image#wp-source
 pub fn image(source: impl IntoVar<image::ImageSource>) -> impl Widget {
     image! { source }
 }

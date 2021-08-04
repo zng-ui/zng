@@ -34,7 +34,7 @@ pub mod implicit_base {
     use super::*;
 
     properties! {
-        /// Widget id. Set to an [`new_unique`] by default.
+        /// Widget id. Set to a new id by default.
         ///
         /// Can also be set to an `&'static str` unique name.
         #[allowed_in_when = false]
