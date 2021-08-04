@@ -121,7 +121,7 @@ pub mod image {
                 } else if let Some(r) = self.image.as_ref().unwrap().rsp_new(ctx.vars) {
                     if let Err(e) = r {
                         log::error!("{}", e)
-                    }                    
+                    }
                     ctx.updates.layout();
                 }
             }
@@ -158,6 +158,8 @@ pub mod image {
     pub mod properties {
         use super::*;
 
+        pub use crate::core::render::ImageRendering;
+
         context_var! {
             /// The Image scaling algorithm in the renderer.
             ///
@@ -189,7 +191,7 @@ pub mod image {
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// use image::properties::image_rendering;
+/// use zero_ui::widgets::image::properties::*;
 ///
 /// # let _ =
 /// button! {

@@ -805,6 +805,8 @@ impl Screen {
     /// You can change the screen `PPI` by calling [`set_ppi`].
     ///
     /// A good fallback value is `96.0`.
+    ///
+    /// [`set_ppi`]: Self::set_ppi
     #[inline]
     pub fn ppi(&self) -> Option<f32> {
         self.ppi.borrow().get(&self.handle).copied()

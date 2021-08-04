@@ -92,19 +92,19 @@ impl Image {
     }
 
     async fn download_raw(uri: impl TryUri) -> Result<(Arc<Vec<u8>>, (u32, u32), bool), ImageError> {
-        let uri = uri.try_into()?;
-        let img = task::http::send(
-            task::http::Request::get(uri)
+        use task::http::*;
+
+        let img = send(
+            Request::get(uri)?
                 // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
                 // image/avif decoder does not build in Windows
-                .header("Accept", "image/apng,image/*")
-                .body(())
-                .map_err(task::http::Error::from)?,
+                .header(header::ACCEPT, "image/apng,image/*")?
+                .build(),
         )
         .await?
         .bytes()
-        .await
-        .map_err(task::http::Error::from)?;
+        .await?;
+
         let img = image::load_from_memory(&img)?;
         Ok(Self::convert_decoded(img))
     }
@@ -513,12 +513,18 @@ pub enum ImageError {
 
     /// Error from the [`task::http`] tasks.
     Http(task::http::Error),
+
+    /// An IO error.
+    ///
+    /// Note that the other variants can also contains an IO error.
+    Io(Arc<std::io::Error>),
 }
 impl fmt::Display for ImageError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ImageError::Image(e) => fmt::Display::fmt(e, f),
             ImageError::Http(e) => fmt::Display::fmt(e, f),
+            ImageError::Io(e) => fmt::Display::fmt(e, f),
         }
     }
 }
@@ -527,6 +533,7 @@ impl std::error::Error for ImageError {
         match self {
             ImageError::Image(e) => e.source(),
             ImageError::Http(e) => e.source(),
+            ImageError::Io(e) => e.source(),
         }
     }
 }
@@ -538,6 +545,11 @@ impl From<image::error::ImageError> for ImageError {
 impl From<task::http::Error> for ImageError {
     fn from(e: task::http::Error) -> Self {
         ImageError::Http(e)
+    }
+}
+impl From<std::io::Error> for ImageError {
+    fn from(e: std::io::Error) -> Self {
+        ImageError::Io(Arc::new(e))
     }
 }
 
