@@ -217,6 +217,12 @@ macro_rules! impl_rc_switch_var {
                 true
             }
 
+
+            #[inline]
+            fn strong_count(&self) -> usize {
+                Rc::strong_count(&self.0)
+            }
+
             fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
             where
                 Vw: WithVars,
@@ -396,6 +402,10 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
             Ok(r) => vars.with_vars_read(move |vars| Vec::from(r.vars).swap_remove(r.index.copy(vars)).into_value(vars)),
             Err(e) => RcSwitchVar(e).get_clone(vars),
         }
+    }
+
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
     }
 
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {

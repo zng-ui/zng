@@ -255,6 +255,11 @@ where
     }
 
     #[inline]
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
@@ -609,6 +614,11 @@ where
         B: PartialEq,
     {
         self.set_ne(vars, new_value)
+    }
+
+    #[inline]
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
     }
 
     #[inline]

@@ -44,8 +44,7 @@ Things that must be done first because they influence the core API design that i
   * Map-split.
     * Result.
     * Map/bind parse.
-  * Strong-count.
-  * Set but don't notify in case of single count.
+  * Set without notify in case of strong_count <= 1.
 
 * Task.
   * Finish network tasks.

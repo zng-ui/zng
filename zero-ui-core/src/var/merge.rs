@@ -465,6 +465,12 @@ macro_rules! impl_rc_merge_var {
                 $(self.0.vars.$n.is_new(vars))||+
             }
 
+
+            #[inline]
+            fn strong_count(&self) -> usize {
+                Rc::strong_count(&self.0)
+            }
+
             fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
                vars.with_vars_read(|vars| {
                     self.update_output(vars);

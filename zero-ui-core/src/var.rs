@@ -504,6 +504,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         }
     }
 
+    /// Gets the number of references to this variable.
+    ///
+    /// Returns `0` if the variable is not shareable.
+    fn strong_count(&self) -> usize;
+
     /// Box this var.
     #[inline]
     fn boxed(self) -> BoxedVar<T>

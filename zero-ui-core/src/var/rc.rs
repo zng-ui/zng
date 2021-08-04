@@ -317,6 +317,11 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     #[inline]
+    fn strong_count(&self) -> usize {
+        self.strong_count()
+    }
+
+    #[inline]
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,

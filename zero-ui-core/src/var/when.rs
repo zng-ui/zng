@@ -248,6 +248,10 @@ macro_rules! impl_rc_when_var {
                     }
                 })
             }
+            #[inline]
+            fn strong_count(&self) -> usize {
+                Rc::strong_count(&self.0)
+            }
             fn always_read_only(&self) -> bool {
                 $(self.0.values.$n.always_read_only())&&+ && self.0.default_value.always_read_only()
             }
@@ -515,6 +519,11 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
             }
             self.0.default_.set(vars, new_value)
         })
+    }
+
+    #[inline]
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
     }
 
     fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>

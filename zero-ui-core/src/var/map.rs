@@ -173,6 +173,11 @@ where
     }
 
     #[inline]
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    #[inline]
     fn modify<Vw, Mo>(&self, _: &Vw, _: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -478,6 +483,11 @@ where
     #[inline]
     fn can_update(&self) -> bool {
         self.can_update()
+    }
+
+    #[inline]
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
     }
 
     #[inline]

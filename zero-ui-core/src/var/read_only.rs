@@ -80,6 +80,11 @@ where
     }
 
     #[inline]
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    #[inline]
     fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,

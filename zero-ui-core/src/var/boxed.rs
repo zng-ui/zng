@@ -19,6 +19,7 @@ pub trait VarBoxed<T: VarValue> {
     fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut VarModify<T>)>) -> Result<(), VarIsReadOnly>;
     fn set_boxed(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>;
     fn clone_boxed(&self) -> BoxedVar<T>;
+    fn strong_count_boxed(&self) -> usize;
 }
 impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     #[inline]
@@ -74,6 +75,11 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     #[inline]
     fn clone_boxed(&self) -> BoxedVar<T> {
         self.clone().boxed()
+    }
+
+    #[inline]
+    fn strong_count_boxed(&self) -> usize {
+        self.strong_count()
     }
 }
 impl<T: VarValue> Clone for BoxedVar<T> {
@@ -170,6 +176,10 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
                 }
             })
         }
+    }
+
+    fn strong_count(&self) -> usize {
+        self.as_ref().strong_count_boxed()
     }
 
     #[inline]

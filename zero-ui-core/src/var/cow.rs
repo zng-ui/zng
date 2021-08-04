@@ -341,6 +341,10 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
         self.is_read_only(vars)
     }
 
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
     /// Returns `false` unless [`is_pass_through`] and the source variable is always read-only.
     ///
     /// [`is_pass_through`]: Self::is_pass_through

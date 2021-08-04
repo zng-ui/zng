@@ -38,6 +38,11 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     }
 
     #[inline]
+    fn strong_count(&self) -> usize {
+        0
+    }
+
+    #[inline]
     fn always_read_only(&self) -> bool {
         true
     }

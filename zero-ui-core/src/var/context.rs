@@ -80,6 +80,11 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     }
 
     #[inline]
+    fn strong_count(&self) -> usize {
+        0
+    }
+
+    #[inline]
     fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
