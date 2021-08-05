@@ -49,8 +49,8 @@ fn main() {
                     ]),
                     property_stack("icon", widgets![
                         set_icon("Default", WindowIcon::Default, &icon),
-                        set_icon("Png File", "examples/res/icon-file.png", &icon),
-                        set_icon("Png Bytes", include_bytes!("res/icon-bytes.png"), &icon),
+                        set_icon("Png File", "examples/res/window/icon-file.png", &icon),
+                        set_icon("Png Bytes", include_bytes!("res/window/icon-bytes.png"), &icon),
                         set_icon("Raw Rgba", {
                             let translucent_red = [255, 0, 0, 255 / 2];
                             let rgba = translucent_red.iter().copied().cycle().take(32 * 32 * 4).collect::<Vec<u8>>();
@@ -136,11 +136,17 @@ fn screenshot() -> impl Widget {
             });
             println!("taken in {:?}, saving..", t.elapsed());
 
-            task::run(async move {
-                let t = Instant::now();
-                img.save("screenshot.png").unwrap();
-                println!("saved in {:?}", t.elapsed());
-            }).await;
+            let t = Instant::now();
+
+            match img.save("screenshot.png").await {
+                Ok(_) => {
+                    println!("saved in {:?}", t.elapsed());
+                }
+                Err(e) => {
+                    eprintln!("error {}", e)
+                }
+            }
+
 
             enabled.set(&ctx, true);
         });
@@ -185,11 +191,13 @@ fn headless() -> impl Widget {
                         let window = ctx.services.windows().window(args.window_id).unwrap();
                         let img = window.frame_pixels();
                         let enabled = enabled.sender(ctx.vars);
+
                         task::spawn(async move {
                             println!("saving screenshot..");
-                            img.save("screenshot.png").unwrap();
-                            println!("saved");
-
+                            match img.save("screenshot.png").await {
+                                Ok(_) => println!("saved"),
+                                Err(e) => eprintln!("{}", e)
+                            }
                             enabled.send(true).unwrap();
                         });
                         window.close();

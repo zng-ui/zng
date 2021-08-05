@@ -20,7 +20,8 @@ fn main() {
     // save the frame.
     print!("saving ./screenshot.png ... ");
     flush_stdout();
-    frame.save("screenshot.png").expect("error saving screenshot");
+
+    task::block_on(frame.save("screenshot.png")).expect("error saving screenshot");
     println!("done");
 
     // you need to close all windows before dropping the `app`.

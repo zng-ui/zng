@@ -2105,7 +2105,7 @@ impl_from_and_into_var! {
 }
 
 mod renderer {
-    use std::{error::Error, fmt, mem, rc::Rc, sync::Arc};
+    use std::{error::Error, fmt, io::Write, mem, rc::Rc, sync::Arc};
 
     use gleam::gl;
     use glutin::{
@@ -2117,6 +2117,7 @@ mod renderer {
     use crate::{
         app::WindowTarget,
         color::RenderColor,
+        task,
         units::{LayoutPoint, LayoutSize},
     };
 
@@ -2734,14 +2735,14 @@ mod renderer {
         ///
         /// This is a direct call to `glReadPixels`, `x` and `y` start
         /// at the bottom-left corner of the rectangle and each *stride*
-        /// is a row from bottom-to-top.
+        /// is a row from bottom-to-top and the pixel type is BGRA.
         #[inline]
         pub fn read_pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, RendererError> {
             let context = self.context.make_current()?;
 
             let pixels = self
                 .gl
-                .read_pixels(x as _, y as _, width as _, height as _, gl::RGBA, gl::UNSIGNED_BYTE);
+                .read_pixels(x as _, y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
             assert!(self.gl.get_error() == 0);
 
             self.context = context.make_not_current()?;
@@ -2753,13 +2754,13 @@ mod renderer {
         ///
         /// This is a direct call to `glReadPixels`, `x` and `y` start
         /// at the bottom-left corner of the rectangle and each *stride*
-        /// is a row from bottom-to-top.
+        /// is a row from bottom-to-top and the pixel type is BGRA.
         #[inline]
         pub fn read_pixels_to(&mut self, x: u32, y: u32, width: u32, height: u32, pixels: &mut [u8]) -> Result<(), RendererError> {
             let context = self.context.make_current()?;
 
             self.gl
-                .read_pixels_into_buffer(x as _, y as _, width as _, height as _, gl::RGBA, gl::UNSIGNED_BYTE, pixels);
+                .read_pixels_into_buffer(x as _, y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE, pixels);
             assert!(self.gl.get_error() == 0);
 
             self.context = context.make_not_current()?;
@@ -2787,10 +2788,11 @@ mod renderer {
 
             if rect.size.width == 0 || rect.size.height == 0 {
                 return Ok(FramePixels {
-                    pixels: Box::new([]),
+                    bgra: Arc::new(vec![]),
                     width: rect.size.width as u32,
                     height: rect.size.height as u32,
                     scale_factor: self.scale_factor,
+                    opaque: true, // TODO
                 });
             }
 
@@ -2814,10 +2816,11 @@ mod renderer {
             }
 
             Ok(FramePixels {
-                pixels: pixels.into_boxed_slice(),
+                bgra: Arc::new(pixels),
                 width: rect.size.width as u32,
                 height: rect.size.height as u32,
                 scale_factor: self.scale_factor,
+                opaque: true,
             })
         }
 
@@ -2888,9 +2891,10 @@ mod renderer {
     /// Pixels copied from a [`Renderer`] frame.
     #[derive(Clone)]
     pub struct FramePixels {
-        pixels: Box<[u8]>,
+        bgra: Arc<Vec<u8>>,
         width: u32,
         height: u32,
+        opaque: bool,
 
         /// Scale factor used when rendering the frame.
         ///
@@ -2901,18 +2905,19 @@ mod renderer {
     impl fmt::Debug for FramePixels {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("FramePixels")
-                .field("pixels", &format_args!("<{} heap bytes>", self.pixels.len()))
+                .field("bgra", &format_args!("<{} heap bytes>", self.bgra.len()))
                 .field("width", &self.width)
                 .field("height", &self.height)
+                .field("opaque", &self.opaque)
                 .field("scale_factor", &self.scale_factor)
                 .finish()
         }
     }
     impl FramePixels {
-        /// **Rgba8** pixel buffer.
+        /// **BGRA8** frame pixels.
         #[inline]
-        pub fn pixels(&self) -> &[u8] {
-            &self.pixels
+        pub fn bgra(&self) -> &Arc<Vec<u8>> {
+            &self.bgra
         }
 
         /// Pixels width.
@@ -2927,82 +2932,178 @@ mod renderer {
             self.height
         }
 
-        /// Get the underlying data `(pixels, width, height)`.
+        /// Returns `true` if all pixels in [`bgra`] are fully opaque.
+        ///
+        /// [`bgra`]: Self::bgra
         #[inline]
-        pub fn raw(self) -> (Box<[u8]>, u32, u32) {
-            (self.pixels, self.width, self.height)
+        pub fn opaque(&self) -> bool {
+            self.opaque
         }
-    }
 
-    /// Helper methods that use the [`image`] crate.
-    impl FramePixels {
+        /// Get the underlying data `(bgra, width, height)`.
+        #[inline]
+        pub fn raw(self) -> (Arc<Vec<u8>>, u32, u32) {
+            (self.bgra, self.width, self.height)
+        }
+
         /// Encode and save the pixels as an image.
+        ///
+        /// The image format is defined by the file extension.
         ///
         /// # Scale Factor
         ///
         /// The scale factor is used only if the formats are `PNG` or `JPEG`, for both
         /// it sets the pixel density to `96dpi * scale_factor`.
-        pub fn save(&self, path: impl AsRef<std::path::Path>) -> image::ImageResult<()> {
+        ///
+        /// # ICO
+        ///
+        /// The `.ico` format only works if the image buffer width and height are in the `1..=256` range.
+        pub async fn save(&self, path: impl Into<std::path::PathBuf>) -> image::ImageResult<()> {
             use image::*;
             use std::fs;
 
-            let path = path.as_ref();
-            if let Ok(format) = ImageFormat::from_path(path) {
+            let path = path.into();
+            let format = ImageFormat::from_path(&path)?;
+            let mut file = task::wait(move || fs::File::create(path)).await?;
+
+            let bgra = Arc::clone(&self.bgra);
+            let width = self.width;
+            let height = self.height;
+            let scale_factor = self.scale_factor;
+            let opaque = self.opaque;
+
+            let encoded = task::run(async move {
+                let mut buffer = vec![];
+
                 match format {
                     ImageFormat::Jpeg => {
-                        let mut w = fs::File::create(path)?;
-                        let mut jpg = codecs::jpeg::JpegEncoder::new(&mut w);
-                        let dpi = (96.0 * self.scale_factor) as u16;
+                        let mut jpg = codecs::jpeg::JpegEncoder::new(&mut buffer);
+                        let dpi = (96.0 * scale_factor) as u16;
                         jpg.set_pixel_density(codecs::jpeg::PixelDensity::dpi(dpi));
-                        jpg.encode(&self.pixels, self.width, self.height, ColorType::Rgba8)?;
-                        return Ok(());
+                        jpg.encode(&bgra, width, height, ColorType::Bgra8)?;
                     }
-                    ImageFormat::Png => {
-                        let mut w = vec![];
-                        let png = codecs::png::PngEncoder::new(&mut w);
-                        png.encode(&self.pixels, self.width, self.height, ColorType::Rgba8)?;
-                        let mut png = img_parts::png::Png::from_bytes(w.into()).unwrap();
+                    ImageFormat::Farbfeld => {
+                        let mut pixels = Vec::with_capacity(bgra.len() * 2);
+                        for bgra in bgra.chunks(4) {
+                            fn c(c: u8) -> [u8; 2] {
+                                let c = (c as f32 / 255.0) * u16::MAX as f32;
+                                (c as u16).to_ne_bytes()
+                            }
+                            pixels.extend(c(bgra[2]));
+                            pixels.extend(c(bgra[1]));
+                            pixels.extend(c(bgra[0]));
+                            pixels.extend(c(bgra[3]));
+                        }
 
-                        let chunk_kind = *b"pHYs";
-                        debug_assert!(png.chunk_by_type(chunk_kind).is_none());
-
-                        use byteorder::*;
-                        let mut chunk = Vec::with_capacity(4 * 2 + 1);
-
-                        // 96dpi * scale / inch_to_metric
-                        let ppm = (96.0 * self.scale_factor / 0.0254) as u32;
-
-                        chunk.write_u32::<BigEndian>(ppm).unwrap(); // x
-                        chunk.write_u32::<BigEndian>(ppm).unwrap(); // y
-                        chunk.write_u8(1).unwrap(); // metric
-
-                        let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
-                        png.chunks_mut().insert(1, chunk);
-
-                        png.encoder().write_to(fs::File::create(path)?)?;
-                        return Ok(());
+                        let ff = codecs::farbfeld::FarbfeldEncoder::new(&mut buffer);
+                        ff.encode(&pixels, width, height)?;
                     }
-                    _ => {}
-                };
-            }
-            image::save_buffer(path, &self.pixels, self.width, self.height, image::ColorType::Rgba8)
+                    ImageFormat::Tga => {
+                        let tga = codecs::tga::TgaEncoder::new(&mut buffer);
+                        tga.encode(&bgra, width, height, ColorType::Bgra8)?;
+                    }
+                    rgb_only => {
+                        let mut pixels;
+                        let color_type;
+                        if opaque {
+                            color_type = ColorType::Rgb8;
+                            pixels = Vec::with_capacity(width as usize * height as usize * 3);
+                            for bgra in bgra.chunks(4) {
+                                pixels.push(bgra[2]);
+                                pixels.push(bgra[1]);
+                                pixels.push(bgra[0]);
+                            }
+                        } else {
+                            color_type = ColorType::Rgba8;
+                            pixels = (*bgra).clone();
+                            for pixel in pixels.chunks_mut(4) {
+                                pixel.swap(0, 2);
+                            }
+                        }
+
+                        match rgb_only {
+                            ImageFormat::Png => {
+                                let mut png_bytes = vec![];
+                                let png = codecs::png::PngEncoder::new(&mut png_bytes);
+
+                                png.encode(&pixels, width, height, color_type)?;
+
+                                let mut png = img_parts::png::Png::from_bytes(png_bytes.into()).unwrap();
+
+                                let chunk_kind = *b"pHYs";
+                                debug_assert!(png.chunk_by_type(chunk_kind).is_none());
+
+                                use byteorder::*;
+                                let mut chunk = Vec::with_capacity(4 * 2 + 1);
+
+                                // 96dpi * scale / inch_to_metric
+                                let ppm = (96.0 * scale_factor / 0.0254) as u32;
+
+                                chunk.write_u32::<BigEndian>(ppm).unwrap(); // x
+                                chunk.write_u32::<BigEndian>(ppm).unwrap(); // y
+                                chunk.write_u8(1).unwrap(); // metric
+
+                                let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
+                                png.chunks_mut().insert(1, chunk);
+
+                                png.encoder().write_to(&mut buffer)?;
+                            }
+                            ImageFormat::Tiff => {
+                                // TODO set ResolutionUnit to 2 (inch) and set both XResolution and YResolution
+                                let mut seek_buf = std::io::Cursor::new(vec![]);
+                                let tiff = codecs::tiff::TiffEncoder::new(&mut seek_buf);
+
+                                tiff.encode(&pixels, width, height, color_type)?;
+
+                                buffer = seek_buf.into_inner();
+                            }
+                            ImageFormat::Gif => {
+                                let mut gif = codecs::gif::GifEncoder::new(&mut buffer);
+
+                                gif.encode(&pixels, width, height, color_type)?;
+                            }
+                            ImageFormat::Bmp => {
+                                // TODO set biXPelsPerMeter and biYPelsPerMeter
+                                let mut bmp = codecs::bmp::BmpEncoder::new(&mut buffer);
+
+                                bmp.encode(&pixels, width, height, color_type)?;
+                            }
+                            ImageFormat::Ico => {
+                                // TODO set density in the inner PNG?
+                                let ico = codecs::ico::IcoEncoder::new(&mut buffer);
+
+                                ico.encode(&pixels, width, height, color_type)?;
+                            }
+                            unsuported => {
+                                use image::error::*;
+                                let hint = ImageFormatHint::Exact(unsuported);
+                                return Err(ImageError::Unsupported(UnsupportedError::from_format_and_kind(
+                                    hint.clone(),
+                                    UnsupportedErrorKind::Format(hint),
+                                )));
+                            }
+                        }
+                    }
+                }
+                Ok(buffer)
+            })
+            .await?;
+
+            task::wait(move || file.write_all(&encoded)).await?;
+            Ok(())
         }
 
-        /// Clone the pixel data into an [`image::RgbaImage`].
+        /// Create an [`Image`] from the pixel data.
+        ///
+        /// [`Image`]: crate::image::Image
         #[inline]
-        pub fn image(&self) -> image::RgbaImage {
-            image::RgbaImage::from_raw(self.width, self.height, self.pixels.to_vec()).unwrap()
-        }
-
-        /// Moves the pixel data to an [`image::RgbaImage`].
-        #[inline]
-        pub fn into_image(self) -> image::RgbaImage {
-            image::RgbaImage::from_raw(self.width, self.height, self.pixels.into()).unwrap()
+        pub fn image(&self) -> crate::image::Image {
+            crate::image::Image::from_raw(self.bgra.clone(), (self.width, self.height), self.opaque)
         }
     }
-    impl From<FramePixels> for image::RgbaImage {
+    impl From<FramePixels> for crate::image::Image {
         fn from(pixels: FramePixels) -> Self {
-            pixels.into_image()
+            pixels.image()
         }
     }
 }

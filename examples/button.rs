@@ -46,7 +46,13 @@ fn disabled() -> impl Widget {
 
 fn image_button() -> impl Widget {
     button! {
-        on_click = hn!(|_, _| println!("What does this do?"));
-        content = image("examples/res/icon-bytes.png");
+        on_click = hn!(|_, _| println!("Clicked image button"));
+        content = h_stack! {
+            items = widgets![
+                image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
+                text("Click Me!")
+            ];
+            spacing = 5;
+        };
     }
 }
