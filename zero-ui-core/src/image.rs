@@ -12,6 +12,10 @@ use std::{
 };
 use webrender::api::{ImageKey, RenderApi};
 
+pub mod bmp;
+pub mod farbfeld;
+pub mod formats;
+
 use crate::{
     app::AppExtension,
     context::LayoutMetrics,

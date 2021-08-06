@@ -259,6 +259,11 @@ impl std::error::Error for ReadTaskError {
         }
     }
 }
+impl From<io::Error> for ReadTaskError {
+    fn from(e: io::Error) -> Self {
+        ReadTaskError::Io(e)
+    }
+}
 
 /// Builds [`ReadTask`].
 ///
@@ -767,7 +772,7 @@ pub struct WriteTaskClosed {
     /// Is empty in case of a [`flush`] call.
     ///
     /// [`flush`]: WriteTask::flush
-    payload: Vec<u8>,
+    pub payload: Vec<u8>,
 }
 impl fmt::Debug for WriteTaskClosed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
