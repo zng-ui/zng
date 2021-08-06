@@ -4,9 +4,9 @@
 
 // thid format is the most simple and so is also the test-bed of encoder/decoder API designs.
 
-use std::{convert::TryInto, io};
+use std::io;
 
-use super::formats::*;
+use super::*;
 use crate::task::{
     self,
     io::{ReadTask, ReadTaskError, WriteTask, WriteTaskClosed, WriteTaskError},
@@ -50,34 +50,24 @@ where
     R: io::Read + Send + 'static,
 {
     /// Reads the header only, returns the (reader, width, height).
-    pub async fn read_header(mut read: R, expect_magic: bool) -> io::Result<(R, u32, u32)> {
-        const MAGIC: &[u8] = b"farbfeld";
-
-        let (read, header) = task::wait(move || {
-            let mut buf = vec![0u8; if expect_magic { MAGIC.len() + 4 + 4 } else { 4 + 4 }];
-            read.read_exact(&mut buf)?;
-            Ok::<_, io::Error>((read, buf))
+    pub async fn read_header(mut read: R) -> io::Result<(R, u32, u32)> {
+        let (read, mut header) = task::wait(move || {
+            let r = ArrayRead::<{ 8 + 4 + 4 }>::load(&mut read)?;
+            Ok::<_, io::Error>((read, r))
         })
         .await?;
 
-        let mut cur = 0;
-        if expect_magic {
-            if &header[..MAGIC.len()] != MAGIC {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "expected `b\"farbfeld\"` magic"));
-            }
-            cur += MAGIC.len();
-        }
+        header.match_ascii(b"farbfeld")?;
 
-        let width = u32::from_be_bytes(header[cur..cur + 4].try_into().unwrap());
-        cur += 4;
-        let height = u32::from_be_bytes(header[cur..cur + 4].try_into().unwrap());
+        let width = header.read_u32_be();
+        let height = header.read_u32_be();
 
         Ok((read, width, height))
     }
 
     /// Reads the header and starts the decoder task.
-    pub async fn start(read: R, expect_magic: bool, max_bytes: usize) -> io::Result<Decoder<R>> {
-        let (read, width, height) = Self::read_header(read, expect_magic).await?;
+    pub async fn start(read: R, max_bytes: usize) -> io::Result<Decoder<R>> {
+        let (read, width, height) = Self::read_header(read).await?;
 
         check_limit(width, height, 4 * 2, max_bytes)?;
 
@@ -94,30 +84,31 @@ where
         })
     }
 
-    /// Read and decode one pixel line.
-    pub async fn read_line(&mut self) -> Result<Bgra8Buf, ReadTaskError> {
-        if self.pending_lines == 0 {
+    /// Read and decode a count of pixel lines.
+    pub async fn read_lines(&mut self, line_count: u32) -> Result<Bgra8Buf, ReadTaskError> {
+        let count = line_count.max(self.pending_lines) as usize;
+        if count == 0 {
             return Ok(Bgra8Buf::empty());
         }
 
-        let line = self.task.read().await?;
+        let mut r = Bgra8Buf::with_capacity(count * self.width as usize * 4);
 
-        if line.len() < self.width as usize * 4 * 2 {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "did not read a full line").into());
+        for _ in 0..count {
+            let line = Bgra8Buf::from_rgba16_be8(self.task.read().await?);
+            if line.len() < self.task.payload_len() {
+                return Err(unexpected_eof("did not read a full line").into());
+            }
+            r.extend(line);
         }
 
-        self.pending_lines -= 1;
+        self.pending_lines -= count as u32;
 
-        Ok(Bgra8Buf::from_rgba16_be8(line))
+        Ok(r)
     }
 
     /// Read all pending lines.
     pub async fn read_all(&mut self) -> Result<Bgra8Buf, ReadTaskError> {
-        let mut r = Bgra8Buf::with_capacity(self.pending_lines as usize * self.width as usize * 4);
-        while self.pending_lines > 0 {
-            r.extend(self.read_line().await?);
-        }
-        Ok(r)
+        self.read_lines(self.pending_lines).await
     }
 }
 

@@ -1,6 +1,6 @@
 //! Image format detection and pixel layouts.
 
-use std::{convert::TryInto, fmt, io};
+use std::{convert::TryInto, fmt, io, ops::Deref};
 
 use rayon::prelude::*;
 
@@ -251,6 +251,13 @@ impl fmt::Debug for Bgra8Buf {
         write!(f, "Bgra8Buf(<{} bytes>, opaque: {})", self.0.len(), self.1)
     }
 }
+impl Deref for Bgra8Buf {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
 
 pub(crate) fn check_limit(width: u32, height: u32, bytes_per_pixel: usize, max_bytes: usize) -> io::Result<()> {
     let width = width as usize;
@@ -268,10 +275,60 @@ pub(crate) fn check_limit(width: u32, height: u32, bytes_per_pixel: usize, max_b
     }
 }
 
-pub(crate) fn u16_le(h: &[u8], cur: usize) -> u16 {
-    u16::from_le_bytes([h[cur], h[cur + 1]])
+pub(crate) fn invalid_data(error: impl ToString) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, error.to_string())
 }
 
-pub(crate) fn u32_le(h: &[u8], cur: usize) -> u32 {
-    u32::from_le_bytes(h[cur..cur + 4].try_into().unwrap())
+pub(crate) fn unexpected_eof(error: impl ToString) -> io::Error {
+    io::Error::new(io::ErrorKind::UnexpectedEof, error.to_string())
+}
+
+pub(crate) struct ArrayRead<const N: usize> {
+    buf: [u8; N],
+    cur: usize,
+}
+impl<const N: usize> ArrayRead<N> {
+    pub fn load(read: &mut impl io::Read) -> io::Result<Self> {
+        let mut buf = [0u8; N];
+        read.read_exact(&mut buf)?;
+        Ok(ArrayRead { buf, cur: 0 })
+    }
+
+    pub fn match_ascii(&mut self, ascii: &'static [u8]) -> io::Result<()> {
+        let matches = ascii == &self.buf[self.cur..self.cur + ascii.len()];
+        if matches {
+            self.cur += ascii.len();
+            debug_assert!(self.cur <= self.buf.len());
+            Ok(())
+        } else {
+            Err(invalid_data(format!("expected `{}`", std::str::from_utf8(ascii).unwrap())))
+        }
+    }
+
+    pub fn read<const R: usize>(&mut self) -> [u8; R] {
+        let r = self.buf[self.cur..self.cur + R].try_into().unwrap();
+        self.cur += R;
+        r
+    }
+
+    pub fn read_u32_be(&mut self) -> u32 {
+        u32::from_be_bytes(self.read::<4>())
+    }
+
+    pub fn read_u16_le(&mut self) -> u16 {
+        u16::from_le_bytes(self.read::<2>())
+    }
+
+    pub fn read_u32_le(&mut self) -> u32 {
+        u32::from_le_bytes(self.read::<4>())
+    }
+
+    pub fn read_i32_le(&mut self) -> i32 {
+        i32::from_le_bytes(self.read::<4>())
+    }
+
+    pub fn skip(&mut self, byte_count: usize) {
+        self.cur += byte_count;
+        debug_assert!(self.cur <= self.buf.len());
+    }
 }
