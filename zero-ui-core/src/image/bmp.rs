@@ -4,7 +4,7 @@
 
 use std::io;
 
-use super::formats::Bgra8Buf;
+use super::formats::{Bgra8Buf, u16_le, u32_le};
 use crate::task::{
     self,
     io::{ReadTask, ReadTaskError},
@@ -34,6 +34,13 @@ impl From<BmpHeaderFull> for BmpHeader {
 
 const DEFAULT_PPM: u32 = 3780; // 96dpi
 
+enum Halftoning {
+    None,
+    ErrorDiffusion(u8),
+    Panda(u32, u32), // Processing Algorithm for Noncoded Document Acquisition
+    SuperCircle(u32, u32)
+}
+
 struct BmpHeaderFull {
     header_size: u32,
 
@@ -42,6 +49,9 @@ struct BmpHeaderFull {
     bpp: u8,
     ppm_x: u32,
     ppm_y: u32,
+    top_down: bool,
+    halftoning: Halftoning,
+    
 }
 impl Default for BmpHeaderFull {
     fn default() -> Self {
@@ -52,6 +62,8 @@ impl Default for BmpHeaderFull {
             bpp: 0,
             ppm_x: DEFAULT_PPM,
             ppm_y: DEFAULT_PPM,
+            top_down: false,
+            halftoning: Halftoning::None,
         }
     }
 }
@@ -73,6 +85,10 @@ impl BmpHeaderFull {
 
         match self.header_size {
             12 => self.read_core_header(read),
+            64 => {
+                self.read_core_header(read);
+                self.read_core_header2(read)
+            },
             40 => self.read_info_header(read),
 
             unknown => Err(io::Error::new(
@@ -95,6 +111,30 @@ impl BmpHeaderFull {
         cur += 2; // ignore color plane count
 
         self.bpp = u16::from_le_bytes([h[cur], h[cur + 1]]) as u8;
+
+        Ok(())
+    }
+
+    fn read_core_header2(&mut self, read: &mut impl io::Read) -> io::Result<()> {
+        let mut h = [0u8; 64 - 12 - 4];
+        read.read_exact(&mut h)?;
+
+        let mut cur = 0;
+        cur += 2; // ignore always pixels per metre        
+        cur += 2; // ignore padding
+        cur += 2; // ignore always bottom-to-top  
+        let halftoning_u16 = u16_le(&h, cur);
+        cur += 2;
+
+        self.halftoning = match halftoning_u16 {
+            0 => Halftoning::None,
+            // 1 => Halftoning::ErrorDiffusion(u32_le(&h, cur)),
+            // 2 => Halftoning::Panda(),
+            // 3 => Halftoning::SuperCircle(),
+            _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown halftoning algorithm"))
+        };
+        
+        //
 
         Ok(())
     }

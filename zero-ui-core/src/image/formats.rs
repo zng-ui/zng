@@ -1,6 +1,6 @@
 //! Image format detection and pixel layouts.
 
-use std::fmt;
+use std::{convert::TryInto, fmt, io};
 
 use rayon::prelude::*;
 
@@ -250,4 +250,28 @@ impl fmt::Debug for Bgra8Buf {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Bgra8Buf(<{} bytes>, opaque: {})", self.0.len(), self.1)
     }
+}
+
+pub(crate) fn check_limit(width: u32, height: u32, bytes_per_pixel: usize, max_bytes: usize) -> io::Result<()> {
+    let width = width as usize;
+    let height = height as usize;
+
+    let result = width
+        .checked_mul(bytes_per_pixel)
+        .and_then(|r| r.checked_mul(height))
+        .unwrap_or(usize::MAX);
+
+    if result > max_bytes {
+        Err(io::Error::new(io::ErrorKind::OutOfMemory, "image too large"))
+    } else {
+        Ok(())
+    }
+}
+
+pub(crate) fn u16_le(h: &[u8], cur: usize) -> u16 {
+    u16::from_le_bytes([h[cur], h[cur + 1]])
+}
+
+pub(crate) fn u32_le(h: &[u8], cur: usize) -> u32 {
+    u32::from_le_bytes(h[cur..cur + 4].try_into().unwrap())
 }

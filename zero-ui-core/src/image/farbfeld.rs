@@ -54,7 +54,7 @@ where
         const MAGIC: &[u8] = b"farbfeld";
 
         let (read, header) = task::wait(move || {
-            let mut buf = Vec::with_capacity(if expect_magic { MAGIC.len() + 32 + 32 } else { 32 * 2 });
+            let mut buf = vec![0u8; if expect_magic { MAGIC.len() + 4 + 4 } else { 4 + 4 }];
             read.read_exact(&mut buf)?;
             Ok::<_, io::Error>((read, buf))
         })
@@ -76,8 +76,11 @@ where
     }
 
     /// Reads the header and starts the decoder task.
-    pub async fn start(read: R, expect_magic: bool) -> io::Result<Decoder<R>> {
+    pub async fn start(read: R, expect_magic: bool, max_bytes: usize) -> io::Result<Decoder<R>> {
         let (read, width, height) = Self::read_header(read, expect_magic).await?;
+
+        check_limit(width, height, 4 * 2, max_bytes)?;
+
         let task = ReadTask::default()
             .payload_len(width as usize * 4 * 2)
             .channel_capacity(height as usize)
