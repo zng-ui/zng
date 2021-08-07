@@ -606,7 +606,12 @@ mod tests {
             let file = file.unwrap().path();
             let file_name = file.file_name().unwrap().to_string_lossy();
 
-            if file_name != "badbitssize.bmp" {
+            if file_name == "badbitssize.bmp" {
+                // ERROR: Header incorrectly indicates that the bitmap is several GB in size.
+                // 
+                // ALLOW:
+                // We don't consider the reported size, if the file
+                // is actually huge it will fail later because of the limit.
                 continue;
             }
             let file = fs::File::open(&file).unwrap();
