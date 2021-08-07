@@ -29,6 +29,7 @@ pub use isahc::error::{Error, ErrorKind};
 pub use isahc::http::{header, uri, Method, StatusCode, Uri};
 pub use isahc::Metrics;
 
+use async_trait::*;
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
@@ -126,6 +127,7 @@ where
 /// HTTP request.
 ///
 /// Use [`send`] to send a request.
+#[derive(Debug)]
 pub struct Request(isahc::Request<Body>);
 impl Request {
     /// Starts an empty builder.
@@ -243,6 +245,7 @@ impl Request {
 /// A [`Request`] builder.
 ///
 /// You can use [`Request::builder`] to start an empty builder.
+#[derive(Debug)]
 pub struct RequestBuilder(isahc::http::request::Builder);
 impl RequestBuilder {
     /// Set the HTTP method for this request.
@@ -357,6 +360,7 @@ impl RequestBuilder {
 }
 
 /// HTTP response.
+#[derive(Debug)]
 pub struct Response(isahc::Response<isahc::AsyncBody>);
 impl Response {
     /// Returns the [`StatusCode`].
@@ -391,6 +395,18 @@ impl Response {
         let mut bytes = Vec::with_capacity(cap as usize);
         self.0.copy_to(&mut bytes).await?;
         Ok(bytes)
+    }
+
+    /// Read some bytes from the body, returns how many bytes where read.
+    pub async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        use futures_lite::io::AsyncReadExt;
+        self.0.body_mut().read(buf).await
+    }
+
+    /// Read the `buf.len()` from the body.
+    pub async fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
+        use futures_lite::io::AsyncReadExt;
+        self.0.body_mut().read_exact(buf).await
     }
 
     /// Deserialize the response body as JSON.
@@ -429,6 +445,7 @@ impl From<Response> for isahc::Response<isahc::AsyncBody> {
 /// HTTP request body.
 ///
 /// Use [`TryBody`] to convert types to body.
+#[derive(Debug)]
 pub struct Body(isahc::AsyncBody);
 impl From<Body> for isahc::AsyncBody {
     fn from(r: Body) -> Self {
@@ -580,8 +597,8 @@ impl DownloadTask {
         DownloadTaskBuilder::new(client)
     }
 
-    fn spawn(builder: DownloadTaskBuilder, uri: Result<Uri, Error>) -> Self {
-        todo!("{:?}, {:?}", builder, uri)
+    fn spawn(builder: DownloadTaskBuilder, response: Response) -> Self {
+        todo!("{:?}, {:?}", builder, response)
     }
 
     /// Maximum number of bytes per payload.
@@ -625,6 +642,18 @@ impl DownloadTask {
     /// The payloads are sequential, even if parallel downloads are enabled.
     pub async fn download(&self) -> Result<Vec<u8>, DownloadTaskError> {
         todo!()
+    }
+}
+#[async_trait]
+impl super::ReceiverTask for DownloadTask {
+    type Error = DownloadTaskError;
+
+    async fn recv(&self) -> Result<Vec<u8>, Self::Error> {
+        self.download().await
+    }
+
+    async fn stop(self) {
+        self.stop().await
     }
 }
 
@@ -751,10 +780,22 @@ impl DownloadTaskBuilder {
         }
     }
 
-    /// Start downloading the `uri`.
-    pub fn spawn(mut self, uri: impl TryUri) -> DownloadTask {
+    /// Start downloading the `response` body.
+    pub fn spawn(mut self, response: Response) -> DownloadTask {
         self.normalize();
-        DownloadTask::spawn(self, uri.try_into())
+        DownloadTask::spawn(self, response)
+    }
+
+    /// Start downloading from the `uri` response body requested using HTTP GET.
+    pub async fn get(self, uri: impl TryUri) -> Result<DownloadTask, Error> {
+        let response = get(uri).await?;
+        Ok(self.spawn(response))
+    }
+
+    /// Start downloading from the response body requested using the `request`.
+    pub async fn req(self, request: Request) -> Result<DownloadTask, Error> {
+        let response = send(request).await?;
+        Ok(self.spawn(response))
     }
 }
 
@@ -768,7 +809,20 @@ impl FrozenDownloadTask {
 }
 
 /// An error in [`DownloadTask`] or [`FrozenDownloadTask`]
+#[derive(Debug, Clone)]
 pub struct DownloadTaskError {}
+impl fmt::Display for DownloadTaskError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let _ = f;
+        todo!()
+    }
+}
+impl std::error::Error for DownloadTaskError {}
+impl From<std::io::Error> for DownloadTaskError {
+    fn from(_: std::io::Error) -> Self {
+        todo!()
+    }
+}
 
 /// Represents a running large file upload.
 pub struct UploadTask {}
@@ -894,3 +948,65 @@ impl UploadTaskBuilder {
 
 /// An error in [`UploadTask`].
 pub struct UploadTaskError {}
+
+/// Wrapper that implements [`ReadThenReceive`] for a [`Response`].
+///
+/// [`ReadThenReceive`]: super::ReadThenReceive
+pub struct ReadThenReceive {
+    response: Response,
+}
+impl ReadThenReceive {
+    /// Read from the body of a [`Response`].
+    pub fn new(response: Response) -> Self {
+        ReadThenReceive { response }
+    }
+
+    /// HTTP GET the `uri` and read from the response body..
+    pub async fn get(uri: impl TryUri) -> Result<Self, Error> {
+        let uri = uri.try_into()?;
+        get(uri).await.map(Self::new)
+    }
+
+    /// Read from the body of the response returned for the `request`.
+    pub async fn req(request: Request) -> Result<Self, Error> {
+        send(request).await.map(Self::new)
+    }
+}
+#[async_trait]
+impl super::ReadThenReceive for ReadThenReceive {
+    type Error = self::Error;
+
+    type Spawned = DownloadTask;
+
+    async fn read_exact<const N: usize>(&mut self) -> Result<[u8; N], Self::Error> {
+        let mut buf = [0; N];
+        self.response.read_exact(&mut buf).await?;
+        Ok(buf)
+    }
+
+    fn spawn(self, payload_len: usize, channel_capacity: usize) -> Self::Spawned {
+        DownloadTask::default()
+            .payload_len(payload_len)
+            .channel_capacity(channel_capacity)
+            .spawn(self.response)
+    }
+}
+#[async_trait]
+impl super::ReadThenReceive for Response {
+    type Error = self::Error;
+
+    type Spawned = DownloadTask;
+
+    async fn read_exact<const N: usize>(&mut self) -> Result<[u8; N], Self::Error> {
+        let mut buf = [0; N];
+        self.read_exact(&mut buf).await?;
+        Ok(buf)
+    }
+
+    fn spawn(self, payload_len: usize, channel_capacity: usize) -> Self::Spawned {
+        DownloadTask::default()
+            .payload_len(payload_len)
+            .channel_capacity(channel_capacity)
+            .spawn(self)
+    }
+}

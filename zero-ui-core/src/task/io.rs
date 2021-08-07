@@ -1,12 +1,15 @@
 //! IO tasks.
 
 use std::{
-    fmt, io, panic,
+    fmt, fs, io, panic,
+    path::PathBuf,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
 };
+
+use async_trait::*;
 
 use crate::crate_util::{panic_str, PanicPayload};
 
@@ -192,6 +195,18 @@ where
         self.stop_recv.recv().await.ok()
     }
 }
+#[async_trait]
+impl<R: io::Read + Send + 'static> super::ReceiverTask for ReadTask<R> {
+    type Error = ReadTaskError;
+
+    async fn recv(&self) -> Result<Vec<u8>, Self::Error> {
+        self.read().await
+    }
+
+    async fn stop(self) {
+        let _ = self.stop().await;
+    }
+}
 
 /// Error from [`ReadTask::read`].
 pub enum ReadTaskError {
@@ -310,7 +325,7 @@ impl ReadTaskBuilder {
         }
     }
 
-    /// Start an idle [`ReadTask<R>`] that writes to `read`.
+    /// Start reading from `read`.
     #[inline]
     pub fn spawn<R>(mut self, read: R) -> ReadTask<R>
     where
@@ -318,6 +333,13 @@ impl ReadTaskBuilder {
     {
         self.normalize();
         ReadTask::spawn(self, read)
+    }
+
+    /// Start reading from the file at `path` or returns an error if the file could not be opened.
+    pub async fn open(self, path: impl Into<PathBuf>) -> io::Result<ReadTask<fs::File>> {
+        let path = path.into();
+        let file = super::wait(move || fs::File::open(path)).await?;
+        Ok(self.spawn(file))
     }
 }
 
@@ -787,6 +809,51 @@ impl fmt::Display for WriteTaskClosed {
     }
 }
 impl std::error::Error for WriteTaskClosed {}
+
+/// Wrapper that implements [`ReadThenReceive`] for any [`std::io::Read`].
+///
+/// [`ReadThenReceive`]: super::ReadThenReceive
+pub struct ReadThenReceive<R> {
+    read: Option<R>,
+}
+impl<R: io::Read + Send + 'static> ReadThenReceive<R> {
+    /// New [`ReadThenReceive`] implementer for `read`.
+    pub fn new(read: R) -> Self {
+        ReadThenReceive { read: Some(read) }
+    }
+}
+impl ReadThenReceive<fs::File> {
+    /// Open a the `path` file for reading.
+    pub async fn open(path: impl Into<std::path::PathBuf>) -> std::io::Result<Self> {
+        let path = path.into();
+        super::wait(move || std::fs::File::open(path)).await.map(Self::new)
+    }
+}
+#[async_trait]
+impl<R: io::Read + Send + 'static> super::ReadThenReceive for ReadThenReceive<R> {
+    type Error = std::io::Error;
+
+    type Spawned = ReadTask<R>;
+
+    async fn read_exact<const N: usize>(&mut self) -> Result<[u8; N], Self::Error> {
+        let mut read = self.read.take().expect("already reading");
+        let (read, buf) = super::wait(move || {
+            let mut buf = [0; N];
+            read.read_exact(&mut buf)?;
+            Ok::<_, std::io::Error>((read, buf))
+        })
+        .await?;
+        self.read = Some(read);
+        Ok(buf)
+    }
+
+    fn spawn(self, payload_len: usize, channel_capacity: usize) -> Self::Spawned {
+        ReadTask::default()
+            .payload_len(payload_len)
+            .channel_capacity(channel_capacity)
+            .spawn(self.read.unwrap())
+    }
+}
 
 #[cfg(test)]
 pub mod tests {

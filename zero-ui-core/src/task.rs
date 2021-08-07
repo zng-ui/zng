@@ -133,6 +133,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use async_trait::*;
 use parking_lot::Mutex;
 
 use crate::{
@@ -1816,6 +1817,123 @@ macro_rules! __all_some {
         }
     }
 }
+
+/// Read some metadata bytes then spawn a [`ReceiverTask`].
+///
+/// This is a common pattern when processing large byte inputs, you need to first read
+/// some metadata the descrives the layout of the large ammount of data that follows,
+/// this is usually all send as a single stream of bytes but we want to *change-gears* depending
+/// on what part we are reading, this trait is an abstraction over this process.
+///
+/// First you *drip-read* the metadata using [`read_exact`] and when you are ready to start processing
+/// the full data you call [`spawn`], or you can drop the object to cancel without calling [`spawn`].
+///
+/// # Implementers
+///
+/// * [`io::ReadThenReceive`] to read from any [`std::io::Read`].
+/// * [`http::ReadThenReceive`] to download over HTTP.
+///
+/// [`read_exact`]: Self::read_exact
+/// [`spawn`]: Self::spawn
+/// [`cancel`]: Self::cancel
+#[async_trait]
+pub trait ReadThenReceive {
+    /// [`read_exact`] error.
+    ///
+    /// [`read_exact`]: ReadThenReceive::read_exact
+    type Error: std::error::Error + From<std::io::Error>;
+
+    /// Spawned [`ReceiverTask`] returned by [`spawn`].
+    ///
+    /// [`spawn`]: ReadThenReceive::spawn
+    type Spawned: ReceiverTask;
+
+    /// Read a small amount of metadata bytes, each call advances the
+    /// inner byte stream by `N`.
+    async fn read_exact<const N: usize>(&mut self) -> Result<[u8; N], Self::Error>;
+
+    /// Spawn the [`ReceiverTask`].
+    ///
+    /// The `payload_len` if the number of bytes that is buffered into the `Vec<u8>` returned for each call
+    /// of [`ReceiverTask::recv`]. The `channel_capacity` if the number of payloads that can be waiting in
+    /// memory to be received. You should use the metadata information to calculate this values, for example,
+    /// a progressive image decoder may set the `payload_len` to be one row of pixels and the `channel_capacity`
+    /// to be the image height.
+    ///
+    /// The first payload will start on the byte offset next from the last call to [`read_exact`].
+    ///
+    /// [`read_exact`]: Self::read_exact
+    fn spawn(self, payload_len: usize, channel_capacity: usize) -> Self::Spawned;
+}
+
+/// Abstraction over [`io::ReadTask`] and [`http::DownloadTask`].
+#[async_trait]
+pub trait ReceiverTask: 'static {
+    /// Error returned by [`recv`] that indicates the task has failed and [`stop`] should
+    /// be called.
+    ///
+    /// [`recv`]: ReceiverTask::recv
+    /// [`stop`]: ReceiverTask::stop
+    type Error: std::error::Error + From<std::io::Error>;
+
+    /// Receive the next payload.
+    async fn recv(&self) -> Result<Vec<u8>, Self::Error>;
+
+    /// Finish the task returning the inner *source* if possible.
+    async fn stop(self);
+}
+
+/// Abstraction over [`io::WriteTask`] and [`http::UploadTask`].
+#[async_trait]
+pub trait SenderTask: 'static {
+    /// The underlying *writer* object.
+    ///
+    /// This is a [`std::io::Write`] implementer or [`http::Request`].
+    type Writer;
+
+    /// Error returned by [`finish`].
+    ///
+    /// This error can happen in any of the pending [`send`] calls.
+    ///
+    /// [`finish`]: SenderTask::finish
+    type Error: std::error::Error + From<std::io::Error>;
+
+    /// Send a payload to be written or uploaded.
+    ///
+    /// Returns an error if the worker has closed because of an error during the processing of a previous payload.
+    ///
+    /// If an error is returned call [`finish`] to get the actual error.
+    ///
+    /// [`finish`]: SenderTask::finish
+    async fn send(&self, payload: Vec<u8>) -> Result<(), SenderTaskClosed>;
+
+    /// Flushes all pending payloads and closes the worker, returns the underlying *writer* object.
+    ///
+    /// Returns an error the the worker was closed due to an error or panic.
+    async fn finish(self) -> Result<Self::Writer, Self::Error>;
+}
+
+/// Error from [`SenderTask`].
+///
+/// This error is returned to indicate that the task worker has permanently stopped because
+/// of an error or panic. You can get actual error by calling [`SenderTask::finish`].
+pub struct SenderTaskClosed {
+    /// Payload that could not be send.
+    pub payload: Vec<u8>,
+}
+impl fmt::Debug for SenderTaskClosed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SenderTaskClosed")
+            .field("payload", &format!("<{} bytes>", self.payload.len()))
+            .finish()
+    }
+}
+impl fmt::Display for SenderTaskClosed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "sender task worker has closed")
+    }
+}
+impl std::error::Error for SenderTaskClosed {}
 
 #[cfg(test)]
 pub mod tests {

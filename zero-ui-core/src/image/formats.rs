@@ -4,6 +4,8 @@ use std::{convert::TryInto, fmt, io, ops::Deref};
 
 use rayon::prelude::*;
 
+use crate::task;
+
 /// All supported image formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImageFormat {
@@ -288,9 +290,8 @@ pub(crate) struct ArrayRead<const N: usize> {
     cur: usize,
 }
 impl<const N: usize> ArrayRead<N> {
-    pub fn load(read: &mut impl io::Read) -> io::Result<Self> {
-        let mut buf = [0u8; N];
-        read.read_exact(&mut buf)?;
+    pub async fn load<R: task::ReadThenReceive>(read: &mut R) -> Result<Self, R::Error> {
+        let buf = read.read_exact::<N>().await?;
         Ok(ArrayRead { buf, cur: 0 })
     }
 
