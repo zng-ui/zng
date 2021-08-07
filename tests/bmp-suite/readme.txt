@@ -1,6 +1,3 @@
-Source: [https://github.com/jsummers/bmpsuite]
-
-```
 BMP Suite
 Version 2.7
 
@@ -73,5 +70,3 @@ Then, append six "EOL" codes to the data. Assuming the raw fax data ends with
 The problem is that this requires knowing what bit the data ended on. It should
 always be safe to append 00 10 01 00 10 01 00 10 01, though this has the extra
 complication of relying on a feature called "fill bits".
-
-```

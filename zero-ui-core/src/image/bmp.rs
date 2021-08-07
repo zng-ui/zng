@@ -29,8 +29,8 @@ pub struct BmpHeader {
     /// or the bottom depending on this value. Most BMP files are bottom-to-top.
     pub row_direction: RowDirection,
 }
-impl From<BmpHeaderFull> for BmpHeader {
-    fn from(bmp: BmpHeaderFull) -> Self {
+impl BmpHeader {
+    fn new(bmp: &BmpHeaderFull) -> Self {
         BmpHeader {
             width: bmp.width,
             height: bmp.height,
@@ -43,6 +43,7 @@ impl From<BmpHeaderFull> for BmpHeader {
 
 const DEFAULT_PPM: u32 = 3780; // 96dpi
 
+#[derive(Debug)]
 enum Halftoning {
     None,
     ErrorDiffusion(u8),
@@ -50,35 +51,36 @@ enum Halftoning {
     SuperCircle(u32, u32),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 enum Bpp {
     // Palette
-    V1 = 1,
-    V4 = 4,
-    V8 = 8,
+    B1 = 1,
+    B4 = 4,
+    B8 = 8,
 
     // RGB
-    V16 = 16,
-    V24 = 24,
+    B16 = 16,
+    B24 = 24,
 
     // RGB(A)
-    V32 = 32,
+    B32 = 32,
 }
 impl Bpp {
     fn new(bpp: u16) -> io::Result<Bpp> {
         match bpp {
-            1 => Ok(Bpp::V1),
-            4 => Ok(Bpp::V4),
-            8 => Ok(Bpp::V8),
-            16 => Ok(Bpp::V16),
-            24 => Ok(Bpp::V24),
-            32 => Ok(Bpp::V32),
+            1 => Ok(Bpp::B1),
+            4 => Ok(Bpp::B4),
+            8 => Ok(Bpp::B8),
+            16 => Ok(Bpp::B16),
+            24 => Ok(Bpp::B24),
+            32 => Ok(Bpp::B32),
             _ => Err(invalid_data("unknown bpp")),
         }
     }
 }
 
+#[derive(Debug)]
 enum CompressionMtd {
     Rgb,
     Rle8,
@@ -120,6 +122,7 @@ pub enum RowDirection {
     TopDown,
 }
 
+#[derive(Debug)]
 enum ColorSpaceType {
     CalibratedRgb,
     Srgb,
@@ -141,24 +144,34 @@ impl ColorSpaceType {
     }
 }
 
+#[derive(Debug)]
 enum CmsIntent {
     Business = 1,
     Graphics = 2,
     Images = 4,
-    Colorimetric = 8,
+    AbsColorimetric = 8,
 }
 impl CmsIntent {
     fn new(intent: u32) -> io::Result<CmsIntent> {
         match intent {
             1 => Ok(CmsIntent::Business),
             2 => Ok(CmsIntent::Graphics),
-            4 => Ok(CmsIntent::Images),
-            8 => Ok(CmsIntent::Colorimetric),
-            _ => Err(invalid_data("unknown color management intent")),
+            4 | 0 => Ok(CmsIntent::Images),
+            8 => Ok(CmsIntent::AbsColorimetric),
+            n => Err(invalid_data(format!("unknown color management intent: {}", n))),
         }
     }
 }
 
+#[derive(Debug, Default)]
+struct RgbEndpoint {
+    mx: u32,
+    my: u32,
+    mz: u32,
+    gamma: u32,
+}
+
+#[derive(Debug)]
 struct BmpHeaderFull {
     header_size: u32,
 
@@ -179,12 +192,16 @@ struct BmpHeaderFull {
     alpha_bitmask: u32,
 
     color_space_type: ColorSpaceType,
-    color_space_endpoints: [u8; 36],
+    red_endpoint: RgbEndpoint,
+    green_endpoint: RgbEndpoint,
+    blue_endpoint: RgbEndpoint,
     red_gamma: u32,
     green_gamma: u32,
     blue_gamma: u32,
 
     cms_intent: CmsIntent,
+    cms_data: u32,
+    cms_size: u32,
 }
 impl Default for BmpHeaderFull {
     fn default() -> Self {
@@ -192,7 +209,7 @@ impl Default for BmpHeaderFull {
             header_size: 0,
             width: 0,
             height: 0,
-            bpp: Bpp::V24,
+            bpp: Bpp::B24,
             ppm_x: DEFAULT_PPM,
             ppm_y: DEFAULT_PPM,
             row_direction: RowDirection::BottomUp,
@@ -207,12 +224,16 @@ impl Default for BmpHeaderFull {
             alpha_bitmask: 0,
 
             color_space_type: ColorSpaceType::CalibratedRgb,
-            color_space_endpoints: [0; 36],
+            red_endpoint: RgbEndpoint::default(),
+            green_endpoint: RgbEndpoint::default(),
+            blue_endpoint: RgbEndpoint::default(),
             red_gamma: 0,
             green_gamma: 0,
             blue_gamma: 0,
 
             cms_intent: CmsIntent::Images,
+            cms_data: 0,
+            cms_size: 0,
         }
     }
 }
@@ -222,9 +243,14 @@ impl BmpHeaderFull {
     // https://en.wikipedia.org/wiki/BMP_file_format
 
     pub fn read(&mut self, read: &mut impl io::Read) -> io::Result<()> {
-        let mut head = ArrayRead::<14>::load(read)?;
+        let mut head = ArrayRead::<{ 14 + 4 }>::load(read)?;
 
         head.match_ascii(b"BM")?;
+
+        head.skip(4); // file size
+        head.skip(2); // reserved
+        head.skip(2); // reserved
+        head.skip(4); // pixels offset
 
         self.header_size = head.read_u32_le();
 
@@ -236,11 +262,19 @@ impl BmpHeaderFull {
             }
             16 => {
                 self.read_core_header(read)?;
+                read.read_exact(&mut [0; 4])?;
             }
             40 => {
                 self.read_info_header(read)?;
-                if !matches!(self.compression, CompressionMtd::Rgb | CompressionMtd::Rle4 | CompressionMtd::Rle8) {
-                    return Err(invalid_data("compression not supported in BMP-v1"));
+                // bitfields because case: g/rgb16-565.bmp
+                if !matches!(
+                    self.compression,
+                    CompressionMtd::Rgb | CompressionMtd::Rle4 | CompressionMtd::Rle8 | CompressionMtd::Bitfields
+                ) {
+                    return Err(invalid_data(format!(
+                        "compression `{:?}` not supported in BMP-v1",
+                        self.compression
+                    )));
                 }
             }
             52 => {
@@ -258,6 +292,8 @@ impl BmpHeaderFull {
             }
             56 => {
                 self.read_info_header(read)?;
+                read.read_exact(&mut [0; 2])?;
+
                 if matches!(self.compression, CompressionMtd::Jpeg | CompressionMtd::Png) {
                     return Err(invalid_data("compression not supported in BMP-v3"));
                 }
@@ -269,8 +305,6 @@ impl BmpHeaderFull {
                 self.maybe_read_bitmasks(read)?;
 
                 self.read_info_header4(read)?;
-
-                todo!()
             }
             124 => {
                 self.read_info_header(read)?;
@@ -287,23 +321,23 @@ impl BmpHeaderFull {
 
         match self.compression {
             CompressionMtd::Rle8 => {
-                if !matches!(self.bpp, Bpp::V8) {
+                if !matches!(self.bpp, Bpp::B8) {
                     return Err(invalid_data("compression RLE8 but BPP not 8"));
                 }
             }
             CompressionMtd::Rle4 => {
-                if !matches!(self.bpp, Bpp::V4) {
+                if !matches!(self.bpp, Bpp::B4) {
                     return Err(invalid_data("compression RLE4 but BPP not 4"));
                 }
             }
             CompressionMtd::Bitfields => {
-                if !matches!(self.bpp, Bpp::V16 | Bpp::V32) {
+                if !matches!(self.bpp, Bpp::B16 | Bpp::B32) {
                     return Err(invalid_data("compression BITFIELDS but BPP not 16 nor 32"));
                 }
             }
 
             CompressionMtd::AlphaBitfields => {
-                if !matches!(self.bpp, Bpp::V32) {
+                if !matches!(self.bpp, Bpp::B32) {
                     return Err(invalid_data("compression ALPHABITFIELDS but BPP not 32"));
                 }
             }
@@ -323,7 +357,7 @@ impl BmpHeaderFull {
 
         self.bpp = Bpp::new(h.read_u16_le())?;
 
-        if matches!(self.bpp, Bpp::V16 | Bpp::V32) {
+        if matches!(self.bpp, Bpp::B16 | Bpp::B32) {
             return Err(invalid_data("invalid bpp for bmp-core"));
         }
 
@@ -429,21 +463,25 @@ impl BmpHeaderFull {
     }
 
     fn read_info_header4(&mut self, read: &mut impl io::Read) -> io::Result<()> {
-        let mut header = ArrayRead::<{ 108 - 56 - 4 }>::load(read)?;
+        let mut header = ArrayRead::<{ 108 - 52 - 4 }>::load(read)?;
 
         self.color_space_type = ColorSpaceType::new(header.read_u32_le())?;
 
-        let endpoints = header.read::<36>();
+        self.red_endpoint.mx = header.read_u32_le();
+        self.red_endpoint.my = header.read_u32_le();
+        self.red_endpoint.mz = header.read_u32_le();
 
-        match self.color_space_type {
-            ColorSpaceType::CalibratedRgb => {}
-            ColorSpaceType::Embedded => {}
-            _ => { }
-        }
+        self.green_endpoint.mx = header.read_u32_le();
+        self.green_endpoint.my = header.read_u32_le();
+        self.green_endpoint.mz = header.read_u32_le();
 
-        self.red_gamma = header.read_u32_le();
-        self.green_gamma = header.read_u32_le();
-        self.blue_gamma = header.read_u32_le();
+        self.blue_endpoint.mx = header.read_u32_le();
+        self.blue_endpoint.my = header.read_u32_le();
+        self.blue_endpoint.mz = header.read_u32_le();
+
+        self.red_endpoint.gamma = header.read_u32_le();
+        self.green_endpoint.gamma = header.read_u32_le();
+        self.blue_endpoint.gamma = header.read_u32_le();
 
         Ok(())
     }
@@ -452,6 +490,14 @@ impl BmpHeaderFull {
         let mut icc_info = ArrayRead::<{ 124 - 108 - 4 }>::load(read)?;
 
         self.cms_intent = CmsIntent::new(icc_info.read_u32_le())?;
+        self.cms_data = icc_info.read_u32_le();
+        self.cms_size = icc_info.read_u32_le();
+
+        // wiki diagram expects this
+        //#[cfg(debug_assertions)]
+        //{
+        //    icc_info.read_u32_le(); // reserved
+        //}
 
         Ok(())
     }
@@ -479,21 +525,22 @@ impl BmpHeaderFull {
 
 /// BMP async streaming reader.
 pub struct Decoder<R> {
-    header: BmpHeader,
+    header: BmpHeaderFull,
 
     task: ReadTask<R>,
+    pending_lines: u32,
 }
 impl<R> Decoder<R> {
     /// Header info.
-    pub fn header(&self) -> &BmpHeader {
-        &self.header
+    pub fn header(&self) -> BmpHeader {
+        BmpHeader::new(&self.header)
     }
 }
 impl<R: io::Read + Send + 'static> Decoder<R> {
     /// Reads the header only.
     pub async fn read_header(read: R) -> io::Result<(R, BmpHeader)> {
         let (r, header_full) = Self::read_header_full(read).await?;
-        Ok((r, header_full.into()))
+        Ok((r, BmpHeader::new(&header_full)))
     }
 
     async fn read_header_full(mut read: R) -> io::Result<(R, BmpHeaderFull)> {
@@ -509,10 +556,21 @@ impl<R: io::Read + Send + 'static> Decoder<R> {
     ///
     /// Note that the ICC profile is not in the header but trailing after the pixels so
     /// progressive rendering may show incorrect colors.
-    pub async fn start(read: R) -> io::Result<Decoder<R>> {
+    pub async fn start(read: R, max_bytes: usize) -> io::Result<Decoder<R>> {
         let (read, header) = Self::read_header_full(read).await?;
 
-        todo!()
+        check_limit(header.width, header.height, 4, max_bytes)?;
+
+        let task = ReadTask::default()
+            .payload_len(header.width as usize * 4)
+            .channel_capacity(header.height as usize)
+            .spawn(read);
+
+        Ok(Decoder {
+            pending_lines: header.height,
+            header,
+            task,
+        })
     }
 
     /// Read and decode a pixel line
@@ -543,15 +601,19 @@ mod tests {
 
     #[test]
     pub fn bad() {
-        let files = fs::read_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/bmp-suite/bad")).unwrap();
+        let files = fs::read_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/bmp-suite/b")).unwrap();
         for file in files {
             let file = file.unwrap().path();
-            let file_name = file.file_name().unwrap();
+            let file_name = file.file_name().unwrap().to_string_lossy();
+
+            if file_name != "badbitssize.bmp" {
+                continue;
+            }
             let file = fs::File::open(&file).unwrap();
 
             async_test(async move {
-                if let Ok((_, h)) = Decoder::read_header(file).await {
-                    panic!("`{}` did not cause an error on start, result: {:?}", file_name.to_string_lossy(), h)
+                if let Ok((_, h)) = Decoder::read_header_full(file).await {
+                    panic!("`{}` did not cause an error on start, result: {:?}", file_name, h)
                 }
             });
         }
@@ -559,15 +621,23 @@ mod tests {
 
     #[test]
     pub fn good() {
-        let files = fs::read_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/bmp-suite/good")).unwrap();
+        let files = fs::read_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/bmp-suite/g")).unwrap();
         for file in files {
             let file = file.unwrap().path();
-            let file_name = file.file_name().unwrap();
+            let file_name = file.file_name().unwrap().to_string_lossy();
+
+            //println!("{}", file_name);
+            //if file_name != "pal8v5.bmp" {
+            //    continue;
+            //}
+
             let file = fs::File::open(&file).unwrap();
 
             async_test(async move {
-                let mut d = Decoder::start(file).await.unwrap();
-                d.read_end().await.unwrap();
+                let mut d = Decoder::start(file, usize::MAX)
+                    .await
+                    .unwrap_or_else(|e| panic!("error decoding good file `{}` header\n{}", file_name, e));
+                //d.read_end().await.unwrap_or_else(|| panic!("error decoding good file `{}` pixels", file_name));
             });
         }
     }
