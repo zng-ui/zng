@@ -6,6 +6,7 @@
 
 use super::*;
 use crate::task;
+use crate::units::*;
 
 /// Farbfeld async streaming reader.
 pub struct Decoder<R> {
@@ -71,7 +72,7 @@ where
         check_limit(width, height, 4 * 2, max_bytes)?;
 
         let line_len = width as usize * 4 * 2;
-        let task = read.spawn(line_len, height as usize);
+        let task = read.spawn(line_len.bytes(), height as usize);
         Ok(Decoder {
             width,
             height,

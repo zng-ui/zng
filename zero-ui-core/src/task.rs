@@ -138,6 +138,7 @@ use parking_lot::Mutex;
 
 use crate::{
     crate_util::{panic_str, PanicResult},
+    units::*,
     var::{response_channel, response_var, ResponseVar, Var, VarValue, WithVars},
 };
 
@@ -546,7 +547,7 @@ where
 ///     let mut data = r.read().await.map_err(|e|e.unwrap_io())?;
 ///
 ///     // when EOF is reached, the data is not the full payload.
-///     if data.len() < r.payload_len() {
+///     if data.len() < r.payload_len().bytes() {
 ///         eof = true;
 ///
 ///         let garbage = data.len() % 4;
@@ -1863,7 +1864,7 @@ pub trait ReadThenReceive {
     /// The first payload will start on the byte offset next from the last call to [`read_exact`].
     ///
     /// [`read_exact`]: Self::read_exact
-    fn spawn(self, payload_len: usize, channel_capacity: usize) -> Self::Spawned;
+    fn spawn(self, payload_len: ByteLength, channel_capacity: usize) -> Self::Spawned;
 }
 
 /// Abstraction over [`io::ReadTask`] and [`http::DownloadTask`].

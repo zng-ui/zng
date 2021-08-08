@@ -4,7 +4,7 @@ use std::{convert::TryInto, fmt, io, ops::Deref};
 
 use rayon::prelude::*;
 
-use crate::task;
+use crate::{task, units::*};
 
 /// All supported image formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -38,7 +38,7 @@ impl ImageFormat {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_core::image::formats::ImageFormat;
+    /// use zero_ui_core::image::ImageFormat;
     ///
     /// fn format(path: &std::path::Path) -> Option<ImageFormat> {
     ///     path.extension().and_then(ImageFormat::from_extension)
@@ -331,5 +331,61 @@ impl<const N: usize> ArrayRead<N> {
     pub fn skip(&mut self, byte_count: usize) {
         self.cur += byte_count;
         debug_assert!(self.cur <= self.buf.len());
+    }
+}
+
+/// Limits of an image decoder.
+///
+///
+#[derive(Clone, Copy, Debug)]
+pub struct DecoderLimit {
+    /// Maximum pixel width.
+    ///
+    /// `30_000` by default.
+    pub max_width: u32,
+    /// Maximum pixel height.
+    ///
+    /// `30_000` by default.
+    pub max_height: u32,
+
+    /// Maximum decoded byte size.
+    ///
+    /// `2.gibi_bytes()` by default.
+    pub max_size: ByteLength,
+
+    /// Maximum byte size during decoding.
+    ///
+    /// `4.gibi_bytes()` by default.
+    pub max_temporary_size: ByteLength,
+}
+impl Default for DecoderLimit {
+    fn default() -> Self {
+        DecoderLimit {
+            max_width: 30_000,
+            max_height: 30_000,
+            max_size: 1.gibi_bytes(),
+            max_temporary_size: 2.gibi_bytes(),
+        }
+    }
+}
+impl DecoderLimit {
+    /// Compute a limit the is the maximum of each field between `self` and `other`.
+    pub fn max(self, other: DecoderLimit) -> DecoderLimit {
+        DecoderLimit {
+            max_width: self.max_width.max(other.max_width),
+            max_height: self.max_height.max(other.max_height),
+            max_size: self.max_size.max(other.max_size),
+            max_temporary_size: self.max_temporary_size.max(other.max_temporary_size),
+        }
+    }
+
+    /// Compute a limit the is the minimum of each field between `self` and `other`.
+    pub fn min(self, other: DecoderLimit) -> DecoderLimit {
+        DecoderLimit {
+            max_width: self.max_width.min(other.max_width),
+            max_height: self.max_height.min(other.max_height),
+            max_size: self.max_size.min(other.max_size),
+            max_temporary_size: self.max_temporary_size.min(other.max_temporary_size),
+        }
     }
 }

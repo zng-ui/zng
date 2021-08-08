@@ -33,6 +33,8 @@ use async_trait::*;
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
+use crate::units::*;
+
 /// Marker trait for types that try-to-convert to [`Uri`].
 ///
 /// All types `T` that match `Uri: TryFrom<T>, <Uri as TryFrom<T>>::Error: Into<isahc::http::Error>` implement this trait.
@@ -578,7 +580,7 @@ where
 
 /// Represents a running large file download.
 pub struct DownloadTask {
-    payload_len: usize,
+    payload_len: ByteLength,
 }
 impl DownloadTask {
     /// Start building a download task using the [default client].
@@ -603,7 +605,7 @@ impl DownloadTask {
 
     /// Maximum number of bytes per payload.
     #[inline]
-    pub fn payload_len(&self) -> usize {
+    pub fn payload_len(&self) -> ByteLength {
         self.payload_len
     }
 
@@ -663,7 +665,7 @@ impl super::ReceiverTask for DownloadTask {
 #[derive(Clone)]
 pub struct DownloadTaskBuilder {
     client: isahc::HttpClient,
-    payload_len: usize,
+    payload_len: ByteLength,
     channel_capacity: usize,
     parallel_count: usize,
     disk_cache_capacity: usize,
@@ -691,7 +693,7 @@ impl DownloadTaskBuilder {
     fn new(client: isahc::HttpClient) -> Self {
         DownloadTaskBuilder {
             client,
-            payload_len: 1024 * 1024,
+            payload_len: 1.mebi_bytes(),
             channel_capacity: 8,
             parallel_count: 1,
             disk_cache_capacity: 0,
@@ -703,7 +705,7 @@ impl DownloadTaskBuilder {
     /// Set the number of bytes in each payload.
     ///
     /// Default is one mebibyte (`1024 * 1024`).
-    pub fn payload_len(mut self, len: usize) -> Self {
+    pub fn payload_len(mut self, len: ByteLength) -> Self {
         self.payload_len = len;
         self
     }
@@ -984,7 +986,7 @@ impl super::ReadThenReceive for ReadThenReceive {
         Ok(buf)
     }
 
-    fn spawn(self, payload_len: usize, channel_capacity: usize) -> Self::Spawned {
+    fn spawn(self, payload_len: ByteLength, channel_capacity: usize) -> Self::Spawned {
         DownloadTask::default()
             .payload_len(payload_len)
             .channel_capacity(channel_capacity)
@@ -1003,7 +1005,7 @@ impl super::ReadThenReceive for Response {
         Ok(buf)
     }
 
-    fn spawn(self, payload_len: usize, channel_capacity: usize) -> Self::Spawned {
+    fn spawn(self, payload_len: ByteLength, channel_capacity: usize) -> Self::Spawned {
         DownloadTask::default()
             .payload_len(payload_len)
             .channel_capacity(channel_capacity)

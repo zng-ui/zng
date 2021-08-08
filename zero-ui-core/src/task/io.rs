@@ -11,7 +11,10 @@ use std::{
 
 use async_trait::*;
 
-use crate::crate_util::{panic_str, PanicPayload};
+use crate::{
+    crate_util::{panic_str, PanicPayload},
+    units::*,
+};
 
 use super::channel;
 
@@ -39,7 +42,7 @@ use super::channel;
 /// let mut eof = false;
 /// while !eof {
 ///     let payload = r.read().await.map_err(|e|e.unwrap_io())?;
-///     eof = payload.len() < r.payload_len();
+///     eof = payload.len() < r.payload_len().bytes();
 ///     foo += payload.into_par_iter().filter(|&b|b == 0xF0).count();
 /// }
 ///
@@ -63,7 +66,7 @@ use super::channel;
 pub struct ReadTask<R> {
     receiver: channel::Receiver<Result<Vec<u8>, ReadTaskError>>,
     stop_recv: channel::Receiver<R>,
-    payload_len: usize,
+    payload_len: ByteLength,
 }
 impl ReadTask<()> {
     /// Start building a read task.
@@ -82,12 +85,12 @@ impl ReadTask<()> {
     /// Start a task with custom configuration:
     ///
     /// ```
-    /// # use zero_ui_core::task::io::ReadTask;
+    /// # use zero_ui_core::{task::io::ReadTask, units::*};
     /// # const FRAME_LEN: usize = 1024 * 1024 * 2;
     /// # const FRAME_COUNT: usize = 3;
     /// # fn demo(read: impl std::io::Read + Send + 'static) {
     /// let task = ReadTask::default()
-    ///     .payload_len(FRAME_LEN)
+    ///     .payload_len(FRAME_LEN.bytes())
     ///     .channel_capacity(FRAME_COUNT.min(8))
     ///     .spawn(read);
     /// # }
@@ -114,11 +117,11 @@ where
 
             loop {
                 let r = super::wait_catch(move || {
-                    let mut payload = vec![0u8; payload_len];
+                    let mut payload = vec![0u8; payload_len.0];
                     loop {
                         match read.read(&mut payload) {
                             Ok(c) => {
-                                if c < payload_len {
+                                if c < payload_len.0 {
                                     payload.truncate(c);
                                 }
                                 return Ok((payload, read));
@@ -146,7 +149,7 @@ where
                     Ok((p, r)) => {
                         read = r;
 
-                        if p.len() < payload_len {
+                        if p.len() < payload_len.0 {
                             let _ = sender.send(Ok(p)).await;
                             let _ = stop_sender.send(read).await;
                             break; // cause: EOF
@@ -172,7 +175,7 @@ where
 
     /// Maximum number of bytes per payload.
     #[inline]
-    pub fn payload_len(&self) -> usize {
+    pub fn payload_len(&self) -> ByteLength {
         self.payload_len
     }
 
@@ -285,13 +288,13 @@ impl From<io::Error> for ReadTaskError {
 /// Use [`ReadTask::default`] to start.
 #[derive(Debug, Clone)]
 pub struct ReadTaskBuilder {
-    payload_len: usize,
+    payload_len: ByteLength,
     channel_capacity: usize,
 }
 impl Default for ReadTaskBuilder {
     fn default() -> Self {
         ReadTaskBuilder {
-            payload_len: 1024 * 1024,
+            payload_len: 1.mebi_bytes(),
             channel_capacity: 8,
         }
     }
@@ -301,7 +304,7 @@ impl ReadTaskBuilder {
     ///
     /// Default is 1 mebibyte (`1024 * 1024`). Minimal value is 1.
     #[inline]
-    pub fn payload_len(mut self, bytes: usize) -> Self {
+    pub fn payload_len(mut self, bytes: ByteLength) -> Self {
         self.payload_len = bytes;
         self
     }
@@ -320,8 +323,8 @@ impl ReadTaskBuilder {
     }
 
     fn normalize(&mut self) {
-        if self.payload_len < 1 {
-            self.payload_len = 1;
+        if self.payload_len.0 < 1 {
+            self.payload_len.0 = 1;
         }
     }
 
@@ -847,7 +850,7 @@ impl<R: io::Read + Send + 'static> super::ReadThenReceive for ReadThenReceive<R>
         Ok(buf)
     }
 
-    fn spawn(self, payload_len: usize, channel_capacity: usize) -> Self::Spawned {
+    fn spawn(self, payload_len: ByteLength, channel_capacity: usize) -> Self::Spawned {
         ReadTask::default()
             .payload_len(payload_len)
             .channel_capacity(channel_capacity)
@@ -873,17 +876,17 @@ pub mod tests {
     #[test]
     pub fn read_task() {
         async_test(async {
-            let task = ReadTask::default().payload_len(1).spawn(TestRead::default());
+            let task = ReadTask::default().payload_len(1.bytes()).spawn(TestRead::default());
 
             task::timeout(10.ms()).await;
 
             let payload = task.read().await.unwrap();
-            assert_eq!(task.payload_len(), payload.len());
+            assert_eq!(task.payload_len().bytes(), payload.len());
 
             task.read().await.unwrap();
 
             let expected_read_calls = 8 + 2; // default capacity + 2 read calls.
-            let expected_bytes_read = task.payload_len() * expected_read_calls;
+            let expected_bytes_read = task.payload_len().bytes() * expected_read_calls;
 
             let read = task.stop().await.unwrap();
 
@@ -898,7 +901,7 @@ pub mod tests {
             let read = TestRead::default();
             let flag = Arc::clone(&read.cause_error);
 
-            let task = ReadTask::default().payload_len(1).spawn(read);
+            let task = ReadTask::default().payload_len(1.bytes()).spawn(read);
 
             task::timeout(10.ms()).await;
 
@@ -927,7 +930,7 @@ pub mod tests {
             let read = TestRead::default();
             let flag = Arc::clone(&read.cause_panic);
 
-            let task = ReadTask::default().payload_len(1).spawn(read);
+            let task = ReadTask::default().payload_len(1.bytes()).spawn(read);
 
             task::timeout(10.ms()).await;
 

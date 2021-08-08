@@ -6,6 +6,7 @@ use std::io;
 
 use super::*;
 use crate::task;
+use crate::units::*;
 
 /// BMP header info.
 #[derive(Debug, Clone)]
@@ -451,7 +452,7 @@ impl BmpHeaderFull {
         }
 
         let palette_count = header.read_i32_le();
-        if palette_count < 0 || palette_count > 256 {
+        if !(0..=256).contains(&palette_count) {
             return Err(invalid_data("incorrect palette colors count").into());
         }
         self.palette_count = palette_count as u32;
@@ -614,7 +615,7 @@ impl<R: task::ReceiverTask> Decoder<R> {
 
         check_limit(header.width, header.height, 4, max_bytes)?;
 
-        let task = read.spawn(header.width as usize * 4, header.height as usize);
+        let task = read.spawn((header.width as usize * 4).bytes(), header.height as usize);
 
         Ok(Decoder {
             pending_lines: header.height,
@@ -688,12 +689,13 @@ mod tests {
                 "badplanes.bmp" => Do::Allow,
 
                 // ERROR: Many of the palette indices used in the image are not present in the palette.
-                // 
+                //
                 // ALLOW: We always allocate 256 bytes for the pallete so "out-of-bounds" turns into black pixels.
                 "pal8badindex.bmp" => Do::Allow,
 
                 // errors in the pixels only:
-                "badrle4.bmp" | "badrle4bis.bmp" | "badrle4ter.bmp" | "badrle.bmp" | "badrlebis.bmp" | "badrleter.bmp" => Do::AllowHeader,
+                "badrle4.bmp" | "badrle4bis.bmp" | "badrle4ter.bmp" | "badrle.bmp" | "badrlebis.bmp" | "badrleter.bmp"
+                | "shortfile.bmp" => Do::AllowHeader,
 
                 _ => Do::Expect,
             };
@@ -704,12 +706,14 @@ mod tests {
                 match allow {
                     Do::Allow | Do::AllowHeader => {
                         r.unwrap_or_else(|e| panic!("error decoding allowed bad file `{}` header\n{}", file_name, e));
-                    },
-                    Do::Expect => if let Ok(h) = r {
-                        panic!(
-                            "`bad file {}` did not cause an error in header decoding, result: {:?}",
-                            file_name, h
-                        )
+                    }
+                    Do::Expect => {
+                        if let Ok(h) = r {
+                            panic!(
+                                "bad file `{}` did not cause an error in header decoding, result: {:#?}",
+                                file_name, h
+                            )
+                        }
                     }
                 }
 

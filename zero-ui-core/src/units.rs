@@ -2799,6 +2799,298 @@ impl TimeUnits for f32 {
     }
 }
 
+/// Extension methods for initializing [`ByteLength`] values.
+pub trait ByteUnits {
+    /// Bytes.
+    ///
+    /// See [`ByteLength`] for more details.
+    fn bytes(self) -> ByteLength;
+    /// Kibi-bytes.
+    ///
+    /// See [`ByteLength::from_kibi`] for more details.
+    fn kibi_bytes(self) -> ByteLength;
+    /// Kilo-bytes.
+    ///
+    /// See [`ByteLength::from_kilo`] for more details.
+    fn kilo_bytes(self) -> ByteLength;
+
+    /// Mebi-bytes.
+    ///
+    /// See [`ByteLength::from_mebi`] for more details.
+    fn mebi_bytes(self) -> ByteLength;
+    /// Mega-bytes.
+    ///
+    /// See [`ByteLength::from_mega`] for more details.
+    fn mega_bytes(self) -> ByteLength;
+
+    /// Gibi-bytes.
+    ///
+    /// See [`ByteLength::from_gibio`] for more details.
+    fn gibi_bytes(self) -> ByteLength;
+    /// Giga-bytes.
+    ///
+    /// See [`ByteLength::from_giga`] for more details.
+    fn giga_bytes(self) -> ByteLength;
+
+    /// Tebi-bytes.
+    ///
+    /// See [`ByteLength::from_tebi`] for more details.
+    fn tebi_bytes(self) -> ByteLength;
+    /// Tera-bytes.
+    ///
+    /// See [`ByteLength::from_tera`] for more details.
+    fn tera_bytes(self) -> ByteLength;
+}
+impl ByteUnits for usize {
+    #[inline]
+    fn bytes(self) -> ByteLength {
+        ByteLength(self)
+    }
+
+    #[inline]
+    fn kibi_bytes(self) -> ByteLength {
+        ByteLength::from_kibi(self)
+    }
+
+    #[inline]
+    fn kilo_bytes(self) -> ByteLength {
+        ByteLength::from_kilo(self)
+    }
+
+    #[inline]
+    fn mebi_bytes(self) -> ByteLength {
+        ByteLength::from_mebi(self)
+    }
+
+    #[inline]
+    fn mega_bytes(self) -> ByteLength {
+        ByteLength::from_mega(self)
+    }
+
+    #[inline]
+    fn gibi_bytes(self) -> ByteLength {
+        ByteLength::from_gibi(self)
+    }
+
+    #[inline]
+    fn giga_bytes(self) -> ByteLength {
+        ByteLength::from_giga(self)
+    }
+
+    #[inline]
+    fn tebi_bytes(self) -> ByteLength {
+        ByteLength::from_tebi(self)
+    }
+
+    #[inline]
+    fn tera_bytes(self) -> ByteLength {
+        ByteLength::from_tera(self)
+    }
+}
+
+/// A length in bytes.
+///
+/// The value is stored in bytes, you can use associated functions to convert from other units or
+/// you can use the [`ByteUnits`] extension methods to initialize from an integer literal.
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Default,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+)]
+pub struct ByteLength(pub usize);
+impl_from_and_into_var! {
+    fn from(bytes: usize) -> ByteLength {
+        ByteLength(bytes)
+    }
+}
+impl ByteLength {
+    /// Length in bytes.
+    ///
+    /// This is the same as `.0`.
+    pub fn bytes(&self) -> usize {
+        self.0
+    }
+
+    fn scaled(self, scale: f64) -> f64 {
+        self.0 as f64 / scale
+    }
+
+    /// Length in kibi-bytes.
+    pub fn kibis(self) -> f64 {
+        self.scaled(1024.0)
+    }
+
+    /// Length in kilo-bytes.
+    pub fn kilos(self) -> f64 {
+        self.scaled(1000.0)
+    }
+
+    /// Length in mebi-bytes.
+    pub fn mebis(self) -> f64 {
+        self.scaled(1024.0f64.powi(2))
+    }
+
+    /// Length in mega-bytes.
+    pub fn megas(self) -> f64 {
+        self.scaled(1000.0f64.powi(2))
+    }
+
+    /// Length in gibi-bytes.
+    pub fn gibis(self) -> f64 {
+        self.scaled(1024.0f64.powi(3))
+    }
+
+    /// Length in giga-bytes.
+    pub fn gigas(self) -> f64 {
+        self.scaled(1000.0f64.powi(3))
+    }
+
+    /// Length in tebi-bytes.
+    pub fn tebis(self) -> f64 {
+        self.scaled(1024.0f64.powi(4))
+    }
+
+    /// Length in tera-bytes.
+    pub fn teras(self) -> f64 {
+        self.scaled(1000.0f64.powi(4))
+    }
+}
+
+/// Constructors
+impl ByteLength {
+    /// From bytes.
+    ///
+    /// This is the same as `ByteLength(bytes)`.
+    #[inline]
+    pub fn from_byte(bytes: usize) -> Self {
+        ByteLength(bytes)
+    }
+
+    fn new(value: usize, scale: usize) -> Self {
+        ByteLength(value.saturating_mul(scale))
+    }
+
+    /// From kibi-bytes.
+    ///
+    /// 1 kibi-byte equals 1024 bytes.
+    #[inline]
+    pub fn from_kibi(kibi_bytes: usize) -> Self {
+        Self::new(kibi_bytes, 1024)
+    }
+
+    /// From kilo-bytes.
+    ///
+    /// 1 kilo-byte equals 1000 bytes.
+    #[inline]
+    pub fn from_kilo(kibi_bytes: usize) -> Self {
+        Self::new(kibi_bytes, 1000)
+    }
+
+    /// From mebi-bytes.
+    ///
+    /// 1 mebi-byte equals 1024² bytes.
+    pub fn from_mebi(mebi_bytes: usize) -> Self {
+        Self::new(mebi_bytes, 1024usize.pow(2))
+    }
+
+    /// From mega-bytes.
+    ///
+    /// 1 mega-byte equals 1000² bytes.
+    pub fn from_mega(mebi_bytes: usize) -> Self {
+        Self::new(mebi_bytes, 1000usize.pow(2))
+    }
+
+    /// From gibi-bytes.
+    ///
+    /// 1 gibi-byte equals 1024³ bytes.
+    pub fn from_gibi(gibi_bytes: usize) -> Self {
+        Self::new(gibi_bytes, 1024usize.pow(3))
+    }
+
+    /// From giga-bytes.
+    ///
+    /// 1 giga-byte equals 1000³ bytes.
+    pub fn from_giga(giba_bytes: usize) -> Self {
+        Self::new(giba_bytes, 1000usize.pow(3))
+    }
+
+    /// From tebi-bytes.
+    ///
+    /// 1 tebi-byte equals 1024^4 bytes.
+    pub fn from_tebi(gibi_bytes: usize) -> Self {
+        Self::new(gibi_bytes, 1024usize.pow(4))
+    }
+
+    /// From tera-bytes.
+    ///
+    /// 1 tera-byte equals 1000^4 bytes.
+    pub fn from_tera(giba_bytes: usize) -> Self {
+        Self::new(giba_bytes, 1000usize.pow(4))
+    }
+}
+
+impl ByteLength {
+    /// Compares and returns the maximum of two lengths.
+    #[inline]
+    pub fn max(self, other: Self) -> Self {
+        Self(self.0.max(other.0))
+    }
+
+    /// Compares and returns the minimum of two lengths.
+    #[inline]
+    pub fn min(self, other: Self) -> Self {
+        Self(self.0.min(other.0))
+    }
+}
+
+impl fmt::Debug for ByteLength {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("ByteLength").field(&self.0).finish()
+        } else {
+            write!(f, "ByteLength({})", self)
+        }
+    }
+}
+impl fmt::Display for ByteLength {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            if self.0 >= 1024usize.pow(4) {
+                write!(f, "{} tebi-bytes", self.tebis())
+            } else if self.0 >= 1024usize.pow(3) {
+                write!(f, "{} gibi-bytes", self.gibis())
+            } else if self.0 >= 1024usize.pow(2) {
+                write!(f, "{} mebi-bytes", self.mebis())
+            } else if self.0 >= 1024 {
+                write!(f, "{} kibi-bytes", self.kibis())
+            } else {
+                write!(f, "{} bytes", self.bytes())
+            }
+        } else if self.0 >= 1000usize.pow(4) {
+            write!(f, "{} tera-bytes", self.teras())
+        } else if self.0 >= 1000usize.pow(3) {
+            write!(f, "{} giga-bytes", self.gigas())
+        } else if self.0 >= 1000usize.pow(2) {
+            write!(f, "{} mega-bytes", self.megas())
+        } else if self.0 >= 1000 {
+            write!(f, "{} kilo-bytes", self.kilos())
+        } else {
+            write!(f, "{} bytes", self.bytes())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
