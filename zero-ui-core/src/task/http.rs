@@ -33,7 +33,10 @@ use async_trait::*;
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
+use crate::crate_util::PanicPayload;
 use crate::units::*;
+
+use super::channel;
 
 /// Marker trait for types that try-to-convert to [`Uri`].
 ///
@@ -389,6 +392,13 @@ impl Response {
         self.0.text().await
     }
 
+    /// Get the effective URI of this response. This value differs from the
+    /// original URI provided when making the request if at least one redirect
+    /// was followed.
+    pub fn effective_uri(&self) -> Option<&Uri> {
+        self.0.effective_uri()
+    }
+
     /// Read the response body as raw bytes.
     ///
     /// Use [`DownloadTask`] to get larger files.
@@ -578,8 +588,15 @@ where
     }
 }
 
+enum DtError {
+    Io(std::io::Error),
+    Panic(PanicPayload),
+}
+
 /// Represents a running large file download.
 pub struct DownloadTask {
+    receiver: channel::Receiver<Result<Vec<u8>, DtError>>,
+    stop_recv: channel::Receiver<Response>,
     payload_len: ByteLength,
 }
 impl DownloadTask {
@@ -599,8 +616,49 @@ impl DownloadTask {
         DownloadTaskBuilder::new(client)
     }
 
-    fn spawn(builder: DownloadTaskBuilder, response: Response) -> Self {
-        todo!("{:?}, {:?}", builder, response)
+    fn spawn(builder: DownloadTaskBuilder, mut response: Response) -> Self {
+        let payload_len = builder.payload_len;
+
+        let (sender, receiver) = channel::bounded(builder.channel_capacity);
+        let (stop_sender, stop_recv) = channel::bounded(1);
+        let panic_sender = sender.clone();
+
+        let worker = super::run_catch(async move {
+            loop {
+                let mut buf = vec![0; payload_len.0];
+                match response.read(&mut buf).await {
+                    Ok(l) => {
+                        if l < payload_len.0 {
+                            buf.truncate(l);
+
+                            let _ = sender.send(Ok(buf)).await;
+                            let _ = stop_sender.send(response).await;
+                            return; // cause: EOF
+                        } else if sender.send(Ok(buf)).await.is_err() {
+                            let _ = stop_sender.send(response).await;
+                            return; // cause: receiver dropped
+                        }
+                    }
+                    Err(e) => {
+                        debug_assert!(e.kind() != std::io::ErrorKind::Interrupted);
+                        let _ = sender.send(Err(DtError::Io(e))).await;
+                        let _ = stop_sender.send(response).await;
+                        return; // cause: error
+                    }
+                }
+            }
+        });
+        super::spawn(async move {
+            if let Err(panic) = worker.await {
+                let _ = panic_sender.send(Err(DtError::Panic(panic))).await;
+            }
+        });
+
+        Self {
+            receiver,
+            stop_recv,
+            payload_len,
+        }
     }
 
     /// Maximum number of bytes per payload.
@@ -634,16 +692,29 @@ impl DownloadTask {
         todo!()
     }
 
-    /// Stops the task, cancels download if it is not finished, clears the disk cache if any was used.
-    pub async fn stop(self) {
-        todo!()
-    }
-
     /// Receive the next downloaded payload.
     ///
     /// The payloads are sequential, even if parallel downloads are enabled.
     pub async fn download(&self) -> Result<Vec<u8>, DownloadTaskError> {
-        todo!()
+        self.receiver
+            .recv()
+            .await
+            .map_err(|_| DownloadTaskError::Closed)?
+            .map_err(|e| match e {
+                DtError::Io(e) => e.into(),
+                DtError::Panic(p) => std::panic::resume_unwind(p),
+            })
+    }
+
+    /// Stops the task, cancels download if it is not finished, clears the disk cache if any was used.
+    ///
+    /// Returns the last [`Response`] used.
+    pub async fn stop(self) -> Response {
+        drop(self.receiver);
+        self.stop_recv
+            .recv()
+            .await
+            .expect("already stoped due to panic in `DownloadTask::download`")
     }
 }
 #[async_trait]
@@ -655,7 +726,7 @@ impl super::ReceiverTask for DownloadTask {
     }
 
     async fn stop(self) {
-        self.stop().await
+        let _ = self.stop().await;
     }
 }
 
@@ -811,18 +882,46 @@ impl FrozenDownloadTask {
 }
 
 /// An error in [`DownloadTask`] or [`FrozenDownloadTask`]
-#[derive(Debug, Clone)]
-pub struct DownloadTaskError {}
-impl fmt::Display for DownloadTaskError {
+pub enum DownloadTaskError {
+    /// Download error.
+    Io(std::io::Error),
+    /// Lost connection with the task worker.
+    ///
+    /// The task worker closes on the first [`Io`] error.
+    ///
+    /// [`Io`]: Self::Io
+    Closed,
+}
+impl fmt::Debug for DownloadTaskError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let _ = f;
-        todo!()
+        match self {
+            DownloadTaskError::Io(e) => f.debug_tuple("Io").field(e).finish(),
+            //DownloadTaskError::Panic(p) => write!(f, "Panic({:?})", panic_str(p)),
+            DownloadTaskError::Closed => write!(f, "Closed"),
+        }
     }
 }
-impl std::error::Error for DownloadTaskError {}
+impl fmt::Display for DownloadTaskError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DownloadTaskError::Io(e) => write!(f, "{}", e),
+            //DownloadTaskError::Panic(p) => write!(f, "{}", panic_str(p)),
+            DownloadTaskError::Closed => write!(f, "`DownloadTask` worker is closed due to error or panic"),
+        }
+    }
+}
+impl std::error::Error for DownloadTaskError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let DownloadTaskError::Io(e) = self {
+            Some(e)
+        } else {
+            None
+        }
+    }
+}
 impl From<std::io::Error> for DownloadTaskError {
-    fn from(_: std::io::Error) -> Self {
-        todo!()
+    fn from(e: std::io::Error) -> Self {
+        DownloadTaskError::Io(e)
     }
 }
 
