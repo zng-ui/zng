@@ -528,18 +528,22 @@ where
 /// data, but only allocates around 16 mebibytes for the task, in the worst case.
 ///
 /// ```no_run
-/// # use zero_ui_core::task::{self, io::{ReadTask, WriteTask}, rayon::prelude::*};
+/// # use zero_ui_core::{task::{self, io::{ReadTask, WriteTask}, rayon::prelude::*}, units::*};
 /// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 /// // acquire files, using `wait` directly.
-/// let input_file = task::wait(|| std::fs::File::open("large-input.bin")).await?;
+/// let (input_file, total_len) = task::wait(|| {
+///     let file = std::fs::File::open("large-input.bin")?;
+///     let len = file.metadata()?.len();
+///     Ok::<_, std::io::Error>((file, len.bytes()))
+/// }).await?;
 /// let output_file = task::wait(|| std::fs::File::create("large-output.bin")).await?;
 ///
 /// // start reading the input, immediately tries to read 8 chunks of 1 mebibyte each.
-/// let r = ReadTask::default().spawn(input_file);
+/// let r = ReadTask::default().spawn(input_file, total_len);
 /// // start an idle write, with a queue of up to 8 write requests.
-/// let w = WriteTask::default().spawn(output_file);
+/// let w = WriteTask::default().spawn(output_file, total_len);
 ///
-/// // both tasks use `wait` internally.
+/// // both tasks use `wait` internally, the `total_len` is for the metrics info.
 ///
 /// let mut eof = false;
 /// while !eof {
@@ -570,7 +574,12 @@ where
 ///         // just indicates that the task has terminated.
 ///         break;
 ///     }
+///
+///     print!("{}[2J", 27 as char);
+///     println!("{}; {}", r.metrics(), w.metrics());
 /// }
+/// println!("{}[2J", 27 as char);
+/// println!("Done!\n{}; {}", r.metrics(), w.metrics());
 ///
 /// // get the files back for more small operations using `wait` directly.
 /// let input_file = r.stop().await.unwrap();

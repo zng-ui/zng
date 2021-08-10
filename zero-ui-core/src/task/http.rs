@@ -27,7 +27,6 @@ pub use isahc::config::RedirectPolicy;
 pub use isahc::cookies::{Cookie, CookieJar};
 pub use isahc::error::{Error, ErrorKind};
 pub use isahc::http::{header, uri, Method, StatusCode, Uri};
-pub use isahc::Metrics;
 
 use async_trait::*;
 use isahc::{AsyncReadResponseExt, ResponseExt};
@@ -337,7 +336,7 @@ impl RequestBuilder {
     ///
     /// When enabled you can get the information using the [`Response::metrics`] method.
     ///
-    /// This is not enabled by default.
+    /// This is enabled by default.
     pub fn metrics(self, enable: bool) -> Self {
         Self(self.0.metrics(enable))
     }
@@ -429,11 +428,12 @@ impl Response {
         self.0.json().await
     }
 
-    /// If request metrics are enabled for this particular transfer, return the metrics info.
+    /// Metrics for the task transfer.
     ///
-    /// You can enable metrics using the [`RequestBuilder::metrics`] method.
-    pub fn metrics(&self) -> Option<&Metrics> {
-        self.0.metrics()
+    /// Metrics are enabled in the default in the [`isahc_client`] and can be toggled for each request using the
+    /// [`RequestBuilder::metrics`] method. If disabled returns [`Metrics::zero`].
+    pub fn metrics(&self) -> Metrics {
+        self.0.metrics().map(Metrics::from_isahc).unwrap_or_else(Metrics::zero)
     }
 
     /// Drop the request without dropping the connection.
@@ -535,6 +535,11 @@ pub async fn send(request: Request) -> Result<Response, Error> {
 ///
 /// You can replace the default client at the start of the process using [`set_isahc_client_init`].
 ///
+/// # Defaults
+///
+/// This the enables `redirect_policy` with a limit of up-to 20 redirects and `auto_referer`, also reduces
+/// the `connect_timeout` to 90 seconds and enables `metrics`.
+///
 /// [`isahc`]: https://docs.rs/isahc
 pub fn isahc_client() -> &'static isahc::HttpClient {
     use crate::units::*;
@@ -551,6 +556,7 @@ pub fn isahc_client() -> &'static isahc::HttpClient {
                 .redirect_policy(RedirectPolicy::Limit(20))
                 .connect_timeout(90.secs())
                 .auto_referer()
+                .metrics(true)
                 .build()
                 .unwrap()
         }
@@ -1109,5 +1115,145 @@ impl super::ReadThenReceive for Response {
             .payload_len(payload_len)
             .channel_capacity(channel_capacity)
             .spawn(self)
+    }
+}
+
+/// Information about the state of an HTTP request or a [`DownloadTask`] or [`UploadTask`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Metrics {
+    /// Number of bytes uploaded / estimated total.
+    pub upload_progress: (ByteLength, ByteLength),
+
+    /// Average upload speed so far in bytes/second.
+    pub upload_speed: ByteLength,
+
+    /// Number of bytes downloaded / estimated total.
+    pub download_progress: (ByteLength, ByteLength),
+
+    /// Average download speed so far in bytes/second.
+    pub download_speed: ByteLength,
+
+    /// Total time from the start of the request until DNS name resolving was completed.
+    ///
+    /// When a redirect is followed, the time from each request is added together.
+    pub name_lookup_time: Duration,
+
+    /// Amount of time taken to establish a connection to the server (not including TLS connection time).
+    ///
+    /// When a redirect is followed, the time from each request is added together.
+    pub connect_time: Duration,
+
+    /// Amount of time spent on TLS handshakes.
+    ///
+    /// When a redirect is followed, the time from each request is added together.
+    pub secure_connect_time: Duration,
+
+    /// Time it took from the start of the request until the first byte is either sent or received.
+    ///
+    /// When a redirect is followed, the time from each request is added together.
+    pub transfer_start_time: Duration,
+
+    /// Amount of time spent performing the actual request transfer. The “transfer” includes
+    /// both sending the request and receiving the response.
+    ///
+    /// When a redirect is followed, the time from each request is added together.
+    pub transfer_time: Duration,
+
+    /// Total time for the entire request. This will continuously increase until the entire
+    /// response body is consumed and completed.
+    ///
+    /// When a redirect is followed, the time from each request is added together.
+    pub total_time: Duration,
+
+    /// If automatic redirect following is enabled, the total time taken for all redirection steps
+    /// including name lookup, connect, pretransfer and transfer before final transaction was started.
+    pub redirect_time: Duration,
+}
+impl Metrics {
+    /// Init from [`isahc::Metrics`].
+    pub fn from_isahc(m: &isahc::Metrics) -> Self {
+        Self {
+            upload_progress: {
+                let (c, t) = m.upload_progress();
+                ((c as usize).bytes(), (t as usize).bytes())
+            },
+            upload_speed: (m.upload_speed().round() as usize).bytes(),
+            download_progress: {
+                let (c, t) = m.download_progress();
+                ((c as usize).bytes(), (t as usize).bytes())
+            },
+            download_speed: (m.download_speed().round() as usize).bytes(),
+            name_lookup_time: m.name_lookup_time(),
+            connect_time: m.connect_time(),
+            secure_connect_time: m.secure_connect_time(),
+            transfer_start_time: m.transfer_start_time(),
+            transfer_time: m.transfer_time(),
+            total_time: m.total_time(),
+            redirect_time: m.redirect_time(),
+        }
+    }
+
+    /// All zeros.
+    pub fn zero() -> Self {
+        Self {
+            upload_progress: (0.bytes(), 0.bytes()),
+            upload_speed: 0.bytes(),
+            download_progress: (0.bytes(), 0.bytes()),
+            download_speed: 0.bytes(),
+            name_lookup_time: Duration::ZERO,
+            connect_time: Duration::ZERO,
+            secure_connect_time: Duration::ZERO,
+            transfer_start_time: Duration::ZERO,
+            transfer_time: Duration::ZERO,
+            total_time: Duration::ZERO,
+            redirect_time: Duration::ZERO,
+        }
+    }
+}
+impl From<isahc::Metrics> for Metrics {
+    fn from(m: isahc::Metrics) -> Self {
+        Metrics::from_isahc(&m)
+    }
+}
+impl fmt::Display for Metrics {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut ws = false; // written something
+
+        if self.upload_progress.0 != self.upload_progress.1 {
+            write!(
+                f,
+                "upload: {} of {}, {}/s",
+                self.upload_progress.0, self.upload_progress.1, self.upload_speed
+            )?;
+            ws = true;
+        }
+        if self.download_progress.0 != self.download_progress.1 {
+            write!(
+                f,
+                "{}download: {} of {}, {}/s",
+                if ws { "\n" } else { "" },
+                self.download_progress.0,
+                self.download_progress.1,
+                self.download_speed
+            )?;
+            ws = true;
+        }
+
+        if !ws {
+            if self.upload_progress.1.bytes() > 0 {
+                write!(f, "uploaded: {}", self.upload_progress.1)?;
+                ws = true;
+            }
+            if self.download_progress.1.bytes() > 0 {
+                write!(f, "{}downloaded: {}", if ws { "\n" } else { "" }, self.download_progress.1)?;
+                ws = true;
+            }
+
+            if ws {
+                write!(f, "\ntotal time: {:?}", self.total_time)?;
+            }
+        }
+
+        Ok(())
     }
 }

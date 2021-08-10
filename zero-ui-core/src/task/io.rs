@@ -7,9 +7,11 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
+    time::{Duration, Instant},
 };
 
 use async_trait::*;
+use parking_lot::Mutex;
 
 use crate::{
     crate_util::{panic_str, PanicPayload},
@@ -35,8 +37,8 @@ use super::channel;
 /// ```no_run
 /// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 /// use zero_ui_core::task::{self, io::ReadTask, rayon::prelude::*};
-/// let file = task::wait(|| std::fs::File::open("data-1gibibyte.bin")).await?;
-/// let r = ReadTask::default().spawn(file);
+///
+/// let r = ReadTask::default().open("data-1gibibyte.bin").await?;
 /// let mut foo = 0usize;
 ///
 /// let mut eof = false;
@@ -67,6 +69,7 @@ pub struct ReadTask<R> {
     receiver: channel::Receiver<Result<Vec<u8>, ReadTaskError>>,
     stop_recv: channel::Receiver<R>,
     payload_len: ByteLength,
+    metrics: Arc<Mutex<Metrics>>,
 }
 impl ReadTask<()> {
     /// Start building a read task.
@@ -76,9 +79,9 @@ impl ReadTask<()> {
     /// Start a task that reads 1 mebibyte payloads and with a maximum of 8 pre-reads in the channel:
     ///
     /// ```
-    /// # use zero_ui_core::task::io::ReadTask;
-    /// # fn demo(read: impl std::io::Read + Send + 'static) {
-    /// let task = ReadTask::default().spawn(read);
+    /// # use zero_ui_core::{task::io::ReadTask, units::*};
+    /// # fn demo(read: impl std::io::Read + Send + 'static, estimated_total: ByteLength) {
+    /// let task = ReadTask::default().metrics(false).spawn(read, 0.bytes());
     /// # }
     /// ```
     ///
@@ -88,11 +91,11 @@ impl ReadTask<()> {
     /// # use zero_ui_core::{task::io::ReadTask, units::*};
     /// # const FRAME_LEN: usize = 1024 * 1024 * 2;
     /// # const FRAME_COUNT: usize = 3;
-    /// # fn demo(read: impl std::io::Read + Send + 'static) {
+    /// # fn demo(read: impl std::io::Read + Send + 'static, estimated_total: ByteLength) {
     /// let task = ReadTask::default()
     ///     .payload_len(FRAME_LEN.bytes())
     ///     .channel_capacity(FRAME_COUNT.min(8))
-    ///     .spawn(read);
+    ///     .spawn(read, estimated_total);
     /// # }
     /// ```
     #[inline]
@@ -108,14 +111,22 @@ where
     ///
     /// The `payload_len` is the maximum number of bytes returned at a time, the `channel_capacity` is the number
     /// of pending payloads that can be pre-read. The recommended is 1 mebibyte len and 8 payloads.
-    fn spawn(builder: ReadTaskBuilder, read: R) -> Self {
+    fn spawn(builder: ReadTaskBuilder, read: R, estimated_total: ByteLength) -> Self {
         let payload_len = builder.payload_len;
         let (sender, receiver) = channel::bounded(builder.channel_capacity);
         let (stop_sender, stop_recv) = channel::bounded(1);
+        let metrics = Arc::new(Mutex::new(Metrics::zero(TaskType::Read)));
+        if builder.metrics {
+            metrics.lock().progress.1 = estimated_total;
+        }
+        let metrics_send = Arc::clone(&metrics);
+        let start_time = Instant::now();
         super::spawn(async move {
             let mut read = read;
 
             loop {
+                let payload_start = if builder.metrics { Some(Instant::now()) } else { None };
+
                 let r = super::wait_catch(move || {
                     let mut payload = vec![0u8; payload_len.0];
                     loop {
@@ -149,6 +160,18 @@ where
                     Ok((p, r)) => {
                         read = r;
 
+                        if let Some(payload_start) = payload_start {
+                            let now = Instant::now();
+                            let payload_time = now.duration_since(payload_start).as_secs_f64().round();
+                            let speed = ((payload_len.0 as f64 / payload_time) as usize).bytes();
+                            let total_time = now.duration_since(start_time);
+
+                            let mut m = metrics_send.lock();
+                            m.progress.0 += p.len().bytes();
+                            m.speed = speed;
+                            m.total_time = total_time;
+                        }
+
                         if p.len() < payload_len.0 {
                             let _ = sender.send(Ok(p)).await;
                             let _ = stop_sender.send(read).await;
@@ -165,11 +188,16 @@ where
                     }
                 }
             }
+
+            if builder.metrics {
+                metrics_send.lock().total_time = Instant::now().duration_since(start_time);
+            }
         });
         ReadTask {
             receiver,
             stop_recv,
             payload_len,
+            metrics,
         }
     }
 
@@ -177,6 +205,12 @@ where
     #[inline]
     pub fn payload_len(&self) -> ByteLength {
         self.payload_len
+    }
+
+    /// Clones the current progress info.
+    #[inline]
+    pub fn metrics(&self) -> Metrics {
+        self.metrics.lock().clone()
     }
 
     /// Request the next payload.
@@ -290,12 +324,14 @@ impl From<io::Error> for ReadTaskError {
 pub struct ReadTaskBuilder {
     payload_len: ByteLength,
     channel_capacity: usize,
+    metrics: bool,
 }
 impl Default for ReadTaskBuilder {
     fn default() -> Self {
         ReadTaskBuilder {
             payload_len: 1.mebi_bytes(),
             channel_capacity: 8,
+            metrics: true,
         }
     }
 }
@@ -322,6 +358,15 @@ impl ReadTaskBuilder {
         self
     }
 
+    /// Enable or disable metrics collecting.
+    ///
+    /// This is enabled by default.
+    #[inline]
+    pub fn metrics(mut self, enabled: bool) -> Self {
+        self.metrics = enabled;
+        self
+    }
+
     fn normalize(&mut self) {
         if self.payload_len.0 < 1 {
             self.payload_len.0 = 1;
@@ -329,20 +374,48 @@ impl ReadTaskBuilder {
     }
 
     /// Start reading from `read`.
+    ///
+    /// The `estimated_total` is used for [`metrics`] only.
+    ///
+    /// [`metrics`]: Self::metrics
     #[inline]
-    pub fn spawn<R>(mut self, read: R) -> ReadTask<R>
+    pub fn spawn<R>(mut self, read: R, estimated_total: ByteLength) -> ReadTask<R>
     where
         R: io::Read + Send + 'static,
     {
         self.normalize();
-        ReadTask::spawn(self, read)
+        ReadTask::spawn(self, read, estimated_total)
+    }
+
+    /// Start reading from the `file`.
+    ///
+    /// If [`metrics`] is enabled gets the file size first.
+    ///
+    /// [`metrics`]: Self::metrics
+    pub async fn file(self, file: fs::File) -> io::Result<ReadTask<fs::File>> {
+        if self.metrics {
+            let (file, len) = super::wait(move || {
+                let len = file.metadata()?.len() as usize;
+                Ok::<_, io::Error>((file, len))
+            })
+            .await?;
+            Ok(self.spawn(file, len.bytes()))
+        } else {
+            Ok(self.spawn(file, 0.bytes()))
+        }
     }
 
     /// Start reading from the file at `path` or returns an error if the file could not be opened.
     pub async fn open(self, path: impl Into<PathBuf>) -> io::Result<ReadTask<fs::File>> {
         let path = path.into();
-        let file = super::wait(move || fs::File::open(path)).await?;
-        Ok(self.spawn(file))
+        let need_len = self.metrics;
+        let (file, len) = super::wait(move || {
+            let file = fs::File::open(path)?;
+            let len = if need_len { file.metadata()?.len() as usize } else { 0 };
+            Ok::<_, io::Error>((file, len))
+        })
+        .await?;
+        Ok(self.spawn(file, len.bytes()))
     }
 }
 
@@ -363,13 +436,14 @@ impl ReadTaskBuilder {
 /// ```no_run
 /// # async fn compute_1mebibyte() -> Vec<u8> { vec![1; 1024 * 1024] }
 /// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-/// use zero_ui_core::task::{self, io::WriteTask};
+/// use zero_ui_core::{task::{self, io::WriteTask}, units::*};
 ///
 /// let file = task::wait(|| std::fs::File::create("output.bin")).await?;
-/// let w = WriteTask::default().spawn(file);
+/// let limit = 1024 * 1024 * 1024;
+///
+/// let w = WriteTask::default().spawn(file, limit.bytes());
 ///
 /// let mut total = 0usize;
-/// let limit = 1024 * 1024 * 1024;
 /// while total < limit {
 ///     let payload = compute_1mebibyte().await;
 ///     total += payload.len();
@@ -398,6 +472,7 @@ pub struct WriteTask<W> {
     sender: channel::Sender<WriteTaskMsg>,
     finish: channel::Receiver<WriteTaskFinishMsg<W>>,
     state: Arc<WriteTaskState>,
+    metrics: Arc<Mutex<Metrics>>,
 }
 impl WriteTask<()> {
     /// Start building a write task.
@@ -407,21 +482,21 @@ impl WriteTask<()> {
     /// Start a task that writes payloads and with a maximum of 8 pending writes in the channel:
     ///
     /// ```
-    /// # use zero_ui_core::task::io::WriteTask;
-    /// # fn demo(write: impl std::io::Write + Send + 'static) {
-    /// let task = WriteTask::default().spawn(write);
+    /// # use zero_ui_core::{task::io::WriteTask, units::*};
+    /// # fn demo(write: impl std::io::Write + Send + 'static, estimated_total: ByteLength) {
+    /// let task = WriteTask::default().metrics(false).spawn(write, 0.bytes());
     /// # }
     /// ```
     ///
     /// Start a task with custom configuration:
     ///
     /// ```
-    /// # use zero_ui_core::task::io::WriteTask;
+    /// # use zero_ui_core::{task::io::WriteTask, units::*};
     /// # const FRAME_COUNT: usize = 3;
-    /// # fn demo(write: impl std::io::Write + Send + 'static) {
+    /// # fn demo(write: impl std::io::Write + Send + 'static, estimated_total: ByteLength) {
     /// let task = WriteTask::default()
     ///     .channel_capacity(FRAME_COUNT.min(8))
-    ///     .spawn(write);
+    ///     .spawn(write, estimated_total);
     /// # }
     /// ```
     #[inline]
@@ -433,13 +508,21 @@ impl<W> WriteTask<W>
 where
     W: io::Write + Send + 'static,
 {
-    fn spawn(builder: WriteTaskBuilder, write: W) -> Self {
+    fn spawn(builder: WriteTaskBuilder, write: W, estimated_total: ByteLength) -> Self {
         let (sender, receiver) = channel::bounded(builder.channel_capacity);
         let (f_sender, f_receiver) = channel::rendezvous();
         let state = Arc::new(WriteTaskState {
             bytes_written: AtomicU64::new(0),
         });
         let t_state = Arc::clone(&state);
+
+        let metrics = Arc::new(Mutex::new(Metrics::zero(TaskType::Write)));
+        if builder.metrics {
+            metrics.lock().progress.1 = estimated_total;
+        }
+        let metrics_send = Arc::clone(&metrics);
+        let start_time = Instant::now();
+
         super::spawn(async move {
             let mut write = write;
             let mut error = None;
@@ -448,6 +531,9 @@ where
             while let Ok(msg) = receiver.recv().await {
                 match msg {
                     WriteTaskMsg::WriteAll(p) => {
+                        let payload_start = if builder.metrics { Some(Instant::now()) } else { None };
+                        let payload_len = p.len();
+
                         let r = super::wait_catch(move || {
                             let r = write.write_all(&p);
                             (write, p, r)
@@ -469,6 +555,17 @@ where
                         match r {
                             Ok(_) => {
                                 t_state.payload_written(p.len());
+                                if let Some(payload_start) = payload_start {
+                                    let now = Instant::now();
+                                    let payload_time = now.duration_since(payload_start).as_secs_f64().round();
+                                    let speed = ((payload_len as f64 / payload_time) as usize).bytes();
+                                    let total_time = now.duration_since(start_time);
+
+                                    let mut m = metrics_send.lock();
+                                    m.progress.0 += payload_len.bytes();
+                                    m.speed = speed;
+                                    m.total_time = total_time;
+                                }
                             }
                             Err(e) => {
                                 error = Some(e);
@@ -537,6 +634,10 @@ where
 
             let payloads = Self::drain_payloads(receiver, error_payload);
 
+            if builder.metrics {
+                metrics_send.lock().total_time = Instant::now().duration_since(start_time);
+            }
+
             // send non-panic finish message.
             let _ = f_sender.send(WriteTaskFinishMsg::Io { write, error, payloads }).await;
         });
@@ -544,6 +645,7 @@ where
             sender,
             state,
             finish: f_receiver,
+            metrics,
         }
     }
 
@@ -563,6 +665,12 @@ where
                 unreachable!()
             }
         })
+    }
+
+    /// Clones the current progress info.
+    #[inline]
+    pub fn metrics(&self) -> Metrics {
+        self.metrics.lock().clone()
     }
 
     /// Awaits until all previous requested [`write`] are finished.
@@ -639,10 +747,14 @@ impl WriteTaskState {
 #[derive(Debug, Clone)]
 pub struct WriteTaskBuilder {
     channel_capacity: usize,
+    metrics: bool,
 }
 impl Default for WriteTaskBuilder {
     fn default() -> Self {
-        WriteTaskBuilder { channel_capacity: 8 }
+        WriteTaskBuilder {
+            channel_capacity: 8,
+            metrics: true,
+        }
     }
 }
 impl WriteTaskBuilder {
@@ -658,13 +770,20 @@ impl WriteTaskBuilder {
         self
     }
 
+    ///
+    #[inline]
+    pub fn metrics(mut self, enabled: bool) -> Self {
+        self.metrics = enabled;
+        self
+    }
+
     /// Start an idle [`WriteTask<W>`] that writes to `write`.
     #[inline]
-    pub fn spawn<W>(self, write: W) -> WriteTask<W>
+    pub fn spawn<W>(self, write: W, estimated_total: ByteLength) -> WriteTask<W>
     where
         W: io::Write + Send + 'static,
     {
-        WriteTask::spawn(self, write)
+        WriteTask::spawn(self, write, estimated_total)
     }
 }
 
@@ -854,7 +973,74 @@ impl<R: io::Read + Send + 'static> super::ReadThenReceive for ReadThenReceive<R>
         ReadTask::default()
             .payload_len(payload_len)
             .channel_capacity(channel_capacity)
-            .spawn(self.read.unwrap())
+            .metrics(false)
+            .spawn(self.read.unwrap(), 0.bytes())
+    }
+}
+
+/// Tag for [`ReadTask`] or [`WriteTask`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TaskType {
+    /// [`ReadTask`].
+    Read,
+    /// [`WriteTask`].
+    Write,
+}
+
+/// Information about the state of a [`ReadTask`] or [`WriteTask`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Metrics {
+    /// If the task is read or write.
+    pub task: TaskType,
+
+    /// Number of bytes processed / estimated total.
+    pub progress: (ByteLength, ByteLength),
+
+    /// Average progress speed in bytes/second.
+    pub speed: ByteLength,
+
+    /// Total time for the entire task. This will continuously increase until the task is
+    /// finished.
+    pub total_time: Duration,
+}
+impl Metrics {
+    /// All zeros.
+    pub fn zero(task: TaskType) -> Self {
+        Self {
+            task,
+            progress: (0.bytes(), 0.bytes()),
+            speed: 0.bytes(),
+            total_time: Duration::ZERO,
+        }
+    }
+}
+impl fmt::Display for Metrics {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.progress.0 != self.progress.1 {
+            write!(
+                f,
+                "{}: {} of {}, {}/s",
+                match self.task {
+                    TaskType::Read => "read",
+                    TaskType::Write => "write",
+                },
+                self.progress.0,
+                self.progress.1,
+                self.speed
+            )
+        } else if self.progress.1.bytes() > 0 {
+            write!(
+                f,
+                "{} in {:?}",
+                match self.task {
+                    TaskType::Read => "read",
+                    TaskType::Write => "written",
+                },
+                self.total_time
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -876,7 +1062,7 @@ pub mod tests {
     #[test]
     pub fn read_task() {
         async_test(async {
-            let task = ReadTask::default().payload_len(1.bytes()).spawn(TestRead::default());
+            let task = ReadTask::default().payload_len(1.bytes()).spawn(TestRead::default(), 0.bytes());
 
             task::timeout(10.ms()).await;
 
@@ -901,7 +1087,7 @@ pub mod tests {
             let read = TestRead::default();
             let flag = Arc::clone(&read.cause_error);
 
-            let task = ReadTask::default().payload_len(1.bytes()).spawn(read);
+            let task = ReadTask::default().payload_len(1.bytes()).spawn(read, 0.bytes());
 
             task::timeout(10.ms()).await;
 
@@ -930,7 +1116,7 @@ pub mod tests {
             let read = TestRead::default();
             let flag = Arc::clone(&read.cause_panic);
 
-            let task = ReadTask::default().payload_len(1.bytes()).spawn(read);
+            let task = ReadTask::default().payload_len(1.bytes()).spawn(read, 0.bytes());
 
             task::timeout(10.ms()).await;
 
@@ -958,7 +1144,7 @@ pub mod tests {
         async_test(async {
             let write = TestWrite::default();
 
-            let task = WriteTask::default().spawn(write);
+            let task = WriteTask::default().spawn(write, 0.bytes());
 
             for byte in 0u8..20 {
                 task.write(vec![byte, byte + 100]).await.unwrap();
@@ -977,7 +1163,7 @@ pub mod tests {
         async_test(async {
             let write = TestWrite::default();
 
-            let task = WriteTask::default().spawn(write);
+            let task = WriteTask::default().spawn(write, 0.bytes());
 
             for byte in 0u8..20 {
                 task.write(vec![byte, byte + 100]).await.unwrap();
@@ -1002,7 +1188,7 @@ pub mod tests {
             let write = TestWrite::default();
             let flag = write.cause_error.clone();
 
-            let task = WriteTask::default().spawn(write);
+            let task = WriteTask::default().spawn(write, 0.bytes());
 
             for byte in 0u8..20 {
                 if byte == 10 {
@@ -1032,7 +1218,7 @@ pub mod tests {
             let write = TestWrite::default();
             let flag = write.cause_panic.clone();
 
-            let task = WriteTask::default().spawn(write);
+            let task = WriteTask::default().spawn(write, 0.bytes());
 
             for byte in 0u8..20 {
                 if byte == 10 {

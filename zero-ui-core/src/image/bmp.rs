@@ -84,8 +84,9 @@ enum CompressionMtd {
     Rle8,
     Rle4,
     Bitfields,
-    Jpeg,
-    Png,
+    // rarely supported, only for printers?
+    // Jpeg,
+    // Png,
     AlphaBitfields,
     // only .wmf
     // Cmyk,
@@ -99,8 +100,8 @@ impl CompressionMtd {
             1 => Ok(CompressionMtd::Rle8),
             2 => Ok(CompressionMtd::Rle4),
             3 => Ok(CompressionMtd::Bitfields),
-            4 => Ok(CompressionMtd::Jpeg),
-            5 => Ok(CompressionMtd::Png),
+            4 => Err(invalid_data("BMP with embedded JPEG is not supported")),
+            5 => Err(invalid_data("BMP with embedded PNG is not supported")),
             6 => Ok(CompressionMtd::AlphaBitfields),
             11 | 12 | 13 => Err(invalid_data("WMF CMYK compression not supported in BMP")),
             // 11 => Ok(CompressionMtd::Cmyk),
@@ -292,9 +293,10 @@ impl BmpHeaderFull {
                 self.read_info_header(read).await?;
                 let _ = read.read_exact::<4>().await?;
 
-                if matches!(self.compression, CompressionMtd::Jpeg | CompressionMtd::Png) {
-                    return Err(invalid_data("compression not supported in BMP-v3").into());
-                }
+                // we don't support these compressions
+                // if matches!(self.compression, CompressionMtd::Jpeg | CompressionMtd::Png) {
+                //     return Err(invalid_data("compression not supported in BMP-v3").into());
+                // }
 
                 self.maybe_read_bitmasks(read).await?;
             }
