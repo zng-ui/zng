@@ -969,6 +969,18 @@ impl<R: io::Read + Send + 'static> super::ReadThenReceive for ReadThenReceive<R>
         Ok(buf)
     }
 
+    async fn read_exact_heap(&mut self, len: ByteLength) -> Result<Vec<u8>, Self::Error> {
+        let mut read = self.read.take().expect("already reading");
+        let (read, buf) = super::wait(move || {
+            let mut buf = vec![0; len.0];
+            read.read_exact(&mut buf)?;
+            Ok::<_, std::io::Error>((read, buf))
+        })
+        .await?;
+        self.read = Some(read);
+        Ok(buf)
+    }
+
     fn spawn(self, payload_len: ByteLength, channel_capacity: usize) -> Self::Spawned {
         ReadTask::default()
             .payload_len(payload_len)

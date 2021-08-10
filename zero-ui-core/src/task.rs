@@ -1862,6 +1862,9 @@ pub trait ReadThenReceive {
     /// inner byte stream by `N`.
     async fn read_exact<const N: usize>(&mut self) -> Result<[u8; N], Self::Error>;
 
+    /// Skip the number of `bytes` as a `Vec<u8>`.
+    async fn read_exact_heap(&mut self, bytes: ByteLength) -> Result<Vec<u8>, Self::Error>;
+
     /// Spawn the [`ReceiverTask`].
     ///
     /// The `payload_len` if the number of bytes that is buffered into the `Vec<u8>` returned for each call

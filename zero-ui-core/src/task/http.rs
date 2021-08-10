@@ -1091,6 +1091,12 @@ impl super::ReadThenReceive for ReadThenReceive {
         Ok(buf)
     }
 
+    async fn read_exact_heap(&mut self, bytes: ByteLength) -> Result<Vec<u8>, Self::Error> {
+        let mut buf = vec![0; bytes.0];
+        self.response.read_exact(&mut buf).await?;
+        Ok(buf)
+    }
+
     fn spawn(self, payload_len: ByteLength, channel_capacity: usize) -> Self::Spawned {
         DownloadTask::default()
             .payload_len(payload_len)
@@ -1106,6 +1112,12 @@ impl super::ReadThenReceive for Response {
 
     async fn read_exact<const N: usize>(&mut self) -> Result<[u8; N], Self::Error> {
         let mut buf = [0; N];
+        self.read_exact(&mut buf).await?;
+        Ok(buf)
+    }
+
+    async fn read_exact_heap(&mut self, bytes: ByteLength) -> Result<Vec<u8>, Self::Error> {
+        let mut buf = vec![0; bytes.0];
         self.read_exact(&mut buf).await?;
         Ok(buf)
     }
