@@ -4,8 +4,11 @@
 
 use std::io;
 
+use rayon::prelude::*;
+
 use super::*;
 use crate::task;
+use crate::task::SenderTask;
 use crate::units::*;
 
 /// BMP header info.
@@ -173,6 +176,7 @@ struct RgbEndpoint {
 #[derive(Debug)]
 struct BmpHeaderFull {
     header_size: u32,
+    gap1: usize,
 
     width: u32,
     height: u32,
@@ -199,13 +203,14 @@ struct BmpHeaderFull {
     blue_gamma: u32,
 
     cms_intent: CmsIntent,
-    cms_data: u32,
-    cms_size: u32,
+    gap2: usize,
+    icc_size: u32,
 }
 impl Default for BmpHeaderFull {
     fn default() -> Self {
         BmpHeaderFull {
             header_size: 0,
+            gap1: 0,
             width: 0,
             height: 0,
             bpp: Bpp::B24,
@@ -231,8 +236,8 @@ impl Default for BmpHeaderFull {
             blue_gamma: 0,
 
             cms_intent: CmsIntent::Images,
-            cms_data: 0,
-            cms_size: 0,
+            gap2: 0,
+            icc_size: 0,
         }
     }
 }
@@ -252,9 +257,11 @@ impl BmpHeaderFull {
         head.skip(4); // file size
         head.skip(2); // reserved
         head.skip(2); // reserved
-        head.skip(4); // pixels offset
+
+        self.gap1 = head.read_u32_le() as usize;
 
         self.header_size = head.read_u32_le();
+        self.gap1 -= self.header_size as usize;
 
         match self.header_size {
             12 => self.read_core_header(read).await?,
@@ -317,8 +324,6 @@ impl BmpHeaderFull {
             unknown => return Err(invalid_data(format!("unknown header size `{}`", unknown)).into()),
         }
 
-        self.maybe_read_color_table(read).await?;
-
         match self.compression {
             CompressionMtd::Rle8 => {
                 if !matches!(self.bpp, Bpp::B8) {
@@ -343,6 +348,8 @@ impl BmpHeaderFull {
             }
             _ => {}
         }
+
+        self.maybe_read_palette(read).await?;
 
         Ok(())
     }
@@ -535,9 +542,10 @@ impl BmpHeaderFull {
     {
         let mut icc_info = ArrayRead::<{ 124 - 108 - 4 }>::load(read).await?;
 
+        let icc_offset = icc_info.read_u32_le();
         self.cms_intent = CmsIntent::new(icc_info.read_u32_le())?;
-        self.cms_data = icc_info.read_u32_le();
-        self.cms_size = icc_info.read_u32_le();
+        self.gap2 = icc_offset as usize - self.header_size as usize - self.gap1 - self.palette_count as usize;
+        self.icc_size = icc_info.read_u32_le();
 
         // wiki diagram expects this
         //#[cfg(debug_assertions)]
@@ -548,7 +556,7 @@ impl BmpHeaderFull {
         Ok(())
     }
 
-    async fn maybe_read_color_table<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn maybe_read_palette<R>(&mut self, read: &mut R) -> Result<(), R::Error>
     where
         R: task::ReadThenReceive,
     {
@@ -561,6 +569,7 @@ impl BmpHeaderFull {
         }
 
         if self.palette_count > 0 {
+            self.gap1 -= self.palette_count as usize;
             // 256 because some files try to index out of bounds.
             self.palette = vec![[0u8; 4]; 256];
             for c in &mut self.palette[0..self.palette_count as usize] {
@@ -578,6 +587,7 @@ pub struct Decoder<R> {
 
     task: R,
     pending_lines: u32,
+    next_line: Vec<u8>,
 }
 impl<R> Decoder<R> {
     /// Header info.
@@ -609,31 +619,177 @@ impl<R: task::ReceiverTask> Decoder<R> {
     ///
     /// Note that the ICC profile is not in the header but trailing after the pixels so
     /// progressive rendering may show incorrect colors.
-    pub async fn start<RR>(mut read: RR, max_bytes: usize) -> Result<Self, RR::Error>
+    pub async fn start<RR>(mut read: RR, max_bytes: ByteLength) -> Result<Self, RR::Error>
     where
         RR: task::ReadThenReceive<Spawned = R>,
     {
         let header = Decoder::read_header_full(&mut read).await?;
 
-        check_limit(header.width, header.height, 4, max_bytes)?;
+        check_limit(header.width, header.height, 4.bytes(), max_bytes)?;
 
-        let task = read.spawn((header.width as usize * 4).bytes(), header.height as usize);
+        read.read_exact_heap(header.gap1.bytes()).await?;
+
+        let payload_len = match header.compression {
+            CompressionMtd::Rgb => {
+                let len = header.width as usize * (header.bpp as usize / 8);
+                let padding = len % 4;
+                len + padding
+            }
+            CompressionMtd::Rle8 | CompressionMtd::Rle4 => header.width as usize * 2,
+            CompressionMtd::Bitfields | CompressionMtd::AlphaBitfields => header.width as usize,
+        };
+
+        let task = read.spawn(payload_len.bytes(), header.height as usize);
 
         Ok(Decoder {
             pending_lines: header.height,
+            next_line: vec![],
             header,
             task,
         })
     }
 
-    /// Read and decode a pixel line
-    pub async fn read_lines(&mut self, line_count: usize) -> Result<Bgra8Buf, R::Error> {
-        todo!()
+    /// Read and decode some pixel lines.
+    pub async fn read_lines(&mut self, line_count: u32) -> Result<Bgra8Buf, R::Error> {
+        let count = line_count.max(self.pending_lines) as usize;
+        if count == 0 {
+            return Ok(Bgra8Buf::empty());
+        }
+
+        match self.header.compression {
+            CompressionMtd::Rgb => self.read_rgb_lines(line_count).await,
+            CompressionMtd::Rle8 => self.read_rle_lines(line_count, false).await,
+            CompressionMtd::Rle4 => self.read_rle_lines(line_count, true).await,
+            CompressionMtd::Bitfields => self.read_bitfield_lines(line_count).await,
+            CompressionMtd::AlphaBitfields => self.read_bitfield_lines(line_count).await,
+        }
     }
 
     /// Read all lines to the end and the trailing ICC profile if any where defined.
     pub async fn read_end(&mut self) -> Result<(Bgra8Buf, Option<lcms2::Profile>), R::Error> {
+        let rest = self.read_lines(self.pending_lines).await?;
+
+        let icc = if self.header.icc_size > 0 { todo!() } else { None };
+
+        Ok((rest, icc))
+    }
+
+    async fn read_rgb_lines(&mut self, line_count: u32) -> Result<Bgra8Buf, R::Error> {
+        match self.header.bpp {
+            Bpp::B1 => todo!(),
+            Bpp::B4 => todo!(),
+            Bpp::B8 => todo!(),
+            Bpp::B16 => todo!(),
+            // BGR8
+            Bpp::B24 => {
+                let line_len = self.header.width as usize * 3;
+                let mut r = Bgra8Buf::with_capacity(self.header.width as usize * 4 * line_count as usize);
+                for _ in 0..line_count {
+                    let mut line = self.task.recv().await?;
+                    if line.len() < line_len {
+                        return Err(unexpected_eof("did not contain all pixels").into());
+                    } else {
+                        line.truncate(line_len); // remove padding
+                        r.extend(Bgra8Buf::from_bgr8(line));
+                    }
+                }
+                self.pending_lines -= line_count;
+                Ok(r)
+            }
+            // BGRA8 or _BGR8
+            Bpp::B32 => {
+                let line_len = self.header.width as usize * 4;
+                let mut r = Bgra8Buf::with_capacity(line_len * line_count as usize);
+                for _ in 0..line_count {
+                    let mut line = self.task.recv().await?;
+                    if line.len() < line_len {
+                        return Err(unexpected_eof("did not contain all pixels").into());
+                    } else {
+                        line.truncate(line_len); // remove padding
+                        r.extend(Bgra8Buf::from_bgra8(line));
+                    }
+                }
+                self.pending_lines -= line_count;
+                Ok(r)
+            }
+        }
+    }
+
+    async fn read_rle_lines(&mut self, line_count: u32, rle8: bool) -> Result<Bgra8Buf, R::Error> {
         todo!()
+    }
+
+    async fn read_bitfield_lines(&mut self, line_count: u32) -> Result<Bgra8Buf, R::Error> {
+        todo!()
+    }
+}
+
+/// An async streaming BMP encoder.
+pub struct Encoder<S> {
+    task: S,
+    opaque: bool,
+    pending_bytes: usize,
+}
+impl<S: SenderTask> Encoder<S> {
+    /// Write the BMP header and starts the writer task.
+    pub async fn start(width: u32, height: u32, ppm: Ppm, opaque: bool, task: S) -> Result<Self, S::Error> {
+        let mut header = vec![0; 54];
+        header.extend(b"BM");
+
+        let pixels_size = width * height * if opaque { 3 } else { 4 };
+
+        header.extend(u32::to_be_bytes(54 + pixels_size)); // file size
+
+        header.extend([0; 4]); // unused
+
+        header.extend(u32::to_be_bytes(54 - header.len() as u32)); // pixels offset.
+
+        header.extend(40u32.to_be_bytes()); // header size
+        header.extend(width.to_be_bytes());
+        header.extend(height.to_be_bytes());
+        header.extend(1u16.to_be_bytes()); // 1 plane
+        header.extend(if opaque { 24u16 } else { 32u16 }.to_be_bytes());
+
+        let ppm = (ppm.max(0.dpi()).0 as u32).to_be_bytes();
+        header.extend(ppm); // ppm_x
+        header.extend(ppm); // ppm_y
+
+        header.extend([0; 8]); // 0u32 colors in pallete and 0u32 important colors.
+
+        match task.send(header).await {
+            Ok(_) => Ok(Encoder {
+                task,
+                opaque: true,
+                pending_bytes: pixels_size as usize,
+            }),
+            Err(_) => match task.finish().await {
+                Err(e) => Err(e),
+                Ok(_) => unreachable!(),
+            },
+        }
+    }
+
+    /// Encode and write more image pixels.
+    pub async fn write(&mut self, partial_bgra8_payload: Bgra8Buf) -> Result<(), task::SenderTaskClosed> {
+        let mut bytes: Vec<u8> = if self.opaque {
+            partial_bgra8_payload.into_bgr8()
+        } else {
+            partial_bgra8_payload.into_bgra8()
+        };
+        if self.pending_bytes < bytes.len() {
+            let rest = bytes.drain(self.pending_bytes..).collect();
+            if !bytes.is_empty() {
+                self.task.send(bytes).await?;
+            }
+            Err(task::SenderTaskClosed { payload: rest })
+        } else {
+            self.task.send(bytes).await
+        }
+    }
+
+    /// Flushes and closes the writer task, returns the write back and any error that happened during write.
+    pub async fn finish(self) -> Result<S::Writer, S::Error> {
+        self.task.finish().await
     }
 }
 
@@ -703,27 +859,36 @@ mod tests {
             };
 
             async_test(async move {
-                let mut file = task::io::ReadThenReceive::open(file_path).await.unwrap();
-                let r = Decoder::read_header_full(&mut file).await;
+                let file = task::io::ReadThenReceive::open(file_path).await.unwrap();
+                let r = Decoder::start(file, 10.kibi_bytes()).await;
                 match allow {
                     Do::Allow | Do::AllowHeader => {
-                        r.unwrap_or_else(|e| panic!("error decoding allowed bad file `{}` header\n{}", file_name, e));
+                        let mut d = r.unwrap_or_else(|e| panic!("error decoding allowed bad file `{}` header\n{}", file_name, e));
+                        match d.read_end().await {
+                            Ok((_, _)) => {
+                                if let Do::AllowHeader = allow {
+                                    panic!(
+                                        "bad file `{}` did not cause an error in pixel decoding, header: {:#?}",
+                                        file_name, d.header
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                if let Do::Allow = allow {
+                                    panic!("error decoding allowed bad file `{}` pixels\n{}", file_name, e);
+                                }
+                            }
+                        }
                     }
                     Do::Expect => {
-                        if let Ok(h) = r {
+                        if let Ok(r) = r {
                             panic!(
-                                "bad file `{}` did not cause an error in header decoding, result: {:#?}",
-                                file_name, h
+                                "bad file `{}` did not cause an error in header decoding, header: {:#?}",
+                                file_name, r.header
                             )
                         }
                     }
-                }
-
-                // TODO decode pixels
-                // match allow {
-                //     Do::Allow => {},
-                //     Do::AllowHeader | Do::Expect => {}
-                // }
+                };
             });
         }
     }
@@ -742,10 +907,13 @@ mod tests {
 
             async_test(async move {
                 let file = task::io::ReadThenReceive::open(file_path).await.unwrap();
-                let mut d = Decoder::start(file, usize::MAX)
+                let mut d = Decoder::start(file, 10.kibi_bytes())
                     .await
                     .unwrap_or_else(|e| panic!("error decoding good file `{}` header\n{}", file_name, e));
-                //d.read_end().await.unwrap_or_else(|| panic!("error decoding good file `{}` pixels", file_name));
+
+                d.read_end()
+                    .await
+                    .unwrap_or_else(|e| panic!("error decoding good file `{}` pixels\n{}", file_name, e));
             });
         }
     }

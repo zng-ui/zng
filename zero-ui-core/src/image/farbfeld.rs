@@ -28,8 +28,8 @@ impl<R> Decoder<R> {
     }
 
     /// `96.0`
-    pub fn dpi(&self) -> f32 {
-        96.0
+    pub fn dpi(&self) -> Ppi {
+        Ppi::default()
     }
 
     /// `sRGB`
@@ -63,13 +63,13 @@ where
     R: task::ReceiverTask,
 {
     /// Reads the header and starts the decoder task.
-    pub async fn start<RR>(mut read: RR, max_bytes: usize) -> Result<Decoder<R>, RR::Error>
+    pub async fn start<RR>(mut read: RR, max_bytes: ByteLength) -> Result<Decoder<R>, RR::Error>
     where
         RR: task::ReadThenReceive<Spawned = R>,
     {
         let (width, height) = Decoder::read_header(&mut read).await?;
 
-        check_limit(width, height, 4 * 2, max_bytes)?;
+        check_limit(width, height, (4 * 2).bytes(), max_bytes)?;
 
         let line_len = width as usize * 4 * 2;
         let task = read.spawn(line_len.bytes(), height as usize);
@@ -139,8 +139,8 @@ where
     }
 
     /// Encode and write more image pixels.
-    pub async fn write(&mut self, partial_bgra8_payload: impl Into<Bgra8Buf>) -> Result<(), task::SenderTaskClosed> {
-        let mut bytes: Vec<u8> = partial_bgra8_payload.into().into_rgba16_be8();
+    pub async fn write(&mut self, partial_bgra8_payload: Bgra8Buf) -> Result<(), task::SenderTaskClosed> {
+        let mut bytes: Vec<u8> = partial_bgra8_payload.into_rgba16_be8();
         if self.pending_bytes < bytes.len() {
             let rest = bytes.drain(self.pending_bytes..).collect();
             if !bytes.is_empty() {

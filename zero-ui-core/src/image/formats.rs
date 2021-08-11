@@ -261,16 +261,16 @@ impl Deref for Bgra8Buf {
     }
 }
 
-pub(crate) fn check_limit(width: u32, height: u32, bytes_per_pixel: usize, max_bytes: usize) -> io::Result<()> {
+pub(crate) fn check_limit(width: u32, height: u32, bytes_per_pixel: ByteLength, max_bytes: ByteLength) -> io::Result<()> {
     let width = width as usize;
     let height = height as usize;
 
     let result = width
-        .checked_mul(bytes_per_pixel)
+        .checked_mul(bytes_per_pixel.0)
         .and_then(|r| r.checked_mul(height))
         .unwrap_or(usize::MAX);
 
-    if result > max_bytes {
+    if result > max_bytes.0 {
         Err(io::Error::new(io::ErrorKind::OutOfMemory, "image too large"))
     } else {
         Ok(())
