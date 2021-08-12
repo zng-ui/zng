@@ -18,3 +18,6 @@ gleam = "0.6.17" #version required by webrender
 # ipc
 ipmpsc = "0.5"
 serde = { version = "1.0", features = ["derive"] }
+
+# util
+uuid = { version = "0.8", features = ["v4"] }
