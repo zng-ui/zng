@@ -12,7 +12,6 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-use glutin::{monitor::MonitorHandle, window::WindowBuilder};
 use linear_map::LinearMap;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
@@ -21,84 +20,20 @@ use std::{
     rc::Rc,
     sync::Arc,
 };
-use webrender::api::{Epoch, PipelineId, RenderApi};
 
-pub use glutin::window::{CursorIcon, Theme as WindowTheme};
+pub use zero_ui_wr::{CursorIcon, Theme as WindowTheme};
 
 unique_id! {
-    /// Unique identifier of a headless window.
+    /// Unique identifier of a [`OpenWindow`].
     ///
-    /// See [`WindowId`] for more details.
-    pub struct HeadlessWindowId;
+    /// Can be obtained from [`OpenWindow::id`] or [`WindowContext::window_id`] or [`WidgetContext::path`].
+    #[derive(Debug)]
+    pub struct WindowId;
 }
 
-/// Unique identifier of a headed window or a headless window backed by a hidden system window.
-///
-/// See [`WindowId`] for more details.
-pub type SystemWindowId = glutin::window::WindowId;
-
-/// Unique identifier of a [`OpenWindow`].
-///
-/// Can be obtained from [`OpenWindow::id`] or [`WindowContext::window_id`] or [`WidgetContext::path`].
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
-pub enum WindowId {
-    /// The id for a *real* system window, this is the case for all windows in [headed mode](OpenWindow::mode)
-    /// and also for headless windows with renderer enabled in compatibility mode, when a hidden window is used.
-    System(SystemWindowId),
-    /// The id for a headless window, when the window is not backed by a system window.
-    Headless(HeadlessWindowId),
-}
-impl WindowId {
-    /// New unique [`Headless`](Self::Headless) window id.
-    #[inline]
-    pub fn new_unique() -> Self {
-        WindowId::Headless(HeadlessWindowId::new_unique())
-    }
-}
-impl From<SystemWindowId> for WindowId {
-    fn from(id: SystemWindowId) -> Self {
-        WindowId::System(id)
-    }
-}
-impl From<HeadlessWindowId> for WindowId {
-    fn from(id: HeadlessWindowId) -> Self {
-        WindowId::Headless(id)
-    }
-}
-impl fmt::Debug for WindowId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WindowId::System(s) => {
-                let window_id = format!("{:?}", s);
-                let window_id_raw = window_id.trim_start_matches("WindowId(").trim_end_matches(')');
-                if f.alternate() {
-                    write!(f, "WindowId::System({})", window_id_raw)
-                } else {
-                    write!(f, "WindowId({})", window_id_raw)
-                }
-            }
-            WindowId::Headless(s) => {
-                if f.alternate() {
-                    write!(f, "WindowId::Headless({})", s.get())
-                } else {
-                    write!(f, "WindowId({})", s.get())
-                }
-            }
-        }
-    }
-}
 impl fmt::Display for WindowId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WindowId::System(s) => {
-                let window_id = format!("{:?}", s);
-                let window_id_raw = window_id.trim_start_matches("WindowId(").trim_end_matches(')');
-                write!(f, "WinId({})", window_id_raw)
-            }
-            WindowId::Headless(s) => {
-                write!(f, "WinId({})", s.get())
-            }
-        }
+        write!(f, "WinId({})", self.get())
     }
 }
 
@@ -2930,14 +2865,13 @@ struct OwnedWindowContext {
     root_transform_key: WidgetTransformKey,
     state: OwnedStateMap,
     root: Window,
-    api: Option<Rc<RenderApi>>,
     update: UpdateDisplayRequest,
 }
 impl OwnedWindowContext {
     fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut BoxedUiNode, &mut WidgetContext)) -> UpdateDisplayRequest {
         let root = &mut self.root;
 
-        ctx.window_context(self.window_id, self.mode, &mut self.state, &self.api, |ctx| {
+        ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
             let child = &mut root.child;
             ctx.widget_context(root.id, &mut root.state, |ctx| {
                 f(child, ctx);

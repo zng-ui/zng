@@ -2,7 +2,7 @@
 
 use crate::{context::LayoutMetrics, render::FrameBinding, units::*, var::impl_from_and_into_var};
 use std::fmt;
-use webrender::api::{self as wr, FilterOp};
+use webrender_api::{self as wr, FilterOp};
 
 ///<span data-inline></span> Hexadecimal color literal.
 ///
@@ -43,7 +43,7 @@ pub use crate::hex;
 pub use zero_ui_proc_macros::hex_color;
 
 /// Webrender RGBA.
-pub type RenderColor = webrender::api::ColorF;
+pub type RenderColor = webrender_api::ColorF;
 
 /// Minimal difference between values in around the 0.0..=1.0 scale.
 const EPSILON: f32 = 0.00001;

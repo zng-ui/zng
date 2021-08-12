@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use glutin::event::{ElementState, KeyboardInput, ModifiersState, MouseButton, MouseScrollDelta, TouchPhase};
+pub use glutin::event::{
+    AxisId, ButtonId, ElementState, KeyboardInput, ModifiersState, MouseButton, MouseScrollDelta, ScanCode, TouchPhase, VirtualKeyCode,
+};
 use serde::*;
 use webrender::api::{units::LayoutSize, BuiltDisplayListDescriptor, PipelineId};
 
@@ -47,7 +49,6 @@ pub enum Response {
 #[derive(Serialize, Deserialize)]
 pub enum Ev {
     // Window events
-    WindowOpened(WinId),
     WindowResized(WinId, (u32, u32)),
     WindowMoved(WinId, (i32, i32)),
     DroppedFile(WinId, PathBuf),
@@ -57,15 +58,15 @@ pub enum Ev {
     Focused(WinId, bool),
     KeyboardInput(WinId, DevId, KeyboardInput),
     ModifiersChanged(WinId, ModifiersState),
-    CursorMoved(WinId, DevId, (u32, u32)),
+    CursorMoved(WinId, DevId, (i32, i32)),
     CursorEntered(WinId, DevId),
     CursorLeft(WinId, DevId),
     MouseWheel(WinId, DevId, MouseScrollDelta, TouchPhase),
     MouseInput(WinId, DevId, ElementState, MouseButton),
     TouchpadPressure(WinId, DevId, f32, i64),
-    AxisMotion(WinId, DevId, u32, f64),
+    AxisMotion(WinId, DevId, AxisId, f64),
     Touch(WinId, DevId, TouchPhase, (u32, u32), Option<Force>, u64),
-    ScaleFactorChanged(WinId, f64, (u32, u32)),
+    ScaleFactorChanged(WinId, f32, (u32, u32)),
     ThemeChanged(WinId, Theme),
     WindowCloseRequested(WinId),
     WindowClosed(WinId),
@@ -75,8 +76,8 @@ pub enum Ev {
     DeviceRemoved(DevId),
     DeviceMouseMotion(DevId, (f64, f64)),
     DeviceMouseWheel(DevId, MouseScrollDelta),
-    DeviceMotion(DevId, u32, f64),
-    DeviceButton(DevId, u32, ElementState),
+    DeviceMotion(DevId, AxisId, f64),
+    DeviceButton(DevId, ButtonId, ElementState),
     DeviceKey(DevId, KeyboardInput),
     DeviceText(DevId, char),
 }
@@ -130,9 +131,13 @@ impl From<glutin::event::Force> for Force {
     }
 }
 
+/// OS theme.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Theme {
+    /// Dark text on light background.
     Light,
+
+    /// Light text on dark background.
     Dark,
 }
 impl From<glutin::window::Theme> for Theme {

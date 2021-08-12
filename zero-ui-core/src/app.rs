@@ -16,28 +16,25 @@ use crate::{
     text::FontManager,
     window::{WindowId, WindowManager},
 };
-use glutin::event::{DeviceEvent, Event as RawEvent, WindowEvent};
-pub use glutin::event_loop::ControlFlow;
-use parking_lot::Mutex;
+
+use linear_map::LinearMap;
+use std::cell::RefCell;
 use std::future::Future;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::task::Waker;
 use std::{
     any::{type_name, TypeId},
     fmt,
-    sync::atomic::AtomicBool,
     time::Instant,
 };
+
+pub use zero_ui_wr::{init, ControlFlow};
 
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///
 /// Contains the value that could not be send or `()` for receiver errors.
 pub struct AppShutdown<T>(pub T);
-impl<T> From<glutin::event_loop::EventLoopClosed<T>> for AppShutdown<T> {
-    fn from(e: glutin::event_loop::EventLoopClosed<T>) -> Self {
-        AppShutdown(e.0)
-    }
-}
 impl From<flume::RecvError> for AppShutdown<()> {
     fn from(_: flume::RecvError) -> Self {
         AppShutdown(())
@@ -412,24 +409,27 @@ cancelable_event_args! {
 
 /// Defines and runs an application.
 ///
+/// # Init
+///
+/// You must call the [`init`] function before all other code in the app `main` function, see [`init`]
+/// for more details.
+///
+/// The [`init`] function is called in [`blank`] and [`default`], so if this is the first thing
+/// you are doing in the `main` function you don't need to call [`init`].
+///
 /// # Debug Log
 ///
 /// In debug builds, `App` sets a [`logger`](log) that prints warnings and errors to `stderr`
-/// if no logger was registered before the call to [`blank`](Self::blank) or [`default`](Self::default).
+/// if no logger was registered before the call to [`blank`] or [`default`].
+///
+/// [`blank`]: App::blank
+/// [`default`]: App::default
 pub struct App;
 
 impl App {
-    /// If a headed app is running in the current process.
-    ///
-    /// Only a single headed app is allowed per-process.
-    #[inline]
-    pub fn is_headed_running() -> bool {
-        HEADED_APP_RUNNING.load(std::sync::atomic::Ordering::Acquire)
-    }
-
     /// If an app is already running in the current thread.
     ///
-    /// Only a single app is allowed per-thread and only a single headed app is allowed per-process.
+    /// Only a single app is allowed per-thread.
     #[inline]
     pub fn is_running() -> bool {
         crate::var::Vars::instantiated() || crate::event::Events::instantiated()
@@ -478,6 +478,7 @@ impl App {
 impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        init();
         DebugLogger::init();
         AppExtended { extensions: vec![] }
     }
@@ -626,9 +627,6 @@ impl<E: AppExtension> AppExtended<E> {
         self.extend(EnableDeviceEvents)
     }
 }
-
-static HEADED_APP_RUNNING: AtomicBool = AtomicBool::new(false);
-
 impl<E: AppExtension> AppExtended<E> {
     /// Gets if the application is already extended with the extension type.
     #[inline]
@@ -643,27 +641,16 @@ impl<E: AppExtension> AppExtended<E> {
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
-        if !is_main_thread::is_main_thread().unwrap_or(true) {
-            panic!("can only init headed app in the main thread")
-        }
-        if HEADED_APP_RUNNING.swap(true, std::sync::atomic::Ordering::AcqRel) {
-            panic!("only one headed app is allowed per process")
-        }
-
         #[cfg(feature = "app_profiler")]
         register_thread_with_profiler();
 
         profile_scope!("app::run");
 
-        let event_loop = glutin::event_loop::EventLoop::with_user_event();
-        let sender = AppEventSender::from_winit(event_loop.create_proxy());
-        let window_target = WindowTarget::from_winit(&event_loop);
+        let mut app = RunningApp::start(self.extensions);
 
-        let mut app = RunningApp::start(self.extensions, sender, window_target);
+        start(&mut app.ctx());
 
-        start(&mut app.ctx(window_target));
-
-        app.run_headed(event_loop)
+        app.run_headed()
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
@@ -679,28 +666,57 @@ impl<E: AppExtension> AppExtended<E> {
             ProfileScope::new("app::run_headless")
         };
 
-        let (sender, receiver) = AppEventSender::new_headless();
-
-        let app = RunningApp::start(self.extensions.boxed(), sender, WindowTarget::headless());
+        let app = RunningApp::start(self.extensions.boxed());
 
         HeadlessApp {
-            app_event_receiver: receiver,
             app,
 
             #[cfg(feature = "app_profiler")]
             _pf: profile_scope,
         }
     }
+}
 
-    /// Start a [`RunningApp`] that will be controlled by an external event loop.
-    pub fn run_client(self, app_event_sender: AppEventSender, window_target: WindowTarget) -> RunningApp<E> {
-        RunningApp::start(self.extensions, app_event_sender, window_target)
+/// Shared reference to the running View Process.
+/// 
+/// This is the lowest level API, used for implementing fundamental services. 
+#[derive(Clone)]
+pub struct ViewProcessRef(Rc<ViewProcess>);
+struct ViewProcess {
+    process: zero_ui_wr::App,
+    window_ids: RefCell<LinearMap<u32, WindowId>>,
+    device_ids: RefCell<LinearMap<u32, WindowId>>,
+}
+impl ViewProcessRef {
+    /// Spawn the View Process.
+    fn start<F>(request: zero_ui_wr::StartRequest, on_event: F) -> Self 
+    where
+    F: FnMut(zero_ui_wr::Ev) + Send + 'static,
+    {
+        Self(Rc::new(ViewProcess {
+            process: zero_ui_wr::App::start(request, on_event),
+            window_ids: LinearMap::new(),
+            device_ids: LinearMap::new(),
+        }))
     }
 
-    /// Start a [`RunningApp`] that will be controlled by an external event loop, the app extensions
-    /// are boxed making the app type more manageable.
-    pub fn run_client_boxed(self, app_event_sender: AppEventSender, window_target: WindowTarget) -> RunningApp<Box<dyn AppExtensionBoxed>> {
-        RunningApp::start(self.extensions.boxed(), app_event_sender, window_target)
+    /// Open a window and associate it with the `window_id`.
+    pub fn open_window(&self, window_id: WindowId, request: zero_ui_wr::OpenWindowRequest) {
+        assert!(self.0.window_ids.borrow().values().all(|v| v != window_id));
+
+        let id = self.0.process.open_window(request);
+
+        self.0.window_ids.borrow_mut().insert(id, window_id);
+    }
+
+    /// Translate `WinId` to `WindowId`.
+    fn window_id(&self, id: zero_ui_wr::WinId) -> Option<WindowId> {
+        self.0.window_ids.borrow().get(&id).copied()
+    }
+
+    /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
+    fn device_id(&self, id: zero_ui_wr::DevId) -> DeviceId {
+        self.0.device_id.borrow_mut().entry(id).or_insert_with(DeviceId::new_unique)
     }
 }
 
@@ -709,6 +725,7 @@ pub struct RunningApp<E: AppExtension> {
     extensions: E,
     device_events: bool,
     owned_ctx: OwnedAppContext,
+    receiver: flume::Receiver<AppEvent>,
 
     // need to probe context to see if there are updates.
     maybe_has_updates: bool,
@@ -717,9 +734,12 @@ pub struct RunningApp<E: AppExtension> {
 
     // shutdown was requested.
     exiting: bool,
+
+    window_ids: LinearMap<u32, WindowId>,
+    device_ids: LinearMap<u32, WindowId>,
 }
 impl<E: AppExtension> RunningApp<E> {
-    fn start(mut extensions: E, event_sender: AppEventSender, window_target: WindowTarget) -> Self {
+    fn start(mut extensions: E) -> Self {
         if App::is_running() {
             if cfg!(any(test, doc, feature = "test_util")) {
                 panic!("only one app or `TestWidgetContext` is allowed per thread")
@@ -728,9 +748,11 @@ impl<E: AppExtension> RunningApp<E> {
             }
         }
 
-        let mut owned_ctx = OwnedAppContext::instance(event_sender);
+        let (sender, receiver) = AppEventSender::new();
 
-        let mut ctx = owned_ctx.borrow(window_target);
+        let mut owned_ctx = OwnedAppContext::instance(sender);
+
+        let mut ctx = owned_ctx.borrow();
         ctx.services.register(AppProcess::new(ctx.updates.sender()));
         extensions.init(&mut ctx);
 
@@ -738,49 +760,35 @@ impl<E: AppExtension> RunningApp<E> {
             device_events: extensions.enable_device_events(),
             extensions,
             owned_ctx,
+            receiver,
             maybe_has_updates: true,
             wake_time: None,
             exiting: false,
+            window_ids: LinearMap::new(),
+            device_ids: LinearMap::new(),
         }
     }
 
-    fn run_headed(self, event_loop: glutin::event_loop::EventLoop<AppEvent>) -> ! {
-        let mut app = Some(self);
-        event_loop.run(move |event, window_target, control_flow| {
-            let window_target = WindowTarget::from_winit(window_target);
+    fn run_headed(mut self) -> ! {
+        let view_evs_sender = self.owned_ctx.borrow().updates.sender();
 
-            if let RawEvent::LoopDestroyed = &event {
-                app.take().unwrap().shutdown(window_target);
-                return;
-            }
+        let view_app = zero_ui_wr::App::start(
+            zero_ui_wr::StartRequest {
+                device_events: self.device_events,
+            },
+            move |ev| view_evs_sender.send_view_event(ev),
+        );
 
-            let app = app.as_mut().expect("app already shutdown");
-
-            match event {
-                RawEvent::NewEvents(c) => {
-                    if let glutin::event::StartCause::ResumeTimeReached { .. } = c {
-                        app.wait_until_elapsed();
-                    }
-                }
-                RawEvent::WindowEvent { window_id, event } => app.window_event(window_target, window_id.into(), &event),
-                RawEvent::DeviceEvent { device_id, event } => app.device_event(window_target, device_id.into(), &event),
-                RawEvent::UserEvent(app_event) => app.app_event(window_target, app_event),
-                RawEvent::Suspended => app.suspended(window_target),
-                RawEvent::Resumed => app.resumed(window_target),
-                RawEvent::MainEventsCleared => {
-                    *control_flow = app.update(window_target, &mut ());
-                }
-                RawEvent::RedrawRequested(window_id) => app.redraw_requested(window_target, window_id.into()),
-                RawEvent::RedrawEventsCleared => {}
-                RawEvent::LoopDestroyed => unreachable!(),
-            }
-        })
+        loop {
+            let ev = self.receiver.recv().unwrap();
+            self.app_event(ev);
+        }
     }
 
     /// Exclusive borrow the app context.
-    pub fn ctx<'a, 'w>(&'a mut self, window_target: WindowTarget<'w>) -> AppContext<'a, 'w> {
+    pub fn ctx(&mut self) -> AppContext {
         self.maybe_has_updates = true;
-        self.owned_ctx.borrow(window_target)
+        self.owned_ctx.borrow()
     }
 
     /// Borrow the [`Vars`] only.
@@ -794,200 +802,192 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Notify an event directly to the app extensions.
-    pub fn notify_event<Ev: crate::event::Event>(&mut self, window_target: WindowTarget, _event: Ev, args: Ev::Args) {
+    pub fn notify_event<Ev: crate::event::Event>(&mut self, _event: Ev, args: Ev::Args) {
         let update = EventUpdate::<Ev>(args);
-        let mut ctx = self.owned_ctx.borrow(window_target);
+        let mut ctx = self.owned_ctx.borrow();
         self.extensions.event_preview(&mut ctx, &update);
         self.extensions.event_ui(&mut ctx, &update);
         self.extensions.event(&mut ctx, &update);
         self.maybe_has_updates = true;
     }
 
-    /// Process window event.
-    pub fn window_event(&mut self, window_target: WindowTarget, window_id: WindowId, event: &WindowEvent) {
+    fn window_id(&mut self, id: u32) -> WindowId {
+        *self.window_ids.entry(id).or_insert_with(WindowId::new_unique)
+    }
+
+    fn device_id(&mut self, id: u32) -> DeviceId {
+        *self.window_ids.entry(id).or_insert_with(WindowId::new_unique)
+    }
+
+    /// Process a View Process event.
+    pub fn view_event(&mut self, ev: zero_ui_wr::Ev) {
+        use raw_device_events::*;
         use raw_events::*;
 
-        match event {
-            WindowEvent::Resized(size) => {
-                let args = RawWindowResizedArgs::now(window_id, (size.width, size.height));
-                self.notify_event(window_target, RawWindowResizedEvent, args);
+        match ev {
+            zero_ui_wr::Ev::WindowResized(w_id, size) => {
+                let args = RawWindowResizedArgs::now(self.window_id(w_id), size);
+                self.notify_event(RawWindowResizedEvent, args);
             }
-            WindowEvent::Moved(pos) => {
-                let args = RawWindowMovedArgs::now(window_id, (pos.x, pos.y));
-                self.notify_event(window_target, RawWindowMovedEvent, args);
+            zero_ui_wr::Ev::WindowMoved(w_id, pos) => {
+                let args = RawWindowMovedArgs::now(self.window_id(w_id), pos);
+                self.notify_event(RawWindowMovedEvent, args);
             }
-            WindowEvent::CloseRequested => {
-                let args = RawWindowCloseRequestedArgs::now(window_id);
-                self.notify_event(window_target, RawWindowCloseRequestedEvent, args);
+            zero_ui_wr::Ev::DroppedFile(w_id, file) => {
+                let args = RawDroppedFileArgs::now(self.window_id(w_id), file);
+                self.notify_event(RawDroppedFileEvent, args);
             }
-            WindowEvent::Destroyed => {
-                let args = RawWindowClosedArgs::now(window_id);
-                self.notify_event(window_target, RawWindowClosedEvent, args);
+            zero_ui_wr::Ev::HoveredFile(w_id, file) => {
+                let args = RawHoveredFileArgs::now(self.window_id(w_id), file);
+                self.notify_event(RawHoveredFileEvent, args);
             }
-            WindowEvent::DroppedFile(file) => {
-                let args = RawDroppedFileArgs::now(window_id, file);
-                self.notify_event(window_target, RawDroppedFileEvent, args);
+            zero_ui_wr::Ev::HoveredFileCancelled(w_id) => {
+                let args = RawHoveredFileCancelledArgs::now(self.window_id(w_id));
+                self.notify_event(RawHoveredFileCancelledEvent, args);
             }
-            WindowEvent::HoveredFile(file) => {
-                let args = RawHoveredFileArgs::now(window_id, file);
-                self.notify_event(window_target, RawHoveredFileEvent, args);
+            zero_ui_wr::Ev::ReceivedCharacter(w_id, c) => {
+                let args = RawCharInputArgs::now(self.window_id(w_id), c);
+                self.notify_event(RawCharInputEvent, args);
             }
-            WindowEvent::HoveredFileCancelled => {
-                let args = RawHoveredFileCancelledArgs::now(window_id);
-                self.notify_event(window_target, RawHoveredFileCancelledEvent, args);
+            zero_ui_wr::Ev::Focused(w_id, focused) => {
+                let args = RawWindowFocusArgs::now(self.window_id(w_id), focused);
+                self.notify_event(RawWindowFocusEvent, args);
             }
-            WindowEvent::ReceivedCharacter(c) => {
-                let args = RawCharInputArgs::now(window_id, *c);
-                self.notify_event(window_target, RawCharInputEvent, args);
-            }
-            WindowEvent::Focused(f) => {
-                let args = RawWindowFocusArgs::now(window_id, *f);
-                self.notify_event(window_target, RawWindowFocusEvent, args);
-            }
-            WindowEvent::KeyboardInput { device_id, input, .. } => {
+            zero_ui_wr::Ev::KeyboardInput(w_id, d_id, input) => {
                 let args = RawKeyInputArgs::now(
-                    window_id,
-                    *device_id,
+                    self.window_id(w_id),
+                    self.device_id(d_id),
                     input.scancode,
                     input.state,
                     input.virtual_keycode.map(Into::into),
                 );
-                self.notify_event(window_target, RawKeyInputEvent, args);
+                self.notify_event(RawKeyInputEvent, args);
             }
-            WindowEvent::ModifiersChanged(modifiers) => {
-                let args = RawModifiersChangedArgs::now(window_id, *modifiers);
-                self.notify_event(window_target, RawModifiersChangedEvent, args);
+            zero_ui_wr::Ev::ModifiersChanged(w_id, state) => {
+                let args = RawModifiersChangedArgs::now(self.window_id(w_id), state);
+                self.notify_event(RawModifiersChangedEvent, args);
             }
-            WindowEvent::CursorMoved { device_id, position, .. } => {
-                let args = RawCursorMovedArgs::now(window_id, *device_id, (position.x as i32, position.y as i32));
-                self.notify_event(window_target, RawCursorMovedEvent, args);
+            zero_ui_wr::Ev::CursorMoved(w_id, d_id, pos) => {
+                let args = RawCursorMovedArgs::now(self.window_id(w_id), self.device_id(d_id), pos);
+                self.notify_event(RawCursorMovedEvent, args);
             }
-            WindowEvent::CursorEntered { device_id } => {
-                let args = RawCursorArgs::now(window_id, *device_id);
-                self.notify_event(window_target, RawCursorEnteredEvent, args);
+            zero_ui_wr::Ev::CursorEntered(w_id, d_id) => {
+                let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
+                self.notify_event(RawCursorEnteredEvent, args);
             }
-            WindowEvent::CursorLeft { device_id } => {
-                let args = RawCursorArgs::now(window_id, *device_id);
-                self.notify_event(window_target, RawCursorLeftEvent, args);
+            zero_ui_wr::Ev::CursorLeft(w_id, d_id) => {
+                let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
+                self.notify_event(RawCursorLeftEvent, args);
             }
-            WindowEvent::MouseWheel {
-                device_id, delta, phase, ..
-            } => {
+            zero_ui_wr::Ev::MouseWheel(w_id, d_id, delta, phase) => {
                 // TODO
                 let _ = (delta, phase);
-                let args = RawMouseWheelArgs::now(window_id, *device_id);
-                self.notify_event(window_target, RawMouseWheelEvent, args);
+                let args = RawMouseWheelArgs::now(self.window_id(w_id), self.device_id(d_id));
+                self.notify_event(RawMouseWheelEvent, args);
             }
-            WindowEvent::MouseInput {
-                device_id, state, button, ..
-            } => {
-                let args = RawMouseInputArgs::now(window_id, *device_id, *state, *button);
-                self.notify_event(window_target, RawMouseInputEvent, args);
+            zero_ui_wr::Ev::MouseInput(w_id, d_id, state, button) => {
+                let args = RawMouseInputArgs::now(self.window_id(w_id), self.device_id(d_id), state, button);
+                self.notify_event(RawMouseInputEvent, args);
             }
-            WindowEvent::TouchpadPressure {
-                device_id,
-                pressure,
-                stage,
-            } => {
+            zero_ui_wr::Ev::TouchpadPressure(w_id, d_id, pressure, stage) => {
                 // TODO
                 let _ = (pressure, stage);
-                let args = RawTouchpadPressureArgs::now(window_id, *device_id);
-                self.notify_event(window_target, RawTouchpadPressureEvent, args);
+                let args = RawTouchpadPressureArgs::now(self.window_id(w_id), self.device_id(d_id));
+                self.notify_event(RawTouchpadPressureEvent, args);
             }
-            WindowEvent::AxisMotion { device_id, axis, value } => {
-                let args = RawAxisMotionArgs::now(window_id, *device_id, *axis, *value);
-                self.notify_event(window_target, RawAxisMotionEvent, args);
+            zero_ui_wr::Ev::AxisMotion(w_id, d_id, axis, value) => {
+                let args = RawAxisMotionArgs::now(self.window_id(w_id), self.device_id(d_id), *axis, *value);
+                self.notify_event(RawAxisMotionEvent, args);
             }
-            WindowEvent::Touch(t) => {
+            zero_ui_wr::Ev::Touch(w_id, d_id, phase, pos, force, finger_id) => {
                 // TODO
-                let args = RawTouchArgs::now(window_id, t.device_id);
-                self.notify_event(window_target, RawTouchEvent, args);
+                let args = RawTouchArgs::now(self.window_id(w_id), self.device_id(d_id));
+                self.notify_event(RawTouchEvent, args);
             }
-            WindowEvent::ScaleFactorChanged {
-                scale_factor,
-                new_inner_size,
-            } => {
-                let args = RawWindowScaleFactorChangedArgs::now(window_id, *scale_factor, (new_inner_size.width, new_inner_size.height));
-                self.notify_event(window_target, RawWindowScaleFactorChangedEvent, args);
+            zero_ui_wr::Ev::ScaleFactorChanged(w_id, scale, new_size) => {
+                let args = RawWindowScaleFactorChangedArgs::now(self.window_id(w_id), scale, new_size);
+                self.notify_event(RawWindowScaleFactorChangedEvent, args);
             }
-            WindowEvent::ThemeChanged(t) => {
-                let args = RawWindowThemeChangedArgs::now(window_id, *t);
-                self.notify_event(window_target, RawWindowThemeChangedEvent, args);
+            zero_ui_wr::Ev::ThemeChanged(w_id, theme) => {
+                let args = RawWindowThemeChangedArgs::now(self.window_id(w_id), theme);
+                self.notify_event(RawWindowThemeChangedEvent, args);
+            }
+            zero_ui_wr::Ev::WindowCloseRequested(w_id) => {
+                let args = RawWindowCloseRequestedArgs::now(self.window_id(w_id));
+                self.notify_event(RawWindowCloseRequestedEvent, args);
+            }
+            zero_ui_wr::Ev::WindowClosed(w_id) => {
+                let args = RawWindowClosedArgs::now(self.window_id(w_id));
+                self.notify_event(RawWindowClosedEvent, args);
+            }
+
+            // `device_events`
+            zero_ui_wr::Ev::DeviceAdded(d_id) => {
+                let args = DeviceArgs::now(self.device_id(d_id));
+                self.notify_event(DeviceAddedEvent, args);
+            }
+            zero_ui_wr::Ev::DeviceRemoved(d_id) => {
+                let args = DeviceArgs::now(self.device_id(d_id));
+                self.notify_event(DeviceRemovedEvent, args);
+            }
+            zero_ui_wr::Ev::DeviceMouseMotion(d_id, delta) => {
+                let args = MouseMotionArgs::now(self.device_id(d_id), delta);
+                self.notify_event(MouseMotionEvent, args);
+            }
+            zero_ui_wr::Ev::DeviceMouseWheel(d_id, delta) => {
+                let args = MouseWheelArgs::now(self.device_id(d_id), *delta);
+                self.notify_event(MouseWheelEvent, args);
+            }
+            zero_ui_wr::Ev::DeviceMotion(d_id, axis, value) => {
+                let args = MotionArgs::now(self.device_id(d_id), axis, value);
+                self.notify_event(MotionEvent, args);
+            }
+            zero_ui_wr::Ev::DeviceButton(d_id, button, state) => {
+                let args = ButtonArgs::now(self.device_id(d_id), button, state);
+                self.notify_event(ButtonEvent, args);
+            }
+            zero_ui_wr::Ev::DeviceKey(d_id, k) => {
+                let args = KeyArgs::now(self.device_id(d_id), k.scancode, k.state, k.virtual_keycode.map(Into::into));
+                self.notify_event(KeyEvent, args);
+            }
+            zero_ui_wr::Ev::DeviceText(d_id, c) => {
+                let args = TextArgs::now(self.device_id(d_id), c);
+                self.notify_event(TextEvent, args);
             }
         }
+
         self.maybe_has_updates = true;
     }
 
-    /// Process device event.
-    pub fn device_event(&mut self, window_target: WindowTarget, device_id: DeviceId, event: &DeviceEvent) {
-        use raw_device_events::*;
-        if self.device_events {
-            match event {
-                DeviceEvent::Added => {
-                    let args = DeviceArgs::now(device_id);
-                    self.notify_event(window_target, DeviceAddedEvent, args);
-                }
-                DeviceEvent::Removed => {
-                    let args = DeviceArgs::now(device_id);
-                    self.notify_event(window_target, DeviceRemovedEvent, args);
-                }
-                DeviceEvent::MouseMotion { delta } => {
-                    let args = MouseMotionArgs::now(device_id, *delta);
-                    self.notify_event(window_target, MouseMotionEvent, args);
-                }
-                DeviceEvent::MouseWheel { delta } => {
-                    let args = MouseWheelArgs::now(device_id, *delta);
-                    self.notify_event(window_target, MouseWheelEvent, args);
-                }
-                DeviceEvent::Motion { axis, value } => {
-                    let args = MotionArgs::now(device_id, *axis, *value);
-                    self.notify_event(window_target, MotionEvent, args);
-                }
-                DeviceEvent::Button { button, state } => {
-                    let args = ButtonArgs::now(device_id, *button, *state);
-                    self.notify_event(window_target, ButtonEvent, args);
-                }
-                DeviceEvent::Key(k) => {
-                    let args = KeyArgs::now(device_id, k.scancode, k.state, k.virtual_keycode.map(Into::into));
-                    self.notify_event(window_target, KeyEvent, args);
-                }
-                DeviceEvent::Text { codepoint } => {
-                    let args = TextArgs::now(device_id, *codepoint);
-                    self.notify_event(window_target, TextEvent, args);
-                }
-            }
-            self.maybe_has_updates = true;
-        }
-    }
-
     /// Process an [`AppEvent`].
-    pub fn app_event(&mut self, window_target: WindowTarget, app_event: AppEvent) {
-        match app_event.0 {
-            AppEventData::NewFrameReady(window_id) => {
-                let mut ctx = self.owned_ctx.borrow(window_target);
+    pub fn app_event(&mut self, app_event: AppEvent) {
+        match app_event {
+            AppEvent::ViewEvent(ev) => self.view_event(ev),
+            AppEvent::NewFrameReady(window_id) => {
+                let mut ctx = self.owned_ctx.borrow();
                 self.extensions.new_frame_ready(&mut ctx, window_id);
             }
-            AppEventData::Update => {
-                self.owned_ctx.borrow(window_target).updates.update();
+            AppEvent::Update => {
+                self.owned_ctx.borrow().updates.update();
             }
-            AppEventData::Event(e) => {
-                self.owned_ctx.borrow(window_target).events.notify_app_event(e);
+            AppEvent::Event(e) => {
+                self.owned_ctx.borrow().events.notify_app_event(e);
             }
-            AppEventData::Var => {
-                self.owned_ctx.borrow(window_target).vars.receive_sended_modify();
+            AppEvent::Var => {
+                self.owned_ctx.borrow().vars.receive_sended_modify();
             }
-            AppEventData::ResumeUnwind(p) => std::panic::resume_unwind(p),
+            AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
         self.maybe_has_updates = true;
     }
 
     /// Process application suspension.
-    pub fn suspended(&mut self, _event_loop: WindowTarget) {
+    pub fn suspended(&mut self) {
         log::error!(target: "app", "TODO suspended");
     }
 
     /// Process application resume from suspension.
-    pub fn resumed(&mut self, _event_loop: WindowTarget) {
+    pub fn resumed(&mut self) {
         log::error!(target: "app", "TODO resumed");
     }
 
@@ -996,7 +996,7 @@ impl<E: AppExtension> RunningApp<E> {
     /// if there aren't.
     ///
     /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
-    pub fn update<O: AppUpdateObserver>(&mut self, window_target: WindowTarget, observer: &mut O) -> ControlFlow {
+    pub fn update<O: AppUpdateObserver>(&mut self, observer: &mut O) -> ControlFlow {
         if self.maybe_has_updates {
             self.maybe_has_updates = false;
 
@@ -1015,7 +1015,7 @@ impl<E: AppExtension> RunningApp<E> {
                 display_update |= u.display_update;
 
                 if u.update {
-                    let mut ctx = self.owned_ctx.borrow(window_target);
+                    let mut ctx = self.owned_ctx.borrow();
 
                     // check shutdown.
                     if let Some(r) = ctx.services.app_process().take_requests() {
@@ -1061,7 +1061,7 @@ impl<E: AppExtension> RunningApp<E> {
                 } else if display_update != UpdateDisplayRequest::None {
                     display_update = UpdateDisplayRequest::None;
 
-                    let mut ctx = self.owned_ctx.borrow(window_target);
+                    let mut ctx = self.owned_ctx.borrow();
 
                     self.extensions.update_display(&mut ctx, display_update);
                     observer.update_display(&mut ctx, display_update);
@@ -1080,15 +1080,9 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    /// OS requested a redraw.
-    pub fn redraw_requested(&mut self, window_target: WindowTarget, window_id: WindowId) {
-        let mut ctx = self.owned_ctx.borrow(window_target);
-        self.extensions.redraw_requested(&mut ctx, window_id);
-    }
-
     /// De-initializes extensions and drops.
-    pub fn shutdown(mut self, window_target: WindowTarget) {
-        let mut ctx = self.owned_ctx.borrow(window_target);
+    pub fn shutdown(mut self) {
+        let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
     }
 }
@@ -1098,7 +1092,6 @@ impl<E: AppExtension> RunningApp<E> {
 /// Headless apps don't cause external side-effects like visible windows and don't listen to system events.
 /// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
 pub struct HeadlessApp {
-    app_event_receiver: flume::Receiver<AppEvent>,
     app: RunningApp<Box<dyn AppExtensionBoxed>>,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
@@ -1141,21 +1134,9 @@ impl HeadlessApp {
         self.app_state_mut().set(HeadlessRendererEnabledKey, enabled);
     }
 
-    /// Notifies extensions of a [device event](DeviceEvent).
-    pub fn device_event(&mut self, device_id: DeviceId, event: &DeviceEvent) {
-        profile_scope!("headless_app::device_event");
-        self.app.device_event(WindowTarget::headless(), device_id, event);
-    }
-
-    /// Notifies extensions of a [window event](WindowEvent).
-    pub fn window_event(&mut self, window_id: WindowId, event: &WindowEvent) {
-        profile_scope!("headless_app::device_event");
-        self.app.window_event(WindowTarget::headless(), window_id, event);
-    }
-
     /// Borrows the app context.
-    pub fn ctx<'a>(&'a mut self) -> AppContext<'a, 'static> {
-        self.app.ctx(WindowTarget::headless())
+    pub fn ctx(&mut self) -> AppContext {
+        self.app.ctx()
     }
 
     /// Borrow the [`Vars`] only.
@@ -1211,14 +1192,14 @@ impl HeadlessApp {
     pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
         if wait_app_event {
             if let Ok(event) = self.app_event_receiver.recv() {
-                self.app.app_event(WindowTarget::headless(), event);
+                self.app.app_event(event);
             }
         }
         for event in self.app_event_receiver.try_iter() {
-            self.app.app_event(WindowTarget::headless(), event);
+            self.app.app_event(event);
         }
 
-        let r = self.app.update(WindowTarget::headless(), observer);
+        let r = self.app.update(observer);
         debug_assert!(r != ControlFlow::Poll);
 
         r
@@ -1450,17 +1431,14 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
     }
 }
 
-/// Raw event for [`RunningApp`].
 #[derive(Debug)]
-pub struct AppEvent(AppEventData);
-#[derive(Debug)]
-enum AppEventData {
+enum AppEvent {
+    /// Event from the View Process.
+    ViewEvent(zero_ui_wr::Ev),
     /// Notify [`Events`](crate::var::Events).
     Event(crate::event::BoxedSendEventUpdate),
     /// Notify [`Vars`](crate::var::Vars).
     Var,
-    /// Call [`AppExtension::new_frame_ready`].
-    NewFrameReady(WindowId),
     /// Do an update cycle.
     Update,
     /// Resume a panic in the app thread.
@@ -1469,57 +1447,35 @@ enum AppEventData {
 
 /// An [`AppEvent`] sender that can awake apps and insert events into the main loop.
 #[derive(Clone)]
-pub struct AppEventSender(AppEventSenderData);
+pub struct AppEventSender(flume::Sender<AppEvent>);
 impl AppEventSender {
-    /// New headed event loop connected to an `winit` loop with [`AppEvent`] as the event type.
-    pub fn from_winit(el: glutin::event_loop::EventLoopProxy<AppEvent>) -> Self {
-        AppEventSender(AppEventSenderData::Winit(Mutex::new(el)))
-    }
-
-    /// New headed event loop connected to an external event loop using an [adapter].
-    ///
-    /// [adapter]: AppEventSenderAdapter
-    pub fn from_adapter(el: Box<dyn AppEventSenderAdapter>) -> Self {
-        AppEventSender(AppEventSenderData::Adapter(Mutex::new(el)))
-    }
-
-    /// If the app is running in headless mode.
-    pub fn is_headless(&self) -> bool {
-        matches!(&self.0, AppEventSenderData::Headless(_))
-    }
-
-    pub(crate) fn new_headless() -> (Self, flume::Receiver<AppEvent>) {
-        let (send, rcv) = flume::unbounded();
-        (AppEventSender(AppEventSenderData::Headless(send)), rcv)
+    pub(crate) fn new() -> (Self, flume::Receiver<AppEvent>) {
+        let (sender, receiver) = flume::unbounded();
+        (Self(sender), receiver)
     }
 
     #[inline(always)]
     fn send_app_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
-        match &self.0 {
-            AppEventSenderData::Winit(w) => w.lock().send_event(event)?,
-            AppEventSenderData::Headless(s) => s.send(event)?,
-            AppEventSenderData::Adapter(a) => a.lock().send_event(event)?,
-        }
+        self.0.send(event)?;
+        Ok(())
+    }
+
+    #[inline(always)]
+    fn send_view_event(&self, event: zero_ui_wr::Ev) -> Result<(), AppShutdown<AppEvent>> {
+        self.0.send(AppEvent::ViewEvent(event))?;
         Ok(())
     }
 
     /// Causes an update cycle to happen in the app.
     #[inline]
     pub fn send_update(&self) -> Result<(), AppShutdown<()>> {
-        self.send_app_event(AppEvent(AppEventData::Update)).map_err(|_| AppShutdown(()))
-    }
-
-    /// Causes a call to [`AppExtension::new_frame_ready`].
-    #[inline]
-    pub fn send_new_frame_ready(&self, window_id: WindowId) -> Result<(), AppShutdown<WindowId>> {
-        self.send_app_event(AppEvent(AppEventData::NewFrameReady(window_id)))
-            .map_err(|_| AppShutdown(window_id))
+        self.send_app_event(AppEvent::Update).map_err(|_| AppShutdown(()))
     }
 
     /// [`VarSender`](crate::var::VarSender) util.
     #[inline]
     pub(crate) fn send_var(&self) -> Result<(), AppShutdown<()>> {
-        self.send_app_event(AppEvent(AppEventData::Var)).map_err(|_| AppShutdown(()))
+        self.send_app_event(AppEvent::Var).map_err(|_| AppShutdown(()))
     }
 
     /// [`EventSender`](crate::event::EventSender) util.
@@ -1527,164 +1483,30 @@ impl AppEventSender {
         &self,
         event: crate::event::BoxedSendEventUpdate,
     ) -> Result<(), AppShutdown<crate::event::BoxedSendEventUpdate>> {
-        self.send_app_event(AppEvent(AppEventData::Event(event))).map_err(|e| match e.0 .0 {
-            AppEventData::Event(ev) => AppShutdown(ev),
+        self.send_app_event(AppEvent::Event(event)).map_err(|e| match e.0 .0 {
+            AppEvent::Event(ev) => AppShutdown(ev),
             _ => unreachable!(),
         })
     }
 
     /// Resume a panic in the app thread.
     pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppShutdown<PanicPayload>> {
-        self.send_app_event(AppEvent(AppEventData::ResumeUnwind(payload)))
-            .map_err(|e| match e.0 .0 {
-                AppEventData::ResumeUnwind(p) => AppShutdown(p),
-                _ => unreachable!(),
-            })
+        self.send_app_event(AppEvent::ResumeUnwind(payload)).map_err(|e| match e.0 .0 {
+            AppEvent::ResumeUnwind(p) => AppShutdown(p),
+            _ => unreachable!(),
+        })
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
     pub fn waker(&self) -> Waker {
-        match self.0.clone() {
-            AppEventSenderData::Winit(w) => Arc::new(WinitWaker(w)).into(),
-            AppEventSenderData::Headless(h) => Arc::new(HeadlessWaker(h)).into(),
-            AppEventSenderData::Adapter(a) => Arc::new(AdapterWaker(a)).into(),
-        }
+        Arc::new(AppWaker(self.0.clone())).into()
     }
 }
-struct WinitWaker(Mutex<glutin::event_loop::EventLoopProxy<AppEvent>>);
-impl std::task::Wake for WinitWaker {
+struct AppWaker(flume::Sender<AppEvent>);
+impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {
-        let _ = self.0.lock().send_event(AppEvent(AppEventData::Update));
+        let _ = self.0.send(AppEvent::Update);
     }
-}
-struct HeadlessWaker(flume::Sender<AppEvent>);
-impl std::task::Wake for HeadlessWaker {
-    fn wake(self: std::sync::Arc<Self>) {
-        let _ = self.0.send(AppEvent(AppEventData::Update));
-    }
-}
-struct AdapterWaker(Mutex<Box<dyn AppEventSenderAdapter>>);
-impl std::task::Wake for AdapterWaker {
-    fn wake(self: std::sync::Arc<Self>) {
-        let _ = self.0.lock().send_event(AppEvent(AppEventData::Update));
-    }
-}
-
-enum AppEventSenderData {
-    Winit(Mutex<glutin::event_loop::EventLoopProxy<AppEvent>>),
-    Headless(flume::Sender<AppEvent>),
-    Adapter(Mutex<Box<dyn AppEventSenderAdapter>>),
-}
-impl Clone for AppEventSenderData {
-    fn clone(&self) -> Self {
-        match self {
-            AppEventSenderData::Winit(el) => AppEventSenderData::Winit(Mutex::new(el.lock().clone())),
-            AppEventSenderData::Headless(s) => AppEventSenderData::Headless(s.clone()),
-            AppEventSenderData::Adapter(a) => AppEventSenderData::Adapter(Mutex::new(a.lock().clone_boxed())),
-        }
-    }
-}
-
-/// Represents an external event loop in a [`AppEventSender`].
-///
-/// The external event loop must be awaken from this, receive an [`AppEvent`] as pass it to the client app using
-/// [`RunningApp::app_event`].
-pub trait AppEventSenderAdapter: Send + 'static {
-    /// Clone `self` and boxes it. The clone must send events to the same event loop as `self`.
-    fn clone_boxed(&self) -> Box<dyn AppEventSenderAdapter>;
-
-    /// Awake the app and insert the `event` into the loop,
-    /// or return the [`AppShutdown`] error if the event loop has closed.
-    fn send_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>>;
-}
-
-/// Event loop window target for headed
-#[derive(Clone, Copy)]
-pub struct WindowTarget<'a>(WindowTargetData<'a>);
-impl<'a> WindowTarget<'a> {
-    /// Reference a headed event loop with [`AppEvent`] as the event type.
-    ///
-    /// **Note:** The [`winit::event_loop::EventLoop`](glutin::event_loop::EventLoop) type dereferences
-    /// to the input for this method.
-    pub fn from_winit(window_target: &'a glutin::event_loop::EventLoopWindowTarget<AppEvent>) -> WindowTarget<'a> {
-        WindowTarget(WindowTargetData::Winit(window_target))
-    }
-
-    /// Reference an external event loop using an [adapter](WindowTargetAdapter).
-    pub fn from_adapter(adapter: &'a dyn WindowTargetAdapter<'a>) -> WindowTarget<'a> {
-        WindowTarget(WindowTargetData::Adapter(adapter))
-    }
-
-    fn headless() -> WindowTarget<'static> {
-        WindowTarget(WindowTargetData::Headless)
-    }
-}
-
-impl<'a> WindowTarget<'a> {
-    /// Call [`glutin::ContextBuilder::build_windowed`] for headed event loops.
-    ///
-    /// # Errors
-    ///
-    /// The error can be any from the `glutin` builder or [`glutin::CreationError::NotSupported`] with the message
-    /// `"cannot build `WindowedContext` in headless event loop"` if [`is_headless`](Self::is_headless).
-    pub fn build_glutin_window(
-        &self,
-        context_builder: glutin::ContextBuilder<glutin::NotCurrent>,
-        window_builder: glutin::window::WindowBuilder,
-    ) -> Result<glutin::WindowedContext<glutin::NotCurrent>, glutin::CreationError> {
-        match &self.0 {
-            WindowTargetData::Winit(wt) => context_builder.build_windowed(window_builder, wt),
-            WindowTargetData::Adapter(a) => a.build_glutin_window(context_builder, window_builder),
-            WindowTargetData::Headless => Err(glutin::CreationError::NotSupported(
-                "cannot build `WindowedContext` in headless event loop".to_owned(),
-            )),
-        }
-    }
-
-    /// Call [`winit::window::WindowBuilder::build`](glutin::window::WindowBuilder::build) for headed event loops.
-    ///
-    /// # Errors
-    ///
-    /// The error can be a [`glutin::CreationError::Window`] from the `winit` builder or [`glutin::CreationError::NotSupported`]
-    /// if [`is_headless`](Self::is_headless)
-    pub fn build_winit_window(
-        &self,
-        window_builder: glutin::window::WindowBuilder,
-    ) -> Result<glutin::window::Window, glutin::CreationError> {
-        match &self.0 {
-            WindowTargetData::Winit(wt) => window_builder.build(wt).map_err(glutin::CreationError::Window),
-            WindowTargetData::Adapter(a) => a.build_winit_window(window_builder).map_err(glutin::CreationError::Window),
-            WindowTargetData::Headless => Err(glutin::CreationError::NotSupported(
-                "cannot build `WindowedContext` in headless event loop".to_owned(),
-            )),
-        }
-    }
-
-    /// If this is a dummy window target for a headless app.
-    ///
-    /// If `true` both build methods will always return [`glutin::CreationError::NotSupported`].
-    pub fn is_headless(&self) -> bool {
-        matches!(&self.0, &WindowTargetData::Headless)
-    }
-}
-#[derive(Clone, Copy)]
-enum WindowTargetData<'a> {
-    Winit(&'a glutin::event_loop::EventLoopWindowTarget<AppEvent>),
-    Headless,
-    Adapter(&'a dyn WindowTargetAdapter<'a>),
-}
-
-/// Represents an external event loop in a [`WindowTarget`].
-pub trait WindowTargetAdapter<'a> {
-    /// Call [`glutin::ContextBuilder::build_windowed`].
-    fn build_glutin_window(
-        &self,
-        context_builder: glutin::ContextBuilder<glutin::NotCurrent>,
-        window_builder: glutin::window::WindowBuilder,
-    ) -> Result<glutin::WindowedContext<glutin::NotCurrent>, glutin::CreationError>;
-
-    /// Call [`winit::window::WindowBuilder::build`](glutin::window::WindowBuilder::build).
-    fn build_winit_window(&self, window_builder: glutin::window::WindowBuilder) -> Result<glutin::window::Window, glutin::error::OsError>;
 }
 
 #[cfg(test)]
@@ -1786,78 +1608,14 @@ impl log::Log for DebugLogger {
 }
 
 unique_id! {
-    /// Unique identifier for a fake event source.
-    ///
-    /// See [`DeviceId`] for more details.
-    pub struct SyntheticDeviceId;
+    /// Unique identifier of a device event source.
+    #[derive(Debug)]
+    pub struct DeviceId;
 }
 
-/// Unique identifier for a device event source from the operating system.
-///
-/// See [`DeviceId`] for more details.
-pub type SystemDeviceId = glutin::event::DeviceId;
-
-/// Unique identifier of a device event source.
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
-pub enum DeviceId {
-    /// The id for a system device, this device can be real hardware or virtual but managed by the system.
-    System(SystemDeviceId),
-    /// The id for an in-app event source that notifies the [`raw_events`].
-    Synthetic(SyntheticDeviceId),
-}
-impl DeviceId {
-    /// New unique [`Synthetic`] window id.
-    ///
-    /// [`Synthetic`]: Self::Synthetic
-    #[inline]
-    pub fn new_unique() -> Self {
-        DeviceId::Synthetic(SyntheticDeviceId::new_unique())
-    }
-}
-impl From<SystemDeviceId> for DeviceId {
-    fn from(id: SystemDeviceId) -> Self {
-        DeviceId::System(id)
-    }
-}
-impl From<SyntheticDeviceId> for DeviceId {
-    fn from(id: SyntheticDeviceId) -> Self {
-        DeviceId::Synthetic(id)
-    }
-}
-impl fmt::Debug for DeviceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DeviceId::System(s) => {
-                let window_id = format!("{:?}", s);
-                let window_id_raw = window_id.trim_start_matches("DeviceId(").trim_end_matches(')');
-                if f.alternate() {
-                    write!(f, "DeviceId::System({})", window_id_raw)
-                } else {
-                    write!(f, "DeviceId({})", window_id_raw)
-                }
-            }
-            DeviceId::Synthetic(s) => {
-                if f.alternate() {
-                    write!(f, "DeviceId::Synthetic({})", s.get())
-                } else {
-                    write!(f, "DeviceId({})", s.get())
-                }
-            }
-        }
-    }
-}
 impl fmt::Display for DeviceId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DeviceId::System(s) => {
-                let window_id = format!("{:?}", s);
-                let window_id_raw = window_id.trim_start_matches("DeviceId(").trim_end_matches(')');
-                write!(f, "DeviceId({})", window_id_raw)
-            }
-            DeviceId::Synthetic(s) => {
-                write!(f, "DeviceId({})", s.get())
-            }
-        }
+        write!(f, "DeviceId({})", self.get())
     }
 }
 
@@ -1884,10 +1642,9 @@ pub mod raw_events {
     use super::DeviceId;
     use crate::mouse::{ButtonState, MouseButton};
     use crate::window::WindowTheme;
-    use crate::{event::*, window::WindowId};
+    use crate::{event::*, keyboard::ScanCode, window::WindowId};
 
     use crate::keyboard::{Key, KeyState, ModifiersState};
-    pub use glutin::event::ScanCode;
 
     event_args! {
         /// Arguments for the [`RawKeyInputEvent`].
@@ -2343,7 +2100,7 @@ pub mod raw_device_events {
         mouse::ButtonState,
     };
 
-    pub use glutin::event::{AxisId, ButtonId, MouseScrollDelta};
+    pub use zero_ui_wr::{AxisId, ButtonId, MouseScrollDelta};
 
     event_args! {
         /// Arguments for [`DeviceAddedEvent`] and [`DeviceRemovedEvent`].

@@ -30,6 +30,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 ///     // .. init app normally.
 /// }
 /// ```
+///
+/// Note that the `App::default()` and `App::blank()` functions also call `init`, so if that is the first
+/// line of the main function you don't need to call `init`.
 pub fn init() {
     if let Ok(channel_dir) = env::var(CHANNEL_VAR) {
         view::run(PathBuf::from(channel_dir));
@@ -37,4 +40,9 @@ pub fn init() {
 }
 
 pub use controller::App;
-pub use message::{OpenWindowRequest, StartRequest};
+pub use message::{
+    AxisId, ButtonId, ElementState, Ev, ModifiersState, MouseButton, MouseScrollDelta, OpenWindowRequest, ScanCode, StartRequest, Theme,
+    VirtualKeyCode, WinId, DevId,
+};
+
+pub use glutin::event_loop::ControlFlow;

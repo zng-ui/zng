@@ -13,7 +13,7 @@ use crate::service::*;
 use crate::var::{RcVar, ReadOnlyRcVar, Var, Vars};
 use crate::window::WindowId;
 
-pub use glutin::event::{KeyboardInput, ModifiersState, ScanCode};
+pub use zero_ui_wr::{ModifiersState, ScanCode};
 
 event_args! {
     /// Arguments for [`KeyInputEvent`].
@@ -322,11 +322,11 @@ pub enum KeyState {
     /// The key was released.
     Released,
 }
-impl From<glutin::event::ElementState> for KeyState {
-    fn from(s: glutin::event::ElementState) -> Self {
+impl From<zero_ui_wr::ElementState> for KeyState {
+    fn from(s: zero_ui_wr::ElementState) -> Self {
         match s {
-            glutin::event::ElementState::Pressed => KeyState::Pressed,
-            glutin::event::ElementState::Released => KeyState::Released,
+            zero_ui_wr::ElementState::Pressed => KeyState::Pressed,
+            zero_ui_wr::ElementState::Released => KeyState::Released,
         }
     }
 }
@@ -571,7 +571,7 @@ impl Key {
         key >= Key::NumLock as u32 && key <= Key::NumpadSubtract as u32
     }
 }
-use glutin::event::VirtualKeyCode as VKey;
+use zero_ui_wr::VirtualKeyCode as VKey;
 impl From<VKey> for Key {
     fn from(v_key: VKey) -> Self {
         #[cfg(debug_assertions)]
@@ -772,29 +772,13 @@ pub trait HeadlessAppKeyboardExt {
 }
 impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState) {
-        #[allow(deprecated)]
-        let raw_event = glutin::event::WindowEvent::KeyboardInput {
-            device_id: unsafe { glutin::event::DeviceId::dummy() },
-            input: KeyboardInput {
-                scancode: 0,
-                state: match state {
-                    KeyState::Pressed => glutin::event::ElementState::Pressed,
-                    KeyState::Released => glutin::event::ElementState::Released,
-                },
-                virtual_keycode: Some(key.into()),
-
-                // what can we
-                modifiers: ModifiersState::empty(),
-            },
-            is_synthetic: false,
-        };
-
-        self.window_event(window_id, &raw_event);
+        // use crate::app::raw_events::*;
+        todo!()
     }
 
     fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState) {
-        let raw_event = glutin::event::WindowEvent::ModifiersChanged(modifiers);
-        self.window_event(window_id, &raw_event);
+        // use crate::app::raw_events::*;
+        todo!()
     }
 
     fn press_key(&mut self, window_id: WindowId, key: Key) {

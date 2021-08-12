@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::{env, fmt};
+use std::{env, fmt, thread};
 
 use ipmpsc::{Receiver, Sender, SharedRingBuffer};
 use webrender::api::units::LayoutSize;
@@ -13,7 +13,6 @@ pub struct App {
     process: Child,
     request_sender: Sender,
     response_receiver: Receiver,
-    event_receiver: Receiver,
     windows: Vec<Window>,
     devices: Vec<Device>,
 }
@@ -21,13 +20,23 @@ pub struct App {
 impl App {
     /// Start the view process as an instance of the [`current_exe`].
     ///
+    /// The `on_event` closure is called in another thread every time the app receives an event.
+    ///
     /// [`current_exe`]: std::env::current_exe
-    pub fn start(request: StartRequest) -> Self {
-        Self::start_with(std::env::current_exe().unwrap(), request)
+    pub fn start<F>(request: StartRequest, on_event: F) -> Self
+    where
+        F: FnMut(Ev) + Send + 'static,
+    {
+        Self::start_with(std::env::current_exe().unwrap(), request, on_event)
     }
 
     /// Start with a custom view process.
-    pub fn start_with(view_process_exe: PathBuf, request: StartRequest) -> Self {
+    ///
+    /// The `on_event` closure is called in another thread every time the app receives an event.
+    pub fn start_with<F>(view_process_exe: PathBuf, request: StartRequest, mut on_event: F) -> Self
+    where
+        F: FnMut(Ev) + Send + 'static,
+    {
         let channel_dir = loop {
             let temp_dir = env::temp_dir().join(uuid::Uuid::new_v4().to_simple().to_string());
             match std::fs::create_dir(&temp_dir) {
@@ -62,7 +71,6 @@ impl App {
             process,
             request_sender,
             response_receiver,
-            event_receiver,
             windows: vec![],
             devices: vec![],
         };
@@ -81,7 +89,15 @@ impl App {
         }
 
         match app.request(Request::Start(request)) {
-            Response::Started => app,
+            Response::Started => {
+                thread::spawn(move || {
+                    while let Ok(ev) = event_receiver.recv() {
+                        on_event(ev);
+                    }
+                });
+
+                app
+            }
             _ => panic!("view process did not start correctly"),
         }
     }

@@ -10,7 +10,7 @@ use std::{
     sync::{Arc, Weak},
     time::Duration,
 };
-use webrender::api::{ImageKey, RenderApi};
+use webrender_api::{ImageKey, RenderApi};
 
 pub mod bmp;
 pub mod farbfeld;
@@ -412,8 +412,8 @@ impl Image {
     }
 }
 impl crate::render::Image for Image {
-    fn image_key(&self, api: &Rc<webrender::api::RenderApi>) -> ImageKey {
-        use webrender::api::*;
+    fn image_key(&self, api: &Rc<webrender_api::RenderApi>) -> ImageKey {
+        use webrender_api::*;
 
         let namespace = api.get_namespace_id();
         let mut rms = self.render_keys.borrow_mut();
@@ -496,7 +496,7 @@ struct RenderImage {
 impl Drop for RenderImage {
     fn drop(&mut self) {
         if let Some(api) = self.api.upgrade() {
-            let mut txn = webrender::api::Transaction::new();
+            let mut txn = webrender_api::Transaction::new();
             txn.delete_image(self.key);
             api.update_resources(txn.resource_updates);
         }

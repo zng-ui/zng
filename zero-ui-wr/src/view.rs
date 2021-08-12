@@ -172,7 +172,7 @@ impl App {
                 WindowEvent::ModifiersChanged(m) => self.notify(Ev::ModifiersChanged(id, m)),
                 WindowEvent::CursorMoved { device_id, position, .. } => {
                     let d_id = self.device_id(device_id);
-                    self.notify(Ev::CursorMoved(id, d_id, (position.x as u32, position.y as u32)));
+                    self.notify(Ev::CursorMoved(id, d_id, (position.x as i32, position.y as i32)));
                 }
                 WindowEvent::CursorEntered { device_id } => {
                     let d_id = self.device_id(device_id);
@@ -222,7 +222,7 @@ impl App {
                     new_inner_size,
                 } => self.notify(Ev::ScaleFactorChanged(
                     id,
-                    scale_factor,
+                    scale_factor as f32,
                     (new_inner_size.width, new_inner_size.height),
                 )),
                 WindowEvent::ThemeChanged(t) => self.notify(Ev::ThemeChanged(id, t.into())),
@@ -247,7 +247,7 @@ impl App {
     }
 
     pub fn on_frame_ready(&mut self, window: WindowId) {
-        if let Some(w) = self.windows.iter_mut().find(|w|w.winit_window.id() == window) {
+        if let Some(w) = self.windows.iter_mut().find(|w| w.winit_window.id() == window) {
             w.winit_window.request_redraw();
         }
     }
@@ -331,7 +331,7 @@ impl Window {
             .with_title(request.title)
             .with_position(PhysicalPosition::new(request.pos.0, request.pos.1))
             .with_inner_size(PhysicalSize::new(request.size.0, request.size.1))
-            .with_visible(false);// we wait for the first frame to show the window.
+            .with_visible(false); // we wait for the first frame to show the window.
 
         let glutin = ContextBuilder::new().build_windowed(winit, target).unwrap();
         // SAFETY: we drop the context before the window.

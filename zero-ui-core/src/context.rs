@@ -10,7 +10,6 @@ use crate::{
 };
 use retain_mut::RetainMut;
 use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, time::Instant};
-use webrender::api::RenderApi;
 
 #[doc(inline)]
 pub use crate::state::*;
@@ -84,7 +83,6 @@ impl UpdateDisplayRequest {
 }
 
 use crate::app::AppEventSender;
-use crate::app::WindowTarget;
 use crate::crate_util::{Handle, HandleOwner, RunOnDrop};
 use crate::event::BoxedEventUpdate;
 use crate::handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle};
@@ -358,7 +356,7 @@ impl WithUpdates for Updates {
         action(self)
     }
 }
-impl<'a, 'w> WithUpdates for crate::context::AppContext<'a, 'w> {
+impl<'a> WithUpdates for crate::context::AppContext<'a> {
     fn with_updates<R, A: FnOnce(&mut Updates) -> R>(&mut self, action: A) -> R {
         action(self.updates)
     }
@@ -431,7 +429,7 @@ impl OwnedAppContext {
     }
 
     /// Borrow the app context as an [`AppContext`].
-    pub fn borrow<'a, 'w>(&'a mut self, window_target: WindowTarget<'w>) -> AppContext<'a, 'w> {
+    pub fn borrow(&mut self) -> AppContext<'a> {
         AppContext {
             app_state: &mut self.app_state,
             vars: &self.vars,
@@ -439,7 +437,6 @@ impl OwnedAppContext {
             services: &mut self.services,
             timers: &mut self.timers,
             updates: &mut self.updates,
-            window_target,
         }
     }
 
@@ -468,7 +465,7 @@ impl OwnedAppContext {
 }
 
 /// Full application context.
-pub struct AppContext<'a, 'w> {
+pub struct AppContext<'a> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
 
@@ -484,11 +481,8 @@ pub struct AppContext<'a, 'w> {
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
-
-    /// Reference to event loop for headed windows.
-    pub window_target: WindowTarget<'w>,
 }
-impl<'a, 'w> AppContext<'a, 'w> {
+impl<'a> AppContext<'a> {
     /// If the context is in headless mode.
     pub fn is_headless(&self) -> bool {
         self.updates.event_sender.is_headless()
@@ -501,7 +495,6 @@ impl<'a, 'w> AppContext<'a, 'w> {
         window_id: WindowId,
         mode: WindowMode,
         window_state: &mut OwnedStateMap,
-        render_api: &Option<Rc<RenderApi>>,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, UpdateDisplayRequest) {
         self.updates.win_display_update = UpdateDisplayRequest::None;
@@ -511,7 +504,6 @@ impl<'a, 'w> AppContext<'a, 'w> {
         let r = f(&mut WindowContext {
             window_id: &window_id,
             mode: &mode,
-            render_api,
             app_state: self.app_state,
             window_state: &mut window_state.0,
             update_state: &mut update_state,
@@ -557,11 +549,6 @@ pub struct WindowContext<'a> {
 
     /// Window mode, headed or not, renderer or not.
     pub mode: &'a WindowMode,
-
-    /// Reference to the render API of the window.
-    ///
-    /// This is `None` if the [`mode`](Self::mode) is [`Headless`](WindowMode::Headless).
-    pub render_api: &'a Option<Rc<RenderApi>>,
 
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
@@ -693,13 +680,6 @@ pub struct TestWidgetContext {
     /// The [`services`](WidgetContext::services) repository. Empty by default.
     pub services: Services,
 
-    /// A headless event loop.
-    ///
-    /// WARNING: In a full headless app this is drained of app events in each update.
-    /// You should probably use the full [`HeadlessApp`](crate::app::HeadlessApp) if you
-    /// are needing to do this.
-    pub event_loop: (AppEventSender, flume::Receiver<crate::app::AppEvent>),
-
     /// The [`updates`](WidgetContext::updates) repository. No request by default.
     ///
     /// WARNING: This is drained of requests after each update, you can do this manually by calling
@@ -737,7 +717,7 @@ impl TestWidgetContext {
             panic!("only one `TestWidgetContext` or app is allowed per thread")
         }
 
-        let (sender, receiver) = AppEventSender::new_headless();
+        let (sender, receiver) = AppEventSender::new();
         Self {
             window_id: WindowId::new_unique(),
             root_id: WidgetId::new_unique(),
@@ -750,7 +730,6 @@ impl TestWidgetContext {
             vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender.clone()),
             timers: Timers::new(),
-            event_loop: (sender, receiver),
         }
     }
 

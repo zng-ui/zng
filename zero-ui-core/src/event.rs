@@ -938,7 +938,7 @@ impl WithEvents for Events {
         action(self)
     }
 }
-impl<'a, 'w> WithEvents for crate::context::AppContext<'a, 'w> {
+impl<'a> WithEvents for crate::context::AppContext<'a> {
     fn with_events<R, A: FnOnce(&mut Events) -> R>(&mut self, action: A) -> R {
         action(self.events)
     }

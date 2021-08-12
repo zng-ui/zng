@@ -9,7 +9,7 @@ use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
 };
-pub use webrender::api::GlyphInstance;
+pub use webrender_api::GlyphInstance;
 
 pub use unicode_script::{self, Script};
 
@@ -254,7 +254,7 @@ pub struct FontFaceMetrics {
     /// A rectangle that surrounds all bounding boxes of all glyphs, in font units.
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
-    pub bounding_box: webrender::euclid::Rect<f32, FontUnit>,
+    pub bounding_box: webrender_api::euclid::Rect<f32, FontUnit>,
 }
 impl FontFaceMetrics {
     /// Compute [`FontMetrics`] given a font size in pixels.

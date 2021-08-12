@@ -14,10 +14,10 @@ use crate::{
 use derive_more as dm;
 use ego_tree::Tree;
 use std::{fmt, marker::PhantomData, mem, rc::Rc};
-use webrender::api::*;
+use webrender_api::*;
 
 #[doc(no_inline)]
-pub use webrender;
+pub use webrender_api;
 
 macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {
@@ -39,7 +39,7 @@ macro_rules! debug_assert_aligned {
 }
 
 /// Id of a rendered or rendering window frame. Not unique across windows.
-pub type FrameId = webrender::api::Epoch;
+pub type FrameId = webrender_api::Epoch;
 
 /// A text font.
 ///
@@ -56,7 +56,7 @@ pub trait Font {
     /// Gets the instance key in the `api` namespace.
     ///
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
-    fn instance_key(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey;
+    fn instance_key(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey;
 }
 
 /// A loaded or loading image.
@@ -77,13 +77,13 @@ pub trait Image {
     ///
     /// The image must be loaded asynchronously by `self` and does not need to
     /// be loaded yet when the key is returned.
-    fn image_key(&self, api: &Rc<RenderApi>) -> webrender::api::ImageKey;
+    fn image_key(&self, api: &Rc<RenderApi>) -> webrender_api::ImageKey;
 
     /// Returns a value that indicates if the image is already pre-multiplied.
     ///
     /// The faster option is pre-multiplied, that is also the default return value.
-    fn alpha_type(&self) -> webrender::api::AlphaType {
-        webrender::api::AlphaType::PremultipliedAlpha
+    fn alpha_type(&self) -> webrender_api::AlphaType {
+        webrender_api::AlphaType::PremultipliedAlpha
     }
 }
 
@@ -119,9 +119,9 @@ pub enum ImageRendering {
     /// [Nearest-neighbor]: https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation
     Pixelated = 2,
 }
-impl From<ImageRendering> for webrender::api::ImageRendering {
+impl From<ImageRendering> for webrender_api::ImageRendering {
     fn from(r: ImageRendering) -> Self {
-        use webrender::api::ImageRendering::*;
+        use webrender_api::ImageRendering::*;
         match r {
             ImageRendering::Auto => Auto,
             ImageRendering::CrispEdges => CrispEdges,
@@ -2508,7 +2508,7 @@ mod renderer {
             mut context: GlContext,
             size: RenderSize,
             opts: webrender::RendererOptions,
-            notifier: Box<dyn webrender::api::RenderNotifier>,
+            notifier: Box<dyn webrender_api::RenderNotifier>,
         ) -> Result<Self, RendererError> {
             // INIT openGl (context, gl).
             //

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use webrender::api as w_api;
+use webrender_api as w_api;
 
 use crate::{color::*, context::LayoutMetrics, units::*, var::impl_from_and_into_var};
 
