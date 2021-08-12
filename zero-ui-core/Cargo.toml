@@ -52,8 +52,8 @@ rustybuzz = "0.4"
 xi-unicode = "0.3"
 
 # render
-webrender = "0.61"
-gleam = "0.6.17" #version required by webrender
+zero-ui-wr = { path = "../zero-ui-wr" }
+webrender_api = "0.61"
 image = "0.23"
 
 # task

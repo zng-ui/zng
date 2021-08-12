@@ -8,9 +8,12 @@ mod controller;
 mod message;
 mod view;
 
-use std::env;
+use std::{env, path::PathBuf};
 
 const CHANNEL_VAR: &str = "ZERO_UI_WR_CHANNELS";
+
+/// Version 0.1
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Call this method before anything else in the app `main` function.
 ///
@@ -28,15 +31,10 @@ const CHANNEL_VAR: &str = "ZERO_UI_WR_CHANNELS";
 /// }
 /// ```
 pub fn init() {
-    if let Ok(names) = env::var(CHANNEL_VAR) {
-        let mut names = names.splitn(2, ';');
-        let request_file = names.next().expect("expected request channel");
-        let response_file = names.next().expect("expected response channel");
-
-        view::run(request_file, response_file);
+    if let Ok(channel_dir) = env::var(CHANNEL_VAR) {
+        view::run(PathBuf::from(channel_dir));
     }
 }
 
-fn init_app() -> controller::App {
-    controller::App::new(true)
-}
+pub use controller::App;
+pub use message::{OpenWindowRequest, StartRequest};
