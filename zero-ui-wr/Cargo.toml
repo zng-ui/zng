@@ -1,0 +1,20 @@
+[package]
+name = "zero-ui-wr"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2018"
+license = "Apache-2.0"
+
+[dependencies]
+
+# windowing
+glutin = "0.27"
+winapi = "0.3"
+
+# render
+webrender = "0.61"
+gleam = "0.6.17" #version required by webrender
+
+# ipc
+ipmpsc = "0.5"
+serde = { version = "1.0", features = ["derive"] }
