@@ -429,7 +429,7 @@ impl OwnedAppContext {
     }
 
     /// Borrow the app context as an [`AppContext`].
-    pub fn borrow(&mut self) -> AppContext<'a> {
+    pub fn borrow(&mut self) -> AppContext {
         AppContext {
             app_state: &mut self.app_state,
             vars: &self.vars,
@@ -483,9 +483,20 @@ pub struct AppContext<'a> {
     pub updates: &'a mut Updates,
 }
 impl<'a> AppContext<'a> {
-    /// If the context is in headless mode.
-    pub fn is_headless(&self) -> bool {
-        self.updates.event_sender.is_headless()
+    /// Returns a [`WindowMode`] value that indicates if the app is headless, headless with renderer or headed.
+    ///
+    /// Note that specific windows can be in headless modes even if the app is headed.
+    pub fn mode(&self) -> WindowMode {
+        self.services
+            .get::<crate::app::view_process::ViewProcess>()
+            .map(|p| {
+                if p.headless() {
+                    WindowMode::HeadlessWithRenderer
+                } else {
+                    WindowMode::Headed
+                }
+            })
+            .unwrap_or(WindowMode::Headless)
     }
 
     /// Runs a function `f` in the context of a window.
@@ -1447,7 +1458,7 @@ pub mod tests {
     #[test]
     #[should_panic(expected = "already in `AppContextMut::with`, cannot borrow `&mut AppContext` twice")]
     fn context_reentry() {
-        let mut app = App::default().run_headless();
+        let mut app = App::default().run_headless(false);
 
         let (scope, ctx) = AppContextScope::new();
         let ctx_a = Rc::new(ctx);

@@ -6,6 +6,7 @@ use crate::{
     context::{OwnedStateMap, RenderContext, StateMap},
     crate_util::IdMap,
     gradient::{RenderExtendMode, RenderGradientStop},
+    task,
     units::*,
     var::impl_from_and_into_var,
     window::{CursorIcon, WindowId},
@@ -13,7 +14,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{fmt, marker::PhantomData, mem, rc::Rc};
+use std::{fmt, marker::PhantomData, mem, rc::Rc, sync::Arc};
 use webrender_api::*;
 
 #[doc(no_inline)]
@@ -2104,1009 +2105,292 @@ impl_from_and_into_var! {
     }
 }
 
-mod renderer {
-    use std::{error::Error, fmt, io::Write, mem, rc::Rc, sync::Arc};
-
-    use gleam::gl;
-    use glutin::{
-        event_loop::EventLoop, window::WindowBuilder, Api as GApi, Context, ContextBuilder, GlRequest, NotCurrent, PossiblyCurrent,
-    };
-    use rayon::ThreadPool;
-    use webrender::{api::Transaction, RendererKind};
-
-    use crate::{
-        app::WindowTarget,
-        color::RenderColor,
-        task,
-        units::{LayoutPoint, LayoutSize},
-    };
-
-    use super::FrameId;
-
-    /// Size in device pixels.
+impl crate::app::view_process::ViewRenderer {
+    /// Read a rectangle of the currently presented frame into a [`FramePixels`].
     ///
-    /// To convert from [`LayoutSize`](crate::units::LayoutSize) multiply by the pixel scaling factor (dpi)
-    /// and then cast to [`i32`].
-    pub type RenderSize = webrender::api::units::DeviceIntSize;
-
-    /// Init config of a [`Renderer`].
-    #[derive(Debug)]
-    pub struct RendererConfig {
-        /// `rayon` thread-pool for the renderer workers.
-        pub workers: Option<Arc<ThreadPool>>,
-
-        /// Color used to clear the frame buffer for a new rendering.
-        pub clear_color: Option<RenderColor>,
-
-        /// Text anti-aliasing.
-        pub text_aa: TextAntiAliasing,
-    }
-    impl Default for RendererConfig {
-        fn default() -> Self {
-            Self {
-                workers: None,
-                clear_color: Some(RenderColor::new(1.0, 1.0, 1.0, 1.0)),
-                text_aa: TextAntiAliasing::Default,
-            }
-        }
-    }
-    impl RendererConfig {
-        fn wr_options(self, device_pixel_ratio: f32, renderer_kind: RendererKind) -> webrender::RendererOptions {
-            webrender::RendererOptions {
-                device_pixel_ratio,
-                renderer_kind,
-                workers: self.workers,
-                clear_color: self.clear_color,
-                enable_aa: self.text_aa != TextAntiAliasing::Mono,
-                enable_subpixel_aa: self.text_aa == TextAntiAliasing::Subpixel,
-                //panic_on_gl_error: true,
-                // TODO expose more options to the user.
-                ..Default::default()
-            }
-        }
-    }
-
-    /// Text anti-aliasing.
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    pub enum TextAntiAliasing {
-        /// Uses the operating system configuration.
-        Default,
-        /// Sub-pixel anti-aliasing if a fast implementation is available, otherwise uses `Alpha`.
-        Subpixel,
-        /// Alpha blending anti-aliasing.
-        Alpha,
-        /// Disable anti-aliasing.
-        Mono,
-    }
-    impl Default for TextAntiAliasing {
-        fn default() -> Self {
-            Self::Default
-        }
-    }
-    impl fmt::Debug for TextAntiAliasing {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            if f.alternate() {
-                write!(f, "TextAntiAliasing::")?;
-            }
-            match self {
-                TextAntiAliasing::Default => write!(f, "Default"),
-                TextAntiAliasing::Subpixel => write!(f, "Subpixel"),
-                TextAntiAliasing::Alpha => write!(f, "Alpha"),
-                TextAntiAliasing::Mono => write!(f, "Mono"),
-            }
-        }
-    }
-
-    /// Errors that can happen in a [`Renderer`].
-    #[derive(Debug)]
-    pub enum RendererError {
-        /// Error during the renderer initialization.
-        ///
-        /// Happens only in the `new` functions. If headed the window is also lost.
-        Creation(glutin::CreationError),
-
-        /// Error during a headless initialization in Linux.
-        ///
-        /// The errors are for each fallback context tried:
-        ///
-        /// * `[0]` - Error starting a surfaceless context.
-        /// * `[1]` - Error starting a headless context.
-        /// * `[2]` - Error starting a osmesa context.
-        #[cfg(target_os = "linux")]
-        CreationHeadlessLinux([glutin::CreationError; 3]),
-
-        /// Error during manipulation of the renderer OpenGL context.
-        ///
-        /// If you get this error from a method the [`Renderer`] is still in a valid state.
-        Context(glutin::ContextError),
-
-        /// Error during manipulation of the renderer OpenGL context.
-        ///
-        /// The OpenGl context was **not** recovered, the [`Renderer`] object must be dropped.
-        ContextNotRecovered(glutin::ContextError),
-
-        /// Errors during rendering of last frame.
-        ///
-        /// The OpenGL context was recovered so you can try rendering again.
-        RenderRecovered(Vec<webrender::RendererError>),
-        /// Errors during rendering of last frame.
-        ///
-        /// The OpenGL context was **not** recovered, the [`Renderer`] object must be dropped.
-        RenderNotRecovered(Vec<webrender::RendererError>, glutin::ContextError),
-    }
-    impl From<glutin::CreationError> for RendererError {
-        fn from(e: glutin::CreationError) -> Self {
-            RendererError::Creation(e)
-        }
-    }
-    impl From<glutin::ContextError> for RendererError {
-        fn from(e: glutin::ContextError) -> Self {
-            RendererError::Context(e)
-        }
-    }
-    impl fmt::Display for RendererError {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match self {
-                RendererError::Creation(e) => write!(f, "{}", e),
-                RendererError::Context(e) => write!(f, "{}", e),
-                RendererError::ContextNotRecovered(e) => write!(f, "{}", e),
-                RendererError::RenderRecovered(ers) => write!(f, "{} renderer errors", ers.len()),
-                RendererError::RenderNotRecovered(ers, e) => write!(f, "{} renderer errors not recovered, {}", ers.len(), e),
-            }
-        }
-    }
-    impl Error for RendererError {
-        fn source(&self) -> Option<&(dyn Error + 'static)> {
-            match self {
-                RendererError::Creation(e) => Some(e),
-                RendererError::Context(e) => Some(e),
-                RendererError::ContextNotRecovered(e) => Some(e),
-                RendererError::RenderRecovered(_) => None, // webrender error does not implement Error
-                RendererError::RenderNotRecovered(_, e) => Some(e),
-            }
-        }
-    }
-
-    enum GlContext {
-        Windowed(glutin::ContextWrapper<NotCurrent, ()>),
-        Headless(Context<NotCurrent>, HeadlessData),
-        InUse,
-    }
-    impl GlContext {
-        pub fn make_current(&mut self) -> Result<GlContextCurrent, RendererError> {
-            match mem::replace(self, GlContext::InUse) {
-                GlContext::Windowed(ctx) => match unsafe { ctx.make_current() } {
-                    Ok(ctx) => Ok(GlContextCurrent::Windowed(ctx)),
-                    Err((ctx, e)) => {
-                        // TODO figure out what ContextLost means here?
-                        *self = GlContext::Windowed(ctx);
-                        Err(e.into())
-                    }
-                },
-                GlContext::Headless(ctx, el) => match unsafe { ctx.make_current() } {
-                    Ok(ctx) => Ok(GlContextCurrent::Headless(ctx, el)),
-                    Err((ctx, e)) => {
-                        *self = GlContext::Headless(ctx, el);
-                        Err(e.into())
-                    }
-                },
-                GlContext::InUse => {
-                    panic!("gl context already in use")
-                }
-            }
-        }
-    }
-
-    enum GlContextCurrent {
-        Windowed(glutin::ContextWrapper<PossiblyCurrent, ()>),
-        Headless(glutin::Context<PossiblyCurrent>, HeadlessData),
-    }
-    impl GlContextCurrent {
-        pub fn make_not_current(self) -> Result<GlContext, RendererError> {
-            match self {
-                GlContextCurrent::Windowed(ctx) => {
-                    let ctx = unsafe { ctx.make_not_current().map_err(|(_, e)| RendererError::ContextNotRecovered(e))? };
-                    Ok(GlContext::Windowed(ctx))
-                }
-                GlContextCurrent::Headless(ctx, el) => {
-                    let ctx = unsafe { ctx.make_not_current().map_err(|(_, e)| RendererError::ContextNotRecovered(e))? };
-                    Ok(GlContext::Headless(ctx, el))
-                }
-            }
-        }
-
-        pub fn get_api(&self) -> GApi {
-            match self {
-                GlContextCurrent::Windowed(ctx) => ctx.get_api(),
-                GlContextCurrent::Headless(ctx, _) => ctx.get_api(),
-            }
-        }
-
-        pub fn get_proc_address(&self, addr: &str) -> *const core::ffi::c_void {
-            match self {
-                GlContextCurrent::Windowed(ctx) => ctx.get_proc_address(addr),
-                GlContextCurrent::Headless(ctx, _) => ctx.get_proc_address(addr),
-            }
-        }
-
-        pub fn swap_buffers(&self) -> Result<(), RendererError> {
-            match self {
-                GlContextCurrent::Windowed(ctx) => ctx.swap_buffers()?,
-                GlContextCurrent::Headless(_, _) => {
-                    // TODO
-                }
-            }
-            Ok(())
-        }
-    }
-
-    struct HeadlessData {
-        _el: EventLoop<()>,
-        rbos: [u32; 2],
-        fbo: [u32; 1],
-    }
-    impl HeadlessData {
-        fn partial(el: EventLoop<()>) -> Self {
-            HeadlessData {
-                _el: el,
-                rbos: [0; 2],
-                fbo: [0; 1],
-            }
-        }
-    }
-
-    /// A renderer instance.
-    ///
-    /// The renderer can be connected to a window ([headed](#headed)), or not connected with any window ([headless](#headless)).
-    /// In both cases the renderer can only be initialized in the main thread due to limitations of OpenGL.
-    ///
-    /// # Headed
-    ///
-    /// A headed renderer is connected to a [glutin window](https://docs.rs/glutin/*/glutin/window/struct.Window.html).
-    /// It is initialized by the [`new_with_glutin`](Renderer::new_with_glutin) function. The windows opened using
-    /// [`Windows::open`](crate::window::Windows::open) use this internally so you probably don't want to use this directly.
-    ///
-    /// # Headless
-    ///
-    /// A headless renderer TODO.
-    ///
-    /// # Callback
-    ///
-    /// Frames are rendered in background threads, the renderer notifies when a frame is ready to present using a
-    /// [`RenderCallback`].
-    pub struct Renderer {
-        context: GlContext,
-        gl: Rc<dyn gl::Gl>,
-
-        renderer: Option<webrender::Renderer>, // Some(_) until drop.
-        api: Rc<webrender::api::RenderApi>,
-        document_id: webrender::api::DocumentId,
-        pipeline_id: webrender::api::PipelineId,
-
-        headless: bool,
-        size: RenderSize,
-        scale_factor: f32,
-        resized: bool,
-        clear_color: Option<RenderColor>,
-    }
-    impl Renderer {
-        /// Create a renderer that presents to a `glutin` window.
-        ///
-        /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
-        ///
-        /// # Returns
-        ///
-        /// Returns the `Renderer` and glutin `Window` instances. They are linked internally, the renderer manages
-        /// the window OpenGL context.
-        ///
-        /// ## Safety
-        ///
-        /// The renderer **must** be dropped before dropping the returned `Window`.
-        ///
-        /// # Panics
-        ///
-        /// Panics if not called by in the main thread.
-        pub fn new_with_glutin<C: RenderCallback>(
-            window: WindowBuilder,
-            window_target: WindowTarget,
-            config: RendererConfig,
-            render_callback: C,
-        ) -> Result<(Self, glutin::window::Window), RendererError> {
-            if !is_main_thread::is_main_thread().unwrap_or(true) {
-                panic!("can only init renderer in the main thread")
-            }
-
-            let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
-                opengl_version: (3, 2),
-                opengles_version: (3, 0),
-            });
-            let context = window_target.build_glutin_window(context, window)?;
-
-            let (context, window) = unsafe { context.split() };
-
-            let size = window.inner_size();
-            let size = RenderSize::new(size.width as i32, size.height as i32);
-
-            let renderer = Self::new_(
-                GlContext::Windowed(context),
-                size,
-                config.wr_options(window.scale_factor() as f32, RendererKind::Native),
-                Box::new(Notifier(render_callback, Some(window.id().into()))),
-            )?;
-
-            Ok((renderer, window))
-        }
-
-        /// Create a headless renderer.
-        ///
-        /// The `size` must be already scaled by the `scale_factor`. The `scale_factor` is usually `1.0` for headless rendering.
-        ///
-        /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
-        ///
-        /// The `window_id` is the optional id of the headless window associated with this renderer.
-        pub fn new<C: RenderCallback>(
-            size: RenderSize,
-            scale_factor: f32,
-            config: RendererConfig,
-            render_callback: C,
-            window_id: Option<crate::window::WindowId>,
-        ) -> Result<Self, RendererError> {
-            if !is_main_thread::is_main_thread().unwrap_or(true) {
-                panic!("can only init renderer in the main thread")
-            }
-
-            let el = glutin::event_loop::EventLoop::new();
-
-            let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
-                opengl_version: (3, 2),
-                opengles_version: (3, 0),
-            });
-
-            let size_one = glutin::dpi::PhysicalSize::new(1, 1);
-
-            let renderer_kind;
-
-            #[cfg(target_os = "linux")]
-            let context = {
-                use glutin::platform::unix::HeadlessContextExt;
-                match context.clone().build_surfaceless(&el) {
-                    Ok(ctx) => {
-                        renderer_kind = RendererKind::Native;
-                        ctx
-                    }
-                    Err(suf_e) => match context.clone().build_headless(&el, size_one) {
-                        Ok(ctx) => {
-                            renderer_kind = RendererKind::Native;
-                            ctx
-                        }
-                        Err(hea_e) => match context.build_osmesa(size_one) {
-                            Ok(ctx) => {
-                                renderer_kind = RendererKind::OSMesa;
-                                ctx
-                            }
-                            Err(osm_e) => return Err(RendererError::CreationHeadlessLinux([suf_e, hea_e, osm_e])),
-                        },
-                    },
-                }
-            };
-            #[cfg(not(target_os = "linux"))]
-            let context = {
-                let c = context.build_headless(&el, size_one)?;
-                renderer_kind = RendererKind::Native;
-                c
-            };
-
-            Self::new_(
-                GlContext::Headless(context, HeadlessData::partial(el)),
-                size,
-                config.wr_options(scale_factor, renderer_kind),
-                Box::new(Notifier(render_callback, window_id)),
-            )
-        }
-
-        fn new_(
-            mut context: GlContext,
-            size: RenderSize,
-            opts: webrender::RendererOptions,
-            notifier: Box<dyn webrender_api::RenderNotifier>,
-        ) -> Result<Self, RendererError> {
-            // INIT openGl (context, gl).
-            //
-            let mut context = context.make_current()?;
-
-            let gl = match context.get_api() {
-                GApi::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
-                GApi::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
-                GApi::WebGl => panic!("WebGl is not supported"),
-            };
-
-            let headless = if let GlContextCurrent::Headless(_, data) = &mut context {
-                #[cfg(debug_assertions)]
-                let gl = gleam::gl::ErrorCheckingGl::wrap(gl.clone());
-
-                // manually create a surface for headless.
-                let rbos = gl.gen_renderbuffers(2);
-                let fbo = gl.gen_framebuffers(1)[0];
-
-                data.fbo = [fbo];
-                data.rbos = [rbos[0], rbos[1]];
-                Self::size_headless(&gl, &data.rbos, size);
-
-                gl.bind_framebuffer(gl::FRAMEBUFFER, fbo);
-                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rbos[0]);
-                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, rbos[1]);
-
-                true
-            } else {
-                false
-            };
-
-            // INIT webrender (renderer, api, ids):
-            //
-            let clear_color = opts.clear_color;
-            let pixel_ratio = opts.device_pixel_ratio;
-
-            let (renderer, sender) = webrender::Renderer::new(Rc::clone(&gl), notifier, opts, None, size).unwrap();
-
-            let api = Rc::new(sender.create_api());
-            let document_id = api.add_document(size, 0);
-
-            let pipeline_id = webrender::api::PipelineId(1, 0);
-
-            let context = match context.make_not_current() {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    renderer.deinit();
-                    return Err(e);
-                }
-            };
-
-            Ok(Self {
-                context,
-                gl,
-
-                renderer: Some(renderer),
-                api,
-                document_id,
-                pipeline_id,
-
-                size,
-                scale_factor: pixel_ratio,
-                resized: false,
-                clear_color,
-                headless,
-            })
-        }
-
-        fn size_headless(gl: &Rc<dyn gl::Gl>, rbos: &[u32; 2], size: RenderSize) {
-            gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[0]);
-            gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, size.width, size.height);
-
-            gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[1]);
-            gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, size.width, size.height);
-
-            gl.viewport(0, 0, size.width, size.height);
-        }
-
-        /// If this renderer is not connected with any window.
-        #[inline]
-        pub fn headless(&self) -> bool {
-            self.headless
-        }
-
-        /// The WebRender API.
-        #[inline]
-        pub fn api(&self) -> &Rc<webrender::api::RenderApi> {
-            &self.api
-        }
-
-        /// The main pipeline.
-        #[inline]
-        pub fn pipeline_id(&self) -> webrender::api::PipelineId {
-            self.pipeline_id
-        }
-
-        /// Viewport size in device pixels.
-        #[inline]
-        pub fn size(&self) -> RenderSize {
-            self.size
-        }
-
-        /// Scale size used to convert layout pixels to device pixels.
-        #[inline]
-        pub fn scale_factor(&self) -> f32 {
-            self.scale_factor
-        }
-
-        /// Resize the renderer surface.
-        ///
-        /// The `new_size` must be already scaled by the `new_scale_factor`.
-        ///
-        /// This must be called even when the renderer was created from a window.
-        ///
-        /// This does not render a new frame, you must call [`render`](Self::render) before presenting the new size.
-        pub fn resize(&mut self, new_size: RenderSize, new_scale_factor: f32) -> Result<(), RendererError> {
-            let context = self.context.make_current()?;
-
-            match &context {
-                GlContextCurrent::Windowed(ctx) => {
-                    let size = glutin::dpi::PhysicalSize::new(new_size.width as u32, new_size.height as u32);
-                    ctx.resize(size);
-                }
-                GlContextCurrent::Headless(_, data) => {
-                    Self::size_headless(&self.gl, &data.rbos, new_size);
-                }
-            }
-
-            self.context = context.make_not_current()?;
-
-            self.size = new_size;
-            self.scale_factor = new_scale_factor;
-            self.resized = true;
-
-            Ok(())
-        }
-
-        /// Start rendering a new frame.
-        ///
-        /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
-        pub fn render(
-            &mut self,
-            display_list_data: (webrender::api::PipelineId, LayoutSize, webrender::api::BuiltDisplayList),
-            frame_id: FrameId,
-        ) {
-            let viewport_size = LayoutSize::new(
-                self.size.width as f32 * self.scale_factor,
-                self.size.height as f32 * self.scale_factor,
-            );
-
-            let mut txn = Transaction::new();
-            txn.set_display_list(frame_id, self.clear_color, viewport_size, display_list_data, true);
-            txn.set_root_pipeline(self.pipeline_id);
-
-            if self.resized {
-                self.resized = false;
-                txn.set_document_view(self.size.into(), self.scale_factor);
-            }
-
-            txn.generate_frame();
-            self.api.send_transaction(self.document_id, txn);
-        }
-
-        /// Start rendering a new frame based on the data of the last frame.
-        pub fn render_update(&mut self, updates: webrender::api::DynamicProperties) {
-            let mut txn = Transaction::new();
-            txn.set_root_pipeline(self.pipeline_id);
-            txn.update_dynamic_properties(updates);
-
-            if self.resized {
-                self.resized = false;
-                txn.set_document_view(self.size.into(), self.scale_factor);
-            }
-
-            txn.generate_frame();
-            self.api.send_transaction(self.document_id, txn);
-        }
-
-        /// Present the last rendered frame.
-        pub fn present(&mut self) -> Result<(), RendererError> {
-            // draw:
-            let context = self.context.make_current()?;
-
-            let renderer = self.renderer.as_mut().expect("renderer dropped");
-
-            renderer.update();
-
-            if let Err(e) = renderer.render(self.size) {
-                let e = match context.make_not_current() {
-                    Ok(ctx) => {
-                        self.context = ctx;
-                        RendererError::RenderRecovered(e)
-                    }
-                    Err(RendererError::ContextNotRecovered(e2)) => RendererError::RenderNotRecovered(e, e2),
-                    Err(e3) => unreachable!("{:?}", e3),
-                };
-                return Err(e);
-            }
-
-            // swap:
-            if let Err(e) = context.swap_buffers() {
-                self.context = context.make_not_current()?;
-                return Err(e);
-            }
-
-            self.context = context.make_not_current()?;
-
-            Ok(())
-        }
-
-        /// Does a hit-test on the current frame.
-        #[inline]
-        pub fn hit_test(&self, point: LayoutPoint) -> webrender::api::HitTestResult {
-            self.api.hit_test(
-                self.document_id,
-                Some(self.pipeline_id),
-                webrender::api::units::WorldPoint::new(point.x, point.y),
-                webrender::api::HitTestFlags::all(),
-            )
-        }
-
-        /// `glReadPixels` a new buffer.
-        ///
-        /// This is a direct call to `glReadPixels`, `x` and `y` start
-        /// at the bottom-left corner of the rectangle and each *stride*
-        /// is a row from bottom-to-top and the pixel type is BGRA.
-        #[inline]
-        pub fn read_pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, RendererError> {
-            let context = self.context.make_current()?;
-
-            let pixels = self
-                .gl
-                .read_pixels(x as _, y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
-            assert!(self.gl.get_error() == 0);
-
-            self.context = context.make_not_current()?;
-
-            Ok(pixels)
-        }
-
-        /// `glReadPixels` to an existing buffer.
-        ///
-        /// This is a direct call to `glReadPixels`, `x` and `y` start
-        /// at the bottom-left corner of the rectangle and each *stride*
-        /// is a row from bottom-to-top and the pixel type is BGRA.
-        #[inline]
-        pub fn read_pixels_to(&mut self, x: u32, y: u32, width: u32, height: u32, pixels: &mut [u8]) -> Result<(), RendererError> {
-            let context = self.context.make_current()?;
-
-            self.gl
-                .read_pixels_into_buffer(x as _, y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE, pixels);
-            assert!(self.gl.get_error() == 0);
-
-            self.context = context.make_not_current()?;
-
-            Ok(())
-        }
-
-        /// Read the current presented frame into a [`FramePixels`].
-        #[inline]
-        pub fn frame_pixels(&mut self) -> Result<FramePixels, RendererError> {
-            self.frame_pixels_rect(0, 0, self.size.width as u32, self.size.height as u32)
-        }
-
-        /// Read a rectangle of the currently presented frame into a [`FramePixels`].
-        ///
-        /// The coordinates are in pixels units and `x` and `y` starting at the top-left corner.
-        /// If the rectangle does not fully overlap with the frame the result is clipped.
-        pub fn frame_pixels_rect(&mut self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, RendererError> {
-            let max_rect = webrender::euclid::Rect::from_size(self.size);
-            let rect = webrender::euclid::Rect::new(
-                webrender::euclid::Point2D::new(x, y),
-                webrender::euclid::Size2D::new(width as i32, height as i32),
-            );
-            let rect = rect.intersection(&max_rect).unwrap_or_default();
-
-            if rect.size.width == 0 || rect.size.height == 0 {
-                return Ok(FramePixels {
-                    bgra: Arc::new(vec![]),
-                    width: rect.size.width as u32,
-                    height: rect.size.height as u32,
-                    scale_factor: self.scale_factor,
-                    opaque: true, // TODO
-                });
-            }
-
-            let mut pixels = self.read_pixels(
-                rect.origin.x as u32,
-                (max_rect.size.height - rect.origin.y - rect.size.height) as u32,
-                rect.size.width as u32,
-                rect.size.height as u32,
-            )?;
-
-            let line_len = rect.size.width as usize * 4;
-
-            let mut rest = &mut pixels[..];
-            while rest.len() > line_len {
-                let (line_a, temp) = rest.split_at_mut(line_len);
-                let (temp, line_b) = temp.split_at_mut(temp.len() - line_len);
-
-                line_a.swap_with_slice(line_b);
-
-                rest = temp;
-            }
-
-            Ok(FramePixels {
-                bgra: Arc::new(pixels),
+    /// The coordinates are in pixels units and `x` and `y` starting at the top-left corner.
+    /// If the rectangle does not fully overlap with the frame the result is clipped.
+    pub fn frame_pixels_rect(&mut self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, zero_ui_wr::WindowNotFound> {
+        let max_rect = webrender_api::euclid::Rect::from_size(self.size);
+        let rect = webrender_api::euclid::Rect::new(
+            webrender_api::euclid::Point2D::new(x, y),
+            webrender_api::euclid::Size2D::new(width as i32, height as i32),
+        );
+        let rect = rect.intersection(&max_rect).unwrap_or_default();
+
+        if rect.size.width == 0 || rect.size.height == 0 {
+            return Ok(FramePixels {
+                bgra: Arc::new(vec![]),
                 width: rect.size.width as u32,
                 height: rect.size.height as u32,
                 scale_factor: self.scale_factor,
-                opaque: true,
-            })
+                opaque: true, // TODO
+            });
         }
 
-        /// Read a rectangle of the currently presented frame into a [`FramePixels`].
-        ///
-        /// The `rect` is converted to pixels coordinates using the current [`scale_factor`](Self::scale_factor)
-        #[inline]
-        pub fn frame_pixels_l_rect(&mut self, rect: crate::units::LayoutRect) -> Result<FramePixels, RendererError> {
-            self.frame_pixels_rect(
-                (rect.origin.x * self.scale_factor) as i32,
-                (rect.origin.y * self.scale_factor) as i32,
-                (rect.size.width * self.scale_factor) as u32,
-                (rect.size.height * self.scale_factor) as u32,
-            )
-        }
-    }
-    impl Drop for Renderer {
-        fn drop(&mut self) {
-            if let Some(renderer) = self.renderer.take() {
-                if let Ok(mut ctx) = self.context.make_current() {
-                    renderer.deinit();
+        let mut pixels = self.read_pixels(
+            rect.origin.x as u32,
+            (max_rect.size.height - rect.origin.y - rect.size.height) as u32,
+            rect.size.width as u32,
+            rect.size.height as u32,
+        )?;
 
-                    if let GlContextCurrent::Headless(_, data) = &mut ctx {
-                        self.gl.delete_framebuffers(&data.fbo);
-                        self.gl.delete_renderbuffers(&data.rbos);
-                    }
+        let line_len = rect.size.width as usize * 4;
 
-                    let _ = ctx.make_not_current();
-                    return;
-                }
-                // TODO does this panic?
-                renderer.deinit();
-            }
+        let mut rest = &mut pixels[..];
+        while rest.len() > line_len {
+            let (line_a, temp) = rest.split_at_mut(line_len);
+            let (temp, line_b) = temp.split_at_mut(temp.len() - line_len);
+
+            line_a.swap_with_slice(line_b);
+
+            rest = temp;
         }
+
+        Ok(FramePixels {
+            bgra: Arc::new(pixels),
+            width: rect.size.width as u32,
+            height: rect.size.height as u32,
+            scale_factor: self.scale_factor,
+            opaque: true,
+        })
     }
 
-    /// Arguments for the [`RenderCallback`].
-    #[derive(Debug)]
-    pub struct NewFrameArgs {
-        /// The window that owns the renderer.
-        pub window_id: Option<crate::window::WindowId>,
+    /// Read the current presented frame into a [`FramePixels`].
+    #[inline]
+    pub fn frame_pixels(&mut self) -> Result<FramePixels, zero_ui_wr::WindowNotFound> {
+        self.frame_pixels_rect(0, 0, self.size.width as u32, self.size.height as u32)
     }
 
-    /// A callback called by a [`Renderer`] every time a frame is ready to be presented.
-    pub trait RenderCallback: Send + Clone + 'static {
-        /// The callback.
-        fn on_new_frame(&self, args: NewFrameArgs);
-    }
-    impl<F: Fn(NewFrameArgs) + Send + Clone + 'static> RenderCallback for F {
-        fn on_new_frame(&self, args: NewFrameArgs) {
-            (self)(args)
-        }
-    }
-
-    struct Notifier<C>(C, Option<crate::window::WindowId>);
-    impl<C: RenderCallback> webrender::api::RenderNotifier for Notifier<C> {
-        fn clone(&self) -> Box<dyn webrender::api::RenderNotifier> {
-            Box::new(Notifier(self.0.clone(), self.1))
-        }
-
-        fn wake_up(&self) {}
-
-        fn new_frame_ready(&self, _: webrender::api::DocumentId, _scrolled: bool, _composite_needed: bool, _render_time_ns: Option<u64>) {
-            self.0.on_new_frame(NewFrameArgs { window_id: self.1 })
-        }
-    }
-
-    /// Pixels copied from a [`Renderer`] frame.
-    #[derive(Clone)]
-    pub struct FramePixels {
-        bgra: Arc<Vec<u8>>,
-        width: u32,
-        height: u32,
-        opaque: bool,
-
-        /// Scale factor used when rendering the frame.
-        ///
-        /// This value is used only as the *DPI* metadata of
-        /// image files encoded from these pixels.
-        pub scale_factor: f32,
-    }
-    impl fmt::Debug for FramePixels {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("FramePixels")
-                .field("bgra", &format_args!("<{} heap bytes>", self.bgra.len()))
-                .field("width", &self.width)
-                .field("height", &self.height)
-                .field("opaque", &self.opaque)
-                .field("scale_factor", &self.scale_factor)
-                .finish()
-        }
-    }
-    impl FramePixels {
-        /// **BGRA8** frame pixels.
-        #[inline]
-        pub fn bgra(&self) -> &Arc<Vec<u8>> {
-            &self.bgra
-        }
-
-        /// Pixels width.
-        #[inline]
-        pub fn width(&self) -> u32 {
-            self.width
-        }
-
-        /// Pixels height.
-        #[inline]
-        pub fn height(&self) -> u32 {
-            self.height
-        }
-
-        /// Returns `true` if all pixels in [`bgra`] are fully opaque.
-        ///
-        /// [`bgra`]: Self::bgra
-        #[inline]
-        pub fn opaque(&self) -> bool {
-            self.opaque
-        }
-
-        /// Get the underlying data `(bgra, width, height)`.
-        #[inline]
-        pub fn raw(self) -> (Arc<Vec<u8>>, u32, u32) {
-            (self.bgra, self.width, self.height)
-        }
-
-        /// Encode and save the pixels as an image.
-        ///
-        /// The image format is defined by the file extension.
-        ///
-        /// # Scale Factor
-        ///
-        /// The scale factor is used only if the formats are `PNG` or `JPEG`, for both
-        /// it sets the pixel density to `96dpi * scale_factor`.
-        ///
-        /// # ICO
-        ///
-        /// The `.ico` format only works if the image buffer width and height are in the `1..=256` range.
-        pub async fn save(&self, path: impl Into<std::path::PathBuf>) -> image::ImageResult<()> {
-            use image::*;
-            use std::fs;
-
-            let path = path.into();
-            let format = ImageFormat::from_path(&path)?;
-            let mut file = task::wait(move || fs::File::create(path)).await?;
-
-            let bgra = Arc::clone(&self.bgra);
-            let width = self.width;
-            let height = self.height;
-            let scale_factor = self.scale_factor;
-            let opaque = self.opaque;
-
-            let encoded = task::run(async move {
-                let mut buffer = vec![];
-
-                match format {
-                    ImageFormat::Jpeg => {
-                        let mut jpg = codecs::jpeg::JpegEncoder::new(&mut buffer);
-                        let dpi = (96.0 * scale_factor) as u16;
-                        jpg.set_pixel_density(codecs::jpeg::PixelDensity::dpi(dpi));
-                        jpg.encode(&bgra, width, height, ColorType::Bgra8)?;
-                    }
-                    ImageFormat::Farbfeld => {
-                        let mut pixels = Vec::with_capacity(bgra.len() * 2);
-                        for bgra in bgra.chunks(4) {
-                            fn c(c: u8) -> [u8; 2] {
-                                let c = (c as f32 / 255.0) * u16::MAX as f32;
-                                (c as u16).to_ne_bytes()
-                            }
-                            pixels.extend(c(bgra[2]));
-                            pixels.extend(c(bgra[1]));
-                            pixels.extend(c(bgra[0]));
-                            pixels.extend(c(bgra[3]));
-                        }
-
-                        let ff = codecs::farbfeld::FarbfeldEncoder::new(&mut buffer);
-                        ff.encode(&pixels, width, height)?;
-                    }
-                    ImageFormat::Tga => {
-                        let tga = codecs::tga::TgaEncoder::new(&mut buffer);
-                        tga.encode(&bgra, width, height, ColorType::Bgra8)?;
-                    }
-                    rgb_only => {
-                        let mut pixels;
-                        let color_type;
-                        if opaque {
-                            color_type = ColorType::Rgb8;
-                            pixels = Vec::with_capacity(width as usize * height as usize * 3);
-                            for bgra in bgra.chunks(4) {
-                                pixels.push(bgra[2]);
-                                pixels.push(bgra[1]);
-                                pixels.push(bgra[0]);
-                            }
-                        } else {
-                            color_type = ColorType::Rgba8;
-                            pixels = (*bgra).clone();
-                            for pixel in pixels.chunks_mut(4) {
-                                pixel.swap(0, 2);
-                            }
-                        }
-
-                        match rgb_only {
-                            ImageFormat::Png => {
-                                let mut png_bytes = vec![];
-                                let png = codecs::png::PngEncoder::new(&mut png_bytes);
-
-                                png.encode(&pixels, width, height, color_type)?;
-
-                                let mut png = img_parts::png::Png::from_bytes(png_bytes.into()).unwrap();
-
-                                let chunk_kind = *b"pHYs";
-                                debug_assert!(png.chunk_by_type(chunk_kind).is_none());
-
-                                use byteorder::*;
-                                let mut chunk = Vec::with_capacity(4 * 2 + 1);
-
-                                // 96dpi * scale / inch_to_metric
-                                let ppm = (96.0 * scale_factor / 0.0254) as u32;
-
-                                chunk.write_u32::<BigEndian>(ppm).unwrap(); // x
-                                chunk.write_u32::<BigEndian>(ppm).unwrap(); // y
-                                chunk.write_u8(1).unwrap(); // metric
-
-                                let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
-                                png.chunks_mut().insert(1, chunk);
-
-                                png.encoder().write_to(&mut buffer)?;
-                            }
-                            ImageFormat::Tiff => {
-                                // TODO set ResolutionUnit to 2 (inch) and set both XResolution and YResolution
-                                let mut seek_buf = std::io::Cursor::new(vec![]);
-                                let tiff = codecs::tiff::TiffEncoder::new(&mut seek_buf);
-
-                                tiff.encode(&pixels, width, height, color_type)?;
-
-                                buffer = seek_buf.into_inner();
-                            }
-                            ImageFormat::Gif => {
-                                let mut gif = codecs::gif::GifEncoder::new(&mut buffer);
-
-                                gif.encode(&pixels, width, height, color_type)?;
-                            }
-                            ImageFormat::Bmp => {
-                                // TODO set biXPelsPerMeter and biYPelsPerMeter
-                                let mut bmp = codecs::bmp::BmpEncoder::new(&mut buffer);
-
-                                bmp.encode(&pixels, width, height, color_type)?;
-                            }
-                            ImageFormat::Ico => {
-                                // TODO set density in the inner PNG?
-                                let ico = codecs::ico::IcoEncoder::new(&mut buffer);
-
-                                ico.encode(&pixels, width, height, color_type)?;
-                            }
-                            unsuported => {
-                                use image::error::*;
-                                let hint = ImageFormatHint::Exact(unsuported);
-                                return Err(ImageError::Unsupported(UnsupportedError::from_format_and_kind(
-                                    hint.clone(),
-                                    UnsupportedErrorKind::Format(hint),
-                                )));
-                            }
-                        }
-                    }
-                }
-                Ok(buffer)
-            })
-            .await?;
-
-            task::wait(move || file.write_all(&encoded)).await?;
-            Ok(())
-        }
-
-        /// Create an [`Image`] from the pixel data.
-        ///
-        /// [`Image`]: crate::image::Image
-        #[inline]
-        pub fn image(&self) -> crate::image::Image {
-            crate::image::Image::from_raw(self.bgra.clone(), (self.width, self.height), self.opaque)
-        }
-    }
-    impl From<FramePixels> for crate::image::Image {
-        fn from(pixels: FramePixels) -> Self {
-            pixels.image()
-        }
+    /// Read a rectangle of the currently presented frame into a [`FramePixels`].
+    ///
+    /// The `rect` is converted to pixels coordinates using the current [`scale_factor`](Self::scale_factor)
+    #[inline]
+    pub fn frame_pixels_l_rect(&mut self, rect: crate::units::LayoutRect) -> Result<FramePixels, zero_ui_wr::WindowNotFound> {
+        self.frame_pixels_rect(
+            (rect.origin.x * self.scale_factor) as i32,
+            (rect.origin.y * self.scale_factor) as i32,
+            (rect.size.width * self.scale_factor) as u32,
+            (rect.size.height * self.scale_factor) as u32,
+        )
     }
 }
 
-#[doc(inline)]
-pub use renderer::*;
+/// Pixels copied from a [`Renderer`] frame.
+#[derive(Clone)]
+pub struct FramePixels {
+    bgra: Arc<Vec<u8>>,
+    width: u32,
+    height: u32,
+    opaque: bool,
+
+    /// Scale factor used when rendering the frame.
+    ///
+    /// This value is used only as the *DPI* metadata of
+    /// image files encoded from these pixels.
+    pub scale_factor: f32,
+}
+impl fmt::Debug for FramePixels {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FramePixels")
+            .field("bgra", &format_args!("<{} heap bytes>", self.bgra.len()))
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("opaque", &self.opaque)
+            .field("scale_factor", &self.scale_factor)
+            .finish()
+    }
+}
+impl FramePixels {
+    /// **BGRA8** frame pixels.
+    #[inline]
+    pub fn bgra(&self) -> &Arc<Vec<u8>> {
+        &self.bgra
+    }
+
+    /// Pixels width.
+    #[inline]
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    /// Pixels height.
+    #[inline]
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    /// Returns `true` if all pixels in [`bgra`] are fully opaque.
+    ///
+    /// [`bgra`]: Self::bgra
+    #[inline]
+    pub fn opaque(&self) -> bool {
+        self.opaque
+    }
+
+    /// Get the underlying data `(bgra, width, height)`.
+    #[inline]
+    pub fn raw(self) -> (Arc<Vec<u8>>, u32, u32) {
+        (self.bgra, self.width, self.height)
+    }
+
+    /// Encode and save the pixels as an image.
+    ///
+    /// The image format is defined by the file extension.
+    ///
+    /// # Scale Factor
+    ///
+    /// The scale factor is used only if the formats are `PNG` or `JPEG`, for both
+    /// it sets the pixel density to `96dpi * scale_factor`.
+    ///
+    /// # ICO
+    ///
+    /// The `.ico` format only works if the image buffer width and height are in the `1..=256` range.
+    pub async fn save(&self, path: impl Into<std::path::PathBuf>) -> image::ImageResult<()> {
+        use image::*;
+        use std::fs;
+
+        let path = path.into();
+        let format = ImageFormat::from_path(&path)?;
+        let mut file = task::wait(move || fs::File::create(path)).await?;
+
+        let bgra = Arc::clone(&self.bgra);
+        let width = self.width;
+        let height = self.height;
+        let scale_factor = self.scale_factor;
+        let opaque = self.opaque;
+
+        let encoded = task::run(async move {
+            let mut buffer = vec![];
+
+            match format {
+                ImageFormat::Jpeg => {
+                    let mut jpg = codecs::jpeg::JpegEncoder::new(&mut buffer);
+                    let dpi = (96.0 * scale_factor) as u16;
+                    jpg.set_pixel_density(codecs::jpeg::PixelDensity::dpi(dpi));
+                    jpg.encode(&bgra, width, height, ColorType::Bgra8)?;
+                }
+                ImageFormat::Farbfeld => {
+                    let mut pixels = Vec::with_capacity(bgra.len() * 2);
+                    for bgra in bgra.chunks(4) {
+                        fn c(c: u8) -> [u8; 2] {
+                            let c = (c as f32 / 255.0) * u16::MAX as f32;
+                            (c as u16).to_ne_bytes()
+                        }
+                        pixels.extend(c(bgra[2]));
+                        pixels.extend(c(bgra[1]));
+                        pixels.extend(c(bgra[0]));
+                        pixels.extend(c(bgra[3]));
+                    }
+
+                    let ff = codecs::farbfeld::FarbfeldEncoder::new(&mut buffer);
+                    ff.encode(&pixels, width, height)?;
+                }
+                ImageFormat::Tga => {
+                    let tga = codecs::tga::TgaEncoder::new(&mut buffer);
+                    tga.encode(&bgra, width, height, ColorType::Bgra8)?;
+                }
+                rgb_only => {
+                    let mut pixels;
+                    let color_type;
+                    if opaque {
+                        color_type = ColorType::Rgb8;
+                        pixels = Vec::with_capacity(width as usize * height as usize * 3);
+                        for bgra in bgra.chunks(4) {
+                            pixels.push(bgra[2]);
+                            pixels.push(bgra[1]);
+                            pixels.push(bgra[0]);
+                        }
+                    } else {
+                        color_type = ColorType::Rgba8;
+                        pixels = (*bgra).clone();
+                        for pixel in pixels.chunks_mut(4) {
+                            pixel.swap(0, 2);
+                        }
+                    }
+
+                    match rgb_only {
+                        ImageFormat::Png => {
+                            let mut png_bytes = vec![];
+                            let png = codecs::png::PngEncoder::new(&mut png_bytes);
+
+                            png.encode(&pixels, width, height, color_type)?;
+
+                            let mut png = img_parts::png::Png::from_bytes(png_bytes.into()).unwrap();
+
+                            let chunk_kind = *b"pHYs";
+                            debug_assert!(png.chunk_by_type(chunk_kind).is_none());
+
+                            use byteorder::*;
+                            let mut chunk = Vec::with_capacity(4 * 2 + 1);
+
+                            // 96dpi * scale / inch_to_metric
+                            let ppm = (96.0 * scale_factor / 0.0254) as u32;
+
+                            chunk.write_u32::<BigEndian>(ppm).unwrap(); // x
+                            chunk.write_u32::<BigEndian>(ppm).unwrap(); // y
+                            chunk.write_u8(1).unwrap(); // metric
+
+                            let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
+                            png.chunks_mut().insert(1, chunk);
+
+                            png.encoder().write_to(&mut buffer)?;
+                        }
+                        ImageFormat::Tiff => {
+                            // TODO set ResolutionUnit to 2 (inch) and set both XResolution and YResolution
+                            let mut seek_buf = std::io::Cursor::new(vec![]);
+                            let tiff = codecs::tiff::TiffEncoder::new(&mut seek_buf);
+
+                            tiff.encode(&pixels, width, height, color_type)?;
+
+                            buffer = seek_buf.into_inner();
+                        }
+                        ImageFormat::Gif => {
+                            let mut gif = codecs::gif::GifEncoder::new(&mut buffer);
+
+                            gif.encode(&pixels, width, height, color_type)?;
+                        }
+                        ImageFormat::Bmp => {
+                            // TODO set biXPelsPerMeter and biYPelsPerMeter
+                            let mut bmp = codecs::bmp::BmpEncoder::new(&mut buffer);
+
+                            bmp.encode(&pixels, width, height, color_type)?;
+                        }
+                        ImageFormat::Ico => {
+                            // TODO set density in the inner PNG?
+                            let ico = codecs::ico::IcoEncoder::new(&mut buffer);
+
+                            ico.encode(&pixels, width, height, color_type)?;
+                        }
+                        unsuported => {
+                            use image::error::*;
+                            let hint = ImageFormatHint::Exact(unsuported);
+                            return Err(ImageError::Unsupported(UnsupportedError::from_format_and_kind(
+                                hint.clone(),
+                                UnsupportedErrorKind::Format(hint),
+                            )));
+                        }
+                    }
+                }
+            }
+            Ok(buffer)
+        })
+        .await?;
+
+        task::wait(move || file.write_all(&encoded)).await?;
+        Ok(())
+    }
+
+    /// Create an [`Image`] from the pixel data.
+    ///
+    /// [`Image`]: crate::image::Image
+    #[inline]
+    pub fn image(&self) -> crate::image::Image {
+        crate::image::Image::from_raw(self.bgra.clone(), (self.width, self.height), self.opaque)
+    }
+}
+impl From<FramePixels> for crate::image::Image {
+    fn from(pixels: FramePixels) -> Self {
+        pixels.image()
+    }
+}

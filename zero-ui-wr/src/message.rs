@@ -1,11 +1,16 @@
+use std::fmt;
 use std::path::PathBuf;
 
 pub use glutin::event::{
     AxisId, ButtonId, ElementState, KeyboardInput, ModifiersState, MouseButton, MouseScrollDelta, ScanCode, TouchPhase, VirtualKeyCode,
 };
+pub use glutin::window::CursorIcon;
 use serde::*;
+use webrender::api::units::LayoutPoint;
 use webrender::api::{units::LayoutSize, BuiltDisplayListDescriptor, PipelineId};
+use webrender::api::{ColorF, HitTestResult};
 
+/// Requests sent from the App Process.
 #[derive(Serialize, Deserialize)]
 pub enum Request {
     ProtocolVersion,
@@ -15,24 +20,74 @@ pub enum Request {
     SetWindowPosition(WinId, (i32, i32)),
     SetWindowSize(WinId, (u32, u32)),
     SetWindowVisible(WinId, bool),
+    HitTest(WinId, LayoutPoint),
+    ReadPixels(WinId, [u32; 4]),
     CloseWindow(WinId),
     Shutdown,
 }
 
+/// View Process startup config.
 #[derive(Serialize, Deserialize)]
 pub struct StartRequest {
+    /// If raw device events are sent to the App Process.
     pub device_events: bool,
+    /// If only the renderer is used and no windows should be visible.
+    pub headless: bool,
 }
 
+/// View Window start config.
 #[derive(Serialize, Deserialize)]
 pub struct OpenWindowRequest {
+    /// Initial title.
     pub title: String,
+    /// Initial position, in device pixels.
     pub pos: (i32, i32),
+    /// Initial size, in device pixels.
     pub size: (u32, u32),
+    /// Visibility after the first frame is rendered.
     pub visible: bool,
+
+    /// Color used to clear the frame buffer for a new rendering.
+    pub clear_color: Option<ColorF>,
+
+    /// Text anti-aliasing.
+    pub text_aa: TextAntiAliasing,
+
+    /// The first frame.
     pub frame: (PipelineId, LayoutSize, (Vec<u8>, BuiltDisplayListDescriptor)),
 }
+/// Text anti-aliasing.
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TextAntiAliasing {
+    /// Uses the operating system configuration.
+    Default,
+    /// Sub-pixel anti-aliasing if a fast implementation is available, otherwise uses `Alpha`.
+    Subpixel,
+    /// Alpha blending anti-aliasing.
+    Alpha,
+    /// Disable anti-aliasing.
+    Mono,
+}
+impl Default for TextAntiAliasing {
+    fn default() -> Self {
+        Self::Default
+    }
+}
+impl fmt::Debug for TextAntiAliasing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "TextAntiAliasing::")?;
+        }
+        match self {
+            TextAntiAliasing::Default => write!(f, "Default"),
+            TextAntiAliasing::Subpixel => write!(f, "Subpixel"),
+            TextAntiAliasing::Alpha => write!(f, "Alpha"),
+            TextAntiAliasing::Mono => write!(f, "Mono"),
+        }
+    }
+}
 
+/// Response for each [`Request`], sent from the View Process.
 #[derive(Serialize, Deserialize)]
 pub enum Response {
     ProtocolVersion(String),
@@ -43,9 +98,12 @@ pub enum Response {
     WindowTitleChanged(WinId),
     WindowVisibilityChanged(WinId, bool),
     WindowClosed(WinId),
+    HitTest(WinId, HitTestResult),
+    ReadPixels(WinId, Vec<u8>),
     WindowNotFound(WinId),
 }
 
+/// System/User events sent from the View Process.
 #[derive(Serialize, Deserialize)]
 pub enum Ev {
     // Window events
@@ -149,9 +207,27 @@ impl From<glutin::window::Theme> for Theme {
     }
 }
 
+/// Window ID in channel.
+///
+/// In the View Process this is mapped to a system id.
+///
+/// In the App Process this is mapped to a unique id that survives View crashes.
 pub type WinId = u32;
+
+/// Device ID in channel.
+///
+/// In the View Process this is mapped to a system id.
+///
+/// In the App Process this is mapped to a unique id, but does not survived View crashes.
 pub type DevId = u32;
 
 pub const MAX_RESPONSE_SIZE: u32 = 1024u32.pow(2) * 20;
 pub const MAX_REQUEST_SIZE: u32 = 1024u32.pow(2) * 20;
 pub const MAX_EVENT_SIZE: u32 = 1024u32.pow(2) * 20;
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Icon {
+    pub rgba: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}

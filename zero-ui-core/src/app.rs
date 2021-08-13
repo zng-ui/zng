@@ -18,9 +18,7 @@ use crate::{
 };
 
 use linear_map::LinearMap;
-use std::cell::RefCell;
 use std::future::Future;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::task::Waker;
 use std::{
@@ -655,18 +653,33 @@ impl<E: AppExtension> AppExtended<E> {
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
     ///
+    /// If `with_renderer` is `true` spawns a renderer process for headless rendering. See [`HeadlessApp::renderer_enabled`]
+    /// for more details.
+    ///
     /// # Tests
     ///
     /// If called in a test (`cfg(test)`) this blocks until no other instance of [`HeadlessApp`] and
     /// [`TestWidgetContext`] are running in the current thread.
-    pub fn run_headless(self) -> HeadlessApp {
+    pub fn run_headless(self, with_renderer: bool) -> HeadlessApp {
         #[cfg(feature = "app_profiler")]
         let profile_scope = {
             register_thread_with_profiler();
             ProfileScope::new("app::run_headless")
         };
 
-        let app = RunningApp::start(self.extensions.boxed());
+        let mut app = RunningApp::start(self.extensions.boxed());
+
+        if with_renderer {
+            let renderer = view_process::ViewProcess::start(
+                view_process::StartRequest {
+                    device_events: false,
+                    headless: true,
+                },
+                |_| unreachable!(),
+            );
+
+            app.ctx().services.register(renderer);
+        }
 
         HeadlessApp {
             app,
@@ -674,49 +687,6 @@ impl<E: AppExtension> AppExtended<E> {
             #[cfg(feature = "app_profiler")]
             _pf: profile_scope,
         }
-    }
-}
-
-/// Shared reference to the running View Process.
-/// 
-/// This is the lowest level API, used for implementing fundamental services. 
-#[derive(Clone)]
-pub struct ViewProcessRef(Rc<ViewProcess>);
-struct ViewProcess {
-    process: zero_ui_wr::App,
-    window_ids: RefCell<LinearMap<u32, WindowId>>,
-    device_ids: RefCell<LinearMap<u32, WindowId>>,
-}
-impl ViewProcessRef {
-    /// Spawn the View Process.
-    fn start<F>(request: zero_ui_wr::StartRequest, on_event: F) -> Self 
-    where
-    F: FnMut(zero_ui_wr::Ev) + Send + 'static,
-    {
-        Self(Rc::new(ViewProcess {
-            process: zero_ui_wr::App::start(request, on_event),
-            window_ids: LinearMap::new(),
-            device_ids: LinearMap::new(),
-        }))
-    }
-
-    /// Open a window and associate it with the `window_id`.
-    pub fn open_window(&self, window_id: WindowId, request: zero_ui_wr::OpenWindowRequest) {
-        assert!(self.0.window_ids.borrow().values().all(|v| v != window_id));
-
-        let id = self.0.process.open_window(request);
-
-        self.0.window_ids.borrow_mut().insert(id, window_id);
-    }
-
-    /// Translate `WinId` to `WindowId`.
-    fn window_id(&self, id: zero_ui_wr::WinId) -> Option<WindowId> {
-        self.0.window_ids.borrow().get(&id).copied()
-    }
-
-    /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
-    fn device_id(&self, id: zero_ui_wr::DevId) -> DeviceId {
-        self.0.device_id.borrow_mut().entry(id).or_insert_with(DeviceId::new_unique)
     }
 }
 
@@ -770,14 +740,16 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn run_headed(mut self) -> ! {
-        let view_evs_sender = self.owned_ctx.borrow().updates.sender();
+        let view_evs_sender = self.ctx().updates.sender();
 
-        let view_app = zero_ui_wr::App::start(
-            zero_ui_wr::StartRequest {
+        let view_app = view_process::ViewProcess::start(
+            view_process::StartRequest {
                 device_events: self.device_events,
+                headless: false,
             },
-            move |ev| view_evs_sender.send_view_event(ev),
+            move |ev| view_evs_sender.send_view_event(ev).unwrap(),
         );
+        self.ctx().services.register(view_app);
 
         loop {
             let ev = self.receiver.recv().unwrap();
@@ -896,7 +868,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawTouchpadPressureEvent, args);
             }
             zero_ui_wr::Ev::AxisMotion(w_id, d_id, axis, value) => {
-                let args = RawAxisMotionArgs::now(self.window_id(w_id), self.device_id(d_id), *axis, *value);
+                let args = RawAxisMotionArgs::now(self.window_id(w_id), self.device_id(d_id), axis, value);
                 self.notify_event(RawAxisMotionEvent, args);
             }
             zero_ui_wr::Ev::Touch(w_id, d_id, phase, pos, force, finger_id) => {
@@ -1109,15 +1081,6 @@ impl HeadlessApp {
 
     /// If headless rendering is enabled.
     ///
-    /// This is disabled by default.
-    ///
-    /// See [`enable_renderer`](Self::enable_renderer) for more details.
-    pub fn renderer_enabled(&self) -> bool {
-        self.app_state().get(HeadlessRendererEnabledKey).copied().unwrap_or_default()
-    }
-
-    /// Enable or disable headless rendering.
-    ///
     /// When enabled windows are still not visible but you can request [frame pixels](crate::window::OpenWindow::frame_pixels)
     /// to get the frame image. Renderer is disabled by default in a headless app.
     ///
@@ -1128,10 +1091,8 @@ impl HeadlessApp {
     /// Note that [`UiNode::render`](crate::UiNode::render) is still called when a renderer is disabled and you can still
     /// query the latest frame from [`OpenWindow::frame_info`](crate::window::OpenWindow::frame_info). The only thing that
     /// is disabled is WebRender and the generation of frame textures.
-    ///
-    /// This sets the [`HeadlessRendererEnabledKey`] state in the [app state](Self::app_state).
-    pub fn enable_renderer(&mut self, enabled: bool) {
-        self.app_state_mut().set(HeadlessRendererEnabledKey, enabled);
+    pub fn renderer_enabled(&self) -> bool {
+        self.ctx().services.get::<view_process::ViewProcess>().is_some()
     }
 
     /// Borrows the app context.
@@ -1245,13 +1206,6 @@ pub trait AppUpdateObserver {
 }
 /// Nil observer, does nothing.
 impl AppUpdateObserver for () {}
-
-state_key! {
-    /// If render is enabled in [headless mode](AppExtended::run_headless).
-    ///
-    /// See [`HeadlessApp::enable_renderer`] for for details.
-    pub struct HeadlessRendererEnabledKey: bool;
-}
 
 impl AppExtension for () {
     #[inline]
@@ -1515,51 +1469,41 @@ mod headless_tests {
 
     #[test]
     fn new_default() {
-        let mut app = App::default().run_headless();
+        let mut app = App::default().run_headless(false);
         app.update(false);
     }
 
     #[test]
     fn new_empty() {
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
         app.update(false);
     }
 
     #[test]
     pub fn new_window_no_render() {
-        let mut app = App::default().run_headless();
+        let mut app = App::default().run_headless(false);
         assert!(!app.renderer_enabled());
-
-        let render_enabled = app.app_state().get(HeadlessRendererEnabledKey).copied().unwrap_or_default();
-
-        assert!(!render_enabled);
-
         app.update(false);
     }
 
     #[test]
     pub fn new_window_with_render() {
-        let mut app = App::default().run_headless();
-        app.enable_renderer(true);
+        let mut app = App::default().run_headless(true);
         assert!(app.renderer_enabled());
-
-        let render_enabled = app.app_state().get(HeadlessRendererEnabledKey).copied().unwrap_or_default();
-
-        assert!(render_enabled);
         app.update(false);
     }
 
     #[test]
     #[should_panic(expected = "only one app or `TestWidgetContext` is allowed per thread")]
     pub fn two_in_one_thread() {
-        let _a = App::default().run_headless();
-        let _b = App::default().run_headless();
+        let _a = App::default().run_headless(false);
+        let _b = App::default().run_headless(false);
     }
 
     #[test]
     #[should_panic(expected = "only one `TestWidgetContext` or app is allowed per thread")]
     pub fn app_and_test_ctx() {
-        let _a = App::default().run_headless();
+        let _a = App::default().run_headless(false);
         let _b = TestWidgetContext::new();
     }
 
@@ -1567,7 +1511,7 @@ mod headless_tests {
     #[should_panic(expected = "only one app or `TestWidgetContext` is allowed per thread")]
     pub fn test_ctx_and_app() {
         let _a = TestWidgetContext::new();
-        let _b = App::default().run_headless();
+        let _b = App::default().run_headless(false);
     }
 }
 
@@ -1616,6 +1560,126 @@ unique_id! {
 impl fmt::Display for DeviceId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "DeviceId({})", self.get())
+    }
+}
+
+/// View process controller types.
+pub mod view_process {
+    use std::{cell::RefCell, rc::Rc};
+
+    use linear_map::LinearMap;
+
+    use zero_ui_wr::{DevId, WinId};
+    pub use zero_ui_wr::{Ev, OpenWindowRequest, StartRequest, WindowNotFound};
+
+    use super::DeviceId;
+    use crate::service::Service;
+    use crate::window::WindowId;
+
+    /// Reference to the running View Process.
+    ///
+    /// This is the lowest level API, used for implementing fundamental services and is a service available
+    /// in headed apps or headless apps with renderer.
+    #[derive(Service)]
+    pub struct ViewProcess(Rc<ViewApp>);
+    struct ViewApp {
+        process: zero_ui_wr::App,
+        window_ids: RefCell<LinearMap<WinId, WindowId>>,
+        device_ids: RefCell<LinearMap<DevId, DeviceId>>,
+    }
+    impl ViewProcess {
+        /// Spawn the View Process.
+        pub(super) fn start<F>(request: StartRequest, on_event: F) -> Self
+        where
+            F: FnMut(Ev) + Send + 'static,
+        {
+            Self(Rc::new(ViewApp {
+                process: zero_ui_wr::App::start(request, on_event),
+                window_ids: LinearMap::new(),
+                device_ids: LinearMap::new(),
+            }))
+        }
+
+        /// If is running in headless renderer mode.
+        #[inline]
+        pub fn headless(&self) -> bool {
+            self.0.headless()
+        }
+
+        /// Open a window and associate it with the `window_id`.
+        pub fn open_window(&self, window_id: WindowId, request: OpenWindowRequest) -> ViewWindow {
+            assert!(self.0.window_ids.borrow().values().all(|v| v != window_id));
+
+            let id = self.0.process.open_window(request);
+
+            self.0.window_ids.borrow_mut().insert(id, window_id);
+
+            ViewWindow(id, self.0.clone())
+        }
+
+        /// Translate `WinId` to `WindowId`.
+        pub(super) fn window_id(&self, id: WinId) -> Option<WindowId> {
+            self.0.window_ids.borrow().get(&id).copied()
+        }
+
+        /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
+        pub(super) fn device_id(&self, id: DevId) -> DeviceId {
+            self.0.device_ids.borrow_mut().entry(id).or_insert_with(DeviceId::new_unique)
+        }
+    }
+
+    /// Reference to a window open in the View Process.
+    ///
+    /// The window closes when this struct is dropped.
+    pub struct ViewWindow(WinId, Rc<ViewApp>);
+    impl ViewWindow {
+        /// Set the window title.
+        #[inline]
+        pub fn set_title(&self, title: String) -> Result<(), WindowNotFound> {
+            self.1.process.set_title(self.0, title)
+        }
+
+        /// Set the window visibility.
+        #[inline]
+        pub fn set_visible(&self, visible: bool) -> Result<(), WindowNotFound> {
+            self.1.process.set_visible(self.0, visible)
+        }
+
+        /// Set the window position (in device pixels).
+        #[inline]
+        pub fn set_position(&self, x: i32, y: i32) -> Result<(), WindowNotFound> {
+            self.1.process.set_position(self.0, (x, y))
+        }
+
+        /// Set the window size (in device pixels).
+        #[inline]
+        pub fn set_size(&self, width: u32, height: u32) -> Result<(), WindowNotFound> {
+            self.1.process.set_size(self.0, (width, height))
+        }
+
+        /// Reference the window renderer.
+        #[inline]
+        pub fn renderer(&self) -> ViewRenderer {
+            ViewRenderer(self.0, self.1.clone())
+        }
+
+        /// Drop `self`.
+        pub fn close(self) {
+            drop(self)
+        }
+    }
+    impl Drop for ViewWindow {
+        fn drop(&mut self) {
+            self.1.process.close_window(self.0);
+        }
+    }
+
+    /// Reference to a window renderer in the View Process.
+    pub struct ViewRenderer(WinId, Rc<ViewApp>);
+    impl ViewRenderer {
+        pub fn read_pixels(&self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, WindowNotFound> {
+            todo!()
+        }
     }
 }
 

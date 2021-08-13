@@ -11,6 +11,7 @@ mod view;
 use std::{env, path::PathBuf};
 
 const CHANNEL_VAR: &str = "ZERO_UI_WR_CHANNELS";
+const MODE_VAR: &str = "ZERO_UI_WR_MODE";
 
 /// Version 0.1
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -39,10 +40,10 @@ pub fn init() {
     }
 }
 
-pub use controller::App;
+pub use controller::{App, WindowNotFound};
 pub use message::{
-    AxisId, ButtonId, ElementState, Ev, ModifiersState, MouseButton, MouseScrollDelta, OpenWindowRequest, ScanCode, StartRequest, Theme,
-    VirtualKeyCode, WinId, DevId,
+    AxisId, ButtonId, CursorIcon, DevId, ElementState, Ev, Icon, ModifiersState, MouseButton, MouseScrollDelta, OpenWindowRequest,
+    ScanCode, StartRequest, Theme, VirtualKeyCode, WinId,
 };
 
 pub use glutin::event_loop::ControlFlow;

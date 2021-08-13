@@ -1,4 +1,4 @@
-use crate::{message::*, VERSION};
+use crate::{message::*, MODE_VAR, VERSION};
 
 use gleam::gl;
 use glutin::{
@@ -9,14 +9,25 @@ use glutin::{
     Api as GApi, ContextBuilder, ContextWrapper, NotCurrent,
 };
 use ipmpsc::{Receiver, Sender, SharedRingBuffer};
-use std::{path::PathBuf, process, rc::Rc, thread};
+use std::{env, path::PathBuf, process, rc::Rc, thread};
 use webrender::{
-    api::{units::DeviceIntSize, DocumentId, PipelineId, RenderApi, RenderNotifier},
-    Renderer, RendererOptions,
+    api::{
+        units::{self, DeviceIntRect, DeviceIntSize, LayoutPoint, LayoutSize},
+        BuiltDisplayList, ColorF, DocumentId, DynamicProperties, Epoch, HitTestFlags, HitTestResult, PipelineId, RenderApi, RenderNotifier,
+        Transaction,
+    },
+    euclid, Renderer, RendererKind, RendererOptions,
 };
 
-/// Start the app event loop.
+/// Start the app event loop in the View Process.
 pub fn run(channel_dir: PathBuf) -> ! {
+    let mode = env::var(MODE_VAR).unwrap_or_else(|_| "headed".to_owned());
+    let headless = match mode.as_str() {
+        "headed" => false,
+        "headless" => true,
+        _ => panic!("unknown mode"),
+    };
+
     let request_receiver = Receiver::new(
         SharedRingBuffer::create(&channel_dir.join("request").display().to_string(), MAX_REQUEST_SIZE)
             .expect("request channel connection failed"),
@@ -114,7 +125,7 @@ impl App {
         self.event_sender.send_when_empty(&event).unwrap();
     }
 
-    fn device_id(&mut self, device_id: DeviceId) -> u32 {
+    fn device_id(&mut self, device_id: DeviceId) -> DevId {
         if let Some(r) = self.devices.iter().find(|d| d.device_id == device_id) {
             r.id
         } else {
@@ -134,6 +145,8 @@ impl App {
                 Request::SetWindowPosition(id, pos) => self.set_window_position(id, pos),
                 Request::SetWindowSize(id, size) => self.set_window_size(id, size),
                 Request::SetWindowVisible(id, visible) => self.set_window_visible(id, visible),
+                Request::HitTest(id, point) => self.hit_test(id, point),
+                Request::ReadPixels(id, rect) => self.read_pixels(id, rect),
                 Request::CloseWindow(id) => self.close_window(id),
                 Request::Shutdown => process::exit(0),
                 Request::ProtocolVersion => self.respond(Response::ProtocolVersion(VERSION.to_owned())),
@@ -150,10 +163,14 @@ impl App {
     }
 
     pub fn on_window_event(&mut self, window: WindowId, event: WindowEvent) {
-        if let Some((i, w)) = self.windows.iter().enumerate().find(|(_, w)| w.winit_window.id() == window) {
+        if let Some((i, w)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.winit_window.id() == window) {
             let id = w.id;
             match event {
-                WindowEvent::Resized(s) => self.notify(Ev::WindowResized(id, (s.width, s.height))),
+                WindowEvent::Resized(s) => {
+                    let s = (s.width, s.height);
+                    w.resize(s);
+                    self.notify(Ev::WindowResized(id, s))
+                }
                 WindowEvent::Moved(p) => self.notify(Ev::WindowMoved(id, (p.x, p.y))),
                 WindowEvent::CloseRequested => self.notify(Ev::WindowCloseRequested(id)),
                 WindowEvent::Destroyed => {
@@ -301,6 +318,24 @@ impl App {
         }
     }
 
+    fn hit_test(&mut self, id: WinId, point: LayoutPoint) {
+        if let Some(w) = self.windows.iter_mut().find(|w| w.id == id) {
+            let r = w.hit_test(point);
+            self.respond(Response::HitTest(id, r));
+        } else {
+            self.respond(Response::WindowNotFound(id));
+        }
+    }
+
+    fn read_pixels(&mut self, id: WinId, [x, y, width, height]: [u32; 4]) {
+        if let Some(w) = self.windows.iter_mut().find(|w| w.id == id) {
+            let r = w.read_pixels(x, y, width, height);
+            self.respond(Response::ReadPixels(id, r));
+        } else {
+            self.respond(Response::WindowNotFound(id));
+        }
+    }
+
     fn close_window(&mut self, id: WinId) {
         if let Some(i) = self.windows.iter().position(|w| w.id == id) {
             let _ = self.windows.remove(i);
@@ -315,11 +350,15 @@ struct Window {
     id: WinId,
     winit_window: glutin::window::Window,
     context: Option<ContextWrapper<NotCurrent, ()>>,
+    gl: Rc<dyn gl::Gl>,
     renderer: Option<Renderer>,
     api: RenderApi,
 
     pipeline_id: PipelineId,
     document_id: DocumentId,
+    clear_color: Option<ColorF>,
+
+    resized: bool,
 
     visisble: bool,
     waiting_first_frame: bool,
@@ -349,7 +388,16 @@ impl Window {
         let device_size = winit_window.inner_size();
         let device_size = DeviceIntSize::new(device_size.width as i32, device_size.height as i32);
 
-        let opts = RendererOptions::default();
+        let opts = RendererOptions {
+            device_pixel_ratio: winit_window.scale_factor() as f32,
+            renderer_kind: RendererKind::Native,
+            clear_color: request.clear_color,
+            enable_aa: request.text_aa != TextAntiAliasing::Mono,
+            enable_subpixel_aa: request.text_aa == TextAntiAliasing::Subpixel,
+            //panic_on_gl_error: true,
+            // TODO expose more options to the user.
+            ..Default::default()
+        };
 
         let (renderer, sender) = webrender::Renderer::new(
             Rc::clone(&gl),
@@ -371,10 +419,13 @@ impl Window {
             id,
             winit_window,
             context: Some(context),
+            gl,
             renderer: Some(renderer),
             api,
             document_id,
             pipeline_id,
+            resized: false,
+            clear_color: request.clear_color,
             waiting_first_frame: false,
             visisble: request.visible,
         }
@@ -386,6 +437,7 @@ impl Window {
         let ctx = unsafe { self.context.take().unwrap().make_current().unwrap() };
         ctx.resize(size);
         self.context = unsafe { Some(ctx.make_not_current().unwrap()) };
+        self.resized = true;
     }
 
     fn set_visible(&mut self, visible: bool) {
@@ -393,6 +445,50 @@ impl Window {
             self.winit_window.set_visible(visible);
         }
         self.visisble = visible;
+    }
+
+    /// Start rendering a new frame.
+    ///
+    /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
+    fn render(&mut self, display_list_data: (PipelineId, LayoutSize, BuiltDisplayList), frame_id: Epoch) {
+        let scale_factor = self.winit_window.scale_factor() as f32;
+        let size = self.winit_window.inner_size();
+        let viewport_size = LayoutSize::new(size.width as f32 * scale_factor, size.height as f32 * scale_factor);
+
+        let mut txn = Transaction::new();
+        txn.set_display_list(frame_id, self.clear_color, viewport_size, display_list_data, true);
+        txn.set_root_pipeline(self.pipeline_id);
+
+        if self.resized {
+            self.resized = false;
+            txn.set_document_view(
+                DeviceIntRect::new(euclid::point2(0, 0), euclid::size2(size.width as i32, size.height as i32)),
+                scale_factor,
+            );
+        }
+
+        txn.generate_frame();
+        self.api.send_transaction(self.document_id, txn);
+    }
+
+    /// Start rendering a new frame based on the data of the last frame.
+    fn render_update(&mut self, updates: DynamicProperties) {
+        let mut txn = Transaction::new();
+        txn.set_root_pipeline(self.pipeline_id);
+        txn.update_dynamic_properties(updates);
+
+        if self.resized {
+            self.resized = false;
+            let scale_factor = self.winit_window.scale_factor() as f32;
+            let size = self.winit_window.inner_size();
+            txn.set_document_view(
+                DeviceIntRect::new(euclid::point2(0, 0), euclid::size2(size.width as i32, size.height as i32)),
+                scale_factor,
+            );
+        }
+
+        txn.generate_frame();
+        self.api.send_transaction(self.document_id, txn);
     }
 
     fn redraw(&mut self) {
@@ -410,6 +506,35 @@ impl Window {
                 self.winit_window.set_visible(true);
             }
         }
+    }
+
+    /// Does a hit-test on the current frame.
+    fn hit_test(&self, point: LayoutPoint) -> HitTestResult {
+        self.api.hit_test(
+            self.document_id,
+            Some(self.pipeline_id),
+            units::WorldPoint::new(point.x, point.y),
+            HitTestFlags::all(),
+        )
+    }
+
+    /// `glReadPixels` a new buffer.
+    ///
+    /// This is a direct call to `glReadPixels`, `x` and `y` start
+    /// at the bottom-left corner of the rectangle and each *stride*
+    /// is a row from bottom-to-top and the pixel type is BGRA.
+    #[inline]
+    fn read_pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Vec<u8> {
+        let ctx = unsafe { self.context.take().unwrap().make_current() }.unwrap();
+
+        let pixels = self
+            .gl
+            .read_pixels(x as _, y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
+        assert!(self.gl.get_error() == 0);
+
+        self.context = Some(unsafe { ctx.make_not_current() }.unwrap());
+
+        pixels
     }
 }
 impl Drop for Window {

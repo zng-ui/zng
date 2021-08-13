@@ -6,13 +6,14 @@ use ipmpsc::{Receiver, Sender, SharedRingBuffer};
 use webrender::api::units::LayoutSize;
 use webrender::api::{BuiltDisplayListDescriptor, PipelineId};
 
-use crate::{message::*, CHANNEL_VAR, VERSION};
+use crate::{message::*, CHANNEL_VAR, MODE_VAR, VERSION};
 
-/// View process controller.
+/// View Process controller, used in the App Process.
 pub struct App {
     process: Child,
     request_sender: Sender,
     response_receiver: Receiver,
+    headless: bool,
     windows: Vec<Window>,
     devices: Vec<Device>,
 }
@@ -62,6 +63,7 @@ impl App {
         // create process and spawn it
         let process = Command::new(view_process_exe)
             .env(CHANNEL_VAR, channel_dir)
+            .env(MODE_VAR, if request.headless { "headless" } else { "headed" })
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -71,6 +73,7 @@ impl App {
             process,
             request_sender,
             response_receiver,
+            headless: request.headless,
             windows: vec![],
             devices: vec![],
         };
@@ -105,6 +108,12 @@ impl App {
     fn request(&self, request: Request) -> Response {
         self.request_sender.send(&request).unwrap();
         self.response_receiver.recv().unwrap()
+    }
+
+    /// If is running in headless mode.
+    #[inline]
+    pub fn headless(&self) -> bool {
+        self.headless
     }
 
     /// Open a window.

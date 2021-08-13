@@ -706,7 +706,7 @@ impl WithVars for Vars {
         action(self)
     }
 }
-impl<'a, 'w> WithVars for crate::context::AppContext<'a, 'w> {
+impl<'a> WithVars for crate::context::AppContext<'a> {
     fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
@@ -790,7 +790,7 @@ impl WithVarsRead for VarsRead {
         action(self)
     }
 }
-impl<'a, 'w> WithVarsRead for crate::context::AppContext<'a, 'w> {
+impl<'a> WithVarsRead for crate::context::AppContext<'a> {
     fn with_vars_read<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&VarsRead) -> R,
@@ -874,7 +874,7 @@ impl AsRef<VarsRead> for Vars {
         self
     }
 }
-impl<'a, 'w> AsRef<VarsRead> for crate::context::AppContext<'a, 'w> {
+impl<'a> AsRef<VarsRead> for crate::context::AppContext<'a> {
     fn as_ref(&self) -> &VarsRead {
         self.vars
     }
@@ -915,7 +915,7 @@ impl AsRef<Vars> for Vars {
         self
     }
 }
-impl<'a, 'w> AsRef<Vars> for crate::context::AppContext<'a, 'w> {
+impl<'a> AsRef<Vars> for crate::context::AppContext<'a> {
     fn as_ref(&self) -> &Vars {
         self.vars
     }
@@ -1630,7 +1630,7 @@ mod tests {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
 
         a.bind_map(&app.ctx(), &b, |_, a| a.to_text()).permanent();
 
@@ -1675,7 +1675,7 @@ mod tests {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
 
         a.bind_map_bidi(&app.ctx(), &b, |_, a| a.to_text(), |_, b| b.parse().unwrap())
             .permanent();
@@ -1721,7 +1721,7 @@ mod tests {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
 
         a.bind_filter(&app.ctx(), &b, |_, a| if *a == 13 { None } else { Some(a.to_text()) })
             .permanent();
@@ -1768,7 +1768,7 @@ mod tests {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
 
         a.bind_filter_bidi(&app.ctx(), &b, |_, a| Some(a.to_text()), |_, b| b.parse().ok())
             .permanent();
@@ -1830,7 +1830,7 @@ mod tests {
         let c = var(0);
         let d = var(0);
 
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
 
         a.bind_map(&app.ctx(), &b, |_, a| *a + 1).permanent();
         b.bind_map(&app.ctx(), &c, |_, b| *b + 1).permanent();
@@ -1885,7 +1885,7 @@ mod tests {
         let c = var(0);
         let d = var(0);
 
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
 
         a.bind_bidi(&app.ctx(), &b).permanent();
         b.bind_bidi(&app.ctx(), &c).permanent();
@@ -1938,7 +1938,7 @@ mod tests {
         let a = var(1);
         let b = var(1);
 
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
 
         let _handle = a.bind_map(&app.ctx(), &b, |info, i| {
             info.unbind();
@@ -1983,7 +1983,7 @@ mod tests {
         let a = var(1);
         let b = var(1);
 
-        let mut app = App::blank().run_headless();
+        let mut app = App::blank().run_headless(false);
 
         let handle = a.bind_map(&app.ctx(), &b, |_, i| *i + 1);
 

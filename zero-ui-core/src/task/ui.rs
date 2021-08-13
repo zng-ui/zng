@@ -8,7 +8,7 @@ use std::{
 
 use crate::context::*;
 
-impl<'a, 'w> AppContext<'a, 'w> {
+impl<'a> AppContext<'a> {
     /// Create an app thread bound future executor that executes in the app context.
     ///
     /// The `task` closure is called immediately with the [`AppContextMut`] that is paired with the task, it
