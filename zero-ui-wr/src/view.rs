@@ -321,7 +321,7 @@ impl App {
     fn hit_test(&mut self, id: WinId, point: LayoutPoint) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id == id) {
             let r = w.hit_test(point);
-            self.respond(Response::HitTest(id, r));
+            self.respond(Response::HitTestResult(id, r));
         } else {
             self.respond(Response::WindowNotFound(id));
         }
@@ -330,7 +330,7 @@ impl App {
     fn read_pixels(&mut self, id: WinId, [x, y, width, height]: [u32; 4]) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id == id) {
             let r = w.read_pixels(x, y, width, height);
-            self.respond(Response::ReadPixels(id, r));
+            self.respond(Response::FramePixels(id, r));
         } else {
             self.respond(Response::WindowNotFound(id));
         }

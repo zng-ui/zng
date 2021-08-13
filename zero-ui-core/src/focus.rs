@@ -575,7 +575,7 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
 
         if self.focused.as_ref().map(|f| f.window_id() == window_id).unwrap_or_default() {
@@ -583,9 +583,7 @@ impl AppExtension for FocusManager {
             self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
         }
 
-        for args in focus.cleanup_returns(FrameFocusInfo::new(
-            windows.window(window_id).expect("window in on_new_frame_ready").frame_info(),
-        )) {
+        for args in focus.cleanup_returns(FrameFocusInfo::new(windows.frame(window_id).expect("window in on_new_frame"))) {
             ReturnFocusChangedEvent.notify(ctx.events, args);
         }
     }
@@ -843,8 +841,8 @@ impl Focus {
             (_, FocusTarget::DirectOrEnder(widget_id)) => self.focus_direct(widget_id, request.highlight, true, false, windows, request),
             (_, FocusTarget::DirectOrRelated(widget_id)) => self.focus_direct(widget_id, request.highlight, true, true, windows, request),
             (Some(prev), move_) => {
-                if let Ok(w) = windows.window(prev.window_id()) {
-                    let frame = FrameFocusInfo::new(w.frame_info());
+                if let Ok(frame) = windows.frame(prev.window_id()) {
+                    let frame = FrameFocusInfo::new(frame);
                     if let Some(w) = frame.find(prev.widget_id()) {
                         let mut can_only_highlight = true;
                         if let Some(new_focus) = match move_ {
@@ -912,34 +910,32 @@ impl Focus {
     #[must_use]
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
-            if let Ok(window) = windows.window(focused.window_id()) {
-                if window.is_focused() {
-                    let frame = window.frame_info();
-                    if let Some(widget) = frame.find(focused.widget_id()).map(|w| w.as_focus_info()) {
-                        if widget.is_focusable() {
-                            // :-) probably in the same place, maybe moved inside same window.
-                            return self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
-                        } else {
-                            // widget no longer focusable
-                            if let Some(parent) = widget.parent() {
-                                // move to focusable parent
-                                return self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
-                            } else {
-                                // no focusable parent, is this an error?
-                                return self.move_focus(None, false, FocusChangedCause::Recovery);
-                            }
-                        }
+            if let Ok(true) = windows.is_focused(focused.window_id()) {
+                let frame = windows.frame(focused.window_id()).unwrap();
+                if let Some(widget) = frame.find(focused.widget_id()).map(|w| w.as_focus_info()) {
+                    if widget.is_focusable() {
+                        // :-) probably in the same place, maybe moved inside same window.
+                        return self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
                     } else {
-                        // widget not found, move to focusable known parent
-                        for &parent in focused.ancestors().iter().rev() {
-                            if let Some(parent) = frame.find(parent).and_then(|w| w.as_focusable()) {
-                                // move to focusable parent
-                                return self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
-                            }
+                        // widget no longer focusable
+                        if let Some(parent) = widget.parent() {
+                            // move to focusable parent
+                            return self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
+                        } else {
+                            // no focusable parent, is this an error?
+                            return self.move_focus(None, false, FocusChangedCause::Recovery);
                         }
                     }
-                } // else window not focused anymore
-            } // else window not found
+                } else {
+                    // widget not found, move to focusable known parent
+                    for &parent in focused.ancestors().iter().rev() {
+                        if let Some(parent) = frame.find(parent).and_then(|w| w.as_focusable()) {
+                            // move to focusable parent
+                            return self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
+                        }
+                    }
+                }
+            } // else window not found or not focused
         } // else no current focus
         self.focus_focused_window(windows, false)
     }
@@ -973,8 +969,7 @@ impl Focus {
         windows: &Windows,
         request: FocusRequest,
     ) -> Option<FocusChangedArgs> {
-        for w in windows.windows() {
-            let frame = w.frame_info();
+        for frame in windows.frames() {
             if let Some(w) = frame.find(widget_id).map(|w| w.as_focus_info()) {
                 if w.is_focusable() {
                     return self.move_focus(Some(w.info.path()), highlight, FocusChangedCause::Request(request));
@@ -1011,8 +1006,8 @@ impl Focus {
 
     #[must_use]
     fn focus_focused_window(&mut self, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
-        if let Some(focused) = windows.windows().iter().find(|w| w.is_focused()) {
-            let frame = FrameFocusInfo::new(focused.frame_info());
+        if let Some(frame) = windows.focused_frame() {
+            let frame = FrameFocusInfo::new(frame);
             let root = frame.root();
             if root.is_focusable() {
                 // found focused window and it is focusable.
@@ -1045,8 +1040,8 @@ impl Focus {
     #[must_use]
     fn move_after_focus(&mut self, windows: &Windows, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
-            if let Ok(window) = windows.window(focused.window_id()) {
-                if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(focused) {
+            if let Some(frame) = windows.focused_frame() {
+                if let Some(widget) = FrameFocusInfo::new(frame).get(focused) {
                     if widget.is_scope() {
                         if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused(id), reverse) {
                             return self.move_focus(
@@ -1087,8 +1082,8 @@ impl Focus {
             // if we don't have an `alt_return` but focused something, check if focus
             // moved inside an ALT.
 
-            if let Ok(window) = windows.window(new_focus.window_id()) {
-                if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(new_focus) {
+            if let Ok(frame) = windows.frame(new_focus.window_id()) {
+                if let Some(widget) = FrameFocusInfo::new(frame).get(new_focus) {
                     let alt_scope = if widget.is_alt_scope() {
                         Some(widget)
                     } else {
@@ -1118,8 +1113,8 @@ impl Focus {
          */
 
         if let Some(new_focus) = &self.focused {
-            if let Ok(window) = windows.window(new_focus.window_id()) {
-                if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(new_focus) {
+            if let Ok(frame) = windows.frame(new_focus.window_id()) {
+                if let Some(widget) = FrameFocusInfo::new(frame).get(new_focus) {
                     if widget.scopes().all(|s| !s.is_alt_scope()) {
                         // if not inside ALT, update return for each LastFocused parent scopes.
 

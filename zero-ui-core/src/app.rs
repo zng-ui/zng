@@ -209,7 +209,7 @@ pub trait AppExtension: 'static {
 
     /// Called when a new frame is ready to be presented.
     #[inline]
-    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let _ = (ctx, window_id);
     }
 
@@ -256,7 +256,7 @@ pub trait AppExtensionBoxed: 'static {
     fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn update_display_boxed(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest);
-    fn new_frame_ready_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
+    fn new_frame_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
     fn redraw_requested_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
     fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs);
     fn deinit_boxed(&mut self, ctx: &mut AppContext);
@@ -306,8 +306,8 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.update_display(ctx, update);
     }
 
-    fn new_frame_ready_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.new_frame_ready(ctx, window_id);
+    fn new_frame_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.new_frame(ctx, window_id);
     }
 
     fn redraw_requested_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
@@ -370,8 +370,8 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().update_display_boxed(ctx, update);
     }
 
-    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.as_mut().new_frame_ready_boxed(ctx, window_id);
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.as_mut().new_frame_boxed(ctx, window_id);
     }
 
     fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
@@ -706,7 +706,7 @@ pub struct RunningApp<E: AppExtension> {
     exiting: bool,
 
     window_ids: LinearMap<u32, WindowId>,
-    device_ids: LinearMap<u32, WindowId>,
+    device_ids: LinearMap<u32, DeviceId>,
 }
 impl<E: AppExtension> RunningApp<E> {
     fn start(mut extensions: E) -> Self {
@@ -752,8 +752,7 @@ impl<E: AppExtension> RunningApp<E> {
         self.ctx().services.register(view_app);
 
         loop {
-            let ev = self.receiver.recv().unwrap();
-            self.app_event(ev);
+            self.wait_app_event();
         }
     }
 
@@ -788,7 +787,7 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn device_id(&mut self, id: u32) -> DeviceId {
-        *self.window_ids.entry(id).or_insert_with(WindowId::new_unique)
+        *self.device_ids.entry(id).or_insert_with(DeviceId::new_unique)
     }
 
     /// Process a View Process event.
@@ -907,7 +906,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(MouseMotionEvent, args);
             }
             zero_ui_wr::Ev::DeviceMouseWheel(d_id, delta) => {
-                let args = MouseWheelArgs::now(self.device_id(d_id), *delta);
+                let args = MouseWheelArgs::now(self.device_id(d_id), delta);
                 self.notify_event(MouseWheelEvent, args);
             }
             zero_ui_wr::Ev::DeviceMotion(d_id, axis, value) => {
@@ -931,13 +930,32 @@ impl<E: AppExtension> RunningApp<E> {
         self.maybe_has_updates = true;
     }
 
+    /// Blocks until one event is received then process it.
+    #[inline]
+    pub fn wait_app_event(&mut self) {
+        let ev = self.receiver.recv().unwrap();
+        self.app_event(ev)
+    }
+
+    /// Try to receive one event and process it, returns `true` if the one event was processed.
+    pub fn try_app_event(&mut self) -> bool {
+        match self.receiver.try_recv() {
+            Ok(ev) => {
+                self.app_event(ev);
+                true
+            }
+            Err(flume::TryRecvError::Empty) => false,
+            Err(e) => panic!("{:?}", e),
+        }
+    }
+
     /// Process an [`AppEvent`].
-    pub fn app_event(&mut self, app_event: AppEvent) {
+    fn app_event(&mut self, app_event: AppEvent) {
         match app_event {
             AppEvent::ViewEvent(ev) => self.view_event(ev),
-            AppEvent::NewFrameReady(window_id) => {
+            AppEvent::NewFrame(window_id) => {
                 let mut ctx = self.owned_ctx.borrow();
-                self.extensions.new_frame_ready(&mut ctx, window_id);
+                self.extensions.new_frame(&mut ctx, window_id);
             }
             AppEvent::Update => {
                 self.owned_ctx.borrow().updates.update();
@@ -1152,13 +1170,10 @@ impl HeadlessApp {
     /// if the app is sleeping.
     pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
         if wait_app_event {
-            if let Ok(event) = self.app_event_receiver.recv() {
-                self.app.app_event(event);
-            }
+            self.app.wait_app_event();
         }
-        for event in self.app_event_receiver.try_iter() {
-            self.app.app_event(event);
-        }
+
+        while self.app.try_app_event() {}
 
         let r = self.app.update(observer);
         debug_assert!(r != ControlFlow::Poll);
@@ -1231,9 +1246,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.0.new_frame_ready(ctx, window_id);
-        self.1.new_frame_ready(ctx, window_id);
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        self.0.new_frame(ctx, window_id);
+        self.1.new_frame(ctx, window_id);
     }
 
     #[inline]
@@ -1318,9 +1333,9 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         self.iter().any(|e| e.enable_device_events())
     }
 
-    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         for ext in self {
-            ext.new_frame_ready(ctx, window_id);
+            ext.new_frame(ctx, window_id);
         }
     }
 
@@ -1395,6 +1410,8 @@ enum AppEvent {
     Var,
     /// Do an update cycle.
     Update,
+    /// Update in a window frame info.
+    NewFrame(WindowId),
     /// Resume a panic in the app thread.
     ResumeUnwind(PanicPayload),
 }
@@ -1426,6 +1443,15 @@ impl AppEventSender {
         self.send_app_event(AppEvent::Update).map_err(|_| AppShutdown(()))
     }
 
+    /// Notifies that the window has new frame info.
+    #[inline]
+    pub fn send_new_frame(&self, window_id: WindowId) -> Result<(), AppShutdown<WindowId>> {
+        self.send_app_event(AppEvent::NewFrame(window_id)).map_err(|e| match e.0 {
+            AppEvent::NewFrame(w_id) => AppShutdown(w_id),
+            _ => unreachable!(),
+        })
+    }
+
     /// [`VarSender`](crate::var::VarSender) util.
     #[inline]
     pub(crate) fn send_var(&self) -> Result<(), AppShutdown<()>> {
@@ -1437,7 +1463,7 @@ impl AppEventSender {
         &self,
         event: crate::event::BoxedSendEventUpdate,
     ) -> Result<(), AppShutdown<crate::event::BoxedSendEventUpdate>> {
-        self.send_app_event(AppEvent::Event(event)).map_err(|e| match e.0 .0 {
+        self.send_app_event(AppEvent::Event(event)).map_err(|e| match e.0 {
             AppEvent::Event(ev) => AppShutdown(ev),
             _ => unreachable!(),
         })
@@ -1445,7 +1471,7 @@ impl AppEventSender {
 
     /// Resume a panic in the app thread.
     pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppShutdown<PanicPayload>> {
-        self.send_app_event(AppEvent::ResumeUnwind(payload)).map_err(|e| match e.0 .0 {
+        self.send_app_event(AppEvent::ResumeUnwind(payload)).map_err(|e| match e.0 {
             AppEvent::ResumeUnwind(p) => AppShutdown(p),
             _ => unreachable!(),
         })
@@ -1595,20 +1621,20 @@ pub mod view_process {
         {
             Self(Rc::new(ViewApp {
                 process: zero_ui_wr::App::start(request, on_event),
-                window_ids: LinearMap::new(),
-                device_ids: LinearMap::new(),
+                window_ids: RefCell::default(),
+                device_ids: RefCell::default(),
             }))
         }
 
         /// If is running in headless renderer mode.
         #[inline]
         pub fn headless(&self) -> bool {
-            self.0.headless()
+            self.0.process.headless()
         }
 
         /// Open a window and associate it with the `window_id`.
         pub fn open_window(&self, window_id: WindowId, request: OpenWindowRequest) -> ViewWindow {
-            assert!(self.0.window_ids.borrow().values().all(|v| v != window_id));
+            assert!(self.0.window_ids.borrow().values().all(|&v| v != window_id));
 
             let id = self.0.process.open_window(request);
 
@@ -1624,7 +1650,7 @@ pub mod view_process {
 
         /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
         pub(super) fn device_id(&self, id: DevId) -> DeviceId {
-            self.0.device_ids.borrow_mut().entry(id).or_insert_with(DeviceId::new_unique)
+            *self.0.device_ids.borrow_mut().entry(id).or_insert_with(DeviceId::new_unique)
         }
     }
 
@@ -1677,8 +1703,23 @@ pub mod view_process {
     /// Reference to a window renderer in the View Process.
     pub struct ViewRenderer(WinId, Rc<ViewApp>);
     impl ViewRenderer {
+        /// Gets the viewport size (window inner size).
+        pub fn size(&self) -> Result<(u32, u32), WindowNotFound> {
+            self.1.process.size(self.0)
+        }
+
+        /// Gets the window scale factor.
+        pub fn scale_factor(&self) -> Result<f32, WindowNotFound> {
+            self.1.process.scale_factor(self.0)
+        }
+
+        /// Copy a `rect` of pixels from the current frame.
+        ///
+        /// This is a direct call to `glReadPixels`, `x` and `y` start
+        /// at the bottom-left corner of the rectangle and each *stride*
+        /// is a row from bottom-to-top and the pixel type is BGRA.
         pub fn read_pixels(&self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, WindowNotFound> {
-            todo!()
+            self.1.process.read_pixels(self.0, [x, y, width, height])
         }
     }
 }

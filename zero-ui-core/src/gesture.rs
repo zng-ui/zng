@@ -843,28 +843,26 @@ impl AppExtension for GestureManager {
         let (gestures, windows, focus) = ctx.services.req_multi::<(Gestures, Windows, Focus)>();
         // Generate click event for special shortcut.
         for (window_id, widget_id, kind, args) in gestures.click_shortcut.drain(..) {
-            if let Ok(window) = windows.window(window_id) {
-                if window.is_focused() {
-                    if let Some(widget) = window.frame_info().find(widget_id) {
-                        // click target exists, in focused window.
-                        ClickEvent.notify(
-                            ctx.events,
-                            ClickArgs::now(
-                                window_id,
-                                args.device_id,
-                                ClickArgsSource::Shortcut {
-                                    shortcut: args.shortcut,
-                                    kind,
-                                    repeat: args.repeat,
-                                },
-                                NonZeroU32::new(1).unwrap(),
-                                args.shortcut.modifiers_state(),
-                                widget.path(),
-                            ),
-                        );
-                        focus.focus_widget(widget_id, true);
-                        args.stop_propagation();
-                    }
+            if let Ok(true) = windows.is_focused(window_id) {
+                if let Some(widget) = windows.frame(window_id).unwrap().find(widget_id) {
+                    // click target exists, in focused window.
+                    ClickEvent.notify(
+                        ctx.events,
+                        ClickArgs::now(
+                            window_id,
+                            args.device_id,
+                            ClickArgsSource::Shortcut {
+                                shortcut: args.shortcut,
+                                kind,
+                                repeat: args.repeat,
+                            },
+                            NonZeroU32::new(1).unwrap(),
+                            args.shortcut.modifiers_state(),
+                            widget.path(),
+                        ),
+                    );
+                    focus.focus_widget(widget_id, true);
+                    args.stop_propagation();
                 }
             }
         }

@@ -26,6 +26,22 @@ pub enum Request {
     Shutdown,
 }
 
+/// Response for each [`Request`], sent from the View Process.
+#[derive(Serialize, Deserialize)]
+pub enum Response {
+    ProtocolVersion(String),
+    Started,
+    WindowOpened(WinId),
+    WindowResized(WinId, (u32, u32)),
+    WindowMoved(WinId, (i32, i32)),
+    WindowTitleChanged(WinId),
+    WindowVisibilityChanged(WinId, bool),
+    WindowClosed(WinId),
+    HitTestResult(WinId, HitTestResult),
+    FramePixels(WinId, Vec<u8>),
+    WindowNotFound(WinId),
+}
+
 /// View Process startup config.
 #[derive(Serialize, Deserialize)]
 pub struct StartRequest {
@@ -87,24 +103,8 @@ impl fmt::Debug for TextAntiAliasing {
     }
 }
 
-/// Response for each [`Request`], sent from the View Process.
-#[derive(Serialize, Deserialize)]
-pub enum Response {
-    ProtocolVersion(String),
-    Started,
-    WindowOpened(WinId),
-    WindowResized(WinId, (u32, u32)),
-    WindowMoved(WinId, (i32, i32)),
-    WindowTitleChanged(WinId),
-    WindowVisibilityChanged(WinId, bool),
-    WindowClosed(WinId),
-    HitTest(WinId, HitTestResult),
-    ReadPixels(WinId, Vec<u8>),
-    WindowNotFound(WinId),
-}
-
 /// System/User events sent from the View Process.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Ev {
     // Window events
     WindowResized(WinId, (u32, u32)),

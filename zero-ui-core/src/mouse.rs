@@ -433,9 +433,8 @@ impl MouseManager {
         };
 
         let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
-        let window = windows.window(window_id).unwrap();
-        let hits = window.hit_test(position);
-        let frame_info = window.frame_info();
+        let hits = windows.hit_test(window_id, position).unwrap();
+        let frame_info = windows.frame(window_id).unwrap();
 
         let (target, position) = if let Some(t) = hits.target() {
             (frame_info.find(t.widget_id).unwrap().path(), t.point)
@@ -559,7 +558,7 @@ impl MouseManager {
             self.pos_window = Some(window_id);
 
             let windows = ctx.services.windows();
-            self.pos_dpi = windows.window(window_id).unwrap().scale_factor();
+            self.pos_dpi = windows.scale_factor(window_id).unwrap();
         }
 
         let pos = LayoutPoint::new(position.0 as f32 / self.pos_dpi, position.1 as f32 / self.pos_dpi);
@@ -572,12 +571,10 @@ impl MouseManager {
             self.pos = pos;
 
             let windows = ctx.services.windows();
-            let window = windows.window(window_id).unwrap();
-
-            let hits = window.hit_test(pos);
+            let hits = windows.hit_test(window_id, pos).unwrap();
 
             // mouse_move data
-            let frame_info = window.frame_info();
+            let frame_info = windows.frame(window_id).unwrap();
             let (target, position) = if let Some(t) = hits.target() {
                 (frame_info.find(t.widget_id).unwrap().path(), t.point)
             } else {
@@ -766,20 +763,22 @@ impl AppExtension for MouseManager {
         mouse.fulfill_requests(windows, ctx.events);
     }
 
-    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         // update hovered
         if self.pos_window == Some(window_id) {
             let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
-            let window = windows.window(window_id).unwrap();
-            let hits = window.hit_test(self.pos);
-            let target = hits.target().and_then(|t| window.frame_info().find(t.widget_id)).map(|w| w.path());
+            let hits = windows.hit_test(window_id, self.pos).unwrap();
+            let target = hits
+                .target()
+                .and_then(|t| windows.frame(window_id).unwrap().find(t.widget_id))
+                .map(|w| w.path());
             self.update_hovered(window_id, None, hits, target, ctx.events, mouse);
         }
         // update capture
         if self.capture_count > 0 {
             let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
-            if let Ok(window) = windows.window(window_id) {
-                mouse.continue_capture(window.frame_info(), ctx.events);
+            if let Ok(frame) = windows.frame(window_id) {
+                mouse.continue_capture(frame, ctx.events);
             }
         }
     }
@@ -962,13 +961,11 @@ impl Mouse {
     fn fulfill_requests(&mut self, windows: &Windows, events: &mut Events) {
         if let Some((current_target, current_mode)) = &self.current_capture {
             if let Some((widget_id, mode)) = self.capture_request.take() {
-                if let Ok(window) = windows.window(current_target.window_id()) {
-                    if window.is_focused() {
-                        // current window pressed
-                        if let Some(widget) = window.frame_info().find(widget_id) {
-                            // request valid
-                            self.set_capture(widget.path(), mode, events);
-                        }
+                if let Ok(true) = windows.is_focused(current_target.window_id()) {
+                    // current window pressed
+                    if let Some(widget) = windows.frame(current_target.window_id()).unwrap().find(widget_id) {
+                        // request valid
+                        self.set_capture(widget.path(), mode, events);
                     }
                 }
             } else if mem::take(&mut self.release_requested) && *current_mode != CaptureMode::Window {

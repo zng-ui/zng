@@ -13,12 +13,14 @@ use webrender_api::RenderApi;
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
-use crate::context::AppContext;
-use crate::event::{event, event_args, EventUpdateArgs};
-use crate::service::Service;
-use crate::units::{layout_to_pt, LayoutLength};
-use crate::{app::AppEventSender, crate_util::FxHashMap};
-use crate::{app::AppExtension, render::TextAntiAliasing};
+use crate::{
+    app::{AppEventSender, AppExtension},
+    context::AppContext,
+    crate_util::FxHashMap,
+    event::{event, event_args, EventUpdateArgs},
+    service::Service,
+    units::{layout_to_pt, LayoutLength},
+};
 
 #[cfg(windows)]
 use crate::window::{WindowOpenEvent, WindowsExt};

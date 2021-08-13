@@ -14,7 +14,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{fmt, marker::PhantomData, mem, rc::Rc, sync::Arc};
+use std::{fmt, io::Write, marker::PhantomData, mem, rc::Rc, sync::Arc};
 use webrender_api::*;
 
 #[doc(no_inline)]
@@ -2111,11 +2111,11 @@ impl crate::app::view_process::ViewRenderer {
     /// The coordinates are in pixels units and `x` and `y` starting at the top-left corner.
     /// If the rectangle does not fully overlap with the frame the result is clipped.
     pub fn frame_pixels_rect(&mut self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, zero_ui_wr::WindowNotFound> {
-        let max_rect = webrender_api::euclid::Rect::from_size(self.size);
-        let rect = webrender_api::euclid::Rect::new(
-            webrender_api::euclid::Point2D::new(x, y),
-            webrender_api::euclid::Size2D::new(width as i32, height as i32),
-        );
+        let (max_w, max_h) = self.size()?;
+        let scale_factor = self.scale_factor()?;
+
+        let max_rect = units::DeviceIntRect::from_size(euclid::Size2D::new(max_w as i32, max_h as i32));
+        let rect = units::DeviceIntRect::new(euclid::Point2D::new(x, y), euclid::Size2D::new(width as i32, height as i32));
         let rect = rect.intersection(&max_rect).unwrap_or_default();
 
         if rect.size.width == 0 || rect.size.height == 0 {
@@ -2123,7 +2123,7 @@ impl crate::app::view_process::ViewRenderer {
                 bgra: Arc::new(vec![]),
                 width: rect.size.width as u32,
                 height: rect.size.height as u32,
-                scale_factor: self.scale_factor,
+                scale_factor,
                 opaque: true, // TODO
             });
         }
@@ -2151,7 +2151,7 @@ impl crate::app::view_process::ViewRenderer {
             bgra: Arc::new(pixels),
             width: rect.size.width as u32,
             height: rect.size.height as u32,
-            scale_factor: self.scale_factor,
+            scale_factor,
             opaque: true,
         })
     }
@@ -2159,7 +2159,8 @@ impl crate::app::view_process::ViewRenderer {
     /// Read the current presented frame into a [`FramePixels`].
     #[inline]
     pub fn frame_pixels(&mut self) -> Result<FramePixels, zero_ui_wr::WindowNotFound> {
-        self.frame_pixels_rect(0, 0, self.size.width as u32, self.size.height as u32)
+        let (max_w, max_h) = self.size()?;
+        self.frame_pixels_rect(0, 0, max_w, max_h)
     }
 
     /// Read a rectangle of the currently presented frame into a [`FramePixels`].
@@ -2167,11 +2168,12 @@ impl crate::app::view_process::ViewRenderer {
     /// The `rect` is converted to pixels coordinates using the current [`scale_factor`](Self::scale_factor)
     #[inline]
     pub fn frame_pixels_l_rect(&mut self, rect: crate::units::LayoutRect) -> Result<FramePixels, zero_ui_wr::WindowNotFound> {
+        let scale_factor = self.scale_factor()?;
         self.frame_pixels_rect(
-            (rect.origin.x * self.scale_factor) as i32,
-            (rect.origin.y * self.scale_factor) as i32,
-            (rect.size.width * self.scale_factor) as u32,
-            (rect.size.height * self.scale_factor) as u32,
+            (rect.origin.x * scale_factor) as i32,
+            (rect.origin.y * scale_factor) as i32,
+            (rect.size.width * scale_factor) as u32,
+            (rect.size.height * scale_factor) as u32,
         )
     }
 }

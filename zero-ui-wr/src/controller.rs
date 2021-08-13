@@ -190,6 +190,22 @@ impl App {
         }
     }
 
+    /// Gets the window size.
+    pub fn size(&self, window: WinId) -> Result<(u32, u32), WindowNotFound> {
+        match self.windows.iter().find(|w| w.id == window) {
+            Some(w) => Ok(w.size),
+            None => Err(WindowNotFound(window)),
+        }
+    }
+
+    /// Gets the window scale factor.
+    pub fn scale_factor(&self, window: WinId) -> Result<f32, WindowNotFound> {
+        match self.windows.iter().find(|w| w.id == window) {
+            Some(w) => Ok(todo!()),
+            None => Err(WindowNotFound(window)),
+        }
+    }
+
     /// Set the window visibility.
     pub fn set_visible(&mut self, window: WinId, visible: bool) -> Result<(), WindowNotFound> {
         match self.windows.iter_mut().position(|w| w.id == window) {
@@ -198,6 +214,25 @@ impl App {
                     self.windows[i].visible = visible;
                     Ok(())
                 }
+                Response::WindowNotFound(id) if id == window => {
+                    self.windows.remove(i);
+                    Err(WindowNotFound(id))
+                }
+                _ => panic!("view process did not respond correctly"),
+            },
+            None => Err(WindowNotFound(window)),
+        }
+    }
+
+    /// Reads the `rect` from the current frame pixels.
+    ///
+    /// This is a *direct call* to `glReadPixels`, `x` and `y` start
+    /// at the bottom-left corner of the rectangle and each *stride*
+    /// is a row from bottom-to-top and the pixel type is BGRA.
+    pub fn read_pixels(&mut self, window: WinId, rect: [u32; 4]) -> Result<Vec<u8>, WindowNotFound> {
+        match self.windows.iter_mut().position(|w| w.id == window) {
+            Some(i) => match self.request(Request::ReadPixels(window, rect)) {
+                Response::FramePixels(id, pixels) if id == window => Ok(pixels),
                 Response::WindowNotFound(id) if id == window => {
                     self.windows.remove(i);
                     Err(WindowNotFound(id))

@@ -1654,7 +1654,7 @@ impl HeadlessApp {
         A: Clone + 'static,
         H: AppHandler<A>,
     {
-        let mut app = crate::app::App::default().run_headless();
+        let mut app = crate::app::App::default().run_headless(false);
         app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
     }
 
@@ -1668,7 +1668,7 @@ impl HeadlessApp {
     where
         A: Clone + 'static,
     {
-        let mut app = crate::app::App::default().run_headless();
+        let mut app = crate::app::App::default().run_headless(false);
         app.block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
             .unwrap()
     }

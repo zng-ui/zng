@@ -138,7 +138,7 @@ impl AppExtension for WindowManager {
         wns.opening_windows = opening;
     }
 
-    fn new_frame_ready(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let wns = ctx.services.windows();
         if let Some(window) = wns.windows.iter_mut().find(|w| w.id == window_id) {
             window.request_redraw(ctx.vars);
@@ -320,121 +320,7 @@ pub struct Windows {
     update_sender: AppEventSender,
 }
 impl Windows {
-    fn new(update_sender: AppEventSender) -> Self {
-        Windows {
-            shutdown_on_last_close: true,
-            windows: Vec::with_capacity(1),
-            open_requests: Vec::with_capacity(1),
-            opening_windows: Vec::with_capacity(1),
-            update_sender,
-        }
-    }
-
-    /// Requests a new window.
-    ///
-    /// The `new_window` argument is the [`WindowContext`] of the new window.
-    ///
-    /// Returns a listener that will update once when the window is opened, note that while the `window_id` is
-    /// available in the `new_window` argument already, the window is only available in this service after
-    /// the returned listener updates.
-    pub fn open(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> ResponseVar<WindowOpenArgs> {
-        self.open_impl(new_window, None)
-    }
-
-    /// Requests a new headless window.
-    ///
-    /// Headless windows don't show on screen, but if `with_renderer` is `true` they will still render frames.
-    ///
-    /// Note that in a headless app the [`open`] method also creates headless windows, this method
-    /// creates headless windows even in a headed app.
-    ///
-    /// [`open`]: Windows::open
-    pub fn open_headless(
-        &mut self,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
-        with_renderer: bool,
-    ) -> ResponseVar<WindowOpenArgs> {
-        self.open_impl(
-            new_window,
-            Some(if with_renderer {
-                WindowMode::HeadlessWithRenderer
-            } else {
-                WindowMode::Headless
-            }),
-        )
-    }
-
-    fn open_impl(
-        &mut self,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
-        force_headless: Option<WindowMode>,
-    ) -> ResponseVar<WindowOpenArgs> {
-        let (responder, response) = response_var();
-        let request = OpenWindowRequest {
-            new: Box::new(new_window),
-            force_headless,
-            responder,
-        };
-        self.open_requests.push(request);
-        let _ = self.update_sender.send_update();
-
-        response
-    }
-
-    /// Starts closing a window, the operation can be canceled by listeners of the
-    /// [close requested event](WindowCloseRequestedEvent).
-    ///
-    /// Returns a response var that will update once with the result of the operation.
-    pub fn close(&mut self, window_id: WindowId) -> Result<ResponseVar<CloseWindowResult>, GetWindowError> {
-        if let Some(w) = self.windows.iter().find(|w| w.id == window_id) {
-            Ok(w.close())
-        } else {
-            Err(self.get_window_error(window_id))
-        }
-    }
-
-    fn get_window_error(&self, window_id: WindowId) -> GetWindowError {
-        if let Some(w) = self.opening_windows.iter().find(|w| w.id == window_id) {
-            GetWindowError::Opening(window_id, w.open_response.as_ref().unwrap().response_var())
-        } else {
-            GetWindowError::NotFound(window_id)
-        }
-    }
-
-    /// Requests closing multiple windows together, the operation can be canceled by listeners of the
-    /// [close requested event](WindowCloseRequestedEvent). If canceled none of the windows are closed.
-    ///
-    /// Returns a response var that will update once with the result of the operation. Returns
-    /// [`Cancel`](CloseWindowResult::Cancel) if `windows` is empty or contains a window that already
-    /// requested close during this update.
-    pub fn close_together(
-        &mut self,
-        windows: impl IntoIterator<Item = WindowId>,
-    ) -> Result<ResponseVar<CloseWindowResult>, GetWindowError> {
-        let windows = windows.into_iter();
-        let mut all = Vec::with_capacity(windows.size_hint().0);
-        for window_id in windows {
-            all.push(
-                self.windows
-                    .iter()
-                    .find(|w| w.id == window_id)
-                    .ok_or_else(|| self.get_window_error(window_id))?,
-            );
-        }
-        if all.is_empty() || all.iter().any(|a| a.close_response.borrow().is_some()) {
-            return Ok(response_done_var(CloseWindowResult::Cancel));
-        }
-
-        let (group_responder, response) = response_var();
-        let group_cancel = Rc::default();
-
-        for window in all {
-            *window.close_response.borrow_mut() = Some(group_responder.clone());
-            *window.close_canceled.borrow_mut() = Rc::clone(&group_cancel);
-        }
-
-        Ok(response)
-    }
+    
 
     /// Reference an open window.
     #[inline]
@@ -462,82 +348,6 @@ impl Windows {
     }
 }
 
-struct OpenWindowRequest {
-    new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
-    force_headless: Option<WindowMode>,
-    responder: ResponderVar<WindowOpenArgs>,
-}
-
-/// Response message of [`close`](Windows::close) and [`close_together`](Windows::close_together).
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CloseWindowResult {
-    /// Operation completed, all requested windows closed.
-    Close,
-
-    /// Operation canceled, no window closed.
-    Cancel,
-}
-
-/// Error when searching for an open window.
-pub enum GetWindowError {
-    /// Window not found, it is not open and not opening.
-    NotFound(WindowId),
-    /// Window is not available because it is still opening.
-    ///
-    /// The associated values are the requested window ID and a response var that will update once when
-    /// the window finishes opening.
-    ///
-    /// **Note:** The window initial content is inited, updated, layout and rendered once before the window is open.
-    Opening(WindowId, ResponseVar<WindowOpenArgs>),
-}
-impl fmt::Debug for GetWindowError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            GetWindowError::NotFound(id) => f.debug_tuple("NotFound").field(&id).finish(),
-            GetWindowError::Opening(id, _) => f.debug_tuple("Opening").field(&id).finish(),
-        }
-    }
-}
-impl fmt::Display for GetWindowError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            GetWindowError::NotFound(id) => {
-                write!(f, "window `{}` is not opened in `Windows` service", id)
-            }
-            GetWindowError::Opening(id, _) => {
-                write!(f, "window `{}` not available because it is still opening in `Windows` service", id)
-            }
-        }
-    }
-}
-impl std::error::Error for GetWindowError {}
-
-
-
-/// Arguments for `on_pre_redraw` and `on_redraw`.
-pub struct RedrawArgs<'a> {
-    renderer: &'a mut Renderer,
-    close: bool,
-}
-impl<'a> RedrawArgs<'a> {
-    fn new(renderer: &'a mut Renderer) -> Self {
-        RedrawArgs { renderer, close: false }
-    }
-
-    /// Read the current presented frame into a [`FramePixels`].
-    #[inline]
-    pub fn frame_pixels(&mut self) -> Result<FramePixels, crate::render::RendererError> {
-        self.renderer.frame_pixels()
-    }
-
-    /// Request window close.
-    #[inline]
-    pub fn close(&mut self) {
-        self.close = true;
-    }
-
-    // TODO methods
-}
 
 /// An open window.
 pub struct OpenWindow {
@@ -645,7 +455,7 @@ impl OpenWindow {
 
                 let sender = app_sender.clone();
                 let r = Renderer::new_with_glutin(window_, window_target, renderer_config, move |args: NewFrameArgs| {
-                    let _ = sender.send_new_frame_ready(args.window_id.unwrap());
+                    let _ = sender.send_new_frame(args.window_id.unwrap());
                 })
                 .expect("failed to create a window renderer");
 
@@ -673,7 +483,7 @@ impl OpenWindow {
                         1.0,
                         renderer_config,
                         move |args: NewFrameArgs| {
-                            let _ = sender.send_new_frame_ready(args.window_id.unwrap());
+                            let _ = sender.send_new_frame(args.window_id.unwrap());
                         },
                         Some(id),
                     )
@@ -1314,7 +1124,7 @@ impl OpenWindow {
             renderer.get_mut().render(display_list_data, frame_id);
         } else {
             // in renderless mode we only have the frame_info.
-            let _ = self.app_sender.send_new_frame_ready(self.id);
+            let _ = self.app_sender.send_new_frame(self.id);
 
             self.init_state = WindowInitState::Inited;
         }
@@ -1343,7 +1153,7 @@ impl OpenWindow {
                 renderer.get_mut().render_update(update);
             } else {
                 // in renderless mode we only have the frame_info.
-                let _ = self.app_sender.send_new_frame_ready(self.id);
+                let _ = self.app_sender.send_new_frame(self.id);
             }
         }
     }
