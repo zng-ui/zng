@@ -129,6 +129,9 @@ pub enum Ev {
     WindowCloseRequested(WinId),
     WindowClosed(WinId),
 
+    // Config events
+    TextAntiAliasingChanged(TextAntiAliasing),
+
     // Raw device events
     DeviceAdded(DevId),
     DeviceRemoved(DevId),

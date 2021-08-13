@@ -39,8 +39,10 @@ event! {
     pub FontChangedEvent: FontChangedArgs;
 
     /// Change in [system text anti-aliasing config](Fonts::system_text_aa).
-    pub TextAntiAliasingChangedEvent: TextAntiAliasingChangedArgs;
+    pub TextAaChangedEvent: TextAaChangedArgs;
 }
+
+pub use crate::app::raw_events::TextAntiAliasing;
 
 event_args! {
     /// [`FontChangedEvent`] arguments.
@@ -56,8 +58,8 @@ event_args! {
         }
     }
 
-    /// [`TextAntiAliasingChangedEvent`] arguments.
-    pub struct TextAntiAliasingChangedArgs {
+    /// [`TextAaChangedEvent`] arguments.
+    pub struct TextAaChangedArgs {
         /// The previous anti-aliasing config.
         pub prev: TextAntiAliasing,
         /// The new anti-aliasing config.
@@ -154,7 +156,7 @@ impl AppExtension for FontManager {
             let new = fonts.system_text_aa();
             let prev = mem::replace(&mut self.current_text_aa, new);
             if prev != new {
-                TextAntiAliasingChangedEvent.notify(ctx.events, TextAntiAliasingChangedArgs::now(prev, new));
+                TextAaChangedEvent.notify(ctx.events, TextAaChangedArgs::now(prev, new));
             }
         }
     }

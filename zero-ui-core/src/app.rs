@@ -892,6 +892,12 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawWindowClosedEvent, args);
             }
 
+            // config events
+            zero_ui_wr::Ev::TextAntiAliasingChanged(aa) => {
+                let args = RawTextAaChangedArgs::now(aa);
+                self.notify_event(RawTextAaChangedEvent, args);
+            }
+
             // `device_events`
             zero_ui_wr::Ev::DeviceAdded(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
@@ -1748,6 +1754,7 @@ pub mod raw_events {
     use crate::mouse::{ButtonState, MouseButton};
     use crate::window::WindowTheme;
     use crate::{event::*, keyboard::ScanCode, window::WindowId};
+    pub use zero_ui_wr::TextAntiAliasing;
 
     use crate::keyboard::{Key, KeyState, ModifiersState};
 
@@ -2101,6 +2108,19 @@ pub mod raw_events {
                 ctx.path.window_id() == self.window_id
             }
         }
+
+        /// Arguments for the [`RawTextAaChangedEvent`].
+        pub struct RawTextAaChangedArgs {
+            /// The new anti-aliasing config.
+            pub aa: TextAntiAliasing,
+
+            ..
+
+            /// Concerns all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
     }
 
     event! {
@@ -2188,6 +2208,9 @@ pub mod raw_events {
 
         /// System theme changed for a window.
         pub RawWindowThemeChangedEvent: RawWindowThemeChangedArgs;
+
+        /// Change in system text anti-aliasing config.
+        pub RawTextAaChangedEvent: RawTextAaChangedArgs;
     }
 }
 
