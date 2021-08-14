@@ -1,4 +1,4 @@
-//! Windowing and renderer.
+//! Zero-Ui View Process.
 //!
 //! Zero-Ui isolates all OpenGL related code to a different process to be able to recover from driver errors.
 //! This crate contains the `glutin` and `webrender` code that interacts with the actual system. Communication

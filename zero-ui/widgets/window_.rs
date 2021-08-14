@@ -1,5 +1,5 @@
 use crate::core::focus::*;
-use crate::core::window::{HeadlessScreen, RedrawArgs, StartPosition, Window};
+use crate::core::window::{HeadlessScreen, StartPosition, Window};
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
 
@@ -229,14 +229,6 @@ pub mod window {
         /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
         on_pre_window_open as on_open;
 
-        /// Event just before the window frame is redraw.
-        #[allowed_in_when = false]
-        on_pre_redraw(impl FnMut(&mut RedrawArgs) + 'static) = |_| {};
-
-        /// Event just after the window frame is redraw.
-        #[allowed_in_when = false]
-        on_redraw(impl FnMut(&mut RedrawArgs) + 'static) = |_| {};
-
         /// On window close requested.
         ///
         /// This event notifies every time the user or the app tries to close the window, you can call
@@ -266,16 +258,12 @@ pub mod window {
         start_position: impl Into<StartPosition>,
         kiosk: bool,
         headless_screen: impl Into<HeadlessScreen>,
-        on_pre_redraw: impl FnMut(&mut RedrawArgs) + 'static,
-        on_redraw: impl FnMut(&mut RedrawArgs) + 'static,
     ) -> Window {
         Window::new(
             root_id,
             start_position,
             kiosk,
             headless_screen,
-            Box::new(on_pre_redraw),
-            Box::new(on_redraw),
             child,
         )
     }
@@ -583,11 +571,8 @@ pub mod window {
                     args.stop_propagation();
 
                     let frame = ctx
-                        .services
-                        .req::<crate::core::window::Windows>()
-                        .window(ctx.path.window_id())
-                        .unwrap()
-                        .frame_info();
+                        .services.windows().frame(ctx.path.window_id())
+                        .unwrap();
 
                     let mut buffer = vec![];
                     write_frame(frame, &state, &mut buffer);

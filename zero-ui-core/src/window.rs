@@ -1,3 +1,5 @@
+//! App window manager.
+
 use std::{fmt, mem, rc::Rc};
 
 use linear_map::LinearMap;

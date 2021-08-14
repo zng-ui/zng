@@ -660,10 +660,13 @@ impl<'a> WindowContext<'a> {
 
 /// A mock [`WidgetContext`] for testing widgets.
 ///
-/// Only a single instance of this type can exist per-thread at a time, see [`new`](Self::new) for details.
+/// Only a single instance of this type can exist per-thread at a time, see [`new`] for details.
 ///
-/// This is less cumbersome to use then a full headless app, but also more limited. Use a [`HeadlessApp`](crate::app::HeadlessApp)
+/// This is less cumbersome to use then a full headless app, but also more limited. Use a [`HeadlessApp`]
 /// for more complex integration tests.
+///
+/// [`new`]: TestWidgetContext::new
+/// [`HeadlessApp`]: crate::app::HeadlessApp
 #[cfg(any(test, doc, feature = "test_util"))]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
 pub struct TestWidgetContext {
@@ -674,43 +677,59 @@ pub struct TestWidgetContext {
     /// Id of the pretend root widget that is the context widget.
     pub root_id: WidgetId,
 
-    /// The [`app_state`](WidgetContext::app_state) value. Empty by default.
+    /// The [`app_state`] value. Empty by default.
+    ///
+    /// [`app_state`]: WidgetContext::app_state
     pub app_state: OwnedStateMap,
-    /// The [`window_state`](WidgetContext::window_state) value. Empty by default.
+    /// The [`window_state`] value. Empty by default.
+    ///
+    /// [`window_state`]: WidgetContext::window_state
     pub window_state: OwnedStateMap,
 
-    /// The [`widget_state`](WidgetContext::widget_state) value. Empty by default.
+    /// The [`widget_state`] value. Empty by default.
+    ///
+    /// [`widget_state`]: WidgetContext::widget_state
     pub widget_state: OwnedStateMap,
 
-    /// The [`update_state`](WidgetContext::update_state) value. Empty by default.
+    /// The [`update_state`] value. Empty by default.
     ///
     /// WARNING: In a real context this is reset after each update, in this test context the same map is reused
-    /// unless you call [`clear`](OwnedStateMap::clear).
+    /// unless you call [`clear`].
+    ///
+    /// [`update_state`]: WidgetContext::update_state
+    /// [`clear`]: OwnedStateMap::clear
     pub update_state: OwnedStateMap,
 
-    /// The [`services`](WidgetContext::services) repository. Empty by default.
+    /// The [`services`] repository. Empty by default.
+    ///
+    /// [`services`]: WidgetContext::services
     pub services: Services,
 
-    /// The [`updates`](WidgetContext::updates) repository. No request by default.
+    /// The [`updates`] repository. No request by default.
     ///
     /// WARNING: This is drained of requests after each update, you can do this manually by calling
-    /// [`apply_updates`](Self::apply_updates).
+    /// [`apply_updates`].
+    ///
+    /// [`updates`]: WidgetContext::updates
+    /// [`apply_updates`]: TestWidgetContext::apply_updates
     pub updates: Updates,
 
-    /// The [`vars`](WidgetContext::vars) instance.
+    /// The [`vars`] instance.
+    ///
+    /// [`vars`]: WidgetContext::vars
     pub vars: Vars,
 
-    /// The [`events`](WidgetContext::events) instance.
+    /// The [`events`] instance. No events registered by default.
     ///
-    /// WARNING: In a real app events can only be registered at the start of the application.
-    /// In this context you can always register a service, you should probably not reuse a test widget
-    /// instance after registering an event.
+    /// [`events`]: WidgetContext::events
     pub events: Events,
 
     /// Event loop bases timers.
     ///
     /// TODO testable timers.
     pub timers: Timers,
+
+    receiver: flume::Receiver<crate::app::AppEvent>,
 }
 #[cfg(any(test, doc, feature = "test_util"))]
 impl Default for TestWidgetContext {
@@ -739,8 +758,9 @@ impl TestWidgetContext {
             services: Services::default(),
             events: Events::instance(sender.clone()),
             vars: Vars::instance(sender.clone()),
-            updates: Updates::new(sender.clone()),
+            updates: Updates::new(sender),
             timers: Timers::new(),
+            receiver,
         }
     }
 
@@ -801,6 +821,16 @@ impl TestWidgetContext {
     ///
     /// Returns the [`ContextUpdates`] a full app would use to update the application.
     pub fn apply_updates(&mut self) -> ContextUpdates {
+        for ev in self.receiver.try_iter() {
+            match ev {
+                crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
+                crate::app::AppEvent::Event(ev) => self.events.notify_app_event(ev),
+                crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
+                crate::app::AppEvent::Update => self.updates.update(),
+                crate::app::AppEvent::NewFrame(_) => {}
+                crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
+            }
+        }
         let wake_time = self.timers.apply_updates(&self.vars);
         let events = self.events.apply_updates(&self.vars, &mut self.updates);
         self.vars.apply_updates(&mut self.updates);

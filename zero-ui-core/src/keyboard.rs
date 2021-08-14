@@ -772,13 +772,17 @@ pub trait HeadlessAppKeyboardExt {
 }
 impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState) {
-        // use crate::app::raw_events::*;
-        todo!()
+        use crate::app::raw_events::*;
+
+        let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), key as u32, state, Some(key));
+        RawKeyInputEvent.notify(self.ctx().events, args);
     }
 
     fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState) {
-        // use crate::app::raw_events::*;
-        todo!()
+        use crate::app::raw_events::*;
+
+        let args = RawModifiersChangedArgs::now(window_id, modifiers);
+        RawModifiersChangedEvent.notify(self.ctx().events, args);
     }
 
     fn press_key(&mut self, window_id: WindowId, key: Key) {
