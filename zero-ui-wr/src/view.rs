@@ -63,17 +63,29 @@ pub fn run(channel_dir: PathBuf) -> ! {
 
     let mut app = App::new(response_sender, event_sender);
 
+    #[cfg(windows)]
+    let config_listener = config_listener(event_loop.create_proxy(), &event_loop);
+
     let el = event_loop.create_proxy();
 
     event_loop.run(move |event, target, control| {
         *control = ControlFlow::Wait;
         match event {
             Event::NewEvents(_) => {}
-            Event::WindowEvent { window_id, event } => app.on_window_event(window_id, event),
+            Event::WindowEvent { window_id, event } => {
+                #[cfg(windows)]
+                if window_id == config_listener.id() {
+                    return; // ignore events for this window.
+                }
+
+                app.on_window_event(window_id, event)
+            }
             Event::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
             Event::UserEvent(ev) => match ev {
                 AppEvent::Request(req) => app.on_request(req, &el, target),
                 AppEvent::FrameReady(window_id) => app.on_frame_ready(window_id),
+                AppEvent::SystemFontsChanged => app.notify(Ev::FontsChanged),
+                AppEvent::SystemTextAaChanged(aa) => app.notify(Ev::TextAaChanged(aa)),
             },
             Event::Suspended => {}
             Event::Resumed => {}
@@ -89,6 +101,8 @@ pub fn run(channel_dir: PathBuf) -> ! {
 enum AppEvent {
     Request(Request),
     FrameReady(WindowId),
+    SystemFontsChanged,
+    SystemTextAaChanged(TextAntiAliasing),
 }
 
 struct App {
@@ -148,6 +162,7 @@ impl App {
                 Request::HitTest(id, point) => self.hit_test(id, point),
                 Request::ReadPixels(id, rect) => self.read_pixels(id, rect),
                 Request::CloseWindow(id) => self.close_window(id),
+                Request::TextAa => self.respond(Response::TextAa(system_text_aa())),
                 Request::Shutdown => process::exit(0),
                 Request::ProtocolVersion => self.respond(Response::ProtocolVersion(VERSION.to_owned())),
             }
@@ -561,4 +576,153 @@ impl RenderNotifier for Notifier {
 struct Device {
     id: DevId,
     device_id: DeviceId,
+}
+
+/// Create a hidden window that listen to Windows config change events.
+#[cfg(windows)]
+fn config_listener(event_proxy: EventLoopProxy<AppEvent>, window_target: &EventLoopWindowTarget<AppEvent>) -> glutin::window::Window {
+    let w = WindowBuilder::new()
+        .with_title("config-event-listener")
+        .with_visible(false)
+        .build(window_target)
+        .unwrap();
+
+    set_raw_windows_event_handler(&w, u32::from_le_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
+        if msg == winapi::um::winuser::WM_FONTCHANGE {
+            let _ = event_proxy.send_event(AppEvent::SystemFontsChanged);
+            Some(0)
+        } else if msg == winapi::um::winuser::WM_SETTINGCHANGE {
+            if wparam == winapi::um::winuser::SPI_GETFONTSMOOTHING as usize
+                || wparam == winapi::um::winuser::SPI_GETFONTSMOOTHINGTYPE as usize
+            {
+                let _ = event_proxy.send_event(AppEvent::SystemTextAaChanged(system_text_aa()));
+                Some(0)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    });
+
+    w
+}
+
+/// Sets a window subclass that calls a raw event handler.
+///
+/// Use this to receive Windows OS events not covered in [`raw_events`].
+///
+/// Returns if adding a subclass handler succeeded.
+///
+/// # Handler
+///
+/// The handler inputs are the first 4 arguments of a [`SUBCLASSPROC`].
+/// You can use closure capture to include extra data.
+///
+/// The handler must return `Some(LRESULT)` to stop the propagation of a specific message.
+///
+/// The handler is dropped after it receives the `WM_DESTROY` message.
+///
+/// # Panics
+///
+/// Panics in headless mode.
+///
+/// [`raw_events`]: crate::app::raw_events
+/// [`SUBCLASSPROC`]: https://docs.microsoft.com/en-us/windows/win32/api/commctrl/nc-commctrl-subclassproc
+#[cfg(windows)]
+pub fn set_raw_windows_event_handler<
+    H: FnMut(
+            winapi::shared::windef::HWND,
+            winapi::shared::minwindef::UINT,
+            winapi::shared::minwindef::WPARAM,
+            winapi::shared::minwindef::LPARAM,
+        ) -> Option<winapi::shared::minwindef::LRESULT>
+        + 'static,
+>(
+    window: &glutin::window::Window,
+    subclass_id: winapi::shared::basetsd::UINT_PTR,
+    handler: H,
+) -> bool {
+    use glutin::platform::windows::WindowExtWindows;
+
+    let hwnd = window.hwnd() as winapi::shared::windef::HWND;
+    let data = Box::new(handler);
+    unsafe {
+        winapi::um::commctrl::SetWindowSubclass(
+            hwnd,
+            Some(subclass_raw_event_proc::<H>),
+            subclass_id,
+            Box::into_raw(data) as winapi::shared::basetsd::DWORD_PTR,
+        ) != 0
+    }
+}
+#[cfg(windows)]
+unsafe extern "system" fn subclass_raw_event_proc<
+    H: FnMut(
+            winapi::shared::windef::HWND,
+            winapi::shared::minwindef::UINT,
+            winapi::shared::minwindef::WPARAM,
+            winapi::shared::minwindef::LPARAM,
+        ) -> Option<winapi::shared::minwindef::LRESULT>
+        + 'static,
+>(
+    hwnd: winapi::shared::windef::HWND,
+    msg: winapi::shared::minwindef::UINT,
+    wparam: winapi::shared::minwindef::WPARAM,
+    lparam: winapi::shared::minwindef::LPARAM,
+    _id: winapi::shared::basetsd::UINT_PTR,
+    data: winapi::shared::basetsd::DWORD_PTR,
+) -> winapi::shared::minwindef::LRESULT {
+    match msg {
+        winapi::um::winuser::WM_DESTROY => {
+            // last call and cleanup.
+            let mut handler = Box::from_raw(data as *mut H);
+            handler(hwnd, msg, wparam, lparam).unwrap_or_default()
+        }
+
+        msg => {
+            let handler = &mut *(data as *mut H);
+            if let Some(r) = handler(hwnd, msg, wparam, lparam) {
+                r
+            } else {
+                winapi::um::commctrl::DefSubclassProc(hwnd, msg, wparam, lparam)
+            }
+        }
+    }
+}
+
+/// Gets the system text anti-aliasing config.
+#[cfg(windows)]
+fn system_text_aa() -> TextAntiAliasing {
+    use winapi::um::errhandlingapi::GetLastError;
+    use winapi::um::winuser::{SystemParametersInfoW, FE_FONTSMOOTHINGCLEARTYPE, SPI_GETFONTSMOOTHING, SPI_GETFONTSMOOTHINGTYPE};
+
+    unsafe {
+        let mut enabled = 0;
+        let mut smoothing_type: u32 = 0;
+
+        if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
+            log::error!("SPI_GETFONTSMOOTHING error: {:X}", GetLastError());
+            return TextAntiAliasing::Mono;
+        }
+        if enabled == 0 {
+            return TextAntiAliasing::Mono;
+        }
+
+        if SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &mut smoothing_type as *mut _ as *mut _, 0) == 0 {
+            log::error!("SPI_GETFONTSMOOTHINGTYPE error: {:X}", GetLastError());
+            return TextAntiAliasing::Mono;
+        }
+
+        if smoothing_type == FE_FONTSMOOTHINGCLEARTYPE {
+            TextAntiAliasing::Subpixel
+        } else {
+            TextAntiAliasing::Alpha
+        }
+    }
+}
+#[cfg(not(windows))]
+fn system_text_aa() -> TextAntiAliasing {
+    // TODO
+    TextAntiAliasing::Subpixel
 }

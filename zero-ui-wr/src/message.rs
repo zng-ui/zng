@@ -13,8 +13,11 @@ use webrender::api::{ColorF, HitTestResult};
 /// Requests sent from the App Process.
 #[derive(Serialize, Deserialize)]
 pub enum Request {
+    // start
     ProtocolVersion,
     Start(StartRequest),
+
+    // window
     OpenWindow(OpenWindowRequest),
     SetWindowTitle(WinId, String),
     SetWindowPosition(WinId, (i32, i32)),
@@ -23,6 +26,11 @@ pub enum Request {
     HitTest(WinId, LayoutPoint),
     ReadPixels(WinId, [u32; 4]),
     CloseWindow(WinId),
+
+    // system settings.
+    TextAa,
+
+    // shutdown
     Shutdown,
 }
 
@@ -31,6 +39,7 @@ pub enum Request {
 pub enum Response {
     ProtocolVersion(String),
     Started,
+
     WindowOpened(WinId),
     WindowResized(WinId, (u32, u32)),
     WindowMoved(WinId, (i32, i32)),
@@ -39,7 +48,10 @@ pub enum Response {
     WindowClosed(WinId),
     HitTestResult(WinId, HitTestResult),
     FramePixels(WinId, Vec<u8>),
+
     WindowNotFound(WinId),
+
+    TextAa(TextAntiAliasing),
 }
 
 /// View Process startup config.
@@ -130,7 +142,8 @@ pub enum Ev {
     WindowClosed(WinId),
 
     // Config events
-    TextAntiAliasingChanged(TextAntiAliasing),
+    FontsChanged,
+    TextAaChanged(TextAntiAliasing),
 
     // Raw device events
     DeviceAdded(DevId),

@@ -486,7 +486,7 @@ impl<'a> AppContext<'a> {
     /// Returns a [`WindowMode`] value that indicates if the app is headless, headless with renderer or headed.
     ///
     /// Note that specific windows can be in headless modes even if the app is headed.
-    pub fn mode(&self) -> WindowMode {
+    pub fn mode(&mut self) -> WindowMode {
         self.services
             .get::<crate::app::view_process::ViewProcess>()
             .map(|p| {

@@ -1,7 +1,7 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
-    fmt, mem,
+    fmt,
     path::PathBuf,
     rc::Rc,
     sync::Arc,
@@ -14,16 +14,18 @@ use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
 };
 use crate::{
-    app::{AppEventSender, AppExtension},
+    app::{
+        raw_events::{RawFontChangedEvent, RawTextAaChangedEvent},
+        view_process::ViewProcess,
+        AppEventSender, AppExtension,
+    },
     context::AppContext,
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdateArgs},
     service::Service,
     units::{layout_to_pt, LayoutLength},
+    var::{var, RcVar, Var},
 };
-
-#[cfg(windows)]
-use crate::window::{WindowOpenEvent, WindowsExt};
 
 event! {
     /// Change in [`Fonts`] that may cause a font query to now give
@@ -37,9 +39,6 @@ event! {
     /// Fonts only unload when all references to then are dropped, so you can still continue using
     /// old references if you don't want to monitor this event.
     pub FontChangedEvent: FontChangedArgs;
-
-    /// Change in [system text anti-aliasing config](Fonts::system_text_aa).
-    pub TextAaChangedEvent: TextAaChangedArgs;
 }
 
 pub use crate::app::raw_events::TextAntiAliasing;
@@ -49,21 +48,6 @@ event_args! {
     pub struct FontChangedArgs {
         /// The change that happened.
         pub change: FontChange,
-
-        ..
-
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
-        }
-    }
-
-    /// [`TextAaChangedEvent`] arguments.
-    pub struct TextAaChangedArgs {
-        /// The previous anti-aliasing config.
-        pub prev: TextAntiAliasing,
-        /// The new anti-aliasing config.
-        pub new: TextAntiAliasing,
 
         ..
 
@@ -107,31 +91,29 @@ pub enum FontChange {
 /// Events this extension provides:
 ///
 /// * [FontChangedEvent] - Font config or system fonts changed.
-pub struct FontManager {
-    current_text_aa: TextAntiAliasing,
-
-    #[cfg(windows)]
-    system_fonts_changed: Rc<Cell<bool>>,
-    #[cfg(windows)]
-    system_text_aa_changed: Rc<Cell<bool>>,
-}
+pub struct FontManager {}
 impl Default for FontManager {
     fn default() -> Self {
-        FontManager {
-            current_text_aa: TextAntiAliasing::Default,
-
-            #[cfg(windows)]
-            system_fonts_changed: Rc::new(Cell::new(false)),
-            #[cfg(windows)]
-            system_text_aa_changed: Rc::new(Cell::new(false)),
-        }
+        FontManager {}
     }
 }
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        let fonts = Fonts::new(ctx.updates.sender());
-        self.current_text_aa = fonts.system_text_aa();
-        ctx.services.register(fonts);
+        let text_aa = if let Some(app) = ctx.services.get::<ViewProcess>() {
+            app.system_text_aa()
+        } else {
+            TextAntiAliasing::Subpixel
+        };
+        ctx.services.register(Fonts::new(text_aa, ctx.updates.sender()));
+    }
+
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if RawFontChangedEvent.update(args).is_some() {
+            FontChangedEvent.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+            ctx.services.fonts().on_system_fonts_changed();
+        } else if let Some(args) = RawTextAaChangedEvent.update(args) {
+            ctx.services.fonts().text_aa.set_ne(ctx.vars, args.aa);
+        }
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -141,60 +123,8 @@ impl AppExtension for FontManager {
             FontChangedEvent.notify(ctx.events, args);
         }
 
-        #[cfg(windows)]
-        if self.system_fonts_changed.take() {
-            // subclass monitor flagged a font (un)install.
-            FontChangedEvent.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
-            fonts.on_system_fonts_changed();
-        } else if fonts.prune_requested {
+        if fonts.prune_requested {
             fonts.on_prune();
-        }
-
-        #[cfg(windows)]
-        if self.system_text_aa_changed.take() {
-            // subclass monitor flagged a text AA config change.
-            let new = fonts.system_text_aa();
-            let prev = mem::replace(&mut self.current_text_aa, new);
-            if prev != new {
-                TextAaChangedEvent.notify(ctx.events, TextAaChangedArgs::now(prev, new));
-            }
-        }
-    }
-
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        #[cfg(windows)]
-        if let Some(args) = WindowOpenEvent.update(args) {
-            // attach subclass WM_FONTCHANGE monitor to new headed windows.
-            let windows = ctx.services.windows();
-            if let Ok(w) = windows.window(args.window_id) {
-                if w.mode().is_headed() {
-                    let update_sender = ctx.updates.sender();
-                    let system_fonts_changed = Rc::clone(&self.system_fonts_changed);
-                    let system_text_aa_changed = Rc::clone(&self.system_text_aa_changed);
-                    let ok = w.set_raw_windows_event_handler(move |_, msg, wparam, _| {
-                        if msg == winapi::um::winuser::WM_FONTCHANGE {
-                            system_fonts_changed.set(true);
-                            let _ = update_sender.send_update();
-                            Some(0)
-                        } else if msg == winapi::um::winuser::WM_SETTINGCHANGE {
-                            if wparam == winapi::um::winuser::SPI_GETFONTSMOOTHING as usize
-                                || wparam == winapi::um::winuser::SPI_GETFONTSMOOTHINGTYPE as usize
-                            {
-                                system_text_aa_changed.set(true);
-                                let _ = update_sender.send_update();
-                                Some(0)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    });
-                    if !ok {
-                        log::error!(target: "font_loading", "failed to set WM_FONTCHANGE subclass monitor");
-                    }
-                }
-            }
         }
     }
 }
@@ -205,13 +135,15 @@ pub struct Fonts {
     loader: FontFaceLoader,
     generics: GenericFonts,
     prune_requested: bool,
+    text_aa: RcVar<TextAntiAliasing>,
 }
 impl Fonts {
-    fn new(update_sender: AppEventSender) -> Self {
+    fn new(system_aa: TextAntiAliasing, update_sender: AppEventSender) -> Self {
         Fonts {
             loader: FontFaceLoader::new(),
             generics: GenericFonts::new(update_sender),
             prune_requested: false,
+            text_aa: var(system_aa),
         }
     }
 
@@ -334,42 +266,11 @@ impl Fonts {
             .collect()
     }
 
-    /// Gets the system text anti-aliasing config.
-    pub fn system_text_aa(&self) -> TextAntiAliasing {
-        #[cfg(windows)]
-        {
-            use winapi::um::errhandlingapi::GetLastError;
-            use winapi::um::winuser::{SystemParametersInfoW, FE_FONTSMOOTHINGCLEARTYPE, SPI_GETFONTSMOOTHING, SPI_GETFONTSMOOTHINGTYPE};
-
-            unsafe {
-                let mut enabled = 0;
-                let mut smoothing_type: u32 = 0;
-
-                if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
-                    log::error!("SPI_GETFONTSMOOTHING error: {:X}", GetLastError());
-                    return TextAntiAliasing::Mono;
-                }
-                if enabled == 0 {
-                    return TextAntiAliasing::Mono;
-                }
-
-                if SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &mut smoothing_type as *mut _ as *mut _, 0) == 0 {
-                    log::error!("SPI_GETFONTSMOOTHINGTYPE error: {:X}", GetLastError());
-                    return TextAntiAliasing::Mono;
-                }
-
-                if smoothing_type == FE_FONTSMOOTHINGCLEARTYPE {
-                    TextAntiAliasing::Subpixel
-                } else {
-                    TextAntiAliasing::Alpha
-                }
-            }
-        }
-        #[cfg(not(windows))]
-        {
-            // TODO
-            TextAntiAliasing::Subpixel
-        }
+    /// Gets the system text anti-aliasing config as a read-only var.
+    ///
+    /// The variable updates when the system config changes.
+    pub fn system_text_aa(&self) -> impl Var<TextAntiAliasing> {
+        self.text_aa.clone().into_read_only()
     }
 }
 

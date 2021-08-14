@@ -259,6 +259,14 @@ impl App {
         }
     }
 
+    /// Read the system text anti-aliasing config.
+    pub fn text_aa(&self) -> TextAntiAliasing {
+        match self.request(Request::TextAa) {
+            Response::TextAa(aa) => aa,
+            _ => panic!("view process did not respond correctly"),
+        }
+    }
+
     /// Gracefully shutdown the view process, returns when the process is closed.
     pub fn shutdown(mut self) {
         self.request_sender.send(&Request::Shutdown).unwrap();

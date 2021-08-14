@@ -43,7 +43,7 @@ pub fn init() {
 pub use controller::{App, WindowNotFound};
 pub use message::{
     AxisId, ButtonId, CursorIcon, DevId, ElementState, Ev, Icon, ModifiersState, MouseButton, MouseScrollDelta, OpenWindowRequest,
-    ScanCode, StartRequest, Theme, VirtualKeyCode, WinId, TextAntiAliasing
+    ScanCode, StartRequest, TextAntiAliasing, Theme, VirtualKeyCode, WinId,
 };
 
 pub use glutin::event_loop::ControlFlow;

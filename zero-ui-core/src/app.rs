@@ -872,6 +872,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
             zero_ui_wr::Ev::Touch(w_id, d_id, phase, pos, force, finger_id) => {
                 // TODO
+                let _ = (phase, pos, force, finger_id);
                 let args = RawTouchArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchEvent, args);
             }
@@ -893,7 +894,11 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // config events
-            zero_ui_wr::Ev::TextAntiAliasingChanged(aa) => {
+            zero_ui_wr::Ev::FontsChanged => {
+                let args = RawFontChangedArgs::now();
+                self.notify_event(RawFontChangedEvent, args);
+            }
+            zero_ui_wr::Ev::TextAaChanged(aa) => {
                 let args = RawTextAaChangedArgs::now(aa);
                 self.notify_event(RawTextAaChangedEvent, args);
             }
@@ -1115,7 +1120,7 @@ impl HeadlessApp {
     /// Note that [`UiNode::render`](crate::UiNode::render) is still called when a renderer is disabled and you can still
     /// query the latest frame from [`OpenWindow::frame_info`](crate::window::OpenWindow::frame_info). The only thing that
     /// is disabled is WebRender and the generation of frame textures.
-    pub fn renderer_enabled(&self) -> bool {
+    pub fn renderer_enabled(&mut self) -> bool {
         self.ctx().services.get::<view_process::ViewProcess>().is_some()
     }
 
@@ -1426,7 +1431,7 @@ enum AppEvent {
 #[derive(Clone)]
 pub struct AppEventSender(flume::Sender<AppEvent>);
 impl AppEventSender {
-    pub(crate) fn new() -> (Self, flume::Receiver<AppEvent>) {
+    fn new() -> (Self, flume::Receiver<AppEvent>) {
         let (sender, receiver) = flume::unbounded();
         (Self(sender), receiver)
     }
@@ -1601,7 +1606,7 @@ pub mod view_process {
 
     use linear_map::LinearMap;
 
-    use zero_ui_wr::{DevId, WinId};
+    use zero_ui_wr::{DevId, TextAntiAliasing, WinId};
     pub use zero_ui_wr::{Ev, OpenWindowRequest, StartRequest, WindowNotFound};
 
     use super::DeviceId;
@@ -1613,11 +1618,11 @@ pub mod view_process {
     /// This is the lowest level API, used for implementing fundamental services and is a service available
     /// in headed apps or headless apps with renderer.
     #[derive(Service)]
-    pub struct ViewProcess(Rc<ViewApp>);
+    pub struct ViewProcess(Rc<RefCell<ViewApp>>);
     struct ViewApp {
         process: zero_ui_wr::App,
-        window_ids: RefCell<LinearMap<WinId, WindowId>>,
-        device_ids: RefCell<LinearMap<DevId, DeviceId>>,
+        window_ids: LinearMap<WinId, WindowId>,
+        device_ids: LinearMap<DevId, DeviceId>,
     }
     impl ViewProcess {
         /// Spawn the View Process.
@@ -1625,68 +1630,75 @@ pub mod view_process {
         where
             F: FnMut(Ev) + Send + 'static,
         {
-            Self(Rc::new(ViewApp {
+            Self(Rc::new(RefCell::new(ViewApp {
                 process: zero_ui_wr::App::start(request, on_event),
-                window_ids: RefCell::default(),
-                device_ids: RefCell::default(),
-            }))
+                window_ids: LinearMap::default(),
+                device_ids: LinearMap::default(),
+            })))
         }
 
         /// If is running in headless renderer mode.
         #[inline]
         pub fn headless(&self) -> bool {
-            self.0.process.headless()
+            self.0.borrow().process.headless()
         }
 
         /// Open a window and associate it with the `window_id`.
         pub fn open_window(&self, window_id: WindowId, request: OpenWindowRequest) -> ViewWindow {
-            assert!(self.0.window_ids.borrow().values().all(|&v| v != window_id));
+            let mut app = self.0.borrow_mut();
+            assert!(app.window_ids.values().all(|&v| v != window_id));
 
-            let id = self.0.process.open_window(request);
+            let id = app.process.open_window(request);
 
-            self.0.window_ids.borrow_mut().insert(id, window_id);
+            app.window_ids.insert(id, window_id);
 
             ViewWindow(id, self.0.clone())
         }
 
+        /// Read the system text anti-aliasing config.
+        #[inline]
+        pub fn system_text_aa(&self) -> TextAntiAliasing {
+            self.0.borrow().process.text_aa()
+        }
+
         /// Translate `WinId` to `WindowId`.
         pub(super) fn window_id(&self, id: WinId) -> Option<WindowId> {
-            self.0.window_ids.borrow().get(&id).copied()
+            self.0.borrow().window_ids.get(&id).copied()
         }
 
         /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
         pub(super) fn device_id(&self, id: DevId) -> DeviceId {
-            *self.0.device_ids.borrow_mut().entry(id).or_insert_with(DeviceId::new_unique)
+            *self.0.borrow_mut().device_ids.entry(id).or_insert_with(DeviceId::new_unique)
         }
     }
 
     /// Reference to a window open in the View Process.
     ///
     /// The window closes when this struct is dropped.
-    pub struct ViewWindow(WinId, Rc<ViewApp>);
+    pub struct ViewWindow(WinId, Rc<RefCell<ViewApp>>);
     impl ViewWindow {
         /// Set the window title.
         #[inline]
         pub fn set_title(&self, title: String) -> Result<(), WindowNotFound> {
-            self.1.process.set_title(self.0, title)
+            self.1.borrow_mut().process.set_title(self.0, title)
         }
 
         /// Set the window visibility.
         #[inline]
         pub fn set_visible(&self, visible: bool) -> Result<(), WindowNotFound> {
-            self.1.process.set_visible(self.0, visible)
+            self.1.borrow_mut().process.set_visible(self.0, visible)
         }
 
         /// Set the window position (in device pixels).
         #[inline]
         pub fn set_position(&self, x: i32, y: i32) -> Result<(), WindowNotFound> {
-            self.1.process.set_position(self.0, (x, y))
+            self.1.borrow_mut().process.set_position(self.0, (x, y))
         }
 
         /// Set the window size (in device pixels).
         #[inline]
         pub fn set_size(&self, width: u32, height: u32) -> Result<(), WindowNotFound> {
-            self.1.process.set_size(self.0, (width, height))
+            self.1.borrow_mut().process.set_size(self.0, (width, height))
         }
 
         /// Reference the window renderer.
@@ -1702,21 +1714,21 @@ pub mod view_process {
     }
     impl Drop for ViewWindow {
         fn drop(&mut self) {
-            self.1.process.close_window(self.0);
+            self.1.borrow_mut().process.close_window(self.0);
         }
     }
 
     /// Reference to a window renderer in the View Process.
-    pub struct ViewRenderer(WinId, Rc<ViewApp>);
+    pub struct ViewRenderer(WinId, Rc<RefCell<ViewApp>>);
     impl ViewRenderer {
         /// Gets the viewport size (window inner size).
         pub fn size(&self) -> Result<(u32, u32), WindowNotFound> {
-            self.1.process.size(self.0)
+            self.1.borrow().process.size(self.0)
         }
 
         /// Gets the window scale factor.
         pub fn scale_factor(&self) -> Result<f32, WindowNotFound> {
-            self.1.process.scale_factor(self.0)
+            self.1.borrow().process.scale_factor(self.0)
         }
 
         /// Copy a `rect` of pixels from the current frame.
@@ -1725,7 +1737,7 @@ pub mod view_process {
         /// at the bottom-left corner of the rectangle and each *stride*
         /// is a row from bottom-to-top and the pixel type is BGRA.
         pub fn read_pixels(&self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, WindowNotFound> {
-            self.1.process.read_pixels(self.0, [x, y, width, height])
+            self.1.borrow_mut().process.read_pixels(self.0, [x, y, width, height])
         }
     }
 }
@@ -2109,6 +2121,16 @@ pub mod raw_events {
             }
         }
 
+        /// [`RawFontChangedEvent`] arguments.
+        pub struct RawFontChangedArgs {
+            ..
+
+            /// Concerns all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
         /// Arguments for the [`RawTextAaChangedEvent`].
         pub struct RawTextAaChangedArgs {
             /// The new anti-aliasing config.
@@ -2211,6 +2233,9 @@ pub mod raw_events {
 
         /// Change in system text anti-aliasing config.
         pub RawTextAaChangedEvent: RawTextAaChangedArgs;
+
+        /// Change in system text fonts, install or uninstall.
+        pub RawFontChangedEvent: RawFontChangedArgs;
     }
 }
 

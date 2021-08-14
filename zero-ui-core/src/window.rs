@@ -1163,7 +1163,7 @@ impl AppWindow {
             WindowMode::Headed => todo!(),
             WindowMode::Headless => {
                 headless = Some(HeadlessWindow {
-                    screen: root.headless_screen,
+                    screen: root.headless_screen.clone(),
                     position: LayoutPoint::zero(),
                     size: LayoutSize::new(800.0, 600.0),
                     state: WindowState::Normal,
