@@ -9,7 +9,7 @@ use glutin::{
     Api as GApi, ContextBuilder, ContextWrapper, NotCurrent,
 };
 use ipmpsc::{Receiver, Sender, SharedRingBuffer};
-use std::{env, path::PathBuf, process, rc::Rc, thread};
+use std::{cell::Cell, env, path::PathBuf, process, rc::Rc, thread};
 use webrender::{
     api::{
         units::{self, DeviceIntRect, DeviceIntSize, LayoutPoint, LayoutSize},
@@ -21,6 +21,10 @@ use webrender::{
 
 /// Start the app event loop in the View Process.
 pub fn run(channel_dir: PathBuf) -> ! {
+    if !is_main_thread::is_main_thread().unwrap_or(true) {
+        panic!("can only init view-process in the main thread")
+    }
+
     let mode = env::var(MODE_VAR).unwrap_or_else(|_| "headed".to_owned());
     let headless = match mode.as_str() {
         "headed" => false,
@@ -86,6 +90,7 @@ pub fn run(channel_dir: PathBuf) -> ! {
                 AppEvent::FrameReady(window_id) => app.on_frame_ready(window_id),
                 AppEvent::SystemFontsChanged => app.notify(Ev::FontsChanged),
                 AppEvent::SystemTextAaChanged(aa) => app.notify(Ev::TextAaChanged(aa)),
+                AppEvent::KeyboardInput(w_id, d_id, k) => app.notify(Ev::KeyboardInput(w_id, d_id, k)),
             },
             Event::Suspended => {}
             Event::Resumed => {}
@@ -103,6 +108,7 @@ enum AppEvent {
     FrameReady(WindowId),
     SystemFontsChanged,
     SystemTextAaChanged(TextAntiAliasing),
+    KeyboardInput(WinId, DevId, KeyboardInput),
 }
 
 struct App {
@@ -159,6 +165,7 @@ impl App {
                 Request::SetWindowPosition(id, pos) => self.set_window_position(id, pos),
                 Request::SetWindowSize(id, size) => self.set_window_size(id, size),
                 Request::SetWindowVisible(id, visible) => self.set_window_visible(id, visible),
+                Request::AllowAltF4(id, allow) => self.allow_alt_f4(id, allow),
                 Request::HitTest(id, point) => self.hit_test(id, point),
                 Request::ReadPixels(id, rect) => self.read_pixels(id, rect),
                 Request::CloseWindow(id) => self.close_window(id),
@@ -333,6 +340,15 @@ impl App {
         }
     }
 
+    fn allow_alt_f4(&mut self, id: WinId, allow: bool) {
+        if let Some(w) = self.windows.iter_mut().find(|w| w.id == id) {
+            w.allow_alt_f4.set(allow);
+            self.respond(Response::AllowAltF4Changed(id, allow));
+        } else {
+            self.respond(Response::WindowNotFound(id));
+        }
+    }
+
     fn hit_test(&mut self, id: WinId, point: LayoutPoint) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id == id) {
             let r = w.hit_test(point);
@@ -377,6 +393,8 @@ struct Window {
 
     visisble: bool,
     waiting_first_frame: bool,
+
+    allow_alt_f4: Rc<Cell<bool>>,
 }
 impl Window {
     fn new(id: u32, request: OpenWindowRequest, event_loop: EventLoopProxy<AppEvent>, target: &EventLoopWindowTarget<AppEvent>) -> Self {
@@ -390,6 +408,34 @@ impl Window {
         let glutin = ContextBuilder::new().build_windowed(winit, target).unwrap();
         // SAFETY: we drop the context before the window.
         let (context, winit_window) = unsafe { glutin.split() };
+
+        // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
+        let allow_alt_f4 = Rc::new(Cell::new(false));
+        #[cfg(windows)]
+        {
+            let allow_alt_f4 = allow_alt_f4.clone();
+            let event_loop = event_loop.clone();
+
+            set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
+                if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && allow_alt_f4.get() {
+                    let device_id = 0; // TODO recover actual ID
+
+                    #[allow(deprecated)] // `modifiers` is deprecated but there is no other way to init a KeyboardInput
+                    let _ = event_loop.send_event(AppEvent::KeyboardInput(
+                        id,
+                        device_id,
+                        KeyboardInput {
+                            scancode: wparam as u32,
+                            state: ElementState::Pressed,
+                            virtual_keycode: Some(VirtualKeyCode::F4),
+                            modifiers: ModifiersState::ALT,
+                        },
+                    ));
+                    return Some(0);
+                }
+                None
+            });
+        }
 
         // create renderer and start the first frame.
         let context = unsafe { context.make_current() }.unwrap();
@@ -443,6 +489,7 @@ impl Window {
             clear_color: request.clear_color,
             waiting_first_frame: false,
             visisble: request.visible,
+            allow_alt_f4,
         }
     }
 
@@ -538,7 +585,6 @@ impl Window {
     /// This is a direct call to `glReadPixels`, `x` and `y` start
     /// at the bottom-left corner of the rectangle and each *stride*
     /// is a row from bottom-to-top and the pixel type is BGRA.
-    #[inline]
     fn read_pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Vec<u8> {
         let ctx = unsafe { self.context.take().unwrap().make_current() }.unwrap();
 
@@ -587,7 +633,7 @@ fn config_listener(event_proxy: EventLoopProxy<AppEvent>, window_target: &EventL
         .build(window_target)
         .unwrap();
 
-    set_raw_windows_event_handler(&w, u32::from_le_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
+    set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
         if msg == winapi::um::winuser::WM_FONTCHANGE {
             let _ = event_proxy.send_event(AppEvent::SystemFontsChanged);
             Some(0)

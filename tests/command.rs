@@ -5,7 +5,7 @@ use zero_ui_core::keyboard::HeadlessAppKeyboardExt;
 
 #[test]
 fn notify() {
-    let mut app = App::default().run_headless();
+    let mut app = App::default().run_headless(false);
     app.open_window(|_| listener_window());
 
     let cmd = FooCommand;
@@ -20,7 +20,7 @@ fn notify() {
 
 #[test]
 fn notify_scoped() {
-    let mut app = App::default().run_headless();
+    let mut app = App::default().run_headless(false);
     let window_id = app.open_window(|_| listener_window());
 
     let cmd = FooCommand;
@@ -37,7 +37,7 @@ fn notify_scoped() {
 
 #[test]
 fn shortcut() {
-    let mut app = App::default().run_headless();
+    let mut app = App::default().run_headless(false);
     let window_id = app.open_window(|_| listener_window());
 
     FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
@@ -51,7 +51,7 @@ fn shortcut() {
 
 #[test]
 fn shortcut_scoped() {
-    let mut app = App::default().run_headless();
+    let mut app = App::default().run_headless(false);
     let window_id = app.open_window(|_| listener_window());
 
     FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();

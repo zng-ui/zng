@@ -1515,7 +1515,7 @@ impl TestApp {
         Self::new_w(window!(content))
     }
     pub fn new_w(window: Window) -> Self {
-        let mut app = App::default().run_headless();
+        let mut app = App::default().run_headless(false);
 
         let (focus_changed, return_focus_changed) = {
             let ctx = app.ctx();

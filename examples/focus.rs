@@ -147,12 +147,11 @@ mod inspect {
     pub fn focus(path: &Option<WidgetPath>, services: &mut Services) -> String {
         path.as_ref()
             .map(|p| {
-                let window = if let Ok(w) = services.windows().window(p.window_id()) {
+                let frame = if let Ok(w) = services.windows().frame_info(p.window_id()) {
                     w
                 } else {
                     return format!("<{}>", p);
                 };
-                let frame = window.frame_info();
                 let widget = if let Some(w) = frame.get(p) {
                     w
                 } else {

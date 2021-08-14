@@ -259,13 +259,7 @@ pub mod window {
         kiosk: bool,
         headless_screen: impl Into<HeadlessScreen>,
     ) -> Window {
-        Window::new(
-            root_id,
-            start_position,
-            kiosk,
-            headless_screen,
-            child,
-        )
+        Window::new(root_id, start_position, kiosk, headless_screen, child)
     }
 
     /// Window stand-alone properties.
@@ -392,14 +386,13 @@ pub mod window {
 
     /// Commands that control the window.
     pub mod commands {
-        use std::{cell::Cell, rc::Rc};
         use zero_ui::core::{
             command::*,
             context::WidgetContext,
             event::EventUpdateArgs,
             focus::FocusExt,
             gesture::*,
-            window::{WindowFocusChangedEvent, WindowOpenEvent, WindowsExt},
+            window::{WindowFocusChangedEvent, WindowsExt},
             *,
         };
 
@@ -446,70 +439,30 @@ pub mod window {
         }
 
         pub(super) fn close_node(child: impl UiNode) -> impl UiNode {
-            #[cfg(windows)]
-            use zero_ui::core::window::WindowId;
-
             struct OnCloseNode<C: UiNode> {
                 child: C,
                 handle: CommandHandle,
-                #[cfg(windows)]
-                allow_alt_f4: Rc<Cell<bool>>,
-            }
-            impl<C: UiNode> OnCloseNode<C> {
-                // in Windows, when using a real window, block the system's ALT+F4 when that shortcut
-                // is not present in the command.
-                #[cfg(windows)]
-                fn setup_alt_f4_block(&self, ctx: &mut WidgetContext, opened_window: WindowId) {
-                    use zero_ui_core::{
-                        app::raw_events::{RawKeyInputArgs, RawKeyInputEvent},
-                        app::DeviceId,
-                        keyboard::{Key, KeyState},
-                        window::WindowMode,
-                    };
-
-                    let window_id = ctx.path.window_id();
-                    if opened_window != window_id {
-                        return;
-                    }
-
-                    let sender = ctx.events.sender(RawKeyInputEvent);
-                    let sender_device_id = DeviceId::new_unique();
-
-                    let window = ctx.services.windows().window(window_id).unwrap();
-                    if let WindowMode::Headed = window.mode() {
-                        let allow_alt_f4 = self.allow_alt_f4.clone();
-                        window.set_raw_windows_event_handler(move |_, msg, wparam, _| {
-                            if msg == winapi::um::winuser::WM_SYSKEYDOWN
-                                && wparam as i32 == winapi::um::winuser::VK_F4
-                                && !allow_alt_f4.get()
-                            {
-                                let _ = sender.send(RawKeyInputArgs::now(
-                                    window_id,
-                                    sender_device_id,
-                                    wparam as u32,
-                                    KeyState::Pressed,
-                                    Some(Key::F4),
-                                ));
-                                return Some(0);
-                            }
-                            None
-                        });
-                    }
-                }
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for OnCloseNode<C> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let enabled = ctx.services.focus().is_window_focused(ctx.path.window_id());
                     self.handle = CloseCommand.new_handle(ctx, enabled);
-                    self.allow_alt_f4
-                        .set(CloseCommand.shortcut().get(ctx).contains(shortcut![ALT + F4]));
+
+                    // Highjacks ALT+F4 in windows.
+                    ctx.services
+                        .windows()
+                        .allow_alt_f4(
+                            ctx.path.window_id(),
+                            CloseCommand.shortcut().get(ctx.vars).contains(shortcut![ALT + F4]),
+                        )
+                        .unwrap();
+
                     self.child.init(ctx)
                 }
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
                     self.child.deinit(ctx);
-                    #[cfg(windows)]
-                    self.allow_alt_f4.set(true);
+                    ctx.services.windows().allow_alt_f4(ctx.path.window_id(), false).unwrap();
                 }
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                     if let Some(args) = CloseCommand.update(args) {
@@ -525,11 +478,6 @@ pub mod window {
                             self.handle.set_enabled(args.focused);
                         }
                         self.child.event(ctx, args);
-                    } else if let Some(args) = WindowOpenEvent.update(args) {
-                        #[cfg(windows)]
-                        self.setup_alt_f4_block(ctx, args.window_id);
-
-                        self.child.event(ctx, args);
                     } else {
                         self.child.event(ctx, args)
                     }
@@ -537,8 +485,11 @@ pub mod window {
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     // update the ALT+F4 block flag in Windows.
                     #[cfg(windows)]
-                    if let Some(s) = CloseCommand.shortcut().get_new(ctx) {
-                        self.allow_alt_f4.set(s.contains(shortcut![ALT + F4]));
+                    if let Some(s) = CloseCommand.shortcut().get_new(ctx.vars) {
+                        ctx.services
+                            .windows()
+                            .allow_alt_f4(ctx.path.window_id(), s.contains(shortcut![ALT + F4]))
+                            .unwrap();
                     }
 
                     self.child.update(ctx);
@@ -548,7 +499,6 @@ pub mod window {
             OnCloseNode {
                 child,
                 handle: CommandHandle::dummy(),
-                allow_alt_f4: Rc::default(),
             }
         }
 
@@ -570,9 +520,7 @@ pub mod window {
                 hn!(|ctx, args: &CommandArgs| {
                     args.stop_propagation();
 
-                    let frame = ctx
-                        .services.windows().frame(ctx.path.window_id())
-                        .unwrap();
+                    let frame = ctx.services.windows().frame_info(ctx.path.window_id()).unwrap();
 
                     let mut buffer = vec![];
                     write_frame(frame, &state, &mut buffer);

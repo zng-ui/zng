@@ -26,6 +26,7 @@ pub enum Request {
     HitTest(WinId, LayoutPoint),
     ReadPixels(WinId, [u32; 4]),
     CloseWindow(WinId),
+    AllowAltF4(WinId, bool),
 
     // system settings.
     TextAa,
@@ -48,6 +49,7 @@ pub enum Response {
     WindowClosed(WinId),
     HitTestResult(WinId, HitTestResult),
     FramePixels(WinId, Vec<u8>),
+    AllowAltF4Changed(WinId, bool),
 
     WindowNotFound(WinId),
 

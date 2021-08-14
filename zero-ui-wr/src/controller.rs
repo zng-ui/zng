@@ -19,22 +19,17 @@ pub struct App {
 }
 
 impl App {
-    /// Start the view process as an instance of the [`current_exe`].
+    /// Start with a custom view process.
+    ///
+    /// The `view_process_exe` must be an executable that calls [`init_view_process`], if not set
+    /// the [`current_exe`] is used. Note that the [`VERSION`] of this crate must match in both executables.
     ///
     /// The `on_event` closure is called in another thread every time the app receives an event.
     ///
     /// [`current_exe`]: std::env::current_exe
-    pub fn start<F>(request: StartRequest, on_event: F) -> Self
-    where
-        F: FnMut(Ev) + Send + 'static,
-    {
-        Self::start_with(std::env::current_exe().unwrap(), request, on_event)
-    }
-
-    /// Start with a custom view process.
-    ///
-    /// The `on_event` closure is called in another thread every time the app receives an event.
-    pub fn start_with<F>(view_process_exe: PathBuf, request: StartRequest, mut on_event: F) -> Self
+    /// [`init_view_process`]: crate::init_view_process
+    /// [`VERSION`]: crate::VERSION
+    pub fn start<F>(view_process_exe: Option<PathBuf>, request: StartRequest, mut on_event: F) -> Self
     where
         F: FnMut(Ev) + Send + 'static,
     {
@@ -61,7 +56,7 @@ impl App {
         );
 
         // create process and spawn it
-        let process = Command::new(view_process_exe)
+        let process = Command::new(view_process_exe.unwrap_or_else(|| std::env::current_exe().unwrap()))
             .env(CHANNEL_VAR, channel_dir)
             .env(MODE_VAR, if request.headless { "headless" } else { "headed" })
             .stdout(Stdio::piped())
@@ -125,6 +120,7 @@ impl App {
             size: request.size,
             visible: request.visible,
             frame: request.frame.clone(),
+            allow_alt_f4: !cfg!(windows),
         };
         match self.request(Request::OpenWindow(request)) {
             Response::WindowOpened(id) => {
@@ -178,6 +174,23 @@ impl App {
             Some(i) => match self.request(Request::SetWindowSize(window, size)) {
                 Response::WindowResized(id, size) if id == window => {
                     self.windows[i].size = size;
+                    Ok(())
+                }
+                Response::WindowNotFound(id) if id == window => {
+                    self.windows.remove(i);
+                    Err(WindowNotFound(id))
+                }
+                _ => panic!("view process did not respond correctly"),
+            },
+            None => Err(WindowNotFound(window)),
+        }
+    }
+
+    pub fn allow_alt_f4(&mut self, window: WinId, allow: bool) -> Result<(), WindowNotFound> {
+        match self.windows.iter_mut().position(|w| w.id == window) {
+            Some(i) => match self.request(Request::AllowAltF4(window, allow)) {
+                Response::AllowAltF4Changed(id, allow) if id == window => {
+                    self.windows[i].allow_alt_f4 = allow;
                     Ok(())
                 }
                 Response::WindowNotFound(id) if id == window => {
@@ -285,6 +298,7 @@ struct Window {
     pos: (i32, i32),
     size: (u32, u32),
     visible: bool,
+    allow_alt_f4: bool,
     frame: (PipelineId, LayoutSize, (Vec<u8>, BuiltDisplayListDescriptor)),
 }
 

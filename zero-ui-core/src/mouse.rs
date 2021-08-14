@@ -434,7 +434,7 @@ impl MouseManager {
 
         let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
         let hits = windows.hit_test(window_id, position).unwrap();
-        let frame_info = windows.frame(window_id).unwrap();
+        let frame_info = windows.frame_info(window_id).unwrap();
 
         let (target, position) = if let Some(t) = hits.target() {
             (frame_info.find(t.widget_id).unwrap().path(), t.point)
@@ -574,7 +574,7 @@ impl MouseManager {
             let hits = windows.hit_test(window_id, pos).unwrap();
 
             // mouse_move data
-            let frame_info = windows.frame(window_id).unwrap();
+            let frame_info = windows.frame_info(window_id).unwrap();
             let (target, position) = if let Some(t) = hits.target() {
                 (frame_info.find(t.widget_id).unwrap().path(), t.point)
             } else {
@@ -770,14 +770,14 @@ impl AppExtension for MouseManager {
             let hits = windows.hit_test(window_id, self.pos).unwrap();
             let target = hits
                 .target()
-                .and_then(|t| windows.frame(window_id).unwrap().find(t.widget_id))
+                .and_then(|t| windows.frame_info(window_id).unwrap().find(t.widget_id))
                 .map(|w| w.path());
             self.update_hovered(window_id, None, hits, target, ctx.events, mouse);
         }
         // update capture
         if self.capture_count > 0 {
             let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
-            if let Ok(frame) = windows.frame(window_id) {
+            if let Ok(frame) = windows.frame_info(window_id) {
                 mouse.continue_capture(frame, ctx.events);
             }
         }
@@ -963,7 +963,7 @@ impl Mouse {
             if let Some((widget_id, mode)) = self.capture_request.take() {
                 if let Ok(true) = windows.is_focused(current_target.window_id()) {
                     // current window pressed
-                    if let Some(widget) = windows.frame(current_target.window_id()).unwrap().find(widget_id) {
+                    if let Some(widget) = windows.frame_info(current_target.window_id()).unwrap().find(widget_id) {
                         // request valid
                         self.set_capture(widget.path(), mode, events);
                     }

@@ -19,6 +19,7 @@ use crate::{
 
 use once_cell::sync::Lazy;
 use std::future::Future;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::task::Waker;
 use std::{
@@ -27,7 +28,7 @@ use std::{
     time::Instant,
 };
 
-pub use zero_ui_wr::{init, ControlFlow};
+pub use zero_ui_wr::{init_view_process, ControlFlow};
 
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///
@@ -407,13 +408,15 @@ cancelable_event_args! {
 
 /// Defines and runs an application.
 ///
-/// # Init
+/// # View Process
 ///
-/// You must call the [`init`] function before all other code in the app `main` function, see [`init`]
-/// for more details.
+/// The [`init_view_process`] function must be called before all other code in the app `main` function when
+/// creating an app with renderer. If the process is started with the right environment configuration this function
+/// high-jacks the process and turns it into a *View Process*, never returning.
 ///
-/// The [`init`] function is called in [`blank`] and [`default`], so if this is the first thing
-/// you are doing in the `main` function you don't need to call [`init`].
+/// Note that [`init_view_process`] does nothing if the *View Process* environment is not set, you can safely call it more then once.
+/// The [`blank`] and [`default`] methods also call this function, so if the first line of the `main` is `App::default` you don't
+/// need to explicitly call the function.
 ///
 /// # Debug Log
 ///
@@ -441,7 +444,11 @@ impl App {
     /// Application without any extension.
     #[inline]
     pub fn blank() -> AppExtended<()> {
-        AppExtended { extensions: () }
+        init_view_process();
+        AppExtended {
+            extensions: (),
+            view_process_exe: None,
+        }
     }
 
     /// Application with default extensions.
@@ -476,9 +483,12 @@ impl App {
 impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        init();
+        init_view_process();
         DebugLogger::init();
-        AppExtended { extensions: vec![] }
+        AppExtended {
+            extensions: vec![],
+            view_process_exe: None,
+        }
     }
 
     /// Application with default extensions.
@@ -509,6 +519,7 @@ impl App {
 /// Application with extensions.
 pub struct AppExtended<E: AppExtension> {
     extensions: E,
+    view_process_exe: Option<PathBuf>,
 }
 
 /// Cancellation message of a [shutdown request](AppProcess::shutdown).
@@ -565,15 +576,14 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
     /// extension type.
     #[inline]
-    pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+    pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         if self.extended_with::<F>() {
             panic!("app already extended with `{}`", type_name::<F>())
         }
 
-        let mut extensions = self.extensions;
-        extensions.push(extension.boxed());
+        self.extensions.push(extension.boxed());
 
-        AppExtended { extensions }
+        self
     }
 
     /// If the application should notify raw device events.
@@ -607,6 +617,7 @@ impl<E: AppExtension> AppExtended<E> {
         }
         AppExtended {
             extensions: (self.extensions, extension),
+            view_process_exe: self.view_process_exe,
         }
     }
 
@@ -632,6 +643,20 @@ impl<E: AppExtension> AppExtended<E> {
         self.extensions.is_or_contain(TypeId::of::<F>())
     }
 
+    /// Set the path to the executable for the *View Process*.
+    ///
+    /// By the default the current executable is started again as a *View Process*, you use
+    /// two executables instead, by setting this value.
+    ///
+    /// Note that the [`init_view_process`] function must be called in the `view_process_exe` and both
+    /// executables must be build using the same exact [`VERSION`].
+    ///
+    /// [`VERSION`]: zero_ui_wr::VERSION  
+    pub fn view_process_exe(mut self, view_process_exe: impl Into<PathBuf>) -> Self {
+        self.view_process_exe = Some(view_process_exe.into());
+        self
+    }
+
     /// Runs the application calling `start` once at the beginning.
     ///
     /// # Panics
@@ -648,7 +673,7 @@ impl<E: AppExtension> AppExtended<E> {
 
         start(&mut app.ctx());
 
-        app.run_headed()
+        app.run_headed(self.view_process_exe)
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
@@ -671,6 +696,7 @@ impl<E: AppExtension> AppExtended<E> {
 
         if with_renderer {
             let renderer = view_process::ViewProcess::start(
+                self.view_process_exe,
                 view_process::StartRequest {
                     device_events: false,
                     headless: true,
@@ -734,10 +760,11 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    fn run_headed(mut self) -> ! {
+    fn run_headed(mut self, view_process_exe: Option<PathBuf>) -> ! {
         let view_evs_sender = self.ctx().updates.sender();
 
         let view_app = view_process::ViewProcess::start(
+            view_process_exe,
             view_process::StartRequest {
                 device_events: self.device_events,
                 headless: false,
@@ -778,7 +805,11 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn window_id(&mut self, id: zero_ui_wr::WinId) -> WindowId {
-        self.ctx().services.req::<view_process::ViewProcess>().window_id(id).expect("unknown window id")
+        self.ctx()
+            .services
+            .req::<view_process::ViewProcess>()
+            .window_id(id)
+            .expect("unknown window id")
     }
 
     fn device_id(&mut self, id: zero_ui_wr::DevId) -> DeviceId {
@@ -1617,6 +1648,7 @@ impl fmt::Display for DeviceId {
 
 /// View process controller types.
 pub mod view_process {
+    use std::path::PathBuf;
     use std::{cell::RefCell, rc::Rc};
 
     use linear_map::LinearMap;
@@ -1641,12 +1673,12 @@ pub mod view_process {
     }
     impl ViewProcess {
         /// Spawn the View Process.
-        pub(super) fn start<F>(request: StartRequest, on_event: F) -> Self
+        pub(super) fn start<F>(view_process_exe: Option<PathBuf>, request: StartRequest, on_event: F) -> Self
         where
             F: FnMut(Ev) + Send + 'static,
         {
             Self(Rc::new(RefCell::new(ViewApp {
-                process: zero_ui_wr::App::start(request, on_event),
+                process: zero_ui_wr::App::start(view_process_exe, request, on_event),
                 window_ids: LinearMap::default(),
                 device_ids: LinearMap::default(),
             })))
@@ -1720,6 +1752,13 @@ pub mod view_process {
         #[inline]
         pub fn renderer(&self) -> ViewRenderer {
             ViewRenderer(self.0, self.1.clone())
+        }
+
+        /// In Windows stops the system from requesting a window close on `ALT+F4` and sends a key
+        /// press for F4 instead.
+        #[inline]
+        pub fn allow_alt_f4(&self, allow: bool) -> Result<(), WindowNotFound> {
+            self.1.borrow_mut().process.allow_alt_f4(self.0, allow)
         }
 
         /// Drop `self`.

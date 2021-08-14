@@ -583,7 +583,7 @@ impl AppExtension for FocusManager {
             self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
         }
 
-        for args in focus.cleanup_returns(FrameFocusInfo::new(windows.frame(window_id).expect("window in on_new_frame"))) {
+        for args in focus.cleanup_returns(FrameFocusInfo::new(windows.frame_info(window_id).expect("window in on_new_frame"))) {
             ReturnFocusChangedEvent.notify(ctx.events, args);
         }
     }
@@ -841,7 +841,7 @@ impl Focus {
             (_, FocusTarget::DirectOrEnder(widget_id)) => self.focus_direct(widget_id, request.highlight, true, false, windows, request),
             (_, FocusTarget::DirectOrRelated(widget_id)) => self.focus_direct(widget_id, request.highlight, true, true, windows, request),
             (Some(prev), move_) => {
-                if let Ok(frame) = windows.frame(prev.window_id()) {
+                if let Ok(frame) = windows.frame_info(prev.window_id()) {
                     let frame = FrameFocusInfo::new(frame);
                     if let Some(w) = frame.find(prev.widget_id()) {
                         let mut can_only_highlight = true;
@@ -911,7 +911,7 @@ impl Focus {
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Ok(true) = windows.is_focused(focused.window_id()) {
-                let frame = windows.frame(focused.window_id()).unwrap();
+                let frame = windows.frame_info(focused.window_id()).unwrap();
                 if let Some(widget) = frame.find(focused.widget_id()).map(|w| w.as_focus_info()) {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
@@ -1082,7 +1082,7 @@ impl Focus {
             // if we don't have an `alt_return` but focused something, check if focus
             // moved inside an ALT.
 
-            if let Ok(frame) = windows.frame(new_focus.window_id()) {
+            if let Ok(frame) = windows.frame_info(new_focus.window_id()) {
                 if let Some(widget) = FrameFocusInfo::new(frame).get(new_focus) {
                     let alt_scope = if widget.is_alt_scope() {
                         Some(widget)
@@ -1113,7 +1113,7 @@ impl Focus {
          */
 
         if let Some(new_focus) = &self.focused {
-            if let Ok(frame) = windows.frame(new_focus.window_id()) {
+            if let Ok(frame) = windows.frame_info(new_focus.window_id()) {
                 if let Some(widget) = FrameFocusInfo::new(frame).get(new_focus) {
                     if widget.scopes().all(|s| !s.is_alt_scope()) {
                         // if not inside ALT, update return for each LastFocused parent scopes.

@@ -7,6 +7,7 @@ pub use zero_ui_wr::{CursorIcon, Theme as WindowTheme};
 
 use crate::{
     app::{
+        self,
         view_process::{ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension,
     },
@@ -109,6 +110,86 @@ pub trait HeadlessAppWindowExt {
 
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
+}
+impl HeadlessAppWindowExt for app::HeadlessApp {
+    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
+        let response = self.ctx().services.windows().open(new_window);
+        let mut window_id = None;
+        while window_id.is_none() {
+            self.update_observe(
+                |ctx| {
+                    if let Some(opened) = response.rsp_new(ctx) {
+                        window_id = Some(opened.window_id);
+                    }
+                },
+                true,
+            );
+        }
+        let window_id = window_id.unwrap();
+
+        self.focus_window(window_id);
+
+        window_id
+    }
+
+    fn focus_window(&mut self, window_id: WindowId) {
+        use app::raw_events::*;
+
+        let args = RawWindowFocusArgs::now(window_id, true);
+        RawWindowFocusEvent.notify(self.ctx().events, args);
+    }
+
+    fn blur_window(&mut self, window_id: WindowId) {
+        use app::raw_events::*;
+
+        let args = RawWindowFocusArgs::now(window_id, false);
+        RawWindowFocusEvent.notify(self.ctx().events, args);
+    }
+
+    fn wait_frame(&mut self, window_id: WindowId) -> FramePixels {
+        // the current frame for comparison.
+        let frame_id = self.ctx().services.windows().frame_info(window_id).ok().map(|w| w.frame_id());
+
+        loop {
+            self.update(true);
+
+            let windows = self.ctx().services.windows();
+            if let Ok(frame) = windows.frame_info(window_id) {
+                if Some(frame.frame_id()) != frame_id {
+                    return windows.frame_pixels(window_id).unwrap();
+                }
+            }
+        }
+    }
+
+    fn frame_pixels(&mut self, window_id: WindowId) -> FramePixels {
+        self.ctx().services.windows().frame_pixels(window_id).expect("window not found")
+    }
+
+    fn close_window(&mut self, window_id: WindowId) -> bool {
+        use app::raw_events::*;
+
+        let args = RawWindowCloseRequestedArgs::now(window_id);
+        RawWindowCloseRequestedEvent.notify(self.ctx().events, args);
+
+        let mut requested = false;
+        let mut closed = false;
+
+        self.update_observe_event(
+            |_, args| {
+                if let Some(args) = WindowCloseRequestedEvent.update(args) {
+                    requested |= args.window_id == window_id;
+                } else if let Some(args) = WindowCloseEvent.update(args) {
+                    closed |= args.window_id == window_id;
+                }
+            },
+            false,
+        );
+
+        assert_eq!(requested, closed);
+
+        closed
+    }
 }
 
 /// Window startup configuration.
@@ -814,6 +895,15 @@ impl AppExtension for WindowManager {
                 .windows
                 .insert(w_id, None);
         }
+
+        let wins = ctx.services.windows();
+        if wins.send_allow_alt_f4 {
+            for app_w in wins.windows.values() {
+                if let Some(view_w) = &app_w.headed {
+                    view_w.allow_alt_f4(app_w.allow_alt_f4);
+                }
+            }
+        }
     }
 
     fn event<EV: event::EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -906,6 +996,8 @@ pub struct Windows {
 
     close_group_id: CloseGroupId,
     close_requests: LinearMap<WindowId, CloseWindowRequest>,
+
+    send_allow_alt_f4: bool,
 }
 impl Windows {
     fn new(update_sender: AppEventSender) -> Self {
@@ -917,6 +1009,8 @@ impl Windows {
 
             close_group_id: 1,
             close_requests: LinearMap::new(),
+
+            send_allow_alt_f4: false,
         }
     }
 
@@ -1030,9 +1124,14 @@ impl Windows {
         Ok(response)
     }
 
-    /// Gets the window's latest frame.
-    pub fn frame(&self, window_id: WindowId) -> Result<&FrameInfo, WindowNotFound> {
+    /// Reference the metadata about the window's latest frame.
+    pub fn frame_info(&self, window_id: WindowId) -> Result<&FrameInfo, WindowNotFound> {
         self.windows.get(&window_id).map(|w| &w.frame_info).ok_or(WindowNotFound(window_id))
+    }
+
+    /// Copy the pixels of the window's latest frame.
+    pub fn frame_pixels(&self, window_id: WindowId) -> Result<FramePixels, WindowNotFound> {
+        todo!()
     }
 
     /// Hit-test the latest window frame.
@@ -1069,6 +1168,21 @@ impl Windows {
     /// Gets the latest frame for the focused window.
     pub fn focused_frame(&self) -> Option<&FrameInfo> {
         self.windows.values().find(|w| w.is_focused).map(|w| &w.frame_info)
+    }
+
+    /// In Windows stops the system from requesting a window close on `ALT+F4` and sends a key
+    /// press for F4 instead.
+    pub fn allow_alt_f4(&mut self, window_id: WindowId, allow: bool) -> Result<(), WindowNotFound> {
+        if let Some(w) = self.windows.get_mut(&window_id) {
+            if w.allow_alt_f4 != allow {
+                w.allow_alt_f4 = allow;
+                self.send_allow_alt_f4 = true;
+                self.update_sender.send_update();
+            }
+            Ok(())
+        } else {
+            Err(WindowNotFound(window_id))
+        }
     }
 
     fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, LinearMap<WindowId, CloseWindowRequest>) {
@@ -1132,6 +1246,8 @@ struct AppWindow {
     frame_info: FrameInfo,
     // focus tracked by the raw focus events.
     is_focused: bool,
+
+    allow_alt_f4: bool,
 }
 impl AppWindow {
     fn new(ctx: &mut AppContext, new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>, force_headless: Option<WindowMode>) -> Self {
@@ -1196,6 +1312,9 @@ impl AppWindow {
             vars,
             frame_info: FrameInfo::blank(id, root_id),
             is_focused: true, // can we say it opens focused? TODO
+
+            // in Windows is blocked by default, TODO check Unix
+            allow_alt_f4: !cfg!(windows),
         }
     }
 

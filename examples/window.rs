@@ -132,7 +132,7 @@ fn screenshot() -> impl Widget {
 
             let t = Instant::now();
             let img = ctx.with(|ctx|{
-                ctx.services.windows().window(ctx.path.window_id()).unwrap().frame_pixels()
+                ctx.services.windows().frame_pixels(ctx.path.window_id()).unwrap()
             });
             println!("taken in {:?}, saving..", t.elapsed());
 
@@ -188,8 +188,7 @@ fn headless() -> impl Widget {
                     content = text("No Head!");
 
                     on_open = hn_once!(|ctx, args: &WindowOpenArgs| {
-                        let window = ctx.services.windows().window(args.window_id).unwrap();
-                        let img = window.frame_pixels();
+                        let img = ctx.services.windows().frame_pixels(args.window_id).unwrap();
                         let enabled = enabled.sender(ctx.vars);
 
                         task::spawn(async move {
@@ -200,7 +199,7 @@ fn headless() -> impl Widget {
                             }
                             enabled.send(true).unwrap();
                         });
-                        window.close();
+                        ctx.services.windows().close(args.window_id);
                     });
                 }),
                 true

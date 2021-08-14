@@ -2,14 +2,14 @@ use zero_ui::prelude::*;
 use zero_ui_core::window::HeadlessAppWindowExt;
 
 fn main() {
+    init_view_process();
+
     println!("-=Headless Example=-\n");
     // This example uses a headless window to render an image.
 
-    let mut app = App::default().run_headless();
-
-    // set the renderer flag, this causes headless windows to
-    // still load a renderer.
-    app.enable_renderer(true);
+    // open headless with renderer flag, this causes the view process
+    // to still start.
+    let mut app = App::default().run_headless(true);
 
     // open the window that is our image.
     let window_id = app.open_window(|_| image());
