@@ -1130,8 +1130,36 @@ impl Windows {
     }
 
     /// Copy the pixels of the window's latest frame.
+    ///
+    /// Returns an empty zero-by-zero frame if the window is headless without renderer.
     pub fn frame_pixels(&self, window_id: WindowId) -> Result<FramePixels, WindowNotFound> {
-        todo!()
+        self.windows
+            .get(&window_id)
+            .ok_or(WindowNotFound(window_id))? // not found here
+            .renderer
+            .as_ref()
+            .map(|r| r.frame_pixels())
+            .unwrap_or_else(|| Ok(FramePixels::default())) // no renderer
+            .map_err(|_| WindowNotFound(window_id)) // not found in view
+    }
+
+    /// Copy a rectangle of pixels of the window's latest frame.
+    ///
+    /// The `rect` is converted to pixels coordinates using the current window's scale factor.
+    pub fn frame_pixels_rect(&self, window_id: WindowId, rect: impl Into<LayoutRect>) -> Result<FramePixels, WindowNotFound> {
+        self.windows
+            .get(&window_id)
+            .ok_or(WindowNotFound(window_id))? // not found here
+            .renderer
+            .as_ref()
+            .map(|r| r.frame_pixels_l_rect(rect.into()))
+            .unwrap_or_else(|| Ok(FramePixels::default())) // no renderer
+            .map_err(|_| WindowNotFound(window_id)) // not found in view
+    }
+
+    /// Reference the [`WindowVars`] for the window.
+    pub fn vars(&self, window_id: WindowId) -> Result<&WindowVars, WindowNotFound> {
+        self.windows.get(&window_id).map(|w| &w.vars).ok_or(WindowNotFound(window_id))
     }
 
     /// Hit-test the latest window frame.
@@ -1375,13 +1403,13 @@ struct WindowVarsData {
 
 /// Controls properties of an open window using variables.
 ///
-/// You can get the controller for any window using [`OpenWindow::vars`].
+/// You can get the controller for any window using [`Windows::vars`].
 ///
 /// You can get the controller for the current context window by getting [`WindowVarsKey`] from the `window_state`
 /// in [`WindowContext`] and [`WidgetContext`].
 ///
-/// [`WindowContext`]: WindowContext::window_state
-/// [`WidgetContext`]: WidgetContext::window_state
+/// [`WindowContext`]: crate::context::WindowContext::window_state
+/// [`WidgetContext`]: crate::context::WidgetContext::window_state
 pub struct WindowVars {
     vars: Rc<WindowVarsData>,
 }

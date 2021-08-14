@@ -1,6 +1,6 @@
 //! Farbfeld async streaming decoder/encoder.
 //!
-//! See [https://tools.suckless.org/farbfeld/] for details about format.
+//! See <https://tools.suckless.org/farbfeld/> for details about format.
 
 // This format is the most simple and so is also the test-bed of encoder/decoder API designs.
 

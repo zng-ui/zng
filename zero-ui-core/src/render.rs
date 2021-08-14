@@ -2110,7 +2110,7 @@ impl crate::app::view_process::ViewRenderer {
     ///
     /// The coordinates are in pixels units and `x` and `y` starting at the top-left corner.
     /// If the rectangle does not fully overlap with the frame the result is clipped.
-    pub fn frame_pixels_rect(&mut self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
+    pub fn frame_pixels_rect(&self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
         let (max_w, max_h) = self.size()?;
         let scale_factor = self.scale_factor()?;
 
@@ -2158,7 +2158,7 @@ impl crate::app::view_process::ViewRenderer {
 
     /// Read the current presented frame into a [`FramePixels`].
     #[inline]
-    pub fn frame_pixels(&mut self) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
+    pub fn frame_pixels(&self) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
         let (max_w, max_h) = self.size()?;
         self.frame_pixels_rect(0, 0, max_w, max_h)
     }
@@ -2167,7 +2167,7 @@ impl crate::app::view_process::ViewRenderer {
     ///
     /// The `rect` is converted to pixels coordinates using the current [`scale_factor`](Self::scale_factor)
     #[inline]
-    pub fn frame_pixels_l_rect(&mut self, rect: crate::units::LayoutRect) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
+    pub fn frame_pixels_l_rect(&self, rect: crate::units::LayoutRect) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
         let scale_factor = self.scale_factor()?;
         self.frame_pixels_rect(
             (rect.origin.x * scale_factor) as i32,
@@ -2191,6 +2191,17 @@ pub struct FramePixels {
     /// This value is used only as the *DPI* metadata of
     /// image files encoded from these pixels.
     pub scale_factor: f32,
+}
+impl Default for FramePixels {
+    fn default() -> Self {
+        Self {
+            bgra: Arc::default(),
+            width: 0,
+            height: 0,
+            opaque: true,
+            scale_factor: 96.0,
+        }
+    }
 }
 impl fmt::Debug for FramePixels {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
