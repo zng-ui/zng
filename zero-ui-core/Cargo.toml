@@ -48,7 +48,7 @@ rustybuzz = "0.4"
 xi-unicode = "0.3"
 
 # render
-zero-ui-wr = { path = "../zero-ui-wr" }
+zero-ui-vp = { path = "../zero-ui-vp" }
 webrender_api = "0.61"
 image = "0.23"
 

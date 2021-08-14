@@ -16,7 +16,7 @@ use crate::{
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
-pub use zero_ui_wr::MouseButton;
+pub use zero_ui_vp::MouseButton;
 
 event_args! {
     /// [`MouseMoveEvent`] event args.
@@ -415,11 +415,11 @@ pub enum ButtonState {
     /// The button was released.
     Released,
 }
-impl From<zero_ui_wr::ElementState> for ButtonState {
-    fn from(s: zero_ui_wr::ElementState) -> Self {
+impl From<zero_ui_vp::ElementState> for ButtonState {
+    fn from(s: zero_ui_vp::ElementState) -> Self {
         match s {
-            zero_ui_wr::ElementState::Pressed => ButtonState::Pressed,
-            zero_ui_wr::ElementState::Released => ButtonState::Released,
+            zero_ui_vp::ElementState::Pressed => ButtonState::Pressed,
+            zero_ui_vp::ElementState::Released => ButtonState::Released,
         }
     }
 }

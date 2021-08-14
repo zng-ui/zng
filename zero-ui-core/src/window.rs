@@ -3,7 +3,7 @@
 use std::{fmt, mem, rc::Rc};
 
 use linear_map::LinearMap;
-pub use zero_ui_wr::{CursorIcon, Theme as WindowTheme};
+pub use zero_ui_vp::{CursorIcon, Theme as WindowTheme};
 
 use crate::{
     app::{
@@ -554,7 +554,7 @@ pub enum WindowIcon {
     /// A bitmap icon.
     ///
     /// Use the [`from_rgba`](Self::from_rgba), [`from_bytes`](Self::from_bytes) or [`from_file`](Self::from_file) functions to initialize.
-    Icon(Rc<zero_ui_wr::Icon>),
+    Icon(Rc<zero_ui_vp::Icon>),
     /// An [`UiNode`] that draws the icon.
     ///
     /// Use the [`render`](Self::render) function to initialize.
@@ -595,7 +595,7 @@ impl WindowIcon {
     #[inline]
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, ()> {
         // TODO validate
-        Ok(Self::Icon(Rc::new(zero_ui_wr::Icon { rgba, width, height })))
+        Ok(Self::Icon(Rc::new(zero_ui_vp::Icon { rgba, width, height })))
     }
 
     /// New window icon from the bytes of an encoded image.

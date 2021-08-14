@@ -49,7 +49,7 @@ image = "0.23"
 zero-ui-core = { path = "zero-ui-core", features = ["test_util"] }
 
 [workspace]
-members = ["zero-ui-proc-macros", "zero-ui-wr", "zero-ui-core"]
+members = ["zero-ui-proc-macros", "zero-ui-vp", "zero-ui-core"]
 
 [package.metadata.docs.rs]
 all-features = true

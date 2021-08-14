@@ -13,7 +13,7 @@ use crate::service::*;
 use crate::var::{RcVar, ReadOnlyRcVar, Var, Vars};
 use crate::window::WindowId;
 
-pub use zero_ui_wr::{ModifiersState, ScanCode};
+pub use zero_ui_vp::{ModifiersState, ScanCode};
 
 event_args! {
     /// Arguments for [`KeyInputEvent`].
@@ -322,11 +322,11 @@ pub enum KeyState {
     /// The key was released.
     Released,
 }
-impl From<zero_ui_wr::ElementState> for KeyState {
-    fn from(s: zero_ui_wr::ElementState) -> Self {
+impl From<zero_ui_vp::ElementState> for KeyState {
+    fn from(s: zero_ui_vp::ElementState) -> Self {
         match s {
-            zero_ui_wr::ElementState::Pressed => KeyState::Pressed,
-            zero_ui_wr::ElementState::Released => KeyState::Released,
+            zero_ui_vp::ElementState::Pressed => KeyState::Pressed,
+            zero_ui_vp::ElementState::Released => KeyState::Released,
         }
     }
 }
@@ -571,7 +571,7 @@ impl Key {
         key >= Key::NumLock as u32 && key <= Key::NumpadSubtract as u32
     }
 }
-use zero_ui_wr::VirtualKeyCode as VKey;
+use zero_ui_vp::VirtualKeyCode as VKey;
 impl From<VKey> for Key {
     fn from(v_key: VKey) -> Self {
         #[cfg(debug_assertions)]

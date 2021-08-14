@@ -28,7 +28,7 @@ use std::{
     time::Instant,
 };
 
-pub use zero_ui_wr::{init_view_process, ControlFlow};
+pub use zero_ui_vp::{init_view_process, ControlFlow};
 
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///
@@ -651,7 +651,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Note that the [`init_view_process`] function must be called in the `view_process_exe` and both
     /// executables must be build using the same exact [`VERSION`].
     ///
-    /// [`VERSION`]: zero_ui_wr::VERSION  
+    /// [`VERSION`]: zero_ui_vp::VERSION  
     pub fn view_process_exe(mut self, view_process_exe: impl Into<PathBuf>) -> Self {
         self.view_process_exe = Some(view_process_exe.into());
         self
@@ -804,7 +804,7 @@ impl<E: AppExtension> RunningApp<E> {
         self.maybe_has_updates = true;
     }
 
-    fn window_id(&mut self, id: zero_ui_wr::WinId) -> WindowId {
+    fn window_id(&mut self, id: zero_ui_vp::WinId) -> WindowId {
         self.ctx()
             .services
             .req::<view_process::ViewProcess>()
@@ -812,45 +812,45 @@ impl<E: AppExtension> RunningApp<E> {
             .expect("unknown window id")
     }
 
-    fn device_id(&mut self, id: zero_ui_wr::DevId) -> DeviceId {
+    fn device_id(&mut self, id: zero_ui_vp::DevId) -> DeviceId {
         self.ctx().services.req::<view_process::ViewProcess>().device_id(id)
     }
 
     /// Process a View Process event.
-    pub fn view_event(&mut self, ev: zero_ui_wr::Ev) {
+    pub fn view_event(&mut self, ev: zero_ui_vp::Ev) {
         use raw_device_events::*;
         use raw_events::*;
 
         match ev {
-            zero_ui_wr::Ev::WindowResized(w_id, size) => {
+            zero_ui_vp::Ev::WindowResized(w_id, size) => {
                 let args = RawWindowResizedArgs::now(self.window_id(w_id), size);
                 self.notify_event(RawWindowResizedEvent, args);
             }
-            zero_ui_wr::Ev::WindowMoved(w_id, pos) => {
+            zero_ui_vp::Ev::WindowMoved(w_id, pos) => {
                 let args = RawWindowMovedArgs::now(self.window_id(w_id), pos);
                 self.notify_event(RawWindowMovedEvent, args);
             }
-            zero_ui_wr::Ev::DroppedFile(w_id, file) => {
+            zero_ui_vp::Ev::DroppedFile(w_id, file) => {
                 let args = RawDroppedFileArgs::now(self.window_id(w_id), file);
                 self.notify_event(RawDroppedFileEvent, args);
             }
-            zero_ui_wr::Ev::HoveredFile(w_id, file) => {
+            zero_ui_vp::Ev::HoveredFile(w_id, file) => {
                 let args = RawHoveredFileArgs::now(self.window_id(w_id), file);
                 self.notify_event(RawHoveredFileEvent, args);
             }
-            zero_ui_wr::Ev::HoveredFileCancelled(w_id) => {
+            zero_ui_vp::Ev::HoveredFileCancelled(w_id) => {
                 let args = RawHoveredFileCancelledArgs::now(self.window_id(w_id));
                 self.notify_event(RawHoveredFileCancelledEvent, args);
             }
-            zero_ui_wr::Ev::ReceivedCharacter(w_id, c) => {
+            zero_ui_vp::Ev::ReceivedCharacter(w_id, c) => {
                 let args = RawCharInputArgs::now(self.window_id(w_id), c);
                 self.notify_event(RawCharInputEvent, args);
             }
-            zero_ui_wr::Ev::Focused(w_id, focused) => {
+            zero_ui_vp::Ev::Focused(w_id, focused) => {
                 let args = RawWindowFocusArgs::now(self.window_id(w_id), focused);
                 self.notify_event(RawWindowFocusEvent, args);
             }
-            zero_ui_wr::Ev::KeyboardInput(w_id, d_id, input) => {
+            zero_ui_vp::Ev::KeyboardInput(w_id, d_id, input) => {
                 let args = RawKeyInputArgs::now(
                     self.window_id(w_id),
                     self.device_id(d_id),
@@ -860,105 +860,105 @@ impl<E: AppExtension> RunningApp<E> {
                 );
                 self.notify_event(RawKeyInputEvent, args);
             }
-            zero_ui_wr::Ev::ModifiersChanged(w_id, state) => {
+            zero_ui_vp::Ev::ModifiersChanged(w_id, state) => {
                 let args = RawModifiersChangedArgs::now(self.window_id(w_id), state);
                 self.notify_event(RawModifiersChangedEvent, args);
             }
-            zero_ui_wr::Ev::CursorMoved(w_id, d_id, pos) => {
+            zero_ui_vp::Ev::CursorMoved(w_id, d_id, pos) => {
                 let args = RawCursorMovedArgs::now(self.window_id(w_id), self.device_id(d_id), pos);
                 self.notify_event(RawCursorMovedEvent, args);
             }
-            zero_ui_wr::Ev::CursorEntered(w_id, d_id) => {
+            zero_ui_vp::Ev::CursorEntered(w_id, d_id) => {
                 let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorEnteredEvent, args);
             }
-            zero_ui_wr::Ev::CursorLeft(w_id, d_id) => {
+            zero_ui_vp::Ev::CursorLeft(w_id, d_id) => {
                 let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorLeftEvent, args);
             }
-            zero_ui_wr::Ev::MouseWheel(w_id, d_id, delta, phase) => {
+            zero_ui_vp::Ev::MouseWheel(w_id, d_id, delta, phase) => {
                 // TODO
                 let _ = (delta, phase);
                 let args = RawMouseWheelArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawMouseWheelEvent, args);
             }
-            zero_ui_wr::Ev::MouseInput(w_id, d_id, state, button) => {
+            zero_ui_vp::Ev::MouseInput(w_id, d_id, state, button) => {
                 let args = RawMouseInputArgs::now(self.window_id(w_id), self.device_id(d_id), state, button);
                 self.notify_event(RawMouseInputEvent, args);
             }
-            zero_ui_wr::Ev::TouchpadPressure(w_id, d_id, pressure, stage) => {
+            zero_ui_vp::Ev::TouchpadPressure(w_id, d_id, pressure, stage) => {
                 // TODO
                 let _ = (pressure, stage);
                 let args = RawTouchpadPressureArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchpadPressureEvent, args);
             }
-            zero_ui_wr::Ev::AxisMotion(w_id, d_id, axis, value) => {
+            zero_ui_vp::Ev::AxisMotion(w_id, d_id, axis, value) => {
                 let args = RawAxisMotionArgs::now(self.window_id(w_id), self.device_id(d_id), axis, value);
                 self.notify_event(RawAxisMotionEvent, args);
             }
-            zero_ui_wr::Ev::Touch(w_id, d_id, phase, pos, force, finger_id) => {
+            zero_ui_vp::Ev::Touch(w_id, d_id, phase, pos, force, finger_id) => {
                 // TODO
                 let _ = (phase, pos, force, finger_id);
                 let args = RawTouchArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchEvent, args);
             }
-            zero_ui_wr::Ev::ScaleFactorChanged(w_id, scale, new_size) => {
+            zero_ui_vp::Ev::ScaleFactorChanged(w_id, scale, new_size) => {
                 let args = RawWindowScaleFactorChangedArgs::now(self.window_id(w_id), scale, new_size);
                 self.notify_event(RawWindowScaleFactorChangedEvent, args);
             }
-            zero_ui_wr::Ev::ThemeChanged(w_id, theme) => {
+            zero_ui_vp::Ev::ThemeChanged(w_id, theme) => {
                 let args = RawWindowThemeChangedArgs::now(self.window_id(w_id), theme);
                 self.notify_event(RawWindowThemeChangedEvent, args);
             }
-            zero_ui_wr::Ev::WindowCloseRequested(w_id) => {
+            zero_ui_vp::Ev::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(self.window_id(w_id));
                 self.notify_event(RawWindowCloseRequestedEvent, args);
             }
-            zero_ui_wr::Ev::WindowClosed(w_id) => {
+            zero_ui_vp::Ev::WindowClosed(w_id) => {
                 let args = RawWindowClosedArgs::now(self.window_id(w_id));
                 self.notify_event(RawWindowClosedEvent, args);
             }
 
             // config events
-            zero_ui_wr::Ev::FontsChanged => {
+            zero_ui_vp::Ev::FontsChanged => {
                 let args = RawFontChangedArgs::now();
                 self.notify_event(RawFontChangedEvent, args);
             }
-            zero_ui_wr::Ev::TextAaChanged(aa) => {
+            zero_ui_vp::Ev::TextAaChanged(aa) => {
                 let args = RawTextAaChangedArgs::now(aa);
                 self.notify_event(RawTextAaChangedEvent, args);
             }
 
             // `device_events`
-            zero_ui_wr::Ev::DeviceAdded(d_id) => {
+            zero_ui_vp::Ev::DeviceAdded(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
                 self.notify_event(DeviceAddedEvent, args);
             }
-            zero_ui_wr::Ev::DeviceRemoved(d_id) => {
+            zero_ui_vp::Ev::DeviceRemoved(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
                 self.notify_event(DeviceRemovedEvent, args);
             }
-            zero_ui_wr::Ev::DeviceMouseMotion(d_id, delta) => {
+            zero_ui_vp::Ev::DeviceMouseMotion(d_id, delta) => {
                 let args = MouseMotionArgs::now(self.device_id(d_id), delta);
                 self.notify_event(MouseMotionEvent, args);
             }
-            zero_ui_wr::Ev::DeviceMouseWheel(d_id, delta) => {
+            zero_ui_vp::Ev::DeviceMouseWheel(d_id, delta) => {
                 let args = MouseWheelArgs::now(self.device_id(d_id), delta);
                 self.notify_event(MouseWheelEvent, args);
             }
-            zero_ui_wr::Ev::DeviceMotion(d_id, axis, value) => {
+            zero_ui_vp::Ev::DeviceMotion(d_id, axis, value) => {
                 let args = MotionArgs::now(self.device_id(d_id), axis, value);
                 self.notify_event(MotionEvent, args);
             }
-            zero_ui_wr::Ev::DeviceButton(d_id, button, state) => {
+            zero_ui_vp::Ev::DeviceButton(d_id, button, state) => {
                 let args = ButtonArgs::now(self.device_id(d_id), button, state);
                 self.notify_event(ButtonEvent, args);
             }
-            zero_ui_wr::Ev::DeviceKey(d_id, k) => {
+            zero_ui_vp::Ev::DeviceKey(d_id, k) => {
                 let args = KeyArgs::now(self.device_id(d_id), k.scancode, k.state, k.virtual_keycode.map(Into::into));
                 self.notify_event(KeyEvent, args);
             }
-            zero_ui_wr::Ev::DeviceText(d_id, c) => {
+            zero_ui_vp::Ev::DeviceText(d_id, c) => {
                 let args = TextArgs::now(self.device_id(d_id), c);
                 self.notify_event(TextEvent, args);
             }
@@ -1441,7 +1441,7 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
 #[derive(Debug)]
 pub(crate) enum AppEvent {
     /// Event from the View Process.
-    ViewEvent(zero_ui_wr::Ev),
+    ViewEvent(zero_ui_vp::Ev),
     /// Notify [`Events`](crate::var::Events).
     Event(crate::event::BoxedSendEventUpdate),
     /// Notify [`Vars`](crate::var::Vars).
@@ -1470,7 +1470,7 @@ impl AppEventSender {
     }
 
     #[inline(always)]
-    fn send_view_event(&self, event: zero_ui_wr::Ev) -> Result<(), AppShutdown<AppEvent>> {
+    fn send_view_event(&self, event: zero_ui_vp::Ev) -> Result<(), AppShutdown<AppEvent>> {
         self.0.send(AppEvent::ViewEvent(event))?;
         Ok(())
     }
@@ -1653,8 +1653,8 @@ pub mod view_process {
 
     use linear_map::LinearMap;
 
-    use zero_ui_wr::{DevId, TextAntiAliasing, WinId};
-    pub use zero_ui_wr::{Ev, OpenWindowRequest, StartRequest, WindowNotFound};
+    use zero_ui_vp::{DevId, TextAntiAliasing, WinId};
+    pub use zero_ui_vp::{Ev, OpenWindowRequest, StartRequest, WindowNotFound};
 
     use super::DeviceId;
     use crate::service::Service;
@@ -1667,7 +1667,7 @@ pub mod view_process {
     #[derive(Service)]
     pub struct ViewProcess(Rc<RefCell<ViewApp>>);
     struct ViewApp {
-        process: zero_ui_wr::App,
+        process: zero_ui_vp::App,
         window_ids: LinearMap<WinId, WindowId>,
         device_ids: LinearMap<DevId, DeviceId>,
     }
@@ -1678,7 +1678,7 @@ pub mod view_process {
             F: FnMut(Ev) + Send + 'static,
         {
             Self(Rc::new(RefCell::new(ViewApp {
-                process: zero_ui_wr::App::start(view_process_exe, request, on_event),
+                process: zero_ui_vp::App::start(view_process_exe, request, on_event),
                 window_ids: LinearMap::default(),
                 device_ids: LinearMap::default(),
             })))
@@ -1820,7 +1820,7 @@ pub mod raw_events {
     use crate::mouse::{ButtonState, MouseButton};
     use crate::window::WindowTheme;
     use crate::{event::*, keyboard::ScanCode, window::WindowId};
-    pub use zero_ui_wr::TextAntiAliasing;
+    pub use zero_ui_vp::TextAntiAliasing;
 
     use crate::keyboard::{Key, KeyState, ModifiersState};
 
@@ -2307,7 +2307,7 @@ pub mod raw_device_events {
         mouse::ButtonState,
     };
 
-    pub use zero_ui_wr::{AxisId, ButtonId, MouseScrollDelta};
+    pub use zero_ui_vp::{AxisId, ButtonId, MouseScrollDelta};
 
     event_args! {
         /// Arguments for [`DeviceAddedEvent`] and [`DeviceRemovedEvent`].
