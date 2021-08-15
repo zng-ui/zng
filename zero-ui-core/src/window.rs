@@ -3,24 +3,26 @@
 use std::{fmt, mem, rc::Rc};
 
 use linear_map::LinearMap;
+use webrender_api::{BuiltDisplayList, PipelineId};
 pub use zero_ui_vp::{CursorIcon, Theme as WindowTheme};
 
 use crate::{
     app::{
         self,
-        view_process::{ViewRenderer, ViewWindow},
+        view_process::{self, ViewProcessExt, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension,
     },
     cancelable_event_args,
-    context::{AppContext, UpdateDisplayRequest, WindowContext},
+    color::rgb,
+    context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
     event, event_args, impl_from_and_into_var,
-    render::{FrameHitInfo, FrameInfo, FramePixels, WidgetTransformKey},
+    render::{FrameBuilder, FrameHitInfo, FrameInfo, FramePixels, WidgetTransformKey},
     service::Service,
     state::OwnedStateMap,
     state_key,
-    text::{Text, ToText},
+    text::{FontsExt, Text, ToText},
     units::*,
-    var::{response_var, var, IntoValue, RcVar, ResponderVar, ResponseVar},
+    var::{response_var, var, IntoValue, RcVar, ResponderVar, ResponseVar, Var},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -1276,6 +1278,12 @@ struct AppWindow {
     is_focused: bool,
 
     allow_alt_f4: bool,
+
+    first_update: bool,
+    first_render: bool,
+
+    position: LayoutPoint,
+    size: LayoutSize,
 }
 impl AppWindow {
     fn new(ctx: &mut AppContext, new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>, force_headless: Option<WindowMode>) -> Self {
@@ -1306,7 +1314,9 @@ impl AppWindow {
         let mut renderer = None;
 
         match mode {
-            WindowMode::Headed => todo!(),
+            WindowMode::Headed => {
+                todo!()
+            }
             WindowMode::Headless => {
                 headless = Some(HeadlessWindow {
                     screen: root.headless_screen.clone(),
@@ -1343,6 +1353,12 @@ impl AppWindow {
 
             // in Windows is blocked by default, TODO check Unix
             allow_alt_f4: !cfg!(windows),
+
+            first_update: true,
+            first_render: true,
+
+            position: LayoutPoint::zero(),
+            size: LayoutSize::zero(),
         }
     }
 
@@ -1353,6 +1369,43 @@ impl AppWindow {
     fn scale_factor(&self) -> f32 {
         todo!()
     }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        if self.first_update {
+            self.context.init(ctx);
+            self.first_update = false;
+        } else {
+            self.context.update(ctx);
+        }
+    }
+
+    fn layout(&mut self, ctx: &mut AppContext) {}
+
+    fn render(&mut self, ctx: &mut AppContext) {
+        let frame = self.context.render(ctx);
+        if self.first_render {
+            match self.mode {
+                WindowMode::Headed => {
+                    let text_aa = ctx.services.fonts().system_text_aa().copy(ctx.vars);
+                    ctx.services.view_process().open_window(
+                        self.id,
+                        view_process::OpenWindowRequest {
+                            title: self.vars.title().get(ctx.vars).to_string(),
+                            pos: self.position,
+                            size: self.size,
+                            visible: self.vars.visible().copy(ctx.vars),
+                            clear_color: Some(rgb(255, 0, 0).into()),
+                            text_aa,
+                            frame,
+                        },
+                    );
+                }
+                WindowMode::Headless => todo!(),
+                WindowMode::HeadlessWithRenderer => todo!(),
+            }
+            self.first_render = false;
+        }
+    }
 }
 
 struct OwnedWindowContext {
@@ -1362,6 +1415,44 @@ struct OwnedWindowContext {
     state: OwnedStateMap,
     root: Window,
     update: UpdateDisplayRequest,
+}
+impl OwnedWindowContext {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.widget_ctx(ctx, |ctx, child| child.init(ctx))
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        self.widget_ctx(ctx, |ctx, child| child.update(ctx))
+    }
+
+    fn widget_ctx(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut WidgetContext, &mut BoxedUiNode)) {
+        let root = &mut self.root;
+        let ((), update) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+            let child = &mut root.child;
+            ctx.widget_context(root.id, &mut root.state, |ctx| f(ctx, child))
+        });
+        self.update |= update;
+    }
+
+    fn render(&mut self, ctx: &mut AppContext) -> Option<((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo)> {
+        if self.update.is_none() {
+            return None;
+        }
+        let root = &mut self.root;
+        let update = mem::take(&mut self.update);
+        let (frame, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+            let child = &mut root.child;
+            ctx.render_context(root.id, &mut root.state, |ctx| match update {
+                UpdateDisplayRequest::RenderUpdate => {
+                    todo!()
+                }
+                UpdateDisplayRequest::Render => {
+                    let mut frame: FrameBuilder = todo!();
+                }
+                _ => unreachable!(),
+            })
+        });
+    }
 }
 
 // OpenWindow headless info.

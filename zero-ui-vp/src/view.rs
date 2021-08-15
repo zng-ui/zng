@@ -300,8 +300,15 @@ impl App {
     fn open_window(&mut self, request: OpenWindowRequest, event_loop: EventLoopProxy<AppEvent>, target: &EventLoopWindowTarget<AppEvent>) {
         self.window_id_count = self.window_id_count.wrapping_add(1);
         let id = self.window_id_count;
-        self.windows.push(Window::new(id, request, event_loop, target));
-        self.respond(Response::WindowOpened(id));
+        let window = Window::new(id, request, event_loop, target);
+        let scale = window.winit_window.scale_factor() as f32;
+        let size = window.winit_window.inner_size();
+        let size = LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale);
+        let pos = window.winit_window.inner_position().unwrap_or_default();
+        let pos = LayoutPoint::new(pos.x as f32 * scale, pos.y as f32 * scale);
+
+        self.windows.push(window);
+        self.respond(Response::WindowOpened(id, pos, size, scale));
     }
 
     fn set_window_title(&self, id: WinId, title: String) {
@@ -398,11 +405,18 @@ struct Window {
 }
 impl Window {
     fn new(id: u32, request: OpenWindowRequest, event_loop: EventLoopProxy<AppEvent>, target: &EventLoopWindowTarget<AppEvent>) -> Self {
+        let scale = target.primary_monitor().map(|m| m.scale_factor() as f32).unwrap_or(1.0);
         // create window and OpenGL context
         let winit = WindowBuilder::new()
             .with_title(request.title)
-            .with_position(PhysicalPosition::new(request.pos.0, request.pos.1))
-            .with_inner_size(PhysicalSize::new(request.size.0, request.size.1))
+            .with_position(PhysicalPosition::new(
+                (request.pos.x / scale) as i32,
+                (request.pos.y / scale) as i32,
+            ))
+            .with_inner_size(PhysicalSize::new(
+                (request.size.width / scale) as u32,
+                (request.size.height / scale) as u32,
+            ))
             .with_visible(false); // we wait for the first frame to show the window.
 
         let glutin = ContextBuilder::new().build_windowed(winit, target).unwrap();

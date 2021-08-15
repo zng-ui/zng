@@ -3,7 +3,7 @@ use std::process::{Child, Command, Stdio};
 use std::{env, fmt, thread};
 
 use ipmpsc::{Receiver, Sender, SharedRingBuffer};
-use webrender::api::units::LayoutSize;
+use webrender::api::units::{LayoutPoint, LayoutSize};
 use webrender::api::{BuiltDisplayListDescriptor, PipelineId};
 
 use crate::{message::*, CHANNEL_VAR, MODE_VAR, VERSION};
@@ -118,13 +118,17 @@ impl App {
             title: request.title.clone(),
             pos: request.pos,
             size: request.size,
+            scale_factor: 1.0,
             visible: request.visible,
             frame: request.frame.clone(),
             allow_alt_f4: !cfg!(windows),
         };
         match self.request(Request::OpenWindow(request)) {
-            Response::WindowOpened(id) => {
+            Response::WindowOpened(id, pos, size, scale) => {
                 window.id = id;
+                window.pos = pos;
+                window.size = size;
+                window.scale_factor = scale;
                 self.windows.push(window);
                 id
             }
@@ -204,7 +208,7 @@ impl App {
     }
 
     /// Gets the window size.
-    pub fn size(&self, window: WinId) -> Result<(u32, u32), WindowNotFound> {
+    pub fn size(&self, window: WinId) -> Result<LayoutSize, WindowNotFound> {
         match self.windows.iter().find(|w| w.id == window) {
             Some(w) => Ok(w.size),
             None => Err(WindowNotFound(window)),
@@ -214,7 +218,7 @@ impl App {
     /// Gets the window scale factor.
     pub fn scale_factor(&self, window: WinId) -> Result<f32, WindowNotFound> {
         match self.windows.iter().find(|w| w.id == window) {
-            Some(w) => Ok(todo!()),
+            Some(w) => Ok(w.scale_factor),
             None => Err(WindowNotFound(window)),
         }
     }
@@ -295,8 +299,9 @@ impl Drop for App {
 struct Window {
     id: WinId,
     title: String,
-    pos: (i32, i32),
-    size: (u32, u32),
+    pos: LayoutPoint,
+    size: LayoutSize,
+    scale_factor: f32,
     visible: bool,
     allow_alt_f4: bool,
     frame: (PipelineId, LayoutSize, (Vec<u8>, BuiltDisplayListDescriptor)),

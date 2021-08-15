@@ -6,8 +6,10 @@ pub use glutin::event::{
 };
 pub use glutin::window::CursorIcon;
 use serde::*;
-use webrender::api::units::LayoutPoint;
-use webrender::api::{units::LayoutSize, BuiltDisplayListDescriptor, PipelineId};
+use webrender::api::{
+    units::{LayoutPoint, LayoutSize},
+    BuiltDisplayListDescriptor, PipelineId,
+};
 use webrender::api::{ColorF, HitTestResult};
 
 /// Requests sent from the App Process.
@@ -41,9 +43,9 @@ pub enum Response {
     ProtocolVersion(String),
     Started,
 
-    WindowOpened(WinId),
-    WindowResized(WinId, (u32, u32)),
-    WindowMoved(WinId, (i32, i32)),
+    WindowOpened(WinId, LayoutPoint, LayoutSize, f32),
+    WindowResized(WinId, LayoutSize),
+    WindowMoved(WinId, LayoutPoint),
     WindowTitleChanged(WinId),
     WindowVisibilityChanged(WinId, bool),
     WindowClosed(WinId),
@@ -70,10 +72,10 @@ pub struct StartRequest {
 pub struct OpenWindowRequest {
     /// Initial title.
     pub title: String,
-    /// Initial position, in device pixels.
-    pub pos: (i32, i32),
-    /// Initial size, in device pixels.
-    pub size: (u32, u32),
+    /// Initial position.
+    pub pos: LayoutPoint,
+    /// Initial size.
+    pub size: LayoutSize,
     /// Visibility after the first frame is rendered.
     pub visible: bool,
 

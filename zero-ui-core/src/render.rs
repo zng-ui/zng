@@ -2111,10 +2111,13 @@ impl crate::app::view_process::ViewRenderer {
     /// The coordinates are in pixels units and `x` and `y` starting at the top-left corner.
     /// If the rectangle does not fully overlap with the frame the result is clipped.
     pub fn frame_pixels_rect(&self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
-        let (max_w, max_h) = self.size()?;
+        let max = self.size()?;
         let scale_factor = self.scale_factor()?;
 
-        let max_rect = units::DeviceIntRect::from_size(euclid::Size2D::new(max_w as i32, max_h as i32));
+        let max_rect = units::DeviceIntRect::from_size(euclid::Size2D::new(
+            (max.width / scale_factor) as i32,
+            (max.height / scale_factor) as i32,
+        ));
         let rect = units::DeviceIntRect::new(euclid::Point2D::new(x, y), euclid::Size2D::new(width as i32, height as i32));
         let rect = rect.intersection(&max_rect).unwrap_or_default();
 
@@ -2159,8 +2162,9 @@ impl crate::app::view_process::ViewRenderer {
     /// Read the current presented frame into a [`FramePixels`].
     #[inline]
     pub fn frame_pixels(&self) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
-        let (max_w, max_h) = self.size()?;
-        self.frame_pixels_rect(0, 0, max_w, max_h)
+        let max = self.size()?;
+        let scale_factor = self.scale_factor()?;
+        self.frame_pixels_rect(0, 0, (max.width / scale_factor) as u32, (max.height / scale_factor) as u32)
     }
 
     /// Read a rectangle of the currently presented frame into a [`FramePixels`].

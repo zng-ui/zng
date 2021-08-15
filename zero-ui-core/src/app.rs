@@ -1658,6 +1658,7 @@ pub mod view_process {
 
     use super::DeviceId;
     use crate::service::Service;
+    use crate::units::LayoutSize;
     use crate::window::WindowId;
 
     /// Reference to the running View Process.
@@ -1776,7 +1777,7 @@ pub mod view_process {
     pub struct ViewRenderer(WinId, Rc<RefCell<ViewApp>>);
     impl ViewRenderer {
         /// Gets the viewport size (window inner size).
-        pub fn size(&self) -> Result<(u32, u32), WindowNotFound> {
+        pub fn size(&self) -> Result<LayoutSize, WindowNotFound> {
             self.1.borrow().process.size(self.0)
         }
 
