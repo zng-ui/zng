@@ -372,8 +372,6 @@ pub struct MouseManager {
     pos: LayoutPoint,
     /// last cursor move over `pos_window`.
     pos_window: Option<WindowId>,
-    /// dpi scale of `pos_window`.
-    pos_dpi: f32,
 
     /// last modifiers.
     modifiers: ModifiersState,
@@ -393,7 +391,6 @@ impl Default for MouseManager {
         MouseManager {
             pos: LayoutPoint::default(),
             pos_window: None,
-            pos_dpi: 1.0,
 
             modifiers: ModifiersState::default(),
 
@@ -549,19 +546,13 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, position: (i32, i32), ctx: &mut AppContext) {
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, pos: LayoutPoint, ctx: &mut AppContext) {
         let mut moved = Some(window_id) != self.pos_window;
 
         if moved {
             // if is over another window now.
-
             self.pos_window = Some(window_id);
-
-            let windows = ctx.services.windows();
-            self.pos_dpi = windows.scale_factor(window_id).unwrap();
         }
-
-        let pos = LayoutPoint::new(position.0 as f32 / self.pos_dpi, position.1 as f32 / self.pos_dpi);
 
         moved |= pos != self.pos;
 

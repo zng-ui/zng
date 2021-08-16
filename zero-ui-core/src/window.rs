@@ -20,9 +20,9 @@ use crate::{
     service::Service,
     state::OwnedStateMap,
     state_key,
-    text::{FontsExt, Text, ToText},
+    text::{FontsExt, Text, TextAntiAliasing, ToText},
     units::*,
-    var::{response_var, var, IntoValue, RcVar, ResponderVar, ResponseVar, Var},
+    var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -247,7 +247,7 @@ pub struct HeadlessScreen {
     /// This is used to calculate relative lengths in the window size definition.
     ///
     /// `(1920.0, 1080.0)` by default.
-    pub screen_size: LayoutSize,
+    pub size: LayoutSize,
 
     /// Pixel-per-inches used for the headless layout and rendering.
     ///
@@ -259,15 +259,11 @@ impl fmt::Debug for HeadlessScreen {
         if f.alternate() || about_eq(self.ppi, 96.0, 0.001) {
             f.debug_struct("HeadlessScreen")
                 .field("scale_factor", &self.scale_factor)
-                .field("screen_size", &self.screen_size)
+                .field("screen_size", &self.size)
                 .field("ppi", &self.ppi)
                 .finish()
         } else {
-            write!(
-                f,
-                "({}, ({}, {}))",
-                self.scale_factor, self.screen_size.width, self.screen_size.height
-            )
+            write!(f, "({}, ({}, {}))", self.scale_factor, self.size.width, self.size.height)
         }
     }
 }
@@ -283,7 +279,7 @@ impl HeadlessScreen {
     pub fn new_scaled(screen_size: LayoutSize, scale_factor: f32) -> Self {
         HeadlessScreen {
             scale_factor,
-            screen_size,
+            size: screen_size,
             ppi: 96.0,
         }
     }
@@ -507,6 +503,12 @@ impl WindowChrome {
     #[inline]
     fn is_default(&self) -> bool {
         matches!(self, WindowChrome::Default)
+    }
+
+    /// Is chromeless.
+    #[inline]
+    fn is_none(&self) -> bool {
+        matches!(self, WindowChrome::None)
     }
 }
 impl Default for WindowChrome {
@@ -902,7 +904,7 @@ impl AppExtension for WindowManager {
         if wins.send_allow_alt_f4 {
             for app_w in wins.windows.values() {
                 if let Some(view_w) = &app_w.headed {
-                    view_w.allow_alt_f4(app_w.allow_alt_f4);
+                    view_w.set_allow_alt_f4(app_w.allow_alt_f4);
                 }
             }
         }
@@ -1140,7 +1142,7 @@ impl Windows {
             .ok_or(WindowNotFound(window_id))? // not found here
             .renderer
             .as_ref()
-            .map(|r| r.frame_pixels())
+            .map(|r| r.read_pixels().map(Into::into))
             .unwrap_or_else(|| Ok(FramePixels::default())) // no renderer
             .map_err(|_| WindowNotFound(window_id)) // not found in view
     }
@@ -1154,7 +1156,7 @@ impl Windows {
             .ok_or(WindowNotFound(window_id))? // not found here
             .renderer
             .as_ref()
-            .map(|r| r.frame_pixels_l_rect(rect.into()))
+            .map(|r| r.read_pixels_rect(rect.into()).map(Into::into))
             .unwrap_or_else(|| Ok(FramePixels::default())) // no renderer
             .map_err(|_| WindowNotFound(window_id)) // not found in view
     }
@@ -1256,8 +1258,8 @@ impl std::error::Error for WindowNotFound {}
 struct AppWindow {
     // Is some if the window is headed.
     headed: Option<ViewWindow>,
-    // Is some if the window is headless.
-    headless: Option<HeadlessWindow>,
+    // Is some if the window is headless, a fake screen for size calculations.
+    headless_screen: Option<HeadlessScreen>,
 
     // Is some if the window is headed or headless with renderer.
     renderer: Option<ViewRenderer>,
@@ -1269,6 +1271,7 @@ struct AppWindow {
     mode: WindowMode,
     id: WindowId,
     root_id: WidgetId,
+    kiosk: bool,
 
     vars: WindowVars,
 
@@ -1310,7 +1313,7 @@ impl AppWindow {
 
         // init mode.
         let mut headed = None;
-        let mut headless = None;
+        let mut headless_screen = None;
         let mut renderer = None;
 
         match mode {
@@ -1318,16 +1321,12 @@ impl AppWindow {
                 todo!()
             }
             WindowMode::Headless => {
-                headless = Some(HeadlessWindow {
-                    screen: root.headless_screen.clone(),
-                    position: LayoutPoint::zero(),
-                    size: LayoutSize::new(800.0, 600.0),
-                    state: WindowState::Normal,
-                    taskbar_visible: true,
-                })
+                headless_screen = Some(root.headless_screen.clone());
             }
             WindowMode::HeadlessWithRenderer => todo!(),
         }
+
+        let kiosk = root.kiosk;
 
         // init context.
         let context = OwnedWindowContext {
@@ -1336,17 +1335,18 @@ impl AppWindow {
             root_transform_key: WidgetTransformKey::new_unique(),
             state: wn_state,
             root,
-            update: UpdateDisplayRequest::None,
+            update: UpdateDisplayRequest::Layout,
         };
 
         AppWindow {
             headed,
-            headless,
+            headless_screen,
             renderer,
             context,
             mode,
             id,
             root_id,
+            kiosk,
             vars,
             frame_info: FrameInfo::blank(id, root_id),
             is_focused: true, // can we say it opens focused? TODO
@@ -1376,27 +1376,144 @@ impl AppWindow {
             self.first_update = false;
         } else {
             self.context.update(ctx);
+
+            if self.kiosk {
+                todo!()
+            }
+
+            if self.vars.size().is_new(ctx)
+                || self.vars.min_size().is_new(ctx)
+                || self.vars.max_size().is_new(ctx)
+                || self.vars.auto_size().is_new(ctx)
+            {
+                self.context.update |= UpdateDisplayRequest::Layout;
+                ctx.updates.layout();
+            }
+
+            if let Some(w) = &self.headed {
+                if let Some(title) = self.vars.title().get_new(ctx) {
+                    w.set_title(title.to_string()).unwrap();
+                }
+                if let Some(pos) = self.vars.position().get_new(ctx) {
+                    //ctx.outer_layout_context(screen_size, scale_factor, screen_ppi, window_id, root_id, f)
+                    todo!()
+                }
+                if let Some(chrome) = self.vars.chrome().get_new(ctx) {
+                    w.set_chrome_visible(matches!(chrome, &WindowChrome::Default));
+                    // TODO Custom
+                }
+                if let Some(ico) = self.vars.icon().get_new(ctx) {
+                    todo!()
+                }
+                if let Some(state) = self.vars.state().get_new(ctx) {
+                    todo!()
+                }
+                if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
+                    todo!()
+                }
+                if let Some(movable) = self.vars.movable().copy_new(ctx) {
+                    todo!()
+                }
+                if let Some(always_on_top) = self.vars.always_on_top().copy_new(ctx) {
+                    todo!()
+                }
+                if let Some(visible) = self.vars.visible().copy_new(ctx) {
+                    w.set_visible(visible);
+                }
+                if let Some(visible) = self.vars.taskbar_visible().copy_new(ctx) {
+                    w.set_taskbar_visible(visible);
+                }
+                if let Some(parent) = self.vars.parent().copy_new(ctx) {
+                    todo!()
+                }
+                if let Some(modal) = self.vars.parent().copy_new(ctx) {
+                    todo!()
+                }
+                if let Some(transparent) = self.vars.transparent().copy_new(ctx) {
+                    todo!()
+                }
+            }
+
+            if let Some(r) = &self.renderer {
+                if let Some(text_aa) = self.vars.text_aa().copy_new(ctx) {
+                    r.set_text_aa(text_aa);
+                }
+            }
         }
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {}
+    fn layout(&mut self, ctx: &mut AppContext) {
+        let (scr_size, scr_factor, scr_ppi) = if let Some(w) = &self.headed {
+            todo!()
+        } else {
+            let scr = self.headless_screen.as_ref().unwrap();
+            (scr.size, scr.scale_factor, scr.ppi)
+        };
+
+        let (available_size, min_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+            let mut size = self.vars.size().get(ctx.vars).to_layout(scr_size, ctx);
+            let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
+            let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
+
+            let auto_size = self.vars.auto_size().copy(ctx);
+            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                size.width = max_size.width;
+            } else {
+                size.width = size.width.max(min_size.width).min(max_size.width);
+            }
+            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                size.height = max_size.height;
+            } else {
+                size.height = size.height.max(min_size.height).min(max_size.height);
+            }
+            (size, min_size)
+        });
+
+        let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size, |desired_size| {
+            LayoutSize::new(
+                desired_size.width.max(min_size.width).min(available_size.width),
+                desired_size.height.max(min_size.height).min(available_size.height),
+            )
+        });
+
+        self.size = final_size;
+
+        if let Some(w) = &self.headed {
+            w.set_size(self.size).unwrap();
+        }
+    }
 
     fn render(&mut self, ctx: &mut AppContext) {
-        let frame = self.context.render(ctx);
+        let ((pipeline_id, size, display_list), frame_info) = if let Some(f) = self.context.render(ctx) {
+            f
+        } else {
+            return; // not needed
+        };
+
+        self.frame_info = frame_info;
+
         if self.first_render {
             match self.mode {
                 WindowMode::Headed => {
                     let text_aa = ctx.services.fonts().system_text_aa().copy(ctx.vars);
                     ctx.services.view_process().open_window(
                         self.id,
-                        view_process::OpenWindowRequest {
+                        view_process::WindowConfig {
                             title: self.vars.title().get(ctx.vars).to_string(),
                             pos: self.position,
                             size: self.size,
                             visible: self.vars.visible().copy(ctx.vars),
+                            taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
+                            chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
+                            allow_alt_f4: self.allow_alt_f4,
                             clear_color: Some(rgb(255, 0, 0).into()),
-                            text_aa,
-                            frame,
+                            text_aa: self.vars.text_aa().copy(ctx.vars),
+                            frame: view_process::FrameRequest {
+                                id: self.frame_info.frame_id(),
+                                pipeline_id,
+                                size,
+                                display_list: display_list.into_data(),
+                            },
                         },
                     );
                 }
@@ -1434,6 +1551,43 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
+    fn need_layout(&self) -> bool {
+        matches!(self.update, UpdateDisplayRequest::Layout)
+    }
+
+    fn layout(
+        &mut self,
+        ctx: &mut AppContext,
+        font_size: f32,
+        scale_factor: f32,
+        screen_ppi: f32,
+        available_size: LayoutSize,
+        calc_final_size: impl FnOnce(LayoutSize) -> LayoutSize,
+    ) -> LayoutSize {
+        debug_assert!(!self.need_layout());
+        self.update = UpdateDisplayRequest::Render;
+
+        let root = &mut self.root;
+        let (final_size, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+            let child = &mut root.child;
+            ctx.layout_context(
+                font_size,
+                PixelGrid::new(scale_factor),
+                screen_ppi,
+                available_size,
+                root.id,
+                &mut root.state,
+                |ctx| {
+                    let desired_size = child.measure(ctx, available_size);
+                    let final_size = calc_final_size(desired_size);
+                    child.arrange(ctx, final_size);
+                    final_size
+                },
+            )
+        });
+        final_size
+    }
+
     fn render(&mut self, ctx: &mut AppContext) -> Option<((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo)> {
         if self.update.is_none() {
             return None;
@@ -1452,16 +1606,15 @@ impl OwnedWindowContext {
                 _ => unreachable!(),
             })
         });
+
+        todo!()
     }
 }
 
 // OpenWindow headless info.
 struct HeadlessWindow {
     screen: HeadlessScreen,
-    position: LayoutPoint,
     size: LayoutSize,
-    state: WindowState,
-    taskbar_visible: bool,
 }
 
 struct WindowVarsData {
@@ -1478,6 +1631,9 @@ struct WindowVarsData {
     min_size: RcVar<Size>,
     max_size: RcVar<Size>,
 
+    actual_position: RcVar<LayoutPoint>,
+    actual_size: RcVar<LayoutSize>,
+
     resizable: RcVar<bool>,
     movable: RcVar<bool>,
 
@@ -1490,6 +1646,8 @@ struct WindowVarsData {
     modal: RcVar<bool>,
 
     transparent: RcVar<bool>,
+
+    text_aa: RcVar<TextAntiAliasing>,
 }
 
 /// Controls properties of an open window using variables.
@@ -1516,6 +1674,9 @@ impl WindowVars {
             position: var(Point::new(f32::NAN, f32::NAN)),
             size: var(Size::new(f32::NAN, f32::NAN)),
 
+            actual_position: var(LayoutPoint::new(f32::NAN, f32::NAN)),
+            actual_size: var(LayoutSize::new(f32::NAN, f32::NAN)),
+
             min_size: var(Size::new(192.0, 48.0)),
             max_size: var(Size::new(100.pct(), 100.pct())),
             auto_size: var(AutoSize::empty()),
@@ -1532,29 +1693,10 @@ impl WindowVars {
             modal: var(false),
 
             transparent: var(false),
+
+            text_aa: var(TextAntiAliasing::Default),
         });
         Self { vars }
-    }
-
-    /// Update all variables with the same value.
-    fn refresh_all(&self, vars: &crate::var::Vars) {
-        self.chrome().touch(vars);
-        self.icon().touch(vars);
-        self.title().touch(vars);
-        self.state().touch(vars);
-        self.position().touch(vars);
-        self.size().touch(vars);
-        self.min_size().touch(vars);
-        self.max_size().touch(vars);
-        self.auto_size().touch(vars);
-        self.resizable().touch(vars);
-        self.movable().touch(vars);
-        self.always_on_top().touch(vars);
-        self.visible().touch(vars);
-        self.taskbar_visible().touch(vars);
-        self.parent().touch(vars);
-        self.modal().touch(vars);
-        self.transparent().touch(vars);
     }
 
     fn clone(&self) -> Self {
@@ -1614,12 +1756,26 @@ impl WindowVars {
     /// When a dimension is not a finite value it is computed from other variables.
     /// Relative values are computed in relation to the full-screen size.
     ///
-    /// When the the window is moved this variable is updated back.
+    /// When the the window is moved this variable does **not** update back, to track the current position of the window
+    /// use [`actual_position`].
     ///
     /// The default value is `(f32::NAN, f32::NAN)`.
+    ///
+    /// [`actual_position`]: WindowVars::actual_position
     #[inline]
     pub fn position(&self) -> &RcVar<Point> {
         &self.vars.position
+    }
+
+    /// Window actual position on the screen.
+    ///
+    /// This is a read-only variable that tracks the computed position of the window, it updates every
+    /// time the window moves.
+    ///
+    /// The initial value is `(f32::NAN, f32::NAN)` but this is updated quickly to an actual value.
+    #[inline]
+    pub fn actual_position(&self) -> ReadOnlyRcVar<LayoutPoint> {
+        self.vars.actual_position.clone().into_read_only()
     }
 
     /// Window width and height on the screen.
@@ -1627,12 +1783,25 @@ impl WindowVars {
     /// When a dimension is not a finite value it is computed from other variables.
     /// Relative values are computed in relation to the full-screen size.
     ///
-    /// When the window is resized this variable is updated back.
+    /// When the window is resized this variable does **not** updated back, to track the current window size use [`actual_size`].
     ///
     /// The default value is `(f32::NAN, f32::NAN)`.
+    ///
+    /// [`actual_size`]: WindowVars::actual_size
     #[inline]
     pub fn size(&self) -> &RcVar<Size> {
         &self.vars.size
+    }
+
+    /// Window actual size on the screen.
+    ///
+    /// This is a read-only variable that tracks the computed size of the window, it updates every time
+    /// the window resizes.
+    ///
+    /// The initial value is `(f32::NAN, f32::NAN)` but this is updated quickly to an actual value.
+    #[inline]
+    pub fn actual_size(&self) -> ReadOnlyRcVar<LayoutSize> {
+        self.vars.actual_size.clone().into_read_only()
     }
 
     /// Configure window size-to-content.
@@ -1745,6 +1914,14 @@ impl WindowVars {
     #[inline]
     pub fn modal(&self) -> &RcVar<bool> {
         &self.vars.modal
+    }
+
+    /// Text anti-aliasing config in the window.
+    ///
+    /// The default value is [`TextAntiAliasing::Default`] that is the OS default.
+    #[inline]
+    pub fn text_aa(&self) -> &RcVar<TextAntiAliasing> {
+        &self.vars.text_aa
     }
 }
 state_key! {

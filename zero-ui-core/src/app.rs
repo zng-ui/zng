@@ -695,14 +695,7 @@ impl<E: AppExtension> AppExtended<E> {
         let mut app = RunningApp::start(self.extensions.boxed());
 
         if with_renderer {
-            let renderer = view_process::ViewProcess::start(
-                self.view_process_exe,
-                view_process::StartRequest {
-                    device_events: false,
-                    headless: true,
-                },
-                |_| unreachable!(),
-            );
+            let renderer = view_process::ViewProcess::start(self.view_process_exe, false, true, |_| unreachable!());
 
             app.ctx().services.register(renderer);
         }
@@ -763,14 +756,9 @@ impl<E: AppExtension> RunningApp<E> {
     fn run_headed(mut self, view_process_exe: Option<PathBuf>) -> ! {
         let view_evs_sender = self.ctx().updates.sender();
 
-        let view_app = view_process::ViewProcess::start(
-            view_process_exe,
-            view_process::StartRequest {
-                device_events: self.device_events,
-                headless: false,
-            },
-            move |ev| view_evs_sender.send_view_event(ev).unwrap(),
-        );
+        let view_app = view_process::ViewProcess::start(view_process_exe, self.device_events, false, move |ev| {
+            view_evs_sender.send_view_event(ev).unwrap()
+        });
         self.ctx().services.register(view_app);
 
         loop {
@@ -902,8 +890,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawTouchArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchEvent, args);
             }
-            zero_ui_vp::Ev::ScaleFactorChanged(w_id, scale, new_size) => {
-                let args = RawWindowScaleFactorChangedArgs::now(self.window_id(w_id), scale, new_size);
+            zero_ui_vp::Ev::ScaleFactorChanged(w_id, scale) => {
+                let args = RawWindowScaleFactorChangedArgs::now(self.window_id(w_id), scale);
                 self.notify_event(RawWindowScaleFactorChangedEvent, args);
             }
             zero_ui_vp::Ev::ThemeChanged(w_id, theme) => {
@@ -961,6 +949,11 @@ impl<E: AppExtension> RunningApp<E> {
             zero_ui_vp::Ev::DeviceText(d_id, c) => {
                 let args = TextArgs::now(self.device_id(d_id), c);
                 self.notify_event(TextEvent, args);
+            }
+
+            // Other
+            zero_ui_vp::Ev::Respawned => {
+                todo!("respawn event or")
             }
         }
 
@@ -1653,13 +1646,15 @@ pub mod view_process {
 
     use linear_map::LinearMap;
 
-    use zero_ui_vp::{DevId, TextAntiAliasing, WinId};
-    pub use zero_ui_vp::{Ev, OpenWindowRequest, StartRequest, WindowNotFound};
+    use webrender_api::HitTestResult;
+    use zero_ui_vp::{DevId, WinId};
+    pub use zero_ui_vp::{Error, Ev, FramePixels, FrameRequest, Result, TextAntiAliasing, WindowConfig};
 
     use super::DeviceId;
     use crate::service::Service;
-    use crate::units::LayoutSize;
+    use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
     use crate::window::WindowId;
+    use crate::{event, event_args};
 
     /// Reference to the running View Process.
     ///
@@ -1668,18 +1663,18 @@ pub mod view_process {
     #[derive(Service)]
     pub struct ViewProcess(Rc<RefCell<ViewApp>>);
     struct ViewApp {
-        process: zero_ui_vp::App,
+        process: zero_ui_vp::Controller,
         window_ids: LinearMap<WinId, WindowId>,
         device_ids: LinearMap<DevId, DeviceId>,
     }
     impl ViewProcess {
         /// Spawn the View Process.
-        pub(super) fn start<F>(view_process_exe: Option<PathBuf>, request: StartRequest, on_event: F) -> Self
+        pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F) -> Self
         where
             F: FnMut(Ev) + Send + 'static,
         {
             Self(Rc::new(RefCell::new(ViewApp {
-                process: zero_ui_vp::App::start(view_process_exe, request, on_event),
+                process: zero_ui_vp::Controller::start(view_process_exe, device_events, headless, on_event),
                 window_ids: LinearMap::default(),
                 device_ids: LinearMap::default(),
             })))
@@ -1692,21 +1687,21 @@ pub mod view_process {
         }
 
         /// Open a window and associate it with the `window_id`.
-        pub fn open_window(&self, window_id: WindowId, request: OpenWindowRequest) -> ViewWindow {
+        pub fn open_window(&self, window_id: WindowId, config: WindowConfig) -> Result<ViewWindow> {
             let mut app = self.0.borrow_mut();
             assert!(app.window_ids.values().all(|&v| v != window_id));
 
-            let id = app.process.open_window(request);
+            let id = app.process.open_window(config)?;
 
             app.window_ids.insert(id, window_id);
 
-            ViewWindow(id, self.0.clone())
+            Ok(ViewWindow(id, self.0.clone()))
         }
 
         /// Read the system text anti-aliasing config.
         #[inline]
-        pub fn system_text_aa(&self) -> TextAntiAliasing {
-            self.0.borrow().process.text_aa()
+        pub fn system_text_aa(&self) -> Result<TextAntiAliasing> {
+            self.0.borrow_mut().process.system_text_aa()
         }
 
         /// Translate `WinId` to `WindowId`.
@@ -1727,26 +1722,38 @@ pub mod view_process {
     impl ViewWindow {
         /// Set the window title.
         #[inline]
-        pub fn set_title(&self, title: String) -> Result<(), WindowNotFound> {
+        pub fn set_title(&self, title: String) -> Result<()> {
             self.1.borrow_mut().process.set_title(self.0, title)
         }
 
         /// Set the window visibility.
         #[inline]
-        pub fn set_visible(&self, visible: bool) -> Result<(), WindowNotFound> {
+        pub fn set_visible(&self, visible: bool) -> Result<()> {
             self.1.borrow_mut().process.set_visible(self.0, visible)
         }
 
-        /// Set the window position (in device pixels).
+        /// Set the window icon visibility in the taskbar.
         #[inline]
-        pub fn set_position(&self, x: i32, y: i32) -> Result<(), WindowNotFound> {
-            self.1.borrow_mut().process.set_position(self.0, (x, y))
+        pub fn set_taskbar_visible(&self, visible: bool) -> Result<()> {
+            self.1.borrow_mut().process.set_taskbar_visible(self.0, visible)
         }
 
-        /// Set the window size (in device pixels).
+        /// Set the window position.
         #[inline]
-        pub fn set_size(&self, width: u32, height: u32) -> Result<(), WindowNotFound> {
-            self.1.borrow_mut().process.set_size(self.0, (width, height))
+        pub fn set_position(&self, pos: LayoutPoint) -> Result<()> {
+            self.1.borrow_mut().process.set_position(self.0, pos)
+        }
+
+        /// Set the window size.
+        #[inline]
+        pub fn set_size(&self, size: LayoutSize) -> Result<()> {
+            self.1.borrow_mut().process.set_size(self.0, size)
+        }
+
+        /// Set the visibility of the native window borders and title.
+        #[inline]
+        pub fn set_chrome_visible(&self, visible: bool) -> Result<()> {
+            self.1.borrow_mut().process.set_chrome_visible(self.0, visible)
         }
 
         /// Reference the window renderer.
@@ -1758,8 +1765,8 @@ pub mod view_process {
         /// In Windows stops the system from requesting a window close on `ALT+F4` and sends a key
         /// press for F4 instead.
         #[inline]
-        pub fn allow_alt_f4(&self, allow: bool) -> Result<(), WindowNotFound> {
-            self.1.borrow_mut().process.allow_alt_f4(self.0, allow)
+        pub fn set_allow_alt_f4(&self, allow: bool) -> Result<()> {
+            self.1.borrow_mut().process.set_allow_alt_f4(self.0, allow)
         }
 
         /// Drop `self`.
@@ -1777,23 +1784,62 @@ pub mod view_process {
     pub struct ViewRenderer(WinId, Rc<RefCell<ViewApp>>);
     impl ViewRenderer {
         /// Gets the viewport size (window inner size).
-        pub fn size(&self) -> Result<LayoutSize, WindowNotFound> {
-            self.1.borrow().process.size(self.0)
+        pub fn size(&self) -> Result<LayoutSize> {
+            self.1.borrow_mut().process.size(self.0)
         }
 
         /// Gets the window scale factor.
-        pub fn scale_factor(&self) -> Result<f32, WindowNotFound> {
-            self.1.borrow().process.scale_factor(self.0)
+        pub fn scale_factor(&self) -> Result<f32> {
+            self.1.borrow_mut().process.scale_factor(self.0)
         }
 
-        /// Copy a `rect` of pixels from the current frame.
+        /// Read a `rect` of pixels from the current frame.
         ///
-        /// This is a direct call to `glReadPixels`, `x` and `y` start
-        /// at the bottom-left corner of the rectangle and each *stride*
-        /// is a row from bottom-to-top and the pixel type is BGRA.
-        pub fn read_pixels(&self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, WindowNotFound> {
-            self.1.borrow_mut().process.read_pixels(self.0, [x, y, width, height])
+        /// This is a call to `glReadPixels`, each pixel row is stacked from
+        /// bottom-to-top with the pixel type BGRA8.
+        pub fn read_pixels_rect(&self, rect: LayoutRect) -> Result<FramePixels> {
+            self.1.borrow_mut().process.read_pixels_rect(self.0, rect)
         }
+
+        /// Read all pixels of the current frame.
+        ///
+        /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
+        pub fn read_pixels(&self) -> Result<FramePixels> {
+            self.1.borrow_mut().process.read_pixels(self.0)
+        }
+
+        /// Get display items of the last rendered frame that intercept the `point`.
+        ///
+        /// Returns all hits from front-to-back.
+        pub fn hit_test(&self, point: LayoutPoint) -> Result<HitTestResult> {
+            self.1.borrow_mut().process.hit_test(self.0, point)
+        }
+
+        /// Change the text anti-alias used in this renderer.
+        pub fn set_text_aa(&self, aa: TextAntiAliasing) -> Result<()> {
+            self.1.borrow_mut().process.set_text_aa(self.0, aa)
+        }
+    }
+
+    event_args! {
+        /// Arguments for the [`ViewProcessRespawnedEvent`].
+        pub struct ViewProcessRespawnedArgs {
+
+            ..
+
+            /// Returns `true` for all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+    }
+
+    event! {
+        /// View Process crashed and respawned, resources may need to be rebuild.
+        ///
+        /// This event fires if the view-process crashed and was successfully
+        pub ViewProcessRespawnedEvent: ViewProcessRespawnedArgs;
     }
 }
 
@@ -1819,6 +1865,7 @@ pub mod raw_events {
     use super::raw_device_events::AxisId;
     use super::DeviceId;
     use crate::mouse::{ButtonState, MouseButton};
+    use crate::units::{LayoutPoint, LayoutSize};
     use crate::window::WindowTheme;
     use crate::{event::*, keyboard::ScanCode, window::WindowId};
     pub use zero_ui_vp::TextAntiAliasing;
@@ -1904,8 +1951,8 @@ pub mod raw_events {
             /// Window that was moved.
             pub window_id: WindowId,
 
-            /// Window (x, y) position in raw pixels.
-            pub position: (i32, i32),
+            /// Window top-left offset, including the system chrome.
+            pub position: LayoutPoint,
 
             ..
 
@@ -1920,8 +1967,8 @@ pub mod raw_events {
             /// Window that was resized.
             pub window_id: WindowId,
 
-            /// Window (width, height) size in raw pixels.
-            pub size: (u32, u32),
+            /// Window new size.
+            pub size: LayoutSize,
 
             ..
 
@@ -2014,8 +2061,8 @@ pub mod raw_events {
             /// Device that generated this event.
             pub device_id: DeviceId,
 
-            /// Position of the cursor over the [window](Self::window_id) in raw pixels.
-            pub position: (i32, i32),
+            /// Position of the cursor over the window, (0, 0) is the top-left.
+            pub position: LayoutPoint,
 
             ..
 
@@ -2145,12 +2192,7 @@ pub mod raw_events {
             pub window_id: WindowId,
 
             /// New pixel scale factor.
-            pub scale_factor: f64,
-
-            /// New window size in raw pixels.
-            ///
-            /// The operating system can change the window raw size to match the new scale factor.
-            pub size: (u32, u32),
+            pub scale_factor: f32,
 
             ..
 

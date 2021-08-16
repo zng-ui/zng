@@ -2105,83 +2105,6 @@ impl_from_and_into_var! {
     }
 }
 
-impl crate::app::view_process::ViewRenderer {
-    /// Read a rectangle of the currently presented frame into a [`FramePixels`].
-    ///
-    /// The coordinates are in pixels units and `x` and `y` starting at the top-left corner.
-    /// If the rectangle does not fully overlap with the frame the result is clipped.
-    pub fn frame_pixels_rect(&self, x: i32, y: i32, width: u32, height: u32) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
-        let max = self.size()?;
-        let scale_factor = self.scale_factor()?;
-
-        let max_rect = units::DeviceIntRect::from_size(euclid::Size2D::new(
-            (max.width / scale_factor) as i32,
-            (max.height / scale_factor) as i32,
-        ));
-        let rect = units::DeviceIntRect::new(euclid::Point2D::new(x, y), euclid::Size2D::new(width as i32, height as i32));
-        let rect = rect.intersection(&max_rect).unwrap_or_default();
-
-        if rect.size.width == 0 || rect.size.height == 0 {
-            return Ok(FramePixels {
-                bgra: Arc::new(vec![]),
-                width: rect.size.width as u32,
-                height: rect.size.height as u32,
-                scale_factor,
-                opaque: true, // TODO
-            });
-        }
-
-        let mut pixels = self.read_pixels(
-            rect.origin.x as u32,
-            (max_rect.size.height - rect.origin.y - rect.size.height) as u32,
-            rect.size.width as u32,
-            rect.size.height as u32,
-        )?;
-
-        let line_len = rect.size.width as usize * 4;
-
-        let mut rest = &mut pixels[..];
-        while rest.len() > line_len {
-            let (line_a, temp) = rest.split_at_mut(line_len);
-            let (temp, line_b) = temp.split_at_mut(temp.len() - line_len);
-
-            line_a.swap_with_slice(line_b);
-
-            rest = temp;
-        }
-
-        Ok(FramePixels {
-            bgra: Arc::new(pixels),
-            width: rect.size.width as u32,
-            height: rect.size.height as u32,
-            scale_factor,
-            opaque: true,
-        })
-    }
-
-    /// Read the current presented frame into a [`FramePixels`].
-    #[inline]
-    pub fn frame_pixels(&self) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
-        let max = self.size()?;
-        let scale_factor = self.scale_factor()?;
-        self.frame_pixels_rect(0, 0, (max.width / scale_factor) as u32, (max.height / scale_factor) as u32)
-    }
-
-    /// Read a rectangle of the currently presented frame into a [`FramePixels`].
-    ///
-    /// The `rect` is converted to pixels coordinates using the current [`scale_factor`](Self::scale_factor)
-    #[inline]
-    pub fn frame_pixels_l_rect(&self, rect: crate::units::LayoutRect) -> Result<FramePixels, zero_ui_vp::WindowNotFound> {
-        let scale_factor = self.scale_factor()?;
-        self.frame_pixels_rect(
-            (rect.origin.x * scale_factor) as i32,
-            (rect.origin.y * scale_factor) as i32,
-            (rect.size.width * scale_factor) as u32,
-            (rect.size.height * scale_factor) as u32,
-        )
-    }
-}
-
 /// Pixels copied from a [`Renderer`] frame.
 #[derive(Clone)]
 pub struct FramePixels {
@@ -2409,5 +2332,16 @@ impl FramePixels {
 impl From<FramePixels> for crate::image::Image {
     fn from(pixels: FramePixels) -> Self {
         pixels.image()
+    }
+}
+impl From<crate::app::view_process::FramePixels> for FramePixels {
+    fn from(f: crate::app::view_process::FramePixels) -> Self {
+        Self {
+            bgra: Arc::new(f.bgra),
+            width: f.width,
+            height: f.height,
+            opaque: f.opaque,
+            scale_factor: f.scale_factor,
+        }
     }
 }

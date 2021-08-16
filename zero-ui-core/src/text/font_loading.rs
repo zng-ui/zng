@@ -99,11 +99,11 @@ impl Default for FontManager {
 }
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        let text_aa = if let Some(app) = ctx.services.get::<ViewProcess>() {
-            app.system_text_aa()
-        } else {
-            TextAntiAliasing::Subpixel
-        };
+        let text_aa = ctx
+            .services
+            .get::<ViewProcess>()
+            .and_then(|a| a.system_text_aa().ok())
+            .unwrap_or(TextAntiAliasing::Subpixel);
         ctx.services.register(Fonts::new(text_aa, ctx.updates.sender()));
     }
 

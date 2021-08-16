@@ -11,9 +11,10 @@ pub fn derive(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ext_ident = ident!("{}Ext", ident);
     let ext_mtd_ident = ident!("{}", snake_case(&ident.to_string()));
     let ext_help = format!(
-        "Adds the [`{}`] method to [`Services`]({}::service::Services)",
+        "Adds the [`{0}`]({2}::{0}) method to [`Services`]({1}::service::Services)",
         ext_mtd_ident,
-        crate_.to_string().replace(" ", "")
+        crate_.to_string().replace(" ", ""),
+        ext_ident
     );
     let ext_mtd_help = format!(
         "Requires the [`{0}`] service. This is the equivalent of calling `services.req::<{0}>()`",
