@@ -936,9 +936,11 @@ impl AppExtension for WindowManager {
     }
 
     fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        for (_, w) in ctx.services.windows().windows.iter_mut() {
-            todo!()
-        }
+        with_detached_windows(ctx, |ctx, windows| {
+            for (_, w) in windows.iter_mut() {
+                w.event(ctx, args);
+            }
+        })
     }
 
     fn event<EV: event::EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -1005,9 +1007,13 @@ impl AppExtension for WindowManager {
 
         // fulfill open requests.
         for r in open {
-            let w = AppWindow::new(ctx, r.new, r.force_headless);
+            let (w, info) = AppWindow::new(ctx, r.new, r.force_headless);
             let args = WindowOpenArgs::now(w.id);
-            ctx.services.windows().windows.insert(w.id, w);
+            {
+                let wns = ctx.services.windows();
+                wns.windows.insert(w.id, w);
+                wns.windows_info.insert(info.id, info);
+            }
 
             r.responder.respond(ctx, args.clone());
             WindowOpenEvent.notify(ctx, args);
@@ -1029,42 +1035,35 @@ impl AppExtension for WindowManager {
                 .insert(w_id, None);
         }
 
-        // sync `allow_alt_f4`
-        let wins = ctx.services.windows();
-        if wins.send_allow_alt_f4 {
-            wins.send_allow_alt_f4 = false;
-            for app_w in wins.windows.values() {
-                if let Some(view_w) = &app_w.headed {
-                    view_w.set_allow_alt_f4(app_w.allow_alt_f4).unwrap();
-                }
-            }
-        }
-
         // notify content
-        for (_, window) in wins.windows.iter_mut() {
-            window.update(ctx);
-        }
+        with_detached_windows(ctx, |ctx, windows| {
+            for (_, w) in windows.iter_mut() {
+                w.update(ctx);
+            }
+        });
     }
 
-    fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
-        // Pump layout and render in all windows.
-        // The windows don't do a layout update unless they recorded
-        // an update request for layout or render.
-        //
-        // we can temporary detach all windows here because `services` is not available
-        // in `LayoutContext` and `RenderContext` so there is no way to observe `Windows`
-        // temporary empty state.
-
-        let mut windows = mem::take(&mut ctx.services.windows().windows);
-
-        for (_, w) in windows.iter_mut() {
-            w.layout(ctx);
-            w.render(ctx);
-            w.render_update(ctx);
-        }
-
-        ctx.services.windows().windows = windows;
+    fn update_display(&mut self, ctx: &mut AppContext, _: UpdateDisplayRequest) {
+        with_detached_windows(ctx, |ctx, windows| {
+            for (_, w) in windows.iter_mut() {
+                w.layout(ctx);
+                w.render(ctx);
+                w.render_update(ctx);
+            }
+        });
     }
+}
+
+/// Takes ownership of [`Windows::windows`] for the duration of the call to `f`.
+///
+/// The windows map is empty for the duration of `f` and should not be used, this is for
+/// mutating the window content while still allowing it to query the [`Windows::windows_info`].
+fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &mut LinearMap<WindowId, AppWindow>)) {
+    let mut windows = mem::take(&mut ctx.services.windows().windows);
+    f(ctx, &mut windows);
+    let mut wns = ctx.services.windows();
+    debug_assert!(wns.windows.is_empty());
+    wns.windows = windows;
 }
 
 /// Monitor screens service.
@@ -1093,27 +1092,25 @@ pub struct Windows {
     pub shutdown_on_last_close: bool,
 
     windows: LinearMap<WindowId, AppWindow>,
+    windows_info: LinearMap<WindowId, AppWindowInfo>,
 
     open_requests: Vec<OpenWindowRequest>,
     update_sender: AppEventSender,
 
     close_group_id: CloseGroupId,
     close_requests: LinearMap<WindowId, CloseWindowRequest>,
-
-    send_allow_alt_f4: bool,
 }
 impl Windows {
     fn new(update_sender: AppEventSender) -> Self {
         Windows {
             shutdown_on_last_close: true,
             windows: LinearMap::with_capacity(1),
+            windows_info: LinearMap::with_capacity(1),
             open_requests: Vec::with_capacity(1),
             update_sender,
 
             close_group_id: 1,
             close_requests: LinearMap::new(),
-
-            send_allow_alt_f4: false,
         }
     }
 
@@ -1173,7 +1170,7 @@ impl Windows {
     ///
     /// Returns a response var that will update once with the result of the operation.
     pub fn close(&mut self, window_id: WindowId) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
-        if self.windows.contains_key(&window_id) {
+        if self.windows_info.contains_key(&window_id) {
             let (responder, response) = response_var();
 
             let group = self.close_group_id.wrapping_add(1);
@@ -1208,7 +1205,7 @@ impl Windows {
         let (responder, response) = response_var();
 
         for window in windows {
-            if !self.windows.contains_key(&window) {
+            if !self.windows_info.contains_key(&window) {
                 return Err(WindowNotFound(window));
             }
 
@@ -1229,14 +1226,17 @@ impl Windows {
 
     /// Reference the metadata about the window's latest frame.
     pub fn frame_info(&self, window_id: WindowId) -> Result<&FrameInfo, WindowNotFound> {
-        self.windows.get(&window_id).map(|w| &w.frame_info).ok_or(WindowNotFound(window_id))
+        self.windows_info
+            .get(&window_id)
+            .map(|w| &w.frame_info)
+            .ok_or(WindowNotFound(window_id))
     }
 
     /// Copy the pixels of the window's latest frame.
     ///
     /// Returns an empty zero-by-zero frame if the window is headless without renderer.
     pub fn frame_pixels(&self, window_id: WindowId) -> Result<FramePixels, WindowNotFound> {
-        self.windows
+        self.windows_info
             .get(&window_id)
             .ok_or(WindowNotFound(window_id))? // not found here
             .renderer
@@ -1250,7 +1250,7 @@ impl Windows {
     ///
     /// The `rect` is converted to pixels coordinates using the current window's scale factor.
     pub fn frame_pixels_rect(&self, window_id: WindowId, rect: impl Into<LayoutRect>) -> Result<FramePixels, WindowNotFound> {
-        self.windows
+        self.windows_info
             .get(&window_id)
             .ok_or(WindowNotFound(window_id))? // not found here
             .renderer
@@ -1262,12 +1262,12 @@ impl Windows {
 
     /// Reference the [`WindowVars`] for the window.
     pub fn vars(&self, window_id: WindowId) -> Result<&WindowVars, WindowNotFound> {
-        self.windows.get(&window_id).map(|w| &w.vars).ok_or(WindowNotFound(window_id))
+        self.windows_info.get(&window_id).map(|w| &w.vars).ok_or(WindowNotFound(window_id))
     }
 
     /// Hit-test the latest window frame.
     pub fn hit_test(&self, window_id: WindowId, point: LayoutPoint) -> Result<FrameHitInfo, WindowNotFound> {
-        self.windows
+        self.windows_info
             .get(&window_id)
             .map(|w| w.hit_test(point))
             .ok_or(WindowNotFound(window_id))
@@ -1275,45 +1275,33 @@ impl Windows {
 
     /// Gets if the window is focused in the OS.
     pub fn is_focused(&self, window_id: WindowId) -> Result<bool, WindowNotFound> {
-        self.windows.get(&window_id).map(|w| w.is_focused).ok_or(WindowNotFound(window_id))
+        self.windows_info
+            .get(&window_id)
+            .map(|w| w.is_focused)
+            .ok_or(WindowNotFound(window_id))
     }
 
     /// Iterate over the latest frames of each open window.
     pub fn frames(&self) -> impl Iterator<Item = &FrameInfo> {
-        self.windows.values().map(|w| &w.frame_info)
+        self.windows_info.values().map(|w| &w.frame_info)
     }
 
     /// Gets the current window scale factor.
     pub fn scale_factor(&self, window_id: WindowId) -> Result<f32, WindowNotFound> {
-        self.windows
+        self.windows_info
             .get(&window_id)
-            .map(|w| w.scale_factor())
+            .map(|w| w.scale_factor)
             .ok_or(WindowNotFound(window_id))
     }
 
     /// Gets the id of the window that is focused in the OS.
     pub fn focused_window_id(&self) -> Option<WindowId> {
-        self.windows.values().find(|w| w.is_focused).map(|w| w.id)
+        self.windows_info.values().find(|w| w.is_focused).map(|w| w.id)
     }
 
     /// Gets the latest frame for the focused window.
     pub fn focused_frame(&self) -> Option<&FrameInfo> {
-        self.windows.values().find(|w| w.is_focused).map(|w| &w.frame_info)
-    }
-
-    /// In Windows stops the system from requesting a window close on `ALT+F4` and sends a key
-    /// press for F4 instead.
-    pub fn allow_alt_f4(&mut self, window_id: WindowId, allow: bool) -> Result<(), WindowNotFound> {
-        if let Some(w) = self.windows.get_mut(&window_id) {
-            if w.allow_alt_f4 != allow {
-                w.allow_alt_f4 = allow;
-                self.send_allow_alt_f4 = true;
-                self.update_sender.send_update();
-            }
-            Ok(())
-        } else {
-            Err(WindowNotFound(window_id))
-        }
+        self.windows_info.values().find(|w| w.is_focused).map(|w| &w.frame_info)
     }
 
     fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, LinearMap<WindowId, CloseWindowRequest>) {
@@ -1353,6 +1341,23 @@ impl fmt::Display for WindowNotFound {
 }
 impl std::error::Error for WindowNotFound {}
 
+/// [`AppWindow`] data, detached so we can make the window visible in [`Windows`]
+/// from inside the window content.
+struct AppWindowInfo {
+    id: WindowId,
+    renderer: Option<ViewRenderer>,
+    vars: WindowVars,
+    scale_factor: f32,
+
+    frame_info: FrameInfo,
+    is_focused: bool,
+}
+impl AppWindowInfo {
+    fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
+        todo!()
+    }
+}
+
 /// An open window.
 struct AppWindow {
     // Is some if the window is headed.
@@ -1379,8 +1384,6 @@ struct AppWindow {
     // focus tracked by the raw focus events.
     is_focused: bool,
 
-    allow_alt_f4: bool,
-
     first_update: bool,
     first_render: bool,
 
@@ -1388,7 +1391,11 @@ struct AppWindow {
     size: LayoutSize,
 }
 impl AppWindow {
-    fn new(ctx: &mut AppContext, new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>, force_headless: Option<WindowMode>) -> Self {
+    fn new(
+        ctx: &mut AppContext,
+        new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>,
+        force_headless: Option<WindowMode>,
+    ) -> (Self, AppWindowInfo) {
         // get mode.
         let mode = match (ctx.mode(), force_headless) {
             (WindowMode::Headed | WindowMode::HeadlessWithRenderer, Some(mode)) => {
@@ -1432,7 +1439,7 @@ impl AppWindow {
         ctx.updates.update();
         ctx.updates.layout();
 
-        AppWindow {
+        let win = AppWindow {
             headed: None, // headed & renderer will initialize on first render.
             renderer: None,
             headless_screen,
@@ -1441,19 +1448,26 @@ impl AppWindow {
             id,
             root_id,
             kiosk,
-            vars,
+            vars: vars.clone(),
             frame_info: FrameInfo::blank(id, root_id),
             is_focused: true, // can we say it opens focused? TODO
-
-            // in Windows is blocked by default, TODO check Unix
-            allow_alt_f4: !cfg!(windows),
 
             first_update: true,
             first_render: true,
 
             position: LayoutPoint::zero(),
             size: LayoutSize::zero(),
-        }
+        };
+        let info = AppWindowInfo {
+            id,
+            renderer: None, //
+            vars,
+            scale_factor: 1.0,                         // TODO
+            frame_info: FrameInfo::blank(id, root_id), // TODO
+            is_focused: true,
+        };
+
+        (win, info)
     }
 
     fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
@@ -1474,6 +1488,10 @@ impl AppWindow {
 
     fn screen_ppi(&self) -> f32 {
         todo!()
+    }
+
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        self.context.event(ctx, args);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -1539,16 +1557,19 @@ impl AppWindow {
                     w.set_taskbar_visible(visible).unwrap();
                 }
                 if self.vars.parent().is_new(ctx) || self.vars.modal().is_new(ctx) {
-                    w.set_parent(self.vars.parent().copy(ctx), self.vars.modal().copy(ctx));
+                    w.set_parent(self.vars.parent().copy(ctx), self.vars.modal().copy(ctx)).unwrap();
                 }
                 if let Some(transparent) = self.vars.transparent().copy_new(ctx) {
-                    w.set_transparent(transparent);
+                    w.set_transparent(transparent).unwrap();
+                }
+                if let Some(allow) = self.vars.allow_alt_f4().copy_new(ctx) {
+                    w.set_allow_alt_f4(allow).unwrap();
                 }
             }
 
             if let Some(r) = &self.renderer {
                 if let Some(text_aa) = self.vars.text_aa().copy_new(ctx) {
-                    r.set_text_aa(text_aa);
+                    r.set_text_aa(text_aa).unwrap();
                 }
             }
         }
@@ -1623,9 +1644,18 @@ impl AppWindow {
                                 visible: self.vars.visible().copy(ctx.vars),
                                 taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
                                 chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
-                                allow_alt_f4: self.allow_alt_f4,
+                                allow_alt_f4: self.vars.allow_alt_f4().copy(ctx.vars),
                                 clear_color: Some(rgb(255, 0, 0).into()),
                                 text_aa: self.vars.text_aa().copy(ctx.vars),
+                                always_on_top: self.vars.always_on_top().copy(ctx.vars),
+                                movable: self.vars.movable().copy(ctx.vars),
+                                resizable: self.vars.resizable().copy(ctx.vars),
+                                icon: match self.vars.icon().get(ctx.vars) {
+                                    WindowIcon::Default => None,
+                                    WindowIcon::Icon(ico) => Some(view_process::Icon::clone(ico)),
+                                    WindowIcon::Render(_) => todo!(),
+                                },
+                                transparent: self.vars.transparent().copy(ctx.vars),
                                 frame: view_process::FrameRequest {
                                     id: self.frame_info.frame_id(),
                                     pipeline_id,
@@ -1691,8 +1721,16 @@ impl OwnedWindowContext {
         self.widget_ctx(ctx, |ctx, child| child.init(ctx))
     }
 
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        self.widget_ctx(ctx, |ctx, root| root.event(ctx, args));
+    }
+
     fn update(&mut self, ctx: &mut AppContext) {
         self.widget_ctx(ctx, |ctx, child| child.update(ctx))
+    }
+
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        self.widget_ctx(ctx, |ctx, child| child.deinit(ctx))
     }
 
     fn widget_ctx(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut WidgetContext, &mut BoxedUiNode)) {
@@ -1833,6 +1871,8 @@ struct WindowVarsData {
     transparent: RcVar<bool>,
 
     text_aa: RcVar<TextAntiAliasing>,
+
+    allow_alt_f4: RcVar<bool>,
 }
 
 /// Controls properties of an open window using variables.
@@ -1880,6 +1920,8 @@ impl WindowVars {
             transparent: var(false),
 
             text_aa: var(TextAntiAliasing::Default),
+
+            allow_alt_f4: var(!cfg!(windows)),
         });
         Self { vars }
     }
@@ -2107,6 +2149,14 @@ impl WindowVars {
     #[inline]
     pub fn text_aa(&self) -> &RcVar<TextAntiAliasing> {
         &self.vars.text_aa
+    }
+
+    /// In Windows the `Alt+F4` shortcut is intercepted by the system and causes a window close request,
+    /// if this variable is set to `true` this default behavior is disabled and a key-press event is generated
+    /// instead.
+    #[inline]
+    pub fn allow_alt_f4(&self) -> &RcVar<bool> {
+        &self.vars.allow_alt_f4
     }
 }
 state_key! {

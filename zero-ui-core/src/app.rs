@@ -1755,7 +1755,7 @@ pub mod view_process {
 
             app.window_ids.insert(id, window_id);
 
-            Ok(ViewWindow(id, self.0.clone()))
+            Ok(ViewWindow(Rc::new(WindowConnection { id, app: self.0.clone() })))
         }
 
         /// Read the system text anti-aliasing config.
@@ -1775,115 +1775,126 @@ pub mod view_process {
         }
     }
 
+    struct WindowConnection {
+        id: WinId,
+        app: Rc<RefCell<ViewApp>>,
+    }
+    impl WindowConnection {
+        fn call<R>(&self, f: impl FnOnce(WinId, &mut Controller) -> Result<R>) -> Result<R> {
+            f(self.id, &mut self.app.borrow_mut().process)
+        }
+    }
+    impl Drop for WindowConnection {
+        fn drop(&mut self) {
+            let _ = self.app.borrow_mut().process.close_window(self.id);
+        }
+    }
+
     /// Connection to a window open in the View Process.
     ///
-    /// The window closes when this struct is dropped.
-    pub struct ViewWindow(WinId, Rc<RefCell<ViewApp>>);
+    /// This is a strong reference to the window connection. The window closes when all clones of this struct drops.
+    #[derive(Clone)]
+    pub struct ViewWindow(Rc<WindowConnection>);
     impl ViewWindow {
         /// Set the window title.
         #[inline]
         pub fn set_title(&self, title: String) -> Result<()> {
-            self.1.borrow_mut().process.set_title(self.0, title)
+            self.0.call(|id, p| p.set_title(id, title))
         }
 
         /// Set the window visibility.
         #[inline]
         pub fn set_visible(&self, visible: bool) -> Result<()> {
-            self.1.borrow_mut().process.set_visible(self.0, visible)
+            self.0.call(|id, p| p.set_visible(id, visible))
         }
 
         /// Set if the window is "top-most".
         #[inline]
         pub fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
-            self.1.borrow_mut().process.set_always_on_top(self.0, always_on_top)
+            self.0.call(|id, p| p.set_always_on_top(id, always_on_top))
         }
 
         /// Set if the user can drag-move the window.
         #[inline]
         pub fn set_movable(&self, movable: bool) -> Result<()> {
-            self.1.borrow_mut().process.set_movable(self.0, movable)
+            self.0.call(|id, p| p.set_movable(id, movable))
         }
 
         /// Set if the user can resize the window.
         #[inline]
         pub fn set_resizable(&self, resizable: bool) -> Result<()> {
-            self.1.borrow_mut().process.set_resizable(self.0, resizable)
+            self.0.call(|id, p| p.set_resizable(id, resizable))
         }
 
         /// Set the window icon.
         #[inline]
         pub fn set_icon(&self, icon: Option<Icon>) -> Result<()> {
-            self.1.borrow_mut().process.set_icon(self.0, icon)
+            self.0.call(|id, p| p.set_icon(id, icon))
         }
 
         /// Set the window icon visibility in the taskbar.
         #[inline]
         pub fn set_taskbar_visible(&self, visible: bool) -> Result<()> {
-            self.1.borrow_mut().process.set_taskbar_visible(self.0, visible)
+            self.0.call(|id, p| p.set_taskbar_visible(id, visible))
         }
 
         /// Set the window parent and if `self` has a modal connection to it.
-        /// 
+        ///
         /// The `parent` window must be already open or this returns `WindowNotFound(0)`.
         #[inline]
         pub fn set_parent(&self, parent: Option<WindowId>, modal: bool) -> Result<()> {
             if let Some(parent) = parent {
-                if let Some((parent_id, _)) = self.1.borrow().window_ids.iter().find(|(_, window_id)| **window_id == parent) {
-                    self.1.borrow_mut().process.set_parent(self.0, Some(*parent_id), modal)
+                if let Some((parent_id, _)) = self.0.app.borrow().window_ids.iter().find(|(_, window_id)| **window_id == parent) {
+                    self.0.call(|id, p| p.set_parent(id, Some(*parent_id), modal))
                 } else {
-                    self.1.borrow_mut().process.set_parent(self.0, None, modal)?;
+                    self.0.call(|id, p| p.set_parent(id, None, modal))?;
                     Err(Error::WindowNotFound(0))
                 }
             } else {
-                self.1.borrow_mut().process.set_parent(self.0, None, modal)
+                self.0.call(|id, p| p.set_parent(id, None, modal))
             }
         }
 
         /// Set if the window is see-through.
         #[inline]
         pub fn set_transparent(&self, transparent: bool) -> Result<()> {
-            self.1.borrow_mut().process.set_transparent(self.0, transparent)
+            self.0.call(|id, p| p.set_transparent(id, transparent))
         }
 
         /// Set the window position.
         #[inline]
         pub fn set_position(&self, pos: LayoutPoint) -> Result<()> {
-            self.1.borrow_mut().process.set_position(self.0, pos)
+            self.0.call(|id, p| p.set_position(id, pos))
         }
 
         /// Set the window size.
         #[inline]
         pub fn set_size(&self, size: LayoutSize) -> Result<()> {
-            self.1.borrow_mut().process.set_size(self.0, size)
+            self.0.call(|id, p| p.set_size(id, size))
         }
 
         /// Set the visibility of the native window borders and title.
         #[inline]
         pub fn set_chrome_visible(&self, visible: bool) -> Result<()> {
-            self.1.borrow_mut().process.set_chrome_visible(self.0, visible)
+            self.0.call(|id, p| p.set_chrome_visible(id, visible))
         }
 
         /// Reference the window renderer.
         #[inline]
         pub fn renderer(&self) -> ViewRenderer {
-            ViewRenderer(self.0, Rc::downgrade(&self.1))
+            ViewRenderer(Rc::downgrade(&self.0))
         }
 
         /// In Windows stops the system from requesting a window close on `ALT+F4` and sends a key
         /// press for F4 instead.
         #[inline]
         pub fn set_allow_alt_f4(&self, allow: bool) -> Result<()> {
-            self.1.borrow_mut().process.set_allow_alt_f4(self.0, allow)
+            self.0.call(|id, p| p.set_allow_alt_f4(id, allow))
         }
 
         /// Drop `self`.
         pub fn close(self) {
             drop(self)
-        }
-    }
-    impl Drop for ViewWindow {
-        fn drop(&mut self) {
-            let _ = self.1.borrow_mut().process.close_window(self.0);
         }
     }
 
@@ -1892,15 +1903,15 @@ pub mod view_process {
     /// This is only a weak reference, every method returns [`WindowNotFound`] if the
     /// renderer has been dropped.
     ///
-    /// [`WindowNotFound`]: Error::WindowNotFound
+    /// [`WindowNotFound`]: Error::WindowNotFound(0)
     #[derive(Clone)]
-    pub struct ViewRenderer(WinId, rc::Weak<RefCell<ViewApp>>);
+    pub struct ViewRenderer(rc::Weak<WindowConnection>);
     impl ViewRenderer {
         fn call<R>(&self, f: impl FnOnce(WinId, &mut Controller) -> Result<R>) -> Result<R> {
-            if let Some(app) = self.1.upgrade() {
-                f(self.0, &mut app.borrow_mut().process)
+            if let Some(c) = self.0.upgrade() {
+                c.call(f)
             } else {
-                Err(Error::WindowNotFound(self.0))
+                Err(Error::WindowNotFound(0))
             }
         }
 

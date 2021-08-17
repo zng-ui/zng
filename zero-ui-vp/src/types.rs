@@ -12,6 +12,8 @@ use webrender::api::{BuiltDisplayListDescriptor, ColorF, Epoch, PipelineId};
 /// In the View Process this is mapped to a system id.
 ///
 /// In the App Process this is mapped to a unique id that survives View crashes.
+///
+/// Zero is never an ID.
 pub type WinId = u32;
 
 /// Device ID in channel.
@@ -240,6 +242,17 @@ pub struct WindowConfig {
     pub chrome_visible: bool,
     /// In Windows, if `Alt+F4` does **not** causes a close request and instead causes a key-press event.
     pub allow_alt_f4: bool,
+    /// If the window is "top-most".
+    pub always_on_top: bool,
+    /// If the user can move the window.
+    pub movable: bool,
+    /// If the user can resize the window.
+    pub resizable: bool,
+    /// Window icon.
+    pub icon: Option<Icon>,
+    /// If the window is see-through.
+    pub transparent: bool,
+
     /// OpenGL clear color.
     pub clear_color: Option<ColorF>,
     /// Text anti-aliasing.

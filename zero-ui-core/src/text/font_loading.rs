@@ -8,7 +8,6 @@ use std::{
 };
 
 use font_kit::properties::Weight;
-use webrender_api::RenderApi;
 
 use super::{
     font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
@@ -1268,7 +1267,7 @@ impl Drop for RenderFont {
     fn drop(&mut self) {
         let mut txn = webrender_api::Transaction::new();
         txn.delete_font_instance(self.key);
-        self.renderer.update_resources(txn.resource_updates);
+        let _ = self.renderer.update_resources(txn.resource_updates);
     }
 }
 

@@ -577,7 +577,10 @@ declare_ipc! {
     ) -> Result<WinId> {
         assert!(self.started);
 
-        let id = self.window_id_count.wrapping_add(1);
+        let mut id = self.window_id_count.wrapping_add(1);
+        if id == 0 {
+            id = 1;
+        }
         self.window_id_count = id;
 
         let window = ViewWindow::new(ctx, id, config);

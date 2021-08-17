@@ -395,6 +395,7 @@ pub mod window {
             window::{WindowFocusChangedEvent, WindowsExt},
             *,
         };
+        use zero_ui_core::var::RcVar;
 
         command! {
             /// Represents the window **close** action.
@@ -442,27 +443,22 @@ pub mod window {
             struct OnCloseNode<C: UiNode> {
                 child: C,
                 handle: CommandHandle,
+                allow_alt_f4: RcVar<bool>,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for OnCloseNode<C> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
-                    let enabled = ctx.services.focus().is_window_focused(ctx.path.window_id());
+                    let window_id = ctx.path.window_id();
+                    self.allow_alt_f4 = ctx.services.windows().vars(window_id).unwrap().allow_alt_f4().clone();
+
+                    let enabled = ctx.services.focus().is_window_focused(window_id);
                     self.handle = CloseCommand.new_handle(ctx, enabled);
 
-                    // Highjacks ALT+F4 in windows.
-                    ctx.services
-                        .windows()
-                        .allow_alt_f4(
-                            ctx.path.window_id(),
-                            CloseCommand.shortcut().get(ctx.vars).contains(shortcut![ALT + F4]),
-                        )
-                        .unwrap();
+                    // Highjacks ALT+F4 in Windows.
+                    self.allow_alt_f4
+                        .set_ne(ctx.vars, CloseCommand.shortcut().get(ctx.vars).contains(shortcut![ALT + F4]));
 
                     self.child.init(ctx)
-                }
-                fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    self.child.deinit(ctx);
-                    ctx.services.windows().allow_alt_f4(ctx.path.window_id(), false).unwrap();
                 }
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                     if let Some(args) = CloseCommand.update(args) {
@@ -486,10 +482,7 @@ pub mod window {
                     // update the ALT+F4 block flag in Windows.
                     #[cfg(windows)]
                     if let Some(s) = CloseCommand.shortcut().get_new(ctx.vars) {
-                        ctx.services
-                            .windows()
-                            .allow_alt_f4(ctx.path.window_id(), s.contains(shortcut![ALT + F4]))
-                            .unwrap();
+                        self.allow_alt_f4.set_ne(ctx.vars, s.contains(shortcut![ALT + F4]));
                     }
 
                     self.child.update(ctx);
@@ -499,6 +492,7 @@ pub mod window {
             OnCloseNode {
                 child,
                 handle: CommandHandle::dummy(),
+                allow_alt_f4: var::var(false), // dummy
             }
         }
 

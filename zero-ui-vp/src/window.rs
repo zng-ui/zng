@@ -37,8 +37,9 @@ pub(crate) struct ViewWindow {
     waiting_first_frame: bool,
 
     allow_alt_f4: Rc<Cell<bool>>,
-
     taskbar_visible: bool,
+    movable: bool, // TODO
+    transparent: bool,
 }
 
 impl ViewWindow {
@@ -51,6 +52,9 @@ impl ViewWindow {
             .with_position(PhysicalPosition::new((w.pos.x / scale) as i32, (w.pos.y / scale) as i32))
             .with_inner_size(PhysicalSize::new((w.size.width / scale) as u32, (w.size.height / scale) as u32))
             .with_decorations(w.chrome_visible)
+            .with_resizable(w.resizable)
+            .with_transparent(w.transparent)
+            .with_window_icon(w.icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba, i.width, i.height).ok()))
             .with_visible(false); // we wait for the first frame to show the window.
 
         let glutin = ContextBuilder::new().build_windowed(winit, ctx.window_target).unwrap();
@@ -144,6 +148,8 @@ impl ViewWindow {
             visible: w.visible,
             allow_alt_f4,
             taskbar_visible: true,
+            movable: w.movable,
+            transparent: w.transparent
         };
 
         app.set_taskbar_visible(w.taskbar_visible);
@@ -195,7 +201,7 @@ impl ViewWindow {
     }
 
     pub fn set_movable(&mut self, movable: bool) {
-        //TODO, electron implements this
+        self.movable = movable;
     }
 
     pub fn set_resizable(&mut self, resizable: bool) {
@@ -383,7 +389,10 @@ impl ViewWindow {
     }
 
     pub fn set_transparent(&mut self, transparent: bool) {
-        todo!()
+        if self.transparent != transparent {
+            self.transparent = transparent;
+            todo!("respawn just the window?")
+        }
     }
 
     pub fn set_parent(&mut self, parent: Option<WindowId>, modal: bool) {
