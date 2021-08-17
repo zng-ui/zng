@@ -1708,7 +1708,7 @@ pub mod view_process {
 
     use webrender_api::{DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate};
     use zero_ui_vp::{Controller, DevId, WinId};
-    pub use zero_ui_vp::{Error, Ev, FramePixels, FrameRequest, Result, TextAntiAliasing, WindowConfig};
+    pub use zero_ui_vp::{Error, Ev, FramePixels, FrameRequest, Icon, Result, TextAntiAliasing, WindowConfig};
 
     use super::DeviceId;
     use crate::service::Service;
@@ -1792,10 +1792,57 @@ pub mod view_process {
             self.1.borrow_mut().process.set_visible(self.0, visible)
         }
 
+        /// Set if the window is "top-most".
+        #[inline]
+        pub fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
+            self.1.borrow_mut().process.set_always_on_top(self.0, always_on_top)
+        }
+
+        /// Set if the user can drag-move the window.
+        #[inline]
+        pub fn set_movable(&self, movable: bool) -> Result<()> {
+            self.1.borrow_mut().process.set_movable(self.0, movable)
+        }
+
+        /// Set if the user can resize the window.
+        #[inline]
+        pub fn set_resizable(&self, resizable: bool) -> Result<()> {
+            self.1.borrow_mut().process.set_resizable(self.0, resizable)
+        }
+
+        /// Set the window icon.
+        #[inline]
+        pub fn set_icon(&self, icon: Option<Icon>) -> Result<()> {
+            self.1.borrow_mut().process.set_icon(self.0, icon)
+        }
+
         /// Set the window icon visibility in the taskbar.
         #[inline]
         pub fn set_taskbar_visible(&self, visible: bool) -> Result<()> {
             self.1.borrow_mut().process.set_taskbar_visible(self.0, visible)
+        }
+
+        /// Set the window parent and if `self` has a modal connection to it.
+        /// 
+        /// The `parent` window must be already open or this returns `WindowNotFound(0)`.
+        #[inline]
+        pub fn set_parent(&self, parent: Option<WindowId>, modal: bool) -> Result<()> {
+            if let Some(parent) = parent {
+                if let Some((parent_id, _)) = self.1.borrow().window_ids.iter().find(|(_, window_id)| **window_id == parent) {
+                    self.1.borrow_mut().process.set_parent(self.0, Some(*parent_id), modal)
+                } else {
+                    self.1.borrow_mut().process.set_parent(self.0, None, modal)?;
+                    Err(Error::WindowNotFound(0))
+                }
+            } else {
+                self.1.borrow_mut().process.set_parent(self.0, None, modal)
+            }
+        }
+
+        /// Set if the window is see-through.
+        #[inline]
+        pub fn set_transparent(&self, transparent: bool) -> Result<()> {
+            self.1.borrow_mut().process.set_transparent(self.0, transparent)
         }
 
         /// Set the window position.

@@ -160,6 +160,10 @@ impl ViewWindow {
         self.window.id() == window_id
     }
 
+    pub fn actual_id(&self) -> WindowId {
+        self.window.id()
+    }
+
     pub fn scale_factor(&self) -> f32 {
         self.window.scale_factor() as f32
     }
@@ -184,6 +188,23 @@ impl ViewWindow {
             self.window.set_visible(visible);
         }
         self.visible = visible;
+    }
+
+    pub fn set_always_on_top(&mut self, always_on_top: bool) {
+        self.window.set_always_on_top(always_on_top);
+    }
+
+    pub fn set_movable(&mut self, movable: bool) {
+        //TODO, electron implements this
+    }
+
+    pub fn set_resizable(&mut self, resizable: bool) {
+        self.window.set_resizable(resizable)
+    }
+
+    pub fn set_icon(&mut self, icon: Option<crate::Icon>) {
+        self.window
+            .set_window_icon(icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba, i.width, i.height).ok()));
     }
 
     pub fn set_title(&self, title: String) {
@@ -359,6 +380,14 @@ impl ViewWindow {
     #[cfg(not(windows))]
     pub fn set_taskbar_visible(&mut self, visible: bool) {
         log::error!("taskbar_visible not implemented in this plataform");
+    }
+
+    pub fn set_transparent(&mut self, transparent: bool) {
+        todo!()
+    }
+
+    pub fn set_parent(&mut self, parent: Option<WindowId>, modal: bool) {
+        todo!()
     }
 
     #[cfg(windows)]

@@ -571,6 +571,10 @@ pub struct WindowContext<'a> {
     pub window_state: &'a mut StateMap,
 
     /// Connection to the window renderer.
+    ///
+    /// This is only available after the first render call and if the [`mode`] is not headless. TODO rethink this
+    ///
+    /// [`mode`]: WindowContext::mode
     pub renderer: &'a Option<ViewRenderer>,
 
     /// State that lives for the duration of the node tree method call in the window.

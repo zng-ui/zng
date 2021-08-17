@@ -613,9 +613,43 @@ declare_ipc! {
         self.with_window(id, |w| w.set_visible(visible))
     }
 
+    /// Set if the window is "top-most".
+    pub fn set_always_on_top(&mut self, _ctx: &Context, id: WinId, always_on_top: bool) -> Result<()> {
+        self.with_window(id, |w| w.set_always_on_top(always_on_top))
+    }
+
+    /// Set if the user can drag-move the window.
+    pub fn set_movable(&mut self, _ctx: &Context, id: WinId, movable: bool) -> Result<()> {
+        self.with_window(id, |w| w.set_movable(movable))
+    }
+
+    /// Set if the user can resize the window.
+    pub fn set_resizable(&mut self, _ctx: &Context, id: WinId, resizable: bool) -> Result<()> {
+        self.with_window(id, |w| w.set_resizable(resizable))
+    }
+
     /// Set the window taskbar icon visibility.
     pub fn set_taskbar_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> Result<()> {
         self.with_window(id, |w| w.set_taskbar_visible(visible))
+    }
+
+    /// Set the window parent and if `self` blocks the parent events while open (`modal`).
+    pub fn set_parent(&mut self, _ctx: &Context, id: WinId, parent: Option<WinId>, modal: bool) -> Result<()> {
+        if let Some(parent_id) = parent {
+            if let Some(parent_id) = self.windows.iter().find(|w|w.id() == parent_id).map(|w|w.actual_id()) {
+                self.with_window(id, |w|w.set_parent(Some(parent_id), modal))
+            } else {
+                self.with_window(id, |w| w.set_parent(None, modal))?;
+                Err(Error::WindowNotFound(parent_id))
+            }
+        } else {
+            self.with_window(id, |w| w.set_parent(None, modal))
+        }
+    }
+
+    /// Set if the window is see-through.
+    pub fn set_transparent(&mut self, _ctx: &Context, id: WinId, transparent: bool) -> Result<()> {
+        self.with_window(id, |w| w.set_transparent(transparent))
     }
 
    /// Set the window system border and title visibility.
@@ -633,6 +667,10 @@ declare_ipc! {
         self.with_window(id, |w|w.resize_inner(size))
     }
 
+    /// Set the window icon.
+    pub fn set_icon(&mut self, _ctx: &Context, id: WinId, icon: Option<Icon>) -> Result<()> {
+        self.with_window(id, |w|w.set_icon(icon))
+    }
 
     /// Gets the root pipeline ID.
     pub fn pipeline_id(&mut self, _ctx: &Context, id: WinId) -> Result<PipelineId> {

@@ -25,7 +25,7 @@ use crate::{
     service::Service,
     state::OwnedStateMap,
     state_key,
-    text::{FontsExt, Text, TextAntiAliasing, ToText},
+    text::{Text, TextAntiAliasing, ToText},
     units::*,
     var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
     BoxedUiNode, UiNode, WidgetId,
@@ -563,7 +563,7 @@ pub enum WindowIcon {
     /// A bitmap icon.
     ///
     /// Use the [`from_rgba`](Self::from_rgba), [`from_bytes`](Self::from_bytes) or [`from_file`](Self::from_file) functions to initialize.
-    Icon(Rc<zero_ui_vp::Icon>),
+    Icon(Rc<view_process::Icon>),
     /// An [`UiNode`] that draws the icon.
     ///
     /// Use the [`render`](Self::render) function to initialize.
@@ -919,7 +919,7 @@ impl AppExtension for WindowManager {
                 WindowScaleChangedEvent.notify(ctx.events, args);
             }
         } else if let Some(args) = RawWindowClosedEvent.update(args) {
-            if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
+            if let Some(_w) = ctx.services.windows().windows.remove(&args.window_id) {
                 todo!("is this an error?")
             }
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
@@ -937,7 +937,7 @@ impl AppExtension for WindowManager {
 
     fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         for (_, w) in ctx.services.windows().windows.iter_mut() {
-            todo!("notify events")
+            todo!()
         }
     }
 
@@ -1405,7 +1405,7 @@ impl AppWindow {
 
         // init root.
         let id = WindowId::new_unique();
-        let root = ctx.window_context(id, mode, &mut wn_state, new_window).0;
+        let root = ctx.window_context(id, mode, &mut wn_state, &None, new_window).0;
         let root_id = root.id;
 
         let headless_screen = if matches!(mode, WindowMode::Headless) {
@@ -1462,9 +1462,18 @@ impl AppWindow {
 
     fn scale_factor(&self) -> f32 {
         self.renderer
-            .and_then(|r| r.scale_factor())
-            .unwrap_or_else(|| self.headless_screen.map(|h| h.scale_factor))
+            .as_ref()
+            .map(|r| r.scale_factor().ok())
+            .unwrap_or_else(|| self.headless_screen.as_ref().map(|h| h.scale_factor))
             .unwrap_or(1.0)
+    }
+
+    fn screen_size(&self) -> LayoutSize {
+        todo!()
+    }
+
+    fn screen_ppi(&self) -> f32 {
+        todo!()
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -1492,42 +1501,48 @@ impl AppWindow {
                     w.set_title(title.to_string()).unwrap();
                 }
                 if let Some(pos) = self.vars.position().get_new(ctx) {
-                    //ctx.outer_layout_context(screen_size, scale_factor, screen_ppi, window_id, root_id, f)
                     todo!()
                 }
                 if let Some(chrome) = self.vars.chrome().get_new(ctx) {
-                    w.set_chrome_visible(matches!(chrome, &WindowChrome::Default));
-                    // TODO Custom
+                    match chrome {
+                        WindowChrome::Default => w.set_chrome_visible(true).unwrap(),
+                        WindowChrome::None => w.set_chrome_visible(false).unwrap(),
+                        WindowChrome::Custom => {
+                            w.set_chrome_visible(false).unwrap();
+                            todo!();
+                        }
+                    }
                 }
                 if let Some(ico) = self.vars.icon().get_new(ctx) {
-                    todo!()
+                    match ico {
+                        WindowIcon::Default => w.set_icon(None).unwrap(),
+                        WindowIcon::Icon(ico) => w.set_icon(Some(view_process::Icon::clone(&ico))).unwrap(),
+                        WindowIcon::Render(_) => todo!(),
+                    }
                 }
                 if let Some(state) = self.vars.state().get_new(ctx) {
                     todo!()
                 }
                 if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
-                    todo!()
+                    w.set_resizable(resizable).unwrap();
                 }
                 if let Some(movable) = self.vars.movable().copy_new(ctx) {
-                    todo!()
+                    w.set_movable(movable).unwrap();
                 }
                 if let Some(always_on_top) = self.vars.always_on_top().copy_new(ctx) {
-                    todo!()
+                    w.set_always_on_top(always_on_top).unwrap();
                 }
                 if let Some(visible) = self.vars.visible().copy_new(ctx) {
-                    w.set_visible(visible);
+                    w.set_visible(visible).unwrap();
                 }
                 if let Some(visible) = self.vars.taskbar_visible().copy_new(ctx) {
-                    w.set_taskbar_visible(visible);
+                    w.set_taskbar_visible(visible).unwrap();
                 }
-                if let Some(parent) = self.vars.parent().copy_new(ctx) {
-                    todo!()
-                }
-                if let Some(modal) = self.vars.parent().copy_new(ctx) {
-                    todo!()
+                if self.vars.parent().is_new(ctx) || self.vars.modal().is_new(ctx) {
+                    w.set_parent(self.vars.parent().copy(ctx), self.vars.modal().copy(ctx));
                 }
                 if let Some(transparent) = self.vars.transparent().copy_new(ctx) {
-                    todo!()
+                    w.set_transparent(transparent);
                 }
             }
 
@@ -1582,12 +1597,14 @@ impl AppWindow {
 
     fn render(&mut self, ctx: &mut AppContext) {
         let scale_factor = self.scale_factor();
-        let ((pipeline_id, size, display_list), frame_info) =
-            if let Some(f) = self.context.render(ctx, self.frame_info.frame_id(), self.size, scale_factor) {
-                f
-            } else {
-                return; // not needed
-            };
+        let ((pipeline_id, size, display_list), frame_info) = if let Some(f) =
+            self.context
+                .render(ctx, self.frame_info.frame_id(), self.size, scale_factor, &self.renderer)
+        {
+            f
+        } else {
+            return; // not needed
+        };
 
         self.frame_info = frame_info;
 
@@ -1680,7 +1697,7 @@ impl OwnedWindowContext {
 
     fn widget_ctx(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut WidgetContext, &mut BoxedUiNode)) {
         let root = &mut self.root;
-        let ((), update) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let ((), update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let child = &mut root.child;
             ctx.widget_context(root.id, &mut root.state, |ctx| f(ctx, child))
         });
@@ -1700,7 +1717,7 @@ impl OwnedWindowContext {
         self.update = UpdateDisplayRequest::Render;
 
         let root = &mut self.root;
-        let (final_size, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let (final_size, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let child = &mut root.child;
             ctx.layout_context(
                 font_size,
@@ -1726,6 +1743,7 @@ impl OwnedWindowContext {
         frame_id: FrameId,
         root_size: LayoutSize,
         scale_factor: f32,
+        renderer: &Option<ViewRenderer>,
     ) -> Option<((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo)> {
         if !matches!(self.update, UpdateDisplayRequest::Render) {
             return None;
@@ -1735,7 +1753,7 @@ impl OwnedWindowContext {
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (frame, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &self.renderer, |ctx| {
+        let (frame, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
             let child = &mut root.child;
             let mut builder = FrameBuilder::new(
                 frame_id,
@@ -1761,7 +1779,7 @@ impl OwnedWindowContext {
         let root = &self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (updates, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let (updates, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let window_id = *ctx.window_id;
             ctx.render_context(root.id, &root.state, |ctx| {
                 let mut update = FrameUpdate::new(window_id, root.id, root_transform_key, frame_id);

@@ -15,7 +15,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{fmt, io::Write, marker::PhantomData, mem, rc::Rc, sync::Arc};
+use std::{fmt, io::Write, marker::PhantomData, mem, sync::Arc};
 use webrender_api::*;
 
 #[doc(no_inline)]
@@ -187,7 +187,10 @@ impl FrameBuilder {
         scale_factor: f32,
     ) -> Self {
         debug_assert_aligned!(root_size, PixelGrid::new(scale_factor));
-        let pipeline_id = renderer.and_then(|r| r.pipeline_id().ok()).unwrap_or_else(PipelineId::dummy);
+        let pipeline_id = renderer
+            .as_ref()
+            .and_then(|r| r.pipeline_id().ok())
+            .unwrap_or_else(PipelineId::dummy);
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
         let spatial_id = SpatialId::root_reference_frame(pipeline_id);
         let mut new = FrameBuilder {

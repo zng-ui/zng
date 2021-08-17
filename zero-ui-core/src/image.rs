@@ -10,7 +10,7 @@ use std::{
     sync::{Arc, Weak},
     time::Duration,
 };
-use webrender_api::{ImageKey, RenderApi};
+use webrender_api::ImageKey;
 
 pub mod bmp;
 pub mod farbfeld;
