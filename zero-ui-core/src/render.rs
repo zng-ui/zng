@@ -1,6 +1,7 @@
 //! Frame render and metadata API.
 
 use crate::{
+    app::view_process::ViewRenderer,
     border::{BorderSides, LayoutBorderRadius},
     color::{RenderColor, RenderFilter},
     context::{OwnedStateMap, RenderContext, StateMap},
@@ -54,10 +55,10 @@ pub type FrameId = webrender_api::Epoch;
 /// [`FontManager`]: crate::text::FontManager
 /// [`Font`]: crate::text::Font
 pub trait Font {
-    /// Gets the instance key in the `api` namespace.
+    /// Gets the instance key in the `renderer` namespace.
     ///
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
-    fn instance_key(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey;
+    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey;
 }
 
 /// A loaded or loading image.
@@ -74,11 +75,11 @@ pub trait Font {
 /// [`ImageManager`]: crate::image::ImageManager
 /// [`Image`]: crate::image::Image
 pub trait Image {
-    /// Gets the image key in the `api` namespace.
+    /// Gets the image key in the `renderer` namespace.
     ///
     /// The image must be loaded asynchronously by `self` and does not need to
     /// be loaded yet when the key is returned.
-    fn image_key(&self, api: &Rc<RenderApi>) -> webrender_api::ImageKey;
+    fn image_key(&self, renderer: &ViewRenderer) -> webrender_api::ImageKey;
 
     /// Returns a value that indicates if the image is already pre-multiplied.
     ///
@@ -133,7 +134,7 @@ impl From<ImageRendering> for webrender_api::ImageRendering {
 
 /// A full frame builder.
 pub struct FrameBuilder {
-    api: Option<Rc<RenderApi>>,
+    renderer: Option<ViewRenderer>,
 
     scale_factor: f32,
     display_list: DisplayListBuilder,
@@ -168,8 +169,7 @@ impl FrameBuilder {
     ///
     /// * `frame_id` - Id of the new frame.
     /// * `window_id` - Id of the window that will render the frame.
-    /// * `pipeline_id` - Id of the pipeline that will render the frame, usually a single pipeline per window.
-    /// * `api` - The render API that will render the frame, usually one per window, is `None` in renderless mode.
+    /// * `renderer` - Connection to the renderer connection that will render the frame, is `None` in renderless mode.
     /// * `root_id` - Id of the root widget of the frame, usually the window root.
     /// * `root_transform_key` - Frame binding for the root widget layout transform.
     /// * `root_size` - Layout size of the root widget, defines root hit area and the clear rectangle.
@@ -180,18 +180,18 @@ impl FrameBuilder {
     pub fn new(
         frame_id: FrameId,
         window_id: WindowId,
-        pipeline_id: PipelineId,
-        api: Option<Rc<RenderApi>>,
+        renderer: Option<ViewRenderer>,
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
         root_size: LayoutSize,
         scale_factor: f32,
     ) -> Self {
         debug_assert_aligned!(root_size, PixelGrid::new(scale_factor));
+        let pipeline_id = renderer.and_then(|r| r.pipeline_id().ok()).unwrap_or_else(PipelineId::dummy);
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
         let spatial_id = SpatialId::root_reference_frame(pipeline_id);
         let mut new = FrameBuilder {
-            api,
+            renderer,
             scale_factor,
             display_list: DisplayListBuilder::with_capacity(pipeline_id, root_size, 100),
             info_id: info.root_id(),
@@ -223,16 +223,7 @@ impl FrameBuilder {
         root_size: LayoutSize,
         scale_factor: f32,
     ) -> Self {
-        Self::new(
-            frame_id,
-            window_id,
-            PipelineId(0, 0),
-            None,
-            root_id,
-            root_transform_key,
-            root_size,
-            scale_factor,
-        )
+        Self::new(frame_id, window_id, None, root_id, root_transform_key, root_size, scale_factor)
     }
 
     /// Pixel scale factor used by the renderer.
@@ -292,15 +283,15 @@ impl FrameBuilder {
     /// unless they need access to the [`render_api`](Self::render_api).
     #[inline]
     pub fn is_renderless(&self) -> bool {
-        self.api.is_none()
+        self.renderer.is_none()
     }
 
-    /// Reference webrender API.
+    /// Connection to the renderer that will render this frame.
     ///
     /// Returns `None` when in [renderless](Self::is_renderless) mode.
     #[inline]
-    pub fn render_api(&self) -> Option<&Rc<RenderApi>> {
-        self.api.as_ref()
+    pub fn renderer(&self) -> Option<&ViewRenderer> {
+        self.renderer.as_ref()
     }
 
     /// Window that owns the frame.
@@ -745,10 +736,10 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
-        if let Some(api) = &self.api {
-            let instance_key = font.instance_key(api, synthesis);
+        if let Some(r) = &self.renderer {
+            let instance_key = font.instance_key(r, synthesis);
 
-            debug_assert_eq!(api.get_namespace_id(), instance_key.0);
+            debug_assert_eq!(r.namespace_id().unwrap(), instance_key.0);
 
             self.display_list
                 .push_text(&self.common_item_properties(rect), rect, glyphs, instance_key, color, None);
@@ -765,8 +756,8 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
-        if let Some(api) = &self.api {
-            let image_key = image.image_key(api);
+        if let Some(r) = &self.renderer {
+            let image_key = image.image_key(r);
             self.display_list.push_image(
                 &self.common_item_properties(rect),
                 rect,

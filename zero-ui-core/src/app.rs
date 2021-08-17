@@ -28,7 +28,7 @@ use std::{
     time::Instant,
 };
 
-pub use zero_ui_vp::{init_view_process, ControlFlow};
+pub use zero_ui_vp::init_view_process;
 
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///
@@ -208,7 +208,7 @@ pub trait AppExtension: 'static {
         let _ = (ctx, update);
     }
 
-    /// Called when a new frame is ready to be presented.
+    /// Called when a new frame is ready to be inspected.
     #[inline]
     fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
         let _ = (ctx, window_id);
@@ -762,8 +762,16 @@ impl<E: AppExtension> RunningApp<E> {
         self.ctx().services.register(view_app);
 
         loop {
-            self.wait_app_event();
+            match self.poll(&mut ()) {
+                ControlFlow::Wait => {} // poll waits
+                ControlFlow::Exit => break,
+                ControlFlow::Poll => unreachable!(),
+            }
         }
+
+        // TODO, review if any code depends on this, we coded a lot when
+        // using winit directly in the process and winit never returns
+        std::process::exit(0);
     }
 
     /// Exclusive borrow the app context.
@@ -804,12 +812,92 @@ impl<E: AppExtension> RunningApp<E> {
         self.ctx().services.req::<view_process::ViewProcess>().device_id(id)
     }
 
+    /// Repeatedly sleeps-waits for app events until the control flow changes to something other the [`Poll`].
+    ///
+    /// This method also manages timers, awaking when a timer deadline elapses and causing an update cycle.
+    ///
+    /// [`Poll`]: ControlFlow::Poll
+    #[inline]
+    #[must_use = "ControlFlow must be used"]
+    pub fn poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
+        let mut flow = ControlFlow::Poll;
+        while let ControlFlow::Poll = flow {
+            if let Some(timer) = self.wake_time {
+                flow = match self.receiver.recv_deadline(timer) {
+                    Ok(ev) => self.app_event(ev, observer),
+                    Err(e) => match e {
+                        flume::RecvTimeoutError::Timeout => self.update(observer),
+                        flume::RecvTimeoutError::Disconnected => panic!("app events channel disconnected"),
+                    },
+                }
+            } else {
+                let ev = self.receiver.recv().expect("app events channel disconnected");
+                flow = self.app_event(ev, observer);
+            }
+        }
+        flow
+    }
+
+    /// Try to receive app events until the control flow changes to something other the [`Poll`], if
+    /// there is no app event in the channel returns [`Poll`].
+    ///
+    /// This method does not manages timers, you can probe [`wake_time`] to get the next timer deadline.
+    ///
+    /// [`Poll`]: ControlFlow::Poll
+    #[must_use = "ControlFlow must be used"]
+    pub fn try_poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
+        match self.receiver.try_recv() {
+            Ok(ev) => self.app_event(ev, observer),
+            Err(flume::TryRecvError::Empty) => ControlFlow::Wait,
+            Err(e) => panic!("{:?}", e),
+        }
+    }
+
+    /// Next timer deadline.
+    #[inline]
+    pub fn wake_time(&self) -> Option<Instant> {
+        self.wake_time
+    }
+
+    /// Process an [`AppEvent`].
+    #[must_use = "ControlFlow must be used"]
+    fn app_event<O: AppEventObserver>(&mut self, app_event: AppEvent, observer: &mut O) -> ControlFlow {
+        self.maybe_has_updates = true;
+
+        match app_event {
+            AppEvent::ViewEvent(ev) => {
+                return self.view_event(ev, observer);
+            }
+            AppEvent::NewFrame(window_id) => {
+                let mut ctx = self.owned_ctx.borrow();
+                self.extensions.new_frame(&mut ctx, window_id);
+                observer.new_frame(&mut ctx, window_id);
+            }
+            AppEvent::Update => self.owned_ctx.borrow().updates.update(),
+            AppEvent::Event(e) => {
+                self.owned_ctx.borrow().events.notify_app_event(e);
+            }
+            AppEvent::Var => {
+                self.owned_ctx.borrow().vars.receive_sended_modify();
+            }
+            AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
+        }
+
+        self.update(observer)
+    }
+
     /// Process a View Process event.
-    pub fn view_event(&mut self, ev: zero_ui_vp::Ev) {
+    ///
+    /// Does `update` on `EventsCleared`.
+    #[must_use = "ControlFlow must be used"]
+    fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_vp::Ev, observer: &mut O) -> ControlFlow {
         use raw_device_events::*;
         use raw_events::*;
 
         match ev {
+            zero_ui_vp::Ev::EventsCleared => {
+                return self.update(observer);
+            }
             zero_ui_vp::Ev::WindowResized(w_id, size) => {
                 let args = RawWindowResizedArgs::now(self.window_id(w_id), size);
                 self.notify_event(RawWindowResizedEvent, args);
@@ -958,57 +1046,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         self.maybe_has_updates = true;
-    }
-
-    /// Blocks until one event is received then process it.
-    #[inline]
-    pub fn wait_app_event(&mut self) {
-        let ev = self.receiver.recv().unwrap();
-        self.app_event(ev)
-    }
-
-    /// Try to receive one event and process it, returns `true` if the one event was processed.
-    pub fn try_app_event(&mut self) -> bool {
-        match self.receiver.try_recv() {
-            Ok(ev) => {
-                self.app_event(ev);
-                true
-            }
-            Err(flume::TryRecvError::Empty) => false,
-            Err(e) => panic!("{:?}", e),
-        }
-    }
-
-    /// Process an [`AppEvent`].
-    fn app_event(&mut self, app_event: AppEvent) {
-        match app_event {
-            AppEvent::ViewEvent(ev) => self.view_event(ev),
-            AppEvent::NewFrame(window_id) => {
-                let mut ctx = self.owned_ctx.borrow();
-                self.extensions.new_frame(&mut ctx, window_id);
-            }
-            AppEvent::Update => {
-                self.owned_ctx.borrow().updates.update();
-            }
-            AppEvent::Event(e) => {
-                self.owned_ctx.borrow().events.notify_app_event(e);
-            }
-            AppEvent::Var => {
-                self.owned_ctx.borrow().vars.receive_sended_modify();
-            }
-            AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
-        }
-        self.maybe_has_updates = true;
-    }
-
-    /// Process application suspension.
-    pub fn suspended(&mut self) {
-        log::error!(target: "app", "TODO suspended");
-    }
-
-    /// Process application resume from suspension.
-    pub fn resumed(&mut self) {
-        log::error!(target: "app", "TODO resumed");
+        ControlFlow::Poll
     }
 
     /// Does pending event and updates until there is no more updates generated, then returns
@@ -1016,7 +1054,8 @@ impl<E: AppExtension> RunningApp<E> {
     /// if there aren't.
     ///
     /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
-    pub fn update<O: AppUpdateObserver>(&mut self, observer: &mut O) -> ControlFlow {
+    #[must_use = "ControlFlow must be used"]
+    pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         if self.maybe_has_updates {
             self.maybe_has_updates = false;
 
@@ -1093,8 +1132,6 @@ impl<E: AppExtension> RunningApp<E> {
 
         if self.exiting {
             ControlFlow::Exit
-        } else if let Some(wake) = self.wake_time {
-            ControlFlow::WaitUntil(wake)
         } else {
             ControlFlow::Wait
         }
@@ -1105,6 +1142,19 @@ impl<E: AppExtension> RunningApp<E> {
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
     }
+}
+
+/// Desired next step of a loop animating a [`RunningApp`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ControlFlow {
+    /// Immediately try to receive more app events.
+    Poll,
+    /// Sleep until an app event is received.
+    ///
+    /// Note that a deadline might be set in case a timer is running.
+    Wait,
+    /// Exit the loop and drop the [`RunningApp`].
+    Exit,
 }
 
 /// A headless app controller.
@@ -1166,7 +1216,7 @@ impl HeadlessApp {
     /// See [`update_observed`](Self::update_observed) for more details.
     pub fn update_observe(&mut self, on_update: impl FnMut(&mut AppContext), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
-        impl<F: FnMut(&mut AppContext)> AppUpdateObserver for Observer<F> {
+        impl<F: FnMut(&mut AppContext)> AppEventObserver for Observer<F> {
             fn update(&mut self, ctx: &mut AppContext) {
                 (self.0)(ctx)
             }
@@ -1180,7 +1230,7 @@ impl HeadlessApp {
     /// See [`update_observed`](Self::update_observed) for more details.
     pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &AnyEventUpdate), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
-        impl<F: FnMut(&mut AppContext, &AnyEventUpdate)> AppUpdateObserver for Observer<F> {
+        impl<F: FnMut(&mut AppContext, &AnyEventUpdate)> AppEventObserver for Observer<F> {
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
                 let args = args.as_any();
                 (self.0)(ctx, &args);
@@ -1192,28 +1242,32 @@ impl HeadlessApp {
 
     /// Does updates with an [`AppUpdateObserver`].
     ///
-    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received,
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or the [`wake_time`] is reached,
     /// if it is `false` only responds to app events already in the buffer.
     ///
-    /// Does updates until there are no more updates to do, returns [`Exit`](ControlFlow::Exit) if app has shutdown,
-    /// or returns [`WaitUntil`](ControlFlow::WaitUntil) if a timer is running or returns [`Wait`](ControlFlow::Wait)
-    /// if the app is sleeping.
-    pub fn update_observed<O: AppUpdateObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
+    /// [`wake_time`]: Self::wake_time
+    pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
         if wait_app_event {
-            self.app.wait_app_event();
+            self.app.poll(observer)
+        } else {
+            self.app.try_poll(observer)
         }
+    }
 
-        while self.app.try_app_event() {}
-
-        let r = self.app.update(observer);
-        debug_assert!(r != ControlFlow::Poll);
-
-        r
+    /// Next timer deadline.
+    #[inline]
+    pub fn wake_time(&mut self) -> Option<Instant> {
+        self.app.wake_time()
     }
 }
 
 /// Observer for [`HeadlessApp::update_observed`] and [`RunningApp::update`].
-pub trait AppUpdateObserver {
+pub trait AppEventObserver {
+    /// Called for each raw event received.
+    fn raw_event(&mut self, ctx: &mut AppContext, ev: &zero_ui_vp::Ev) {
+        let _ = (ctx, ev);
+    }
+
     /// Called just after [`AppExtension::event_preview`].
     fn event_preview<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
         let _ = (ctx, args);
@@ -1248,9 +1302,14 @@ pub trait AppUpdateObserver {
     fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
         let _ = (ctx, update);
     }
+
+    /// Called just after [`AppExtension::new_frame`].
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+        let _ = (ctx, window_id);
+    }
 }
 /// Nil observer, does nothing.
-impl AppUpdateObserver for () {}
+impl AppEventObserver for () {}
 
 impl AppExtension for () {
     #[inline]
@@ -1642,12 +1701,13 @@ impl fmt::Display for DeviceId {
 /// View process controller types.
 pub mod view_process {
     use std::path::PathBuf;
+    use std::rc;
     use std::{cell::RefCell, rc::Rc};
 
     use linear_map::LinearMap;
 
-    use webrender_api::HitTestResult;
-    use zero_ui_vp::{DevId, WinId};
+    use webrender_api::{DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate};
+    use zero_ui_vp::{Controller, DevId, WinId};
     pub use zero_ui_vp::{Error, Ev, FramePixels, FrameRequest, Result, TextAntiAliasing, WindowConfig};
 
     use super::DeviceId;
@@ -1715,7 +1775,7 @@ pub mod view_process {
         }
     }
 
-    /// Reference to a window open in the View Process.
+    /// Connection to a window open in the View Process.
     ///
     /// The window closes when this struct is dropped.
     pub struct ViewWindow(WinId, Rc<RefCell<ViewApp>>);
@@ -1759,7 +1819,7 @@ pub mod view_process {
         /// Reference the window renderer.
         #[inline]
         pub fn renderer(&self) -> ViewRenderer {
-            ViewRenderer(self.0, self.1.clone())
+            ViewRenderer(self.0, Rc::downgrade(&self.1))
         }
 
         /// In Windows stops the system from requesting a window close on `ALT+F4` and sends a key
@@ -1780,17 +1840,56 @@ pub mod view_process {
         }
     }
 
-    /// Reference to a window renderer in the View Process.
-    pub struct ViewRenderer(WinId, Rc<RefCell<ViewApp>>);
+    /// Connection to a renderer in the View Process.
+    ///
+    /// This is only a weak reference, every method returns [`WindowNotFound`] if the
+    /// renderer has been dropped.
+    ///
+    /// [`WindowNotFound`]: Error::WindowNotFound
+    #[derive(Clone)]
+    pub struct ViewRenderer(WinId, rc::Weak<RefCell<ViewApp>>);
     impl ViewRenderer {
+        fn call<R>(&self, f: impl FnOnce(WinId, &mut Controller) -> Result<R>) -> Result<R> {
+            if let Some(app) = self.1.upgrade() {
+                f(self.0, &mut app.borrow_mut().process)
+            } else {
+                Err(Error::WindowNotFound(self.0))
+            }
+        }
+
+        /// Gets the root pipeline ID.
+        pub fn pipeline_id(&self) -> Result<PipelineId> {
+            self.call(|id, p| p.pipeline_id(id))
+        }
+
+        /// Gets the resource namespace.
+        pub fn namespace_id(&self) -> Result<IdNamespace> {
+            self.call(|id, p| p.namespace_id(id))
+        }
+
+        /// New image resource key.
+        pub fn generate_image_key(&self) -> Result<ImageKey> {
+            self.call(|id, p| p.generate_image_key(id))
+        }
+
+        /// New font resource key.
+        pub fn generate_font_key(&self) -> Result<FontKey> {
+            self.call(|id, p| p.generate_font_key(id))
+        }
+
+        /// New font instance key.
+        pub fn generate_font_instance_key(&self) -> Result<FontInstanceKey> {
+            self.call(|id, p| p.generate_font_instance_key(id))
+        }
+
         /// Gets the viewport size (window inner size).
         pub fn size(&self) -> Result<LayoutSize> {
-            self.1.borrow_mut().process.size(self.0)
+            self.call(|id, p| p.size(id))
         }
 
         /// Gets the window scale factor.
         pub fn scale_factor(&self) -> Result<f32> {
-            self.1.borrow_mut().process.scale_factor(self.0)
+            self.call(|id, p| p.scale_factor(id))
         }
 
         /// Read a `rect` of pixels from the current frame.
@@ -1798,26 +1897,41 @@ pub mod view_process {
         /// This is a call to `glReadPixels`, each pixel row is stacked from
         /// bottom-to-top with the pixel type BGRA8.
         pub fn read_pixels_rect(&self, rect: LayoutRect) -> Result<FramePixels> {
-            self.1.borrow_mut().process.read_pixels_rect(self.0, rect)
+            self.call(|id, p| p.read_pixels_rect(id, rect))
         }
 
         /// Read all pixels of the current frame.
         ///
         /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
         pub fn read_pixels(&self) -> Result<FramePixels> {
-            self.1.borrow_mut().process.read_pixels(self.0)
+            self.call(|id, p| p.read_pixels(id))
         }
 
         /// Get display items of the last rendered frame that intercept the `point`.
         ///
         /// Returns all hits from front-to-back.
         pub fn hit_test(&self, point: LayoutPoint) -> Result<HitTestResult> {
-            self.1.borrow_mut().process.hit_test(self.0, point)
+            self.call(|id, p| p.hit_test(id, point))
         }
 
         /// Change the text anti-alias used in this renderer.
         pub fn set_text_aa(&self, aa: TextAntiAliasing) -> Result<()> {
-            self.1.borrow_mut().process.set_text_aa(self.0, aa)
+            self.call(|id, p| p.set_text_aa(id, aa))
+        }
+
+        /// Render a new frame.
+        pub fn render(&self, frame: FrameRequest) -> Result<()> {
+            self.call(|id, p| p.render(id, frame))
+        }
+
+        /// Update the current frame and re-render it.
+        pub fn render_update(&self, updates: DynamicProperties) -> Result<()> {
+            self.call(|id, p| p.render_update(id, updates))
+        }
+
+        /// Add/remove/update resources such as images and fonts.
+        pub fn update_resources(&self, updates: Vec<ResourceUpdate>) -> Result<()> {
+            self.call(|id, p| p.update_resources(id, updates))
         }
     }
 

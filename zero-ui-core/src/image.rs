@@ -18,7 +18,7 @@ mod formats;
 pub use formats::*;
 
 use crate::{
-    app::AppExtension,
+    app::{view_process::ViewRenderer, AppExtension},
     context::LayoutMetrics,
     service::Service,
     task::{
@@ -412,15 +412,15 @@ impl Image {
     }
 }
 impl crate::render::Image for Image {
-    fn image_key(&self, api: &Rc<webrender_api::RenderApi>) -> ImageKey {
+    fn image_key(&self, renderer: &ViewRenderer) -> ImageKey {
         use webrender_api::*;
 
-        let namespace = api.get_namespace_id();
+        let namespace = renderer.namespace_id().unwrap();
         let mut rms = self.render_keys.borrow_mut();
         if let Some(rm) = rms.iter().find(|k| k.key.0 == namespace) {
             return rm.key;
         }
-        let key = api.generate_image_key();
+        let key = renderer.generate_image_key().unwrap();
 
         let mut txn = Transaction::new();
         txn.add_image(
@@ -438,11 +438,11 @@ impl crate::render::Image for Image {
             ImageData::Raw(self.bgra.clone()),
             None,
         );
-        api.update_resources(txn.resource_updates);
+        renderer.update_resources(txn.resource_updates);
 
         rms.push(RenderImage {
             key,
-            api: Rc::downgrade(api),
+            renderer: renderer.clone(),
         });
         key
     }
@@ -491,15 +491,13 @@ impl WeakImage {
 
 struct RenderImage {
     key: ImageKey,
-    api: rc::Weak<RenderApi>,
+    renderer: ViewRenderer,
 }
 impl Drop for RenderImage {
     fn drop(&mut self) {
-        if let Some(api) = self.api.upgrade() {
-            let mut txn = webrender_api::Transaction::new();
-            txn.delete_image(self.key);
-            api.update_resources(txn.resource_updates);
-        }
+        let mut txn = webrender_api::Transaction::new();
+        txn.delete_image(self.key);
+        self.renderer.update_resources(txn.resource_updates);
     }
 }
 impl fmt::Debug for RenderImage {

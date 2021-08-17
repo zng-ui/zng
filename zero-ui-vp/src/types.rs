@@ -35,6 +35,11 @@ pub type ScreenId = u32;
 pub enum Ev {
     /// The View Process crashed and respawned, all resources must be rebuild.
     Respawned,
+    /// A sequence of events that happened at the *same time* finished sending.
+    ///
+    /// The same device action can generate multiple events, this event is send after
+    /// each such sequence of window and device events, even if it only one event.
+    EventsCleared,
 
     // Window events
     WindowResized(WinId, LayoutSize),

@@ -1631,7 +1631,7 @@ impl HeadlessApp {
                 use crate::app::ControlFlow;
                 match flow {
                     ControlFlow::Poll => continue,
-                    ControlFlow::Wait | ControlFlow::WaitUntil(_) => {
+                    ControlFlow::Wait => {
                         thread::yield_now();
                         continue;
                     }

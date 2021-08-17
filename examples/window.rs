@@ -199,7 +199,7 @@ fn headless() -> impl Widget {
                             }
                             enabled.send(true).unwrap();
                         });
-                        ctx.services.windows().close(args.window_id);
+                        ctx.services.windows().close(args.window_id).unwrap();
                     });
                 }),
                 true

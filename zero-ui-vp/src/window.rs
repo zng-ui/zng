@@ -241,6 +241,10 @@ impl ViewWindow {
         self.api.send_transaction(self.document_id, txn);
     }
 
+    pub fn update_resources(&mut self, updates: Vec<ResourceUpdate>) {
+        self.api.update_resources(updates);
+    }
+
     pub fn request_redraw(&self) {
         self.window.request_redraw();
     }
@@ -276,6 +280,26 @@ impl ViewWindow {
 
     pub fn set_text_aa(&self, aa: TextAntiAliasing) {
         todo!("need to rebuild the renderer?")
+    }
+
+    pub fn pipeline_id(&self) -> PipelineId {
+        self.pipeline_id
+    }
+
+    pub fn namespace_id(&self) -> IdNamespace {
+        self.api.get_namespace_id()
+    }
+
+    pub fn generate_image_key(&self) -> ImageKey {
+        self.api.generate_image_key()
+    }
+
+    pub fn generate_font_key(&self) -> FontKey {
+        self.api.generate_font_key()
+    }
+
+    pub fn generate_font_instance_key(&self) -> FontInstanceKey {
+        self.api.generate_font_instance_key()
     }
 
     pub fn inner_size(&self) -> LayoutSize {

@@ -16,7 +16,7 @@ use super::{
 use crate::{
     app::{
         raw_events::{RawFontChangedEvent, RawTextAaChangedEvent},
-        view_process::ViewProcess,
+        view_process::{ViewProcess, ViewRenderer},
         AppEventSender, AppExtension,
     },
     context::AppContext,
@@ -490,8 +490,8 @@ impl FontFace {
         self.unregistered.set(true);
     }
 
-    fn render_face(&self, api: &Rc<RenderApi>, txn: &mut webrender_api::Transaction) -> webrender_api::FontKey {
-        let namespace = api.get_namespace_id();
+    fn render_face(&self, renderer: &ViewRenderer, txn: &mut webrender_api::Transaction) -> webrender_api::FontKey {
+        let namespace = renderer.namespace_id().unwrap();
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter() {
             if r.key.0 == namespace {
@@ -499,10 +499,10 @@ impl FontFace {
             }
         }
 
-        let key = api.generate_font_key();
+        let key = renderer.generate_font_key().unwrap();
         txn.add_raw_font(key, (*self.bytes).clone(), self.face_index);
 
-        keys.push(RenderFontFace::new(api, key));
+        keys.push(RenderFontFace::new(renderer, key));
 
         key
     }
@@ -651,8 +651,8 @@ impl Font {
         }
     }
 
-    fn render_font(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
-        let namespace = api.get_namespace_id();
+    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
+        let namespace = renderer.namespace_id().unwrap();
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter() {
             if r.key.0 == namespace && r.synthesis == synthesis {
@@ -662,9 +662,9 @@ impl Font {
 
         let mut txn = webrender_api::Transaction::new();
 
-        let font_key = self.face.render_face(api, &mut txn);
+        let font_key = self.face.render_face(renderer, &mut txn);
 
-        let key = api.generate_font_instance_key();
+        let key = renderer.generate_font_instance_key().unwrap();
 
         let mut opt = webrender_api::FontInstanceOptions::default();
         if synthesis.contains(FontSynthesis::STYLE) {
@@ -688,9 +688,9 @@ impl Font {
                 .collect(),
         );
 
-        api.update_resources(txn.resource_updates);
+        renderer.update_resources(txn.resource_updates).unwrap();
 
-        keys.push(RenderFont::new(api, synthesis, key));
+        keys.push(RenderFont::new(renderer, synthesis, key));
 
         key
     }
@@ -732,9 +732,9 @@ impl Font {
     }
 }
 impl crate::render::Font for Font {
-    fn instance_key(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
+    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
         // how does cache clear works with this?
-        self.render_font(api, synthesis)
+        self.render_font(renderer, synthesis)
     }
 }
 
@@ -742,8 +742,8 @@ impl crate::render::Font for Font {
 pub type FontRef = Rc<Font>;
 
 impl crate::render::Font for FontRef {
-    fn instance_key(&self, api: &Rc<RenderApi>, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
-        self.render_font(api, synthesis)
+    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
+        self.render_font(renderer, synthesis)
     }
 }
 
@@ -1231,36 +1231,34 @@ impl FontFaceLoader {
 }
 
 struct RenderFontFace {
-    api: std::rc::Weak<RenderApi>,
+    renderer: ViewRenderer,
     key: webrender_api::FontKey,
 }
 impl RenderFontFace {
-    fn new(api: &Rc<RenderApi>, key: webrender_api::FontKey) -> Self {
+    fn new(renderer: &ViewRenderer, key: webrender_api::FontKey) -> Self {
         RenderFontFace {
-            api: Rc::downgrade(api),
+            renderer: renderer.clone(),
             key,
         }
     }
 }
 impl Drop for RenderFontFace {
     fn drop(&mut self) {
-        if let Some(api) = self.api.upgrade() {
-            let mut txn = webrender_api::Transaction::new();
-            txn.delete_font(self.key);
-            api.update_resources(txn.resource_updates);
-        }
+        let mut txn = webrender_api::Transaction::new();
+        txn.delete_font(self.key);
+        let _ = self.renderer.update_resources(txn.resource_updates);
     }
 }
 
 struct RenderFont {
-    api: std::rc::Weak<RenderApi>,
+    renderer: ViewRenderer,
     synthesis: FontSynthesis,
     key: webrender_api::FontInstanceKey,
 }
 impl RenderFont {
-    fn new(api: &Rc<RenderApi>, synthesis: FontSynthesis, key: webrender_api::FontInstanceKey) -> RenderFont {
+    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, key: webrender_api::FontInstanceKey) -> RenderFont {
         RenderFont {
-            api: Rc::downgrade(api),
+            renderer: renderer.clone(),
             synthesis,
             key,
         }
@@ -1268,11 +1266,9 @@ impl RenderFont {
 }
 impl Drop for RenderFont {
     fn drop(&mut self) {
-        if let Some(api) = self.api.upgrade() {
-            let mut txn = webrender_api::Transaction::new();
-            txn.delete_font_instance(self.key);
-            api.update_resources(txn.resource_updates);
-        }
+        let mut txn = webrender_api::Transaction::new();
+        txn.delete_font_instance(self.key);
+        self.renderer.update_resources(txn.resource_updates);
     }
 }
 

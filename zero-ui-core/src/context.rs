@@ -1,6 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
 use crate::{
+    app::view_process::ViewRenderer,
     event::Events,
     service::Services,
     units::{LayoutSize, PixelGrid},
@@ -506,6 +507,7 @@ impl<'a> AppContext<'a> {
         window_id: WindowId,
         mode: WindowMode,
         window_state: &mut OwnedStateMap,
+        renderer: &Option<ViewRenderer>,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, UpdateDisplayRequest) {
         self.updates.win_display_update = UpdateDisplayRequest::None;
@@ -517,6 +519,7 @@ impl<'a> AppContext<'a> {
             mode: &mode,
             app_state: self.app_state,
             window_state: &mut window_state.0,
+            renderer,
             update_state: &mut update_state,
             vars: self.vars,
             events: self.events,
@@ -566,6 +569,9 @@ pub struct WindowContext<'a> {
 
     /// State that lives for the duration of the window.
     pub window_state: &'a mut StateMap,
+
+    /// Connection to the window renderer.
+    pub renderer: &'a Option<ViewRenderer>,
 
     /// State that lives for the duration of the node tree method call in the window.
     ///

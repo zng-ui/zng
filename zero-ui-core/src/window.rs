@@ -3,20 +3,25 @@
 use std::{fmt, mem, rc::Rc};
 
 use linear_map::LinearMap;
-use webrender_api::{BuiltDisplayList, PipelineId};
+use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
 pub use zero_ui_vp::{CursorIcon, Theme as WindowTheme};
 
 use crate::{
     app::{
         self,
-        view_process::{self, ViewProcessExt, ViewRenderer, ViewWindow},
+        raw_events::{
+            RawWindowCloseRequestedEvent, RawWindowClosedEvent, RawWindowFocusEvent, RawWindowMovedEvent, RawWindowResizedEvent,
+            RawWindowScaleFactorChangedEvent,
+        },
+        view_process::{self, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension,
     },
     cancelable_event_args,
     color::rgb,
     context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
-    event, event_args, impl_from_and_into_var,
-    render::{FrameBuilder, FrameHitInfo, FrameInfo, FramePixels, WidgetTransformKey},
+    event::{event, EventUpdateArgs},
+    event_args, impl_from_and_into_var,
+    render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, WidgetTransformKey},
     service::Service,
     state::OwnedStateMap,
     state_key,
@@ -596,10 +601,14 @@ impl WindowIcon {
     /// New window icon from 32bpp RGBA data.
     ///
     /// The `rgba` must be a sequence of RGBA pixels in top-to-bottom rows.
+    ///
+    /// # Panics
+    ///
+    /// If `rgba.len()` is not `width * height * 4`.
     #[inline]
-    pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, ()> {
-        // TODO validate
-        Ok(Self::Icon(Rc::new(zero_ui_vp::Icon { rgba, width, height })))
+    pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Self {
+        assert!(rgba.len() == width as usize * height as usize * 4);
+        Self::Icon(Rc::new(zero_ui_vp::Icon { rgba, width, height }))
     }
 
     /// New window icon from the bytes of an encoded image.
@@ -611,7 +620,7 @@ impl WindowIcon {
 
         let image = image::load_from_memory(bytes)?;
         let (width, height) = image.dimensions();
-        let icon = Self::from_rgba(image.into_bytes(), width, height).expect("image loaded a BadIcon from memory");
+        let icon = Self::from_rgba(image.into_bytes(), width, height);
         Ok(icon)
     }
 
@@ -624,7 +633,7 @@ impl WindowIcon {
 
         let image = image::open(file)?;
         let (width, height) = image.dimensions();
-        let icon = Self::from_rgba(image.into_bytes(), width, height).expect("image loaded a BadIcon from file");
+        let icon = Self::from_rgba(image.into_bytes(), width, height);
         Ok(icon)
     }
 
@@ -640,7 +649,7 @@ impl WindowIcon {
     }
 }
 impl_from_and_into_var! {
-    /// [`WindowIcon::from_bytes`]
+    /// [`WindowIcon::from_bytes`] but just logs errors.
     fn from(bytes: &'static [u8]) -> WindowIcon {
         WindowIcon::from_bytes(bytes).unwrap_or_else(|e| {
             log::error!(target: "window", "failed to load icon from encoded bytes: {:?}", e);
@@ -648,15 +657,17 @@ impl_from_and_into_var! {
         })
     }
 
-    /// [`WindowIcon::from_rgba`]
+    /// [`WindowIcon::from_rgba`] but validates the dimensions and length.
     fn from(rgba: (Vec<u8>, u32, u32)) -> WindowIcon {
-        WindowIcon::from_rgba(rgba.0, rgba.1, rgba.2).unwrap_or_else(|e| {
-            log::error!(target: "window", "failed to load icon from RGBA data: {:?}", e);
+        if rgba.1 as usize * rgba.2 as usize * 4 == rgba.0.len() {
+            log::error!("invalid rgba data, length is not width * height * 4");
+            WindowIcon::from_rgba(rgba.0, rgba.1, rgba.2)
+        } else {
             WindowIcon::Default
-        })
+        }
     }
 
-    /// [`WindowIcon::from_file`]
+    /// [`WindowIcon::from_file`] but just logs errors.
     fn from(file: &'static str) -> WindowIcon {
         WindowIcon::from_file(file).unwrap_or_else(|e| {
             log::error!(target: "window", "failed to load icon from file: {:?}", e);
@@ -664,7 +675,7 @@ impl_from_and_into_var! {
         })
     }
 
-    /// [`WindowIcon::from_file`]
+    /// [`WindowIcon::from_file`] but just logs errors.
     fn from(file: std::path::PathBuf) -> WindowIcon {
         WindowIcon::from_file(file).unwrap_or_else(|e| {
             log::error!(target: "window", "failed to load icon from file: {:?}", e);
@@ -772,8 +783,6 @@ event_args! {
         pub window_id: WindowId,
         /// New scale factor.
         pub new_scale_factor: f32,
-        /// New window size, given by the OS.
-        pub new_size: LayoutSize,
 
         ..
 
@@ -871,42 +880,64 @@ impl AppExtension for WindowManager {
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        let (open, close) = ctx.services.windows().take_requests();
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawWindowFocusEvent.update(args) {
+            if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
+                window.is_focused = args.focused;
 
-        // fulfill open requests.
-        for r in open {
-            let w = AppWindow::new(ctx, r.new, r.force_headless);
-            let args = WindowOpenArgs::now(w.id);
-            ctx.services.windows().windows.insert(w.id, w);
+                let args = WindowIsFocusedArgs::now(args.window_id, window.is_focused, false);
 
-            r.responder.respond(ctx, args.clone());
-            WindowOpenEvent.notify(ctx, args);
-        }
-
-        // notify close requests, the request is fulfilled or canceled
-        // in the `event` handler.
-        for (w_id, r) in close {
-            let args = WindowCloseRequestedArgs::now(w_id, r.group);
-            WindowCloseRequestedEvent.notify(ctx.events, args);
-
-            self.pending_closes
-                .entry(r.group)
-                .or_insert_with(|| PendingClose {
-                    responder: r.responder,
-                    windows: LinearMap::with_capacity(1),
-                })
-                .windows
-                .insert(w_id, None);
-        }
-
-        let wins = ctx.services.windows();
-        if wins.send_allow_alt_f4 {
-            for app_w in wins.windows.values() {
-                if let Some(view_w) = &app_w.headed {
-                    view_w.set_allow_alt_f4(app_w.allow_alt_f4);
+                WindowFocusChangedEvent.notify(ctx.events, args.clone());
+                if args.focused {
+                    WindowFocusEvent.notify(ctx.events, args)
+                } else {
+                    WindowBlurEvent.notify(ctx.events, args);
                 }
             }
+        } else if let Some(args) = RawWindowResizedEvent.update(args) {
+            if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
+                if window.vars.vars.actual_size.set_ne(ctx.vars, args.size) {
+                    // is new size:
+                    ctx.updates.layout();
+                    window.context.update |= UpdateDisplayRequest::Layout;
+
+                    // raise window_resize
+                    WindowResizeEvent.notify(ctx.events, WindowResizeArgs::now(args.window_id, args.size));
+                }
+            }
+        } else if let Some(args) = RawWindowMovedEvent.update(args) {
+            if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
+                if window.vars.vars.actual_position.set_ne(ctx.vars, args.position) {
+                    WindowMoveEvent.notify(ctx.events, WindowMoveArgs::now(args.window_id, args.position));
+                }
+            }
+        } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
+            let _ = ctx.services.windows().close(args.window_id);
+        } else if let Some(args) = RawWindowScaleFactorChangedEvent.update(args) {
+            if ctx.services.windows().windows.contains_key(&args.window_id) {
+                let args = WindowScaleChangedArgs::new(args.timestamp, args.window_id, args.scale_factor);
+                WindowScaleChangedEvent.notify(ctx.events, args);
+            }
+        } else if let Some(args) = RawWindowClosedEvent.update(args) {
+            if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
+                todo!("is this an error?")
+            }
+        } else if ViewProcessRespawnedEvent.update(args).is_some() {
+            // `respawn` will force a `render` only and the `RenderContext` does not
+            // give access to `services` so this is fine.
+            let mut windows = mem::take(&mut ctx.services.windows().windows);
+
+            for (_, w) in windows.iter_mut() {
+                w.respawn(ctx);
+            }
+
+            ctx.services.windows().windows = windows;
+        }
+    }
+
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        for (_, w) in ctx.services.windows().windows.iter_mut() {
+            todo!("notify events")
         }
     }
 
@@ -964,7 +995,75 @@ impl AppExtension for WindowManager {
                     // Not us, no pending entry.
                 }
             }
+        } else if let Some(args) = WindowCloseEvent.update(args) {
+            todo!()
         }
+    }
+
+    fn update_ui(&mut self, ctx: &mut AppContext) {
+        let (open, close) = ctx.services.windows().take_requests();
+
+        // fulfill open requests.
+        for r in open {
+            let w = AppWindow::new(ctx, r.new, r.force_headless);
+            let args = WindowOpenArgs::now(w.id);
+            ctx.services.windows().windows.insert(w.id, w);
+
+            r.responder.respond(ctx, args.clone());
+            WindowOpenEvent.notify(ctx, args);
+        }
+
+        // notify close requests, the request is fulfilled or canceled
+        // in the `event` handler.
+        for (w_id, r) in close {
+            let args = WindowCloseRequestedArgs::now(w_id, r.group);
+            WindowCloseRequestedEvent.notify(ctx.events, args);
+
+            self.pending_closes
+                .entry(r.group)
+                .or_insert_with(|| PendingClose {
+                    responder: r.responder,
+                    windows: LinearMap::with_capacity(1),
+                })
+                .windows
+                .insert(w_id, None);
+        }
+
+        // sync `allow_alt_f4`
+        let wins = ctx.services.windows();
+        if wins.send_allow_alt_f4 {
+            wins.send_allow_alt_f4 = false;
+            for app_w in wins.windows.values() {
+                if let Some(view_w) = &app_w.headed {
+                    view_w.set_allow_alt_f4(app_w.allow_alt_f4).unwrap();
+                }
+            }
+        }
+
+        // notify content
+        for (_, window) in wins.windows.iter_mut() {
+            window.update(ctx);
+        }
+    }
+
+    fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
+        // Pump layout and render in all windows.
+        // The windows don't do a layout update unless they recorded
+        // an update request for layout or render.
+        //
+        // we can temporary detach all windows here because `services` is not available
+        // in `LayoutContext` and `RenderContext` so there is no way to observe `Windows`
+        // temporary empty state.
+
+        let mut windows = mem::take(&mut ctx.services.windows().windows);
+
+        for (_, w) in windows.iter_mut() {
+            w.layout(ctx);
+            w.render(ctx);
+            w.render_update(ctx);
+        }
+
+        ctx.services.windows().windows = windows;
     }
 }
 
@@ -1291,7 +1390,7 @@ struct AppWindow {
 impl AppWindow {
     fn new(ctx: &mut AppContext, new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>, force_headless: Option<WindowMode>) -> Self {
         // get mode.
-        let mut mode = match (ctx.mode(), force_headless) {
+        let mode = match (ctx.mode(), force_headless) {
             (WindowMode::Headed | WindowMode::HeadlessWithRenderer, Some(mode)) => {
                 debug_assert!(!matches!(mode, WindowMode::Headed));
                 mode
@@ -1309,22 +1408,11 @@ impl AppWindow {
         let root = ctx.window_context(id, mode, &mut wn_state, new_window).0;
         let root_id = root.id;
 
-        let app_sender = ctx.updates.sender();
-
-        // init mode.
-        let mut headed = None;
-        let mut headless_screen = None;
-        let mut renderer = None;
-
-        match mode {
-            WindowMode::Headed => {
-                todo!()
-            }
-            WindowMode::Headless => {
-                headless_screen = Some(root.headless_screen.clone());
-            }
-            WindowMode::HeadlessWithRenderer => todo!(),
-        }
+        let headless_screen = if matches!(mode, WindowMode::Headless) {
+            Some(root.headless_screen.clone())
+        } else {
+            None
+        };
 
         let kiosk = root.kiosk;
 
@@ -1338,10 +1426,16 @@ impl AppWindow {
             update: UpdateDisplayRequest::Layout,
         };
 
+        // we want the window content to init, update, layout & render to get
+        // all the values needed to actually spawn a real window, this is so we
+        // have a frame ready to show when the window is visible.
+        ctx.updates.update();
+        ctx.updates.layout();
+
         AppWindow {
-            headed,
+            headed: None, // headed & renderer will initialize on first render.
+            renderer: None,
             headless_screen,
-            renderer,
             context,
             mode,
             id,
@@ -1367,7 +1461,10 @@ impl AppWindow {
     }
 
     fn scale_factor(&self) -> f32 {
-        todo!()
+        self.renderer
+            .and_then(|r| r.scale_factor())
+            .unwrap_or_else(|| self.headless_screen.map(|h| h.scale_factor))
+            .unwrap_or(1.0)
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -1484,44 +1581,83 @@ impl AppWindow {
     }
 
     fn render(&mut self, ctx: &mut AppContext) {
-        let ((pipeline_id, size, display_list), frame_info) = if let Some(f) = self.context.render(ctx) {
-            f
-        } else {
-            return; // not needed
-        };
+        let scale_factor = self.scale_factor();
+        let ((pipeline_id, size, display_list), frame_info) =
+            if let Some(f) = self.context.render(ctx, self.frame_info.frame_id(), self.size, scale_factor) {
+                f
+            } else {
+                return; // not needed
+            };
 
         self.frame_info = frame_info;
 
         if self.first_render {
             match self.mode {
                 WindowMode::Headed => {
-                    let text_aa = ctx.services.fonts().system_text_aa().copy(ctx.vars);
-                    ctx.services.view_process().open_window(
-                        self.id,
-                        view_process::WindowConfig {
-                            title: self.vars.title().get(ctx.vars).to_string(),
-                            pos: self.position,
-                            size: self.size,
-                            visible: self.vars.visible().copy(ctx.vars),
-                            taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
-                            chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
-                            allow_alt_f4: self.allow_alt_f4,
-                            clear_color: Some(rgb(255, 0, 0).into()),
-                            text_aa: self.vars.text_aa().copy(ctx.vars),
-                            frame: view_process::FrameRequest {
-                                id: self.frame_info.frame_id(),
-                                pipeline_id,
-                                size,
-                                display_list: display_list.into_data(),
+                    let headed = ctx
+                        .services
+                        .view_process()
+                        .open_window(
+                            self.id,
+                            view_process::WindowConfig {
+                                title: self.vars.title().get(ctx.vars).to_string(),
+                                pos: self.position,
+                                size: self.size,
+                                visible: self.vars.visible().copy(ctx.vars),
+                                taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
+                                chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
+                                allow_alt_f4: self.allow_alt_f4,
+                                clear_color: Some(rgb(255, 0, 0).into()),
+                                text_aa: self.vars.text_aa().copy(ctx.vars),
+                                frame: view_process::FrameRequest {
+                                    id: self.frame_info.frame_id(),
+                                    pipeline_id,
+                                    size,
+                                    display_list: display_list.into_data(),
+                                },
                             },
-                        },
-                    );
+                        )
+                        .expect("TODO, deal with respawn here?");
+                    self.renderer = Some(headed.renderer());
+                    self.headed = Some(headed);
                 }
                 WindowMode::Headless => todo!(),
                 WindowMode::HeadlessWithRenderer => todo!(),
             }
             self.first_render = false;
+        } else if let Some(renderer) = &mut self.renderer {
+            renderer
+                .render(view_process::FrameRequest {
+                    id: self.frame_info.frame_id(),
+                    pipeline_id,
+                    size,
+                    display_list: display_list.into_data(),
+                })
+                .expect("TODO, deal with respawn here?");
         }
+
+        todo!("this does not need to be async now");
+        ctx.updates.sender().send_new_frame(self.id);
+    }
+
+    fn render_update(&mut self, ctx: &mut AppContext) {
+        let updates = if let Some(u) = self.context.render_update(ctx, self.frame_info.frame_id()) {
+            u
+        } else {
+            return;
+        };
+
+        debug_assert!(!self.first_render);
+
+        if let Some(renderer) = &self.renderer {
+            renderer.render_update(updates).expect("TODO, deal with respawn here?");
+        }
+
+        // TODO notify, the frame info was not touched, but we plan to let render_update update metadata.
+    }
+
+    fn respawn(&mut self, ctx: &mut AppContext) {
+        todo!()
     }
 }
 
@@ -1551,10 +1687,6 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
-    fn need_layout(&self) -> bool {
-        matches!(self.update, UpdateDisplayRequest::Layout)
-    }
-
     fn layout(
         &mut self,
         ctx: &mut AppContext,
@@ -1564,7 +1696,7 @@ impl OwnedWindowContext {
         available_size: LayoutSize,
         calc_final_size: impl FnOnce(LayoutSize) -> LayoutSize,
     ) -> LayoutSize {
-        debug_assert!(!self.need_layout());
+        debug_assert!(matches!(self.update, UpdateDisplayRequest::Layout));
         self.update = UpdateDisplayRequest::Render;
 
         let root = &mut self.root;
@@ -1588,26 +1720,61 @@ impl OwnedWindowContext {
         final_size
     }
 
-    fn render(&mut self, ctx: &mut AppContext) -> Option<((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo)> {
-        if self.update.is_none() {
+    fn render(
+        &mut self,
+        ctx: &mut AppContext,
+        frame_id: FrameId,
+        root_size: LayoutSize,
+        scale_factor: f32,
+    ) -> Option<((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo)> {
+        if !matches!(self.update, UpdateDisplayRequest::Render) {
             return None;
         }
+        self.update = UpdateDisplayRequest::None;
+
         let root = &mut self.root;
-        let update = mem::take(&mut self.update);
-        let (frame, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let root_transform_key = self.root_transform_key;
+
+        let (frame, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &self.renderer, |ctx| {
             let child = &mut root.child;
-            ctx.render_context(root.id, &mut root.state, |ctx| match update {
-                UpdateDisplayRequest::RenderUpdate => {
-                    todo!()
-                }
-                UpdateDisplayRequest::Render => {
-                    let mut frame: FrameBuilder = todo!();
-                }
-                _ => unreachable!(),
-            })
+            let mut builder = FrameBuilder::new(
+                frame_id,
+                *ctx.window_id,
+                ctx.renderer.clone(),
+                root.id,
+                root_transform_key,
+                root_size,
+                scale_factor,
+            );
+            ctx.render_context(root.id, &mut root.state, |ctx| {})
         });
 
         todo!()
+    }
+
+    fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId) -> Option<DynamicProperties> {
+        if !matches!(self.update, UpdateDisplayRequest::RenderUpdate) {
+            return None;
+        }
+        self.update = UpdateDisplayRequest::None;
+
+        let root = &self.root;
+        let root_transform_key = self.root_transform_key;
+
+        let (updates, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+            let window_id = *ctx.window_id;
+            ctx.render_context(root.id, &root.state, |ctx| {
+                let mut update = FrameUpdate::new(window_id, root.id, root_transform_key, frame_id);
+                root.child.render_update(ctx, &mut update);
+                update.finalize()
+            })
+        });
+
+        if !updates.transforms.is_empty() || !updates.floats.is_empty() {
+            Some(updates)
+        } else {
+            None
+        }
     }
 }
 
