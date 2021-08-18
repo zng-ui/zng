@@ -1,6 +1,15 @@
 //! Context information for app extensions, windows and widgets.
 
-use crate::{WidgetId, app::view_process::ViewRenderer, event::Events, render::FrameId, service::Services, units::{LayoutSize, PixelGrid}, var::Vars, window::WindowId};
+use crate::{
+    app::view_process::ViewRenderer,
+    event::Events,
+    render::FrameId,
+    service::Services,
+    units::{LayoutSize, PixelGrid},
+    var::Vars,
+    window::WindowId,
+    WidgetId,
+};
 use linear_map::LinearMap;
 use retain_mut::RetainMut;
 use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, time::Instant};
@@ -344,7 +353,11 @@ impl Updates {
     }
 
     fn take_updates(&mut self) -> (bool, UpdateDisplayRequest, LinearMap<WindowId, FrameId>) {
-        (mem::take(&mut self.update), mem::take(&mut self.display_update), mem::take(&mut self.new_frames))
+        (
+            mem::take(&mut self.update),
+            mem::take(&mut self.display_update),
+            mem::take(&mut self.new_frames),
+        )
     }
 }
 /// crate::app::HeadlessApp::block_on
@@ -894,7 +907,7 @@ pub struct ContextUpdates {
     pub wake_time: Option<Instant>,
 
     /// Windows with new frame metadata.
-    pub new_frames: LinearMap<WindowId, FrameId>
+    pub new_frames: LinearMap<WindowId, FrameId>,
 }
 impl ContextUpdates {
     /// If [`update`](Self::update) or [`display_update`](Self::display_update) where requested.

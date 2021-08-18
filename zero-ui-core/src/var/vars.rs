@@ -1635,7 +1635,7 @@ mod tests {
         a.bind_map(&app.ctx(), &b, |_, a| a.to_text()).permanent();
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |_| {
                 update_count += 1;
             },
@@ -1646,7 +1646,7 @@ mod tests {
         a.set(app.ctx().vars, 20);
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.copy_new(ctx));
@@ -1659,7 +1659,7 @@ mod tests {
         a.set(app.ctx().vars, 13);
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(13i32), a.copy_new(ctx));
@@ -1681,7 +1681,7 @@ mod tests {
             .permanent();
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |_| {
                 update_count += 1;
             },
@@ -1692,7 +1692,7 @@ mod tests {
         a.set(app.ctx().vars, 20);
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.copy_new(ctx));
@@ -1705,7 +1705,7 @@ mod tests {
         b.set(app.ctx().vars, "55");
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some("55".to_text()), b.clone_new(ctx));
@@ -1727,7 +1727,7 @@ mod tests {
             .permanent();
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |_| {
                 update_count += 1;
             },
@@ -1738,7 +1738,7 @@ mod tests {
         a.set(app.ctx().vars, 20);
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.copy_new(ctx));
@@ -1751,7 +1751,7 @@ mod tests {
         a.set(app.ctx().vars, 13);
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(13i32), a.copy_new(ctx));
@@ -1774,7 +1774,7 @@ mod tests {
             .permanent();
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |_| {
                 update_count += 1;
             },
@@ -1785,7 +1785,7 @@ mod tests {
         a.set(app.ctx().vars, 20);
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.copy_new(ctx));
@@ -1798,7 +1798,7 @@ mod tests {
         b.set(app.ctx().vars, "55");
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some("55".to_text()), b.clone_new(ctx));
@@ -1811,7 +1811,7 @@ mod tests {
         b.set(app.ctx().vars, "not a i32");
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some("not a i32".to_text()), b.clone_new(ctx));
@@ -1837,7 +1837,7 @@ mod tests {
         c.bind_map(&app.ctx(), &d, |_, c| *c + 1).permanent();
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |_| {
                 update_count += 1;
             },
@@ -1848,7 +1848,7 @@ mod tests {
         a.set(app.ctx().vars, 20);
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
 
@@ -1864,7 +1864,7 @@ mod tests {
         a.set(app.ctx().vars, 30);
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
 
@@ -1892,7 +1892,7 @@ mod tests {
         c.bind_bidi(&app.ctx(), &d).permanent();
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |_| {
                 update_count += 1;
             },
@@ -1903,7 +1903,7 @@ mod tests {
         a.set(app.ctx().vars, 20);
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
 
@@ -1919,7 +1919,7 @@ mod tests {
         d.set(app.ctx().vars, 30);
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
 
@@ -1948,7 +1948,7 @@ mod tests {
         a.set(app.ctx().vars, 10);
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
 
@@ -1965,7 +1965,7 @@ mod tests {
         a.set(app.ctx().vars, 100);
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
 
@@ -1990,7 +1990,7 @@ mod tests {
         a.set(app.ctx().vars, 10);
 
         let mut update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
 
@@ -2006,7 +2006,7 @@ mod tests {
         a.set(app.ctx().vars, 100);
 
         update_count = 0;
-        app.update_observe(
+        let _ = app.update_observe(
             |ctx| {
                 update_count += 1;
 

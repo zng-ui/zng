@@ -6,30 +6,10 @@ pub use crate::app::view_process::{CursorIcon, MonitorInfo, VideoMode, WindowThe
 use linear_map::LinearMap;
 use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
 
-use crate::{
-    app::{
-        self,
-        raw_events::{
+use crate::{BoxedUiNode, UiNode, WidgetId, app::{self, AppEventSender, AppExtended, AppExtension, ControlFlow, raw_events::{
             RawWindowCloseRequestedEvent, RawWindowClosedEvent, RawWindowFocusEvent, RawWindowMovedEvent, RawWindowResizedEvent,
             RawWindowScaleFactorChangedEvent,
-        },
-        view_process::{self, ViewProcess, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
-        AppEventSender, AppExtended, AppExtension,
-    },
-    cancelable_event_args,
-    color::rgb,
-    context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
-    event::{event, EventUpdateArgs},
-    event_args, impl_from_and_into_var,
-    render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, WidgetTransformKey},
-    service::Service,
-    state::OwnedStateMap,
-    state_key,
-    text::{Text, TextAntiAliasing, ToText},
-    units::*,
-    var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    BoxedUiNode, UiNode, WidgetId,
-};
+        }, view_process::{self, ViewProcess, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow}}, cancelable_event_args, color::rgb, context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext}, event::{event, EventUpdateArgs}, event_args, impl_from_and_into_var, render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, WidgetTransformKey}, service::Service, state::OwnedStateMap, state_key, text::{Text, TextAntiAliasing, ToText}, units::*, var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var}};
 
 unique_id! {
     /// Unique identifier of a [`OpenWindow`].
@@ -128,17 +108,16 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
         let response = self.ctx().services.windows().open(new_window);
         let mut window_id = None;
-        while window_id.is_none() {
-            self.update_observe(
-                |ctx| {
-                    if let Some(opened) = response.rsp_new(ctx) {
-                        window_id = Some(opened.window_id);
-                    }
-                },
-                true,
-            );
-        }
-        let window_id = window_id.unwrap();
+        let cf = self.update_observe(
+            |ctx| {
+                if let Some(opened) = response.rsp_new(ctx) {
+                    window_id = Some(opened.window_id);
+                }
+            },
+            true,
+        );
+
+        let window_id = window_id.unwrap_or_else(|| panic!("window did not open, ControlFlow: {:?}", cf));
 
         self.focus_window(window_id);
 
@@ -164,7 +143,9 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let frame_id = self.ctx().services.windows().frame_info(window_id).ok().map(|w| w.frame_id());
 
         loop {
-            self.update(true);
+            if let ControlFlow::Exit = self.update(true) {
+                return FramePixels::default()
+            }
 
             let windows = self.ctx().services.windows();
             if let Ok(frame) = windows.frame_info(window_id) {
@@ -188,7 +169,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let mut requested = false;
         let mut closed = false;
 
-        self.update_observe_event(
+        let _ = self.update_observe_event(
             |_, args| {
                 if let Some(args) = WindowCloseRequestedEvent.update(args) {
                     requested |= args.window_id == window_id;
@@ -510,18 +491,6 @@ impl WindowMode {
     }
 }
 
-#[derive(Clone, Copy)]
-enum WindowInitState {
-    /// Window not visible, awaiting first call to `OpenWindow::preload_update`.
-    New,
-    /// Content `UiNode::init` called, next calls to `OpenWindow::preload_update` will do updates
-    /// until the first layout and render.
-    ContentInited,
-    /// First frame rendered and presented, window `visible`synched with var, the window
-    /// is fully launched.
-    Inited,
-}
-
 /// Window screen state.
 #[derive(Clone, Copy, PartialEq)]
 pub enum WindowState {
@@ -576,13 +545,13 @@ impl fmt::Debug for WindowChrome {
 impl WindowChrome {
     /// Is operating system chrome.
     #[inline]
-    fn is_default(&self) -> bool {
+    pub fn is_default(&self) -> bool {
         matches!(self, WindowChrome::Default)
     }
 
     /// Is chromeless.
     #[inline]
-    fn is_none(&self) -> bool {
+    pub fn is_none(&self) -> bool {
         matches!(self, WindowChrome::None)
     }
 }
@@ -1069,7 +1038,11 @@ impl AppExtension for WindowManager {
                 }
             }
         } else if let Some(args) = WindowCloseEvent.update(args) {
-            todo!()
+            // finish close.
+            if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
+                w.deinit(ctx);
+                ctx.services.windows().windows_info.remove(&args.window_id).unwrap();
+            }
         }
     }
 
@@ -1555,6 +1528,8 @@ struct AppWindow {
 
     position: LayoutPoint,
     size: LayoutSize,
+
+    deinited: bool,
 }
 impl AppWindow {
     fn new(
@@ -1623,6 +1598,8 @@ impl AppWindow {
 
             position: LayoutPoint::zero(),
             size: LayoutSize::zero(),
+
+            deinited: false,
         };
         let info = AppWindowInfo {
             id,
@@ -1856,6 +1833,7 @@ impl AppWindow {
                             },
                         )
                         .expect("TODO, deal with respawn here?");
+                        
                     self.renderer = Some(headed.renderer());
                     self.headed = Some(headed);
                 }
@@ -1895,6 +1873,17 @@ impl AppWindow {
 
     fn respawn(&mut self, ctx: &mut AppContext) {
         todo!()
+    }
+
+    fn deinit(mut self, ctx: &mut AppContext) {
+        assert!(!self.deinited);
+        self.deinited = true;
+        self.context.deinit(ctx);
+    }
+}
+impl Drop for AppWindow {
+    fn drop(&mut self) {
+        log::error!("`AppWindow` dropped without calling `deinit`, no memory is leaked but shared state may be incorrect now");
     }
 }
 

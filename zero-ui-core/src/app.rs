@@ -1544,27 +1544,31 @@ mod headless_tests {
     #[test]
     fn new_default() {
         let mut app = App::default().run_headless(false);
-        app.update(false);
+        let cf = app.update(false);
+        assert_eq!(cf, ControlFlow::Wait);
     }
 
     #[test]
     fn new_empty() {
         let mut app = App::blank().run_headless(false);
-        app.update(false);
+        let cf = app.update(false);
+        assert_eq!(cf, ControlFlow::Wait);
     }
 
     #[test]
     pub fn new_window_no_render() {
         let mut app = App::default().run_headless(false);
         assert!(!app.renderer_enabled());
-        app.update(false);
+        let cf = app.update(false);
+        assert_eq!(cf, ControlFlow::Wait);
     }
 
     #[test]
     pub fn new_window_with_render() {
         let mut app = App::default().run_headless(true);
         assert!(app.renderer_enabled());
-        app.update(false);
+        let cf = app.update(false);
+        assert_eq!(cf, ControlFlow::Wait);
     }
 
     #[test]
