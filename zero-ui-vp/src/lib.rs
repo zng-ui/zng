@@ -71,8 +71,8 @@ pub fn init_view_process() {
 }
 
 pub use types::{
-    AxisId, ButtonId, CursorIcon, DevId, ElementState, Error, Ev, FramePixels, FrameRequest, Icon, ModifiersState, MouseButton,
-    MouseScrollDelta, Result, ScanCode, ScreenId, TextAntiAliasing, Theme, VirtualKeyCode, WinId, WindowConfig,
+    AxisId, ButtonId, CursorIcon, DevId, ElementState, Error, Ev, FramePixels, FrameRequest, Icon, ModifiersState, MonId, MonitorInfo,
+    MouseButton, MouseScrollDelta, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode, WinId, WindowConfig, WindowTheme,
 };
 
 use webrender::api::{
@@ -486,8 +486,8 @@ pub(crate) struct ViewApp {
     window_id_count: WinId,
     windows: Vec<ViewWindow>,
 
-    screen_id_count: ScreenId,
-    screens: Vec<(ScreenId, MonitorHandle)>,
+    monitor_id_count: MonId,
+    monitors: Vec<(MonId, MonitorHandle)>,
 
     device_id_count: DevId,
     devices: Vec<(DevId, DeviceId)>,
@@ -505,8 +505,8 @@ impl ViewApp {
             headless,
             window_id_count: u32::from_ne_bytes(*b"zwvp"),
             windows: vec![],
-            screen_id_count: u32::from_ne_bytes(*b"zsvp"),
-            screens: vec![],
+            monitor_id_count: u32::from_ne_bytes(*b"zsvp"),
+            monitors: vec![],
             device_id_count: u32::from_ne_bytes(*b"zdvp"),
             devices: vec![],
             pending_clear: false,
@@ -519,6 +519,34 @@ impl ViewApp {
     fn notify(&mut self, event: Ev) {
         self.pending_clear = true;
         self.event_chan.send(&event).expect("TODO")
+    }
+
+    fn monitor_id(&mut self, handle: &MonitorHandle) -> MonId {
+        if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
+            *id
+        } else {
+            let mut id = self.monitor_id_count.wrapping_add(1);
+            if id == 0 {
+                id = 1;
+            }
+            self.monitor_id_count = id;
+            self.monitors.push((id, handle.clone()));
+            id
+        }
+    }
+
+    fn device_id(&mut self, device_id: DeviceId) -> DevId {
+        if let Some((id, _)) = self.devices.iter().find(|(_, id)| *id == device_id) {
+            *id
+        } else {
+            let mut id = self.device_id_count.wrapping_add(1);
+            if id == 0 {
+                id = 1;
+            }
+            self.device_id_count = id;
+            self.devices.push((id, device_id));
+            id
+        }
     }
 
     fn with_window<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewWindow) -> R) -> Result<R> {
@@ -548,23 +576,32 @@ declare_ipc! {
         Ok(true)
     }
 
-    /// Get size and scale factor of the screen.
-    pub fn screen_info(&mut self, ctx: &Context, screen_id: ScreenId) -> Result<Option<(LayoutSize, f32)>> {
-        if screen_id == 0 {
-            return Ok(ctx.window_target.primary_monitor().map(|handle| {
-                let size = handle.size();
-            let scale_factor = handle.scale_factor() as f32;
+    /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
+    pub fn primary_monitor(&mut self, ctx: &Context) -> Result<Option<(MonId, MonitorInfo)>> {
+        Ok(
+            ctx.window_target
+            .primary_monitor()
+            .or_else(|| ctx.window_target.available_monitors().next())
+            .map(|m| {
+                let id = self.monitor_id(&m);
+                let info = m.into();
+                (id, info)
+            })
+        )
+    }
 
-            (LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor), scale_factor)
-            }));
-        }
-
-        Ok(self.screens.iter().find(|(id, _)| *id == screen_id).map(|(_, handle)| {
-            let size = handle.size();
-            let scale_factor = handle.scale_factor() as f32;
-
-            (LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor), scale_factor)
-        }))
+    /// Returns all available monitors.
+    pub fn available_monitors(&mut self, ctx: &Context) -> Result<Vec<(MonId, MonitorInfo)>> {
+        Ok(
+            ctx.window_target
+            .available_monitors()
+            .map(|m| {
+                let id = self.monitor_id(&m);
+                let info = m.into();
+                (id, info)
+            })
+            .collect()
+        )
     }
 
     /// Open a window.
@@ -758,17 +795,6 @@ declare_ipc! {
 }
 
 impl ViewApp {
-    fn device_id(&mut self, device_id: DeviceId) -> DevId {
-        if let Some(id) = self.devices.iter().find(|(_, id)| *id == device_id).map(|(id, _)| *id) {
-            return id;
-        }
-
-        let id = self.device_id_count.wrapping_add(1);
-        self.device_id_count = id;
-        self.devices.push((id, device_id));
-        id
-    }
-
     fn on_window_event(&mut self, window_id: WindowId, event: WindowEvent) {
         let (i, w) = if let Some(r) = self.windows.iter_mut().enumerate().find(|(_, w)| w.is_window(window_id)) {
             r

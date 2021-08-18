@@ -21,6 +21,8 @@ pub type WinId = u32;
 /// In the View Process this is mapped to a system id.
 ///
 /// In the App Process this is mapped to a unique id, but does not survived View crashes.
+///
+/// Zero is never an ID.
 pub type DevId = u32;
 
 /// Monitor screen ID in channel.
@@ -29,8 +31,8 @@ pub type DevId = u32;
 ///
 /// In the App Process this is mapped to a unique id, but does not survived View crashes.
 ///
-/// The `0` value is always the primary screen.
-pub type ScreenId = u32;
+/// Zero is never an ID.
+pub type MonId = u32;
 
 /// System/User events sent from the View Process.
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,7 +64,7 @@ pub enum Ev {
     AxisMotion(WinId, DevId, AxisId, f64),
     Touch(WinId, DevId, TouchPhase, LayoutPoint, Option<Force>, u64),
     ScaleFactorChanged(WinId, f32),
-    ThemeChanged(WinId, Theme),
+    ThemeChanged(WinId, WindowTheme),
     WindowCloseRequested(WinId),
     WindowClosed(WinId),
 
@@ -132,18 +134,18 @@ impl From<glutin::event::Force> for Force {
 
 /// OS theme.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub enum Theme {
+pub enum WindowTheme {
     /// Dark text on light background.
     Light,
 
     /// Light text on dark background.
     Dark,
 }
-impl From<glutin::window::Theme> for Theme {
+impl From<glutin::window::Theme> for WindowTheme {
     fn from(t: glutin::window::Theme) -> Self {
         match t {
-            glutin::window::Theme::Light => Theme::Light,
-            glutin::window::Theme::Dark => Theme::Dark,
+            glutin::window::Theme::Light => WindowTheme::Light,
+            glutin::window::Theme::Dark => WindowTheme::Dark,
         }
     }
 }
@@ -277,4 +279,66 @@ pub struct FramePixels {
 
     /// If all alpha values are `255`.
     pub opaque: bool,
+}
+
+/// Information about a monitor screen.
+#[derive(Serialize, Deserialize)]
+pub struct MonitorInfo {
+    /// Display name, if any was set by the user in the system config.
+    pub name: Option<String>,
+    /// Top-left offset of the monitor region in the virtual screen, in pixels.
+    pub position: (i32, i32),
+    /// Width/height of the monitor region in the virtual screen, in pixels.
+    pub size: (u32, u32),
+    /// The monitor scale factor.
+    pub scale_factor: f32,
+    /// Exclusive fullscreen video modes.
+    pub video_modes: Vec<VideoMode>,
+}
+impl MonitorInfo {
+    /// Returns `true` if the position is `(0, 0)`.
+    #[inline]
+    pub fn is_primary(&self) -> bool {
+        self.position.0 == 0 && self.position.1 == 0
+    }    
+}
+impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
+    fn from(m: glutin::monitor::MonitorHandle) -> Self {
+        let pos = m.position();
+        let size = m.size();
+        Self {
+            name: m.name(),
+            position: (pos.x, pos.y),
+            size: (size.width, size.height),
+            scale_factor: m.scale_factor() as f32,
+            video_modes: m.video_modes().map(Into::into).collect(),
+        }
+    }
+}
+
+/// Exclusive video mode info.
+///
+/// You can get this values from [`MonitorInfo::video_modes`]. Note that when setting the
+/// video mode the actual system mode is selected by approximation, closest `size`, then `bit_depth` then `refresh_rate`.
+#[derive(Serialize, Deserialize)]
+pub struct VideoMode {
+    /// Resolution of this video mode.
+    pub size: (u32, u32),
+    /// the bit depth of this video mode, as in how many bits you have available per color.
+    /// This is generally 24 bits or 32 bits on modern systems, depending on whether the alpha channel is counted or not.
+    pub bit_depth: u16,
+    /// The refresh rate of this video mode.
+    ///
+    /// Note: the returned refresh rate is an integer approximation, and you shouldn’t rely on this value to be exact.
+    pub refresh_rate: u16,
+}
+impl From<glutin::monitor::VideoMode> for VideoMode {
+    fn from(v: glutin::monitor::VideoMode) -> Self {
+        let size = v.size();
+        Self {
+            size: (size.width, size.height),
+            bit_depth: v.bit_depth(),
+            refresh_rate: v.refresh_rate(),
+        }
+    }
 }

@@ -8,6 +8,8 @@ Things that must be done first because they influence the core API design that i
   argument, instead of all at once.
 * Update the `Mouse` service to be like the new [`Keyboard`] service with button state variables.
 
+* Layout requests using an AppContext should affect all windows, currently does not affect any window.
+
 * Docs
   * Normalize docs using guidelines: 
   https://deterministic.space/machine-readable-inline-markdown-code-cocumentation.html
@@ -59,7 +61,7 @@ Things that must be done first because they influence the core API design that i
   * Modal.
   * Review `redraw` event.
   * Video rendering.
-  * Finish Screens, needs the window target + update all layouts on change.
+  * Finish Monitors, needs the window target + update all layouts on change.
 
 * Widget Inspector (console).
 

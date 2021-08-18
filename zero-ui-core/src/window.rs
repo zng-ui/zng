@@ -2,9 +2,9 @@
 
 use std::{fmt, mem, rc::Rc};
 
+pub use crate::app::view_process::{CursorIcon, MonitorInfo, VideoMode, WindowTheme};
 use linear_map::LinearMap;
 use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
-pub use zero_ui_vp::{CursorIcon, Theme as WindowTheme};
 
 use crate::{
     app::{
@@ -43,10 +43,16 @@ impl fmt::Display for WindowId {
         write!(f, "WinId({})", self.get())
     }
 }
+
 unique_id! {
     /// Unique identifier of a monitor screen.
     #[derive(Debug)]
-    pub struct ScreenId;
+    pub struct MonitorId;
+}
+impl fmt::Display for MonitorId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MonitorId({})", self.get())
+    }
 }
 
 /// Extension trait, adds [`run_window`](AppRunWindowExt::run_window) to [`AppExtended`].
@@ -207,7 +213,7 @@ pub struct Window {
     id: WidgetId,
     start_position: StartPosition,
     kiosk: bool,
-    headless_screen: HeadlessScreen,
+    headless_monitor: HeadlessMonitor,
     child: BoxedUiNode,
 }
 impl Window {
@@ -218,14 +224,14 @@ impl Window {
     /// * `kiosk` - Only allow full-screen mode. Note this does not configure the operating system, only blocks the app itself
     ///             from accidentally exiting full-screen. Also causes subsequent open windows to be child of this window.
     /// * `mode` - Custom window mode for this window only, set to default to use the app mode.
-    /// * `headless_screen` - "Screen" configuration used in [headless mode](WindowMode::is_headless).
+    /// * `headless_monitor` - "Monitor" configuration used in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         root_id: WidgetId,
         start_position: impl Into<StartPosition>,
         kiosk: bool,
-        headless_screen: impl Into<HeadlessScreen>,
+        headless_monitor: impl Into<HeadlessMonitor>,
         child: impl UiNode,
     ) -> Self {
         Window {
@@ -233,15 +239,15 @@ impl Window {
             id: root_id,
             kiosk,
             start_position: start_position.into(),
-            headless_screen: headless_screen.into(),
+            headless_monitor: headless_monitor.into(),
             child: child.boxed(),
         }
     }
 }
 
-/// "Screen" configuration used by windows in [headless mode](WindowMode::is_headless).
+/// "Monitor" configuration used by windows in [headless mode](WindowMode::is_headless).
 #[derive(Clone)]
-pub struct HeadlessScreen {
+pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
     ///
     /// `1.0` by default.
@@ -249,7 +255,8 @@ pub struct HeadlessScreen {
 
     /// Size of the imaginary monitor screen that contains the headless window.
     ///
-    /// This is used to calculate relative lengths in the window size definition.
+    /// This is used to calculate relative lengths in the window size definition and is defined in
+    /// layout pixels instead of device like in a real monitor info.
     ///
     /// `(1920.0, 1080.0)` by default.
     pub size: LayoutSize,
@@ -259,10 +266,10 @@ pub struct HeadlessScreen {
     /// `96.0` by default.
     pub ppi: f32,
 }
-impl fmt::Debug for HeadlessScreen {
+impl fmt::Debug for HeadlessMonitor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() || about_eq(self.ppi, 96.0, 0.001) {
-            f.debug_struct("HeadlessScreen")
+            f.debug_struct("HeadlessMonitor")
                 .field("scale_factor", &self.scale_factor)
                 .field("screen_size", &self.size)
                 .field("ppi", &self.ppi)
@@ -272,19 +279,19 @@ impl fmt::Debug for HeadlessScreen {
         }
     }
 }
-impl HeadlessScreen {
+impl HeadlessMonitor {
     /// New with custom size at `1.0` scale.
     #[inline]
-    pub fn new(screen_size: LayoutSize) -> Self {
-        Self::new_scaled(screen_size, 1.0)
+    pub fn new(size: LayoutSize) -> Self {
+        Self::new_scaled(size, 1.0)
     }
 
     /// New with custom size and scale.
     #[inline]
-    pub fn new_scaled(screen_size: LayoutSize, scale_factor: f32) -> Self {
-        HeadlessScreen {
+    pub fn new_scaled(size: LayoutSize, scale_factor: f32) -> Self {
+        HeadlessMonitor {
             scale_factor,
-            size: screen_size,
+            size,
             ppi: 96.0,
         }
     }
@@ -292,42 +299,42 @@ impl HeadlessScreen {
     /// New default size `1920x1080` and custom scale.
     #[inline]
     pub fn new_scale(scale_factor: f32) -> Self {
-        HeadlessScreen {
+        HeadlessMonitor {
             scale_factor,
             ..Self::default()
         }
     }
 }
-impl Default for HeadlessScreen {
+impl Default for HeadlessMonitor {
     /// New `1920x1080` at `1.0` scale.
     fn default() -> Self {
         Self::new(LayoutSize::new(1920.0, 1080.0))
     }
 }
-impl IntoValue<HeadlessScreen> for (f32, f32) {}
-impl From<(f32, f32)> for HeadlessScreen {
-    /// Calls [`HeadlessScreen::new_scaled`]
+impl IntoValue<HeadlessMonitor> for (f32, f32) {}
+impl From<(f32, f32)> for HeadlessMonitor {
+    /// Calls [`HeadlessMonitor::new_scaled`]
     fn from((width, height): (f32, f32)) -> Self {
         Self::new(LayoutSize::new(width, height))
     }
 }
-impl IntoValue<HeadlessScreen> for (u32, u32) {}
-impl From<(u32, u32)> for HeadlessScreen {
-    /// Calls [`HeadlessScreen::new`]
+impl IntoValue<HeadlessMonitor> for (u32, u32) {}
+impl From<(u32, u32)> for HeadlessMonitor {
+    /// Calls [`HeadlessMonitor::new`]
     fn from((width, height): (u32, u32)) -> Self {
         Self::new(LayoutSize::new(width as f32, height as f32))
     }
 }
-impl IntoValue<HeadlessScreen> for FactorNormal {}
-impl From<FactorNormal> for HeadlessScreen {
-    /// Calls [`HeadlessScreen::new_scale`]
+impl IntoValue<HeadlessMonitor> for FactorNormal {}
+impl From<FactorNormal> for HeadlessMonitor {
+    /// Calls [`HeadlessMonitor::new_scale`]
     fn from(f: FactorNormal) -> Self {
         Self::new_scale(f.0)
     }
 }
-impl IntoValue<HeadlessScreen> for FactorPercent {}
-impl From<FactorPercent> for HeadlessScreen {
-    /// Calls [`HeadlessScreen::new_scale`]
+impl IntoValue<HeadlessMonitor> for FactorPercent {}
+impl From<FactorPercent> for HeadlessMonitor {
+    /// Calls [`HeadlessMonitor::new_scale`]
     fn from(f: FactorPercent) -> Self {
         Self::new_scale(f.0 / 100.0)
     }
@@ -364,7 +371,7 @@ pub enum StartPosition {
     /// Uses the value of the `position` property.
     Default,
     /// Centralizes the window in the monitor screen.
-    CenterScreen,
+    CenterMonitor,
     /// Centralizes the window the parent window.
     CenterParent,
 }
@@ -380,7 +387,7 @@ impl fmt::Debug for StartPosition {
         }
         match self {
             StartPosition::Default => write!(f, "Default"),
-            StartPosition::CenterScreen => write!(f, "CenterScreen"),
+            StartPosition::CenterMonitor => write!(f, "CenterMonitor"),
             StartPosition::CenterParent => write!(f, "CenterParent"),
         }
     }
@@ -859,7 +866,7 @@ event! {
 /// Services this extension provides:
 ///
 /// * [Windows]
-/// * [Screens]
+/// * [Monitors]
 pub struct WindowManager {
     pending_closes: LinearMap<CloseGroupId, PendingClose>,
 }
@@ -876,7 +883,7 @@ impl Default for WindowManager {
 }
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Screens::new());
+        ctx.services.register(Monitors::new());
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
@@ -1066,18 +1073,86 @@ fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &
     wns.windows = windows;
 }
 
-/// Monitor screens service.
+/// Monitors service.
+/// 
+/// List monitor screens and configure the PPI of a given monitor.
+/// 
+/// # Uses
+/// 
+/// Uses of this service:
+/// 
+/// ## Start Position
+/// 
+/// Windows are positioned on a *virtual screen* that overlaps all monitors, but for the window start
+/// position the user may want to select a specific monitor, this service is used to provide information
+/// to implement this feature.
+/// 
+/// See [The Virtual Screen] for more information about this in the Windows OS.
+/// 
+/// ## Full-Screen
+/// 
+/// To set a window to full-screen a monitor must be selected, by default it can be the one the window is at but
+/// the users may want to select a monitor. To enter full-screen exclusive the video mode must be decided also, all video
+/// modes supported by the monitor are available in the [`MonitorInfo`] value.
+/// 
+/// ## Real-Size Preview
+/// 
+/// Some apps, like image editors, may implement a feature where the user can preview the *real* dimensions of
+/// the content they are editing, to accurately implement this you must known the real dimensions of the monitor screen,
+/// unfortunately this information is not provided by monitor devices. You can ask the user to measure their screen and
+/// set the **pixel-per-inch** ratio for the screen using [`ppi`] variable, this value is then available in the [`LayoutMetrics`]
+/// for the next layout. If not set, the default is `96.0ppi`.
 ///
 /// # Provider
 ///
 /// This service is provided by the [`WindowManager`].
+/// 
+/// [`ppi`]: Monitors::ppi
+/// [`LayoutMetrics`]: crate::context::LayoutMetrics
+/// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen?redirectedfrom=MSDN
 #[derive(Service)]
-pub struct Screens {
-    ppi: LinearMap<ScreenId, f32>,
+pub struct Monitors {
+    ppi: LinearMap<MonitorId, RcVar<f32>>,
 }
-impl Screens {
+impl Monitors {
     fn new() -> Self {
-        Screens { ppi: LinearMap::default() }
+        Monitors { ppi: LinearMap::default() }
+    }
+
+    /// Gets the *pixels-per-inch* associated with the monitor, or `96.0` by default.
+    /// 
+    /// You can change this variable to assign a different PPI, this value will then
+    /// be available in next layout for the windows inside the monitor screen, note that
+    /// changing the variable does not cause a layout request, you must use [`Updates::layout_all`].
+    pub fn ppi(&mut self, monitor_id: MonitorId) -> &RcVar<f32> {
+        self.ppi.entry(monitor_id).or_insert_with(||var(96.0))
+    }
+
+
+    /// Gets the primary monitor or the first monitor available.
+    /// 
+    /// Returns `Some(ID, info, PPI)` if any monitor is available.
+    /// 
+    /// Returns `None` if no monitor was found or the app is running in headless mode without renderer.
+    pub fn primary_monitor(&self) -> Option<(MonitorId, MonitorInfo, &RcVar<f32>)> {
+        todo!()
+    }
+
+    /// Gets the monitor info and PPI if it is known.
+    /// 
+    /// Returns `None` if the monitor was not found the app is running in headless mode without renderer.
+    pub fn monitor(&self, monitor_id: MonitorId) -> Option<(MonitorInfo, &RcVar<f32>)> {
+        todo!()
+    }
+
+    /// Iterate over all available monitors.
+    /// 
+    /// Each item is `(ID, info, PPI)`.
+    /// 
+    /// Is empty if no monitor was found or the app is running in headless mode without renderer.
+    pub fn available_monitors(&self) -> impl Iterator<Item = (MonitorId, MonitorInfo, &RcVar<f32>)> {
+        todo!("we need to get the ViewProcess without requesting ctx");
+        vec![].into_iter()
     }
 }
 
@@ -1363,7 +1438,7 @@ struct AppWindow {
     // Is some if the window is headed.
     headed: Option<ViewWindow>,
     // Is some if the window is headless, a fake screen for size calculations.
-    headless_screen: Option<HeadlessScreen>,
+    headless_monitor: Option<HeadlessMonitor>,
 
     // Is some if the window is headed or headless with renderer.
     renderer: Option<ViewRenderer>,
@@ -1415,8 +1490,8 @@ impl AppWindow {
         let root = ctx.window_context(id, mode, &mut wn_state, &None, new_window).0;
         let root_id = root.id;
 
-        let headless_screen = if matches!(mode, WindowMode::Headless) {
-            Some(root.headless_screen.clone())
+        let headless_monitor = if matches!(mode, WindowMode::Headless) {
+            Some(root.headless_monitor.clone())
         } else {
             None
         };
@@ -1442,7 +1517,7 @@ impl AppWindow {
         let win = AppWindow {
             headed: None, // headed & renderer will initialize on first render.
             renderer: None,
-            headless_screen,
+            headless_monitor,
             context,
             mode,
             id,
@@ -1478,7 +1553,7 @@ impl AppWindow {
         self.renderer
             .as_ref()
             .map(|r| r.scale_factor().ok())
-            .unwrap_or_else(|| self.headless_screen.as_ref().map(|h| h.scale_factor))
+            .unwrap_or_else(|| self.headless_monitor.as_ref().map(|h| h.scale_factor))
             .unwrap_or(1.0)
     }
 
@@ -1579,7 +1654,7 @@ impl AppWindow {
         let (scr_size, scr_factor, scr_ppi) = if let Some(w) = &self.headed {
             todo!()
         } else {
-            let scr = self.headless_screen.as_ref().unwrap();
+            let scr = self.headless_monitor.as_ref().unwrap();
             (scr.size, scr.scale_factor, scr.ppi)
         };
 
@@ -1836,7 +1911,7 @@ impl OwnedWindowContext {
 
 // OpenWindow headless info.
 struct HeadlessWindow {
-    screen: HeadlessScreen,
+    screen: HeadlessMonitor,
     size: LayoutSize,
 }
 

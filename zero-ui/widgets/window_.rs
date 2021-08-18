@@ -1,5 +1,5 @@
 use crate::core::focus::*;
-use crate::core::window::{HeadlessScreen, StartPosition, Window};
+use crate::core::window::{HeadlessMonitor, StartPosition, Window};
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
 
@@ -209,7 +209,7 @@ pub mod window {
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
         /// is taken from the monitor. In headless mode these values can be configured manually.
         #[allowed_in_when = false]
-        headless_screen(impl IntoValue<HeadlessScreen>) = HeadlessScreen::default();
+        headless_monitor(impl IntoValue<HeadlessMonitor>) = HeadlessMonitor::default();
 
         /// Lock-in kiosk mode.
         ///
@@ -257,9 +257,9 @@ pub mod window {
         root_id: WidgetId,
         start_position: impl Into<StartPosition>,
         kiosk: bool,
-        headless_screen: impl Into<HeadlessScreen>,
+        headless_monitor: impl Into<HeadlessMonitor>,
     ) -> Window {
-        Window::new(root_id, start_position, kiosk, headless_screen, child)
+        Window::new(root_id, start_position, kiosk, headless_monitor, child)
     }
 
     /// Window stand-alone properties.

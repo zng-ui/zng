@@ -199,8 +199,18 @@ impl Updates {
     }
 
     /// Schedules a layout update.
+    /// 
+    /// In a [`WindowContext`] and [`WidgetContext`] this only requests a layout for the parent window,
+    /// use [`layout_all`] to re-layout all open windows.
     #[inline]
     pub fn layout(&mut self) {
+        self.win_display_update |= UpdateDisplayRequest::Layout;
+        self.display_update |= UpdateDisplayRequest::Layout;
+    }
+
+    /// Schedules a layout update for all open windows.
+    #[inline]
+    pub fn layout_all(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Layout;
         self.display_update |= UpdateDisplayRequest::Layout;
     }
@@ -212,10 +222,20 @@ impl Updates {
     }
 
     /// Schedules a new frame.
+    /// 
+    /// In a [`WindowContext`] and [`WidgetContext`] this only requests a new frame for the parent window,
+    /// use [`render_all`] to re-render all open windows.
     #[inline]
     pub fn render(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Render;
         self.display_update |= UpdateDisplayRequest::Render;
+    }
+
+    /// Schedules a new frame for all open windows.
+    #[inline]
+    pub fn render_all(&mut self) {
+        self.win_display_update |= UpdateDisplayRequest::Layout;
+        self.display_update |= UpdateDisplayRequest::Layout;
     }
 
     /// Gets `true` if a new frame is scheduled.
@@ -1077,12 +1097,12 @@ pub struct LayoutMetrics {
     /// in the [`pixel_grid`] value.
     ///
     /// If you are implementing some feature like a "print size preview", you need to use this value, and you
-    /// can configure a PPI per screen in the [`Screens`] service.
+    /// can configure a PPI per screen in the [`Monitors`] service.
     ///
     /// Default is `96.0`.
     ///
-    /// [`pixel_grid`]: PixelGrid::scale_factor.
-    /// [`Screens`]: crate::window::Screens.
+    /// [`pixel_grid`]: PixelGrid::scale_factor
+    /// [`Monitors`]: crate::window::Monitors
     pub screen_ppi: f32,
 }
 impl LayoutMetrics {

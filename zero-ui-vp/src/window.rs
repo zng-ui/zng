@@ -149,7 +149,7 @@ impl ViewWindow {
             allow_alt_f4,
             taskbar_visible: true,
             movable: w.movable,
-            transparent: w.transparent
+            transparent: w.transparent,
         };
 
         app.set_taskbar_visible(w.taskbar_visible);

@@ -1691,7 +1691,6 @@ impl DeviceId {
         *ID
     }
 }
-
 impl fmt::Display for DeviceId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "DeviceId({})", self.get())
@@ -1708,12 +1707,14 @@ pub mod view_process {
 
     use webrender_api::{DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate};
     use zero_ui_vp::{Controller, DevId, WinId};
-    pub use zero_ui_vp::{Error, Ev, FramePixels, FrameRequest, Icon, Result, TextAntiAliasing, WindowConfig};
+    pub use zero_ui_vp::{
+        CursorIcon, Error, Ev, FramePixels, FrameRequest, Icon, MonitorInfo, Result, TextAntiAliasing, VideoMode, WindowConfig, WindowTheme,
+    };
 
     use super::DeviceId;
     use crate::service::Service;
     use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
-    use crate::window::WindowId;
+    use crate::window::{WindowId, MonitorId};
     use crate::{event, event_args};
 
     /// Reference to the running View Process.
@@ -1726,6 +1727,7 @@ pub mod view_process {
         process: zero_ui_vp::Controller,
         window_ids: LinearMap<WinId, WindowId>,
         device_ids: LinearMap<DevId, DeviceId>,
+        monitor_ids: LinearMap<zero_ui_vp::MonId, MonitorId>,
     }
     impl ViewProcess {
         /// Spawn the View Process.
@@ -1737,6 +1739,7 @@ pub mod view_process {
                 process: zero_ui_vp::Controller::start(view_process_exe, device_events, headless, on_event),
                 window_ids: LinearMap::default(),
                 device_ids: LinearMap::default(),
+                monitor_ids: LinearMap::default(),
             })))
         }
 
@@ -1764,6 +1767,20 @@ pub mod view_process {
             self.0.borrow_mut().process.system_text_aa()
         }
 
+        /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
+        #[inline]
+        pub fn primary_monitor(&self) -> Result<Option<(MonitorId, MonitorInfo)>> {
+            let m = self.0.borrow_mut().process.primary_monitor()?;
+            Ok(m.map(|(id, m)| (self.monitor_id(id), m)))
+        }
+
+        /// Returns all available monitors.
+        #[inline]
+        pub fn available_monitors(&self) -> Result<Vec<(MonitorId, MonitorInfo)>> {
+            let m = self.0.borrow_mut().process.available_monitors()?;
+            Ok(m.into_iter().map(|(id, m)| (self.monitor_id(id), m)).collect())
+        }
+
         /// Translate `WinId` to `WindowId`.
         pub(super) fn window_id(&self, id: WinId) -> Option<WindowId> {
             self.0.borrow().window_ids.get(&id).copied()
@@ -1772,6 +1789,11 @@ pub mod view_process {
         /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
         pub(super) fn device_id(&self, id: DevId) -> DeviceId {
             *self.0.borrow_mut().device_ids.entry(id).or_insert_with(DeviceId::new_unique)
+        }
+
+        /// Translate `MonId` to `MonitorId`, generates a monitor id if it was unknown.
+        pub(super) fn monitor_id(&self, id: zero_ui_vp::MonId) -> MonitorId {
+            *self.0.borrow_mut().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
         }
     }
 
