@@ -13,7 +13,7 @@ use crate::{
             RawWindowCloseRequestedEvent, RawWindowClosedEvent, RawWindowFocusEvent, RawWindowMovedEvent, RawWindowResizedEvent,
             RawWindowScaleFactorChangedEvent,
         },
-        view_process::{self, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
+        view_process::{self, ViewProcess, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension,
     },
     cancelable_event_args,
@@ -883,7 +883,8 @@ impl Default for WindowManager {
 }
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Monitors::new());
+        let view_process = ctx.services.get::<ViewProcess>().cloned();
+        ctx.services.register(Monitors::new(view_process));
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
@@ -1074,29 +1075,29 @@ fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &
 }
 
 /// Monitors service.
-/// 
+///
 /// List monitor screens and configure the PPI of a given monitor.
-/// 
+///
 /// # Uses
-/// 
+///
 /// Uses of this service:
-/// 
+///
 /// ## Start Position
-/// 
+///
 /// Windows are positioned on a *virtual screen* that overlaps all monitors, but for the window start
 /// position the user may want to select a specific monitor, this service is used to provide information
 /// to implement this feature.
-/// 
+///
 /// See [The Virtual Screen] for more information about this in the Windows OS.
-/// 
+///
 /// ## Full-Screen
-/// 
+///
 /// To set a window to full-screen a monitor must be selected, by default it can be the one the window is at but
 /// the users may want to select a monitor. To enter full-screen exclusive the video mode must be decided also, all video
 /// modes supported by the monitor are available in the [`MonitorInfo`] value.
-/// 
+///
 /// ## Real-Size Preview
-/// 
+///
 /// Some apps, like image editors, may implement a feature where the user can preview the *real* dimensions of
 /// the content they are editing, to accurately implement this you must known the real dimensions of the monitor screen,
 /// unfortunately this information is not provided by monitor devices. You can ask the user to measure their screen and
@@ -1106,53 +1107,63 @@ fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &
 /// # Provider
 ///
 /// This service is provided by the [`WindowManager`].
-/// 
+///
 /// [`ppi`]: Monitors::ppi
 /// [`LayoutMetrics`]: crate::context::LayoutMetrics
-/// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen?redirectedfrom=MSDN
+/// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
 #[derive(Service)]
 pub struct Monitors {
     ppi: LinearMap<MonitorId, RcVar<f32>>,
+    view: Option<ViewProcess>,
 }
 impl Monitors {
-    fn new() -> Self {
-        Monitors { ppi: LinearMap::default() }
+    fn new(view: Option<ViewProcess>) -> Self {
+        Monitors {
+            ppi: LinearMap::default(),
+            view,
+        }
     }
 
     /// Gets the *pixels-per-inch* associated with the monitor, or `96.0` by default.
-    /// 
+    ///
     /// You can change this variable to assign a different PPI, this value will then
     /// be available in next layout for the windows inside the monitor screen, note that
     /// changing the variable does not cause a layout request, you must use [`Updates::layout_all`].
     pub fn ppi(&mut self, monitor_id: MonitorId) -> &RcVar<f32> {
-        self.ppi.entry(monitor_id).or_insert_with(||var(96.0))
+        self.ppi.entry(monitor_id).or_insert_with(|| var(96.0))
     }
 
-
     /// Gets the primary monitor or the first monitor available.
-    /// 
+    ///
     /// Returns `Some(ID, info, PPI)` if any monitor is available.
-    /// 
+    ///
     /// Returns `None` if no monitor was found or the app is running in headless mode without renderer.
-    pub fn primary_monitor(&self) -> Option<(MonitorId, MonitorInfo, &RcVar<f32>)> {
-        todo!()
+    pub fn primary_monitor(&mut self) -> Option<(MonitorId, MonitorInfo, &RcVar<f32>)> {
+        self.view
+            .as_ref()
+            .and_then(|vp| vp.primary_monitor().ok().flatten())
+            .map(move |(id, info)| (id, info, self.ppi(id)))
     }
 
     /// Gets the monitor info and PPI if it is known.
-    /// 
+    ///
     /// Returns `None` if the monitor was not found the app is running in headless mode without renderer.
     pub fn monitor(&self, monitor_id: MonitorId) -> Option<(MonitorInfo, &RcVar<f32>)> {
         todo!()
     }
 
     /// Iterate over all available monitors.
-    /// 
+    ///
     /// Each item is `(ID, info, PPI)`.
-    /// 
+    ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&self) -> impl Iterator<Item = (MonitorId, MonitorInfo, &RcVar<f32>)> {
-        todo!("we need to get the ViewProcess without requesting ctx");
-        vec![].into_iter()
+    pub fn available_monitors(&mut self) -> impl Iterator<Item = (MonitorId, MonitorInfo, &RcVar<f32>)> {
+        self.view
+            .as_ref()
+            .and_then(|vp| vp.available_monitors().ok())
+            .unwrap_or_default()
+            .into_iter()
+            .map(move |(id, info)| (id, info, self.ppi(id)))
     }
 }
 

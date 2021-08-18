@@ -300,7 +300,7 @@ impl MonitorInfo {
     #[inline]
     pub fn is_primary(&self) -> bool {
         self.position.0 == 0 && self.position.1 == 0
-    }    
+    }
 }
 impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
     fn from(m: glutin::monitor::MonitorHandle) -> Self {

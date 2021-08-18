@@ -199,7 +199,7 @@ impl Updates {
     }
 
     /// Schedules a layout update.
-    /// 
+    ///
     /// In a [`WindowContext`] and [`WidgetContext`] this only requests a layout for the parent window,
     /// use [`layout_all`] to re-layout all open windows.
     #[inline]
@@ -222,7 +222,7 @@ impl Updates {
     }
 
     /// Schedules a new frame.
-    /// 
+    ///
     /// In a [`WindowContext`] and [`WidgetContext`] this only requests a new frame for the parent window,
     /// use [`render_all`] to re-render all open windows.
     #[inline]

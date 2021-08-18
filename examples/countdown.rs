@@ -22,7 +22,7 @@ fn main() {
         window! {
             title = "Countdown Example";
             size = (280, 120);
-            start_position = StartPosition::CenterScreen;
+            start_position = StartPosition::CenterMonitor;
             resizable = false;
 
             font_size = 42.pt();

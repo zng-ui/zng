@@ -1714,14 +1714,16 @@ pub mod view_process {
     use super::DeviceId;
     use crate::service::Service;
     use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
-    use crate::window::{WindowId, MonitorId};
+    use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
 
     /// Reference to the running View Process.
     ///
     /// This is the lowest level API, used for implementing fundamental services and is a service available
     /// in headed apps or headless apps with renderer.
-    #[derive(Service)]
+    ///
+    /// This is a strong reference to the view process. The process shuts down when all clones of this struct drops.
+    #[derive(Service, Clone)]
     pub struct ViewProcess(Rc<RefCell<ViewApp>>);
     struct ViewApp {
         process: zero_ui_vp::Controller,

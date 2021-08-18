@@ -11,7 +11,7 @@ fn main() {
             title = "Shortcuts Example";
             auto_size = true;
             padding = 50;
-            start_position = StartPosition::CenterScreen;
+            start_position = StartPosition::CenterMonitor;
             on_shortcut = hn!(shortcut_text, shortcut_color, |ctx, args: &ShortcutArgs| {
                 shortcut_text.set(ctx.vars, args.shortcut.to_text());
                 shortcut_color.set(ctx.vars, shortcut_color_dft);
