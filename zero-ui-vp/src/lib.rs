@@ -590,6 +590,11 @@ declare_ipc! {
         )
     }
 
+    /// Returns information about the specific monitor, if it exists.
+    pub fn monitor_info(&mut self, _ctx: &Context, id: MonId) -> Result<Option<MonitorInfo>> {
+        Ok(self.monitors.iter().find(|(i, _)| *i == id).map(|(_, h)| MonitorInfo::from(h)))
+    }
+
     /// Returns all available monitors.
     pub fn available_monitors(&mut self, ctx: &Context) -> Result<Vec<(MonId, MonitorInfo)>> {
         Ok(

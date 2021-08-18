@@ -83,7 +83,7 @@ use crate::{
     event::*,
     gesture::{shortcut, ShortcutEvent},
     mouse::MouseDownEvent,
-    render::{DescendantFilter, FrameInfo, WidgetInfo, WidgetPath},
+    render::{DescendantFilter, FrameInfo, WidgetInfo, WidgetPath, FrameId},
     service::Service,
     units::LayoutPoint,
     var::impl_from_and_into_var,
@@ -575,7 +575,7 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, _: FrameId) {
         let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
 
         if self.focused.as_ref().map(|f| f.window_id() == window_id).unwrap_or_default() {

@@ -301,9 +301,15 @@ impl MonitorInfo {
     pub fn is_primary(&self) -> bool {
         self.position.0 == 0 && self.position.1 == 0
     }
+
+    /// Returns the `size` descaled using the `scale_factor`.
+    #[inline]
+    pub fn layout_size(&self) -> LayoutSize {
+        LayoutSize::new(self.size.0 as f32 / self.scale_factor, self.size.1 as f32 / self.scale_factor)
+    }
 }
-impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
-    fn from(m: glutin::monitor::MonitorHandle) -> Self {
+impl<'a> From<&'a glutin::monitor::MonitorHandle> for MonitorInfo {
+    fn from(m: &'a glutin::monitor::MonitorHandle) -> Self {
         let pos = m.position();
         let size = m.size();
         Self {
@@ -313,6 +319,11 @@ impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
             scale_factor: m.scale_factor() as f32,
             video_modes: m.video_modes().map(Into::into).collect(),
         }
+    }
+}
+impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
+    fn from(m: glutin::monitor::MonitorHandle) -> Self {
+        (&m).into()
     }
 }
 

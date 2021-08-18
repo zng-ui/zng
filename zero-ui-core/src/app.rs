@@ -5,6 +5,7 @@ use crate::crate_util::PanicPayload;
 use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::profiler::*;
+use crate::render::FrameId;
 use crate::timer::Timers;
 use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
 use crate::{
@@ -17,6 +18,7 @@ use crate::{
     window::{WindowId, WindowManager},
 };
 
+use linear_map::LinearMap;
 use once_cell::sync::Lazy;
 use std::future::Future;
 use std::path::PathBuf;
@@ -210,14 +212,8 @@ pub trait AppExtension: 'static {
 
     /// Called when a new frame is ready to be inspected.
     #[inline]
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        let _ = (ctx, window_id);
-    }
-
-    /// Called when the OS sends a request for re-drawing the last frame.
-    #[inline]
-    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        let _ = (ctx, window_id);
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
+        let _ = (ctx, window_id, frame_id);
     }
 
     /// Called when a shutdown was requested.
@@ -257,8 +253,7 @@ pub trait AppExtensionBoxed: 'static {
     fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn update_display_boxed(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest);
-    fn new_frame_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
-    fn redraw_requested_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId);
+    fn new_frame_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId);
     fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs);
     fn deinit_boxed(&mut self, ctx: &mut AppContext);
 }
@@ -307,12 +302,8 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.update_display(ctx, update);
     }
 
-    fn new_frame_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.new_frame(ctx, window_id);
-    }
-
-    fn redraw_requested_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.redraw_requested(ctx, window_id);
+    fn new_frame_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
+        self.new_frame(ctx, window_id, frame_id);
     }
 
     fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
@@ -371,12 +362,8 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().update_display_boxed(ctx, update);
     }
 
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.as_mut().new_frame_boxed(ctx, window_id);
-    }
-
-    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.as_mut().redraw_requested_boxed(ctx, window_id);
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
+        self.as_mut().new_frame_boxed(ctx, window_id, frame_id);
     }
 
     fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
@@ -818,7 +805,6 @@ impl<E: AppExtension> RunningApp<E> {
     ///
     /// [`Poll`]: ControlFlow::Poll
     #[inline]
-    #[must_use = "ControlFlow must be used"]
     pub fn poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         let mut flow = ControlFlow::Poll;
         while let ControlFlow::Poll = flow {
@@ -844,7 +830,6 @@ impl<E: AppExtension> RunningApp<E> {
     /// This method does not manages timers, you can probe [`wake_time`] to get the next timer deadline.
     ///
     /// [`Poll`]: ControlFlow::Poll
-    #[must_use = "ControlFlow must be used"]
     pub fn try_poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         match self.receiver.try_recv() {
             Ok(ev) => self.app_event(ev, observer),
@@ -860,18 +845,12 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Process an [`AppEvent`].
-    #[must_use = "ControlFlow must be used"]
     fn app_event<O: AppEventObserver>(&mut self, app_event: AppEvent, observer: &mut O) -> ControlFlow {
         self.maybe_has_updates = true;
 
         match app_event {
             AppEvent::ViewEvent(ev) => {
                 return self.view_event(ev, observer);
-            }
-            AppEvent::NewFrame(window_id) => {
-                let mut ctx = self.owned_ctx.borrow();
-                self.extensions.new_frame(&mut ctx, window_id);
-                observer.new_frame(&mut ctx, window_id);
             }
             AppEvent::Update => self.owned_ctx.borrow().updates.update(),
             AppEvent::Event(e) => {
@@ -889,7 +868,6 @@ impl<E: AppExtension> RunningApp<E> {
     /// Process a View Process event.
     ///
     /// Does `update` on `EventsCleared`.
-    #[must_use = "ControlFlow must be used"]
     fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_vp::Ev, observer: &mut O) -> ControlFlow {
         use raw_device_events::*;
         use raw_events::*;
@@ -1054,12 +1032,12 @@ impl<E: AppExtension> RunningApp<E> {
     /// if there aren't.
     ///
     /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
-    #[must_use = "ControlFlow must be used"]
     pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         if self.maybe_has_updates {
             self.maybe_has_updates = false;
 
             let mut display_update = UpdateDisplayRequest::None;
+            let mut new_frames = LinearMap::with_capacity(1);
 
             let mut limit = 100_000;
             loop {
@@ -1069,13 +1047,13 @@ impl<E: AppExtension> RunningApp<E> {
                 }
 
                 let u = self.owned_ctx.apply_updates();
+                let mut ctx = self.owned_ctx.borrow();
 
                 self.wake_time = u.wake_time;
                 display_update |= u.display_update;
+                new_frames.extend(u.new_frames);
 
                 if u.update {
-                    let mut ctx = self.owned_ctx.borrow();
-
                     // check shutdown.
                     if let Some(r) = ctx.services.app_process().take_requests() {
                         let args = ShutdownRequestedArgs::now();
@@ -1120,11 +1098,13 @@ impl<E: AppExtension> RunningApp<E> {
                 } else if display_update != UpdateDisplayRequest::None {
                     display_update = UpdateDisplayRequest::None;
 
-                    let mut ctx = self.owned_ctx.borrow();
-
                     self.extensions.update_display(&mut ctx, display_update);
                     observer.update_display(&mut ctx, display_update);
                 } else {
+                    for (window_id, frame_id) in new_frames {
+                        self.extensions.new_frame(&mut ctx, window_id, frame_id);
+                        observer.new_frame(&mut ctx, window_id, frame_id);
+                    }
                     break;
                 }
             }
@@ -1146,6 +1126,7 @@ impl<E: AppExtension> RunningApp<E> {
 
 /// Desired next step of a loop animating a [`RunningApp`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[must_use = "methods that return `ControlFlow` expect to be inside a controlled loop"]
 pub enum ControlFlow {
     /// Immediately try to receive more app events.
     Poll,
@@ -1304,8 +1285,8 @@ pub trait AppEventObserver {
     }
 
     /// Called just after [`AppExtension::new_frame`].
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        let _ = (ctx, window_id);
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
+        let _ = (ctx, window_id, frame_id);
     }
 }
 /// Nil observer, does nothing.
@@ -1335,9 +1316,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.0.new_frame(ctx, window_id);
-        self.1.new_frame(ctx, window_id);
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
+        self.0.new_frame(ctx, window_id, frame_id);
+        self.1.new_frame(ctx, window_id, frame_id);
     }
 
     #[inline]
@@ -1383,12 +1364,6 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        self.0.redraw_requested(ctx, window_id);
-        self.1.redraw_requested(ctx, window_id);
-    }
-
-    #[inline]
     fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
         self.0.shutdown_requested(ctx, args);
         self.1.shutdown_requested(ctx, args);
@@ -1422,9 +1397,9 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         self.iter().any(|e| e.enable_device_events())
     }
 
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId) {
+    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
         for ext in self {
-            ext.new_frame(ctx, window_id);
+            ext.new_frame(ctx, window_id, frame_id);
         }
     }
 
@@ -1470,12 +1445,6 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn redraw_requested(&mut self, ctx: &mut AppContext, window_id: WindowId) {
-        for ext in self {
-            ext.redraw_requested(ctx, window_id);
-        }
-    }
-
     fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
         for ext in self {
             ext.shutdown_requested(ctx, args);
@@ -1500,8 +1469,6 @@ pub(crate) enum AppEvent {
     Var,
     /// Do an update cycle.
     Update,
-    /// Update in a window frame info.
-    NewFrame(WindowId),
     /// Resume a panic in the app thread.
     ResumeUnwind(PanicPayload),
 }
@@ -1531,15 +1498,6 @@ impl AppEventSender {
     #[inline]
     pub fn send_update(&self) -> Result<(), AppShutdown<()>> {
         self.send_app_event(AppEvent::Update).map_err(|_| AppShutdown(()))
-    }
-
-    /// Notifies that the window has new frame info.
-    #[inline]
-    pub fn send_new_frame(&self, window_id: WindowId) -> Result<(), AppShutdown<WindowId>> {
-        self.send_app_event(AppEvent::NewFrame(window_id)).map_err(|e| match e.0 {
-            AppEvent::NewFrame(w_id) => AppShutdown(w_id),
-            _ => unreachable!(),
-        })
     }
 
     /// [`VarSender`](crate::var::VarSender) util.
@@ -1783,6 +1741,16 @@ pub mod view_process {
             Ok(m.into_iter().map(|(id, m)| (self.monitor_id(id), m)).collect())
         }
 
+        /// Returns information about the specific monitor, if it exists.
+        #[inline]
+        pub fn monitor_info(&self, monitor_id: MonitorId) -> Result<Option<MonitorInfo>> {
+            if let Some(id) = self.monitor_id_back(monitor_id) {
+                self.0.borrow_mut().process.monitor_info(id)
+            } else {
+                Ok(None)
+            }
+        }
+
         /// Translate `WinId` to `WindowId`.
         pub(super) fn window_id(&self, id: WinId) -> Option<WindowId> {
             self.0.borrow().window_ids.get(&id).copied()
@@ -1796,6 +1764,16 @@ pub mod view_process {
         /// Translate `MonId` to `MonitorId`, generates a monitor id if it was unknown.
         pub(super) fn monitor_id(&self, id: zero_ui_vp::MonId) -> MonitorId {
             *self.0.borrow_mut().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
+        }
+
+        /// Translate `MonitorId` to `MonId`.
+        pub(super) fn monitor_id_back(&self, monitor_id: MonitorId) -> Option<zero_ui_vp::MonId> {
+            self.0
+                .borrow()
+                .monitor_ids
+                .iter()
+                .find(|(_, app_id)| **app_id == monitor_id)
+                .map(|(id, _)| *id)
         }
     }
 

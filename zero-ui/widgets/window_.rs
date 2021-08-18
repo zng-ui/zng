@@ -48,69 +48,72 @@ pub mod window {
 
         /// Window position (*x*, *y*).
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial position.
+        /// Set to [`f32::NAN`] to not give a position. This variable is not updated back
+        /// if the user moves the window, you can use the [`actual_position`](#wp-actual_position) to get the
+        /// computed position.
+        ///
+        /// The position is computed in relation to the [`monitor`](#wp-monitor) value and is re-applied every
+        /// time this property or monitor updates.
         ///
         /// You can also set [`x`](#wp-x) and [`y`](#wp-y) as independent properties.
-        properties::position = {
-            // use shared var in debug to allow inspecting the value.
-            #[cfg(debug_assertions)]
-            let r = crate::core::var::var(crate::core::units::Point::new(f32::NAN, f32::NAN));
+        properties::position;
 
-            #[cfg(not(debug_assertions))]
-            let r = (f32::NAN, f32::NAN);
-
-            r
-        };
+        /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.
+        ///
+        /// When the window is dragged to a different monitor this property does not update, you can use the
+        /// [`actual_monitor`] property to get the current monitor.
+        ///
+        /// You can change this property after the window has opened to move the window to a different monitor,
+        /// see [`WindowVars::monitor`] for more details about this function.
+        ///
+        /// Is the [`MonitorQuery::Primary`] by default.
+        ///
+        /// [`start_position`]: #wp-start_position
+        /// [`position`]: #wp-position
+        /// [`size`]: #wp-size
+        /// [`WindowVars::monitor`]: crate::core::window::WindowVars::monitor
+        properties::monitor;
 
         /// Window position *x*.
         ///
         /// This property value is the same as the [`position.x`](#wp-position) value.
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial position.
+        /// Set to [`f32::NAN`] to not give an initial position.
         properties::x;
 
         /// Window position *y*.
         ///
         /// This property value is the same as the [`position.y`](#wp-position) value.
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial position.
+        /// Set to [`f32::NAN`] to not give a position.
         properties::y;
 
         /// Window size (*width*, *height*).
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial size.
+        /// Set to [`f32::NAN`] to not give a size.
         ///
         /// Does not include the OS window border.
         ///
         /// You can also set the [`width`](#wp-width) and [`height`](#wp-height) as independent properties.
-        properties::size = {
-            // use shared var in debug to allow inspecting the value.
-            #[cfg(debug_assertions)]
-            let r = crate::core::var::var(crate::core::units::Size::new(f32::NAN, f32::NAN));
-
-            #[cfg(not(debug_assertions))]
-            let r = (f32::NAN, f32::NAN);
-
-            r
-        };
+        properties::size;
 
         /// Window size *width*.
         ///
         /// This property value is the same as the [`size.width`](#wp-size) value.
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial position.
+        /// Set to [`f32::NAN`] to not give a position.
         properties::width;
 
         /// Window size *height*.
         ///
         /// This property value is the same as the [`size.height`](#wp-size) value.
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial position.
+        /// Set to [`f32::NAN`] to not give a position.
         properties::height;
 
         /// Window minimum size.
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial value.
+        /// Set to [`f32::NAN`] to not give a value.
         ///
         /// You can also set the [`min_width`](#wp-min_width) and [`min_height`](#wp-min_height) as independent properties.
         properties::min_size;
@@ -119,19 +122,19 @@ pub mod window {
         ///
         /// This property value is the same as the [`min_size.width`](#wp-min_size) value.
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial value.
+        /// Set to [`f32::NAN`] to not give a value.
         properties::min_width;
 
         /// Window minimum height.
         ///
         /// This property value is the same as the [`min_size.height`](#wp-min_size) value.
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial value.
+        /// Set to [`f32::NAN`] to not give a value.
         properties::min_height;
 
         /// Window maximum size.
         ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial value.
+        /// Set to [`f32::NAN`] to not give a value.
         ///
         /// You can also set the [`max_width`](#wp-max_width) and [`max_height`](#wp-max_height) as independent properties.
         properties::max_size;
@@ -269,7 +272,7 @@ pub mod window {
     pub mod properties {
         use std::marker::PhantomData;
 
-        use crate::core::window::{AutoSize, WindowChrome, WindowIcon, WindowId, WindowVars, WindowVarsKey};
+        use crate::core::window::{AutoSize, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowVars, WindowVarsKey};
         use crate::prelude::new_property::*;
 
         fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + 'static) -> impl UiNode
@@ -335,6 +338,8 @@ pub mod window {
         }
         set_properties! {
             position: Point,
+            monitor: MonitorQuery,
+
             size: Size,
             min_size: Size,
             max_size: Size,
@@ -382,6 +387,8 @@ pub mod window {
             max_size.width = max_width: Length,
             max_size.height = max_height: Length,
         }
+
+        // TODO read-only properties.
     }
 
     /// Commands that control the window.

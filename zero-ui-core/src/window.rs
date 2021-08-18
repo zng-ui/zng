@@ -365,14 +365,77 @@ impl_from_and_into_var! {
     }
 }
 
+/// All information about a monitor that [`Monitors`] can provide.
+pub struct MonitorFullInfo {
+    /// Unique ID.
+    pub id: MonitorId,
+    /// Metadata from the operating system.
+    pub info: MonitorInfo,
+    /// PPI config var.
+    pub ppi: RcVar<f32>,
+}
+
+/// A *selector* that returns a [`MonitorFullInfo`] from [`Monitors`].
+#[derive(Clone)]
+pub enum MonitorQuery {
+    /// The primary monitor, if there is any monitor.
+    Primary,
+    /// Custom query closure.
+    ///
+    /// If the closure returns `None` the primary monitor is used, if there is any.
+    Query(Rc<dyn Fn(&mut Monitors) -> Option<MonitorFullInfo>>),
+}
+impl MonitorQuery {
+    /// New query.
+    #[inline]
+    pub fn new(query: impl Fn(&mut Monitors) -> Option<MonitorFullInfo> + 'static) -> Self {
+        Self::Query(Rc::new(query))
+    }
+
+    /// Runs the query.
+    #[inline]
+    pub fn select(&self, monitors: &mut Monitors) -> Option<MonitorFullInfo> {
+        match self {
+            MonitorQuery::Primary => None,
+            MonitorQuery::Query(q) => q(monitors),
+        }
+    }
+}
+impl PartialEq for MonitorQuery {
+    /// Returns `true` only if both are [`MonitorQuery::Primary`].
+    fn eq(&self, other: &Self) -> bool {
+        matches!((self, other), (Self::Primary, Self::Primary))
+    }
+}
+impl Default for MonitorQuery {
+    /// Returns [`MonitorQuery::Primary`].
+    fn default() -> Self {
+        Self::Primary
+    }
+}
+impl fmt::Debug for MonitorQuery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MonitorQuery(Rc<..>)")
+    }
+}
+
 /// Window startup position.
-#[derive(Clone, Copy, PartialEq, Eq)]
+///
+/// The startup position affects the window once, at the moment the window
+/// is open just after the first [`UiNode::render`] call.
+#[derive(Clone)]
 pub enum StartPosition {
-    /// Uses the value of the `position` property.
+    /// Resolves the `position` property.
     Default,
-    /// Centralizes the window in the monitor screen.
+
+    /// Centralizes the window in the monitor screen, defined by the `monitor` property.
+    ///
+    /// Uses the `headless_monitor` in headless windows and falls-back to not centering if no
+    /// monitor was found in headed windows.
     CenterMonitor,
-    /// Centralizes the window the parent window.
+    /// Centralizes the window in the parent window, defined by the `parent` property.
+    ///
+    /// Falls-back to center on the monitor if the window has no parent.
     CenterParent,
 }
 impl Default for StartPosition {
@@ -387,8 +450,8 @@ impl fmt::Debug for StartPosition {
         }
         match self {
             StartPosition::Default => write!(f, "Default"),
-            StartPosition::CenterMonitor => write!(f, "CenterMonitor"),
-            StartPosition::CenterParent => write!(f, "CenterParent"),
+            StartPosition::CenterMonitor => todo!(),
+            StartPosition::CenterParent => todo!(),
         }
     }
 }
@@ -1117,6 +1180,7 @@ pub struct Monitors {
     view: Option<ViewProcess>,
 }
 impl Monitors {
+    // TODO cache info, they don't change right?
     fn new(view: Option<ViewProcess>) -> Self {
         Monitors {
             ppi: LinearMap::default(),
@@ -1138,18 +1202,29 @@ impl Monitors {
     /// Returns `Some(ID, info, PPI)` if any monitor is available.
     ///
     /// Returns `None` if no monitor was found or the app is running in headless mode without renderer.
-    pub fn primary_monitor(&mut self) -> Option<(MonitorId, MonitorInfo, &RcVar<f32>)> {
+    pub fn primary_monitor(&mut self) -> Option<MonitorFullInfo> {
         self.view
             .as_ref()
             .and_then(|vp| vp.primary_monitor().ok().flatten())
-            .map(move |(id, info)| (id, info, self.ppi(id)))
+            .map(move |(id, info)| MonitorFullInfo {
+                id,
+                info,
+                ppi: self.ppi(id).clone(),
+            })
     }
 
     /// Gets the monitor info and PPI if it is known.
     ///
     /// Returns `None` if the monitor was not found the app is running in headless mode without renderer.
-    pub fn monitor(&self, monitor_id: MonitorId) -> Option<(MonitorInfo, &RcVar<f32>)> {
-        todo!()
+    pub fn monitor(&mut self, monitor_id: MonitorId) -> Option<MonitorFullInfo> {
+        self.view
+            .as_ref()
+            .and_then(|vp| vp.monitor_info(monitor_id).ok().flatten())
+            .map(move |info| MonitorFullInfo {
+                id: monitor_id,
+                info,
+                ppi: self.ppi(monitor_id).clone(),
+            })
     }
 
     /// Iterate over all available monitors.
@@ -1157,13 +1232,18 @@ impl Monitors {
     /// Each item is `(ID, info, PPI)`.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&mut self) -> impl Iterator<Item = (MonitorId, MonitorInfo, &RcVar<f32>)> {
+    pub fn available_monitors(&mut self) -> Vec<MonitorFullInfo> {
         self.view
             .as_ref()
             .and_then(|vp| vp.available_monitors().ok())
             .unwrap_or_default()
             .into_iter()
-            .map(move |(id, info)| (id, info, self.ppi(id)))
+            .map(|(id, info)| MonitorFullInfo {
+                id,
+                info,
+                ppi: self.ppi(id).clone(),
+            })
+            .collect()
     }
 }
 
@@ -1546,34 +1626,14 @@ impl AppWindow {
         };
         let info = AppWindowInfo {
             id,
-            renderer: None, //
+            renderer: None, // will be set on the first render
             vars,
-            scale_factor: 1.0,                         // TODO
+            scale_factor: 1.0,                         // will be set on the first layout
             frame_info: FrameInfo::blank(id, root_id), // TODO
             is_focused: true,
         };
 
         (win, info)
-    }
-
-    fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
-        todo!()
-    }
-
-    fn scale_factor(&self) -> f32 {
-        self.renderer
-            .as_ref()
-            .map(|r| r.scale_factor().ok())
-            .unwrap_or_else(|| self.headless_monitor.as_ref().map(|h| h.scale_factor))
-            .unwrap_or(1.0)
-    }
-
-    fn screen_size(&self) -> LayoutSize {
-        todo!()
-    }
-
-    fn screen_ppi(&self) -> f32 {
-        todo!()
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -1601,6 +1661,20 @@ impl AppWindow {
             }
 
             if let Some(w) = &self.headed {
+                if let Some(monitor) = self.vars.monitor().get_new(ctx.vars) {
+                    let monitor_id = monitor.select(ctx.services.monitors());
+
+                    if let Some(pos) = self.vars.position().get_new(ctx.vars) {
+                        todo!("use pos, else center")
+                    }
+
+                    if let Some(size) = self.vars.position().get_new(ctx.vars) {
+                        todo!("use new size, else actutal_size")
+                    }
+
+                    todo!("");
+                }
+
                 if let Some(title) = self.vars.title().get_new(ctx) {
                     w.set_title(title.to_string()).unwrap();
                 }
@@ -1661,15 +1735,45 @@ impl AppWindow {
         }
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
-        let (scr_size, scr_factor, scr_ppi) = if let Some(w) = &self.headed {
-            todo!()
+    /// (monitor_size, scale_factor, ppi)
+    fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (LayoutSize, f32, f32) {
+        if let WindowMode::Headed = self.mode {
+            // TODO only query monitors in the first layout and after `monitor` updates only.
+
+            // try `actual_monitor`
+            if let Some(id) = self.vars.actual_monitor().copy(ctx) {
+                if let Some(m) = ctx.services.monitors().monitor(id) {
+                    return (m.info.layout_size(), m.info.scale_factor, m.ppi.copy(ctx.vars));
+                }
+            }
+
+            // try `monitor`, TODO set `actual_monitor` here?
+            {
+                let query = self.vars.monitor().get(ctx.vars);
+                if let Some(m) = query.select(ctx.services.monitors()) {
+                    return (m.info.layout_size(), m.info.scale_factor, m.ppi.copy(ctx.vars));
+                }
+            }
+
+            // fallback to primary monitor.
+            if let Some(p) = ctx.services.monitors().primary_monitor() {
+                return (p.info.layout_size(), p.info.scale_factor, p.ppi.copy(ctx.vars));
+            }
+
+            // fallback to headless defaults.
+            let h = self.headless_monitor.clone().unwrap_or_default();
+            (h.size, h.scale_factor, h.ppi)
         } else {
             let scr = self.headless_monitor.as_ref().unwrap();
             (scr.size, scr.scale_factor, scr.ppi)
-        };
+        }
+    }
+
+    fn layout(&mut self, ctx: &mut AppContext) {
+        let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
         let (available_size, min_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+            // TODO only use these values in the first layout and after they update.
             let mut size = self.vars.size().get(ctx.vars).to_layout(scr_size, ctx);
             let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
             let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
@@ -1703,7 +1807,8 @@ impl AppWindow {
     }
 
     fn render(&mut self, ctx: &mut AppContext) {
-        let scale_factor = self.scale_factor();
+        // TODO use the cached value, when that is implemented in layout.
+        let scale_factor = self.monitor_metrics(ctx).1;
         let ((pipeline_id, size, display_list), frame_info) = if let Some(f) =
             self.context
                 .render(ctx, self.frame_info.frame_id(), self.size, scale_factor, &self.renderer)
@@ -1769,8 +1874,7 @@ impl AppWindow {
                 .expect("TODO, deal with respawn here?");
         }
 
-        todo!("this does not need to be async now");
-        ctx.updates.sender().send_new_frame(self.id);
+        ctx.updates.new_frame_rendered(self.id, self.frame_info.frame_id());
     }
 
     fn render_update(&mut self, ctx: &mut AppContext) {
@@ -1877,7 +1981,7 @@ impl OwnedWindowContext {
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (frame, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
+        let (frame, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
             let child = &mut root.child;
             let mut builder = FrameBuilder::new(
                 frame_id,
@@ -1888,10 +1992,13 @@ impl OwnedWindowContext {
                 root_size,
                 scale_factor,
             );
-            ctx.render_context(root.id, &mut root.state, |ctx| {})
-        });
+            ctx.render_context(root.id, &root.state, |ctx| {
+                child.render(ctx, &mut builder);
+            });
 
-        todo!()
+            builder
+        });
+        Some(frame.finalize())
     }
 
     fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId) -> Option<DynamicProperties> {
@@ -1934,6 +2041,7 @@ struct WindowVarsData {
     state: RcVar<WindowState>,
 
     position: RcVar<Point>,
+    monitor: RcVar<MonitorQuery>,
 
     size: RcVar<Size>,
     auto_size: RcVar<AutoSize>,
@@ -1941,6 +2049,7 @@ struct WindowVarsData {
     max_size: RcVar<Size>,
 
     actual_position: RcVar<LayoutPoint>,
+    actual_monitor: RcVar<Option<MonitorId>>,
     actual_size: RcVar<LayoutSize>,
 
     resizable: RcVar<bool>,
@@ -1983,9 +2092,11 @@ impl WindowVars {
             state: var(WindowState::Normal),
 
             position: var(Point::new(f32::NAN, f32::NAN)),
+            monitor: var(MonitorQuery::Primary),
             size: var(Size::new(f32::NAN, f32::NAN)),
 
             actual_position: var(LayoutPoint::new(f32::NAN, f32::NAN)),
+            actual_monitor: var(None),
             actual_size: var(LayoutSize::new(f32::NAN, f32::NAN)),
 
             min_size: var(Size::new(192.0, 48.0)),
@@ -2064,20 +2175,55 @@ impl WindowVars {
         &self.vars.state
     }
 
-    /// Window top-left offset on the screen.
+    /// Window top-left offset on the [`monitor`].
     ///
     /// When a dimension is not a finite value it is computed from other variables.
-    /// Relative values are computed in relation to the full-screen size.
+    /// Relative values are computed in relation to the [`monitor`], updating every time the position or
+    /// monitor variable updates, not every layout.
     ///
     /// When the the window is moved this variable does **not** update back, to track the current position of the window
     /// use [`actual_position`].
     ///
-    /// The default value is `(f32::NAN, f32::NAN)`.
+    /// The default value is `(f32::NAN, f32::NAN)` that causes the window or OS select a value.
     ///
     /// [`actual_position`]: WindowVars::actual_position
+    /// [`monitor`]: WindowVars::monitor
     #[inline]
     pub fn position(&self) -> &RcVar<Point> {
         &self.vars.position
+    }
+
+    /// Window monitor.
+    ///
+    /// The query selects the monitor to witch the [`position`] and [`size`] is relative to.
+    ///
+    /// It evaluate once on startup and then once every time the variable updates. You can track
+    /// what the current monitor using [`actual_monitor`].
+    ///
+    /// # Behavior After Open
+    ///
+    /// If this variable is changed after the window has opened, and the new query produces a different
+    /// monitor from the [`actual_monitor`] and the window is visible; then the window is moved to
+    /// the new monitor:
+    ///
+    /// * **Maximized**: The window is maximized in the new monitor.
+    /// * **Normal**: The window is centered in the new monitor, keeping the same size, unless the
+    /// [`position`] and [`size`] where set in the same update, in that case these values are used.
+    /// * **Minimized/Hidden**: The window restore position and size are defined like **Normal**.
+    ///
+    /// [`position`]: WindowVars::position
+    #[inline]
+    pub fn monitor(&self) -> &RcVar<MonitorQuery> {
+        &self.vars.monitor
+    }
+
+    /// Current monitor hosting the window.
+    ///
+    /// This is `None` only if the window has not opened yet (before first render) or if
+    /// no monitors where found in the operating system or if the window if headless without renderer.
+    #[inline]
+    pub fn actual_monitor(&self) -> ReadOnlyRcVar<Option<MonitorId>> {
+        self.vars.actual_monitor.clone().into_read_only()
     }
 
     /// Window actual position on the screen.
@@ -2085,7 +2231,8 @@ impl WindowVars {
     /// This is a read-only variable that tracks the computed position of the window, it updates every
     /// time the window moves.
     ///
-    /// The initial value is `(f32::NAN, f32::NAN)` but this is updated quickly to an actual value.
+    /// The initial value is `(f32::NAN, f32::NAN)` but this is updated quickly to an actual value. The point
+    /// is relative to the origin of the virtual screen that envelops all monitors.
     #[inline]
     pub fn actual_position(&self) -> ReadOnlyRcVar<LayoutPoint> {
         self.vars.actual_position.clone().into_read_only()
