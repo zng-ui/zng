@@ -106,10 +106,14 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
         headless: false,
     });
 
-    let result = waiter.wait_for(&mut config, Duration::from_secs(10));
-    if result.timed_out() {
-        panic!("Controller::start was not called in 10 seconds");
-    }
+    if cfg!(debug_assertions) {
+        waiter.wait(&mut config);
+    } else {
+        let r = waiter.wait_for(&mut config, Duration::from_secs(10)).timed_out();
+        if r {
+            panic!("Controller::start was not called in 10 seconds");
+        }
+    };
 
     let config = config.take().unwrap();
     run(config.channel_dir, config.headless)
@@ -358,13 +362,20 @@ impl Controller {
 
     fn try_talk(&mut self, req: &Request) -> ipmpsc::Result<Response> {
         self.request_chan.send_when_empty(req)?;
-        let r = self.response_chan.recv_timeout(Duration::from_secs(5))?;
-        r.ok_or_else(|| {
-            ipmpsc::Error::Io(std::io::Error::new(
-                ErrorKind::TimedOut,
-                "view-process did not respond in 5 seconds",
-            ))
-        })
+
+        #[cfg(debug_assertions)]
+        return self.response_chan.recv();
+
+        #[cfg(not(debug_assertions))]
+        {
+            let r = self.response_chan.recv_timeout(Duration::from_secs(5))?;
+            r.ok_or_else(|| {
+                ipmpsc::Error::Io(std::io::Error::new(
+                    ErrorKind::TimedOut,
+                    "view-process did not respond in 5 seconds",
+                ))
+            })
+        }
     }
 
     fn talk(&mut self, req: Request) -> Result<Response> {

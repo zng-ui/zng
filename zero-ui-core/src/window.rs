@@ -1513,7 +1513,11 @@ struct AppWindowInfo {
 }
 impl AppWindowInfo {
     fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
-        todo!()
+        self.renderer
+            .as_ref()
+            .and_then(|r| r.hit_test(point).ok())
+            .map(|hits| FrameHitInfo::new(self.id, self.frame_info.frame_id(), point, hits))
+            .unwrap_or_else(|| FrameHitInfo::no_hits(self.id))
     }
 }
 

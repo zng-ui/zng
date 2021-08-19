@@ -144,7 +144,7 @@ impl ViewWindow {
             pipeline_id,
             resized: false,
             clear_color: w.clear_color,
-            waiting_first_frame: false,
+            waiting_first_frame: true,
             visible: w.visible,
             allow_alt_f4,
             taskbar_visible: true,
@@ -272,8 +272,16 @@ impl ViewWindow {
         self.api.update_resources(updates);
     }
 
-    pub fn request_redraw(&self) {
-        self.window.request_redraw();
+    pub fn request_redraw(&mut self) {
+        if self.waiting_first_frame {
+            self.waiting_first_frame = false;
+            self.redraw();
+            if self.visible {
+                self.window.set_visible(true);
+            }
+        } else {
+            self.window.request_redraw();
+        }
     }
 
     pub fn redraw(&mut self) {
@@ -284,13 +292,6 @@ impl ViewWindow {
         renderer.render(DeviceIntSize::new(s.width as i32, s.height as i32)).unwrap();
         ctx.swap_buffers().unwrap();
         self.context = Some(unsafe { ctx.make_not_current() }.unwrap());
-
-        if self.waiting_first_frame {
-            self.waiting_first_frame = false;
-            if self.visible {
-                self.window.set_visible(true);
-            }
-        }
     }
 
     /// Does a hit-test on the current frame.
