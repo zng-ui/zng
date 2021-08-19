@@ -1773,7 +1773,7 @@ impl AppWindow {
     fn layout(&mut self, ctx: &mut AppContext) {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
-        let (available_size, min_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+        let (available_size, min_size, auto_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
             // TODO only use these values in the first layout and after they update.
             let mut size = self.vars.size().get(ctx.vars).to_layout(scr_size, ctx);
             let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
@@ -1790,14 +1790,18 @@ impl AppWindow {
             } else {
                 size.height = size.height.max(min_size.height).min(max_size.height);
             }
-            (size, min_size)
+            (size, min_size, auto_size)
         });
 
         let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size, |desired_size| {
-            LayoutSize::new(
-                desired_size.width.max(min_size.width).min(available_size.width),
-                desired_size.height.max(min_size.height).min(available_size.height),
-            )
+            let mut final_size = available_size;
+            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                final_size.width = desired_size.width.max(min_size.width).min(available_size.width);
+            }
+            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                final_size.height = desired_size.height.max(min_size.height).min(available_size.height);
+            }
+            final_size
         });
 
         self.size = final_size;
@@ -2106,7 +2110,7 @@ impl WindowVars {
 
             position: var(Point::new(f32::NAN, f32::NAN)),
             monitor: var(MonitorQuery::Primary),
-            size: var(Size::new(f32::NAN, f32::NAN)),
+            size: var(Size::new(800.0, 600.0)),
 
             actual_position: var(LayoutPoint::new(f32::NAN, f32::NAN)),
             actual_monitor: var(None),
