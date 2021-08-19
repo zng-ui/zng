@@ -157,8 +157,7 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
                     }
                 }
                 Err(e) => {
-                    eprintln!("request channel error:\n{:#?}", e);
-                    process::exit(i32::from_ne_bytes(*b"requ"));
+                    panic!("request channel error:\n{:#?}", e);
                 }
             }
         }

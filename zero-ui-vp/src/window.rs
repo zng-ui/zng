@@ -468,9 +468,13 @@ impl ViewWindow {
 }
 impl Drop for ViewWindow {
     fn drop(&mut self) {
-        self.renderer.take().unwrap().deinit();
-        // context must be dropped before the window.
-        drop(self.context.take());
+        // context must be dropped before the winit window and webrender deinit needs an active context.
+
+        let ctx = self.context.take().unwrap();
+        if let Ok(ctx) = unsafe { ctx.make_current() } {
+            self.renderer.take().unwrap().deinit();
+            let _ = unsafe { ctx.make_not_current() };
+        }
     }
 }
 

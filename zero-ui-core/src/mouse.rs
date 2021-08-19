@@ -722,7 +722,7 @@ impl AppExtension for MouseManager {
             if !args.focused {
                 self.on_window_blur(args.window_id, ctx);
             }
-        } else if let Some(args) = RawWindowClosedEvent.update(args) {
+        } else if let Some(args) = RawWindowCloseEvent.update(args) {
             self.on_window_closed(args.window_id, ctx);
         }
     }

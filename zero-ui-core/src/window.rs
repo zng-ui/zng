@@ -10,11 +10,11 @@ use crate::{
     app::{
         self,
         raw_events::{
-            RawWindowCloseRequestedEvent, RawWindowClosedEvent, RawWindowFocusEvent, RawWindowMovedEvent, RawWindowResizedEvent,
+            RawWindowCloseRequestedEvent, RawWindowCloseEvent, RawWindowFocusEvent, RawWindowMovedEvent, RawWindowResizedEvent,
             RawWindowScaleFactorChangedEvent,
         },
         view_process::{self, ViewProcess, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
-        AppEventSender, AppExtended, AppExtension, ControlFlow,
+        AppEventSender, AppExtended, AppExtension, ControlFlow, AppProcessExt
     },
     cancelable_event_args,
     color::rgb,
@@ -60,6 +60,8 @@ pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
     /// The `new_window` argument is the [`WindowContext`] of the new window.
+    /// 
+    /// This method only returns when the app has shutdown.
     ///
     /// # Example
     ///
@@ -91,10 +93,10 @@ pub trait AppRunWindowExt {
     ///     });
     /// })   
     /// ```
-    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> !;
+    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static);
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
-    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> ! {
+    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) {
         self.run(|ctx| {
             ctx.services.windows().open(new_window);
         })
@@ -978,9 +980,11 @@ impl AppExtension for WindowManager {
                 let args = WindowScaleChangedArgs::new(args.timestamp, args.window_id, args.scale_factor);
                 WindowScaleChangedEvent.notify(ctx.events, args);
             }
-        } else if let Some(args) = RawWindowClosedEvent.update(args) {
-            if let Some(_w) = ctx.services.windows().windows.remove(&args.window_id) {
-                todo!("is this an error?")
+        } else if let Some(args) = RawWindowCloseEvent.update(args) {
+            if ctx.services.windows().windows.contains_key(&args.window_id) {
+                log::error!("view-process closed window without request");
+                let args = WindowCloseArgs::new(args.timestamp, args.window_id);
+                WindowCloseEvent.notify(ctx, args);
             }
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
             // `respawn` will force a `render` only and the `RenderContext` does not
@@ -1042,10 +1046,12 @@ impl AppExtension for WindowManager {
                             } else {
                                 e.responder.respond(ctx, CloseWindowResult::Closed);
 
-                                // drop all windows, this closes then in the View Process.
+                                // notify close, but does not remove then yet, this
+                                // lets the window content handle the close event,
+                                // we deinit the window when we handle our own close event.
                                 let windows = ctx.services.windows();
                                 for (w, _) in e.windows {
-                                    if windows.windows.remove(&w).is_some() {
+                                    if windows.windows.contains_key(&w) {
                                         WindowCloseEvent.notify(ctx.events, WindowCloseArgs::now(w));
                                     }
                                 }
@@ -1058,10 +1064,18 @@ impl AppExtension for WindowManager {
                 }
             }
         } else if let Some(args) = WindowCloseEvent.update(args) {
-            // finish close.
+            // finish close, this notifies  `UiNode::deinit` and drops the window
+            // causing the ViewWindow to drop and close.
+            
             if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
                 w.deinit(ctx);
-                ctx.services.windows().windows_info.remove(&args.window_id).unwrap();
+                let wns = ctx.services.windows();
+                wns.windows_info.remove(&args.window_id).unwrap();
+
+                // fulfill `shutdown_on_last_close`
+                if wns.shutdown_on_last_close && wns.windows.is_empty() && wns.open_requests.is_empty() {                    
+                    ctx.services.app_process().shutdown();
+                }
             }
         }
     }
@@ -1911,7 +1925,9 @@ impl AppWindow {
 }
 impl Drop for AppWindow {
     fn drop(&mut self) {
-        log::error!("`AppWindow` dropped without calling `deinit`, no memory is leaked but shared state may be incorrect now");
+        if !self.deinited {
+            log::error!("`AppWindow` dropped without calling `deinit`, no memory is leaked but shared state may be incorrect now");
+        }
     }
 }
 

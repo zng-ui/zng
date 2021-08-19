@@ -725,12 +725,14 @@ impl<E: AppExtension> AppExtended<E> {
     }
 
     /// Runs the application calling `start` once at the beginning.
+    /// 
+    /// This method only returns when the app has shutdown.
     ///
     /// # Panics
     ///
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
-    pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
+    pub fn run(self, start: impl FnOnce(&mut AppContext)) {
         #[cfg(feature = "app_profiler")]
         register_thread_with_profiler();
 
@@ -740,7 +742,7 @@ impl<E: AppExtension> AppExtended<E> {
 
         start(&mut app.ctx());
 
-        app.run_headed(self.view_process_exe)
+        app.run_headed(self.view_process_exe);
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
@@ -820,7 +822,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    fn run_headed(mut self, view_process_exe: Option<PathBuf>) -> ! {
+    fn run_headed(mut self, view_process_exe: Option<PathBuf>) {
         let view_evs_sender = self.ctx().updates.sender();
 
         let view_app = view_process::ViewProcess::start(view_process_exe, self.device_events, false, move |ev| {
@@ -835,10 +837,6 @@ impl<E: AppExtension> RunningApp<E> {
                 ControlFlow::Poll => unreachable!(),
             }
         }
-
-        // TODO, review if any code depends on this, we coded a lot when
-        // using winit directly in the process and winit never returns
-        std::process::exit(0);
     }
 
     /// Exclusive borrow the app context.
@@ -1049,8 +1047,8 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawWindowCloseRequestedEvent, args);
             }
             zero_ui_vp::Ev::WindowClosed(w_id) => {
-                let args = RawWindowClosedArgs::now(self.window_id(w_id));
-                self.notify_event(RawWindowClosedEvent, args);
+                let args = RawWindowCloseArgs::now(self.window_id(w_id));
+                self.notify_event(RawWindowCloseEvent, args);
             }
 
             // config events
@@ -2250,7 +2248,7 @@ pub mod raw_events {
         }
 
         /// Arguments for the [`RawWindowClosedEvent`].
-        pub struct RawWindowClosedArgs {
+        pub struct RawWindowCloseArgs {
             /// Window that was destroyed.
             pub window_id: WindowId,
 
@@ -2538,7 +2536,7 @@ pub mod raw_events {
         pub RawWindowCloseRequestedEvent: RawWindowCloseRequestedArgs;
 
         /// A window was destroyed.
-        pub RawWindowClosedEvent: RawWindowClosedArgs;
+        pub RawWindowCloseEvent: RawWindowCloseArgs;
 
         /// A file was drag-dropped on a window.
         pub RawDroppedFileEvent: RawDroppedFileArgs;
