@@ -26,7 +26,7 @@ pub struct BmpHeader {
     /// Direction of the pixel rows.
     ///
     /// Progressive loading depends on what bytes are at the
-    /// begining of the file, for BMP files this can be either the top pixel row
+    /// beginning of the file, for BMP files this can be either the top pixel row
     /// or the bottom depending on this value. Most BMP files are bottom-to-top.
     pub row_direction: RowDirection,
 }
@@ -380,7 +380,7 @@ impl BmpHeaderFull {
     {
         let mut h = ArrayRead::<{ 64 - 12 - 4 }>::load(read).await?;
 
-        h.skip(2); // ignore resolution unit, always pixels-per-metre
+        h.skip(2); // ignore resolution unit, always pixels-per-meter
         h.skip(2); // padding
         h.skip(2); // ignore direction, always bottom-to-top
         let halftoning_u16 = h.read_u16_le();
@@ -754,7 +754,7 @@ impl<S: SenderTask> Encoder<S> {
         header.extend(ppm); // ppm_x
         header.extend(ppm); // ppm_y
 
-        header.extend([0; 8]); // 0u32 colors in pallete and 0u32 important colors.
+        header.extend([0; 8]); // 0u32 colors in palette and 0u32 important colors.
 
         match task.send(header).await {
             Ok(_) => Ok(Encoder {
@@ -848,7 +848,7 @@ mod tests {
 
                 // ERROR: Many of the palette indices used in the image are not present in the palette.
                 //
-                // ALLOW: We always allocate 256 bytes for the pallete so "out-of-bounds" turns into black pixels.
+                // ALLOW: We always allocate 256 bytes for the palette so "out-of-bounds" turns into black pixels.
                 "pal8badindex.bmp" => Do::Allow,
 
                 // errors in the pixels only:

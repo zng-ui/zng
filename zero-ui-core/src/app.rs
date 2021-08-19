@@ -725,7 +725,7 @@ impl<E: AppExtension> AppExtended<E> {
     }
 
     /// Runs the application calling `start` once at the beginning.
-    /// 
+    ///
     /// This method only returns when the app has shutdown.
     ///
     /// # Panics
@@ -903,17 +903,21 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Try to receive app events until the control flow changes to something other the [`Poll`], if
-    /// there is no app event in the channel returns [`Poll`].
+    /// there is no app event in the channel returns tries an update cycle.
     ///
     /// This method does not manages timers, you can probe [`wake_time`] to get the next timer deadline.
     ///
     /// [`Poll`]: ControlFlow::Poll
     pub fn try_poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
-        match self.receiver.try_recv() {
-            Ok(ev) => self.app_event(ev, observer),
-            Err(flume::TryRecvError::Empty) => ControlFlow::Wait,
-            Err(e) => panic!("{:?}", e),
+        let mut flow = ControlFlow::Poll;
+        while let ControlFlow::Poll = flow {
+            flow = match self.receiver.try_recv() {
+                Ok(ev) => self.app_event(ev, observer),
+                Err(flume::TryRecvError::Empty) => self.update(observer),
+                Err(e) => panic!("{:?}", e),
+            }
         }
+        flow
     }
 
     /// Next timer deadline.
@@ -1106,10 +1110,14 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Does pending event and updates until there is no more updates generated, then returns
-    /// [`WaitUntil`](ControlFlow::WaitUntil) are timers running or returns [`Wait`](ControlFlow::WaitUntil)
-    /// if there aren't.
+    /// [`Wait`] or [`Exit`]. If [`Wait`] is returned you must check [`wake_time`] for a timeout that
+    /// must be used, when the timeout elapses update must be called again, to advance timers.
     ///
     /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
+    ///
+    /// [`Wait`]: ControlFlow::Wait
+    /// [`Exit`]: ControlFlow::Exit
+    /// [`wake_time`]: RunningApp::wake_time
     pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         if self.maybe_has_updates {
             self.maybe_has_updates = false;
@@ -1637,14 +1645,6 @@ mod headless_tests {
     pub fn new_window_no_render() {
         let mut app = App::default().run_headless(false);
         assert!(!app.renderer_enabled());
-        let cf = app.update(false);
-        assert_eq!(cf, ControlFlow::Wait);
-    }
-
-    #[test]
-    pub fn new_window_with_render() {
-        let mut app = App::default().run_headless(true);
-        assert!(app.renderer_enabled());
         let cf = app.update(false);
         assert_eq!(cf, ControlFlow::Wait);
     }

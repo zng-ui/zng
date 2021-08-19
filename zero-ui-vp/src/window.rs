@@ -307,7 +307,7 @@ impl ViewWindow {
     }
 
     pub fn set_text_aa(&self, aa: TextAntiAliasing) {
-        todo!("need to rebuild the renderer?")
+        todo!("need to rebuild the renderer? {:?}", aa)
     }
 
     pub fn pipeline_id(&self) -> PipelineId {
@@ -397,7 +397,7 @@ impl ViewWindow {
     }
 
     pub fn set_parent(&mut self, parent: Option<WindowId>, modal: bool) {
-        todo!()
+        todo!("implement parent & modal: {:?}", (parent, modal));
     }
 
     #[cfg(windows)]

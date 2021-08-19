@@ -1535,8 +1535,7 @@ impl TestApp {
 
     pub fn set_vars(&mut self, set: impl FnOnce(&Vars)) {
         set(self.app.ctx().vars);
-        self.app.update(false); // notify vars.
-        self.app.update(false); // respond to new frame.
+        let _ = self.app.update(false);
     }
 
     pub fn set_shutdown_on_last_close(&mut self, shutdown: bool) {
@@ -1555,7 +1554,7 @@ impl TestApp {
                 content
             }
         });
-        self.app.update(false);
+        let _ = self.app.update(false);
         id
     }
 
@@ -1607,22 +1606,22 @@ impl TestApp {
 
     pub fn just_release_alt(&mut self) {
         self.app.on_keyboard_input(self.window_id, Key::LAlt, KeyState::Released);
-        self.app.update(false);
+        let _ = self.app.update(false);
     }
 
     pub fn focus(&mut self, widget_id: WidgetId) {
         self.app.ctx().services.focus().focus_widget(widget_id, true);
-        self.app.update(false);
+        let _ = self.app.update(false);
     }
 
     pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
         self.app.ctx().services.focus().focus_widget_or_exit(widget_id, true);
-        self.app.update(false);
+        let _ = self.app.update(false);
     }
 
     pub fn focus_or_child(&mut self, widget_id: WidgetId) {
         self.app.ctx().services.focus().focus_widget_or_enter(widget_id, true);
-        self.app.update(false);
+        let _ = self.app.update(false);
     }
 
     pub fn focus_window(&mut self) {

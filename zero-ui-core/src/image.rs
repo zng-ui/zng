@@ -12,10 +12,10 @@ use std::{
 };
 use webrender_api::ImageKey;
 
-pub mod bmp;
-pub mod farbfeld;
-mod formats;
-pub use formats::*;
+//pub mod bmp;
+//pub mod farbfeld;
+//mod formats;
+//pub use formats::*;
 
 use crate::{
     app::{view_process::ViewRenderer, AppExtension},
@@ -438,7 +438,7 @@ impl crate::render::Image for Image {
             ImageData::Raw(self.bgra.clone()),
             None,
         );
-        renderer.update_resources(txn.resource_updates);
+        renderer.update_resources(txn.resource_updates).unwrap();
 
         rms.push(RenderImage {
             key,
@@ -497,7 +497,7 @@ impl Drop for RenderImage {
     fn drop(&mut self) {
         let mut txn = webrender_api::Transaction::new();
         txn.delete_image(self.key);
-        self.renderer.update_resources(txn.resource_updates);
+        self.renderer.update_resources(txn.resource_updates).unwrap();
     }
 }
 impl fmt::Debug for RenderImage {

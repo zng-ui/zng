@@ -21,7 +21,7 @@ use std::{
     io::{ErrorKind, Read},
     panic,
     path::{Path, PathBuf},
-    process::{self, Child, Command, Stdio},
+    process::{Child, Command, Stdio},
     sync::Arc,
     thread::{self, JoinHandle},
     time::Duration,
@@ -309,6 +309,14 @@ impl Controller {
     ///
     /// The `on_event` closure is called in another thread every time the app receives an event.
     ///
+    /// # Tests
+    ///
+    /// The [`current_exe`] cannot be used in tests, you should set an external view-process executable. Unfortunately there
+    /// is no way to check if `start` was called in a test so we cannot provide an error message for this.
+    /// If the test is hanging in debug builds or has a timeout error in release builds this is probably the reason.
+    ///
+    /// Also is unlikely that you can use [`run_same_process`], because it must be run in the main thread.
+    ///
     /// [`current_exe`]: std::env::current_exe
     /// [`init_view_process`]: crate::init_view_process
     /// [`VERSION`]: crate::VERSION
@@ -316,7 +324,9 @@ impl Controller {
     where
         F: FnMut(Ev) + Send + 'static,
     {
-        let view_process_exe = view_process_exe.unwrap_or_else(|| std::env::current_exe().unwrap());
+        let view_process_exe = view_process_exe.unwrap_or_else(|| {
+            std::env::current_exe().expect("failed to get the current exetuable, consider using an external view-process exe")
+        });
 
         let (channel_dir, process, request_chan, response_chan, event_chan) = Self::spawn_view_process(&view_process_exe, headless);
 

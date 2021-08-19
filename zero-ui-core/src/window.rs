@@ -1,6 +1,6 @@
 //! App window manager.
 
-use std::{fmt, mem, rc::Rc};
+use std::{fmt, mem, rc::Rc, time::Instant};
 
 pub use crate::app::view_process::{CursorIcon, MonitorInfo, VideoMode, WindowTheme};
 use linear_map::LinearMap;
@@ -10,11 +10,11 @@ use crate::{
     app::{
         self,
         raw_events::{
-            RawWindowCloseRequestedEvent, RawWindowCloseEvent, RawWindowFocusEvent, RawWindowMovedEvent, RawWindowResizedEvent,
-            RawWindowScaleFactorChangedEvent,
+            RawWindowCloseEvent, RawWindowCloseRequestedEvent, RawWindowFocusArgs, RawWindowFocusEvent, RawWindowMovedEvent,
+            RawWindowResizedEvent, RawWindowScaleFactorChangedEvent,
         },
-        view_process::{self, ViewProcess, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
-        AppEventSender, AppExtended, AppExtension, ControlFlow, AppProcessExt
+        view_process::{self, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
+        AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
     },
     cancelable_event_args,
     color::rgb,
@@ -60,7 +60,7 @@ pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
     /// The `new_window` argument is the [`WindowContext`] of the new window.
-    /// 
+    ///
     /// This method only returns when the app has shutdown.
     ///
     /// # Example
@@ -147,15 +147,11 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     }
 
     fn focus_window(&mut self, window_id: WindowId) {
-        use app::raw_events::*;
-
         let args = RawWindowFocusArgs::now(window_id, true);
         RawWindowFocusEvent.notify(self.ctx().events, args);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
-        use app::raw_events::*;
-
         let args = RawWindowFocusArgs::now(window_id, false);
         RawWindowFocusEvent.notify(self.ctx().events, args);
     }
@@ -376,6 +372,14 @@ pub struct MonitorFullInfo {
     pub info: MonitorInfo,
     /// PPI config var.
     pub ppi: RcVar<f32>,
+}
+impl fmt::Debug for MonitorFullInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MonitorFullInfo")
+            .field("id", &self.id)
+            .field("info", &self.info)
+            .finish_non_exhaustive()
+    }
 }
 
 /// A *selector* that returns a [`MonitorFullInfo`] from [`Monitors`].
@@ -790,14 +794,14 @@ event_args! {
     }
 
     /// [`WindowFocusChangedEvent`], [`WindowFocusEvent`], [`WindowBlurEvent`] args.
-    pub struct WindowIsFocusedArgs {
+    pub struct WindowFocusArgs {
         /// Id of window that got or lost keyboard focus.
         pub window_id: WindowId,
 
         /// `true` if the window got focus, `false` if the window lost focus (blur).
         pub focused: bool,
 
-        /// If the window was lost focus because it closed.
+        /// If the focused window was closed.
         pub closed: bool,
 
         ..
@@ -881,13 +885,13 @@ event! {
     pub WindowOpenEvent: WindowOpenArgs;
 
     /// Window focus/blur event.
-    pub WindowFocusChangedEvent: WindowIsFocusedArgs;
+    pub WindowFocusChangedEvent: WindowFocusArgs;
 
     /// Window got keyboard focus event.
-    pub WindowFocusEvent: WindowIsFocusedArgs;
+    pub WindowFocusEvent: WindowFocusArgs;
 
     /// Window lost keyboard event.
-    pub WindowBlurEvent: WindowIsFocusedArgs;
+    pub WindowBlurEvent: WindowFocusArgs;
 
     /// Window scale factor changed.
     pub WindowScaleChangedEvent: WindowScaleChangedArgs;
@@ -944,14 +948,19 @@ impl AppExtension for WindowManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawWindowFocusEvent.update(args) {
-            if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
+            let wns = ctx.services.windows();
+            if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
+                if window.is_focused == args.focused {
+                    return;
+                }
+
                 window.is_focused = args.focused;
 
-                let args = WindowIsFocusedArgs::now(args.window_id, window.is_focused, false);
+                let args = WindowFocusArgs::now(args.window_id, window.is_focused, false);
 
                 WindowFocusChangedEvent.notify(ctx.events, args.clone());
                 if args.focused {
-                    WindowFocusEvent.notify(ctx.events, args)
+                    WindowFocusEvent.notify(ctx.events, args);
                 } else {
                     WindowBlurEvent.notify(ctx.events, args);
                 }
@@ -1066,15 +1075,20 @@ impl AppExtension for WindowManager {
         } else if let Some(args) = WindowCloseEvent.update(args) {
             // finish close, this notifies  `UiNode::deinit` and drops the window
             // causing the ViewWindow to drop and close.
-            
+
             if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
                 w.deinit(ctx);
                 let wns = ctx.services.windows();
-                wns.windows_info.remove(&args.window_id).unwrap();
+                let info = wns.windows_info.remove(&args.window_id).unwrap();
 
-                // fulfill `shutdown_on_last_close`
-                if wns.shutdown_on_last_close && wns.windows.is_empty() && wns.open_requests.is_empty() {                    
+                if wns.shutdown_on_last_close && wns.windows.is_empty() && wns.open_requests.is_empty() {
+                    // fulfill `shutdown_on_last_close`
                     ctx.services.app_process().shutdown();
+                }
+
+                if info.is_focused {
+                    let args = WindowFocusArgs::now(info.id, false, true);
+                    WindowFocusChangedEvent.notify(ctx.events, args)
                 }
             }
         }
@@ -1522,7 +1536,9 @@ struct AppWindowInfo {
     vars: WindowVars,
     scale_factor: f32,
 
+    // latest frame.
     frame_info: FrameInfo,
+    // focus tracked by the raw focus events.
     is_focused: bool,
 }
 impl AppWindowInfo {
@@ -1556,13 +1572,11 @@ struct AppWindow {
 
     vars: WindowVars,
 
-    // latest frame.
-    frame_info: FrameInfo,
-    // focus tracked by the raw focus events.
-    is_focused: bool,
-
     first_update: bool,
     first_render: bool,
+
+    // latest frame.
+    frame_id: FrameId,
 
     position: LayoutPoint,
     size: LayoutSize,
@@ -1618,6 +1632,8 @@ impl AppWindow {
         ctx.updates.update();
         ctx.updates.layout();
 
+        let frame_info = FrameInfo::blank(id, root_id);
+
         let win = AppWindow {
             headed: None, // headed & renderer will initialize on first render.
             renderer: None,
@@ -1628,12 +1644,11 @@ impl AppWindow {
             root_id,
             kiosk,
             vars: vars.clone(),
-            frame_info: FrameInfo::blank(id, root_id),
-            is_focused: true, // can we say it opens focused? TODO
 
             first_update: true,
             first_render: true,
 
+            frame_id: frame_info.frame_id(),
             position: LayoutPoint::zero(),
             size: LayoutSize::zero(),
 
@@ -1643,9 +1658,9 @@ impl AppWindow {
             id,
             renderer: None, // will be set on the first render
             vars,
-            scale_factor: 1.0,                         // will be set on the first layout
-            frame_info: FrameInfo::blank(id, root_id), // TODO
-            is_focused: true,
+            scale_factor: 1.0, // will be set on the first layout
+            frame_info,        // TODO
+            is_focused: false, // will be set by listening to RawWindowFocusEvent, usually in first render
         };
 
         (win, info)
@@ -1677,24 +1692,24 @@ impl AppWindow {
 
             if let Some(w) = &self.headed {
                 if let Some(monitor) = self.vars.monitor().get_new(ctx.vars) {
-                    let monitor_id = monitor.select(ctx.services.monitors());
+                    let monitor_info = monitor.select(ctx.services.monitors());
 
                     if let Some(pos) = self.vars.position().get_new(ctx.vars) {
-                        todo!("use pos, else center")
+                        todo!("use pos, else center {:?}", pos)
                     }
 
                     if let Some(size) = self.vars.position().get_new(ctx.vars) {
-                        todo!("use new size, else actutal_size")
+                        todo!("use new size, else actutal_size {:?}", size)
                     }
 
-                    todo!("");
+                    todo!("refresh monitor {:?}", monitor_info);
                 }
 
                 if let Some(title) = self.vars.title().get_new(ctx) {
                     w.set_title(title.to_string()).unwrap();
                 }
                 if let Some(pos) = self.vars.position().get_new(ctx) {
-                    todo!()
+                    todo!("move {:?}", pos);
                 }
                 if let Some(chrome) = self.vars.chrome().get_new(ctx) {
                     match chrome {
@@ -1709,12 +1724,12 @@ impl AppWindow {
                 if let Some(ico) = self.vars.icon().get_new(ctx) {
                     match ico {
                         WindowIcon::Default => w.set_icon(None).unwrap(),
-                        WindowIcon::Icon(ico) => w.set_icon(Some(view_process::Icon::clone(&ico))).unwrap(),
+                        WindowIcon::Icon(ico) => w.set_icon(Some(view_process::Icon::clone(ico))).unwrap(),
                         WindowIcon::Render(_) => todo!(),
                     }
                 }
                 if let Some(state) = self.vars.state().get_new(ctx) {
-                    todo!()
+                    todo!("apply {:?}", state);
                 }
                 if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
                     w.set_resizable(resizable).unwrap();
@@ -1828,23 +1843,22 @@ impl AppWindow {
     fn render(&mut self, ctx: &mut AppContext) {
         // TODO use the cached value, when that is implemented in layout.
         let scale_factor = self.monitor_metrics(ctx).1;
-        let ((pipeline_id, size, display_list), frame_info) = if let Some(f) =
-            self.context
-                .render(ctx, self.frame_info.frame_id(), self.size, scale_factor, &self.renderer)
-        {
-            f
-        } else {
-            return; // not needed
-        };
+        let ((pipeline_id, size, display_list), frame_info) =
+            if let Some(f) = self.context.render(ctx, self.frame_id, self.size, scale_factor, &self.renderer) {
+                f
+            } else {
+                return; // not needed
+            };
 
-        self.frame_info = frame_info;
+        self.frame_id = frame_info.frame_id();
+        ctx.services.windows().windows_info.get_mut(&self.id).unwrap().frame_info = frame_info;
 
         if self.first_render {
+            let vp = ctx.services.get::<ViewProcess>();
             match self.mode {
                 WindowMode::Headed => {
-                    let headed = ctx
-                        .services
-                        .view_process()
+                    let headed = vp
+                        .unwrap()
                         .open_window(
                             self.id,
                             view_process::WindowConfig {
@@ -1867,7 +1881,7 @@ impl AppWindow {
                                 },
                                 transparent: self.vars.transparent().copy(ctx.vars),
                                 frame: view_process::FrameRequest {
-                                    id: self.frame_info.frame_id(),
+                                    id: self.frame_id,
                                     pipeline_id,
                                     size,
                                     display_list: display_list.into_data(),
@@ -1879,14 +1893,27 @@ impl AppWindow {
                     self.renderer = Some(headed.renderer());
                     self.headed = Some(headed);
                 }
-                WindowMode::Headless => todo!(),
                 WindowMode::HeadlessWithRenderer => todo!(),
+                WindowMode::Headless => {
+                    // headless without renderer only provides the FrameInfo, so we are done "rendering".
+                    if vp.is_none() {
+                        // in headless apps we simulate focus.
+                        drop(vp);
+                        let timestamp = Instant::now();
+                        if let Some((prev_focus_id, _)) = ctx.services.windows().windows_info.iter_mut().find(|(_, w)| w.is_focused) {
+                            let args = RawWindowFocusArgs::new(timestamp, *prev_focus_id, false);
+                            RawWindowFocusEvent.notify(ctx.events, args)
+                        }
+                        let args = RawWindowFocusArgs::new(timestamp, self.id, true);
+                        RawWindowFocusEvent.notify(ctx.events, args)
+                    }
+                }
             }
             self.first_render = false;
         } else if let Some(renderer) = &mut self.renderer {
             renderer
                 .render(view_process::FrameRequest {
-                    id: self.frame_info.frame_id(),
+                    id: self.frame_id,
                     pipeline_id,
                     size,
                     display_list: display_list.into_data(),
@@ -1894,11 +1921,11 @@ impl AppWindow {
                 .expect("TODO, deal with respawn here?");
         }
 
-        ctx.updates.new_frame_rendered(self.id, self.frame_info.frame_id());
+        ctx.updates.new_frame_rendered(self.id, self.frame_id);
     }
 
     fn render_update(&mut self, ctx: &mut AppContext) {
-        let updates = if let Some(u) = self.context.render_update(ctx, self.frame_info.frame_id()) {
+        let updates = if let Some(u) = self.context.render_update(ctx, self.frame_id) {
             u
         } else {
             return;
@@ -1913,8 +1940,8 @@ impl AppWindow {
         // TODO notify, the frame info was not touched, but we plan to let render_update update metadata.
     }
 
-    fn respawn(&mut self, ctx: &mut AppContext) {
-        todo!()
+    fn respawn(&mut self, _ctx: &mut AppContext) {
+        todo!("window respawn")
     }
 
     fn deinit(mut self, ctx: &mut AppContext) {
@@ -2058,12 +2085,6 @@ impl OwnedWindowContext {
             None
         }
     }
-}
-
-// OpenWindow headless info.
-struct HeadlessWindow {
-    screen: HeadlessMonitor,
-    size: LayoutSize,
 }
 
 struct WindowVarsData {

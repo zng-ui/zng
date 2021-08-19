@@ -11,7 +11,7 @@ fn notify() {
     let cmd = FooCommand;
     assert!(cmd.notify(&mut app, None));
 
-    app.update(false);
+    let _ = app.update(false);
 
     let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());
@@ -28,7 +28,7 @@ fn notify_scoped() {
 
     assert!(cmd_scoped.notify(&mut app, None));
 
-    app.update(false);
+    let _ = app.update(false);
 
     let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());

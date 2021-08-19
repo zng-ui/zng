@@ -156,6 +156,15 @@ pub struct Icon {
     pub width: u32,
     pub height: u32,
 }
+impl fmt::Debug for Icon {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Icon")
+            .field("rgba", &format_args!("<{} bytes>", self.rgba.len()))
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish()
+    }
+}
 
 /// Text anti-aliasing.
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -226,9 +235,18 @@ pub struct FrameRequest {
     /// Display list, split in serializable parts.
     pub display_list: (Vec<u8>, BuiltDisplayListDescriptor),
 }
+impl fmt::Debug for FrameRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FrameRequest")
+            .field("id", &self.id)
+            .field("pipeline_id", &self.pipeline_id)
+            .field("size", &self.size)
+            .finish_non_exhaustive()
+    }
+}
 
 /// Configuration of a window.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowConfig {
     /// Title text.
     pub title: String,
@@ -282,7 +300,7 @@ pub struct FramePixels {
 }
 
 /// Information about a monitor screen.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MonitorInfo {
     /// Display name, if any was set by the user in the system config.
     pub name: Option<String>,
@@ -331,7 +349,7 @@ impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
 ///
 /// You can get this values from [`MonitorInfo::video_modes`]. Note that when setting the
 /// video mode the actual system mode is selected by approximation, closest `size`, then `bit_depth` then `refresh_rate`.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct VideoMode {
     /// Resolution of this video mode.
     pub size: (u32, u32),
