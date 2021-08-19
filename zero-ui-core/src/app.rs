@@ -30,7 +30,87 @@ use std::{
     time::Instant,
 };
 
-pub use zero_ui_vp::init_view_process;
+/// Call this function before anything else in the app `main` function.
+///
+/// If the process is started with the right environment configuration this function
+/// high-jacks the process and turns it into a *View Process*, never returning.
+///
+/// This function does nothing if the *View Process* environment is not set, you can safely call it more then once.
+/// The [`App::default`] and [`App::blank`] methods also call this function, so if the first line of the `main` is
+/// `App::default` you don't need to explicitly call the function.
+///
+/// # Examples
+///
+/// Calling the function as early as possible stops the process from doing things that it should only do in the app process:
+///
+/// ```no_run
+/// # use zero_ui_core::app::*;
+/// # do_app_process_init_things() { }
+/// fn main() {
+///     init_view_process();
+///
+///     do_app_process_init_things();
+///
+///     App::default().run(|ctx| {
+///         todo!()
+///     });
+/// }
+/// ```
+///
+/// But [`App::default`] also calls this function so you can omit if the app creation is the first line of code:
+///
+/// ```no_run
+/// # use zero_ui_core::app::*;
+/// # do_app_process_init_things() { }
+/// fn main() {
+///     App::default().run(|ctx| {
+///         do_app_process_init_things();
+///
+///         todo!()
+///     });
+/// }
+/// ```
+///
+/// Just be careful more code does not get added before `App::default` later.
+#[inline]
+pub fn init_view_process() {
+    zero_ui_vp::init_view_process();
+}
+
+/// Run both View and App in the same process.
+///
+/// This function must be called in the main thread, it initializes the View and calls `run_app`
+/// in a new thread to initialize the App.
+///
+/// The primary use of this function is debugging the view process code, just move your main function code to inside the `run_app` and
+/// start debugging. You can also use this to trade-off memory use for more risk of fatal crashes.
+///
+/// # Examples
+///
+/// A setup that runs the app in a single process in debug builds, and split processes in release builds.
+///
+/// ```no_run
+/// # use zero_ui_core::app::*;
+/// #
+/// fn main() {
+///     if cfg!(debug_assertions) {
+///         run_same_process(app_main);
+///     } else {
+///         init_view_process();
+///         app_main();
+///     }
+/// }
+///
+/// fn app_main() {
+///     App::default().run(|ctx| {
+///         todo!()
+///     });
+/// }
+/// ```
+#[inline]
+pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
+    zero_ui_vp::run_same_process(run_app)
+}
 
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///

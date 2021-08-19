@@ -6,10 +6,30 @@ pub use crate::app::view_process::{CursorIcon, MonitorInfo, VideoMode, WindowThe
 use linear_map::LinearMap;
 use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
 
-use crate::{BoxedUiNode, UiNode, WidgetId, app::{self, AppEventSender, AppExtended, AppExtension, ControlFlow, raw_events::{
+use crate::{
+    app::{
+        self,
+        raw_events::{
             RawWindowCloseRequestedEvent, RawWindowClosedEvent, RawWindowFocusEvent, RawWindowMovedEvent, RawWindowResizedEvent,
             RawWindowScaleFactorChangedEvent,
-        }, view_process::{self, ViewProcess, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow}}, cancelable_event_args, color::rgb, context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext}, event::{event, EventUpdateArgs}, event_args, impl_from_and_into_var, render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, WidgetTransformKey}, service::Service, state::OwnedStateMap, state_key, text::{Text, TextAntiAliasing, ToText}, units::*, var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var}};
+        },
+        view_process::{self, ViewProcess, ViewProcessExt, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
+        AppEventSender, AppExtended, AppExtension, ControlFlow,
+    },
+    cancelable_event_args,
+    color::rgb,
+    context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
+    event::{event, EventUpdateArgs},
+    event_args, impl_from_and_into_var,
+    render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, WidgetTransformKey},
+    service::Service,
+    state::OwnedStateMap,
+    state_key,
+    text::{Text, TextAntiAliasing, ToText},
+    units::*,
+    var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
+    BoxedUiNode, UiNode, WidgetId,
+};
 
 unique_id! {
     /// Unique identifier of a [`OpenWindow`].
@@ -144,7 +164,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
 
         loop {
             if let ControlFlow::Exit = self.update(true) {
-                return FramePixels::default()
+                return FramePixels::default();
             }
 
             let windows = self.ctx().services.windows();
@@ -1833,7 +1853,7 @@ impl AppWindow {
                             },
                         )
                         .expect("TODO, deal with respawn here?");
-                        
+
                     self.renderer = Some(headed.renderer());
                     self.headed = Some(headed);
                 }

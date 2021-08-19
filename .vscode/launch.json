@@ -116,5 +116,23 @@
             "args": [],
             "cwd": "${workspaceFolder}"
         },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Example: same_process",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=same_process",
+                    "--package=zero-ui"
+                ],
+                "filter": {
+                    "name": "same_process",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
     ]
 }

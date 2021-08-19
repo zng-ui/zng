@@ -14,6 +14,7 @@ use glutin::{
     window::WindowId,
 };
 use ipmpsc::{Receiver, Sender, SharedRingBuffer};
+use parking_lot::{Condvar, Mutex};
 use serde::{Deserialize, Serialize};
 use std::{
     env, fs,
@@ -21,6 +22,7 @@ use std::{
     panic,
     path::{Path, PathBuf},
     process::{self, Child, Command, Stdio},
+    sync::Arc,
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -50,24 +52,67 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// high-jacks the process and turns it into a *View Process*, never returning.
 ///
 /// This function does nothing if the *View Process* environment is not set, you can safely call it more then once.
-/// The `App::default()` and `App::blank()` methods also call this function, so if the first line of the `main` is
-/// `App::default` you don't need to explicitly call the function.
 ///
 /// # Examples
 ///
-/// ```
-/// # mod zero_ui { pub mod prelude { pub fn init_view_process() } }
+/// ```no_run
+/// # use zero_ui_vp::init_view_process;
 /// fn main() {
-///     zero_ui::prelude::init_view_process();
+///     init_view_process();
 ///
 ///     println!("Only Prints if is not View Process");
-///     // .. init app normally.
+///
+///     // .. init app here.
 /// }
 /// ```
 pub fn init_view_process() {
     if let Ok(channel_dir) = env::var(CHANNEL_VAR) {
-        run(PathBuf::from(channel_dir));
+        let mode = env::var(MODE_VAR).unwrap_or_else(|_| "headed".to_owned());
+        let headless = match mode.as_str() {
+            "headed" => false,
+            "headless" => true,
+            _ => panic!("unknown mode"),
+        };
+        run(PathBuf::from(channel_dir), headless);
     }
+}
+
+struct SameProcessConfig {
+    waiter: Arc<Condvar>,
+    channel_dir: PathBuf,
+    headless: bool,
+}
+static SAME_PROCESS_CONFIG: Mutex<Option<SameProcessConfig>> = parking_lot::const_mutex(None);
+
+/// Run both View and App in the same process.
+///
+/// This function must be called in the main thread, it initializes the View and calls `run_app`
+/// in a new thread to initialize the App.
+
+/// The primary use of this function is debugging the view process code
+pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
+    if !is_main_thread::is_main_thread().unwrap_or(true) {
+        panic!("can only init view in the main thread")
+    }
+
+    let mut config = SAME_PROCESS_CONFIG.lock();
+
+    thread::spawn(run_app);
+
+    let waiter = Arc::new(Condvar::new());
+    *config = Some(SameProcessConfig {
+        waiter: waiter.clone(),
+        channel_dir: PathBuf::new(),
+        headless: false,
+    });
+
+    let result = waiter.wait_for(&mut config, Duration::from_secs(10));
+    if result.timed_out() {
+        panic!("Controller::start was not called in 10 seconds");
+    }
+
+    let config = config.take().unwrap();
+    run(config.channel_dir, config.headless)
 }
 
 pub use types::{
@@ -81,17 +126,10 @@ use webrender::api::{
 };
 
 /// Start the app event loop in the View Process.
-fn run(channel_dir: PathBuf) -> ! {
+fn run(channel_dir: PathBuf, headless: bool) -> ! {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("can only init view-process in the main thread")
     }
-
-    let mode = env::var(MODE_VAR).unwrap_or_else(|_| "headed".to_owned());
-    let headless = match mode.as_str() {
-        "headed" => false,
-        "headless" => true,
-        _ => panic!("unknown mode"),
-    };
 
     let request_receiver = Receiver::new(
         SharedRingBuffer::open(&channel_dir.join("request").display().to_string()).expect("request channel connection failed"),
@@ -252,7 +290,7 @@ type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
 
 /// View Process controller, used in the App Process.
 pub struct Controller {
-    process: Child,
+    process: Option<Child>,
     view_process_exe: PathBuf,
     channel_dir: PathBuf,
     request_chan: Sender,
@@ -312,6 +350,12 @@ impl Controller {
         self.headless
     }
 
+    /// If is running both view and app in the same process.
+    #[inline]
+    pub fn same_process(&self) -> bool {
+        self.process.is_none()
+    }
+
     fn try_talk(&mut self, req: &Request) -> ipmpsc::Result<Response> {
         self.request_chan.send_when_empty(req)?;
         let r = self.response_chan.recv_timeout(Duration::from_secs(5))?;
@@ -351,7 +395,7 @@ impl Controller {
         Err(Error::Respawn)
     }
 
-    fn spawn_view_process(view_process_exe: &Path, headless: bool) -> (PathBuf, Child, Sender, Receiver, Receiver) {
+    fn spawn_view_process(view_process_exe: &Path, headless: bool) -> (PathBuf, Option<Child>, Sender, Receiver, Receiver) {
         let channel_dir = loop {
             let temp_dir = env::temp_dir().join(uuid::Uuid::new_v4().to_simple().to_string());
             match std::fs::create_dir(&temp_dir) {
@@ -374,31 +418,38 @@ impl Controller {
                 .expect("request channel creation failed"),
         );
 
-        // create process and spawn it
-
-        let process = Command::new(&view_process_exe)
-            .env(CHANNEL_VAR, &channel_dir)
-            .env(MODE_VAR, if headless { "headless" } else { "headed" })
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("view-process failed to spawn");
-
-        (channel_dir, process, req, rsp, ev)
+        // create process and spawn it, unless is running in same process mode.
+        if let Some(config) = &mut *SAME_PROCESS_CONFIG.lock() {
+            config.channel_dir = channel_dir.clone();
+            config.headless = headless;
+            config.waiter.notify_one();
+            (channel_dir, None, req, rsp, ev)
+        } else {
+            let process = Command::new(&view_process_exe)
+                .env(CHANNEL_VAR, &channel_dir)
+                .env(MODE_VAR, if headless { "headless" } else { "headed" })
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("view-process failed to spawn");
+            (channel_dir, Some(process), req, rsp, ev)
+        }
     }
 
     fn try_recover(&mut self) {
+        let process = self.process.as_mut().expect("cannot recover in same_process mode");
+
         log::info!(target: "vp_recover", "trying to recover view-process");
 
         // try exit
-        let exit_code = match self.process.try_wait() {
+        let exit_code = match process.try_wait() {
             Ok(Some(code)) => Some(code),
             Ok(None) => {
                 log::warn!(target: "vp_recover", "view-process still running");
-                match self.process.kill() {
+                match process.kill() {
                     Ok(_) => {
                         log::info!(target: "vp_recover", "killed view-process");
-                        match self.process.try_wait() {
+                        match process.try_wait() {
                             Ok(Some(s)) => Some(s),
                             Ok(None) => unreachable!(),
                             Err(e) => {
@@ -424,14 +475,14 @@ impl Controller {
             log::info!(target: "vp_recover", "view-process reaped");
             log::error!(target: "vp_recover", "view-process exit_code: {:x}", code.code().unwrap_or(0));
 
-            if let Some(mut err) = self.process.stderr.take() {
+            if let Some(mut err) = process.stderr.take() {
                 let mut s = String::new();
                 match err.read_to_string(&mut s) {
                     Ok(l) => log::error!(target: "vp_recover", "view-process stderr ({} bytes):\n{}\n=====", l, s),
                     Err(e) => log::error!(target: "vp_recover", "failed to read view-process stderr: {}", e),
                 }
             }
-            if let Some(mut out) = self.process.stdout.take() {
+            if let Some(mut out) = process.stdout.take() {
                 let mut s = String::new();
                 match out.read_to_string(&mut s) {
                     Ok(l) => log::info!(target: "vp_recover", "view-process stdout ({} bytes):\n{}\n=====", l, s),
@@ -447,12 +498,12 @@ impl Controller {
             Err(p) => panic::resume_unwind(p),
         };
 
-        let (channel_dir, process, request, response, event) = Self::spawn_view_process(&self.view_process_exe, self.headless);
+        let (channel_dir, new_process, request, response, event) = Self::spawn_view_process(&self.view_process_exe, self.headless);
 
         on_event(Ev::Respawned);
 
         self.channel_dir = channel_dir;
-        self.process = process;
+        *process = new_process.unwrap();
         self.request_chan = request;
         self.response_chan = response;
 
@@ -470,7 +521,9 @@ impl Controller {
 }
 impl Drop for Controller {
     fn drop(&mut self) {
-        let _ = self.process.kill();
+        if let Some(mut process) = self.process.take() {
+            let _ = process.kill();
+        }
         let _ = fs::remove_dir_all(&self.channel_dir);
     }
 }
