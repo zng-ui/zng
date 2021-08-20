@@ -534,7 +534,7 @@ where
 /// let (input_file, total_len) = task::wait(|| {
 ///     let file = std::fs::File::open("large-input.bin")?;
 ///     let len = file.metadata()?.len();
-///     Ok::<_, std::io::Error>((file, len.bytes()))
+///     Ok::<_, std::io::Error>((file, (len as usize).bytes()))
 /// }).await?;
 /// let output_file = task::wait(|| std::fs::File::create("large-output.bin")).await?;
 ///
@@ -1831,7 +1831,7 @@ macro_rules! __all_some {
 /// Read some metadata bytes then spawn a [`ReceiverTask`].
 ///
 /// This is a common pattern when processing large byte inputs, you need to first read
-/// some metadata the descrives the layout of the large ammount of data that follows,
+/// some metadata the describes the layout of the large amount of data that follows,
 /// this is usually all send as a single stream of bytes but we want to *change-gears* depending
 /// on what part we are reading, this trait is an abstraction over this process.
 ///

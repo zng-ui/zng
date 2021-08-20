@@ -45,7 +45,7 @@ use std::{
 ///
 /// ```no_run
 /// # use zero_ui_core::app::*;
-/// # do_app_process_init_things() { }
+/// # fn do_app_process_init_things() { }
 /// fn main() {
 ///     init_view_process();
 ///
@@ -61,7 +61,7 @@ use std::{
 ///
 /// ```no_run
 /// # use zero_ui_core::app::*;
-/// # do_app_process_init_things() { }
+/// # fn do_app_process_init_things() { }
 /// fn main() {
 ///     App::default().run(|ctx| {
 ///         do_app_process_init_things();
