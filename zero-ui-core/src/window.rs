@@ -1796,6 +1796,9 @@ impl AppWindow {
     }
 
     fn layout(&mut self, ctx: &mut AppContext) {
+        if !self.context.need_layout() {
+            return;
+        }
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
         let (available_size, min_size, auto_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
@@ -1837,16 +1840,15 @@ impl AppWindow {
     }
 
     fn render(&mut self, ctx: &mut AppContext) {
+        if !self.context.need_render() {
+            return;
+        }
         // TODO use the cached value, when that is implemented in layout.
         let scale_factor = self.monitor_metrics(ctx).1;
 
         // `UiNode::render`
         let ((pipeline_id, size, display_list), frame_info) =
-            if let Some(f) = self.context.render(ctx, self.frame_id, self.size, scale_factor, &self.renderer) {
-                f
-            } else {
-                return; // not needed
-            };
+            self.context.render(ctx, self.frame_id, self.size, scale_factor, &self.renderer);
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
@@ -1930,15 +1932,15 @@ impl AppWindow {
     }
 
     fn render_update(&mut self, ctx: &mut AppContext) {
-        let updates = if let Some(u) = self.context.render_update(ctx, self.frame_id) {
-            u
-        } else {
-            // returns none if no render_update was needed or `UiNode::render_update`
-            // did not change anything.
+        if !self.context.need_render_update() {
             return;
-        };
-
+        }
         debug_assert!(!self.first_render);
+
+        let updates = self.context.render_update(ctx, self.frame_id);
+        if updates.transforms.is_empty() && updates.floats.is_empty() {
+            return;
+        }
 
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer.
@@ -2000,6 +2002,10 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
+    fn need_layout(&self) -> bool {
+        matches!(self.update, UpdateDisplayRequest::Layout)
+    }
+
     fn layout(
         &mut self,
         ctx: &mut AppContext,
@@ -2009,7 +2015,7 @@ impl OwnedWindowContext {
         available_size: LayoutSize,
         calc_final_size: impl FnOnce(LayoutSize) -> LayoutSize,
     ) -> LayoutSize {
-        debug_assert!(matches!(self.update, UpdateDisplayRequest::Layout));
+        debug_assert!(self.need_layout());
         self.update = UpdateDisplayRequest::Render;
 
         let root = &mut self.root;
@@ -2033,6 +2039,10 @@ impl OwnedWindowContext {
         final_size
     }
 
+    fn need_render(&self) -> bool {
+        matches!(self.update, UpdateDisplayRequest::Render)
+    }
+
     fn render(
         &mut self,
         ctx: &mut AppContext,
@@ -2040,10 +2050,8 @@ impl OwnedWindowContext {
         root_size: LayoutSize,
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
-    ) -> Option<((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo)> {
-        if !matches!(self.update, UpdateDisplayRequest::Render) {
-            return None;
-        }
+    ) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
+        debug_assert!(self.need_render());
         self.update = UpdateDisplayRequest::None;
 
         let root = &mut self.root;
@@ -2066,13 +2074,15 @@ impl OwnedWindowContext {
 
             builder
         });
-        Some(frame.finalize())
+        frame.finalize()
     }
 
-    fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId) -> Option<DynamicProperties> {
-        if !matches!(self.update, UpdateDisplayRequest::RenderUpdate) {
-            return None;
-        }
+    fn need_render_update(&self) -> bool {
+        matches!(self.update, UpdateDisplayRequest::RenderUpdate)
+    }
+
+    fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId) -> DynamicProperties {
+        debug_assert!(self.need_render_update());
         self.update = UpdateDisplayRequest::None;
 
         let root = &self.root;
@@ -2087,11 +2097,7 @@ impl OwnedWindowContext {
             })
         });
 
-        if !updates.transforms.is_empty() || !updates.floats.is_empty() {
-            Some(updates)
-        } else {
-            None
-        }
+        updates
     }
 }
 
