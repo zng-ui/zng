@@ -145,11 +145,13 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     fn focus_window(&mut self, window_id: WindowId) {
         let args = RawWindowFocusArgs::now(window_id, true);
         RawWindowFocusEvent.notify(self.ctx().events, args);
+        let _ = self.update(false);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
         let args = RawWindowFocusArgs::now(window_id, false);
         RawWindowFocusEvent.notify(self.ctx().events, args);
+        let _ = self.update(false);
     }
 
     fn wait_frame(&mut self, window_id: WindowId) -> FramePixels {
@@ -1076,6 +1078,8 @@ impl AppExtension for WindowManager {
                 w.deinit(ctx);
                 let wns = ctx.services.windows();
                 let info = wns.windows_info.remove(&args.window_id).unwrap();
+
+                info.vars.vars.is_open.set(ctx.vars, false);
 
                 if wns.shutdown_on_last_close && wns.windows.is_empty() && wns.open_requests.is_empty() {
                     // fulfill `shutdown_on_last_close`
@@ -2136,6 +2140,8 @@ struct WindowVarsData {
     text_aa: RcVar<TextAntiAliasing>,
 
     allow_alt_f4: RcVar<bool>,
+
+    is_open: RcVar<bool>,
 }
 
 /// Controls properties of an open window using variables.
@@ -2187,6 +2193,8 @@ impl WindowVars {
             text_aa: var(TextAntiAliasing::Default),
 
             allow_alt_f4: var(!cfg!(windows)),
+
+            is_open: var(true),
         });
         Self { vars }
     }
@@ -2458,6 +2466,15 @@ impl WindowVars {
     #[inline]
     pub fn allow_alt_f4(&self) -> &RcVar<bool> {
         &self.vars.allow_alt_f4
+    }
+
+    /// If the window is open.
+    /// 
+    /// This is a read-only variable, it starts set to `true` and will update only once, 
+    /// when the window finishes closing.
+    #[inline]
+    pub fn is_open(&self) -> ReadOnlyRcVar<bool> {
+        self.vars.is_open.clone().into_read_only()
     }
 }
 state_key! {

@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 // verify that images in "examples/res/img" have the expected depth and channels.
 #[test]
 pub fn verify_res_img() {
-    let path: PathBuf = "examples/res/img".into();
+    let path = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("examples/res/image");
 
     macro_rules! assert_img {
         ($png:tt, $Variant:ident) => {
