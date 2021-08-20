@@ -1186,11 +1186,12 @@ impl<E: AppExtension> RunningApp<E> {
 
                     self.extensions.update_display(&mut ctx, display_update);
                     observer.update_display(&mut ctx, display_update);
-                } else {
-                    for (window_id, frame_id) in new_frames {
+                } else if !new_frames.is_empty() {
+                    for (window_id, frame_id) in new_frames.drain() {
                         self.extensions.new_frame(&mut ctx, window_id, frame_id);
                         observer.new_frame(&mut ctx, window_id, frame_id);
                     }
+                } else {
                     break;
                 }
             }

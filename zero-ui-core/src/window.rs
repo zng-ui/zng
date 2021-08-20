@@ -139,11 +139,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
             true,
         );
 
-        let window_id = window_id.unwrap_or_else(|| panic!("window did not open, ControlFlow: {:?}", cf));
-
-        self.focus_window(window_id);
-
-        window_id
+        window_id.unwrap_or_else(|| panic!("window did not open, ControlFlow: {:?}", cf))
     }
 
     fn focus_window(&mut self, window_id: WindowId) {
@@ -1857,6 +1853,7 @@ impl AppWindow {
         ctx.services.windows().windows_info.get_mut(&self.id).unwrap().frame_info = frame_info;
 
         if self.first_render {
+            self.first_render = false;
             // the window is opened in the first render, this is needed in headed mode, so that the
             // user does not see an empty window, but for consistency we implement the same for all modes.
             let vp = ctx.services.get::<ViewProcess>();
@@ -1893,13 +1890,7 @@ impl AppWindow {
                     };
 
                     // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
-                    let headed = vp
-                        .unwrap()
-                        .open_window(
-                            self.id,
-                            config,
-                        )
-                        .expect("TODO, deal with respawn here?");
+                    let headed = vp.unwrap().open_window(self.id, config).expect("TODO, deal with respawn here?");
 
                     self.renderer = Some(headed.renderer());
                     self.headed = Some(headed);
@@ -1907,7 +1898,7 @@ impl AppWindow {
                 WindowMode::HeadlessWithRenderer => todo!(),
                 WindowMode::Headless => {
                     // headless without renderer only provides the `FrameInfo`, so we are done "rendering".
-                    
+
                     if vp.is_none() {
                         // if we are in a headless app too, we simulate focus.
                         drop(vp);
@@ -1921,7 +1912,6 @@ impl AppWindow {
                     }
                 }
             }
-            self.first_render = false;
         } else if let Some(renderer) = &mut self.renderer {
             // this is not the first frame, just need to send the frame-request.
             renderer
@@ -1934,7 +1924,7 @@ impl AppWindow {
                 .expect("TODO, deal with respawn here?");
         }
 
-        // for all modes we can announce the new frame already, 
+        // for all modes we can announce the new frame already,
         // TODO can code expect to be able to copy pixels here?
         ctx.updates.new_frame_rendered(self.id, self.frame_id);
     }
@@ -1943,7 +1933,7 @@ impl AppWindow {
         let updates = if let Some(u) = self.context.render_update(ctx, self.frame_id) {
             u
         } else {
-            // returns none if no render_update was needed or `UiNode::render_update` 
+            // returns none if no render_update was needed or `UiNode::render_update`
             // did not change anything.
             return;
         };
