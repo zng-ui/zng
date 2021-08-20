@@ -1843,6 +1843,8 @@ impl AppWindow {
     fn render(&mut self, ctx: &mut AppContext) {
         // TODO use the cached value, when that is implemented in layout.
         let scale_factor = self.monitor_metrics(ctx).1;
+
+        // `UiNode::render`
         let ((pipeline_id, size, display_list), frame_info) =
             if let Some(f) = self.context.render(ctx, self.frame_id, self.size, scale_factor, &self.renderer) {
                 f
@@ -1850,43 +1852,52 @@ impl AppWindow {
                 return; // not needed
             };
 
+        // update frame info.
         self.frame_id = frame_info.frame_id();
         ctx.services.windows().windows_info.get_mut(&self.id).unwrap().frame_info = frame_info;
 
         if self.first_render {
+            // the window is opened in the first render, this is needed in headed mode, so that the
+            // user does not see an empty window, but for consistency we implement the same for all modes.
             let vp = ctx.services.get::<ViewProcess>();
             match self.mode {
                 WindowMode::Headed => {
+                    // send window request to the view-process, in the view-process the window will start but
+                    // still not visible, when the renderer has a frame ready to draw then the window becomes
+                    // visible. All layout values are ready here too.
+                    let config = view_process::WindowConfig {
+                        title: self.vars.title().get(ctx.vars).to_string(),
+                        pos: self.position,
+                        size: self.size,
+                        visible: self.vars.visible().copy(ctx.vars),
+                        taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
+                        chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
+                        allow_alt_f4: self.vars.allow_alt_f4().copy(ctx.vars),
+                        clear_color: Some(rgb(255, 0, 0).into()),
+                        text_aa: self.vars.text_aa().copy(ctx.vars),
+                        always_on_top: self.vars.always_on_top().copy(ctx.vars),
+                        movable: self.vars.movable().copy(ctx.vars),
+                        resizable: self.vars.resizable().copy(ctx.vars),
+                        icon: match self.vars.icon().get(ctx.vars) {
+                            WindowIcon::Default => None,
+                            WindowIcon::Icon(ico) => Some(view_process::Icon::clone(ico)),
+                            WindowIcon::Render(_) => todo!(),
+                        },
+                        transparent: self.vars.transparent().copy(ctx.vars),
+                        frame: view_process::FrameRequest {
+                            id: self.frame_id,
+                            pipeline_id,
+                            size,
+                            display_list: display_list.into_data(),
+                        },
+                    };
+
+                    // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
                     let headed = vp
                         .unwrap()
                         .open_window(
                             self.id,
-                            view_process::WindowConfig {
-                                title: self.vars.title().get(ctx.vars).to_string(),
-                                pos: self.position,
-                                size: self.size,
-                                visible: self.vars.visible().copy(ctx.vars),
-                                taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
-                                chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
-                                allow_alt_f4: self.vars.allow_alt_f4().copy(ctx.vars),
-                                clear_color: Some(rgb(255, 0, 0).into()),
-                                text_aa: self.vars.text_aa().copy(ctx.vars),
-                                always_on_top: self.vars.always_on_top().copy(ctx.vars),
-                                movable: self.vars.movable().copy(ctx.vars),
-                                resizable: self.vars.resizable().copy(ctx.vars),
-                                icon: match self.vars.icon().get(ctx.vars) {
-                                    WindowIcon::Default => None,
-                                    WindowIcon::Icon(ico) => Some(view_process::Icon::clone(ico)),
-                                    WindowIcon::Render(_) => todo!(),
-                                },
-                                transparent: self.vars.transparent().copy(ctx.vars),
-                                frame: view_process::FrameRequest {
-                                    id: self.frame_id,
-                                    pipeline_id,
-                                    size,
-                                    display_list: display_list.into_data(),
-                                },
-                            },
+                            config,
                         )
                         .expect("TODO, deal with respawn here?");
 
@@ -1895,9 +1906,10 @@ impl AppWindow {
                 }
                 WindowMode::HeadlessWithRenderer => todo!(),
                 WindowMode::Headless => {
-                    // headless without renderer only provides the FrameInfo, so we are done "rendering".
+                    // headless without renderer only provides the `FrameInfo`, so we are done "rendering".
+                    
                     if vp.is_none() {
-                        // in headless apps we simulate focus.
+                        // if we are in a headless app too, we simulate focus.
                         drop(vp);
                         let timestamp = Instant::now();
                         if let Some((prev_focus_id, _)) = ctx.services.windows().windows_info.iter_mut().find(|(_, w)| w.is_focused) {
@@ -1911,6 +1923,7 @@ impl AppWindow {
             }
             self.first_render = false;
         } else if let Some(renderer) = &mut self.renderer {
+            // this is not the first frame, just need to send the frame-request.
             renderer
                 .render(view_process::FrameRequest {
                     id: self.frame_id,
@@ -1921,6 +1934,8 @@ impl AppWindow {
                 .expect("TODO, deal with respawn here?");
         }
 
+        // for all modes we can announce the new frame already, 
+        // TODO can code expect to be able to copy pixels here?
         ctx.updates.new_frame_rendered(self.id, self.frame_id);
     }
 
@@ -1928,16 +1943,19 @@ impl AppWindow {
         let updates = if let Some(u) = self.context.render_update(ctx, self.frame_id) {
             u
         } else {
+            // returns none if no render_update was needed or `UiNode::render_update` 
+            // did not change anything.
             return;
         };
 
         debug_assert!(!self.first_render);
 
         if let Some(renderer) = &self.renderer {
+            // send update if we have a renderer.
             renderer.render_update(updates).expect("TODO, deal with respawn here?");
         }
 
-        // TODO notify, the frame info was not touched, but we plan to let render_update update metadata.
+        // TODO notify, after we implement metadata modification in render_update.
     }
 
     fn respawn(&mut self, _ctx: &mut AppContext) {
