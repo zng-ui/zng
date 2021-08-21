@@ -965,7 +965,8 @@ impl AppExtension for WindowManager {
             }
         } else if let Some(args) = RawWindowResizedEvent.update(args) {
             if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
-                if window.vars.vars.actual_size.set_ne(ctx.vars, args.size) {
+                if window.vars.0.actual_size.set_ne(ctx.vars, args.size) {
+                    window.size = Some(args.size);
                     // is new size:
                     ctx.updates.layout();
                     window.context.update |= UpdateDisplayRequest::Layout;
@@ -976,7 +977,7 @@ impl AppExtension for WindowManager {
             }
         } else if let Some(args) = RawWindowMovedEvent.update(args) {
             if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
-                if window.vars.vars.actual_position.set_ne(ctx.vars, args.position) {
+                if window.vars.0.actual_position.set_ne(ctx.vars, args.position) {
                     WindowMoveEvent.notify(ctx.events, WindowMoveArgs::now(args.window_id, args.position));
                 }
             }
@@ -1079,7 +1080,7 @@ impl AppExtension for WindowManager {
                 let wns = ctx.services.windows();
                 let info = wns.windows_info.remove(&args.window_id).unwrap();
 
-                info.vars.vars.is_open.set(ctx.vars, false);
+                info.vars.0.is_open.set(ctx.vars, false);
 
                 if wns.shutdown_on_last_close && wns.windows.is_empty() && wns.open_requests.is_empty() {
                     // fulfill `shutdown_on_last_close`
@@ -1585,7 +1586,7 @@ struct AppWindow {
     frame_id: FrameId,
 
     position: LayoutPoint,
-    size: LayoutSize,
+    size: Option<LayoutSize>,
 
     deinited: bool,
 }
@@ -1656,7 +1657,7 @@ impl AppWindow {
 
             frame_id: frame_info.frame_id(),
             position: LayoutPoint::zero(),
-            size: LayoutSize::zero(),
+            size: None,
 
             deinited: false,
         };
@@ -1687,11 +1688,13 @@ impl AppWindow {
                 todo!()
             }
 
-            if self.vars.size().is_new(ctx)
-                || self.vars.min_size().is_new(ctx)
-                || self.vars.max_size().is_new(ctx)
-                || self.vars.auto_size().is_new(ctx)
-            {
+            if self.vars.size().is_new(ctx) || self.vars.auto_size().is_new(ctx) {
+                self.context.update |= UpdateDisplayRequest::Layout;
+                ctx.updates.layout();
+                self.size = None; // ignore end-user size next layout.
+            }
+
+            if self.vars.min_size().is_new(ctx) || self.vars.max_size().is_new(ctx) {
                 self.context.update |= UpdateDisplayRequest::Layout;
                 ctx.updates.layout();
             }
@@ -1704,8 +1707,8 @@ impl AppWindow {
                         todo!("use pos, else center {:?}", pos)
                     }
 
-                    if let Some(size) = self.vars.position().get_new(ctx.vars) {
-                        todo!("use new size, else actutal_size {:?}", size)
+                    if let Some(size) = self.vars.size().get_new(ctx.vars) {
+                        todo!("use new size, else actual_size {:?}", size)
                     }
 
                     todo!("refresh monitor {:?}", monitor_info);
@@ -1813,7 +1816,7 @@ impl AppWindow {
 
         let (available_size, min_size, auto_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
             // TODO only use these values in the first layout and after they update.
-            let mut size = self.vars.size().get(ctx.vars).to_layout(scr_size, ctx);
+            let mut size = self.size.unwrap_or_else(|| self.vars.size().get(ctx.vars).to_layout(scr_size, ctx));
             let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
             let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
 
@@ -1828,7 +1831,8 @@ impl AppWindow {
             } else {
                 size.height = size.height.max(min_size.height).min(max_size.height);
             }
-            (size, min_size, auto_size)
+            let pg = PixelGrid::new(scr_factor);
+            (size.snap_to(pg), min_size.snap_to(pg), auto_size)
         });
 
         let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size, |desired_size| {
@@ -1842,10 +1846,11 @@ impl AppWindow {
             final_size
         });
 
-        self.size = final_size;
+        self.size = Some(final_size);
 
         if let Some(w) = &self.headed {
-            w.set_size(self.size).unwrap();
+            // TODO only send size if layout is not caused by view resize by th end-user.
+            w.set_size(final_size).unwrap();
         }
     }
 
@@ -1857,8 +1862,13 @@ impl AppWindow {
         let scale_factor = self.monitor_metrics(ctx).1;
 
         // `UiNode::render`
-        let ((pipeline_id, size, display_list), frame_info) =
-            self.context.render(ctx, self.frame_id, self.size, scale_factor, &self.renderer);
+        let ((pipeline_id, size, display_list), frame_info) = self.context.render(
+            ctx,
+            self.frame_id,
+            self.size.expect("no layout before render"),
+            scale_factor,
+            &self.renderer,
+        );
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
@@ -1877,7 +1887,7 @@ impl AppWindow {
                     let config = view_process::WindowConfig {
                         title: self.vars.title().get(ctx.vars).to_string(),
                         pos: self.position,
-                        size: self.size,
+                        size,
                         visible: self.vars.visible().copy(ctx.vars),
                         taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
                         chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
@@ -2160,9 +2170,7 @@ struct WindowVarsData {
 ///
 /// [`WindowContext`]: crate::context::WindowContext::window_state
 /// [`WidgetContext`]: crate::context::WidgetContext::window_state
-pub struct WindowVars {
-    vars: Rc<WindowVarsData>,
-}
+pub struct WindowVars(Rc<WindowVarsData>);
 impl WindowVars {
     fn new() -> Self {
         let vars = Rc::new(WindowVarsData {
@@ -2203,13 +2211,11 @@ impl WindowVars {
 
             is_open: var(true),
         });
-        Self { vars }
+        Self(vars)
     }
 
     fn clone(&self) -> Self {
-        Self {
-            vars: Rc::clone(&self.vars),
-        }
+        Self(Rc::clone(&self.0))
     }
 
     /// Window chrome, the non-client area of the window.
@@ -2219,7 +2225,7 @@ impl WindowVars {
     /// The default value is [`WindowChrome::Default`].
     #[inline]
     pub fn chrome(&self) -> &RcVar<WindowChrome> {
-        &self.vars.chrome
+        &self.0.chrome
     }
 
     /// If the window is see-through.
@@ -2227,7 +2233,7 @@ impl WindowVars {
     /// The default value is `false`.
     #[inline]
     pub fn transparent(&self) -> &RcVar<bool> {
-        &self.vars.transparent
+        &self.0.transparent
     }
 
     /// Window icon.
@@ -2237,7 +2243,7 @@ impl WindowVars {
     /// The default value is [`WindowIcon::Default`].
     #[inline]
     pub fn icon(&self) -> &RcVar<WindowIcon> {
-        &self.vars.icon
+        &self.0.icon
     }
 
     /// Window title text.
@@ -2245,7 +2251,7 @@ impl WindowVars {
     /// The default value is `""`.
     #[inline]
     pub fn title(&self) -> &RcVar<Text> {
-        &self.vars.title
+        &self.0.title
     }
 
     /// Window screen state.
@@ -2255,7 +2261,7 @@ impl WindowVars {
     /// The default value is [`WindowState::Normal`]
     #[inline]
     pub fn state(&self) -> &RcVar<WindowState> {
-        &self.vars.state
+        &self.0.state
     }
 
     /// Window top-left offset on the [`monitor`].
@@ -2273,7 +2279,7 @@ impl WindowVars {
     /// [`monitor`]: WindowVars::monitor
     #[inline]
     pub fn position(&self) -> &RcVar<Point> {
-        &self.vars.position
+        &self.0.position
     }
 
     /// Window monitor.
@@ -2297,7 +2303,7 @@ impl WindowVars {
     /// [`position`]: WindowVars::position
     #[inline]
     pub fn monitor(&self) -> &RcVar<MonitorQuery> {
-        &self.vars.monitor
+        &self.0.monitor
     }
 
     /// Current monitor hosting the window.
@@ -2306,7 +2312,7 @@ impl WindowVars {
     /// no monitors where found in the operating system or if the window if headless without renderer.
     #[inline]
     pub fn actual_monitor(&self) -> ReadOnlyRcVar<Option<MonitorId>> {
-        self.vars.actual_monitor.clone().into_read_only()
+        self.0.actual_monitor.clone().into_read_only()
     }
 
     /// Window actual position on the screen.
@@ -2318,7 +2324,7 @@ impl WindowVars {
     /// is relative to the origin of the virtual screen that envelops all monitors.
     #[inline]
     pub fn actual_position(&self) -> ReadOnlyRcVar<LayoutPoint> {
-        self.vars.actual_position.clone().into_read_only()
+        self.0.actual_position.clone().into_read_only()
     }
 
     /// Window width and height on the screen.
@@ -2333,7 +2339,7 @@ impl WindowVars {
     /// [`actual_size`]: WindowVars::actual_size
     #[inline]
     pub fn size(&self) -> &RcVar<Size> {
-        &self.vars.size
+        &self.0.size
     }
 
     /// Window actual size on the screen.
@@ -2344,7 +2350,7 @@ impl WindowVars {
     /// The initial value is `(f32::NAN, f32::NAN)` but this is updated quickly to an actual value.
     #[inline]
     pub fn actual_size(&self) -> ReadOnlyRcVar<LayoutSize> {
-        self.vars.actual_size.clone().into_read_only()
+        self.0.actual_size.clone().into_read_only()
     }
 
     /// Configure window size-to-content.
@@ -2355,7 +2361,7 @@ impl WindowVars {
     /// The default value is [`AutoSize::DISABLED`].
     #[inline]
     pub fn auto_size(&self) -> &RcVar<AutoSize> {
-        &self.vars.auto_size
+        &self.0.auto_size
     }
 
     /// Minimal window width and height.
@@ -2368,7 +2374,7 @@ impl WindowVars {
     /// The default value is `(192, 48)`.
     #[inline]
     pub fn min_size(&self) -> &RcVar<Size> {
-        &self.vars.min_size
+        &self.0.min_size
     }
 
     /// Maximal window width and height.
@@ -2381,7 +2387,7 @@ impl WindowVars {
     /// The default value is `(100.pct(), 100.pct())`
     #[inline]
     pub fn max_size(&self) -> &RcVar<Size> {
-        &self.vars.max_size
+        &self.0.max_size
     }
 
     /// If the user can resize the window using the window frame.
@@ -2391,7 +2397,7 @@ impl WindowVars {
     /// The default value is `true`.
     #[inline]
     pub fn resizable(&self) -> &RcVar<bool> {
-        &self.vars.resizable
+        &self.0.resizable
     }
 
     /// If the user can move the window using the window frame.
@@ -2401,7 +2407,7 @@ impl WindowVars {
     /// The default value is `true`.
     #[inline]
     pub fn movable(&self) -> &RcVar<bool> {
-        &self.vars.movable
+        &self.0.movable
     }
 
     /// Whether the window should always stay on top of other windows.
@@ -2411,7 +2417,7 @@ impl WindowVars {
     /// The default value is `false`.
     #[inline]
     pub fn always_on_top(&self) -> &RcVar<bool> {
-        &self.vars.always_on_top
+        &self.0.always_on_top
     }
 
     /// If the window is visible on the screen and in the task-bar.
@@ -2422,7 +2428,7 @@ impl WindowVars {
     /// The default value is `true`.
     #[inline]
     pub fn visible(&self) -> &RcVar<bool> {
-        &self.vars.visible
+        &self.0.visible
     }
 
     /// If the window is visible in the task-bar.
@@ -2430,7 +2436,7 @@ impl WindowVars {
     /// The default value is `true`.
     #[inline]
     pub fn taskbar_visible(&self) -> &RcVar<bool> {
-        &self.vars.taskbar_visible
+        &self.0.taskbar_visible
     }
 
     /// The window parent.
@@ -2446,7 +2452,7 @@ impl WindowVars {
     /// The default value is `None`.
     #[inline]
     pub fn parent(&self) -> &RcVar<Option<WindowId>> {
-        &self.vars.parent
+        &self.0.parent
     }
 
     /// Configure the [`parent`](Self::parent) connection.
@@ -2456,7 +2462,7 @@ impl WindowVars {
     /// The default value is `false`.
     #[inline]
     pub fn modal(&self) -> &RcVar<bool> {
-        &self.vars.modal
+        &self.0.modal
     }
 
     /// Text anti-aliasing config in the window.
@@ -2464,7 +2470,7 @@ impl WindowVars {
     /// The default value is [`TextAntiAliasing::Default`] that is the OS default.
     #[inline]
     pub fn text_aa(&self) -> &RcVar<TextAntiAliasing> {
-        &self.vars.text_aa
+        &self.0.text_aa
     }
 
     /// In Windows the `Alt+F4` shortcut is intercepted by the system and causes a window close request,
@@ -2472,7 +2478,7 @@ impl WindowVars {
     /// instead.
     #[inline]
     pub fn allow_alt_f4(&self) -> &RcVar<bool> {
-        &self.vars.allow_alt_f4
+        &self.0.allow_alt_f4
     }
 
     /// If the window is open.
@@ -2481,7 +2487,7 @@ impl WindowVars {
     /// when the window finishes closing.
     #[inline]
     pub fn is_open(&self) -> ReadOnlyRcVar<bool> {
-        self.vars.is_open.clone().into_read_only()
+        self.0.is_open.clone().into_read_only()
     }
 }
 state_key! {

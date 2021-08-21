@@ -901,6 +901,7 @@ impl ViewApp {
         let scale_factor = w.scale_factor();
         match event {
             WindowEvent::Resized(size) => {
+                w.on_resized();
                 let s = w.scale_factor();
                 let size = LayoutSize::new(size.width as f32 / s, size.height as f32 / s);
                 self.notify(Ev::WindowResized(id, size));

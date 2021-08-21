@@ -181,10 +181,13 @@ impl ViewWindow {
     }
 
     pub fn resize_inner(&mut self, size: LayoutSize) {
-        let size = LogicalSize::new(size.width, size.height).to_physical(self.window.scale_factor());
-        self.window.set_inner_size(size);
+        self.window.set_inner_size(LogicalSize::new(size.width, size.height));
+    }
+
+    /// window.inner_size maybe new.
+    pub fn on_resized(&mut self) {
         let ctx = unsafe { self.context.take().unwrap().make_current().unwrap() };
-        ctx.resize(size);
+        ctx.resize(self.window.inner_size());
         self.context = unsafe { Some(ctx.make_not_current().unwrap()) };
         self.resized = true;
     }
