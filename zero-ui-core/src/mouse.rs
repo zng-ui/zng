@@ -562,7 +562,10 @@ impl MouseManager {
             self.pos = pos;
 
             let windows = ctx.services.windows();
-            let hits = windows.hit_test(window_id, pos).unwrap();
+            let hits = match windows.hit_test(window_id, pos) {
+                Ok(h) => h,
+                Err(_) => return,
+            };
 
             // mouse_move data
             let frame_info = windows.frame_info(window_id).unwrap();

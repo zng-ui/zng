@@ -292,12 +292,12 @@ macro_rules! declare_ipc {
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
 
 /// View Process controller, used in the App Process.
-/// 
+///
 /// # Shutdown
-/// 
+///
 /// The View Process is [killed] when the controller is dropped, if the app is running in [same process mode]
 /// then the current process [exits] with code 0 on drop.
-/// 
+///
 /// [killed]: std::process::Child::kill
 /// [same process mode]: run_same_process
 /// [exits]: std::process::exit
@@ -552,12 +552,12 @@ impl Drop for Controller {
     /// Kills the View Process or exits the current process if running in same process.
     fn drop(&mut self) {
         let mut same_process = true;
-        
+
         if let Some(mut process) = self.process.take() {
             same_process = false;
             let _ = process.kill();
         }
-        
+
         let _ = fs::remove_dir_all(&self.channel_dir);
 
         if same_process {

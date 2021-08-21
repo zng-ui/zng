@@ -1544,11 +1544,16 @@ struct AppWindowInfo {
 }
 impl AppWindowInfo {
     fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
-        self.renderer
-            .as_ref()
-            .and_then(|r| r.hit_test(point).ok())
-            .map(|hits| FrameHitInfo::new(self.id, self.frame_info.frame_id(), point, hits))
-            .unwrap_or_else(|| FrameHitInfo::no_hits(self.id))
+        if let Some(r) = &self.renderer {
+            match r.hit_test(point) {
+                Ok(h) => {
+                    return FrameHitInfo::new(self.id, self.frame_info.frame_id(), point, h);
+                }
+                Err(e) => log::error!("failed `hit_test`, will return `no_hits`, {:?}", e),
+            }
+        }
+
+        FrameHitInfo::no_hits(self.id)
     }
 }
 
@@ -1901,6 +1906,7 @@ impl AppWindow {
 
                     self.renderer = Some(headed.renderer());
                     self.headed = Some(headed);
+                    ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
                 }
                 WindowMode::HeadlessWithRenderer => todo!(),
                 WindowMode::Headless => {
