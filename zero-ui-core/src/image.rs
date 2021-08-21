@@ -420,7 +420,13 @@ impl crate::render::Image for Image {
         if let Some(rm) = rms.iter().find(|k| k.key.0 == namespace) {
             return rm.key;
         }
-        let key = renderer.generate_image_key().unwrap();
+        let key = match renderer.generate_image_key() {
+            Ok(k) => k,
+            Err(e) => {
+                log::error!("failed `generate_image_key`, will return DUMMY, {:?}", e);
+                ImageKey::DUMMY
+            }
+        };
 
         let mut txn = Transaction::new();
         txn.add_image(
@@ -438,7 +444,10 @@ impl crate::render::Image for Image {
             ImageData::Raw(self.bgra.clone()),
             None,
         );
-        renderer.update_resources(txn.resource_updates).unwrap();
+        if let Err(e) = renderer.update_resources(txn.resource_updates) {
+            log::error!("failed `update_resources`, will return DUMMY, {:?}", e);
+            return ImageKey::DUMMY;
+        }
 
         rms.push(RenderImage {
             key,
@@ -497,7 +506,8 @@ impl Drop for RenderImage {
     fn drop(&mut self) {
         let mut txn = webrender_api::Transaction::new();
         txn.delete_image(self.key);
-        self.renderer.update_resources(txn.resource_updates).unwrap();
+        // error here means the entire renderer was dropped.
+        let _ = self.renderer.update_resources(txn.resource_updates);
     }
 }
 impl fmt::Debug for RenderImage {

@@ -498,7 +498,13 @@ impl FontFace {
             }
         }
 
-        let key = renderer.generate_font_key().unwrap();
+        let key = match renderer.generate_font_key() {
+            Ok(k) => k,
+            Err(e) => {
+                log::error!("failed `generate_font_key`, will return `default, 0`, {:?}", e);
+                return webrender_api::FontKey(webrender_api::IdNamespace::default(), 0);
+            }
+        };
         txn.add_raw_font(key, (*self.bytes).clone(), self.face_index);
 
         keys.push(RenderFontFace::new(renderer, key));
@@ -663,7 +669,13 @@ impl Font {
 
         let font_key = self.face.render_face(renderer, &mut txn);
 
-        let key = renderer.generate_font_instance_key().unwrap();
+        let key = match renderer.generate_font_instance_key() {
+            Ok(k) => k,
+            Err(e) => {
+                log::error!("failed `generate_font_instance_key`, will return `default`, {:?}", e);
+                return webrender_api::FontInstanceKey::default();
+            }
+        };
 
         let mut opt = webrender_api::FontInstanceOptions::default();
         if synthesis.contains(FontSynthesis::STYLE) {
@@ -687,7 +699,10 @@ impl Font {
                 .collect(),
         );
 
-        renderer.update_resources(txn.resource_updates).unwrap();
+        if let Err(e) = renderer.update_resources(txn.resource_updates) {
+            log::error!("failed `update_resources`, will return `default`, {:?}", e);
+            return webrender_api::FontInstanceKey::default();
+        }
 
         keys.push(RenderFont::new(renderer, synthesis, key));
 
@@ -1245,6 +1260,7 @@ impl Drop for RenderFontFace {
     fn drop(&mut self) {
         let mut txn = webrender_api::Transaction::new();
         txn.delete_font(self.key);
+        // error here means the entire renderer was already dropped.
         let _ = self.renderer.update_resources(txn.resource_updates);
     }
 }
@@ -1267,6 +1283,7 @@ impl Drop for RenderFont {
     fn drop(&mut self) {
         let mut txn = webrender_api::Transaction::new();
         txn.delete_font_instance(self.key);
+        // error here means the entire renderer was already dropped.
         let _ = self.renderer.update_resources(txn.resource_updates);
     }
 }

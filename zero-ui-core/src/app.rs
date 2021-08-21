@@ -1792,6 +1792,12 @@ pub mod view_process {
             self.0.borrow().process.headless()
         }
 
+        /// If is running both view and app in the same process.
+        #[inline]
+        pub fn same_process(&self) -> bool {
+            self.0.borrow().process.same_process()
+        }
+
         /// Open a window and associate it with the `window_id`.
         pub fn open_window(&self, window_id: WindowId, config: WindowConfig) -> Result<ViewWindow> {
             let mut app = self.0.borrow_mut();

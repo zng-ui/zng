@@ -1034,8 +1034,8 @@ impl AppExtension for WindowManager {
                         // and if any cancelled we cancel all, otherwise close all.
                         let mut cancel = false;
 
-                        for canceled in e.get().windows.values() {
-                            if let Some(c) = canceled {
+                        for cancel_flag in e.get().windows.values() {
+                            if let Some(c) = cancel_flag {
                                 cancel |= c;
                             } else {
                                 all_some = false;
@@ -1364,6 +1364,7 @@ impl Windows {
             self.close_group_id = group;
 
             self.close_requests.insert(window_id, CloseWindowRequest { responder, group });
+            let _ = self.update_sender.send_update();
 
             Ok(response)
         } else {
@@ -2469,8 +2470,8 @@ impl WindowVars {
     }
 
     /// If the window is open.
-    /// 
-    /// This is a read-only variable, it starts set to `true` and will update only once, 
+    ///
+    /// This is a read-only variable, it starts set to `true` and will update only once,
     /// when the window finishes closing.
     #[inline]
     pub fn is_open(&self) -> ReadOnlyRcVar<bool> {
