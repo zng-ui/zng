@@ -1587,6 +1587,8 @@ struct AppWindow {
 
     position: LayoutPoint,
     size: Option<LayoutSize>,
+    min_size: LayoutSize,
+    max_size: LayoutSize,
 
     deinited: bool,
 }
@@ -1658,6 +1660,8 @@ impl AppWindow {
             frame_id: frame_info.frame_id(),
             position: LayoutPoint::zero(),
             size: None,
+            min_size: LayoutSize::zero(),
+            max_size: LayoutSize::zero(),
 
             deinited: false,
         };
@@ -1814,7 +1818,7 @@ impl AppWindow {
         }
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
-        let (available_size, min_size, auto_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+        let (available_size, min_size, max_size, auto_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
             // TODO only use these values in the first layout and after they update.
             let mut size = self.size.unwrap_or_else(|| self.vars.size().get(ctx.vars).to_layout(scr_size, ctx));
             let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
@@ -1832,7 +1836,7 @@ impl AppWindow {
                 size.height = size.height.max(min_size.height).min(max_size.height);
             }
             let pg = PixelGrid::new(scr_factor);
-            (size.snap_to(pg), min_size.snap_to(pg), auto_size)
+            (size.snap_to(pg), min_size.snap_to(pg), max_size.snap_to(pg), auto_size)
         });
 
         let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size, |desired_size| {
@@ -1847,6 +1851,8 @@ impl AppWindow {
         });
 
         self.size = Some(final_size);
+        self.min_size = min_size;
+        self.max_size = max_size;
 
         if let Some(w) = &self.headed {
             // TODO only send size if layout is not caused by view resize by th end-user.
@@ -1888,6 +1894,8 @@ impl AppWindow {
                         title: self.vars.title().get(ctx.vars).to_string(),
                         pos: self.position,
                         size,
+                        min_size: self.min_size,
+                        max_size: self.max_size,
                         visible: self.vars.visible().copy(ctx.vars),
                         taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
                         chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),

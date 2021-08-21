@@ -1964,6 +1964,19 @@ pub mod view_process {
             self.0.call(|id, p| p.set_size(id, size))
         }
 
+        /// Set the window minimum size.
+        #[inline]
+        pub fn set_min_size(&self, size: LayoutSize) -> Result<()> {
+            self.0.call(|id, p| p.set_min_size(id, size))
+        }
+
+        
+        /// Set the window maximum size.
+        #[inline]
+        pub fn set_max_size(&self, size: LayoutSize) -> Result<()> {
+            self.0.call(|id, p| p.set_max_size(id, size))
+        }
+
         /// Set the visibility of the native window borders and title.
         #[inline]
         pub fn set_chrome_visible(&self, visible: bool) -> Result<()> {

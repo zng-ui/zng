@@ -254,6 +254,12 @@ pub struct WindowConfig {
     pub pos: LayoutPoint,
     /// Content size (inner-size).
     pub size: LayoutSize,
+
+    /// Minimal size allowed.
+    pub min_size: LayoutSize,
+    /// Maximum size allowed.
+    pub max_size: LayoutSize,
+
     /// Window visibility.
     pub visible: bool,
     /// Window taskbar icon visibility.

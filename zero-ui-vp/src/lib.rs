@@ -803,6 +803,15 @@ declare_ipc! {
         self.with_window(id, |w|w.resize_inner(size))
     }
 
+    /// Set the window minimum content area size.
+    pub fn set_min_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> Result<()> {
+        self.with_window(id, |w|w.set_min_inner_size(size))
+    }
+    /// Set the window maximum content area size.
+    pub fn set_max_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> Result<()> {
+        self.with_window(id, |w|w.set_max_inner_size(size))
+    }
+
     /// Set the window icon.
     pub fn set_icon(&mut self, _ctx: &Context, id: WinId, icon: Option<Icon>) -> Result<()> {
         self.with_window(id, |w|w.set_icon(icon))

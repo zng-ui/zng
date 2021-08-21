@@ -54,6 +54,8 @@ impl ViewWindow {
             .with_decorations(w.chrome_visible)
             .with_resizable(w.resizable)
             .with_transparent(w.transparent)
+            .with_min_inner_size(LogicalSize::new(w.min_size.width, w.min_size.height))
+            .with_max_inner_size(LogicalSize::new(w.max_size.width, w.max_size.height))
             .with_window_icon(w.icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba, i.width, i.height).ok()))
             .with_visible(false); // we wait for the first frame to show the window.
 
@@ -182,6 +184,14 @@ impl ViewWindow {
 
     pub fn resize_inner(&mut self, size: LayoutSize) {
         self.window.set_inner_size(LogicalSize::new(size.width, size.height));
+    }
+
+    pub fn set_min_inner_size(&mut self, min_size: LayoutSize) {
+        self.window.set_min_inner_size(Some(LogicalSize::new(min_size.width, min_size.height)))
+    }
+
+    pub fn set_max_inner_size(&mut self, max_size: LayoutSize) {
+        self.window.set_max_inner_size(Some(LogicalSize::new(max_size.width, max_size.height)))
     }
 
     /// window.inner_size maybe new.
