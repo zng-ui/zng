@@ -10,8 +10,8 @@ use crate::{
     app::{
         self,
         raw_events::{
-            RawWindowCloseEvent, RawWindowCloseRequestedEvent, RawWindowFocusArgs, RawWindowFocusEvent, RawWindowMovedEvent,
-            RawWindowResizedEvent, RawWindowScaleFactorChangedEvent,
+            RawMonitorsChangedEvent, RawWindowCloseEvent, RawWindowCloseRequestedEvent, RawWindowFocusArgs, RawWindowFocusEvent,
+            RawWindowMovedEvent, RawWindowResizedEvent, RawWindowScaleFactorChangedEvent,
         },
         view_process::{self, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
@@ -854,6 +854,24 @@ event_args! {
             ctx.path.window_id() == self.window_id
         }
     }
+
+    /// [`MonitorsChangedEvent`] args.
+    pub struct MonitorsChangedArgs {
+        /// Removed monitors.
+        pub removed: Vec<MonitorId>,
+
+        /// Added monitors.
+        ///
+        /// Use the [`Monitors`] service to get metadata about the added monitors.
+        pub added: Vec<MonitorId>,
+
+        ..
+
+        /// Concerns every widget.
+        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+            true
+        }
+    }
 }
 cancelable_event_args! {
     /// [`WindowCloseRequestedEvent`] args.
@@ -899,6 +917,9 @@ event! {
 
     /// Close window event.
     pub WindowCloseEvent: WindowCloseArgs;
+
+    /// Monitors added or removed event.
+    pub MonitorsChangedEvent: MonitorsChangedArgs;
 }
 
 /// Application extension that manages windows.
@@ -916,6 +937,7 @@ event! {
 /// * [WindowScaleChangedEvent]
 /// * [WindowCloseRequestedEvent]
 /// * [WindowCloseEvent]
+/// * [MonitorsChangedEvent]
 ///
 /// # Services
 ///
@@ -939,8 +961,8 @@ impl Default for WindowManager {
 }
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        let view_process = ctx.services.get::<ViewProcess>().cloned();
-        ctx.services.register(Monitors::new(view_process));
+        let monitors = Monitors::new(ctx.services.get::<ViewProcess>());
+        ctx.services.register(monitors);
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
@@ -954,7 +976,7 @@ impl AppExtension for WindowManager {
 
                 window.is_focused = args.focused;
 
-                let args = WindowFocusArgs::now(args.window_id, window.is_focused, false);
+                let args = WindowFocusArgs::new(args.timestamp, args.window_id, window.is_focused, false);
 
                 WindowFocusChangedEvent.notify(ctx.events, args.clone());
                 if args.focused {
@@ -972,13 +994,13 @@ impl AppExtension for WindowManager {
                     window.context.update |= UpdateDisplayRequest::Layout;
 
                     // raise window_resize
-                    WindowResizeEvent.notify(ctx.events, WindowResizeArgs::now(args.window_id, args.size));
+                    WindowResizeEvent.notify(ctx.events, WindowResizeArgs::new(args.timestamp, args.window_id, args.size));
                 }
             }
         } else if let Some(args) = RawWindowMovedEvent.update(args) {
             if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
                 if window.vars.0.actual_position.set_ne(ctx.vars, args.position) {
-                    WindowMoveEvent.notify(ctx.events, WindowMoveArgs::now(args.window_id, args.position));
+                    WindowMoveEvent.notify(ctx.events, WindowMoveArgs::new(args.timestamp, args.window_id, args.position));
                 }
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
@@ -1004,6 +1026,17 @@ impl AppExtension for WindowManager {
             }
 
             ctx.services.windows().windows = windows;
+        } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
+            let mut removed = vec![];
+            let mut added = vec![];
+
+            todo!();
+            let monitors = ctx.services.monitors();
+
+            if !removed.is_empty() || !added.is_empty() {
+                let args = MonitorsChangedArgs::new(args.timestamp, removed, added);
+                MonitorsChangedEvent.notify(ctx, args);
+            }
         }
     }
 
@@ -1193,60 +1226,39 @@ fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &
 ///
 /// This service is provided by the [`WindowManager`].
 ///
-/// [`ppi`]: Monitors::ppi
+/// [`ppi`]: MonitorFullInfo::ppi
 /// [`LayoutMetrics`]: crate::context::LayoutMetrics
 /// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
 #[derive(Service)]
 pub struct Monitors {
-    ppi: LinearMap<MonitorId, RcVar<f32>>,
-    view: Option<ViewProcess>,
+    monitors: LinearMap<MonitorId, MonitorFullInfo>,
 }
 impl Monitors {
-    // TODO cache info, they don't change right?
-    fn new(view: Option<ViewProcess>) -> Self {
+    fn new(view: Option<&mut ViewProcess>) -> Self {
         Monitors {
-            ppi: LinearMap::default(),
-            view,
+            monitors: view
+                .and_then(|v| v.available_monitors().ok())
+                .map(|ms| {
+                    ms.into_iter()
+                        .map(|(id, info)| (id, MonitorFullInfo { id, info, ppi: var(96.0) }))
+                        .collect()
+                })
+                .unwrap_or_default(),
         }
     }
 
-    /// Gets the *pixels-per-inch* associated with the monitor, or `96.0` by default.
+    /// Reference the primary monitor.
     ///
-    /// You can change this variable to assign a different PPI, this value will then
-    /// be available in next layout for the windows inside the monitor screen, note that
-    /// changing the variable does not cause a layout request, you must use [`Updates::layout_all`].
-    pub fn ppi(&mut self, monitor_id: MonitorId) -> &RcVar<f32> {
-        self.ppi.entry(monitor_id).or_insert_with(|| var(96.0))
+    /// Returns `None` if no monitor was identified as the primary.
+    pub fn primary_monitor(&mut self) -> Option<&MonitorFullInfo> {
+        self.monitors.values().find(|m| m.info.is_primary)
     }
 
-    /// Gets the primary monitor or the first monitor available.
+    /// Reference the monitor info.
     ///
-    /// Returns `Some(ID, info, PPI)` if any monitor is available.
-    ///
-    /// Returns `None` if no monitor was found or the app is running in headless mode without renderer.
-    pub fn primary_monitor(&mut self) -> Option<MonitorFullInfo> {
-        self.view
-            .as_ref()
-            .and_then(|vp| vp.primary_monitor().ok().flatten())
-            .map(move |(id, info)| MonitorFullInfo {
-                id,
-                info,
-                ppi: self.ppi(id).clone(),
-            })
-    }
-
-    /// Gets the monitor info and PPI if it is known.
-    ///
-    /// Returns `None` if the monitor was not found the app is running in headless mode without renderer.
-    pub fn monitor(&mut self, monitor_id: MonitorId) -> Option<MonitorFullInfo> {
-        self.view
-            .as_ref()
-            .and_then(|vp| vp.monitor_info(monitor_id).ok().flatten())
-            .map(move |info| MonitorFullInfo {
-                id: monitor_id,
-                info,
-                ppi: self.ppi(monitor_id).clone(),
-            })
+    /// Returns `None` if the monitor was not found or the app is running in headless mode without renderer.
+    pub fn monitor(&mut self, monitor_id: MonitorId) -> Option<&MonitorFullInfo> {
+        self.monitors.get(&monitor_id)
     }
 
     /// Iterate over all available monitors.
@@ -1254,18 +1266,8 @@ impl Monitors {
     /// Each item is `(ID, info, PPI)`.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&mut self) -> Vec<MonitorFullInfo> {
-        self.view
-            .as_ref()
-            .and_then(|vp| vp.available_monitors().ok())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(id, info)| MonitorFullInfo {
-                id,
-                info,
-                ppi: self.ppi(id).clone(),
-            })
-            .collect()
+    pub fn available_monitors(&mut self) -> impl Iterator<Item = &MonitorFullInfo> {
+        self.monitors.values()
     }
 }
 
@@ -1818,26 +1820,27 @@ impl AppWindow {
         }
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
-        let (available_size, min_size, max_size, auto_size) = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
-            // TODO only use these values in the first layout and after they update.
-            let mut size = self.size.unwrap_or_else(|| self.vars.size().get(ctx.vars).to_layout(scr_size, ctx));
-            let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
-            let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
+        let (available_size, min_size, max_size, auto_size) =
+            ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+                // TODO only use these values in the first layout and after they update.
+                let mut size = self.size.unwrap_or_else(|| self.vars.size().get(ctx.vars).to_layout(scr_size, ctx));
+                let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
+                let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
 
-            let auto_size = self.vars.auto_size().copy(ctx);
-            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                size.width = max_size.width;
-            } else {
-                size.width = size.width.max(min_size.width).min(max_size.width);
-            }
-            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                size.height = max_size.height;
-            } else {
-                size.height = size.height.max(min_size.height).min(max_size.height);
-            }
-            let pg = PixelGrid::new(scr_factor);
-            (size.snap_to(pg), min_size.snap_to(pg), max_size.snap_to(pg), auto_size)
-        });
+                let auto_size = self.vars.auto_size().copy(ctx);
+                if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                    size.width = max_size.width;
+                } else {
+                    size.width = size.width.max(min_size.width).min(max_size.width);
+                }
+                if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                    size.height = max_size.height;
+                } else {
+                    size.height = size.height.max(min_size.height).min(max_size.height);
+                }
+                let pg = PixelGrid::new(scr_factor);
+                (size.snap_to(pg), min_size.snap_to(pg), max_size.snap_to(pg), auto_size)
+            });
 
         let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size, |desired_size| {
             let mut final_size = available_size;

@@ -40,7 +40,7 @@ event! {
     pub FontChangedEvent: FontChangedArgs;
 }
 
-pub use crate::app::raw_events::TextAntiAliasing;
+pub use crate::app::view_process::TextAntiAliasing;
 
 event_args! {
     /// [`FontChangedEvent`] arguments.

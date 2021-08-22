@@ -1042,6 +1042,12 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowScaleFactorChangedArgs::now(self.window_id(w_id), scale);
                 self.notify_event(RawWindowScaleFactorChangedEvent, args);
             }
+            zero_ui_vp::Ev::MonitorsChanged(monitors) => {
+                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let monitors: Vec<_> = monitors.into_iter().map(|(id, info)| (view.monitor_id(id), info)).collect();
+                let args = RawMonitorsChangedArgs::now(monitors);
+                self.notify_event(RawMonitorsChangedEvent, args);
+            }
             zero_ui_vp::Ev::ThemeChanged(w_id, theme) => {
                 let args = RawWindowThemeChangedArgs::now(self.window_id(w_id), theme);
                 self.notify_event(RawWindowThemeChangedEvent, args);
@@ -1970,7 +1976,6 @@ pub mod view_process {
             self.0.call(|id, p| p.set_min_size(id, size))
         }
 
-        
         /// Set the window maximum size.
         #[inline]
         pub fn set_max_size(&self, size: LayoutSize) -> Result<()> {
@@ -2139,12 +2144,12 @@ pub mod raw_events {
     use std::path::PathBuf;
 
     use super::raw_device_events::AxisId;
+    use super::view_process::{MonitorInfo, TextAntiAliasing};
     use super::DeviceId;
     use crate::mouse::{ButtonState, MouseButton};
     use crate::units::{LayoutPoint, LayoutSize};
-    use crate::window::WindowTheme;
+    use crate::window::{MonitorId, WindowTheme};
     use crate::{event::*, keyboard::ScanCode, window::WindowId};
-    pub use zero_ui_vp::TextAntiAliasing;
 
     use crate::keyboard::{Key, KeyState, ModifiersState};
 
@@ -2478,6 +2483,19 @@ pub mod raw_events {
             }
         }
 
+        /// Arguments for the [`RawMonitorsChangedEvent`].
+        pub struct RawMonitorsChangedArgs {
+            /// Up-to-date monitors list.
+            pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
+
+            ..
+
+            /// Concerns all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
         /// Arguments for the [`RawWindowThemeChangedEvent`].
         pub struct RawWindowThemeChangedArgs {
             /// Window for which the theme was changed.
@@ -2597,9 +2615,12 @@ pub mod raw_events {
 
         /// Pixel scale factor for a window changed.
         ///
-        /// This can happen when the window is dragged to another screen or if the user
+        /// This can happen when the window is dragged to another monitor or if the user
         /// change the screen scaling configuration.
         pub RawWindowScaleFactorChangedEvent: RawWindowScaleFactorChangedArgs;
+
+        /// Monitors added or removed.
+        pub RawMonitorsChangedEvent: RawMonitorsChangedArgs;
 
         /// System theme changed for a window.
         pub RawWindowThemeChangedEvent: RawWindowThemeChangedArgs;

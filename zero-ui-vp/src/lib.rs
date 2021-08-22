@@ -237,6 +237,7 @@ macro_rules! declare_ipc {
     ) => {
         #[derive(Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
+        #[allow(clippy::large_enum_variant)]
         enum Request {
             $(
                 $method { $($input: $RequestType),* },

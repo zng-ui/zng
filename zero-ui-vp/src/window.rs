@@ -187,11 +187,13 @@ impl ViewWindow {
     }
 
     pub fn set_min_inner_size(&mut self, min_size: LayoutSize) {
-        self.window.set_min_inner_size(Some(LogicalSize::new(min_size.width, min_size.height)))
+        self.window
+            .set_min_inner_size(Some(LogicalSize::new(min_size.width, min_size.height)))
     }
 
     pub fn set_max_inner_size(&mut self, max_size: LayoutSize) {
-        self.window.set_max_inner_size(Some(LogicalSize::new(max_size.width, max_size.height)))
+        self.window
+            .set_max_inner_size(Some(LogicalSize::new(max_size.width, max_size.height)))
     }
 
     /// window.inner_size maybe new.

@@ -64,6 +64,7 @@ pub enum Ev {
     AxisMotion(WinId, DevId, AxisId, f64),
     Touch(WinId, DevId, TouchPhase, LayoutPoint, Option<Force>, u64),
     ScaleFactorChanged(WinId, f32),
+    MonitorsChanged(Vec<(MonId, MonitorInfo)>),
     ThemeChanged(WinId, WindowTheme),
     WindowCloseRequested(WinId),
     WindowClosed(WinId),
@@ -306,10 +307,10 @@ pub struct FramePixels {
 }
 
 /// Information about a monitor screen.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorInfo {
-    /// Display name, if any was set by the user in the system config.
-    pub name: Option<String>,
+    /// Readable name of the monitor.
+    pub name: String,
     /// Top-left offset of the monitor region in the virtual screen, in pixels.
     pub position: (i32, i32),
     /// Width/height of the monitor region in the virtual screen, in pixels.
@@ -318,14 +319,11 @@ pub struct MonitorInfo {
     pub scale_factor: f32,
     /// Exclusive fullscreen video modes.
     pub video_modes: Vec<VideoMode>,
+
+    /// If could determine this monitor is the primary.
+    pub is_primary: bool,
 }
 impl MonitorInfo {
-    /// Returns `true` if the position is `(0, 0)`.
-    #[inline]
-    pub fn is_primary(&self) -> bool {
-        self.position.0 == 0 && self.position.1 == 0
-    }
-
     /// Returns the `size` descaled using the `scale_factor`.
     #[inline]
     pub fn layout_size(&self) -> LayoutSize {
@@ -337,11 +335,12 @@ impl<'a> From<&'a glutin::monitor::MonitorHandle> for MonitorInfo {
         let pos = m.position();
         let size = m.size();
         Self {
-            name: m.name(),
+            name: m.name().unwrap_or_default(),
             position: (pos.x, pos.y),
             size: (size.width, size.height),
             scale_factor: m.scale_factor() as f32,
             video_modes: m.video_modes().map(Into::into).collect(),
+            is_primary: false,
         }
     }
 }
@@ -355,7 +354,7 @@ impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
 ///
 /// You can get this values from [`MonitorInfo::video_modes`]. Note that when setting the
 /// video mode the actual system mode is selected by approximation, closest `size`, then `bit_depth` then `refresh_rate`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoMode {
     /// Resolution of this video mode.
     pub size: (u32, u32),
