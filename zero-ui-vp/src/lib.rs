@@ -175,6 +175,11 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
     event_loop.run(move |event, window_target, control| {
         *control = ControlFlow::Wait; // will wait after current event sequence.
 
+        let ctx = Context {
+            event_loop: &el,
+            window_target,
+        };
+
         match event {
             Event::NewEvents(_) => {}
             Event::WindowEvent { window_id, event } => {
@@ -182,19 +187,13 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
                 if window_id == config_listener.id() {
                     return; // ignore events for this window.
                 }
-
-                app.on_window_event(window_id, event)
+                app.on_window_event(&ctx, window_id, event)
             }
             Event::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
             Event::UserEvent(ev) => match ev {
-                AppEvent::Request(req) => app.on_request(
-                    &Context {
-                        event_loop: &el,
-                        window_target,
-                    },
-                    req,
-                ),
+                AppEvent::Request(req) => app.on_request(&ctx, req),
                 AppEvent::FrameReady(window_id) => app.on_frame_ready(window_id),
+                AppEvent::RefreshMonitors => app.refresh_monitors(&ctx),
                 AppEvent::SystemFontsChanged => app.notify(Ev::FontsChanged),
                 AppEvent::SystemTextAaChanged(aa) => app.notify(Ev::TextAaChanged(aa)),
                 AppEvent::KeyboardInput(w_id, d_id, k) => app.notify(Ev::KeyboardInput(w_id, d_id, k)),
@@ -219,6 +218,7 @@ pub(crate) enum AppEvent {
     Request(Request),
     FrameReady(WindowId),
     SystemFontsChanged,
+    RefreshMonitors,
     SystemTextAaChanged(TextAntiAliasing),
     KeyboardInput(WinId, DevId, KeyboardInput),
 }
@@ -676,25 +676,36 @@ declare_ipc! {
             .or_else(|| ctx.window_target.available_monitors().next())
             .map(|m| {
                 let id = self.monitor_id(&m);
-                let info = m.into();
+                let mut info = MonitorInfo::from(m);
+                info.is_primary = true;
                 (id, info)
             })
         )
     }
 
     /// Returns information about the specific monitor, if it exists.
-    pub fn monitor_info(&mut self, _ctx: &Context, id: MonId) -> Result<Option<MonitorInfo>> {
-        Ok(self.monitors.iter().find(|(i, _)| *i == id).map(|(_, h)| MonitorInfo::from(h)))
+    pub fn monitor_info(&mut self, ctx: &Context, id: MonId) -> Result<Option<MonitorInfo>> {
+        Ok(self.monitors.iter().find(|(i, _)| *i == id).map(|(_, h)| {
+            let mut info = MonitorInfo::from(h);
+            info.is_primary = ctx.window_target
+                .primary_monitor()
+                .map(|p| &p == h)
+                .unwrap_or(false);
+            info
+        }))
     }
 
     /// Returns all available monitors.
     pub fn available_monitors(&mut self, ctx: &Context) -> Result<Vec<(MonId, MonitorInfo)>> {
+        let primary = ctx.window_target.primary_monitor();
         Ok(
             ctx.window_target
             .available_monitors()
             .map(|m| {
                 let id = self.monitor_id(&m);
-                let info = m.into();
+                let is_primary = primary.as_ref().map(|h|h == &m).unwrap_or(false);
+                let mut info = MonitorInfo::from(m);
+                info.is_primary = is_primary;
                 (id, info)
             })
             .collect()
@@ -901,7 +912,7 @@ declare_ipc! {
 }
 
 impl ViewApp {
-    fn on_window_event(&mut self, window_id: WindowId, event: WindowEvent) {
+    fn on_window_event(&mut self, ctx: &Context, window_id: WindowId, event: WindowEvent) {
         let (i, w) = if let Some(r) = self.windows.iter_mut().enumerate().find(|(_, w)| w.is_window(window_id)) {
             r
         } else {
@@ -934,7 +945,10 @@ impl ViewApp {
                 let d_id = self.device_id(device_id);
                 self.notify(Ev::KeyboardInput(id, d_id, input))
             }
-            WindowEvent::ModifiersChanged(m) => self.notify(Ev::ModifiersChanged(id, m)),
+            WindowEvent::ModifiersChanged(m) => {
+                self.refresh_monitors(ctx);
+                self.notify(Ev::ModifiersChanged(id, m));
+            }
             WindowEvent::CursorMoved { device_id, position, .. } => {
                 let d_id = self.device_id(device_id);
                 let p = LayoutPoint::new(position.x as f32 / scale_factor, position.y as f32 / scale_factor);
@@ -995,6 +1009,44 @@ impl ViewApp {
                 DeviceEvent::Key(k) => self.notify(Ev::DeviceKey(d_id, k)),
                 DeviceEvent::Text { codepoint } => self.notify(Ev::DeviceText(d_id, codepoint)),
             }
+        }
+    }
+
+    fn refresh_monitors(&mut self, ctx: &Context) {
+        let mut monitors = Vec::with_capacity(self.monitors.len());
+
+        let mut added_check = false; // set to `true` if a new id is generated.
+        let mut removed_check = self.monitors.len(); // `-=1` every existing reused `id`.
+
+        for handle in ctx.window_target.available_monitors() {
+            let id = self
+                .monitors
+                .iter()
+                .find_map(|(id, h)| {
+                    if h == &handle {
+                        removed_check = removed_check.checked_sub(1).unwrap();
+                        Some(*id)
+                    } else {
+                        added_check = true;
+                        None
+                    }
+                })
+                .unwrap_or_else(|| {
+                    let mut id = self.monitor_id_count.wrapping_add(1);
+                    if id == 0 {
+                        id += 1;
+                    }
+                    self.monitor_id_count = id;
+                    id
+                });
+            monitors.push((id, handle))
+        }
+
+        if added_check || removed_check > 1 {
+            self.monitors = monitors;
+
+            let monitors = self.available_monitors(ctx).unwrap();
+            self.notify(Ev::MonitorsChanged(monitors));
         }
     }
 

@@ -1,4 +1,5 @@
-use crate::TextAntiAliasing;
+use crate::{AppEvent, TextAntiAliasing};
+use winapi::um::winuser::*;
 
 /// Create a hidden window that listen to Windows config change events.
 #[cfg(windows)]
@@ -12,22 +13,24 @@ pub(crate) fn config_listener(ctx: &crate::Context) -> glutin::window::Window {
         .unwrap();
 
     let event_proxy = ctx.event_loop.clone();
-    set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
-        if msg == winapi::um::winuser::WM_FONTCHANGE {
-            let _ = event_proxy.send_event(crate::AppEvent::SystemFontsChanged);
+    set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| match msg {
+        WM_FONTCHANGE => {
+            let _ = event_proxy.send_event(AppEvent::SystemFontsChanged);
             Some(0)
-        } else if msg == winapi::um::winuser::WM_SETTINGCHANGE {
-            if wparam == winapi::um::winuser::SPI_GETFONTSMOOTHING as usize
-                || wparam == winapi::um::winuser::SPI_GETFONTSMOOTHINGTYPE as usize
-            {
-                let _ = event_proxy.send_event(crate::AppEvent::SystemTextAaChanged(system_text_aa()));
+        }
+        WM_SETTINGCHANGE => {
+            if wparam == SPI_GETFONTSMOOTHING as usize || wparam == SPI_GETFONTSMOOTHINGTYPE as usize {
+                let _ = event_proxy.send_event(AppEvent::SystemTextAaChanged(system_text_aa()));
                 Some(0)
             } else {
                 None
             }
-        } else {
-            None
         }
+        WM_DISPLAYCHANGE => {
+            let _ = event_proxy.send_event(AppEvent::RefreshMonitors);
+            Some(0)
+        }
+        _ => None,
     });
 
     w
@@ -99,7 +102,7 @@ unsafe extern "system" fn subclass_raw_event_proc<
     data: winapi::shared::basetsd::DWORD_PTR,
 ) -> winapi::shared::minwindef::LRESULT {
     match msg {
-        winapi::um::winuser::WM_DESTROY => {
+        WM_DESTROY => {
             // last call and cleanup.
             let mut handler = Box::from_raw(data as *mut H);
             handler(hwnd, msg, wparam, lparam).unwrap_or_default()
@@ -120,7 +123,6 @@ unsafe extern "system" fn subclass_raw_event_proc<
 #[cfg(windows)]
 pub fn system_text_aa() -> TextAntiAliasing {
     use winapi::um::errhandlingapi::GetLastError;
-    use winapi::um::winuser::{SystemParametersInfoW, FE_FONTSMOOTHINGCLEARTYPE, SPI_GETFONTSMOOTHING, SPI_GETFONTSMOOTHINGTYPE};
 
     unsafe {
         let mut enabled = 0;

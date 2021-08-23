@@ -260,12 +260,12 @@ pub struct HeadlessMonitor {
 
     /// Pixel-per-inches used for the headless layout and rendering.
     ///
-    /// `96.0` by default.
+    /// [`Monitors::DEFAULT_PPI`] by default.
     pub ppi: f32,
 }
 impl fmt::Debug for HeadlessMonitor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() || about_eq(self.ppi, 96.0, 0.001) {
+        if f.alternate() || about_eq(self.ppi, Monitors::DEFAULT_PPI, 0.001) {
             f.debug_struct("HeadlessMonitor")
                 .field("scale_factor", &self.scale_factor)
                 .field("screen_size", &self.size)
@@ -289,7 +289,7 @@ impl HeadlessMonitor {
         HeadlessMonitor {
             scale_factor,
             size,
-            ppi: 96.0,
+            ppi: Monitors::DEFAULT_PPI,
         }
     }
 
@@ -1027,11 +1027,24 @@ impl AppExtension for WindowManager {
 
             ctx.services.windows().windows = windows;
         } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
-            let mut removed = vec![];
-            let mut added = vec![];
-
-            todo!();
             let monitors = ctx.services.monitors();
+            let ms: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
+            let removed: Vec<_> = monitors.monitors.keys().filter(|k| !ms.contains_key(k)).copied().collect();
+            let added: Vec<_> = ms.keys().filter(|k| !monitors.monitors.contains_key(k)).copied().collect();
+
+            for key in &removed {
+                monitors.monitors.remove(key);
+            }
+            for key in &added {
+                monitors.monitors.insert(
+                    *key,
+                    MonitorFullInfo {
+                        id: *key,
+                        info: ms.get(key).cloned().unwrap(),
+                        ppi: var(Monitors::DEFAULT_PPI),
+                    },
+                );
+            }
 
             if !removed.is_empty() || !added.is_empty() {
                 let args = MonitorsChangedArgs::new(args.timestamp, removed, added);
@@ -1234,13 +1247,25 @@ pub struct Monitors {
     monitors: LinearMap<MonitorId, MonitorFullInfo>,
 }
 impl Monitors {
+    /// Initial PPI of monitors, `96.0`.
+    pub const DEFAULT_PPI: f32 = 96.0;
+
     fn new(view: Option<&mut ViewProcess>) -> Self {
         Monitors {
             monitors: view
                 .and_then(|v| v.available_monitors().ok())
                 .map(|ms| {
                     ms.into_iter()
-                        .map(|(id, info)| (id, MonitorFullInfo { id, info, ppi: var(96.0) }))
+                        .map(|(id, info)| {
+                            (
+                                id,
+                                MonitorFullInfo {
+                                    id,
+                                    info,
+                                    ppi: var(Self::DEFAULT_PPI),
+                                },
+                            )
+                        })
                         .collect()
                 })
                 .unwrap_or_default(),
