@@ -1070,6 +1070,14 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawTextAaChangedArgs::now(aa);
                 self.notify_event(RawTextAaChangedEvent, args);
             }
+            zero_ui_vp::Ev::MultiClickConfigChanged(cfg) => {
+                let args = RawMultiClickConfigChangedArgs::now(cfg);
+                self.notify_event(RawMultiClickConfigChangedEvent, args);
+            }
+            zero_ui_vp::Ev::AnimationEnabledChanged(enabled) => {
+                let args = RawAnimationEnabledChangedArgs::now(enabled);
+                self.notify_event(RawAnimationEnabledChangedEvent, args);
+            }
 
             // `device_events`
             zero_ui_vp::Ev::DeviceAdded(d_id) => {
@@ -1759,6 +1767,7 @@ pub mod view_process {
     };
 
     use super::DeviceId;
+    use crate::mouse::MultiClickConfig;
     use crate::service::Service;
     use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
     use crate::window::{MonitorId, WindowId};
@@ -1818,8 +1827,14 @@ pub mod view_process {
 
         /// Read the system text anti-aliasing config.
         #[inline]
-        pub fn system_text_aa(&self) -> Result<TextAntiAliasing> {
-            self.0.borrow_mut().process.system_text_aa()
+        pub fn text_aa(&self) -> Result<TextAntiAliasing> {
+            self.0.borrow_mut().process.text_aa()
+        }
+
+        /// Read the system "double-click" config.
+        #[inline]
+        pub fn multi_click_config(&self) -> Result<MultiClickConfig> {
+            self.0.borrow_mut().process.multi_click_config()
         }
 
         /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
@@ -2143,15 +2158,18 @@ pub mod view_process {
 pub mod raw_events {
     use std::path::PathBuf;
 
-    use super::raw_device_events::AxisId;
-    use super::view_process::{MonitorInfo, TextAntiAliasing};
-    use super::DeviceId;
-    use crate::mouse::{ButtonState, MouseButton};
-    use crate::units::{LayoutPoint, LayoutSize};
-    use crate::window::{MonitorId, WindowTheme};
-    use crate::{event::*, keyboard::ScanCode, window::WindowId};
-
-    use crate::keyboard::{Key, KeyState, ModifiersState};
+    use super::{
+        raw_device_events::AxisId,
+        view_process::{MonitorInfo, TextAntiAliasing},
+        DeviceId,
+    };
+    use crate::{
+        event::*,
+        keyboard::{Key, KeyState, ModifiersState, ScanCode},
+        mouse::{ButtonState, MouseButton, MultiClickConfig},
+        units::{LayoutPoint, LayoutSize},
+        window::{MonitorId, WindowId, WindowTheme},
+    };
 
     event_args! {
         /// Arguments for the [`RawKeyInputEvent`].
@@ -2534,6 +2552,32 @@ pub mod raw_events {
                 true
             }
         }
+
+        /// Arguments for the [`RawMultiClickConfigChangedEvent`].
+        pub struct RawMultiClickConfigChangedArgs {
+            /// New config.
+            pub config: MultiClickConfig,
+
+            ..
+
+            /// Concerns all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for the [`RawAnimationEnabledChangedEvent`].
+        pub struct RawAnimationEnabledChangedArgs {
+            /// If animation is enabled in the operating system.
+            pub enabled: bool,
+
+            ..
+
+            /// Concerns all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
     }
 
     event! {
@@ -2630,6 +2674,12 @@ pub mod raw_events {
 
         /// Change in system text fonts, install or uninstall.
         pub RawFontChangedEvent: RawFontChangedArgs;
+
+        /// Change in system "double-click" config.
+        pub RawMultiClickConfigChangedEvent: RawMultiClickConfigChangedArgs;
+
+        /// Change in system animation enabled config.
+        pub RawAnimationEnabledChangedEvent: RawAnimationEnabledChangedArgs;
     }
 }
 

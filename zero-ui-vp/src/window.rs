@@ -14,7 +14,7 @@ use webrender::{
 };
 
 use crate::{
-    config::{set_raw_windows_event_handler, system_text_aa},
+    config::{set_raw_windows_event_handler, text_aa},
     types::FramePixels,
     AppEvent, Context, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
 };
@@ -105,7 +105,7 @@ impl ViewWindow {
 
         let mut text_aa = w.text_aa;
         if let TextAntiAliasing::Default = w.text_aa {
-            text_aa = system_text_aa();
+            text_aa = self::text_aa();
         }
 
         let opts = RendererOptions {

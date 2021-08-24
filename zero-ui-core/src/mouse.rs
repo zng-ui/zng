@@ -3,20 +3,20 @@
 //! The app extension [`MouseManager`] provides the events and service. It is included in the default application.
 
 use crate::{
-    app::{raw_events::*, *},
+    app::{raw_events::*, view_process::ViewProcess, *},
     context::*,
     event::*,
     keyboard::ModifiersState,
     render::*,
     service::*,
-    units::{LayoutPoint, LayoutRect, LayoutSize},
-    var::impl_from_and_into_var,
+    units::*,
+    var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
     window::{WindowId, Windows, WindowsExt},
     WidgetId,
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
-pub use zero_ui_vp::MouseButton;
+pub use zero_ui_vp::{MouseButton, MultiClickConfig};
 
 event_args! {
     /// [`MouseMoveEvent`] event args.
@@ -376,16 +376,14 @@ pub struct MouseManager {
     /// last modifiers.
     modifiers: ModifiersState,
 
-    /// when the last mouse_down event happened.
-    last_pressed: Instant,
-    click_target: Option<WidgetPath>,
-    click_count: u8,
+    click_state: ClickState,
 
     capture_count: u8,
 
     hover_enter_args: Option<MouseHoverArgs>,
-}
 
+    multi_click_config: RcVar<MultiClickConfig>,
+}
 impl Default for MouseManager {
     fn default() -> Self {
         MouseManager {
@@ -394,16 +392,38 @@ impl Default for MouseManager {
 
             modifiers: ModifiersState::default(),
 
-            last_pressed: Instant::now() - Duration::from_secs(60),
-            click_target: None,
-            click_count: 0,
+            click_state: ClickState::None,
 
             hover_enter_args: None,
 
             capture_count: 0,
+
+            multi_click_config: var(MultiClickConfig::default()),
         }
     }
 }
+enum ClickState {
+    /// Before start.
+    None,
+    /// Mouse pressed on a widget, if the next event
+    /// is a release over the same widget a click event is generated.
+    Pressed {
+        btn: MouseButton,
+        press_tgt: WidgetPath,
+    },
+    /// At least one click completed, as long as subsequent presses happen
+    /// within the window of time, widget and distance from the initial press
+    /// multi-click events are generated.
+    Clicked {
+        start_time: Instant,
+        btn: MouseButton,
+        pos: LayoutPoint,
+        start_tgt: WidgetPath,
+
+        count: u8,
+    },
+}
+
 /// State a mouse button has entered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ButtonState {
@@ -420,7 +440,6 @@ impl From<zero_ui_vp::ElementState> for ButtonState {
         }
     }
 }
-
 impl MouseManager {
     fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ButtonState, button: MouseButton, ctx: &mut AppContext) {
         let position = if self.pos_window == Some(window_id) {
@@ -481,66 +500,114 @@ impl MouseManager {
                 // on_mouse_down
                 MouseDownEvent.notify(ctx.events, args);
 
-                self.click_count = self.click_count.saturating_add(1);
                 let now = Instant::now();
+                match &mut self.click_state {
+                    // maybe a click.
+                    ClickState::None => {
+                        self.click_state = ClickState::Pressed {
+                            btn: button,
+                            press_tgt: target,
+                        }
+                    }
+                    // already clicking, maybe multi-click.
+                    ClickState::Clicked {
+                        start_time,
+                        btn,
+                        pos,
+                        start_tgt,
+                        count,
+                    } => {
+                        debug_assert!(*count >= 1);
 
-                if self.click_count >= 2
-                    && (now - self.last_pressed) < multi_click_time_ms()
-                    && self.click_target.as_ref().unwrap() == &target
-                {
-                    // if click_count >= 2 AND the time is in multi-click range AND is the same exact target.
+                        let cfg = self.multi_click_config.get(ctx.vars);
 
-                    let args = MouseClickArgs::new(
-                        now,
-                        window_id,
-                        device_id,
-                        button,
-                        position,
-                        self.modifiers,
-                        NonZeroU8::new(self.click_count).unwrap(),
-                        hits,
-                        target,
-                    );
+                        let is_multi_click = *btn == button && (now - *start_time) <= cfg.time && start_tgt == &target && {
+                            let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(1.0);
+                            let max_x = cfg.area.0 as f32 / scale_factor;
+                            let max_y = cfg.area.1 as f32 / scale_factor;
 
-                    // on_mouse_click (click_count > 1)
+                            (pos.x - self.pos.x).abs() <= max_x && (pos.y - self.pos.y).abs() <= max_y
+                        };
 
-                    MouseClickEvent.notify(ctx.events, args);
-                } else {
-                    // initial mouse press, could be a click if a Released happened on the same target.
-                    self.click_count = 1;
-                    self.click_target = Some(target);
-                }
-                self.last_pressed = now;
-            }
-            ButtonState::Released => {
-                // on_mouse_up
-                MouseUpEvent.notify(ctx.events, args);
+                        if dbg!(is_multi_click) {
+                            *count = count.saturating_add(1);
+                            *start_time = now;
 
-                if let Some(click_count) = NonZeroU8::new(self.click_count) {
-                    if click_count.get() == 1 {
-                        if let Some(target) = self.click_target.as_ref().unwrap().shared_ancestor(&target) {
-                            //if MouseDown and MouseUp happened in the same target.
-
-                            let args = MouseClickArgs::now(
+                            let args = MouseClickArgs::new(
+                                now,
                                 window_id,
                                 device_id,
                                 button,
                                 position,
                                 self.modifiers,
-                                click_count,
+                                NonZeroU8::new(*count).unwrap(),
                                 hits,
-                                target.clone(),
+                                target,
                             );
-
-                            self.click_target = Some(target);
-
-                            // on_mouse_click
                             MouseClickEvent.notify(ctx.events, args);
                         } else {
-                            self.click_count = 0;
-                            self.click_target = None;
+                            // start again.
+                            self.click_state = ClickState::Pressed {
+                                btn: button,
+                                press_tgt: target,
+                            };
                         }
                     }
+                    // more then one Pressed without a Released.
+                    ClickState::Pressed { .. } => {
+                        self.click_state = ClickState::None;
+                    }
+                }
+            }
+            ButtonState::Released => {
+                // on_mouse_up
+                MouseUpEvent.notify(ctx.events, args);
+
+                match &self.click_state {
+                    ClickState::Pressed { btn, press_tgt } => {
+                        // first click if `Pressed` and `Released` with the same button over the same widget.
+
+                        let mut is_click = false;
+                        if *btn == button {
+                            if let Some(target) = press_tgt.shared_ancestor(&target) {
+                                is_click = true;
+
+                                let now = Instant::now();
+                                let args = MouseClickArgs::new(now,
+                                    window_id,
+                                    device_id,
+                                    button,
+                                    position,
+                                    self.modifiers,
+                                    NonZeroU8::new(1).unwrap(),
+                                    hits,
+                                    target.clone(),
+                                );
+                                MouseClickEvent.notify(ctx.events, args);
+
+                                self.click_state = ClickState::Clicked {
+                                    start_time: now,
+                                    btn: button,
+                                    pos: position,
+                                    start_tgt: target,
+                                    count: 1,
+                                };
+                            }
+                        } 
+
+                        if !is_click {
+                            self.click_state = ClickState::None;
+                        }
+                    },
+                    ClickState::None =>  { 
+                        // Released without Pressed                        
+                     },
+                    ClickState::Clicked {  btn, start_tgt, .. } => {
+                        // is clicking, but can't continue if we are not releasing the same button over the same target.
+                        if *btn != button || start_tgt != &target {
+                            self.click_state = ClickState::None;
+                        }
+                    },
                 }
             }
         }
@@ -706,10 +773,13 @@ impl MouseManager {
         }
     }
 }
-
 impl AppExtension for MouseManager {
-    fn init(&mut self, r: &mut AppContext) {
-        r.services.register(Mouse::new(r.updates.sender()));
+    fn init(&mut self, ctx: &mut AppContext) {
+        if let Some(cfg) = ctx.services.get::<ViewProcess>().and_then(|vp| vp.multi_click_config().ok()) {
+            self.multi_click_config.set_ne(ctx.vars, cfg);
+        }
+        ctx.services
+            .register(Mouse::new(ctx.updates.sender(), self.multi_click_config.clone()));
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -727,6 +797,8 @@ impl AppExtension for MouseManager {
             }
         } else if let Some(args) = RawWindowCloseEvent.update(args) {
             self.on_window_closed(args.window_id, ctx);
+        } else if let Some(args) = RawMultiClickConfigChangedEvent.update(args) {
+            self.multi_click_config.set_ne(ctx.vars, args.config);
         }
     }
 
@@ -778,18 +850,6 @@ impl AppExtension for MouseManager {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn multi_click_time_ms() -> Duration {
-    Duration::from_millis(u64::from(unsafe { winapi::um::winuser::GetDoubleClickTime() }))
-}
-
-#[cfg(not(target_os = "windows"))]
-fn multi_click_time_ms() -> Duration {
-    // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
-    // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
-    Duration::from_millis(500)
-}
-
 /// Mouse service.
 ///
 /// # Mouse Capture
@@ -822,15 +882,35 @@ pub struct Mouse {
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
     update_sender: AppEventSender,
+    multi_click_config: RcVar<MultiClickConfig>,
 }
 impl Mouse {
-    fn new(update_sender: AppEventSender) -> Self {
+    fn new(update_sender: AppEventSender, multi_click_config: RcVar<MultiClickConfig>) -> Self {
         Mouse {
             current_capture: None,
             capture_request: None,
             release_requested: false,
             update_sender,
+            multi_click_config,
         }
+    }
+
+    /// Read-only variable that tracks the system click-count increment time and area, a.k.a. the double-click config.
+    ///
+    /// Repeated clicks with an interval less then this time and within the distance of the first click increment the click count.
+    ///
+    /// # Value Source
+    ///
+    /// The value comes from the operating system settings (TODO, only implemented in Windows), the variable
+    /// updates with a new value if the system setting is changed.
+    ///
+    /// In headless apps the default is [`MultiClickConfig::default`] and does not change.
+    ///
+    /// Internally the [`RawMultiClickConfigChangedEvent`] is listened to update this variable, so you can notify
+    /// this event to set this variable, if you really must.
+    #[inline]
+    pub fn multi_click_config(&self) -> ReadOnlyRcVar<MultiClickConfig> {
+        self.multi_click_config.clone().into_read_only()
     }
 
     /// The current capture target and mode.

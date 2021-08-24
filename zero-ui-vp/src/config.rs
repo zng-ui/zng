@@ -1,4 +1,5 @@
-use crate::{AppEvent, TextAntiAliasing};
+use crate::{AppEvent, MultiClickConfig, TextAntiAliasing};
+use std::time::Duration;
 use winapi::um::winuser::*;
 
 /// Create a hidden window that listen to Windows config change events.
@@ -15,17 +16,25 @@ pub(crate) fn config_listener(ctx: &crate::Context) -> glutin::window::Window {
     let event_proxy = ctx.event_loop.clone();
     set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| match msg {
         WM_FONTCHANGE => {
-            let _ = event_proxy.send_event(AppEvent::SystemFontsChanged);
+            let _ = event_proxy.send_event(AppEvent::FontsChanged);
             Some(0)
         }
-        WM_SETTINGCHANGE => {
-            if wparam == SPI_GETFONTSMOOTHING as usize || wparam == SPI_GETFONTSMOOTHINGTYPE as usize {
-                let _ = event_proxy.send_event(AppEvent::SystemTextAaChanged(system_text_aa()));
+        WM_SETTINGCHANGE => match wparam as u32 {
+            SPI_SETFONTSMOOTHING | SPI_SETFONTSMOOTHINGTYPE => {
+                let _ = event_proxy.send_event(AppEvent::TextAaChanged(text_aa()));
                 Some(0)
-            } else {
-                None
             }
-        }
+            SPI_SETDOUBLECLICKTIME | SPI_SETDOUBLECLKWIDTH | SPI_SETDOUBLECLKHEIGHT => {
+                let _ = event_proxy.send_event(AppEvent::MultiClickConfigChanged(multi_click_config()));
+                Some(0)
+            }
+            SPI_SETCLIENTAREAANIMATION => {
+                let _ = event_proxy.send_event(AppEvent::AnimationEnabledChanged(animation_enabled()));
+                Some(0)
+            }
+            // SPI_SETKEYBOARDDELAY TODO keyboard repeat delay. https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfoa
+            _ => None,
+        },
         WM_DISPLAYCHANGE => {
             let _ = event_proxy.send_event(AppEvent::RefreshMonitors);
             Some(0)
@@ -121,7 +130,7 @@ unsafe extern "system" fn subclass_raw_event_proc<
 
 /// Gets the system text anti-aliasing config.
 #[cfg(windows)]
-pub fn system_text_aa() -> TextAntiAliasing {
+pub fn text_aa() -> TextAntiAliasing {
     use winapi::um::errhandlingapi::GetLastError;
 
     unsafe {
@@ -149,7 +158,49 @@ pub fn system_text_aa() -> TextAntiAliasing {
     }
 }
 #[cfg(not(windows))]
-pub fn system_text_aa() -> TextAntiAliasing {
+pub fn text_aa() -> TextAntiAliasing {
     // TODO
     TextAntiAliasing::Subpixel
+}
+
+/// Gets the "double-click" settings.
+#[cfg(target_os = "windows")]
+pub fn multi_click_config() -> MultiClickConfig {
+    unsafe {
+        MultiClickConfig {
+            time: Duration::from_millis(u64::from(GetDoubleClickTime())),
+            area: (
+                GetSystemMetrics(SM_CXDOUBLECLK).abs() as u32,
+                GetSystemMetrics(SM_CYDOUBLECLK).abs() as u32,
+            ),
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn multi_click_time() -> MultiClickConfig {
+    // TODO
+    // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
+    // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
+    MultiClickConfig::default()
+}
+
+#[cfg(windows)]
+pub fn animation_enabled() -> bool {
+    use winapi::um::errhandlingapi::GetLastError;
+
+    unsafe {
+        let mut enabled = true;
+
+        if SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
+            log::error!("SPI_GETCLIENTAREAANIMATION error: {:X}", GetLastError());
+            return true;
+        }
+
+        enabled
+    }
+}
+#[cfg(not(windows))]
+pub fn animation_enabled() -> bool {
+    true
 }

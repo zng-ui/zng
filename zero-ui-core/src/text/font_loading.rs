@@ -101,7 +101,7 @@ impl AppExtension for FontManager {
         let text_aa = ctx
             .services
             .get::<ViewProcess>()
-            .and_then(|a| a.system_text_aa().ok())
+            .and_then(|a| a.text_aa().ok())
             .unwrap_or(TextAntiAliasing::Subpixel);
         ctx.services.register(Fonts::new(text_aa, ctx.updates.sender()));
     }

@@ -6,7 +6,7 @@
 
 #![allow(unused_parens)]
 
-use config::system_text_aa;
+use config::*;
 use glutin::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
@@ -121,7 +121,8 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 
 pub use types::{
     AxisId, ButtonId, CursorIcon, DevId, ElementState, Error, Ev, FramePixels, FrameRequest, Icon, ModifiersState, MonId, MonitorInfo,
-    MouseButton, MouseScrollDelta, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode, WinId, WindowConfig, WindowTheme,
+    MouseButton, MouseScrollDelta, MultiClickConfig, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode, WinId, WindowConfig,
+    WindowTheme,
 };
 
 use webrender::api::{
@@ -194,8 +195,10 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
                 AppEvent::Request(req) => app.on_request(&ctx, req),
                 AppEvent::FrameReady(window_id) => app.on_frame_ready(window_id),
                 AppEvent::RefreshMonitors => app.refresh_monitors(&ctx),
-                AppEvent::SystemFontsChanged => app.notify(Ev::FontsChanged),
-                AppEvent::SystemTextAaChanged(aa) => app.notify(Ev::TextAaChanged(aa)),
+                AppEvent::FontsChanged => app.notify(Ev::FontsChanged),
+                AppEvent::TextAaChanged(aa) => app.notify(Ev::TextAaChanged(aa)),
+                AppEvent::MultiClickConfigChanged(cfg) => app.notify(Ev::MultiClickConfigChanged(cfg)),
+                AppEvent::AnimationEnabledChanged(enabled) => app.notify(Ev::AnimationEnabledChanged(enabled)),
                 AppEvent::KeyboardInput(w_id, d_id, k) => app.notify(Ev::KeyboardInput(w_id, d_id, k)),
             },
             Event::Suspended => {}
@@ -217,9 +220,11 @@ pub(crate) struct Context<'a> {
 pub(crate) enum AppEvent {
     Request(Request),
     FrameReady(WindowId),
-    SystemFontsChanged,
+    FontsChanged,
     RefreshMonitors,
-    SystemTextAaChanged(TextAntiAliasing),
+    TextAaChanged(TextAntiAliasing),
+    MultiClickConfigChanged(MultiClickConfig),
+    AnimationEnabledChanged(bool),
     KeyboardInput(WinId, DevId, KeyboardInput),
 }
 
@@ -747,8 +752,32 @@ declare_ipc! {
     }
 
     /// Reads the default text anti-aliasing.
-    pub fn system_text_aa(&mut self, _ctx: &Context) -> Result<TextAntiAliasing> {
-        Ok(system_text_aa())
+    ///
+    /// # TODO
+    ///
+    /// Only implemented for Windows, other systems return `TextAntiAliasing::Subpixel`.
+    pub fn text_aa(&mut self, _ctx: &Context) -> Result<TextAntiAliasing> {
+        Ok(text_aa())
+    }
+
+    /// Reads the system "double-click" config.
+    ///
+    /// # TODO
+    ///
+    /// Only implemented for Windows, other systems return [`MultiClickConfig::default`].
+    pub fn multi_click_config(&mut self, _ctx: &Context) -> Result<MultiClickConfig> {
+        Ok(multi_click_config())
+    }
+
+    /// Returns `true` if animations are enabled in the operating system.
+    ///
+    /// People with photosensitive epilepsy usually disable animations system wide.
+    ///
+    /// # TODO
+    ///
+    /// Only implemented for Windows, other systems return `true`.
+    pub fn animation_enabled(&mut self, _ctx: &Context) -> Result<bool> {
+        Ok(animation_enabled())
     }
 
     /// Set window title.

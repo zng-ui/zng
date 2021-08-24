@@ -3,6 +3,7 @@ pub use glutin::event::{
 };
 pub use glutin::window::CursorIcon;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use std::{fmt, path::PathBuf};
 use webrender::api::units::{LayoutPoint, LayoutSize};
 use webrender::api::{BuiltDisplayListDescriptor, ColorF, Epoch, PipelineId};
@@ -72,6 +73,8 @@ pub enum Ev {
     // Config events
     FontsChanged,
     TextAaChanged(TextAntiAliasing),
+    MultiClickConfigChanged(MultiClickConfig),
+    AnimationEnabledChanged(bool),
 
     // Raw device events
     DeviceAdded(DevId),
@@ -373,6 +376,29 @@ impl From<glutin::monitor::VideoMode> for VideoMode {
             size: (size.width, size.height),
             bit_depth: v.bit_depth(),
             refresh_rate: v.refresh_rate(),
+        }
+    }
+}
+
+/// System settings needed for implementing double/triple clicks.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
+pub struct MultiClickConfig {
+    /// Maximum time interval between clicks.
+    ///
+    /// Only repeated clicks within this time interval can count as double-clicks.
+    pub time: Duration,
+
+    /// Maximum (x, y) distance in pixels.
+    ///
+    /// Only repeated clicks that are within this distance of the first click can count as double-clicks.
+    pub area: (u32, u32),
+}
+impl Default for MultiClickConfig {
+    /// `500ms` and `20, 20`.
+    fn default() -> Self {
+        Self {
+            time: Duration::from_millis(500),
+            area: (20, 20),
         }
     }
 }
