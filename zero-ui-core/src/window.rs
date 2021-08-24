@@ -9,10 +9,7 @@ use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
 use crate::{
     app::{
         self,
-        raw_events::{
-            RawMonitorsChangedEvent, RawWindowCloseEvent, RawWindowCloseRequestedEvent, RawWindowFocusArgs, RawWindowFocusEvent,
-            RawWindowMovedEvent, RawWindowResizedEvent, RawWindowScaleFactorChangedEvent,
-        },
+        raw_events::*,
         view_process::{self, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
     },
@@ -32,9 +29,9 @@ use crate::{
 };
 
 unique_id! {
-    /// Unique identifier of a [`OpenWindow`].
+    /// Unique identifier of an open window.
     ///
-    /// Can be obtained from [`OpenWindow::id`] or [`WindowContext::window_id`] or [`WidgetContext::path`].
+    /// Can be obtained from [`WindowContext::window_id`] or [`WidgetContext::path`].
     #[derive(Debug)]
     pub struct WindowId;
 }
@@ -461,7 +458,7 @@ impl fmt::Debug for StartPosition {
     }
 }
 
-/// Mode of an [`OpenWindow`].
+/// Mode of an open window.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum WindowMode {
     /// Normal mode, shows a system window with content rendered.
@@ -1440,6 +1437,15 @@ impl Windows {
         Ok(response)
     }
 
+    /// Get the window [mode].
+    ///
+    /// This value indicates if the window is headless or not.
+    ///
+    /// [mode]: WindowMode
+    pub fn mode(&self, window_id: WindowId) -> Result<WindowMode, WindowNotFound> {
+        self.windows_info.get(&window_id).map(|w| w.mode).ok_or(WindowNotFound(window_id))
+    }
+
     /// Reference the metadata about the window's latest frame.
     pub fn frame_info(&self, window_id: WindowId) -> Result<&FrameInfo, WindowNotFound> {
         self.windows_info
@@ -1561,6 +1567,7 @@ impl std::error::Error for WindowNotFound {}
 /// from inside the window content.
 struct AppWindowInfo {
     id: WindowId,
+    mode: WindowMode,
     renderer: Option<ViewRenderer>,
     vars: WindowVars,
     scale_factor: f32,
@@ -1694,6 +1701,7 @@ impl AppWindow {
         };
         let info = AppWindowInfo {
             id,
+            mode,
             renderer: None, // will be set on the first render
             vars,
             scale_factor: 1.0, // will be set on the first layout
@@ -2337,6 +2345,8 @@ impl WindowVars {
     /// * **Minimized/Hidden**: The window restore position and size are defined like **Normal**.
     ///
     /// [`position`]: WindowVars::position
+    /// [`actual_monitor`]: WindowVars::actual_monitor
+    /// [`size`]: WindowVars::size
     #[inline]
     pub fn monitor(&self) -> &RcVar<MonitorQuery> {
         &self.0.monitor

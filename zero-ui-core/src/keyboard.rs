@@ -4,13 +4,16 @@
 //! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 
+use std::time::{Duration, Instant};
+
+use crate::app::view_process::ViewProcess;
 use crate::app::{raw_events::*, *};
 use crate::context::*;
 use crate::event::*;
 use crate::focus::FocusExt;
 use crate::render::WidgetPath;
 use crate::service::*;
-use crate::var::{RcVar, ReadOnlyRcVar, Var, Vars};
+use crate::var::{var, RcVar, ReadOnlyRcVar, Var, Vars};
 use crate::window::WindowId;
 
 pub use zero_ui_vp::{ModifiersState, ScanCode};
@@ -161,7 +164,8 @@ event! {
 pub struct KeyboardManager;
 impl AppExtension for KeyboardManager {
     fn init(&mut self, r: &mut AppContext) {
-        r.services.register(Keyboard::default());
+        let kb = Keyboard::new(r.services.get::<ViewProcess>());
+        r.services.register(kb);
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -179,6 +183,10 @@ impl AppExtension for KeyboardManager {
                     CharInputEvent.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));
                 }
             }
+        } else if let Some(args) = RawKeyRepeatDelayChangedEvent.update(args) {
+            let kb = ctx.services.keyboard();
+            kb.repeat_delay.set_ne(ctx.vars, args.delay);
+            kb.last_key_down = None;
         }
     }
 }
@@ -188,25 +196,31 @@ impl AppExtension for KeyboardManager {
 /// # Provider
 ///
 /// This service is provided by the [`KeyboardManager`] extension.
-#[derive(Service, Default)]
+#[derive(Service)]
 pub struct Keyboard {
-    modifiers: ModifiersState,
-    modifiers_var: RcVar<ModifiersState>,
+    modifiers: RcVar<ModifiersState>,
+    codes: RcVar<Vec<ScanCode>>,
+    keys: RcVar<Vec<Key>>,
+    repeat_delay: RcVar<Duration>,
 
-    codes: Vec<ScanCode>,
-    codes_var: RcVar<Vec<ScanCode>>,
-
-    keys: Vec<Key>,
-    keys_var: RcVar<Vec<Key>>,
-
-    last_key_down: Option<(DeviceId, ScanCode)>,
+    last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
 impl Keyboard {
-    fn set_modifiers(&mut self, events: &mut Events, vars: &Vars, modifiers: ModifiersState) {
-        if self.modifiers_var.set_ne(vars, modifiers) {
-            let prev_modifiers = self.modifiers;
-            self.modifiers = modifiers;
+    fn new(vp: Option<&mut ViewProcess>) -> Self {
+        Keyboard {
+            modifiers: var(ModifiersState::empty()),
+            codes: var(vec![]),
+            keys: var(vec![]),
+            repeat_delay: var(vp
+                .and_then(|vp| vp.key_repeat_delay().ok())
+                .unwrap_or_else(|| Duration::from_millis(600))),
+            last_key_down: None,
+        }
+    }
 
+    fn set_modifiers(&mut self, events: &mut Events, vars: &Vars, modifiers: ModifiersState) {
+        let prev_modifiers = self.modifiers.copy(vars);
+        if self.modifiers.set_ne(vars, modifiers) {
             ModifiersChangedEvent.notify(events, ModifiersChangedArgs::now(prev_modifiers, modifiers));
         }
     }
@@ -217,38 +231,53 @@ impl Keyboard {
         // update state and vars
         match args.state {
             KeyState::Pressed => {
-                repeat = self
-                    .last_key_down
-                    .map(|(d, s)| args.device_id == d && args.scan_code == s)
-                    .unwrap_or_default();
-                if !repeat {
-                    self.last_key_down = Some((args.device_id, args.scan_code));
+                if let Some((d_id, code, time)) = &mut self.last_key_down {
+                    let max_t = self.repeat_delay.copy(vars) * 2;
+                    if args.scan_code == *code && args.device_id == *d_id && (args.timestamp - *time) < max_t {
+                        repeat = true;
+                    } else {
+                        *d_id = args.device_id;
+                        *code = args.scan_code;
+                    }
+                    *time = args.timestamp;
+                } else {
+                    self.last_key_down = Some((args.device_id, args.scan_code, args.timestamp));
                 }
 
-                if !self.codes.contains(&args.scan_code) {
-                    self.codes.push(args.scan_code);
-                    self.codes_var.set(vars, self.codes.clone());
+                let scan_code = args.scan_code;
+                if !self.codes.get(vars).contains(&scan_code) {
+                    self.codes.modify(vars, move |cs| {
+                        cs.push(scan_code);
+                    });
                 }
 
                 if let Some(key) = args.key {
-                    if !self.keys.contains(&key) {
-                        self.keys.push(key);
-                        self.keys_var.set(vars, self.keys.clone());
+                    if !self.keys.get(vars).contains(&key) {
+                        self.keys.modify(vars, move |ks| {
+                            ks.push(key);
+                        });
                     }
                 }
             }
             KeyState::Released => {
                 self.last_key_down = None;
 
-                if let Some(i) = self.codes.iter().position(|&c| c == args.scan_code) {
-                    self.codes.swap_remove(i);
-                    self.codes_var.set(vars, self.codes.clone());
+                let key = args.scan_code;
+                if self.codes.get(vars).contains(&key) {
+                    self.codes.modify(vars, move |cs| {
+                        if let Some(i) = cs.iter().position(|c| *c == key) {
+                            cs.swap_remove(i);
+                        }
+                    });
                 }
 
                 if let Some(key) = args.key {
-                    if let Some(i) = self.keys.iter().position(|&c| c == key) {
-                        self.keys.swap_remove(i);
-                        self.keys_var.set(vars, self.keys.clone());
+                    if self.keys.get(vars).contains(&key) {
+                        self.keys.modify(vars, move |ks| {
+                            if let Some(i) = ks.iter().position(|k| *k == key) {
+                                ks.swap_remove(i);
+                            }
+                        });
                     }
                 }
             }
@@ -263,7 +292,7 @@ impl Keyboard {
                     args.scan_code,
                     args.state,
                     args.key,
-                    self.modifiers,
+                    self.modifiers.copy(vars),
                     repeat,
                     target,
                 );
@@ -277,40 +306,34 @@ impl Keyboard {
         }
     }
 
-    /// Returns the currently pressed modifier keys.
+    /// Returns a read-only variable  that tracks the currently pressed modifier keys.
     #[inline]
-    pub fn modifiers(&self) -> ModifiersState {
-        self.modifiers
+    pub fn modifiers(&self) -> ReadOnlyRcVar<ModifiersState> {
+        self.modifiers.clone().into_read_only()
     }
 
-    /// Returns a read-only variable that updates when the [`modifiers`](Self::modifiers) change.
+    /// Returns a read-only variable that tracks the [`ScanCode`] of the keys currently pressed.
     #[inline]
-    pub fn modifiers_var(&self) -> ReadOnlyRcVar<ModifiersState> {
-        self.modifiers_var.clone().into_read_only()
+    pub fn codes(&self) -> ReadOnlyRcVar<Vec<ScanCode>> {
+        self.codes.clone().into_read_only()
     }
 
-    /// Returns the [`ScanCode`] of the keys currently pressed.
+    /// Returns a read-only variable that tracks the [`Key`] identifier of the keys currently pressed.
     #[inline]
-    pub fn codes(&self) -> &[ScanCode] {
-        &self.codes
+    pub fn keys(&self) -> ReadOnlyRcVar<Vec<Key>> {
+        self.keys.clone().into_read_only()
     }
 
-    /// Returns a read-only variable that updates when the [`codes`](Self::codes) change.
+    /// Returns a read-only variable that tracks the operating system key press repeat delay.
+    ///
+    /// This delay is roughly the time the user must hold a key pressed to generate a new key
+    /// press event. When a second key press happens without any other keyboard event and within twice this
+    /// value if is marked [`repeat`] by the [`KeyboardManager`].
+    ///
+    /// [`repeat`]: KeyInputArgs::repeat
     #[inline]
-    pub fn codes_var(&self) -> ReadOnlyRcVar<Vec<ScanCode>> {
-        self.codes_var.clone().into_read_only()
-    }
-
-    /// Returns the [`Key`] identifier of the keys currently pressed.
-    #[inline]
-    pub fn keys(&self) -> &[Key] {
-        &self.keys
-    }
-
-    /// Returns a read-only variable that updates when the [`keys`](Self::keys) change.
-    #[inline]
-    pub fn keys_var(&self) -> ReadOnlyRcVar<Vec<Key>> {
-        self.keys_var.clone().into_read_only()
+    pub fn repeat_delay(&self) -> ReadOnlyRcVar<Duration> {
+        self.repeat_delay.clone().into_read_only()
     }
 }
 

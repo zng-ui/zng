@@ -2825,7 +2825,7 @@ pub trait ByteUnits {
 
     /// Gibi-bytes.
     ///
-    /// See [`ByteLength::from_gibio`] for more details.
+    /// See [`ByteLength::from_gibi`] for more details.
     fn gibi_bytes(self) -> ByteLength;
     /// Giga-bytes.
     ///

@@ -1908,6 +1908,7 @@ pub trait SenderTask: 'static {
     ///
     /// This error can happen in any of the pending [`send`] calls.
     ///
+    /// [`send`]: SenderTask::send
     /// [`finish`]: SenderTask::finish
     type Error: std::error::Error + From<std::io::Error>;
 

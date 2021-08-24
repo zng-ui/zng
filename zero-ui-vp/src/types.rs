@@ -75,6 +75,7 @@ pub enum Ev {
     TextAaChanged(TextAntiAliasing),
     MultiClickConfigChanged(MultiClickConfig),
     AnimationEnabledChanged(bool),
+    KeyRepeatDelayChanged(Duration),
 
     // Raw device events
     DeviceAdded(DevId),

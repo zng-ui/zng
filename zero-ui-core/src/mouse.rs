@@ -782,7 +782,7 @@ impl MouseManager {
 impl AppExtension for MouseManager {
     fn init(&mut self, ctx: &mut AppContext) {
         if let Some(cfg) = ctx.services.get::<ViewProcess>().and_then(|vp| vp.multi_click_config().ok()) {
-            self.multi_click_config.set_ne(ctx.vars, dbg!(cfg));
+            self.multi_click_config.set_ne(ctx.vars, cfg);
         }
         ctx.services
             .register(Mouse::new(ctx.updates.sender(), self.multi_click_config.clone()));

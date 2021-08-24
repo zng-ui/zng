@@ -7,6 +7,8 @@ use winapi::um::winuser::*;
 pub(crate) fn config_listener(ctx: &crate::Context) -> glutin::window::Window {
     use glutin::window::WindowBuilder;
 
+    use crate::Ev;
+
     let w = WindowBuilder::new()
         .with_title("config-event-listener")
         .with_visible(false)
@@ -14,32 +16,28 @@ pub(crate) fn config_listener(ctx: &crate::Context) -> glutin::window::Window {
         .unwrap();
 
     let event_proxy = ctx.event_loop.clone();
-    set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| match msg {
-        WM_FONTCHANGE => {
-            let _ = event_proxy.send_event(AppEvent::FontsChanged);
+    set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
+        let notify = |ev| {
+            let _ = event_proxy.send_event(AppEvent::Notify(ev));
             Some(0)
-        }
-        WM_SETTINGCHANGE => match wparam as u32 {
-            SPI_SETFONTSMOOTHING | SPI_SETFONTSMOOTHINGTYPE => {
-                let _ = event_proxy.send_event(AppEvent::TextAaChanged(text_aa()));
+        };
+        match msg {
+            WM_FONTCHANGE => notify(Ev::FontsChanged),
+            WM_SETTINGCHANGE => match wparam as u32 {
+                SPI_SETFONTSMOOTHING | SPI_SETFONTSMOOTHINGTYPE => notify(Ev::TextAaChanged(text_aa())),
+                SPI_SETDOUBLECLICKTIME | SPI_SETDOUBLECLKWIDTH | SPI_SETDOUBLECLKHEIGHT => {
+                    notify(Ev::MultiClickConfigChanged(multi_click_config()))
+                }
+                SPI_SETCLIENTAREAANIMATION => notify(Ev::AnimationEnabledChanged(animation_enabled())),
+                SPI_SETKEYBOARDDELAY => notify(Ev::KeyRepeatDelayChanged(key_repeat_delay())),
+                _ => None,
+            },
+            WM_DISPLAYCHANGE => {
+                let _ = event_proxy.send_event(AppEvent::RefreshMonitors);
                 Some(0)
             }
-            SPI_SETDOUBLECLICKTIME | SPI_SETDOUBLECLKWIDTH | SPI_SETDOUBLECLKHEIGHT => {
-                let _ = event_proxy.send_event(AppEvent::MultiClickConfigChanged(multi_click_config()));
-                Some(0)
-            }
-            SPI_SETCLIENTAREAANIMATION => {
-                let _ = event_proxy.send_event(AppEvent::AnimationEnabledChanged(animation_enabled()));
-                Some(0)
-            }
-            // SPI_SETKEYBOARDDELAY TODO keyboard repeat delay. https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfoa
             _ => None,
-        },
-        WM_DISPLAYCHANGE => {
-            let _ = event_proxy.send_event(AppEvent::RefreshMonitors);
-            Some(0)
         }
-        _ => None,
     });
 
     w
@@ -203,4 +201,37 @@ pub fn animation_enabled() -> bool {
 #[cfg(not(windows))]
 pub fn animation_enabled() -> bool {
     true
+}
+
+#[cfg(windows)]
+pub fn key_repeat_delay() -> Duration {
+    use winapi::um::errhandlingapi::GetLastError;
+
+    unsafe {
+        let mut index = 0;
+
+        if SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &mut index as *mut _ as *mut _, 0) == 0 {
+            log::error!("SPI_GETCLIENTAREAANIMATION error: {:X}", GetLastError());
+            return Duration::from_millis(600);
+        }
+
+        /*
+            ..which is a value in the range from 0 (approximately 250 ms delay) through 3 (approximately 1 second delay).
+            The actual delay associated with each value may vary depending on the hardware.
+
+            source: SPI_GETKEYBOARDDELAY entry in https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow
+        */
+        Duration::from_millis(match index {
+            0 => 250,
+            1 => 500,
+            2 => 750,
+            3 => 1000,
+            _ => 600,
+        })
+    }
+}
+
+#[cfg(not(windows))]
+pub fn key_repeat_delay() -> Duration {
+    Duration::from_millis(600)
 }

@@ -206,6 +206,8 @@ impl Updates {
     ///
     /// In a [`WindowContext`] and [`WidgetContext`] this only requests a layout for the parent window,
     /// use [`layout_all`] to re-layout all open windows.
+    ///
+    /// [`layout_all`]: Self::layout_all
     #[inline]
     pub fn layout(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Layout;
@@ -217,6 +219,7 @@ impl Updates {
     pub fn layout_all(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Layout;
         self.display_update |= UpdateDisplayRequest::Layout;
+        todo!()
     }
 
     /// Gets `true` if a layout update is scheduled.
@@ -229,6 +232,8 @@ impl Updates {
     ///
     /// In a [`WindowContext`] and [`WidgetContext`] this only requests a new frame for the parent window,
     /// use [`render_all`] to re-render all open windows.
+    ///
+    /// [`render_all`]: Self::render_all
     #[inline]
     pub fn render(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Render;
@@ -238,8 +243,9 @@ impl Updates {
     /// Schedules a new frame for all open windows.
     #[inline]
     pub fn render_all(&mut self) {
-        self.win_display_update |= UpdateDisplayRequest::Layout;
-        self.display_update |= UpdateDisplayRequest::Layout;
+        self.win_display_update |= UpdateDisplayRequest::Render;
+        self.display_update |= UpdateDisplayRequest::Render;
+        todo!()
     }
 
     /// Gets `true` if a new frame is scheduled.
@@ -717,7 +723,7 @@ impl<'a> WindowContext<'a> {
 pub struct TestWidgetContext {
     /// Id of the pretend window that owns the pretend root widget.
     ///
-    /// This is a new unique [headless window id](WindowId::Headless).
+    /// This is a new unique id.
     pub window_id: WindowId,
     /// Id of the pretend root widget that is the context widget.
     pub root_id: WidgetId,

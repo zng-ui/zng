@@ -859,11 +859,6 @@ impl<E: AppExtension> RunningApp<E> {
         self.owned_ctx.vars()
     }
 
-    /// Event loop has awakened because [`WaitUntil`](ControlFlow::WaitUntil) was requested.
-    pub fn wait_until_elapsed(&mut self) {
-        self.maybe_has_updates = true;
-    }
-
     /// Notify an event directly to the app extensions.
     pub fn notify_event<Ev: crate::event::Event>(&mut self, _event: Ev, args: Ev::Args) {
         let update = EventUpdate::<Ev>(args);
@@ -917,6 +912,7 @@ impl<E: AppExtension> RunningApp<E> {
     /// This method does not manages timers, you can probe [`wake_time`] to get the next timer deadline.
     ///
     /// [`Poll`]: ControlFlow::Poll
+    /// [`wake_time`]: RunningApp::wake_time
     pub fn try_poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         let mut flow = ControlFlow::Poll;
         while let ControlFlow::Poll = flow {
@@ -1087,6 +1083,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawAnimationEnabledChangedArgs::now(enabled);
                 self.notify_event(RawAnimationEnabledChangedEvent, args);
             }
+            zero_ui_vp::Ev::KeyRepeatDelayChanged(delay) => {
+                let args = RawKeyRepeatDelayChangedArgs::now(delay);
+                self.notify_event(RawKeyRepeatDelayChangedEvent, args);
+            }
 
             // `device_events`
             zero_ui_vp::Ev::DeviceAdded(d_id) => {
@@ -1136,7 +1136,7 @@ impl<E: AppExtension> RunningApp<E> {
     /// [`Wait`] or [`Exit`]. If [`Wait`] is returned you must check [`wake_time`] for a timeout that
     /// must be used, when the timeout elapses update must be called again, to advance timers.
     ///
-    /// You can use an [`AppUpdateObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
+    /// You can use an [`AppEventObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
     ///
     /// [`Wait`]: ControlFlow::Wait
     /// [`Exit`]: ControlFlow::Exit
@@ -1270,16 +1270,20 @@ impl HeadlessApp {
 
     /// If headless rendering is enabled.
     ///
-    /// When enabled windows are still not visible but you can request [frame pixels](crate::window::OpenWindow::frame_pixels)
+    /// When enabled windows are still not visible but you can request [frame pixels]
     /// to get the frame image. Renderer is disabled by default in a headless app.
     ///
     /// Only windows opened after enabling have a renderer. Already open windows are not changed by this method. When enabled
     /// headless windows can only be initialized in the main thread due to limitations of OpenGL, this means you cannot run
     /// a headless renderer in units tests.
     ///
-    /// Note that [`UiNode::render`](crate::UiNode::render) is still called when a renderer is disabled and you can still
-    /// query the latest frame from [`OpenWindow::frame_info`](crate::window::OpenWindow::frame_info). The only thing that
+    /// Note that [`UiNode::render`] is still called when a renderer is disabled and you can still
+    /// query the latest frame from [`Windows::frame_info`]. The only thing that
     /// is disabled is WebRender and the generation of frame textures.
+    ///
+    /// [frame pixels]: crate::window::Windows::frame_pixels
+    /// [`UiNode::render`]: crate::UiNode::render
+    /// [`Windows::frame_info`]: crate::window::Windows::frame_info
     pub fn renderer_enabled(&mut self) -> bool {
         self.ctx().services.get::<view_process::ViewProcess>().is_some()
     }
@@ -1296,15 +1300,20 @@ impl HeadlessApp {
 
     /// Does updates unobserved.
     ///
-    /// See [`update_observed`](Self::update_observed) for more details.
+    /// See [`update_observed`] for more details.
+    ///
+    /// [`update_observed`]: HeadlessApp::update
     #[inline]
     pub fn update(&mut self, wait_app_event: bool) -> ControlFlow {
         self.update_observed(&mut (), wait_app_event)
     }
 
-    /// Does updates observing [`update`](AppUpdateObserver::update) only.
+    /// Does updates observing [`update`] only.
     ///
-    /// See [`update_observed`](Self::update_observed) for more details.
+    /// See [`update_observed`] for more details.
+    ///
+    /// [`update`]: AppEventObserver::update
+    /// [`update_observed`]: HeadlessApp::update
     pub fn update_observe(&mut self, on_update: impl FnMut(&mut AppContext), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
         impl<F: FnMut(&mut AppContext)> AppEventObserver for Observer<F> {
@@ -1316,9 +1325,12 @@ impl HeadlessApp {
         self.update_observed(&mut observer, wait_app_event)
     }
 
-    /// Does updates observing [`event`](AppUpdateObserver::event) only.
+    /// Does updates observing [`event`] only.
     ///
-    /// See [`update_observed`](Self::update_observed) for more details.
+    /// See [`update_observed`] for more details.
+    ///
+    /// [`event`]: AppEventObserver::event
+    /// [`update_observed`]: HeadlessApp::update
     pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &AnyEventUpdate), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
         impl<F: FnMut(&mut AppContext, &AnyEventUpdate)> AppEventObserver for Observer<F> {
@@ -1331,7 +1343,7 @@ impl HeadlessApp {
         self.update_observed(&mut observer, wait_app_event)
     }
 
-    /// Does updates with an [`AppUpdateObserver`].
+    /// Does updates with an [`AppEventObserver`].
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or the [`wake_time`] is reached,
     /// if it is `false` only responds to app events already in the buffer.
@@ -1583,7 +1595,7 @@ pub(crate) enum AppEvent {
     ResumeUnwind(PanicPayload),
 }
 
-/// An [`AppEvent`] sender that can awake apps and insert events into the main loop.
+/// A sender that can awake apps and insert events into the main loop.
 #[derive(Clone)]
 pub struct AppEventSender(flume::Sender<AppEvent>);
 impl AppEventSender {
@@ -1765,6 +1777,7 @@ impl fmt::Display for DeviceId {
 pub mod view_process {
     use std::path::PathBuf;
     use std::rc;
+    use std::time::Duration;
     use std::{cell::RefCell, rc::Rc};
 
     use linear_map::LinearMap;
@@ -1844,6 +1857,12 @@ pub mod view_process {
         #[inline]
         pub fn multi_click_config(&self) -> Result<MultiClickConfig> {
             self.0.borrow_mut().process.multi_click_config()
+        }
+
+        /// Retrieves the keyboard repeat-delay setting from the operating system.
+        #[inline]
+        pub fn key_repeat_delay(&self) -> Result<Duration> {
+            self.0.borrow_mut().process.key_repeat_delay()
         }
 
         /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
@@ -2165,7 +2184,7 @@ pub mod view_process {
 /// [`notify`]: crate::event::Event::notify
 /// [`DeviceId`]: crate::app::DeviceId
 pub mod raw_events {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, time::Duration};
 
     use super::{
         raw_device_events::AxisId,
@@ -2299,7 +2318,7 @@ pub mod raw_events {
             }
         }
 
-        /// Arguments for the [`RawWindowClosedEvent`].
+        /// Arguments for the [`RawWindowCloseEvent`].
         pub struct RawWindowCloseArgs {
             /// Window that was destroyed.
             pub window_id: WindowId,
@@ -2587,6 +2606,23 @@ pub mod raw_events {
                 true
             }
         }
+
+        /// Arguments for the [`RawKeyRepeatDelayChangedEvent`].
+        pub struct RawKeyRepeatDelayChangedArgs {
+            /// New delay.
+            ///
+            /// When the user holds a key pressed the system will generate a new key-press event
+            /// every time this delay elapses. The real delay time depends on the hardware but it
+            /// roughly matches this value.
+            pub delay: Duration,
+
+            ..
+
+            /// Concerns all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
     }
 
     event! {
@@ -2689,6 +2725,9 @@ pub mod raw_events {
 
         /// Change in system animation enabled config.
         pub RawAnimationEnabledChangedEvent: RawAnimationEnabledChangedArgs;
+
+        /// Change in system key repeat interval config.
+        pub RawKeyRepeatDelayChangedEvent: RawKeyRepeatDelayChangedArgs;
     }
 }
 

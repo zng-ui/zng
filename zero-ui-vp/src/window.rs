@@ -16,7 +16,7 @@ use webrender::{
 use crate::{
     config::{set_raw_windows_event_handler, text_aa},
     types::FramePixels,
-    AppEvent, Context, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
+    AppEvent, Context, Ev, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
 };
 
 pub(crate) struct ViewWindow {
@@ -75,7 +75,7 @@ impl ViewWindow {
                     let device_id = 0; // TODO recover actual ID
 
                     #[allow(deprecated)] // `modifiers` is deprecated but there is no other way to init a KeyboardInput
-                    let _ = event_loop.send_event(AppEvent::KeyboardInput(
+                    let _ = event_loop.send_event(AppEvent::Notify(Ev::KeyboardInput(
                         id,
                         device_id,
                         KeyboardInput {
@@ -84,7 +84,7 @@ impl ViewWindow {
                             virtual_keycode: Some(VirtualKeyCode::F4),
                             modifiers: ModifiersState::ALT,
                         },
-                    ));
+                    )));
                     return Some(0);
                 }
                 None

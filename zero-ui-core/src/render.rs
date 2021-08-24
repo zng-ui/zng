@@ -283,7 +283,7 @@ impl FrameBuilder {
     ///
     /// In this mode only the meta and layout information will be used as a *frame*. Methods still
     /// push to the [`display_list`](Self::display_list) when possible, custom methods should ignore this
-    /// unless they need access to the [`render_api`](Self::render_api).
+    /// unless they need access to the [`renderer`](Self::renderer).
     #[inline]
     pub fn is_renderless(&self) -> bool {
         self.renderer.is_none()
@@ -2099,7 +2099,7 @@ impl_from_and_into_var! {
     }
 }
 
-/// Pixels copied from a [`Renderer`] frame.
+/// Pixels copied from a rendered frame.
 #[derive(Clone)]
 pub struct FramePixels {
     bgra: Arc<Vec<u8>>,

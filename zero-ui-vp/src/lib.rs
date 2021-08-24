@@ -195,11 +195,7 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
                 AppEvent::Request(req) => app.on_request(&ctx, req),
                 AppEvent::FrameReady(window_id) => app.on_frame_ready(window_id),
                 AppEvent::RefreshMonitors => app.refresh_monitors(&ctx),
-                AppEvent::FontsChanged => app.notify(Ev::FontsChanged),
-                AppEvent::TextAaChanged(aa) => app.notify(Ev::TextAaChanged(aa)),
-                AppEvent::MultiClickConfigChanged(cfg) => app.notify(Ev::MultiClickConfigChanged(cfg)),
-                AppEvent::AnimationEnabledChanged(enabled) => app.notify(Ev::AnimationEnabledChanged(enabled)),
-                AppEvent::KeyboardInput(w_id, d_id, k) => app.notify(Ev::KeyboardInput(w_id, d_id, k)),
+                AppEvent::Notify(ev) => app.notify(ev),
             },
             Event::Suspended => {}
             Event::Resumed => {}
@@ -220,12 +216,8 @@ pub(crate) struct Context<'a> {
 pub(crate) enum AppEvent {
     Request(Request),
     FrameReady(WindowId),
-    FontsChanged,
     RefreshMonitors,
-    TextAaChanged(TextAntiAliasing),
-    MultiClickConfigChanged(MultiClickConfig),
-    AnimationEnabledChanged(bool),
-    KeyboardInput(WinId, DevId, KeyboardInput),
+    Notify(Ev),
 }
 
 /// Declares the `Request` and `Response` enums, and two methods in `Controller` and `ViewApp`, in the
@@ -778,6 +770,23 @@ declare_ipc! {
     /// Only implemented for Windows, other systems return `true`.
     pub fn animation_enabled(&mut self, _ctx: &Context) -> Result<bool> {
         Ok(animation_enabled())
+    }
+
+    /// Retrieves the keyboard repeat-delay setting from the operating system.
+    ///
+    /// If the user holds a key pressed a new key-press event will happen every time this delay is elapsed.
+    /// Note, depending on the hardware the real delay can be slightly different.
+    ///
+    /// There is no repeat flag in the `winit` key press event, so as a general rule we consider a second key-press
+    /// without any other keyboard event within the window of time of twice this delay as a repeat.
+    ///
+    /// This delay can also be used as the text-boxes caret blink rate.
+    ///
+    /// # TODO
+    ///
+    /// Only implemented for Windows, other systems return `600ms`.
+    pub fn key_repeat_delay(&mut self, _ctx: &Context) -> Result<Duration> {
+        Ok(key_repeat_delay())
     }
 
     /// Set window title.
