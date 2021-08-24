@@ -660,7 +660,7 @@ where
 /// This function is useful for implementing async tests, using it in an app will probably cause
 /// the app to stop responding. To test UI task use [`TestWidgetContext::block_on`] or [`HeadlessApp::block_on`].
 ///
-/// The crate [`pollster`] is used to execute the task.
+/// The crate [`futures-lite`] is used to execute the task.
 ///
 /// # Examples
 ///
@@ -687,13 +687,13 @@ where
 ///
 /// [`TestWidgetContext::block_on`]: crate::context::TestWidgetContext::block_on
 /// [`HeadlessApp::block_on`]: crate::app::HeadlessApp::block_on
-/// [`pollster`]: https://docs.rs/pollster/
+/// [`futures-lite`]: https://docs.rs/futures-lite/
 #[inline]
 pub fn block_on<F>(task: F) -> F::Output
 where
     F: Future,
 {
-    pollster::block_on(task)
+    futures_lite::future::block_on(task)
 }
 
 /// Continuous poll the `task` until if finishes.
