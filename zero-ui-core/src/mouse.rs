@@ -407,10 +407,7 @@ enum ClickState {
     None,
     /// Mouse pressed on a widget, if the next event
     /// is a release over the same widget a click event is generated.
-    Pressed {
-        btn: MouseButton,
-        press_tgt: WidgetPath,
-    },
+    Pressed { btn: MouseButton, press_tgt: WidgetPath },
     /// At least one click completed, as long as subsequent presses happen
     /// within the window of time, widget and distance from the initial press
     /// multi-click events are generated.
@@ -521,15 +518,23 @@ impl MouseManager {
 
                         let cfg = self.multi_click_config.get(ctx.vars);
 
-                        let is_multi_click = *btn == button && (now - *start_time) <= cfg.time && start_tgt == &target && {
-                            let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(1.0);
-                            let max_x = cfg.area.0 as f32 / scale_factor;
-                            let max_y = cfg.area.1 as f32 / scale_factor;
+                        let is_multi_click =
+                            // same button
+                            *btn == button
+                            // within time window
+                            && (now - *start_time) <= cfg.time
+                            // same widget
+                            && start_tgt == &target
+                            // within distance of first click
+                            && {
+                                let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(1.0);
+                                let max_x = cfg.area.0 as f32 / scale_factor;
+                                let max_y = cfg.area.1 as f32 / scale_factor;
 
-                            (pos.x - self.pos.x).abs() <= max_x && (pos.y - self.pos.y).abs() <= max_y
-                        };
+                                (pos.x - self.pos.x).abs() <= max_x && (pos.y - self.pos.y).abs() <= max_y
+                            };
 
-                        if dbg!(is_multi_click) {
+                        if is_multi_click {
                             *count = count.saturating_add(1);
                             *start_time = now;
 
@@ -538,7 +543,7 @@ impl MouseManager {
                                 window_id,
                                 device_id,
                                 button,
-                                position,
+                                self.pos,
                                 self.modifiers,
                                 NonZeroU8::new(*count).unwrap(),
                                 hits,
@@ -573,7 +578,8 @@ impl MouseManager {
                                 is_click = true;
 
                                 let now = Instant::now();
-                                let args = MouseClickArgs::new(now,
+                                let args = MouseClickArgs::new(
+                                    now,
                                     window_id,
                                     device_id,
                                     button,
@@ -588,26 +594,26 @@ impl MouseManager {
                                 self.click_state = ClickState::Clicked {
                                     start_time: now,
                                     btn: button,
-                                    pos: position,
+                                    pos: self.pos,
                                     start_tgt: target,
                                     count: 1,
                                 };
                             }
-                        } 
+                        }
 
                         if !is_click {
                             self.click_state = ClickState::None;
                         }
-                    },
-                    ClickState::None =>  { 
-                        // Released without Pressed                        
-                     },
-                    ClickState::Clicked {  btn, start_tgt, .. } => {
+                    }
+                    ClickState::None => {
+                        // Released without Pressed
+                    }
+                    ClickState::Clicked { btn, start_tgt, .. } => {
                         // is clicking, but can't continue if we are not releasing the same button over the same target.
                         if *btn != button || start_tgt != &target {
                             self.click_state = ClickState::None;
                         }
-                    },
+                    }
                 }
             }
         }
@@ -776,7 +782,7 @@ impl MouseManager {
 impl AppExtension for MouseManager {
     fn init(&mut self, ctx: &mut AppContext) {
         if let Some(cfg) = ctx.services.get::<ViewProcess>().and_then(|vp| vp.multi_click_config().ok()) {
-            self.multi_click_config.set_ne(ctx.vars, cfg);
+            self.multi_click_config.set_ne(ctx.vars, dbg!(cfg));
         }
         ctx.services
             .register(Mouse::new(ctx.updates.sender(), self.multi_click_config.clone()));
@@ -799,6 +805,7 @@ impl AppExtension for MouseManager {
             self.on_window_closed(args.window_id, ctx);
         } else if let Some(args) = RawMultiClickConfigChangedEvent.update(args) {
             self.multi_click_config.set_ne(ctx.vars, args.config);
+            self.click_state = ClickState::None;
         }
     }
 

@@ -219,7 +219,7 @@ pub trait AppExtension: 'static {
     /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
     /// this is `false` you still get the mouse move over windows of the app.
     ///
-    /// This is called zero or one times after [`init`](Self::init).
+    /// This is called zero or one times before [`init`](Self::init).
     ///
     /// Returns `false` by default.
     #[inline]
@@ -738,11 +738,11 @@ impl<E: AppExtension> AppExtended<E> {
 
         profile_scope!("app::run");
 
-        let mut app = RunningApp::start(self.extensions);
+        let mut app = RunningApp::start(self.extensions, true, true, self.view_process_exe);
 
         start(&mut app.ctx());
 
-        app.run_headed(self.view_process_exe);
+        app.run_headed();
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
@@ -761,13 +761,7 @@ impl<E: AppExtension> AppExtended<E> {
             ProfileScope::new("app::run_headless")
         };
 
-        let mut app = RunningApp::start(self.extensions.boxed());
-
-        if with_renderer {
-            let renderer = view_process::ViewProcess::start(self.view_process_exe, false, true, |_| unreachable!());
-
-            app.ctx().services.register(renderer);
-        }
+        let app = RunningApp::start(self.extensions.boxed(), false, with_renderer, self.view_process_exe);
 
         HeadlessApp {
             app,
@@ -794,7 +788,7 @@ pub struct RunningApp<E: AppExtension> {
     exiting: bool,
 }
 impl<E: AppExtension> RunningApp<E> {
-    fn start(mut extensions: E) -> Self {
+    fn start(mut extensions: E, is_headed: bool, with_renderer: bool, view_process_exe: Option<PathBuf>) -> Self {
         if App::is_running() {
             if cfg!(any(test, doc, feature = "test_util")) {
                 panic!("only one app or `TestWidgetContext` is allowed per thread")
@@ -809,10 +803,26 @@ impl<E: AppExtension> RunningApp<E> {
 
         let mut ctx = owned_ctx.borrow();
         ctx.services.register(AppProcess::new(ctx.updates.sender()));
+
+        let device_events = extensions.enable_device_events();
+
+        if is_headed {
+            debug_assert!(with_renderer);
+
+            let view_evs_sender = ctx.updates.sender();
+            let view_app = view_process::ViewProcess::start(view_process_exe, device_events, false, move |ev| {
+                view_evs_sender.send_view_event(ev).unwrap()
+            });
+            ctx.services.register(view_app);
+        } else if with_renderer {
+            let renderer = view_process::ViewProcess::start(view_process_exe, false, true, |_| unreachable!());
+            ctx.services.register(renderer);
+        }
+
         extensions.init(&mut ctx);
 
         RunningApp {
-            device_events: extensions.enable_device_events(),
+            device_events,
             extensions,
             owned_ctx,
             receiver,
@@ -822,14 +832,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    fn run_headed(mut self, view_process_exe: Option<PathBuf>) {
-        let view_evs_sender = self.ctx().updates.sender();
-
-        let view_app = view_process::ViewProcess::start(view_process_exe, self.device_events, false, move |ev| {
-            view_evs_sender.send_view_event(ev).unwrap()
-        });
-        self.ctx().services.register(view_app);
-
+    fn run_headed(mut self) {
         loop {
             match self.poll(&mut ()) {
                 ControlFlow::Wait => {} // poll waits
@@ -837,6 +840,12 @@ impl<E: AppExtension> RunningApp<E> {
                 ControlFlow::Poll => unreachable!(),
             }
         }
+    }
+
+    /// If device events are enabled in this app.
+    #[inline]
+    pub fn device_events(&self) -> bool {
+        self.device_events
     }
 
     /// Exclusive borrow the app context.

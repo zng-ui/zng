@@ -394,11 +394,11 @@ pub struct MultiClickConfig {
     pub area: (u32, u32),
 }
 impl Default for MultiClickConfig {
-    /// `500ms` and `20, 20`.
+    /// `500ms` and `4, 4`.
     fn default() -> Self {
         Self {
             time: Duration::from_millis(500),
-            area: (20, 20),
+            area: (4, 4),
         }
     }
 }
