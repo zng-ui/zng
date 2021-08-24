@@ -6,7 +6,7 @@
 
 use std::time::{Duration, Instant};
 
-use crate::app::view_process::ViewProcess;
+use crate::app::view_process::{ViewProcess, ViewProcessRespawnedEvent};
 use crate::app::{raw_events::*, *};
 use crate::context::*;
 use crate::event::*;
@@ -186,6 +186,21 @@ impl AppExtension for KeyboardManager {
         } else if let Some(args) = RawKeyRepeatDelayChangedEvent.update(args) {
             let kb = ctx.services.keyboard();
             kb.repeat_delay.set_ne(ctx.vars, args.delay);
+            kb.last_key_down = None;
+        } else if ViewProcessRespawnedEvent.update(args).is_some() {
+            let repeat_delay = ctx
+                .services
+                .get::<ViewProcess>()
+                .and_then(|vp| vp.key_repeat_delay().ok())
+                .unwrap_or_else(|| Duration::from_millis(600));
+
+            let kb = ctx.services.keyboard();
+
+            kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
+            kb.codes.set_ne(ctx.vars, vec![]);
+            kb.keys.set_ne(ctx.vars, vec![]);
+            kb.repeat_delay.set_ne(ctx.vars, repeat_delay);
+
             kb.last_key_down = None;
         }
     }

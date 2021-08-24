@@ -3,7 +3,11 @@
 //! The app extension [`MouseManager`] provides the events and service. It is included in the default application.
 
 use crate::{
-    app::{raw_events::*, view_process::ViewProcess, *},
+    app::{
+        raw_events::*,
+        view_process::{ViewProcess, ViewProcessRespawnedEvent},
+        *,
+    },
     context::*,
     event::*,
     keyboard::ModifiersState,
@@ -806,6 +810,19 @@ impl AppExtension for MouseManager {
         } else if let Some(args) = RawMultiClickConfigChangedEvent.update(args) {
             self.multi_click_config.set_ne(ctx.vars, args.config);
             self.click_state = ClickState::None;
+        } else if ViewProcessRespawnedEvent.update(args).is_some() {
+            let multi_click_cfg = ctx
+                .services
+                .get::<ViewProcess>()
+                .and_then(|vp| vp.multi_click_config().ok())
+                .unwrap_or_default();
+
+            self.multi_click_config.set_ne(ctx.vars, multi_click_cfg);
+
+            let m = ctx.services.mouse();
+            m.current_capture = None;
+            m.capture_request = None;
+            m.release_requested = false;
         }
     }
 

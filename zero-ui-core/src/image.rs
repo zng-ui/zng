@@ -18,8 +18,12 @@ use webrender_api::ImageKey;
 //pub use formats::*;
 
 use crate::{
-    app::{view_process::ViewRenderer, AppExtension},
-    context::LayoutMetrics,
+    app::{
+        view_process::{ViewProcessRespawnedEvent, ViewRenderer},
+        AppExtension,
+    },
+    context::{AppContext, LayoutMetrics},
+    event::EventUpdateArgs,
     service::Service,
     task::{
         self,
@@ -583,8 +587,19 @@ impl From<std::io::Error> for ImageError {
 #[derive(Default)]
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
-    fn init(&mut self, ctx: &mut crate::context::AppContext) {
+    fn init(&mut self, ctx: &mut AppContext) {
         ctx.services.register(Images::new());
+    }
+
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if ViewProcessRespawnedEvent.update(args).is_some() {
+            for v in ctx.services.images().cache.values() {
+                if let Some(Ok(img)) = v.rsp(ctx.vars) {
+                    // TODO how to respawn disconnected (non-cached) images?.
+                    img.render_keys.borrow_mut().clear();
+                }
+            }
+        }
     }
 }
 

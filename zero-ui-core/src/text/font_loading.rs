@@ -15,7 +15,7 @@ use super::{
 use crate::{
     app::{
         raw_events::{RawFontChangedEvent, RawTextAaChangedEvent},
-        view_process::{ViewProcess, ViewRenderer},
+        view_process::{ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
         AppEventSender, AppExtension,
     },
     context::AppContext,
@@ -112,6 +112,17 @@ impl AppExtension for FontManager {
             ctx.services.fonts().on_system_fonts_changed();
         } else if let Some(args) = RawTextAaChangedEvent.update(args) {
             ctx.services.fonts().text_aa.set_ne(ctx.vars, args.aa);
+        } else if ViewProcessRespawnedEvent.update(args).is_some() {
+            let text_aa = ctx
+                .services
+                .get::<ViewProcess>()
+                .and_then(|a| a.text_aa().ok())
+                .unwrap_or(TextAntiAliasing::Subpixel);
+
+            let fonts = ctx.services.fonts();
+
+            fonts.text_aa.set_ne(ctx.vars, text_aa);
+            fonts.loader.on_view_process_respawn();
         }
     }
 
@@ -978,6 +989,22 @@ impl FontFaceLoader {
             custom_fonts: HashMap::new(),
             system_fonts: font_kit::source::SystemSource::new(),
             system_fonts_cache: HashMap::new(),
+        }
+    }
+
+    fn on_view_process_respawn(&mut self) {
+        let sys_fonts = self.system_fonts_cache.values().flatten().filter_map(|f| {
+            if let SystemFontFace::Found(_, _, _, face) = f {
+                Some(face)
+            } else {
+                None
+            }
+        });
+        for face in self.custom_fonts.values().flatten().chain(sys_fonts) {
+            face.render_keys.borrow_mut().clear();
+            for inst in face.instances.borrow().values() {
+                inst.render_keys.borrow_mut().clear();
+            }
         }
     }
 

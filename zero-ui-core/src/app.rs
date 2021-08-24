@@ -1124,7 +1124,8 @@ impl<E: AppExtension> RunningApp<E> {
 
             // Other
             zero_ui_vp::Ev::Respawned => {
-                todo!("respawn event or")
+                let args = view_process::ViewProcessRespawnedArgs::now();
+                self.notify_event(view_process::ViewProcessRespawnedEvent, args);
             }
         }
 
