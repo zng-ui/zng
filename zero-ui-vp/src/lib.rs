@@ -22,9 +22,12 @@ use std::{
     panic,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use window::ViewWindow;
 
@@ -121,14 +124,16 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 
 pub use types::{
     AxisId, ButtonId, CursorIcon, DevId, ElementState, Error, Ev, FramePixels, FrameRequest, Icon, ModifiersState, MonId, MonitorInfo,
-    MouseButton, MouseScrollDelta, MultiClickConfig, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode, WinId, WindowConfig,
-    WindowTheme,
+    MouseButton, MouseScrollDelta, MultiClickConfig, ResizeCause, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode, WinId,
+    WindowConfig, WindowTheme,
 };
 
 use webrender::api::{
     units::{LayoutPoint, LayoutRect, LayoutSize},
     DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
 };
+
+use crate::types::RunOnDrop;
 
 /// Start the app event loop in the View Process.
 fn run(channel_dir: PathBuf, headless: bool) -> ! {
@@ -147,16 +152,25 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
 
     let event_loop = EventLoop::<AppEvent>::with_user_event();
 
+    // requests are inserted in the winit event loop.
     let request_sender = event_loop.create_proxy();
+
+    // unless redirecting, for operations like the blocking Resize.
+    let redirect_enabled = Arc::new(AtomicBool::new(false));
+    let redirect_enabled_ = redirect_enabled.clone();
+    let (redirect_sender, redirect_receiver) = flume::unbounded();
     thread::spawn(move || {
         loop {
             match request_receiver.recv() {
                 Ok(req) => {
-                    if request_sender.send_event(AppEvent::Request(req)).is_err() {
+                    if redirect_enabled_.load(Ordering::Relaxed) {
+                        redirect_sender.send(req).expect("redirect_sender error");
+                    } else if request_sender.send_event(AppEvent::Request(req)).is_err() {
                         // event-loop shutdown
                         return;
                     }
                 }
+
                 Err(e) => {
                     panic!("request channel error:\n{:#?}", e);
                 }
@@ -164,7 +178,7 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
         }
     });
 
-    let mut app = ViewApp::new(response_sender, event_sender, headless);
+    let mut app = ViewApp::new(response_sender, event_sender, redirect_enabled, redirect_receiver, headless);
 
     let el = event_loop.create_proxy();
     #[cfg(windows)]
@@ -568,6 +582,10 @@ impl Drop for Controller {
 pub(crate) struct ViewApp {
     response_chan: Sender,
     event_chan: Sender,
+
+    redirect_enabled: Arc<AtomicBool>,
+    redirect_chan: flume::Receiver<Request>,
+
     started: bool,
     device_events: bool,
     headless: bool,
@@ -585,10 +603,18 @@ pub(crate) struct ViewApp {
     pending_clear: bool,
 }
 impl ViewApp {
-    pub fn new(response_chan: Sender, event_chan: Sender, headless: bool) -> ViewApp {
+    pub fn new(
+        response_chan: Sender,
+        event_chan: Sender,
+        redirect_enabled: Arc<AtomicBool>,
+        redirect_chan: flume::Receiver<Request>,
+        headless: bool,
+    ) -> ViewApp {
         ViewApp {
             response_chan,
             event_chan,
+            redirect_enabled,
+            redirect_chan,
             started: false,
             device_events: false,
             headless,
@@ -849,8 +875,11 @@ declare_ipc! {
     }
 
      /// Set the window content area size (inner-size).
-    pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> Result<()> {
-        self.with_window(id, |w|w.resize_inner(size))
+    pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, frame: FrameRequest) -> Result<()> {
+        if self.with_window(id, |w|w.resize_inner(size, frame))? {
+            self.notify(Ev::WindowResized(id, size, ResizeCause::App));
+        }
+        Ok(())
     }
 
     /// Set the window minimum content area size.
@@ -951,19 +980,82 @@ declare_ipc! {
 
 impl ViewApp {
     fn on_window_event(&mut self, ctx: &Context, window_id: WindowId, event: WindowEvent) {
-        let (i, w) = if let Some(r) = self.windows.iter_mut().enumerate().find(|(_, w)| w.is_window(window_id)) {
-            r
+        let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.is_window(window_id)) {
+            i
         } else {
             return;
         };
-        let id = w.id();
-        let scale_factor = w.scale_factor();
+
+        let id = self.windows[i].id();
+        let scale_factor = self.windows[i].scale_factor();
+
         match event {
             WindowEvent::Resized(size) => {
-                w.on_resized();
-                let s = w.scale_factor();
-                let size = LayoutSize::new(size.width as f32 / s, size.height as f32 / s);
-                self.notify(Ev::WindowResized(id, size));
+                if !self.windows[i].resized(size) {
+                    return;
+                }
+                // give the app one second to send a new frame, this is the collaborative way to
+                // resize, it should reduce the changes of the user seeing the clear color.
+
+                let size = LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor);
+
+                let redirect_enabled = self.redirect_enabled.clone();
+                redirect_enabled.store(true, Ordering::Relaxed);
+                let stop_redirect = RunOnDrop::new(|| redirect_enabled.store(false, Ordering::Relaxed));
+
+                // app resizes don't return `true` in `resized`.
+                self.notify(Ev::WindowResized(id, size, ResizeCause::System));
+
+                let deadline = Instant::now() + Duration::from_secs(1);
+
+                let mut received_frame = false;
+                loop {
+                    match self.redirect_chan.recv_deadline(deadline) {
+                        Ok(req) => {
+                            match &req {
+                                // received new frame
+                                Request::render { id: r_id, .. } | Request::render_update { id: r_id, .. } if *r_id == id => {
+                                    drop(stop_redirect);
+                                    received_frame = true;
+                                    self.windows[i].on_resized();
+                                    self.on_request(ctx, req);
+                                    break;
+                                }
+                                // interrupt redirect
+                                Request::set_position { id: r_id, .. }
+                                | Request::set_size { id: r_id, .. }
+                                | Request::set_min_size { id: r_id, .. }
+                                | Request::set_max_size { id: r_id, .. }
+                                    if *r_id == id =>
+                                {
+                                    drop(stop_redirect);
+                                    self.windows[i].on_resized();
+                                    self.on_request(ctx, req);
+                                    break;
+                                }
+                                // proxy
+                                _ => self.on_request(ctx, req),
+                            }
+                        }
+                        Err(flume::RecvTimeoutError::Timeout) => {
+                            drop(stop_redirect);
+                            self.windows[i].on_resized();
+                            break;
+                        }
+                        Err(flume::RecvTimeoutError::Disconnected) => {
+                            unreachable!()
+                        }
+                    }
+                }
+
+                let drained: Vec<_> = self.redirect_chan.drain().collect();
+                for req in drained {
+                    self.on_request(ctx, req);
+                }
+
+                if received_frame {
+                    // TODO block until new-frame-ready?
+                }
             }
             WindowEvent::Moved(p) => {
                 let p = LayoutPoint::new(p.x as f32 / scale_factor, p.y as f32 / scale_factor);

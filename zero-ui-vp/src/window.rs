@@ -36,6 +36,8 @@ pub(crate) struct ViewWindow {
     visible: bool,
     waiting_first_frame: bool,
 
+    prev_size: PhysicalSize<u32>,
+
     allow_alt_f4: Rc<Cell<bool>>,
     taskbar_visible: bool,
     movable: bool, // TODO
@@ -135,8 +137,9 @@ impl ViewWindow {
 
         let context = unsafe { context.make_not_current() }.unwrap();
 
-        let mut app = Self {
+        let mut win = Self {
             id,
+            prev_size: winit_window.inner_size(),
             window: winit_window,
             context: Some(context),
             gl,
@@ -144,7 +147,7 @@ impl ViewWindow {
             api,
             document_id,
             pipeline_id,
-            resized: false,
+            resized: true,
             clear_color: w.clear_color,
             waiting_first_frame: true,
             visible: w.visible,
@@ -154,10 +157,17 @@ impl ViewWindow {
             transparent: w.transparent,
         };
 
-        app.set_taskbar_visible(w.taskbar_visible);
-        app.render(w.frame);
+        win.set_taskbar_visible(w.taskbar_visible);
+        win.render(w.frame);
 
-        app
+        win
+    }
+
+    /// Returns `true` if the `new_size` is actually different then the previous or init size.
+    pub fn resized(&mut self, new_size: PhysicalSize<u32>) -> bool {
+        let resized = self.prev_size != new_size;
+        self.prev_size = new_size;
+        resized
     }
 
     pub fn id(&self) -> WinId {
@@ -182,8 +192,17 @@ impl ViewWindow {
         self.window.set_outer_position(pos);
     }
 
-    pub fn resize_inner(&mut self, size: LayoutSize) {
-        self.window.set_inner_size(LogicalSize::new(size.width, size.height));
+    /// Resize and render, returns `true` if actually resized.
+    #[must_use = "an event must be send if returns `true`"]
+    pub fn resize_inner(&mut self, size: LayoutSize, frame: FrameRequest) -> bool {
+        let new_size = LogicalSize::new(size.width, size.height).to_physical(self.window.scale_factor());
+        let resized = self.resized(new_size);
+        if resized {
+            self.window.set_inner_size(new_size);
+            self.resized = true;
+            self.render(frame);
+        }
+        resized
     }
 
     pub fn set_min_inner_size(&mut self, min_size: LayoutSize) {

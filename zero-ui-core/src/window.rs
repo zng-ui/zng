@@ -2,7 +2,7 @@
 
 use std::{fmt, mem, rc::Rc, time::Instant};
 
-pub use crate::app::view_process::{CursorIcon, MonitorInfo, VideoMode, WindowTheme};
+pub use crate::app::view_process::{CursorIcon, MonitorInfo, ResizeCause, VideoMode, WindowTheme};
 use linear_map::LinearMap;
 use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
 
@@ -813,6 +813,8 @@ event_args! {
         pub window_id: WindowId,
         /// New window size.
         pub new_size: LayoutSize,
+        /// Who resized the window.
+        pub cause: ResizeCause,
 
         ..
 
@@ -983,16 +985,28 @@ impl AppExtension for WindowManager {
                 }
             }
         } else if let Some(args) = RawWindowResizedEvent.update(args) {
-            if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
+            if let Some(mut window) = ctx.services.windows().windows.remove(&args.window_id) {
                 if window.vars.0.actual_size.set_ne(ctx.vars, args.size) {
-                    window.size = Some(args.size);
-                    // is new size:
-                    ctx.updates.layout();
-                    window.context.update |= UpdateDisplayRequest::Layout;
-
+                    window.size = args.size;
                     // raise window_resize
-                    WindowResizeEvent.notify(ctx.events, WindowResizeArgs::new(args.timestamp, args.window_id, args.size));
+                    WindowResizeEvent.notify(
+                        ctx.events,
+                        WindowResizeArgs::new(args.timestamp, args.window_id, args.size, args.cause),
+                    );
+
+                    if matches!(args.cause, ResizeCause::System) {
+                        // the view process is waiting a new frame or update, this will send one.
+                        window.on_resize_event(ctx, args.size);
+                    }
+                } else {
+                    log::warn!("received RawWindowResizedEvent with the same size");
+
+                    if matches!(args.cause, ResizeCause::System) {
+                        // view process is waiting a frame.
+                        window.render_empty_update();
+                    }
                 }
+                ctx.services.windows().windows.insert(args.window_id, window);
             }
         } else if let Some(args) = RawWindowMovedEvent.update(args) {
             if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
@@ -1182,9 +1196,9 @@ impl AppExtension for WindowManager {
     fn update_display(&mut self, ctx: &mut AppContext, r: UpdateDisplayRequest) {
         with_detached_windows(ctx, |ctx, windows| {
             for (_, w) in windows.iter_mut() {
-                w.layout(ctx, r);
-                w.render(ctx, r);
-                w.render_update(ctx, r);
+                w.on_layout(ctx, r);
+                w.on_render(ctx, r);
+                w.on_render_update(ctx);
             }
         });
     }
@@ -1620,7 +1634,7 @@ struct AppWindow {
     frame_id: FrameId,
 
     position: LayoutPoint,
-    size: Option<LayoutSize>,
+    size: LayoutSize,
     min_size: LayoutSize,
     max_size: LayoutSize,
 
@@ -1693,7 +1707,7 @@ impl AppWindow {
 
             frame_id: frame_info.frame_id(),
             position: LayoutPoint::zero(),
-            size: None,
+            size: LayoutSize::zero(),
             min_size: LayoutSize::zero(),
             max_size: LayoutSize::zero(),
 
@@ -1727,15 +1741,12 @@ impl AppWindow {
                 todo!()
             }
 
-            if self.vars.size().is_new(ctx) || self.vars.auto_size().is_new(ctx) {
-                self.context.update |= UpdateDisplayRequest::Layout;
-                ctx.updates.layout();
-                self.size = None; // ignore end-user size next layout.
-            }
-
-            if self.vars.min_size().is_new(ctx) || self.vars.max_size().is_new(ctx) {
-                self.context.update |= UpdateDisplayRequest::Layout;
-                ctx.updates.layout();
+            if self.vars.size().is_new(ctx)
+                || self.vars.auto_size().is_new(ctx)
+                || self.vars.min_size().is_new(ctx)
+                || self.vars.max_size().is_new(ctx)
+            {
+                self.on_size_vars_update(ctx);
             }
 
             if let Some(w) = &self.headed {
@@ -1847,49 +1858,121 @@ impl AppWindow {
         }
     }
 
+    /// On resize we need to re-layout, render and send a frame render quick, because
+    /// the view process blocks for up to one second waiting the new frame, to reduce the
+    /// chances of the user seeing the clear_color when resizing.
     fn on_resize_event(&mut self, ctx: &mut AppContext, actual_size: LayoutSize) {
         if self.vars.0.actual_size.set_ne(ctx.vars, actual_size) {
-            let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
-
+            let (_scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
             self.context.layout(ctx, 16.0, scr_factor, scr_ppi, actual_size, |_| actual_size);
-        }
-
-        todo!("Render and send frame")
-    }
-
-    fn on_size_vars_update(&mut self, ctx: &mut AppContext) {
-        let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
-
-        let size = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
-            let mut size = self.size.unwrap_or_else(|| self.vars.size().get(ctx.vars).to_layout(scr_size, ctx));
-            let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
-            let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
-
-            size.width = size.width.max(min_size.width).min(max_size.width);
-            size.height = size.height.max(min_size.height).min(max_size.height);
-
-            size
-        });
-
-        if let Some(w) = &self.headed {
-            w.set_size(size).unwrap();
-        } else if let Some(_r) = &self.renderer {
-            todo!()
+            // the frame is send using the normal request
+            self.on_render(ctx, UpdateDisplayRequest::ForceRender);
         } else {
-            RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, size))
+            self.render_empty_update();
         }
     }
 
-    fn layout(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
+    /// On any of the variables involved in sizing updated.
+    ///
+    /// Do measure/arrange, and if sizes actually changed send resizes.
+    fn on_size_vars_update(&mut self, ctx: &mut AppContext) {
+        // `size` var is only used on init or once after update AND if auto_size did not override it.
+        let use_system_size = self.vars.size().is_new(ctx.vars);
+        let (size, min_size, max_size) = self.layout_size(ctx, use_system_size);
+
+        if self.size != size {
+            let frame = self.render_frame(ctx);
+
+            // resize view
+            self.size = size;
+            if let Some(w) = &self.headed {
+                let _ = w.set_size(size, frame);
+            } else if let Some(_r) = &self.renderer {
+                // TODO resize headless renderer.
+                todo!()
+            } else {
+                // headless "resize"
+                RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, ResizeCause::App));
+            }
+            // the `actual_size` is set from the resize event only.
+        }
+
+        // after potential resize, so we don't cause a resize from system
+        // because winit coerces sizes.
+        if self.min_size != min_size {
+            self.min_size = min_size;
+            if let Some(w) = &self.headed {
+                let _ = w.set_min_size(min_size);
+            }
+        }
+        if self.max_size != max_size {
+            self.max_size = max_size;
+            if let Some(w) = &self.headed {
+                let _ = w.set_max_size(max_size);
+            }
+        }
+    }
+
+    /// On layout request can go two ways, if auto-size is enabled we will end-up resizing the window (probably)
+    /// in this case we also render to send the frame together with the resize request, otherwise we just do layout
+    /// and then wait for the normal render request.
+    fn on_layout(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
         if !request.in_window(self.context.update).is_layout() {
             return;
         }
+
+        if self.first_render {
+            self.on_init_layout(ctx);
+            return;
+        }
+
+        // layout using the "system" size, it can still be overwritten by auto_size.
+        let (size, _, _) = self.layout_size(ctx, true);
+
+        if self.size != size {
+            let frame = self.render_frame(ctx);
+
+            self.size = size;
+            if let Some(w) = &self.headed {
+                let _ = w.set_size(size, frame);
+            } else if let Some(_r) = &self.renderer {
+                // TODO resize headless renderer.
+                todo!()
+            } else {
+                // headless "resize"
+                RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, ResizeCause::App));
+            }
+            // the `actual_size` is set from the resize event only.
+        }
+    }
+
+    /// `on_layout` requested before the first frame render.
+    fn on_init_layout(&mut self, ctx: &mut AppContext) {
+        debug_assert!(self.first_render);
+
+        let (final_size, min_size, max_size) = self.layout_size(ctx, false);
+
+        self.size = final_size;
+        self.min_size = min_size;
+        self.max_size = max_size;
+
+        // `on_render` will complete first_render.
+        self.context.update = UpdateDisplayRequest::Render;
+    }
+
+    /// Measure and arrange the content, returns the final, min and max sizes.
+    ///
+    /// If `use_system_size` is `true` the `size` variable is ignored.
+    fn layout_size(&mut self, ctx: &mut AppContext, use_system_size: bool) -> (LayoutSize, LayoutSize, LayoutSize) {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
         let (available_size, min_size, max_size, auto_size) =
             ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
-                // TODO only use these values in the first layout and after they update.
-                let mut size = self.size.unwrap_or_else(|| self.vars.size().get(ctx.vars).to_layout(scr_size, ctx));
+                let mut size = if use_system_size {
+                    self.size
+                } else {
+                    self.vars.size().get(ctx.vars).to_layout(scr_size, ctx)
+                };
                 let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
                 let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
 
@@ -1904,8 +1987,8 @@ impl AppWindow {
                 } else {
                     size.height = size.height.max(min_size.height).min(max_size.height);
                 }
-                let pg = PixelGrid::new(scr_factor);
-                (size.snap_to(pg), min_size.snap_to(pg), max_size.snap_to(pg), auto_size)
+
+                (size, min_size, max_size, auto_size)
             });
 
         let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size, |desired_size| {
@@ -1919,35 +2002,43 @@ impl AppWindow {
             final_size
         });
 
-        self.size = Some(final_size);
-        self.min_size = min_size;
-        self.max_size = max_size;
-
-        if let Some(w) = &self.headed {
-            // TODO only send size if layout is not caused by view resize by th end-user.
-            w.set_size(final_size).unwrap();
-        }
+        (final_size, min_size, max_size)
     }
 
-    fn render(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
-        if !request.in_window(self.context.update).is_render() {
-            return;
-        }
-        // TODO use the cached value, when that is implemented in layout.
+    /// Render frame for sending.
+    ///
+    /// The FrameId and FrameInfo are up-dated, but the FrameRequest is not send.
+    fn render_frame(&mut self, ctx: &mut AppContext) -> view_process::FrameRequest {
         let scale_factor = self.monitor_metrics(ctx).1;
 
         // `UiNode::render`
-        let ((pipeline_id, size, display_list), frame_info) = self.context.render(
-            ctx,
-            self.frame_id,
-            self.size.expect("no layout before render"),
-            scale_factor,
-            &self.renderer,
-        );
+        let ((pipeline_id, size, display_list), frame_info) =
+            self.context.render(ctx, self.frame_id, self.size, scale_factor, &self.renderer);
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
         ctx.services.windows().windows_info.get_mut(&self.id).unwrap().frame_info = frame_info;
+
+        // already notify, extensions are interested only in the frame metadata.
+        ctx.updates.new_frame_rendered(self.id, self.frame_id);
+
+        view_process::FrameRequest {
+            id: self.frame_id,
+            pipeline_id,
+            size,
+            display_list: display_list.into_data(),
+        }
+    }
+
+    /// On render request.
+    ///
+    /// If there is a pending request we generate the frame and send.
+    fn on_render(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
+        if !request.in_window(self.context.update).is_render() {
+            return;
+        }
+
+        let frame = self.render_frame(ctx);
 
         if self.first_render {
             self.first_render = false;
@@ -1962,7 +2053,7 @@ impl AppWindow {
                     let config = view_process::WindowConfig {
                         title: self.vars.title().get(ctx.vars).to_string(),
                         pos: self.position,
-                        size,
+                        size: frame.size,
                         min_size: self.min_size,
                         max_size: self.max_size,
                         visible: self.vars.visible().copy(ctx.vars),
@@ -1980,12 +2071,7 @@ impl AppWindow {
                             WindowIcon::Render(_) => todo!(),
                         },
                         transparent: self.vars.transparent().copy(ctx.vars),
-                        frame: view_process::FrameRequest {
-                            id: self.frame_id,
-                            pipeline_id,
-                            size,
-                            display_list: display_list.into_data(),
-                        },
+                        frame,
                     };
 
                     // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
@@ -2013,26 +2099,19 @@ impl AppWindow {
                 }
             }
         } else if let Some(renderer) = &mut self.renderer {
-            // this is not the first frame, just need to send the frame-request.
-            renderer
-                .render(view_process::FrameRequest {
-                    id: self.frame_id,
-                    pipeline_id,
-                    size,
-                    display_list: display_list.into_data(),
-                })
-                .expect("TODO, deal with respawn here?");
+            // this is not the first frame, just need to send the request.
+            renderer.render(frame).expect("TODO, deal with respawn here?");
         }
-
-        // for all modes we can announce the new frame already,
-        // TODO can code expect to be able to copy pixels here?
-        ctx.updates.new_frame_rendered(self.id, self.frame_id);
     }
 
-    fn render_update(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
-        if !request.in_window(self.context.update).is_render_update() {
+    /// On render update request.
+    ///
+    /// If there is a pending request we collect updates and send.
+    fn on_render_update(&mut self, ctx: &mut AppContext) {
+        if !self.context.update.is_render_update() {
             return;
         }
+
         debug_assert!(!self.first_render);
 
         let updates = self.context.render_update(ctx, self.frame_id);
@@ -2046,6 +2125,22 @@ impl AppWindow {
         }
 
         // TODO notify, after we implement metadata modification in render_update.
+    }
+
+    /// Send an empty frame update.
+    ///
+    /// this is used when the view-process demands a frame but we don't need to generate one
+    /// (like a resize to same size).
+    fn render_empty_update(&mut self) {
+        if let Some(renderer) = &self.renderer {
+            // send update if we have a renderer.
+            renderer
+                .render_update(DynamicProperties {
+                    transforms: vec![],
+                    floats: vec![],
+                })
+                .expect("TODO, deal with respawn here?");
+        }
     }
 
     fn respawn(&mut self, _ctx: &mut AppContext) {

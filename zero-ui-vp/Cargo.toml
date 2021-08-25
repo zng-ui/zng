@@ -24,3 +24,4 @@ uuid = { version = "0.8", features = ["v4"] }
 winapi = "0.3"
 log = "0.4"
 is_main_thread = "0.1"
+flume = "0.10"

@@ -963,8 +963,8 @@ impl<E: AppExtension> RunningApp<E> {
             zero_ui_vp::Ev::EventsCleared => {
                 return self.update(observer);
             }
-            zero_ui_vp::Ev::WindowResized(w_id, size) => {
-                let args = RawWindowResizedArgs::now(self.window_id(w_id), size);
+            zero_ui_vp::Ev::WindowResized(w_id, size, cause) => {
+                let args = RawWindowResizedArgs::now(self.window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args);
             }
             zero_ui_vp::Ev::WindowMoved(w_id, pos) => {
@@ -1786,7 +1786,8 @@ pub mod view_process {
     use webrender_api::{DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate};
     use zero_ui_vp::{Controller, DevId, WinId};
     pub use zero_ui_vp::{
-        CursorIcon, Error, Ev, FramePixels, FrameRequest, Icon, MonitorInfo, Result, TextAntiAliasing, VideoMode, WindowConfig, WindowTheme,
+        CursorIcon, Error, Ev, FramePixels, FrameRequest, Icon, MonitorInfo, ResizeCause, Result, TextAntiAliasing, VideoMode,
+        WindowConfig, WindowTheme,
     };
 
     use super::DeviceId;
@@ -2010,8 +2011,8 @@ pub mod view_process {
 
         /// Set the window size.
         #[inline]
-        pub fn set_size(&self, size: LayoutSize) -> Result<()> {
-            self.0.call(|id, p| p.set_size(id, size))
+        pub fn set_size(&self, size: LayoutSize, frame: FrameRequest) -> Result<()> {
+            self.0.call(|id, p| p.set_size(id, size, frame))
         }
 
         /// Set the window minimum size.
@@ -2197,7 +2198,7 @@ pub mod raw_events {
         keyboard::{Key, KeyState, ModifiersState, ScanCode},
         mouse::{ButtonState, MouseButton, MultiClickConfig},
         units::{LayoutPoint, LayoutSize},
-        window::{MonitorId, WindowId, WindowTheme},
+        window::{MonitorId, ResizeCause, WindowId, WindowTheme},
     };
 
     event_args! {
@@ -2297,6 +2298,9 @@ pub mod raw_events {
 
             /// Window new size.
             pub size: LayoutSize,
+
+            /// Who resized the window.
+            pub cause: ResizeCause,
 
             ..
 

@@ -47,7 +47,7 @@ pub enum Ev {
     EventsCleared,
 
     // Window events
-    WindowResized(WinId, LayoutSize),
+    WindowResized(WinId, LayoutSize, ResizeCause),
     WindowMoved(WinId, LayoutPoint),
     DroppedFile(WinId, PathBuf),
     HoveredFile(WinId, PathBuf),
@@ -86,6 +86,15 @@ pub enum Ev {
     DeviceButton(DevId, ButtonId, ElementState),
     DeviceKey(DevId, KeyboardInput),
     DeviceText(DevId, char),
+}
+
+/// Cause of an window resize event.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum ResizeCause {
+    /// Operating system or end-user resized the window.
+    System,
+    /// App resized the window.
+    App,
 }
 
 /// Describes the force of a touch event
@@ -400,6 +409,20 @@ impl Default for MultiClickConfig {
         Self {
             time: Duration::from_millis(500),
             area: (4, 4),
+        }
+    }
+}
+
+pub(crate) struct RunOnDrop<F: FnOnce()>(Option<F>);
+impl<F: FnOnce()> RunOnDrop<F> {
+    pub fn new(clean: F) -> Self {
+        RunOnDrop(Some(clean))
+    }
+}
+impl<F: FnOnce()> Drop for RunOnDrop<F> {
+    fn drop(&mut self) {
+        if let Some(clean) = self.0.take() {
+            clean();
         }
     }
 }
