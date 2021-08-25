@@ -18,16 +18,74 @@ use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, time::Instant};
 pub use crate::state::*;
 
 /// Required updates for a window layout and frame.
+#[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UpdateDisplayRequest {
     /// No update required.
-    None = 0,
-    /// No new full frame required, just update the current one and render again.
-    RenderUpdate = 1,
-    /// No re-layout required, just render again.
-    Render = 2,
-    /// Full update required, re-layout then render again.
-    Layout = 3,
+    None = 0b0000_0000,
+    /// Windows that requested this must update their existing frame and re-render.
+    RenderUpdate = 0b0000_0001,
+    /// Windows that requested this must generate a new frame and render.
+    Render = 0b0000_0011,
+    /// All open windows must generate a new frame and render.
+    ForceRender = 0b1000_0011,
+    /// Windows that requested this must re-compute layout, generate a new frame and render.
+    Layout = 0b0000_0111,
+    /// All open windows must re-compute layout, generate a new frame and render.
+    ForceLayout = 0b1000_0111,
+}
+impl UpdateDisplayRequest {
+    /// If the request must be applied to all open windows.
+    #[inline]
+    pub fn is_force(self) -> bool {
+        (self as u8 & 0b1000_0000) == 0b1000_0000
+    }
+
+    /// If the request includes a re-compute of the window layout.
+    #[inline]
+    pub fn is_layout(self) -> bool {
+        (self as u8 & 0b0000_0100) == 0b0000_0100
+    }
+
+    /// If the request includes the generation of a new frame.
+    ///
+    /// Returns `true` if is layout too.
+    #[inline]
+    pub fn is_render(self) -> bool {
+        (self as u8 & 0b0000_0010) == 0b0000_0010
+    }
+
+    /// If the request is only a render update. If `true` the window must update
+    /// the current frame and re-render.
+    ///
+    /// Returns `false` if is a full layout or render.
+    #[inline]
+    pub fn is_render_update(self) -> bool {
+        (self as u8 | 0b0000_0001) == 0b0000_0001
+    }
+
+    /// If contains any update.
+    #[inline]
+    pub fn is_some(self) -> bool {
+        !self.is_none()
+    }
+
+    /// If does not contain any update.
+    #[inline]
+    pub fn is_none(self) -> bool {
+        self == UpdateDisplayRequest::None
+    }
+
+    /// Combine `self` as the app level request with an specific window request.
+    ///
+    /// Returns what update the window must apply.
+    pub fn in_window(self, window_request: UpdateDisplayRequest) -> UpdateDisplayRequest {
+        if self.is_force() {
+            self
+        } else {
+            window_request
+        }
+    }
 }
 impl Default for UpdateDisplayRequest {
     #[inline]
@@ -40,15 +98,8 @@ impl std::ops::BitOrAssign for UpdateDisplayRequest {
     fn bitor_assign(&mut self, rhs: Self) {
         let a = (*self) as u8;
         let b = rhs as u8;
-        *self = match a.max(b) {
-            3 => UpdateDisplayRequest::Layout,
-            2 => UpdateDisplayRequest::Render,
-            1 => UpdateDisplayRequest::RenderUpdate,
-            n => {
-                debug_assert_eq!(n, 0);
-                UpdateDisplayRequest::None
-            }
-        };
+        // SAFETY: flag OR
+        *self = unsafe { mem::transmute(a | b) }
     }
 }
 impl std::ops::BitOr for UpdateDisplayRequest {
@@ -58,30 +109,6 @@ impl std::ops::BitOr for UpdateDisplayRequest {
     fn bitor(mut self, rhs: Self) -> Self {
         self |= rhs;
         self
-    }
-}
-impl std::cmp::PartialOrd for UpdateDisplayRequest {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        std::cmp::PartialOrd::partial_cmp(&(*self as u8), &(*other as u8))
-    }
-}
-impl std::cmp::Ord for UpdateDisplayRequest {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        std::cmp::Ord::cmp(&(*self as u8), &(*other as u8))
-    }
-}
-
-impl UpdateDisplayRequest {
-    /// If contains any update.
-    #[inline]
-    pub fn is_some(self) -> bool {
-        !self.is_none()
-    }
-
-    /// If does not contain any update.
-    #[inline]
-    pub fn is_none(self) -> bool {
-        self == UpdateDisplayRequest::None
     }
 }
 
@@ -163,8 +190,13 @@ pub struct UpdateArgs {
 pub struct Updates {
     event_sender: AppEventSender,
     update: bool,
+
+    // `win_display_update` tracks the requests made inside the window
+    // in the end `display_update` is applied but windows ignore the request
+    // if it was not made inside the window and is not `force`.
     display_update: UpdateDisplayRequest,
     win_display_update: UpdateDisplayRequest,
+
     new_frames: LinearMap<WindowId, FrameId>,
 
     pre_handlers: Vec<UpdateHandler>,
@@ -217,9 +249,8 @@ impl Updates {
     /// Schedules a layout update for all open windows.
     #[inline]
     pub fn layout_all(&mut self) {
-        self.win_display_update |= UpdateDisplayRequest::Layout;
-        self.display_update |= UpdateDisplayRequest::Layout;
-        todo!()
+        self.win_display_update |= UpdateDisplayRequest::ForceLayout;
+        self.display_update |= UpdateDisplayRequest::ForceLayout;
     }
 
     /// Gets `true` if a layout update is scheduled.
@@ -243,15 +274,14 @@ impl Updates {
     /// Schedules a new frame for all open windows.
     #[inline]
     pub fn render_all(&mut self) {
-        self.win_display_update |= UpdateDisplayRequest::Render;
-        self.display_update |= UpdateDisplayRequest::Render;
-        todo!()
+        self.win_display_update |= UpdateDisplayRequest::ForceRender;
+        self.display_update |= UpdateDisplayRequest::ForceRender;
     }
 
-    /// Gets `true` if a new frame is scheduled.
+    /// Returns `true` if a new frame is scheduled, including layout.
     #[inline]
     pub fn render_requested(&self) -> bool {
-        self.win_display_update >= UpdateDisplayRequest::Render
+        self.win_display_update.is_render()
     }
 
     /// Schedule a frame update.
@@ -267,10 +297,10 @@ impl Updates {
         self.new_frames.insert(window_id, frame_id);
     }
 
-    /// Gets `true` if a frame update is scheduled.
+    /// Returns `true` if only a frame update is scheduled.
     #[inline]
     pub fn render_update_requested(&self) -> bool {
-        self.win_display_update >= UpdateDisplayRequest::RenderUpdate
+        self.win_display_update.is_render_update()
     }
 
     /// Schedule the `updates`.
@@ -551,7 +581,9 @@ impl<'a> AppContext<'a> {
         renderer: &Option<ViewRenderer>,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, UpdateDisplayRequest) {
-        self.updates.win_display_update = UpdateDisplayRequest::None;
+        if !self.updates.display_update.is_force() {
+            self.updates.win_display_update = UpdateDisplayRequest::None;
+        }
 
         let mut update_state = StateMap::new();
 

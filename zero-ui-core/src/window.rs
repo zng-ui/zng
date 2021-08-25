@@ -1179,12 +1179,12 @@ impl AppExtension for WindowManager {
         });
     }
 
-    fn update_display(&mut self, ctx: &mut AppContext, _: UpdateDisplayRequest) {
+    fn update_display(&mut self, ctx: &mut AppContext, r: UpdateDisplayRequest) {
         with_detached_windows(ctx, |ctx, windows| {
             for (_, w) in windows.iter_mut() {
-                w.layout(ctx);
-                w.render(ctx);
-                w.render_update(ctx);
+                w.layout(ctx, r);
+                w.render(ctx, r);
+                w.render_update(ctx, r);
             }
         });
     }
@@ -1847,8 +1847,8 @@ impl AppWindow {
         }
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
-        if !self.context.need_layout() {
+    fn layout(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
+        if !request.in_window(self.context.update).is_layout() {
             return;
         }
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
@@ -1896,8 +1896,8 @@ impl AppWindow {
         }
     }
 
-    fn render(&mut self, ctx: &mut AppContext) {
-        if !self.context.need_render() {
+    fn render(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
+        if !request.in_window(self.context.update).is_render() {
             return;
         }
         // TODO use the cached value, when that is implemented in layout.
@@ -1996,8 +1996,8 @@ impl AppWindow {
         ctx.updates.new_frame_rendered(self.id, self.frame_id);
     }
 
-    fn render_update(&mut self, ctx: &mut AppContext) {
-        if !self.context.need_render_update() {
+    fn render_update(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
+        if !request.in_window(self.context.update).is_render_update() {
             return;
         }
         debug_assert!(!self.first_render);
@@ -2067,10 +2067,6 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
-    fn need_layout(&self) -> bool {
-        matches!(self.update, UpdateDisplayRequest::Layout)
-    }
-
     fn layout(
         &mut self,
         ctx: &mut AppContext,
@@ -2080,9 +2076,6 @@ impl OwnedWindowContext {
         available_size: LayoutSize,
         calc_final_size: impl FnOnce(LayoutSize) -> LayoutSize,
     ) -> LayoutSize {
-        debug_assert!(self.need_layout());
-        self.update = UpdateDisplayRequest::Render;
-
         let root = &mut self.root;
         let (final_size, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let child = &mut root.child;
@@ -2104,10 +2097,6 @@ impl OwnedWindowContext {
         final_size
     }
 
-    fn need_render(&self) -> bool {
-        matches!(self.update, UpdateDisplayRequest::Render)
-    }
-
     fn render(
         &mut self,
         ctx: &mut AppContext,
@@ -2116,7 +2105,6 @@ impl OwnedWindowContext {
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
-        debug_assert!(self.need_render());
         self.update = UpdateDisplayRequest::None;
 
         let root = &mut self.root;
@@ -2142,12 +2130,8 @@ impl OwnedWindowContext {
         frame.finalize()
     }
 
-    fn need_render_update(&self) -> bool {
-        matches!(self.update, UpdateDisplayRequest::RenderUpdate)
-    }
-
     fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId) -> DynamicProperties {
-        debug_assert!(self.need_render_update());
+        debug_assert!(self.update.is_render_update());
         self.update = UpdateDisplayRequest::None;
 
         let root = &self.root;
