@@ -49,7 +49,7 @@ impl UpdateDisplayRequest {
 
     /// If the request includes the generation of a new frame.
     ///
-    /// Returns `true` if is layout too.
+    /// Returns `true` if it is layout too.
     #[inline]
     pub fn is_render(self) -> bool {
         (self as u8 & 0b0000_0010) == 0b0000_0010
@@ -58,10 +58,10 @@ impl UpdateDisplayRequest {
     /// If the request is only a render update. If `true` the window must update
     /// the current frame and re-render.
     ///
-    /// Returns `false` if is a full layout or render.
+    /// Returns `false` if it is a full layout or render.
     #[inline]
     pub fn is_render_update(self) -> bool {
-        (self as u8 | 0b0000_0001) == 0b0000_0001
+        self == UpdateDisplayRequest::RenderUpdate
     }
 
     /// If contains any update.

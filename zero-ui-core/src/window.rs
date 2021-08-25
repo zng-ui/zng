@@ -385,18 +385,18 @@ pub enum MonitorQuery {
     /// Custom query closure.
     ///
     /// If the closure returns `None` the primary monitor is used, if there is any.
-    Query(Rc<dyn Fn(&mut Monitors) -> Option<MonitorFullInfo>>),
+    Query(Rc<dyn Fn(&mut Monitors) -> Option<&MonitorFullInfo>>),
 }
 impl MonitorQuery {
     /// New query.
     #[inline]
-    pub fn new(query: impl Fn(&mut Monitors) -> Option<MonitorFullInfo> + 'static) -> Self {
+    pub fn new(query: impl Fn(&mut Monitors) -> Option<&MonitorFullInfo> + 'static) -> Self {
         Self::Query(Rc::new(query))
     }
 
     /// Runs the query.
     #[inline]
-    pub fn select(&self, monitors: &mut Monitors) -> Option<MonitorFullInfo> {
+    pub fn select<'a, 'b>(&'a self, monitors: &'b mut Monitors) -> Option<&'b MonitorFullInfo> {
         match self {
             MonitorQuery::Primary => None,
             MonitorQuery::Query(q) => q(monitors),
@@ -1847,6 +1847,39 @@ impl AppWindow {
         }
     }
 
+    fn on_resize_event(&mut self, ctx: &mut AppContext, actual_size: LayoutSize) {
+        if self.vars.0.actual_size.set_ne(ctx.vars, actual_size) {
+            let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+
+            self.context.layout(ctx, 16.0, scr_factor, scr_ppi, actual_size, |_| actual_size);
+        }
+
+        todo!("Render and send frame")
+    }
+
+    fn on_size_vars_update(&mut self, ctx: &mut AppContext) {
+        let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+
+        let size = ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+            let mut size = self.size.unwrap_or_else(|| self.vars.size().get(ctx.vars).to_layout(scr_size, ctx));
+            let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
+            let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
+
+            size.width = size.width.max(min_size.width).min(max_size.width);
+            size.height = size.height.max(min_size.height).min(max_size.height);
+
+            size
+        });
+
+        if let Some(w) = &self.headed {
+            w.set_size(size).unwrap();
+        } else if let Some(_r) = &self.renderer {
+            todo!()
+        } else {
+            RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, size))
+        }
+    }
+
     fn layout(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
         if !request.in_window(self.context.update).is_layout() {
             return;
@@ -2312,10 +2345,10 @@ impl WindowVars {
 
     /// Window monitor.
     ///
-    /// The query selects the monitor to witch the [`position`] and [`size`] is relative to.
+    /// The query selects the monitor to which the [`position`] and [`size`] is relative to.
     ///
     /// It evaluate once on startup and then once every time the variable updates. You can track
-    /// what the current monitor using [`actual_monitor`].
+    /// what the current monitor is by using [`actual_monitor`].
     ///
     /// # Behavior After Open
     ///
