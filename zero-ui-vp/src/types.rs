@@ -240,7 +240,7 @@ pub struct FrameRequest {
     /// Pipeline Tag.
     pub pipeline_id: PipelineId,
 
-    /// Window inner size.
+    /// Window inner size in layout pixels.
     ///
     /// This is both the viewport_size and document_size for webrender
     /// as we don't do root level scrolling.
@@ -297,8 +297,6 @@ pub struct WindowConfig {
     pub clear_color: Option<ColorF>,
     /// Text anti-aliasing.
     pub text_aa: TextAntiAliasing,
-    /// Frame.
-    pub frame: FrameRequest,
 }
 
 /// BGRA8 pixel data copied from a rendered frame.

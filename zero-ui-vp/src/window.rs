@@ -1,13 +1,7 @@
 use std::{cell::Cell, rc::Rc};
 
 use gleam::gl;
-use glutin::{
-    dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
-    event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode},
-    event_loop::EventLoopProxy,
-    window::{Window, WindowBuilder, WindowId},
-    ContextBuilder, ContextWrapper, NotCurrent,
-};
+use glutin::{ContextBuilder, ContextWrapper, NotCurrent, dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize}, event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode}, event_loop::EventLoopProxy, window::{Window, WindowBuilder, WindowId}};
 use webrender::{
     api::{units::*, *},
     euclid, Renderer, RendererKind, RendererOptions,
@@ -47,12 +41,11 @@ pub(crate) struct ViewWindow {
 impl ViewWindow {
     #[allow(clippy::too_many_arguments)]
     pub fn new(ctx: &Context, id: u32, w: WindowConfig) -> Self {
-        let scale = ctx.window_target.primary_monitor().map(|m| m.scale_factor() as f32).unwrap_or(1.0);
         // create window and OpenGL context
         let winit = WindowBuilder::new()
             .with_title(w.title)
-            .with_position(PhysicalPosition::new((w.pos.x / scale) as i32, (w.pos.y / scale) as i32))
-            .with_inner_size(PhysicalSize::new((w.size.width / scale) as u32, (w.size.height / scale) as u32))
+            .with_position(LogicalPosition::new(w.pos.x, w.pos.y))
+            .with_inner_size(LogicalSize::new(w.size.width, w.size.height))
             .with_decorations(w.chrome_visible)
             .with_resizable(w.resizable)
             .with_transparent(w.transparent)
@@ -158,7 +151,6 @@ impl ViewWindow {
         };
 
         win.set_taskbar_visible(w.taskbar_visible);
-        win.render(w.frame);
 
         win
     }
@@ -257,7 +249,7 @@ impl ViewWindow {
     pub fn render(&mut self, frame: FrameRequest) {
         let scale_factor = self.window.scale_factor() as f32;
         let size = self.window.inner_size();
-        let viewport_size = LayoutSize::new(size.width as f32 * scale_factor, size.height as f32 * scale_factor);
+        let viewport_size = LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor);
 
         let mut txn = Transaction::new();
         let display_list = BuiltDisplayList::from_data(frame.display_list.0, frame.display_list.1);

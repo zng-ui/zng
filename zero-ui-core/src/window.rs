@@ -2037,14 +2037,15 @@ impl AppWindow {
         if !request.in_window(self.context.update).is_render() {
             return;
         }
-
-        let frame = self.render_frame(ctx);
-
+        
         if self.first_render {
+            // in first frame we can open the window, it will stay hidden until it receives the first frame
+            // but the renderer will exist for resources to start loading.
+
             self.first_render = false;
-            // the window is opened in the first render, this is needed in headed mode, so that the
-            // user does not see an empty window, but for consistency we implement the same for all modes.
+
             let vp = ctx.services.get::<ViewProcess>();
+
             match self.mode {
                 WindowMode::Headed => {
                     // send window request to the view-process, in the view-process the window will start but
@@ -2053,7 +2054,7 @@ impl AppWindow {
                     let config = view_process::WindowConfig {
                         title: self.vars.title().get(ctx.vars).to_string(),
                         pos: self.position,
-                        size: frame.size,
+                        size: self.size,
                         min_size: self.min_size,
                         max_size: self.max_size,
                         visible: self.vars.visible().copy(ctx.vars),
@@ -2071,7 +2072,6 @@ impl AppWindow {
                             WindowIcon::Render(_) => todo!(),
                         },
                         transparent: self.vars.transparent().copy(ctx.vars),
-                        frame,
                     };
 
                     // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
@@ -2083,7 +2083,9 @@ impl AppWindow {
                 }
                 WindowMode::HeadlessWithRenderer => todo!(),
                 WindowMode::Headless => {
-                    // headless without renderer only provides the `FrameInfo`, so we are done "rendering".
+                    // headless without renderer only provides the `FrameInfo` (notified in `render_frame`), 
+                    // but if we are in a full headless app we can simulate the behavior of headed windows that
+                    // become visible and focused when they present the first frame.
 
                     if vp.is_none() {
                         // if we are in a headless app too, we simulate focus.
@@ -2098,8 +2100,11 @@ impl AppWindow {
                     }
                 }
             }
-        } else if let Some(renderer) = &mut self.renderer {
-            // this is not the first frame, just need to send the request.
+        }
+
+        let frame = self.render_frame(ctx);
+
+        if let Some(renderer) = &mut self.renderer {
             renderer.render(frame).expect("TODO, deal with respawn here?");
         }
     }
