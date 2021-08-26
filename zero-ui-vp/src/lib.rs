@@ -123,8 +123,8 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 }
 
 pub use types::{
-    AxisId, ButtonId, CursorIcon, DevId, ElementState, Error, Ev, FramePixels, FrameRequest, Icon, ModifiersState, MonId, MonitorInfo,
-    MouseButton, MouseScrollDelta, MultiClickConfig, ResizeCause, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode, WinId,
+    AxisId, ButtonId, CursorIcon, DevId, ElementState, Error, Ev, EventCause, FramePixels, FrameRequest, Icon, ModifiersState, MonId,
+    MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode, WinId,
     WindowConfig, WindowTheme,
 };
 
@@ -864,20 +864,23 @@ declare_ipc! {
         self.with_window(id, |w| w.set_transparent(transparent))
     }
 
-   /// Set the window system border and title visibility.
+    /// Set the window system border and title visibility.
     pub fn set_chrome_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> Result<()> {
         self.with_window(id, |w|w.set_chrome_visible(visible))
     }
 
-     /// Set the window top-left offset, includes the window chrome (outer-position).
+    /// Set the window top-left offset, includes the window chrome (outer-position).
     pub fn set_position(&mut self, _ctx: &Context, id: WinId, pos: LayoutPoint) -> Result<()> {
-        self.with_window(id, |w|w.set_outer_pos(pos))
+        if self.with_window(id, |w|w.set_outer_pos(pos))? {
+            self.notify(Ev::WindowMoved(id, pos, EventCause::App));
+        }
+        Ok(())
     }
 
-     /// Set the window content area size (inner-size).
+    /// Set the window content area size (inner-size).
     pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, frame: FrameRequest) -> Result<()> {
         if self.with_window(id, |w|w.resize_inner(size, frame))? {
-            self.notify(Ev::WindowResized(id, size, ResizeCause::App));
+            self.notify(Ev::WindowResized(id, size, EventCause::App));
         }
         Ok(())
     }
@@ -1004,7 +1007,7 @@ impl ViewApp {
                 let stop_redirect = RunOnDrop::new(|| redirect_enabled.store(false, Ordering::Relaxed));
 
                 // app resizes don't return `true` in `resized`.
-                self.notify(Ev::WindowResized(id, size, ResizeCause::System));
+                self.notify(Ev::WindowResized(id, size, EventCause::System));
 
                 let deadline = Instant::now() + Duration::from_secs(1);
 
@@ -1058,8 +1061,12 @@ impl ViewApp {
                 }
             }
             WindowEvent::Moved(p) => {
+                if !self.windows[i].moved(p) {
+                    return;
+                }
+
                 let p = LayoutPoint::new(p.x as f32 / scale_factor, p.y as f32 / scale_factor);
-                self.notify(Ev::WindowMoved(id, p));
+                self.notify(Ev::WindowMoved(id, p, EventCause::System));
             }
             WindowEvent::CloseRequested => self.notify(Ev::WindowCloseRequested(id)),
             WindowEvent::Destroyed => {
@@ -1181,8 +1188,15 @@ impl ViewApp {
     }
 
     fn on_frame_ready(&mut self, window_id: WindowId) {
+        let mut notify = None;
         if let Some(w) = self.windows.iter_mut().find(|w| w.is_window(window_id)) {
-            w.request_redraw();
+            if w.request_redraw() {
+                notify = Some(Ev::WindowResized(w.id(), w.inner_size(), EventCause::App));
+            }
+        }
+
+        if let Some(ev) = notify {
+            self.notify(ev);
         }
     }
 

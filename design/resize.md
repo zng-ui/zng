@@ -23,7 +23,7 @@
 - actual_monitor: Is set by the monitor selected by the monitor variable.
 
 - actual_position: Is computed from actual_size and monitor size (i.e. if the start_position is CenterMonitor)
-- position: Is used but overwritten by start_position
+- position: Is used but overwritten by start_position, can be `NaN` to indicate initial defined by OS.
 
 ## On Subsequent Layouts:
 - actual_size: Is used unless auto_size is set.
@@ -50,6 +50,10 @@
  * 
 - What values need to be ignored
  * size? (always ignored unless the variable is updated?)
-
-
  
+
+ # TODO
+
+ - Hold Resized event until NewFrameReady
+ - Implement clear_color guessing (first fill?)
+ - Implement monitor and actual_monitor.

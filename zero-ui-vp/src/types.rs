@@ -47,8 +47,8 @@ pub enum Ev {
     EventsCleared,
 
     // Window events
-    WindowResized(WinId, LayoutSize, ResizeCause),
-    WindowMoved(WinId, LayoutPoint),
+    WindowResized(WinId, LayoutSize, EventCause),
+    WindowMoved(WinId, LayoutPoint, EventCause),
     DroppedFile(WinId, PathBuf),
     HoveredFile(WinId, PathBuf),
     HoveredFileCancelled(WinId),
@@ -88,12 +88,12 @@ pub enum Ev {
     DeviceText(DevId, char),
 }
 
-/// Cause of an window resize event.
+/// Cause of a window move or resize event.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ResizeCause {
-    /// Operating system or end-user resized the window.
+pub enum EventCause {
+    /// Operating system or end-user moved or resized the window.
     System,
-    /// App resized the window.
+    /// App move resized the window.
     App,
 }
 
@@ -265,6 +265,8 @@ pub struct WindowConfig {
     /// Title text.
     pub title: String,
     /// Top-left offset, including the chrome (outer-position).
+    ///
+    /// If *x* or *y* are not-finite the initial position is not set and the OS defines it.
     pub pos: LayoutPoint,
     /// Content size (inner-size).
     pub size: LayoutSize,

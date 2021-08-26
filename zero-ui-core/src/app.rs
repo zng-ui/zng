@@ -967,8 +967,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowResizedArgs::now(self.window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args);
             }
-            zero_ui_vp::Ev::WindowMoved(w_id, pos) => {
-                let args = RawWindowMovedArgs::now(self.window_id(w_id), pos);
+            zero_ui_vp::Ev::WindowMoved(w_id, pos, cause) => {
+                let args = RawWindowMovedArgs::now(self.window_id(w_id), pos, cause);
                 self.notify_event(RawWindowMovedEvent, args);
             }
             zero_ui_vp::Ev::DroppedFile(w_id, file) => {
@@ -1786,8 +1786,8 @@ pub mod view_process {
     use webrender_api::{DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate};
     use zero_ui_vp::{Controller, DevId, WinId};
     pub use zero_ui_vp::{
-        CursorIcon, Error, Ev, FramePixels, FrameRequest, Icon, MonitorInfo, ResizeCause, Result, TextAntiAliasing, VideoMode,
-        WindowConfig, WindowTheme,
+        CursorIcon, Error, Ev, EventCause, FramePixels, FrameRequest, Icon, MonitorInfo, Result, TextAntiAliasing, VideoMode, WindowConfig,
+        WindowTheme,
     };
 
     use super::DeviceId;
@@ -2198,7 +2198,7 @@ pub mod raw_events {
         keyboard::{Key, KeyState, ModifiersState, ScanCode},
         mouse::{ButtonState, MouseButton, MultiClickConfig},
         units::{LayoutPoint, LayoutSize},
-        window::{MonitorId, ResizeCause, WindowId, WindowTheme},
+        window::{EventCause, MonitorId, WindowId, WindowTheme},
     };
 
     event_args! {
@@ -2283,6 +2283,9 @@ pub mod raw_events {
             /// Window top-left offset, including the system chrome.
             pub position: LayoutPoint,
 
+            /// Who moved the window.
+            pub cause: EventCause,
+
             ..
 
             /// Returns `true` for all widgets in the [window](Self::window_id).
@@ -2300,7 +2303,7 @@ pub mod raw_events {
             pub size: LayoutSize,
 
             /// Who resized the window.
-            pub cause: ResizeCause,
+            pub cause: EventCause,
 
             ..
 

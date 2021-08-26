@@ -3,13 +3,15 @@ use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|ctx| {
-        let position = var_from((f32::NAN, f32::NAN));
-        let size = var_from((900, 600));
+        let vars = ctx.window_state.req(WindowVarsKey);
 
-        let title = merge_var!(position.clone(), size.clone(), |p: &Point, s: &Size| {
+        let title = merge_var!(vars.actual_position(), vars.actual_size(), |p: &LayoutPoint, s: &LayoutSize| {
             formatx!("Window Example - position: {:.0}, size: {:.0}", p, s)
         });
         let background_color = var(rgb(0.1, 0.1, 0.1));
+
+        let position = var_from((f32::NAN, f32::NAN));
+        let size = var_from((900, 600));
 
         let icon = var(WindowIcon::Default);
         let chrome = var(WindowChrome::Default);

@@ -1,7 +1,13 @@
 use std::{cell::Cell, rc::Rc};
 
 use gleam::gl;
-use glutin::{ContextBuilder, ContextWrapper, NotCurrent, dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize}, event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode}, event_loop::EventLoopProxy, window::{Window, WindowBuilder, WindowId}};
+use glutin::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
+    event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode},
+    event_loop::EventLoopProxy,
+    window::{Window, WindowBuilder, WindowId},
+    ContextBuilder, ContextWrapper, NotCurrent,
+};
 use webrender::{
     api::{units::*, *},
     euclid, Renderer, RendererKind, RendererOptions,
@@ -30,6 +36,7 @@ pub(crate) struct ViewWindow {
     visible: bool,
     waiting_first_frame: bool,
 
+    prev_pos: PhysicalPosition<i32>,
     prev_size: PhysicalSize<u32>,
 
     allow_alt_f4: Rc<Cell<bool>>,
@@ -42,9 +49,8 @@ impl ViewWindow {
     #[allow(clippy::too_many_arguments)]
     pub fn new(ctx: &Context, id: u32, w: WindowConfig) -> Self {
         // create window and OpenGL context
-        let winit = WindowBuilder::new()
+        let mut winit = WindowBuilder::new()
             .with_title(w.title)
-            .with_position(LogicalPosition::new(w.pos.x, w.pos.y))
             .with_inner_size(LogicalSize::new(w.size.width, w.size.height))
             .with_decorations(w.chrome_visible)
             .with_resizable(w.resizable)
@@ -53,6 +59,10 @@ impl ViewWindow {
             .with_max_inner_size(LogicalSize::new(w.max_size.width, w.max_size.height))
             .with_window_icon(w.icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba, i.width, i.height).ok()))
             .with_visible(false); // we wait for the first frame to show the window.
+
+        if w.pos.x.is_finite() && w.pos.y.is_finite() {
+            winit = winit.with_position(LogicalPosition::new(w.pos.x, w.pos.y));
+        }
 
         let glutin = ContextBuilder::new().build_windowed(winit, ctx.window_target).unwrap();
         // SAFETY: we drop the context before the window.
@@ -132,6 +142,7 @@ impl ViewWindow {
 
         let mut win = Self {
             id,
+            prev_pos: winit_window.outer_position().unwrap_or_default(),
             prev_size: winit_window.inner_size(),
             window: winit_window,
             context: Some(context),
@@ -153,6 +164,13 @@ impl ViewWindow {
         win.set_taskbar_visible(w.taskbar_visible);
 
         win
+    }
+
+    /// Returns `true` if the `new_pos` is actually different then the previous or init position.
+    pub fn moved(&mut self, new_pos: PhysicalPosition<i32>) -> bool {
+        let moved = self.prev_pos != new_pos;
+        self.prev_pos = new_pos;
+        moved
     }
 
     /// Returns `true` if the `new_size` is actually different then the previous or init size.
@@ -178,10 +196,16 @@ impl ViewWindow {
         self.window.scale_factor() as f32
     }
 
-    pub fn set_outer_pos(&mut self, pos: LayoutPoint) {
-        let s = self.scale_factor();
-        let pos = PhysicalPosition::new((pos.x * s) as i32, (pos.y * s) as i32);
-        self.window.set_outer_position(pos);
+    /// Move window, returns `true` if actually moved.
+    #[must_use = "an event must be send if returns `true`"]
+    pub fn set_outer_pos(&mut self, pos: LayoutPoint) -> bool {
+        let new_pos = LogicalPosition::new(pos.x, pos.y).to_physical(self.window.scale_factor());
+
+        let moved = self.moved(new_pos);
+        if moved {
+            self.window.set_outer_position(new_pos);
+        }
+        moved
     }
 
     /// Resize and render, returns `true` if actually resized.
@@ -298,15 +322,21 @@ impl ViewWindow {
         self.api.update_resources(updates);
     }
 
-    pub fn request_redraw(&mut self) {
+    /// Returns if it is the first frame.
+    #[must_use = "if `true` must notify the initial Resized event"]
+    pub fn request_redraw(&mut self) -> bool {
         if self.waiting_first_frame {
             self.waiting_first_frame = false;
             self.redraw();
             if self.visible {
                 self.window.set_visible(true);
             }
+
+            true
         } else {
             self.window.request_redraw();
+
+            false
         }
     }
 

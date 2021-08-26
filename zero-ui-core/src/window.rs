@@ -2,7 +2,7 @@
 
 use std::{fmt, mem, rc::Rc, time::Instant};
 
-pub use crate::app::view_process::{CursorIcon, MonitorInfo, ResizeCause, VideoMode, WindowTheme};
+pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowTheme};
 use linear_map::LinearMap;
 use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
 
@@ -452,8 +452,8 @@ impl fmt::Debug for StartPosition {
         }
         match self {
             StartPosition::Default => write!(f, "Default"),
-            StartPosition::CenterMonitor => todo!(),
-            StartPosition::CenterParent => todo!(),
+            StartPosition::CenterMonitor => write!(f, "CenterMonitor"),
+            StartPosition::CenterParent => write!(f, "CenterParent"),
         }
     }
 }
@@ -720,9 +720,9 @@ impl_from_and_into_var! {
     /// [`WindowIcon::from_rgba`] but validates the dimensions and length.
     fn from(rgba: (Vec<u8>, u32, u32)) -> WindowIcon {
         if rgba.1 as usize * rgba.2 as usize * 4 == rgba.0.len() {
-            log::error!("invalid rgba data, length is not width * height * 4");
             WindowIcon::from_rgba(rgba.0, rgba.1, rgba.2)
         } else {
+            log::error!("invalid rgba data, length is not width * height * 4");
             WindowIcon::Default
         }
     }
@@ -814,7 +814,7 @@ event_args! {
         /// New window size.
         pub new_size: LayoutSize,
         /// Who resized the window.
-        pub cause: ResizeCause,
+        pub cause: EventCause,
 
         ..
 
@@ -830,6 +830,8 @@ event_args! {
         pub window_id: WindowId,
         /// New window position.
         pub new_position: LayoutPoint,
+        /// Who moved the window.
+        pub cause: EventCause,
 
         ..
 
@@ -994,24 +996,26 @@ impl AppExtension for WindowManager {
                         WindowResizeArgs::new(args.timestamp, args.window_id, args.size, args.cause),
                     );
 
-                    if matches!(args.cause, ResizeCause::System) {
+                    if matches!(args.cause, EventCause::System) {
                         // the view process is waiting a new frame or update, this will send one.
                         window.on_resize_event(ctx, args.size);
                     }
-                } else {
-                    log::warn!("received RawWindowResizedEvent with the same size");
-
-                    if matches!(args.cause, ResizeCause::System) {
-                        // view process is waiting a frame.
-                        window.render_empty_update();
-                    }
+                } else if matches!(args.cause, EventCause::System) {
+                    log::warn!("received `RawWindowResizedEvent` with the same size, caused by system");
+                    // view process is waiting a frame.
+                    window.render_empty_update();
                 }
                 ctx.services.windows().windows.insert(args.window_id, window);
             }
         } else if let Some(args) = RawWindowMovedEvent.update(args) {
             if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
                 if window.vars.0.actual_position.set_ne(ctx.vars, args.position) {
-                    WindowMoveEvent.notify(ctx.events, WindowMoveArgs::new(args.timestamp, args.window_id, args.position));
+                    WindowMoveEvent.notify(
+                        ctx.events,
+                        WindowMoveArgs::new(args.timestamp, args.window_id, args.position, args.cause),
+                    );
+                } else if matches!(args.cause, EventCause::System) {
+                    log::warn!("received `RawWindowMovedEvent` with the same position, caused by system");
                 }
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
@@ -1706,7 +1710,7 @@ impl AppWindow {
             first_render: true,
 
             frame_id: frame_info.frame_id(),
-            position: LayoutPoint::zero(),
+            position: LayoutPoint::new(f32::NAN, f32::NAN), // we use NAN to mean OS start position.
             size: LayoutSize::zero(),
             min_size: LayoutSize::zero(),
             max_size: LayoutSize::zero(),
@@ -1749,6 +1753,16 @@ impl AppWindow {
                 self.on_size_vars_update(ctx);
             }
 
+            if self.vars.position().is_new(ctx) && !self.first_render {
+                self.position = self.layout_position(ctx);
+
+                if let Some(w) = &self.headed {
+                    w.set_position(self.position).unwrap();
+                } else {
+                    RawWindowMovedEvent.notify(ctx.events, RawWindowMovedArgs::now(self.id, self.position, EventCause::App));
+                }
+            }
+
             if let Some(w) = &self.headed {
                 if let Some(monitor) = self.vars.monitor().get_new(ctx.vars) {
                     let monitor_info = monitor.select(ctx.services.monitors());
@@ -1766,9 +1780,6 @@ impl AppWindow {
 
                 if let Some(title) = self.vars.title().get_new(ctx) {
                     w.set_title(title.to_string()).unwrap();
-                }
-                if let Some(pos) = self.vars.position().get_new(ctx) {
-                    todo!("move {:?}", pos);
                 }
                 if let Some(chrome) = self.vars.chrome().get_new(ctx) {
                     match chrome {
@@ -1862,14 +1873,10 @@ impl AppWindow {
     /// the view process blocks for up to one second waiting the new frame, to reduce the
     /// chances of the user seeing the clear_color when resizing.
     fn on_resize_event(&mut self, ctx: &mut AppContext, actual_size: LayoutSize) {
-        if self.vars.0.actual_size.set_ne(ctx.vars, actual_size) {
-            let (_scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
-            self.context.layout(ctx, 16.0, scr_factor, scr_ppi, actual_size, |_| actual_size);
-            // the frame is send using the normal request
-            self.on_render(ctx, UpdateDisplayRequest::ForceRender);
-        } else {
-            self.render_empty_update();
-        }
+        let (_scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+        self.context.layout(ctx, 16.0, scr_factor, scr_ppi, actual_size, |_| actual_size);
+        // the frame is send using the normal request
+        self.on_render(ctx, UpdateDisplayRequest::ForceRender);
     }
 
     /// On any of the variables involved in sizing updated.
@@ -1892,7 +1899,7 @@ impl AppWindow {
                 todo!()
             } else {
                 // headless "resize"
-                RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, ResizeCause::App));
+                RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
             }
             // the `actual_size` is set from the resize event only.
         }
@@ -1940,7 +1947,7 @@ impl AppWindow {
                 todo!()
             } else {
                 // headless "resize"
-                RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, ResizeCause::App));
+                RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
             }
             // the `actual_size` is set from the resize event only.
         }
@@ -1956,8 +1963,32 @@ impl AppWindow {
         self.min_size = min_size;
         self.max_size = max_size;
 
+        // compute start position.
+        match self.context.root.start_position {
+            StartPosition::Default => {
+                // `layout_position` can return `NAN` or a computed position.
+                // We use NAN to signal the view-process to let the OS define the start position.
+                self.position = self.layout_position(ctx);
+            }
+            StartPosition::CenterMonitor => {
+                let (scr_size, _, _) = self.monitor_metrics(ctx);
+                self.position.x = (scr_size.width - self.size.width) / 2.0;
+                self.position.y = (scr_size.height - self.size.height) / 2.0;
+            }
+            StartPosition::CenterParent => todo!(),
+        }
+
         // `on_render` will complete first_render.
         self.context.update = UpdateDisplayRequest::Render;
+    }
+
+    /// Calculate the position var in the current monitor.
+    fn layout_position(&mut self, ctx: &mut AppContext) -> LayoutPoint {
+        let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+
+        ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+            self.vars.position().get(ctx.vars).to_layout(scr_size, ctx)
+        })
     }
 
     /// Measure and arrange the content, returns the final, min and max sizes.
@@ -2037,7 +2068,7 @@ impl AppWindow {
         if !request.in_window(self.context.update).is_render() {
             return;
         }
-        
+
         if self.first_render {
             // in first frame we can open the window, it will stay hidden until it receives the first frame
             // but the renderer will exist for resources to start loading.
@@ -2083,14 +2114,15 @@ impl AppWindow {
                 }
                 WindowMode::HeadlessWithRenderer => todo!(),
                 WindowMode::Headless => {
-                    // headless without renderer only provides the `FrameInfo` (notified in `render_frame`), 
+                    // headless without renderer only provides the `FrameInfo` (notified in `render_frame`),
                     // but if we are in a full headless app we can simulate the behavior of headed windows that
-                    // become visible and focused when they present the first frame.
+                    // become visible and focused when they present the first frame and "resized" and "moved" with
+                    // initial values.
 
+                    let timestamp = Instant::now();
                     if vp.is_none() {
                         // if we are in a headless app too, we simulate focus.
                         drop(vp);
-                        let timestamp = Instant::now();
                         if let Some((prev_focus_id, _)) = ctx.services.windows().windows_info.iter_mut().find(|(_, w)| w.is_focused) {
                             let args = RawWindowFocusArgs::new(timestamp, *prev_focus_id, false);
                             RawWindowFocusEvent.notify(ctx.events, args)
@@ -2098,6 +2130,15 @@ impl AppWindow {
                         let args = RawWindowFocusArgs::new(timestamp, self.id, true);
                         RawWindowFocusEvent.notify(ctx.events, args)
                     }
+
+                    RawWindowMovedEvent.notify(
+                        ctx.events,
+                        RawWindowMovedArgs::new(timestamp, self.id, self.position, EventCause::App),
+                    );
+                    RawWindowResizedEvent.notify(
+                        ctx.events,
+                        RawWindowResizedArgs::new(timestamp, self.id, self.size, EventCause::App),
+                    );
                 }
             }
         }
@@ -2434,7 +2475,7 @@ impl WindowVars {
     /// When the the window is moved this variable does **not** update back, to track the current position of the window
     /// use [`actual_position`].
     ///
-    /// The default value is `(f32::NAN, f32::NAN)` that causes the window or OS select a value.
+    /// The default value is `(f32::NAN, f32::NAN)` that causes the window or OS to select a value.
     ///
     /// [`actual_position`]: WindowVars::actual_position
     /// [`monitor`]: WindowVars::monitor

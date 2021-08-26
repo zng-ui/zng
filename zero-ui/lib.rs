@@ -919,16 +919,16 @@ pub mod prelude {
             TextTransformFn, ToText, WhiteSpace, WordBreak,
         },
         units::{
-            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight,
-            Point, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
+            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LayoutPoint, LayoutSize, Length, LengthUnits, Line,
+            LineFromTuplesBuilder, LineHeight, Point, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
         },
         var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, Vars},
         widget_base::Visibility,
         widget_vec, widgets,
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition, Window, WindowChrome,
-            WindowCloseRequestedArgs, WindowIcon, WindowId, WindowMoveArgs, WindowOpenArgs, WindowResizeArgs, WindowState, Windows,
-            WindowsExt,
+            WindowCloseRequestedArgs, WindowIcon, WindowId, WindowMoveArgs, WindowOpenArgs, WindowResizeArgs, WindowState, WindowVarsKey,
+            Windows, WindowsExt,
         },
         RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
     };
