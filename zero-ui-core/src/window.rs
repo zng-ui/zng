@@ -2053,7 +2053,12 @@ impl AppWindow {
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
-        ctx.services.windows().windows_info.get_mut(&self.id).unwrap().frame_info = frame_info;
+        let w_info = ctx.services.windows().windows_info.get_mut(&self.id).unwrap();
+
+        //let fps = 1.secs().as_nanos() / (frame_info.timestamp() - w_info.frame_info.timestamp()).as_nanos();
+        //println!("fps: {}", fps);
+
+        w_info.frame_info = frame_info;
 
         // already notify, extensions are interested only in the frame metadata.
         ctx.updates.new_frame_rendered(self.id, self.frame_id);

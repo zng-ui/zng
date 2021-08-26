@@ -15,7 +15,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{fmt, io::Write, marker::PhantomData, mem, sync::Arc};
+use std::{fmt, io::Write, marker::PhantomData, mem, sync::Arc, time::Instant};
 use webrender_api::*;
 
 #[doc(no_inline)]
@@ -1401,6 +1401,7 @@ impl FrameInfoBuilder {
         let lookup = valid_nodes.collect();
 
         let r = FrameInfo {
+            timestamp: Instant::now(),
             window_id: self.window_id,
             frame_id: self.frame_id,
             lookup,
@@ -1433,6 +1434,7 @@ pub struct WidgetInfoId(ego_tree::NodeId);
 ///
 /// Instantiated using [`FrameInfoBuilder`].
 pub struct FrameInfo {
+    timestamp: Instant,
     window_id: WindowId,
     frame_id: FrameId,
     tree: Tree<WidgetInfoInner>,
@@ -1443,6 +1445,14 @@ impl FrameInfo {
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
         FrameInfoBuilder::new(window_id, Epoch(0), root_id, LayoutSize::zero()).build()
+    }
+
+    /// Moment the frame info was finalized.
+    ///
+    /// Note that the frame may not be rendered on screen yet.
+    #[inline]
+    pub fn timestamp(&self) -> Instant {
+        self.timestamp
     }
 
     /// Reference to the root widget in the frame.

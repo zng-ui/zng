@@ -386,10 +386,18 @@ impl ViewWindow {
         self.api.generate_font_instance_key()
     }
 
+    pub fn outer_position(&self) -> LayoutPoint {
+        let pos = self
+            .window
+            .outer_position()
+            .unwrap_or_default()
+            .to_logical(self.window.scale_factor());
+        LayoutPoint::new(pos.x, pos.y)
+    }
+
     pub fn inner_size(&self) -> LayoutSize {
-        let size = self.window.inner_size();
-        let scale = self.scale_factor();
-        LayoutSize::new(size.width as f32 / scale, size.height as f32 / scale)
+        let size = self.window.inner_size().to_logical(self.window.scale_factor());
+        LayoutSize::new(size.width, size.height)
     }
 
     /// Read all pixels of the current frame.

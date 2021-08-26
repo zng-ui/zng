@@ -1191,12 +1191,13 @@ impl ViewApp {
         let mut notify = None;
         if let Some(w) = self.windows.iter_mut().find(|w| w.is_window(window_id)) {
             if w.request_redraw() {
-                notify = Some(Ev::WindowResized(w.id(), w.inner_size(), EventCause::App));
+                notify = Some((w.id(), w.outer_position(), w.inner_size()));
             }
         }
 
-        if let Some(ev) = notify {
-            self.notify(ev);
+        if let Some((id, pos, size)) = notify {
+            self.notify(Ev::WindowMoved(id, pos, EventCause::App));
+            self.notify(Ev::WindowResized(id, size, EventCause::App));
         }
     }
 
