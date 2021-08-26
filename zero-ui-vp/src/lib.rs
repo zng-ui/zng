@@ -7,6 +7,7 @@
 #![allow(unused_parens)]
 
 use config::*;
+use fs2::FileExt;
 use glutin::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
@@ -17,8 +18,9 @@ use ipmpsc::{Receiver, Sender, SharedRingBuffer};
 use parking_lot::{Condvar, Mutex};
 use serde::{Deserialize, Serialize};
 use std::{
-    env, fs,
-    io::{ErrorKind, Read},
+    env,
+    fs::{self, File},
+    io::{self, ErrorKind, Read, Write},
     panic,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -159,10 +161,12 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
     let redirect_enabled = Arc::new(AtomicBool::new(false));
     let redirect_enabled_ = redirect_enabled.clone();
     let (redirect_sender, redirect_receiver) = flume::unbounded();
+    let exit_file = channel_dir.join("exit");
     thread::spawn(move || {
         loop {
-            match request_receiver.recv() {
-                Ok(req) => {
+            // wait for requests, every second checks if app-process is still running.
+            match request_receiver.recv_timeout(Duration::from_secs(1)) {
+                Ok(Some(req)) => {
                     if redirect_enabled_.load(Ordering::Relaxed) {
                         redirect_sender.send(req).expect("redirect_sender error");
                     } else if request_sender.send_event(AppEvent::Request(req)).is_err() {
@@ -170,7 +174,20 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
                         return;
                     }
                 }
+                Ok(None) => {
+                    // the app-process holds exclusive handle to the `exit_file`
+                    // if we can write the app-process has exited without killing the `view-process`.
+                    let app_exited = match std::fs::OpenOptions::new().write(true).create(false).open(&exit_file) {
+                        Ok(f) => f.try_lock_exclusive().is_ok(),
+                        Err(e) if e.kind() == io::ErrorKind::NotFound => true,
+                        _ => false,
+                    };
 
+                    // if app-process exited try to signal event loop to exit or force exit.
+                    if app_exited && request_sender.send_event(AppEvent::ParentProcessExited).is_err() {
+                        std::process::exit(i32::from_ne_bytes(*b"noex"));
+                    }
+                }
                 Err(e) => {
                     panic!("request channel error:\n{:#?}", e);
                 }
@@ -178,7 +195,14 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
         }
     });
 
-    let mut app = ViewApp::new(response_sender, event_sender, redirect_enabled, redirect_receiver, headless);
+    let mut app = ViewApp::new(
+        channel_dir,
+        response_sender,
+        event_sender,
+        redirect_enabled,
+        redirect_receiver,
+        headless,
+    );
 
     let el = event_loop.create_proxy();
     #[cfg(windows)]
@@ -210,13 +234,19 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
                 AppEvent::FrameReady(window_id) => app.on_frame_ready(window_id),
                 AppEvent::RefreshMonitors => app.refresh_monitors(&ctx),
                 AppEvent::Notify(ev) => app.notify(ev),
+                AppEvent::ParentProcessExited => {
+                    *control = ControlFlow::Exit;
+                }
             },
             Event::Suspended => {}
             Event::Resumed => {}
             Event::MainEventsCleared => app.on_events_cleared(),
             Event::RedrawRequested(w) => app.on_redraw(w),
             Event::RedrawEventsCleared => {}
-            Event::LoopDestroyed => panic!("unexpected event loop shutdown, we use `process::exit` to shutdown"),
+            Event::LoopDestroyed => {
+                // this only happens if we detect the app-process exited,
+                // normally the app-process kills the view-process.
+            }
         }
     })
 }
@@ -232,6 +262,7 @@ pub(crate) enum AppEvent {
     FrameReady(WindowId),
     RefreshMonitors,
     Notify(Ev),
+    ParentProcessExited,
 }
 
 /// Declares the `Request` and `Response` enums, and two methods in `Controller` and `ViewApp`, in the
@@ -315,6 +346,7 @@ type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
 /// [exits]: std::process::exit
 pub struct Controller {
     process: Option<Child>,
+    exit_handle: File,
     view_process_exe: PathBuf,
     channel_dir: PathBuf,
     request_chan: Sender,
@@ -349,7 +381,8 @@ impl Controller {
             std::env::current_exe().expect("failed to get the current exetuable, consider using an external view-process exe")
         });
 
-        let (channel_dir, process, request_chan, response_chan, event_chan) = Self::spawn_view_process(&view_process_exe, headless);
+        let (channel_dir, process, request_chan, response_chan, event_chan, exit_handle) =
+            Self::spawn_view_process(&view_process_exe, headless);
 
         let ev = thread::spawn(move || {
             while let Ok(ev) = event_chan.recv() {
@@ -362,6 +395,7 @@ impl Controller {
 
         let mut c = Controller {
             process,
+            exit_handle,
             view_process_exe,
             channel_dir,
             request_chan,
@@ -436,7 +470,7 @@ impl Controller {
         Err(Error::Respawn)
     }
 
-    fn spawn_view_process(view_process_exe: &Path, headless: bool) -> (PathBuf, Option<Child>, Sender, Receiver, Receiver) {
+    fn spawn_view_process(view_process_exe: &Path, headless: bool) -> (PathBuf, Option<Child>, Sender, Receiver, Receiver, File) {
         let channel_dir = loop {
             let temp_dir = env::temp_dir().join(uuid::Uuid::new_v4().to_simple().to_string());
             match std::fs::create_dir(&temp_dir) {
@@ -459,12 +493,18 @@ impl Controller {
                 .expect("request channel creation failed"),
         );
 
+        // view-process can periodically tries to get write access to this file it exits if it succeeds.
+        let mut exit_handle = File::create(channel_dir.join("exit")).expect("exit signal file creation failed");
+        exit_handle.try_lock_exclusive().unwrap();
+        exit_handle.write_all(b"exit signal").unwrap();
+        exit_handle.flush().unwrap();
+
         // create process and spawn it, unless is running in same process mode.
         if let Some(config) = &mut *SAME_PROCESS_CONFIG.lock() {
             config.channel_dir = channel_dir.clone();
             config.headless = headless;
             config.waiter.notify_one();
-            (channel_dir, None, req, rsp, ev)
+            (channel_dir, None, req, rsp, ev, exit_handle)
         } else {
             let process = Command::new(&view_process_exe)
                 .env(CHANNEL_VAR, &channel_dir)
@@ -473,7 +513,7 @@ impl Controller {
                 .stderr(Stdio::piped())
                 .spawn()
                 .expect("view-process failed to spawn");
-            (channel_dir, Some(process), req, rsp, ev)
+            (channel_dir, Some(process), req, rsp, ev, exit_handle)
         }
     }
 
@@ -539,7 +579,8 @@ impl Controller {
             Err(p) => panic::resume_unwind(p),
         };
 
-        let (channel_dir, new_process, request, response, event) = Self::spawn_view_process(&self.view_process_exe, self.headless);
+        let (channel_dir, new_process, request, response, event, exit_handle) =
+            Self::spawn_view_process(&self.view_process_exe, self.headless);
 
         on_event(Ev::Respawned);
 
@@ -547,6 +588,7 @@ impl Controller {
         *process = new_process.unwrap();
         self.request_chan = request;
         self.response_chan = response;
+        self.exit_handle = exit_handle;
 
         let ev = thread::spawn(move || {
             while let Ok(ev) = event.recv() {
@@ -564,6 +606,8 @@ impl Drop for Controller {
     /// Kills the View Process or exits the current process if running in same process.
     fn drop(&mut self) {
         let mut same_process = true;
+
+        let _ = self.exit_handle.unlock();
 
         if let Some(mut process) = self.process.take() {
             same_process = false;
@@ -601,9 +645,13 @@ pub(crate) struct ViewApp {
 
     // if one or more events where send after the last on_events_cleared.
     pending_clear: bool,
+
+    // after channels dropped.
+    _channel_cleanup: RunOnDrop<Box<dyn FnOnce()>>,
 }
 impl ViewApp {
     pub fn new(
+        channel_dir: PathBuf,
         response_chan: Sender,
         event_chan: Sender,
         redirect_enabled: Arc<AtomicBool>,
@@ -625,6 +673,10 @@ impl ViewApp {
             device_id_count: u32::from_ne_bytes(*b"zdvp"),
             devices: vec![],
             pending_clear: false,
+
+            _channel_cleanup: RunOnDrop::new(Box::new(move || {
+                let _ = std::fs::remove_dir_all(channel_dir);
+            })),
         }
     }
 
