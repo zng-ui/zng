@@ -35,9 +35,6 @@ fn example() -> impl Widget {
             let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
             t.set(ctx, new_txt);
         });
-        on_double_click = hn!(|_, _| println!("double click!"));
-        on_triple_click = hn!(|_, _| println!("triple click!"));
-        on_context_click = hn!(|_, _| println!("context click!"));
         content = text(t);
     }
 }
