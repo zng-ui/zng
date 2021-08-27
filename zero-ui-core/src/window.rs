@@ -2046,10 +2046,16 @@ impl AppWindow {
     /// The FrameId and FrameInfo are up-dated, but the FrameRequest is not send.
     fn render_frame(&mut self, ctx: &mut AppContext) -> view_process::FrameRequest {
         let scale_factor = self.monitor_metrics(ctx).1;
+        let next_frame_id = self.frame_id.0.wrapping_add(1);
+        let next_frame_id = if next_frame_id == u32::MAX {
+            webrender_api::Epoch(0)
+        } else {
+            webrender_api::Epoch(next_frame_id)
+        };
 
         // `UiNode::render`
         let ((pipeline_id, size, display_list), frame_info) =
-            self.context.render(ctx, self.frame_id, self.size, scale_factor, &self.renderer);
+            self.context.render(ctx, next_frame_id, self.size, scale_factor, &self.renderer);
 
         // update frame info.
         self.frame_id = frame_info.frame_id();

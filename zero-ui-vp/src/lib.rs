@@ -493,7 +493,7 @@ impl Controller {
                 .expect("request channel creation failed"),
         );
 
-        // view-process can periodically tries to get write access to this file it exits if it succeeds.
+        // view-process periodically tries to get write access to this file and exits if it succeeds.
         let mut exit_handle = File::create(channel_dir.join("exit")).expect("exit signal file creation failed");
         exit_handle.try_lock_exclusive().unwrap();
         exit_handle.write_all(b"exit signal").unwrap();
