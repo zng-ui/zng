@@ -18,6 +18,7 @@ gleam = "0.6.17" #version required by webrender
 ipmpsc = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 parking_lot = "0.11"
+fs2 = "0.4"
 
 # util
 uuid = { version = "0.8", features = ["v4"] }
@@ -25,4 +26,3 @@ winapi = "0.3"
 log = "0.4"
 is_main_thread = "0.1"
 flume = "0.10"
-fs2 = "0.4"
