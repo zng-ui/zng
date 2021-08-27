@@ -1,4 +1,4 @@
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, rc::Rc, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Instant};
 
 use gleam::gl;
 use glutin::{
@@ -26,6 +26,9 @@ pub(crate) struct ViewWindow {
     gl: Rc<dyn gl::Gl>,
     renderer: Option<Renderer>,
     api: RenderApi,
+
+    redirect_frame: Arc<AtomicBool>,
+    redirect_frame_recv: flume::Receiver<()>,
 
     pipeline_id: PipelineId,
     document_id: DocumentId,
@@ -124,9 +127,17 @@ impl ViewWindow {
             ..Default::default()
         };
 
+        let redirect_frame = Arc::new(AtomicBool::new(false));
+        let (rf_sender, redirect_frame_recv) = flume::unbounded();
+
         let (renderer, sender) = webrender::Renderer::new(
             Rc::clone(&gl),
-            Box::new(Notifier(winit_window.id(), ctx.event_loop.clone())),
+            Box::new(Notifier {
+                window_id: winit_window.id(), 
+                sender: ctx.event_loop.clone(),
+                redirect: redirect_frame.clone(),
+                redirect_sender: rf_sender,
+            }),
             opts,
             None,
             device_size,
@@ -148,6 +159,8 @@ impl ViewWindow {
             context: Some(context),
             gl,
             renderer: Some(renderer),
+            redirect_frame,
+            redirect_frame_recv,
             api,
             document_id,
             pipeline_id,
@@ -322,6 +335,20 @@ impl ViewWindow {
         self.api.update_resources(updates);
     }
 
+    /// Capture the next frame-ready event.
+    /// 
+    /// Returns `true` if received before `deadline`, if `true` already redraw too.
+    pub fn wait_frame_ready(&mut self, deadline: Instant) -> bool {
+        self.redirect_frame.store(true, Ordering::Relaxed);
+
+        let received = self.redirect_frame_recv.recv_deadline(deadline).is_ok();
+        self.redirect_frame.store(false, Ordering::Relaxed);
+        if received {
+            self.redraw();
+        }
+        received
+    }
+
     /// Returns if it is the first frame.
     #[must_use = "if `true` must notify the initial Resized event"]
     pub fn request_redraw(&mut self) -> bool {
@@ -331,7 +358,6 @@ impl ViewWindow {
             if self.visible {
                 self.window.set_visible(true);
             }
-
             true
         } else {
             self.window.request_redraw();
@@ -542,15 +568,29 @@ impl Drop for ViewWindow {
     }
 }
 
-struct Notifier(WindowId, EventLoopProxy<AppEvent>);
+struct Notifier {
+    window_id: WindowId, 
+    sender: EventLoopProxy<AppEvent>,
+    redirect: Arc<AtomicBool>,
+    redirect_sender: flume::Sender<()>
+}
 impl RenderNotifier for Notifier {
     fn clone(&self) -> Box<dyn RenderNotifier> {
-        Box::new(Self(self.0, self.1.clone()))
+        Box::new(Notifier {
+            window_id: self.window_id,
+            sender: self.sender.clone(),
+            redirect: self.redirect.clone(),
+            redirect_sender: self.redirect_sender.clone(),
+        })
     }
 
     fn wake_up(&self) {}
 
     fn new_frame_ready(&self, _: DocumentId, _: bool, _: bool, _: Option<u64>) {
-        let _ = self.1.send_event(AppEvent::FrameReady(self.0));
+        if self.redirect.load(Ordering::Relaxed) {
+            let _ = self.redirect_sender.send(());
+        } else {
+            let _ = self.sender.send_event(AppEvent::FrameReady(self.window_id));
+        }
     }
 }

@@ -1058,7 +1058,6 @@ impl ViewApp {
                 redirect_enabled.store(true, Ordering::Relaxed);
                 let stop_redirect = RunOnDrop::new(|| redirect_enabled.store(false, Ordering::Relaxed));
 
-                // app resizes don't return `true` in `resized`.
                 self.notify(Ev::WindowResized(id, size, EventCause::System));
 
                 let deadline = Instant::now() + Duration::from_secs(1);
@@ -1108,8 +1107,9 @@ impl ViewApp {
                     self.on_request(ctx, req);
                 }
 
-                if received_frame {
-                    // TODO block until new-frame-ready?
+                // if we are still within 1 second, wait webrender.
+                if received_frame && deadline > Instant::now() {
+                    self.windows[i].wait_frame_ready(deadline);
                 }
             }
             WindowEvent::Moved(p) => {
