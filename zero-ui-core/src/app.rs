@@ -963,6 +963,10 @@ impl<E: AppExtension> RunningApp<E> {
             zero_ui_vp::Ev::EventsCleared => {
                 return self.update(observer);
             }
+            zero_ui_vp::Ev::FrameRendered(w_id, frame_id) => {
+                let args = RawFrameRenderedArgs::now(self.window_id(w_id), frame_id);
+                self.notify_event(RawFrameRenderedEvent, args);
+            }
             zero_ui_vp::Ev::WindowResized(w_id, size, cause) => {
                 let args = RawWindowResizedArgs::now(self.window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args);
@@ -2197,6 +2201,7 @@ pub mod raw_events {
         event::*,
         keyboard::{Key, KeyState, ModifiersState, ScanCode},
         mouse::{ButtonState, MouseButton, MultiClickConfig},
+        render::FrameId,
         units::{LayoutPoint, LayoutSize},
         window::{EventCause, MonitorId, WindowId, WindowTheme},
     };
@@ -2285,6 +2290,22 @@ pub mod raw_events {
 
             /// Who moved the window.
             pub cause: EventCause,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawFrameRenderedEvent`].
+        pub struct RawFrameRenderedArgs {
+            /// Window that presents the rendered frame.
+            pub window_id: WindowId,
+
+            /// Frame tag.
+            pub frame_id: FrameId,
 
             ..
 
@@ -2663,6 +2684,9 @@ pub mod raw_events {
 
         /// A window was moved.
         pub RawWindowMovedEvent: RawWindowMovedArgs;
+
+        /// A frame finished rendering and was presented in a window.
+        pub RawFrameRenderedEvent: RawFrameRenderedArgs;
 
         /// A window was resized.
         pub RawWindowResizedEvent: RawWindowResizedArgs;

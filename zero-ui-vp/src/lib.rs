@@ -1107,9 +1107,11 @@ impl ViewApp {
                     self.on_request(ctx, req);
                 }
 
-                // if we are still within 1 second, wait webrender.
-                if received_frame && deadline > Instant::now() {
-                    self.windows[i].wait_frame_ready(deadline);
+                // if we are still within 1 second, wait webrender, and if a frame was rendered here, notify.
+                if received_frame && deadline > Instant::now() && self.windows[i].wait_frame_ready(deadline) {
+                    let id = self.windows[i].id();
+                    let frame_id = self.windows[i].frame_id();
+                    self.notify(Ev::FrameRendered(id, frame_id));
                 }
             }
             WindowEvent::Moved(p) => {
@@ -1240,16 +1242,20 @@ impl ViewApp {
     }
 
     fn on_frame_ready(&mut self, window_id: WindowId) {
-        let mut notify = None;
         if let Some(w) = self.windows.iter_mut().find(|w| w.is_window(window_id)) {
-            if w.request_redraw() {
-                notify = Some((w.id(), w.outer_position(), w.inner_size()));
-            }
-        }
+            let id = w.id();
+            let frame_id = w.frame_id();
+            let first_frame = w.request_redraw();
 
-        if let Some((id, pos, size)) = notify {
-            self.notify(Ev::WindowMoved(id, pos, EventCause::App));
-            self.notify(Ev::WindowResized(id, size, EventCause::App));
+            if first_frame {
+                let pos = w.outer_position();
+                let size = w.inner_size();
+
+                self.notify(Ev::WindowMoved(id, pos, EventCause::App));
+                self.notify(Ev::WindowResized(id, size, EventCause::App));
+            }
+
+            self.notify(Ev::FrameRendered(id, frame_id));
         }
     }
 

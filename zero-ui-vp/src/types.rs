@@ -47,6 +47,7 @@ pub enum Ev {
     EventsCleared,
 
     // Window events
+    FrameRendered(WinId, Epoch),
     WindowResized(WinId, LayoutSize, EventCause),
     WindowMoved(WinId, LayoutPoint, EventCause),
     DroppedFile(WinId, PathBuf),

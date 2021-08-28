@@ -1,4 +1,12 @@
-use std::{cell::Cell, rc::Rc, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Instant};
+use std::{
+    cell::Cell,
+    rc::Rc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Instant,
+};
 
 use gleam::gl;
 use glutin::{
@@ -46,6 +54,8 @@ pub(crate) struct ViewWindow {
     taskbar_visible: bool,
     movable: bool, // TODO
     transparent: bool,
+
+    frame_id: Epoch,
 }
 
 impl ViewWindow {
@@ -133,7 +143,7 @@ impl ViewWindow {
         let (renderer, sender) = webrender::Renderer::new(
             Rc::clone(&gl),
             Box::new(Notifier {
-                window_id: winit_window.id(), 
+                window_id: winit_window.id(),
                 sender: ctx.event_loop.clone(),
                 redirect: redirect_frame.clone(),
                 redirect_sender: rf_sender,
@@ -172,6 +182,7 @@ impl ViewWindow {
             taskbar_visible: true,
             movable: w.movable,
             transparent: w.transparent,
+            frame_id: Epoch::invalid(),
         };
 
         win.set_taskbar_visible(w.taskbar_visible);
@@ -195,6 +206,11 @@ impl ViewWindow {
 
     pub fn id(&self) -> WinId {
         self.id
+    }
+
+    /// Latest received frame.
+    pub fn frame_id(&self) -> Epoch {
+        self.frame_id
     }
 
     pub fn is_window(&self, window_id: WindowId) -> bool {
@@ -284,6 +300,8 @@ impl ViewWindow {
     ///
     /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
     pub fn render(&mut self, frame: FrameRequest) {
+        self.frame_id = frame.id;
+
         let scale_factor = self.window.scale_factor() as f32;
         let size = self.window.inner_size();
         let viewport_size = LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor);
@@ -336,7 +354,7 @@ impl ViewWindow {
     }
 
     /// Capture the next frame-ready event.
-    /// 
+    ///
     /// Returns `true` if received before `deadline`, if `true` already redraw too.
     pub fn wait_frame_ready(&mut self, deadline: Instant) -> bool {
         self.redirect_frame.store(true, Ordering::Relaxed);
@@ -569,10 +587,10 @@ impl Drop for ViewWindow {
 }
 
 struct Notifier {
-    window_id: WindowId, 
+    window_id: WindowId,
     sender: EventLoopProxy<AppEvent>,
     redirect: Arc<AtomicBool>,
-    redirect_sender: flume::Sender<()>
+    redirect_sender: flume::Sender<()>,
 }
 impl RenderNotifier for Notifier {
     fn clone(&self) -> Box<dyn RenderNotifier> {
