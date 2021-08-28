@@ -472,7 +472,7 @@ impl Controller {
 
     fn spawn_view_process(view_process_exe: &Path, headless: bool) -> (PathBuf, Option<Child>, Sender, Receiver, Receiver, File) {
         let channel_dir = loop {
-            let temp_dir = env::temp_dir().join(uuid::Uuid::new_v4().to_simple().to_string());
+            let temp_dir = env::temp_dir().join(format!("zero_ui_vp_{}", uuid::Uuid::new_v4().to_simple()));
             match std::fs::create_dir(&temp_dir) {
                 Ok(_) => break temp_dir,
                 Err(e) if e.kind() == ErrorKind::AlreadyExists => continue,
