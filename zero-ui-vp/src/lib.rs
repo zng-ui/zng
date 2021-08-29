@@ -931,8 +931,13 @@ declare_ipc! {
 
     /// Set the window content area size (inner-size).
     pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, frame: FrameRequest) -> Result<()> {
-        if self.with_window(id, |w|w.resize_inner(size, frame))? {
+        let frame_id = frame.id;
+        let (resized, rendered) = self.with_window(id, |w|w.resize_inner(size, frame))?;
+        if resized {
             self.notify(Ev::WindowResized(id, size, EventCause::App));
+            if rendered {
+                self.notify(Ev::FrameRendered(id, frame_id))
+            }
         }
         Ok(())
     }
@@ -1030,6 +1035,11 @@ declare_ipc! {
     /// Add/remove/update resources such as images and fonts.
     pub fn update_resources(&mut self, _ctx: &Context, id: WinId, updates: Vec<ResourceUpdate>) -> Result<()> {
         self.with_window(id, |w|w.update_resources(updates))
+    }
+
+    /// Returns the `number`.
+    pub fn ping(&mut self, _ctx: &Context, number: u32) -> Result<u32> {
+        Ok(number)
     }
 }
 

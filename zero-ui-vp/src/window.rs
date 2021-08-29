@@ -5,7 +5,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use gleam::gl;
@@ -238,16 +238,20 @@ impl ViewWindow {
     }
 
     /// Resize and render, returns `true` if actually resized.
+    ///
+    /// Returns (resized, rendered)
     #[must_use = "an event must be send if returns `true`"]
-    pub fn resize_inner(&mut self, size: LayoutSize, frame: FrameRequest) -> bool {
+    pub fn resize_inner(&mut self, size: LayoutSize, frame: FrameRequest) -> (bool, bool) {
         let new_size = LogicalSize::new(size.width, size.height).to_physical(self.window.scale_factor());
         let resized = self.resized(new_size);
+        let mut rendered = false;
         if resized {
             self.window.set_inner_size(new_size);
             self.resized = true;
             self.render(frame);
+            rendered = self.wait_frame_ready(Instant::now() + Duration::from_secs(1));
         }
-        resized
+        (resized, rendered)
     }
 
     pub fn set_min_inner_size(&mut self, min_size: LayoutSize) {

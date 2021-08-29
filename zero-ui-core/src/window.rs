@@ -1905,7 +1905,7 @@ impl AppWindow {
         }
 
         // `size` var is only used on init or once after update AND if auto_size did not override it.
-        let use_system_size = self.vars.size().is_new(ctx.vars);
+        let use_system_size = !self.vars.size().is_new(ctx.vars);
         let (size, min_size, max_size) = self.layout_size(ctx, use_system_size);
 
         if self.size != size {

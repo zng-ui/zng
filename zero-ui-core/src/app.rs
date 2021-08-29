@@ -1782,7 +1782,7 @@ impl fmt::Display for DeviceId {
 pub mod view_process {
     use std::path::PathBuf;
     use std::rc;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
     use std::{cell::RefCell, rc::Rc};
 
     use linear_map::LinearMap;
@@ -1893,6 +1893,14 @@ pub mod view_process {
             } else {
                 Ok(None)
             }
+        }
+
+        /// Returns the time it takes for the view-process to respond.
+        #[inline]
+        pub fn ping(&self) -> Result<Duration> {
+            let before = Instant::now();
+            self.0.borrow_mut().process.ping(0)?;
+            Ok(before.elapsed())
         }
 
         /// Translate `WinId` to `WindowId`.
