@@ -794,7 +794,7 @@ declare_ipc! {
         &mut self,
         ctx: &Context,
         config: WindowConfig,
-    ) -> Result<WinId> {
+    ) -> Result<(WinId, IdNamespace, PipelineId)> {
         assert!(self.started);
 
         let mut id = self.window_id_count.wrapping_add(1);
@@ -804,9 +804,12 @@ declare_ipc! {
         self.window_id_count = id;
 
         let window = ViewWindow::new(ctx, id, config);
+        let namespace = window.namespace_id();
+        let pipeline = window.pipeline_id();
+
         self.windows.push(window);
 
-        Ok(id)
+        Ok((id, namespace, pipeline))
     }
 
     /// Close the window.

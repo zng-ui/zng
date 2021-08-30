@@ -1847,11 +1847,16 @@ pub mod view_process {
             let mut app = self.0.borrow_mut();
             assert!(app.window_ids.values().all(|&v| v != window_id));
 
-            let id = app.process.open_window(config)?;
+            let (id, namespace_id, pipeline_id) = app.process.open_window(config)?;
 
             app.window_ids.insert(id, window_id);
 
-            Ok(ViewWindow(Rc::new(WindowConnection { id, app: self.0.clone() })))
+            Ok(ViewWindow(Rc::new(WindowConnection {
+                id,
+                app: self.0.clone(),
+                namespace_id,
+                pipeline_id,
+            })))
         }
 
         /// Read the system text anti-aliasing config.
@@ -1932,6 +1937,8 @@ pub mod view_process {
 
     struct WindowConnection {
         id: WinId,
+        namespace_id: IdNamespace,
+        pipeline_id: PipelineId,
         app: Rc<RefCell<ViewApp>>,
     }
     impl WindowConnection {
@@ -2083,13 +2090,19 @@ pub mod view_process {
         }
 
         /// Gets the root pipeline ID.
+        ///
+        /// This value is cached locally (not an IPC call).
+        #[inline]
         pub fn pipeline_id(&self) -> Result<PipelineId> {
-            self.call(|id, p| p.pipeline_id(id))
+            self.0.upgrade().map(|c| c.pipeline_id).ok_or(Error::WindowNotFound(0))
         }
 
-        /// Gets the resource namespace.
+        /// Resource namespace.
+        ///
+        /// This value is cached locally (not an IPC call).
+        #[inline]
         pub fn namespace_id(&self) -> Result<IdNamespace> {
-            self.call(|id, p| p.namespace_id(id))
+            self.0.upgrade().map(|c| c.namespace_id).ok_or(Error::WindowNotFound(0))
         }
 
         /// New image resource key.
