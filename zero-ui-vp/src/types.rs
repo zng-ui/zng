@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
 use webrender::api::units::{LayoutPoint, LayoutSize};
-use webrender::api::{BuiltDisplayListDescriptor, ColorF, Epoch, PipelineId};
+use webrender::api::{BuiltDisplayListDescriptor, ColorF, Epoch, HitTestResult, PipelineId};
 
 /// Window ID in channel.
 ///
@@ -57,7 +57,7 @@ pub enum Ev {
     Focused(WinId, bool),
     KeyboardInput(WinId, DevId, KeyboardInput),
     ModifiersChanged(WinId, ModifiersState),
-    CursorMoved(WinId, DevId, LayoutPoint),
+    CursorMoved(WinId, DevId, LayoutPoint, HitTestResult, Epoch),
     CursorEntered(WinId, DevId),
     CursorLeft(WinId, DevId),
     MouseWheel(WinId, DevId, MouseScrollDelta, TouchPhase),

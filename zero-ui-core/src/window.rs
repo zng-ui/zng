@@ -1607,8 +1607,8 @@ impl AppWindowInfo {
     fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
         if let Some(r) = &self.renderer {
             match r.hit_test(point) {
-                Ok(h) => {
-                    return FrameHitInfo::new(self.id, self.frame_info.frame_id(), point, h);
+                Ok((frame_id, hit_test)) => {
+                    return FrameHitInfo::new(self.id, frame_id, point, &hit_test);
                 }
                 Err(e) => log::error!("failed `hit_test`, will return `no_hits`, {:?}", e),
             }

@@ -1180,11 +1180,11 @@ impl FrameHitInfo {
     ///
     /// The tag marked with `WIDGET_HIT_AREA` is used to determine the [`HitInfo::point`](HitInfo::point).
     #[inline]
-    pub fn new(window_id: WindowId, frame_id: FrameId, point: LayoutPoint, hits: HitTestResult) -> Self {
+    pub fn new(window_id: WindowId, frame_id: FrameId, point: LayoutPoint, hits: &HitTestResult) -> Self {
         let mut candidates = Vec::default();
         let mut actual_hits = IdMap::default();
 
-        for hit in hits.items {
+        for hit in &hits.items {
             if hit.tag.0 == 0 {
                 continue;
             }
@@ -1236,7 +1236,7 @@ impl FrameHitInfo {
             window_id,
             FrameId::invalid(),
             LayoutPoint::new(-1.0, -1.0),
-            HitTestResult::default(),
+            &HitTestResult::default(),
         )
     }
 

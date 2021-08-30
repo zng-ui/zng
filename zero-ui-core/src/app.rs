@@ -1009,8 +1009,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawModifiersChangedArgs::now(self.window_id(w_id), state);
                 self.notify_event(RawModifiersChangedEvent, args);
             }
-            zero_ui_vp::Ev::CursorMoved(w_id, d_id, pos) => {
-                let args = RawCursorMovedArgs::now(self.window_id(w_id), self.device_id(d_id), pos);
+            zero_ui_vp::Ev::CursorMoved(w_id, d_id, pos, hit_test, frame_id) => {
+                let args = RawCursorMovedArgs::now(self.window_id(w_id), self.device_id(d_id), pos, hit_test, frame_id);
                 self.notify_event(RawCursorMovedEvent, args);
             }
             zero_ui_vp::Ev::CursorEntered(w_id, d_id) => {
@@ -1796,6 +1796,7 @@ pub mod view_process {
 
     use super::DeviceId;
     use crate::mouse::MultiClickConfig;
+    use crate::render::FrameId;
     use crate::service::Service;
     use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
     use crate::window::{MonitorId, WindowId};
@@ -2134,7 +2135,7 @@ pub mod view_process {
         /// Get display items of the last rendered frame that intercept the `point`.
         ///
         /// Returns all hits from front-to-back.
-        pub fn hit_test(&self, point: LayoutPoint) -> Result<HitTestResult> {
+        pub fn hit_test(&self, point: LayoutPoint) -> Result<(FrameId, HitTestResult)> {
             self.call(|id, p| p.hit_test(id, point))
         }
 
@@ -2427,6 +2428,12 @@ pub mod raw_events {
 
             /// Position of the cursor over the window, (0, 0) is the top-left.
             pub position: LayoutPoint,
+
+            /// Raw hit-test.
+            pub hit_test: webrender_api::HitTestResult,
+
+            /// Frame that was hit-test.
+            pub frame_id: FrameId,
 
             ..
 

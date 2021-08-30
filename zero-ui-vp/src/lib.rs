@@ -132,7 +132,7 @@ pub use types::{
 
 use webrender::api::{
     units::{LayoutPoint, LayoutRect, LayoutSize},
-    DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
+    DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
 };
 
 use crate::types::RunOnDrop;
@@ -1012,8 +1012,8 @@ declare_ipc! {
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
-    /// Returns all hits from front-to-back.
-    pub fn hit_test(&mut self, _ctx: &Context, id: WinId, point: LayoutPoint) -> Result<HitTestResult> {
+    /// Returns the frame ID and all hits from front-to-back.
+    pub fn hit_test(&mut self, _ctx: &Context, id: WinId, point: LayoutPoint) -> Result<(Epoch, HitTestResult)> {
         self.with_window(id, |w|w.hit_test(point))
     }
 
@@ -1151,9 +1151,10 @@ impl ViewApp {
                 self.notify(Ev::ModifiersChanged(id, m));
             }
             WindowEvent::CursorMoved { device_id, position, .. } => {
-                let d_id = self.device_id(device_id);
                 let p = LayoutPoint::new(position.x as f32 / scale_factor, position.y as f32 / scale_factor);
-                self.notify(Ev::CursorMoved(id, d_id, p));
+                let d_id = self.device_id(device_id);
+                let (f_id, ht) = self.windows[i].hit_test(p);
+                self.notify(Ev::CursorMoved(id, d_id, p, ht, f_id));
             }
             WindowEvent::CursorEntered { device_id } => {
                 let d_id = self.device_id(device_id);

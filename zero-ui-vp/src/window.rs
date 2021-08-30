@@ -401,12 +401,15 @@ impl ViewWindow {
     /// Does a hit-test on the current frame.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, point: LayoutPoint) -> HitTestResult {
-        self.api.hit_test(
-            self.document_id,
-            Some(self.pipeline_id),
-            units::WorldPoint::new(point.x, point.y),
-            HitTestFlags::all(),
+    pub fn hit_test(&self, point: LayoutPoint) -> (Epoch, HitTestResult) {
+        (
+            self.frame_id,
+            self.api.hit_test(
+                self.document_id,
+                Some(self.pipeline_id),
+                units::WorldPoint::new(point.x, point.y),
+                HitTestFlags::all(),
+            ),
         )
     }
 

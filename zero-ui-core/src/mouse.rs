@@ -623,7 +623,7 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, pos: LayoutPoint, ctx: &mut AppContext) {
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, pos: LayoutPoint, hits: FrameHitInfo, ctx: &mut AppContext) {
         let mut moved = Some(window_id) != self.pos_window;
 
         if moved {
@@ -639,13 +639,12 @@ impl MouseManager {
             self.pos = pos;
 
             let windows = ctx.services.windows();
-            let hits = match windows.hit_test(window_id, pos) {
-                Ok(h) => h,
-                Err(_) => return,
-            };
 
             // mouse_move data
-            let frame_info = windows.frame_info(window_id).unwrap();
+            let frame_info = match windows.frame_info(window_id) {
+                Ok(f) => f,
+                Err(_) => return, // window closed
+            };
             let (target, position) = if let Some(t) = hits.target() {
                 (frame_info.find(t.widget_id).unwrap().path(), t.point)
             } else {
@@ -677,6 +676,8 @@ impl MouseManager {
 
             // mouse_enter/mouse_leave.
             self.update_hovered(window_id, Some(device_id), hits, Some(target), ctx.events, ctx.services.mouse());
+        } else {
+            log::warn!("RawCursorMoved did not actually move")
         }
     }
 
@@ -794,7 +795,13 @@ impl AppExtension for MouseManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawCursorMovedEvent.update(args) {
-            self.on_cursor_moved(args.window_id, args.device_id, args.position, ctx);
+            self.on_cursor_moved(
+                args.window_id,
+                args.device_id,
+                args.position,
+                FrameHitInfo::new(args.window_id, args.frame_id, args.position, &args.hit_test),
+                ctx,
+            );
         } else if let Some(args) = RawMouseInputEvent.update(args) {
             self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
         } else if let Some(args) = RawModifiersChangedEvent.update(args) {
