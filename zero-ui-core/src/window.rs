@@ -2066,12 +2066,11 @@ impl AppWindow {
     #[must_use = "must send `pending_frame` if `true`"]
     fn render_frame(&mut self, ctx: &mut AppContext) -> bool {
         let scale_factor = self.monitor_metrics(ctx).1;
-        let next_frame_id = self.frame_id.0.wrapping_add(1);
-        let next_frame_id = if next_frame_id == u32::MAX {
-            webrender_api::Epoch(0)
-        } else {
-            webrender_api::Epoch(next_frame_id)
-        };
+        let mut next_frame_id = self.frame_id.0.wrapping_add(1);
+        if next_frame_id == FrameId::invalid().0 {
+            next_frame_id = self.frame_id.0.wrapping_add(1);
+        }
+        let next_frame_id = webrender_api::Epoch(next_frame_id);
 
         // `UiNode::render`
         let ((pipeline_id, size, display_list), frame_info) =
