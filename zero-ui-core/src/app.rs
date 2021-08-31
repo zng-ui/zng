@@ -1379,7 +1379,7 @@ impl HeadlessApp {
 }
 
 /// Observer for [`HeadlessApp::update_observed`].
-/// 
+///
 /// This works like a temporary app extension that runs only for the update call.
 pub trait AppEventObserver {
     /// Called for each raw event received.

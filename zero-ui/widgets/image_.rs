@@ -5,7 +5,10 @@ use crate::prelude::new_widget::*;
 /// This widget loads a still image from a variety of sources and presents it.
 #[widget($crate::widgets::image)]
 pub mod image {
-    use zero_ui::core::image::{ImageCacheKey, ImageRequestVar};
+    use zero_ui::core::{
+        image::{ImageCacheKey, ImageRequestVar},
+        profiler::profile_scope,
+    };
 
     use super::*;
     use crate::core::task::http::Uri;
@@ -138,6 +141,7 @@ pub mod image {
                 self.final_size = final_size;
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                profile_scope!("image::render");
                 if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx.vars) {
                     frame.push_image(LayoutRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
                 }

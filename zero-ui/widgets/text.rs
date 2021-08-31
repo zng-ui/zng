@@ -1,5 +1,6 @@
 //! Text widgets.
 
+use crate::core::profiler::profile_scope;
 use crate::prelude::new_widget::*;
 use crate::properties::text_theme::*;
 
@@ -313,6 +314,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        profile_scope!("text::render");
         frame.push_text(
             LayoutRect::from_size(self.size),
             self.shaped_text.glyphs(),

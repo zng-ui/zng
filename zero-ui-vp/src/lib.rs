@@ -78,7 +78,7 @@ pub fn init_view_process() {
             "headless" => true,
             _ => panic!("unknown mode"),
         };
-        run(PathBuf::from(channel_dir), headless);
+        run(PathBuf::from(channel_dir), headless, None);
     }
 }
 
@@ -102,7 +102,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 
     let mut config = SAME_PROCESS_CONFIG.lock();
 
-    thread::spawn(run_app);
+    let app_thread = thread::spawn(run_app);
 
     let waiter = Arc::new(Condvar::new());
     *config = Some(SameProcessConfig {
@@ -121,7 +121,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     };
 
     let config = config.take().unwrap();
-    run(config.channel_dir, config.headless)
+    run(config.channel_dir, config.headless, Some(app_thread))
 }
 
 pub use types::{
@@ -138,7 +138,7 @@ use webrender::api::{
 use crate::types::RunOnDrop;
 
 /// Start the app event loop in the View Process.
-fn run(channel_dir: PathBuf, headless: bool) -> ! {
+fn run(channel_dir: PathBuf, headless: bool, mut same_process_app: Option<JoinHandle<()>>) -> ! {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("can only init view-process in the main thread")
     }
@@ -196,6 +196,7 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
     });
 
     let mut app = ViewApp::new(
+        event_loop.create_proxy(),
         channel_dir,
         response_sender,
         event_sender,
@@ -244,8 +245,16 @@ fn run(channel_dir: PathBuf, headless: bool) -> ! {
             Event::RedrawRequested(w) => app.on_redraw(w),
             Event::RedrawEventsCleared => {}
             Event::LoopDestroyed => {
-                // this only happens if we detect the app-process exited,
+                // this happens if we detect the app-process exited,
                 // normally the app-process kills the view-process.
+                //
+                // OR in same_process mode, if the app is shutting-down.
+
+                if let Some(app_thread) = same_process_app.take() {
+                    if let Err(p) = app_thread.join() {
+                        std::panic::resume_unwind(p);
+                    }
+                }
             }
         }
     })
@@ -603,27 +612,23 @@ impl Controller {
     }
 }
 impl Drop for Controller {
-    /// Kills the View Process or exits the current process if running in same process.
+    /// Kills the View Process, unless it is running in the same process.
     fn drop(&mut self) {
-        let mut same_process = true;
-
         let _ = self.exit_handle.unlock();
 
         if let Some(mut process) = self.process.take() {
-            same_process = false;
             let _ = process.kill();
+        } else {
+            let _ = self.exit_same_process();
         }
 
         let _ = fs::remove_dir_all(&self.channel_dir);
-
-        if same_process {
-            std::process::exit(0);
-        }
     }
 }
 
 /// The View Process.
 pub(crate) struct ViewApp {
+    event_loop: EventLoopProxy<AppEvent>,
     response_chan: Sender,
     event_chan: Sender,
 
@@ -651,6 +656,7 @@ pub(crate) struct ViewApp {
 }
 impl ViewApp {
     pub fn new(
+        event_loop: EventLoopProxy<AppEvent>,
         channel_dir: PathBuf,
         response_chan: Sender,
         event_chan: Sender,
@@ -659,6 +665,7 @@ impl ViewApp {
         headless: bool,
     ) -> ViewApp {
         ViewApp {
+            event_loop,
             response_chan,
             event_chan,
             redirect_enabled,
@@ -741,6 +748,11 @@ declare_ipc! {
 
         self.started = true;
         Ok(true)
+    }
+
+    fn exit_same_process(&mut self, _ctx: &Context) -> Result<()> {
+        let _ = self.event_loop.send_event(AppEvent::ParentProcessExited);
+        Ok(())
     }
 
     /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
