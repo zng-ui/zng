@@ -134,5 +134,23 @@
             "args": [],
             "cwd": "${workspaceFolder}"
         },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Example: countdown",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=countdown",
+                    "--package=zero-ui"
+                ],
+                "filter": {
+                    "name": "countdown",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
     ]
 }

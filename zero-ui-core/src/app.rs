@@ -302,9 +302,10 @@ pub trait AppExtension: 'static {
         let _ = (ctx, args);
     }
 
-    /// Called when the application is shutting down.
+    /// Called when the application is shutdown.
     ///
-    /// Update requests and event notifications generated during this call are ignored.
+    /// Update requests and event notifications generated during this call are ignored,
+    /// the extensions will be dropped after every extension received this call.
     #[inline]
     fn deinit(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
@@ -773,7 +774,7 @@ impl<E: AppExtension> AppExtended<E> {
 }
 
 /// Represents a running app controlled by an external event loop.
-pub struct RunningApp<E: AppExtension> {
+struct RunningApp<E: AppExtension> {
     extensions: E,
     device_events: bool,
     owned_ctx: OwnedAppContext,
@@ -894,7 +895,10 @@ impl<E: AppExtension> RunningApp<E> {
                 flow = match self.receiver.recv_deadline(timer) {
                     Ok(ev) => self.app_event(ev, observer),
                     Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => self.update(observer),
+                        flume::RecvTimeoutError::Timeout => {
+                            self.maybe_has_updates = true;
+                            self.update(observer)
+                        }
                         flume::RecvTimeoutError::Disconnected => panic!("app events channel disconnected"),
                     },
                 }
@@ -1231,15 +1235,15 @@ impl<E: AppExtension> RunningApp<E> {
             ControlFlow::Wait
         }
     }
-
-    /// De-initializes extensions and drops.
-    pub fn shutdown(mut self) {
+}
+impl<E: AppExtension> Drop for RunningApp<E> {
+    fn drop(&mut self) {
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
     }
 }
 
-/// Desired next step of a loop animating a [`RunningApp`].
+/// Desired next step of app main loop.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[must_use = "methods that return `ControlFlow` expect to be inside a controlled loop"]
 pub enum ControlFlow {
@@ -1249,7 +1253,7 @@ pub enum ControlFlow {
     ///
     /// Note that a deadline might be set in case a timer is running.
     Wait,
-    /// Exit the loop and drop the [`RunningApp`].
+    /// Exit the loop and drop the app.
     Exit,
 }
 
@@ -1301,6 +1305,11 @@ impl HeadlessApp {
     /// Borrow the [`Vars`] only.
     pub fn vars(&self) -> &Vars {
         self.app.vars()
+    }
+
+    /// If device events are enabled in this app.
+    pub fn device_events(&self) -> bool {
+        self.app.device_events()
     }
 
     /// Does updates unobserved.
@@ -1369,7 +1378,9 @@ impl HeadlessApp {
     }
 }
 
-/// Observer for [`HeadlessApp::update_observed`] and [`RunningApp::update`].
+/// Observer for [`HeadlessApp::update_observed`].
+/// 
+/// This works like a temporary app extension that runs only for the update call.
 pub trait AppEventObserver {
     /// Called for each raw event received.
     fn raw_event(&mut self, ctx: &mut AppContext, ev: &zero_ui_vp::Ev) {
