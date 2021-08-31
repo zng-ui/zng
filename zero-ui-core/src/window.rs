@@ -6,27 +6,12 @@ pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMod
 use linear_map::LinearMap;
 use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
 
-use crate::{
-    app::{
+use crate::{BoxedUiNode, UiNode, WidgetId, app::{
         self,
         raw_events::*,
         view_process::{self, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
-    },
-    cancelable_event_args,
-    color::rgb,
-    context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
-    event::{event, EventUpdateArgs},
-    event_args, impl_from_and_into_var,
-    render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, WidgetTransformKey},
-    service::Service,
-    state::OwnedStateMap,
-    state_key,
-    text::{Text, TextAntiAliasing, ToText},
-    units::*,
-    var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    BoxedUiNode, UiNode, WidgetId,
-};
+    }, cancelable_event_args, color::rgb, context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext}, event::{event, EventUpdateArgs}, event_args, impl_from_and_into_var, profile_scope, render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, WidgetTransformKey}, service::Service, state::OwnedStateMap, state_key, text::{Text, TextAntiAliasing, ToText}, units::*, var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var}};
 
 unique_id! {
     /// Unique identifier of an open window.
@@ -973,7 +958,10 @@ impl AppExtension for WindowManager {
                 // note rendered frame and send any pending frame.
                 window.rendered_frame_id = args.frame_id;
                 if let Some(request) = window.pending_frame.take() {
+                    // TODO, super slow here.
+                    let t = std::time::Instant::now();
                     window.renderer.as_ref().unwrap().render(request).unwrap();
+                    println!("{:?}", t.elapsed());
                 }
             }
         } else if let Some(args) = RawWindowFocusEvent.update(args) {
@@ -2327,6 +2315,8 @@ impl OwnedWindowContext {
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
+        profile_scope!("OwnedWindowContext::render");
+
         self.update = UpdateDisplayRequest::None;
 
         let root = &mut self.root;

@@ -18,11 +18,15 @@ fn app_main() {
                 spacing = 5;
                 items = widgets![
                     example(),
-                    example(),
+                    // example(),
                 ];
             };
         }
-    })
+    });
+
+    
+    #[cfg(feature = "app_profiler")]
+    zero_ui::core::profiler::write_profile("same_process-profile.json", false);
 }
 
 fn example() -> impl Widget {

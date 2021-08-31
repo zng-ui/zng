@@ -862,6 +862,8 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Notify an event directly to the app extensions.
     pub fn notify_event<Ev: crate::event::Event>(&mut self, _event: Ev, args: Ev::Args) {
+        profile_scope!("notify_event<{}>", type_name::<Ev>());
+
         let update = EventUpdate::<Ev>(args);
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.event_preview(&mut ctx, &update);
@@ -882,7 +884,7 @@ impl<E: AppExtension> RunningApp<E> {
         self.ctx().services.req::<view_process::ViewProcess>().device_id(id)
     }
 
-    /// Repeatedly sleeps-waits for app events until the control flow changes to something other the [`Poll`].
+    /// Repeatedly sleeps-waits for app events until the control flow changes to something other than [`Poll`].
     ///
     /// This method also manages timers, awaking when a timer deadline elapses and causing an update cycle.
     ///
@@ -890,6 +892,10 @@ impl<E: AppExtension> RunningApp<E> {
     #[inline]
     pub fn poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         let mut flow = ControlFlow::Poll;
+
+        #[cfg(feature = "app_profiler")]
+        let mut _idle = crate::profiler::ProfileScope::new("<poll-recv>");
+
         while let ControlFlow::Poll = flow {
             if let Some(timer) = self.wake_time {
                 flow = match self.receiver.recv_deadline(timer) {
@@ -904,6 +910,12 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             } else {
                 let ev = self.receiver.recv().expect("app events channel disconnected");
+
+                #[cfg(feature = "app_profiler")]
+                {
+                    _idle = crate::profiler::ProfileScope::new("<poll-recv>");
+                }
+
                 flow = self.app_event(ev, observer);
             }
         }
@@ -937,6 +949,8 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Process an [`AppEvent`].
     fn app_event<O: AppEventObserver>(&mut self, app_event: AppEvent, observer: &mut O) -> ControlFlow {
+        profile_scope!("app_event");
+
         self.maybe_has_updates = true;
 
         match app_event {
@@ -960,6 +974,8 @@ impl<E: AppExtension> RunningApp<E> {
     ///
     /// Does `update` on `EventsCleared`.
     fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_vp::Ev, observer: &mut O) -> ControlFlow {
+        profile_scope!("view_event");
+
         use raw_device_events::*;
         use raw_events::*;
 
