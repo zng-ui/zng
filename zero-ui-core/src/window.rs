@@ -973,15 +973,7 @@ impl AppExtension for WindowManager {
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = RawFrameRenderedEvent.update(args) {
-            if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
-                // note rendered frame and send any pending frame.
-                window.rendered_frame_id = args.frame_id;
-                if let Some(request) = window.pending_frame.take() {
-                    window.renderer.as_ref().unwrap().render(request).unwrap();
-                }
-            }
-        } else if let Some(args) = RawWindowFocusEvent.update(args) {
+        if let Some(args) = RawWindowFocusEvent.update(args) {
             let wns = ctx.services.windows();
             if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
                 if window.is_focused == args.focused {
@@ -1650,12 +1642,6 @@ struct AppWindow {
     // latest frame.
     frame_id: FrameId,
 
-    // latest rendered frame.
-    rendered_frame_id: FrameId,
-    // latest frame request that was not send
-    // because the previous frame did not render.
-    pending_frame: Option<view_process::FrameRequest>,
-
     position: LayoutPoint,
     size: LayoutSize,
     min_size: LayoutSize,
@@ -1729,8 +1715,6 @@ impl AppWindow {
             first_render: true,
 
             frame_id: frame_info.frame_id(),
-            rendered_frame_id: frame_info.frame_id(), // Epoch::invalid
-            pending_frame: None,
             position: LayoutPoint::new(f32::NAN, f32::NAN), // we use NAN to mean OS start position.
             size: LayoutSize::zero(),
             min_size: LayoutSize::zero(),
@@ -1914,12 +1898,12 @@ impl AppWindow {
         let (size, min_size, max_size) = self.layout_size(ctx, use_system_size);
 
         if self.size != size {
-            let _ = self.render_frame(ctx);
+            let frame = self.render_frame(ctx);
 
             // resize view
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(size, self.pending_frame.take().unwrap());
+                let _ = w.set_size(size, frame.unwrap());
             } else if let Some(_r) = &self.renderer {
                 // TODO resize headless renderer.
                 todo!()
@@ -1963,11 +1947,11 @@ impl AppWindow {
         let (size, _, _) = self.layout_size(ctx, true);
 
         if self.size != size {
-            let _ = self.render_frame(ctx);
+            let frame = self.render_frame(ctx);
 
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(size, self.pending_frame.take().unwrap());
+                let _ = w.set_size(size, frame.unwrap());
             } else if let Some(_r) = &self.renderer {
                 // TODO resize headless renderer.
                 todo!()
@@ -2064,12 +2048,9 @@ impl AppWindow {
 
     /// Render frame for sending.
     ///
-    /// The `frame_id`, `frame_info` and `pending_frame` are updated.
-    ///
-    /// Returns `true` if the `pending_frame` can be send immediately.
-    ///
-    #[must_use = "must send `pending_frame` if `true`"]
-    fn render_frame(&mut self, ctx: &mut AppContext) -> bool {
+    /// The `frame_id` and `frame_info` are updated.
+    #[must_use = "must send the frame"]
+    fn render_frame(&mut self, ctx: &mut AppContext) -> Option<view_process::FrameRequest> {
         let scale_factor = self.monitor_metrics(ctx).1;
         let mut next_frame_id = self.frame_id.0.wrapping_add(1);
         if next_frame_id == FrameId::invalid().0 {
@@ -2080,8 +2061,6 @@ impl AppWindow {
         // `UiNode::render`
         let ((pipeline_id, size, display_list), frame_info) =
             self.context.render(ctx, next_frame_id, self.size, scale_factor, &self.renderer);
-
-        let renderer_idle = self.frame_id == self.rendered_frame_id;
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
@@ -2099,16 +2078,14 @@ impl AppWindow {
 
         // will need to send frame if there is a renderer
         if self.renderer.is_some() {
-            self.pending_frame = Some(view_process::FrameRequest {
+            Some(view_process::FrameRequest {
                 id: self.frame_id,
                 pipeline_id,
                 size,
                 display_list: (ByteBuf::from(payload), descriptor),
-            });
-
-            renderer_idle
+            })
         } else {
-            false
+            None
         }
     }
 
@@ -2194,14 +2171,12 @@ impl AppWindow {
             }
         }
 
-        let renderer_idle = self.render_frame(ctx);
+        let frame = self.render_frame(ctx);
 
         if let Some(renderer) = &mut self.renderer {
-            if renderer_idle {
                 renderer
-                    .render(self.pending_frame.take().unwrap())
+                    .render(frame.unwrap())
                     .expect("TODO, deal with respawn here?");
-            }
         }
     }
 
