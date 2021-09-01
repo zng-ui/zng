@@ -3,6 +3,7 @@ pub use glutin::event::{
 };
 pub use glutin::window::CursorIcon;
 use serde::{Deserialize, Serialize};
+pub use serde_bytes::ByteBuf;
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
 use webrender::api::units::{LayoutPoint, LayoutSize};
@@ -168,7 +169,7 @@ impl From<glutin::window::Theme> for WindowTheme {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Icon {
-    pub rgba: Vec<u8>,
+    pub rgba: ByteBuf,
     pub width: u32,
     pub height: u32,
 }
@@ -249,7 +250,7 @@ pub struct FrameRequest {
     pub size: LayoutSize,
 
     /// Display list, split in serializable parts.
-    pub display_list: (Vec<u8>, BuiltDisplayListDescriptor),
+    pub display_list: (ByteBuf, BuiltDisplayListDescriptor),
 }
 impl fmt::Debug for FrameRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -312,7 +313,7 @@ pub struct FramePixels {
     pub height: u32,
 
     /// BGRA8 data, bottom-to-top.
-    pub bgra: Vec<u8>,
+    pub bgra: ByteBuf,
 
     /// Scale factor when the frame was rendered.
     pub scale_factor: f32,

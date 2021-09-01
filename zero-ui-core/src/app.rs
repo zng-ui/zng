@@ -1930,9 +1930,9 @@ pub mod view_process {
 
         /// Returns the time it takes for the view-process to respond.
         #[inline]
-        pub fn ping(&self) -> Result<Duration> {
+        pub fn ping(&self, bytes: Vec<u8>) -> Result<Duration> {
             let before = Instant::now();
-            self.0.borrow_mut().process.ping(0)?;
+            self.0.borrow_mut().process.ping(zero_ui_vp::ByteBuf::from(bytes))?;
             Ok(before.elapsed())
         }
 

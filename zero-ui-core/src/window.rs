@@ -5,6 +5,7 @@ use std::{fmt, mem, rc::Rc, time::Instant};
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowTheme};
 use linear_map::LinearMap;
 use webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
+use zero_ui_vp::ByteBuf;
 
 use crate::{
     app::{
@@ -668,7 +669,11 @@ impl WindowIcon {
     #[inline]
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Self {
         assert!(rgba.len() == width as usize * height as usize * 4);
-        Self::Icon(Rc::new(zero_ui_vp::Icon { rgba, width, height }))
+        Self::Icon(Rc::new(zero_ui_vp::Icon {
+            rgba: ByteBuf::from(rgba),
+            width,
+            height,
+        }))
     }
 
     /// New window icon from the bytes of an encoded image.
@@ -973,10 +978,7 @@ impl AppExtension for WindowManager {
                 // note rendered frame and send any pending frame.
                 window.rendered_frame_id = args.frame_id;
                 if let Some(request) = window.pending_frame.take() {
-                    // TODO, super slow here.
-                    let t = std::time::Instant::now();
                     window.renderer.as_ref().unwrap().render(request).unwrap();
-                    println!("{:?}", t.elapsed());
                 }
             }
         } else if let Some(args) = RawWindowFocusEvent.update(args) {
@@ -2093,13 +2095,15 @@ impl AppWindow {
         // already notify, extensions are interested only in the frame metadata.
         ctx.updates.new_frame_rendered(self.id, self.frame_id);
 
+        let (payload, descriptor) = display_list.into_data();
+
         // will need to send frame if there is a renderer
         if self.renderer.is_some() {
             self.pending_frame = Some(view_process::FrameRequest {
                 id: self.frame_id,
                 pipeline_id,
                 size,
-                display_list: display_list.into_data(),
+                display_list: (ByteBuf::from(payload), descriptor),
             });
 
             renderer_idle

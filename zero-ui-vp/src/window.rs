@@ -16,6 +16,7 @@ use glutin::{
     window::{Window, WindowBuilder, WindowId},
     ContextBuilder, ContextWrapper, NotCurrent,
 };
+use serde_bytes::ByteBuf;
 use webrender::{
     api::{units::*, *},
     euclid, Renderer, RendererKind, RendererOptions,
@@ -70,7 +71,10 @@ impl ViewWindow {
             .with_transparent(w.transparent)
             .with_min_inner_size(LogicalSize::new(w.min_size.width, w.min_size.height))
             .with_max_inner_size(LogicalSize::new(w.max_size.width, w.max_size.height))
-            .with_window_icon(w.icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba, i.width, i.height).ok()))
+            .with_window_icon(
+                w.icon
+                    .and_then(|i| glutin::window::Icon::from_rgba(i.rgba.into_vec(), i.width, i.height).ok()),
+            )
             .with_visible(false); // we wait for the first frame to show the window.
 
         if w.pos.x.is_finite() && w.pos.y.is_finite() {
@@ -293,7 +297,7 @@ impl ViewWindow {
 
     pub fn set_icon(&mut self, icon: Option<crate::Icon>) {
         self.window
-            .set_window_icon(icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba, i.width, i.height).ok()));
+            .set_window_icon(icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba.into_vec(), i.width, i.height).ok()));
     }
 
     pub fn set_title(&self, title: String) {
@@ -311,7 +315,7 @@ impl ViewWindow {
         let viewport_size = LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor);
 
         let mut txn = Transaction::new();
-        let display_list = BuiltDisplayList::from_data(frame.display_list.0, frame.display_list.1);
+        let display_list = BuiltDisplayList::from_data(frame.display_list.0.into_vec(), frame.display_list.1);
         txn.set_display_list(
             frame.id,
             self.clear_color,
@@ -475,7 +479,7 @@ impl ViewWindow {
             return FramePixels {
                 width: 0,
                 height: 0,
-                bgra: vec![],
+                bgra: ByteBuf::new(),
                 scale_factor,
                 opaque: true,
             };
@@ -493,7 +497,7 @@ impl ViewWindow {
         FramePixels {
             width: width as u32,
             height: height as u32,
-            bgra,
+            bgra: ByteBuf::from(bgra),
             scale_factor,
             opaque: true,
         }

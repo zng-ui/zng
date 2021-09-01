@@ -120,9 +120,9 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 }
 
 pub use types::{
-    AxisId, ButtonId, CursorIcon, DevId, ElementState, Error, Ev, EventCause, FramePixels, FrameRequest, Icon, ModifiersState, MonId,
-    MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode, WinId,
-    WindowConfig, WindowTheme,
+    AxisId, ButtonId, ByteBuf, CursorIcon, DevId, ElementState, Error, Ev, EventCause, FramePixels, FrameRequest, Icon, ModifiersState,
+    MonId, MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode,
+    WinId, WindowConfig, WindowTheme,
 };
 
 use webrender::api::{
@@ -954,9 +954,9 @@ declare_ipc! {
         self.with_window(id, |w|w.update_resources(updates))
     }
 
-    /// Returns the `number`.
-    pub fn ping(&mut self, _ctx: &Context, number: u32) -> Result<u32> {
-        Ok(number)
+    /// Can be used to profile the ipc-channel.
+    pub fn ping(&mut self, _ctx: &Context, _bytes: ByteBuf) -> Result<()> {
+        Ok(())
     }
 }
 

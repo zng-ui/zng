@@ -2341,7 +2341,7 @@ impl From<FramePixels> for crate::image::Image {
 impl From<crate::app::view_process::FramePixels> for FramePixels {
     fn from(f: crate::app::view_process::FramePixels) -> Self {
         Self {
-            bgra: Arc::new(f.bgra),
+            bgra: Arc::new(f.bgra.into_vec()),
             width: f.width,
             height: f.height,
             opaque: f.opaque,

@@ -3,5 +3,3 @@
 * Implement fast detection of view-process crash.
 * Don't respawn for some exit codes? Shutdown by Task Manager exits with "1" we don't want
   to respawn in this case.
-
-* Consider using https://crates.io/crates/interprocess, is it safer?
