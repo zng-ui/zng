@@ -976,7 +976,7 @@ impl ViewApp {
                 if !self.windows[i].resized(size) {
                     return;
                 }
-                // give the app one second to send a new frame, this is the collaborative way to
+                // give the app 300ms to send a new frame, this is the collaborative way to
                 // resize, it should reduce the changes of the user seeing the clear color.
 
                 let size = LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor);
@@ -987,7 +987,7 @@ impl ViewApp {
 
                 self.notify(Ev::WindowResized(id, size, EventCause::System));
 
-                let deadline = Instant::now() + Duration::from_secs(1);
+                let deadline = Instant::now() + Duration::from_millis(300);
 
                 let mut received_frame = false;
                 loop {
