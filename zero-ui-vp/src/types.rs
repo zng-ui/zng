@@ -36,6 +36,7 @@ pub type DevId = u32;
 pub type MonId = u32;
 
 /// System/User events sent from the View Process.
+#[repr(u32)]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Ev {
     /// The View Process crashed and respawned, all resources must be rebuild.

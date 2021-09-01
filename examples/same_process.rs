@@ -24,7 +24,6 @@ fn app_main() {
         }
     });
 
-    
     #[cfg(feature = "app_profiler")]
     zero_ui::core::profiler::write_profile("same_process-profile.json", false);
 }

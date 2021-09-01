@@ -51,7 +51,14 @@ macro_rules! source_location {
 }
 #[doc(inline)]
 pub use crate::source_location;
-use crate::{BoxedUiNode, context::RenderContext, crate_util::IdMap, event::EventUpdateArgs, formatx, profile_scope, text::{Text, ToText}};
+use crate::{
+    context::RenderContext,
+    crate_util::IdMap,
+    event::EventUpdateArgs,
+    formatx, profile_scope,
+    text::{Text, ToText},
+    BoxedUiNode,
+};
 
 /// Debug information about a property of a widget instance.
 #[derive(Debug, Clone)]
@@ -663,7 +670,7 @@ impl UiNode for PropertyInfoNode {
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         profile_scope!("{}::render", self.info.borrow().property_name);
-        
+
         let t = Instant::now();
         self.child.render(ctx, frame);
         let d = t.elapsed();

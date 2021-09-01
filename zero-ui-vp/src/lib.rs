@@ -7,20 +7,17 @@
 #![allow(unused_parens)]
 
 use config::*;
-use fs2::FileExt;
 use glutin::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     window::WindowId,
 };
-use ipmpsc::{Receiver, Sender, SharedRingBuffer};
 use parking_lot::{Condvar, Mutex};
 use serde::{Deserialize, Serialize};
 use std::{
     env,
-    fs::{self, File},
-    io::{self, ErrorKind, Read, Write},
+    io::Read,
     panic,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -31,18 +28,16 @@ use std::{
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
+use types::RunOnDrop;
 use window::ViewWindow;
 
 mod config;
+mod ipc;
 mod types;
 mod window;
 
-const CHANNEL_VAR: &str = "ZERO_UI_WR_CHANNELS";
+const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
 const MODE_VAR: &str = "ZERO_UI_WR_MODE";
-
-const MAX_RESPONSE_SIZE: u32 = 1024u32.pow(2) * 20;
-const MAX_REQUEST_SIZE: u32 = 1024u32.pow(2) * 20;
-const MAX_EVENT_SIZE: u32 = 1024u32.pow(2) * 20;
 
 /// Version 0.1.
 ///
@@ -71,20 +66,20 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// }
 /// ```
 pub fn init_view_process() {
-    if let Ok(channel_dir) = env::var(CHANNEL_VAR) {
+    if let Ok(server_name) = env::var(SERVER_NAME_VAR) {
         let mode = env::var(MODE_VAR).unwrap_or_else(|_| "headed".to_owned());
         let headless = match mode.as_str() {
             "headed" => false,
             "headless" => true,
             _ => panic!("unknown mode"),
         };
-        run(PathBuf::from(channel_dir), headless, None);
+        run(server_name, headless, None);
     }
 }
 
 struct SameProcessConfig {
     waiter: Arc<Condvar>,
-    channel_dir: PathBuf,
+    server_name: String,
     headless: bool,
 }
 static SAME_PROCESS_CONFIG: Mutex<Option<SameProcessConfig>> = parking_lot::const_mutex(None);
@@ -107,7 +102,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     let waiter = Arc::new(Condvar::new());
     *config = Some(SameProcessConfig {
         waiter: waiter.clone(),
-        channel_dir: PathBuf::new(),
+        server_name: String::new(),
         headless: false,
     });
 
@@ -121,7 +116,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     };
 
     let config = config.take().unwrap();
-    run(config.channel_dir, config.headless, Some(app_thread))
+    run(config.server_name, config.headless, Some(app_thread))
 }
 
 pub use types::{
@@ -135,22 +130,13 @@ use webrender::api::{
     DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
 };
 
-use crate::types::RunOnDrop;
-
-/// Start the app event loop in the View Process.
-fn run(channel_dir: PathBuf, headless: bool, mut same_process_app: Option<JoinHandle<()>>) -> ! {
+/// Start the event loop in the View Process.
+fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHandle<()>>) -> ! {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("can only init view-process in the main thread")
     }
 
-    let request_receiver = Receiver::new(
-        SharedRingBuffer::open(&channel_dir.join("request").display().to_string()).expect("request channel connection failed"),
-    );
-    let response_sender = Sender::new(
-        SharedRingBuffer::open(&channel_dir.join("response").display().to_string()).expect("response channel connection failed"),
-    );
-    let event_sender =
-        Sender::new(SharedRingBuffer::open(&channel_dir.join("event").display().to_string()).expect("event channel connection failed"));
+    let (mut request_receiver, response_sender, event_sender) = ipc::connect_view_process(server_name);
 
     let event_loop = EventLoop::<AppEvent>::with_user_event();
 
@@ -161,12 +147,12 @@ fn run(channel_dir: PathBuf, headless: bool, mut same_process_app: Option<JoinHa
     let redirect_enabled = Arc::new(AtomicBool::new(false));
     let redirect_enabled_ = redirect_enabled.clone();
     let (redirect_sender, redirect_receiver) = flume::unbounded();
-    let exit_file = channel_dir.join("exit");
+
     thread::spawn(move || {
         loop {
             // wait for requests, every second checks if app-process is still running.
-            match request_receiver.recv_timeout(Duration::from_secs(1)) {
-                Ok(Some(req)) => {
+            match request_receiver.recv() {
+                Ok(req) => {
                     if redirect_enabled_.load(Ordering::Relaxed) {
                         redirect_sender.send(req).expect("redirect_sender error");
                     } else if request_sender.send_event(AppEvent::Request(req)).is_err() {
@@ -174,30 +160,13 @@ fn run(channel_dir: PathBuf, headless: bool, mut same_process_app: Option<JoinHa
                         return;
                     }
                 }
-                Ok(None) => {
-                    // the app-process holds exclusive handle to the `exit_file`
-                    // if we can write the app-process has exited without killing the `view-process`.
-                    let app_exited = match std::fs::OpenOptions::new().write(true).create(false).open(&exit_file) {
-                        Ok(f) => f.try_lock_exclusive().is_ok(),
-                        Err(e) if e.kind() == io::ErrorKind::NotFound => true,
-                        _ => false,
-                    };
-
-                    // if app-process exited try to signal event loop to exit or force exit.
-                    if app_exited && request_sender.send_event(AppEvent::ParentProcessExited).is_err() {
-                        std::process::exit(i32::from_ne_bytes(*b"noex"));
-                    }
-                }
-                Err(e) => {
-                    panic!("request channel error:\n{:#?}", e);
-                }
+                Err(ipc::Disconnected) => return,
             }
         }
     });
 
     let mut app = ViewApp::new(
         event_loop.create_proxy(),
-        channel_dir,
         response_sender,
         event_sender,
         redirect_enabled,
@@ -289,7 +258,8 @@ macro_rules! declare_ipc {
         #[derive(Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::large_enum_variant)]
-        enum Request {
+        #[repr(u32)]
+        pub(crate) enum Request {
             $(
                 $method { $($input: $RequestType),* },
             )*
@@ -297,7 +267,8 @@ macro_rules! declare_ipc {
 
         #[derive(Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
-        enum Response {
+        #[repr(u32)]
+        pub(crate) enum Response {
             $(
                 $method(Result<$ResponseType>),
             )*
@@ -355,11 +326,9 @@ type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
 /// [exits]: std::process::exit
 pub struct Controller {
     process: Option<Child>,
-    exit_handle: File,
     view_process_exe: PathBuf,
-    channel_dir: PathBuf,
-    request_chan: Sender,
-    response_chan: Receiver,
+    request_chan: ipc::RequestSender,
+    response_chan: ipc::ResponseReceiver,
     event_listener: Option<EventListenerJoin>,
     headless: bool,
 }
@@ -390,8 +359,7 @@ impl Controller {
             std::env::current_exe().expect("failed to get the current exetuable, consider using an external view-process exe")
         });
 
-        let (channel_dir, process, request_chan, response_chan, event_chan, exit_handle) =
-            Self::spawn_view_process(&view_process_exe, headless);
+        let (process, request_chan, response_chan, mut event_chan) = Self::spawn_view_process(&view_process_exe, headless);
 
         let ev = thread::spawn(move || {
             while let Ok(ev) = event_chan.recv() {
@@ -404,9 +372,7 @@ impl Controller {
 
         let mut c = Controller {
             process,
-            exit_handle,
             view_process_exe,
-            channel_dir,
             request_chan,
             response_chan,
             event_listener: Some(ev),
@@ -433,97 +399,48 @@ impl Controller {
         self.process.is_none()
     }
 
-    fn try_talk(&mut self, req: &Request) -> ipmpsc::Result<Response> {
-        self.request_chan.send_when_empty(req)?;
-
-        #[cfg(debug_assertions)]
-        return self.response_chan.recv();
-
-        #[cfg(not(debug_assertions))]
-        {
-            let r = self.response_chan.recv_timeout(Duration::from_secs(5))?;
-            r.ok_or_else(|| {
-                ipmpsc::Error::Io(std::io::Error::new(
-                    ErrorKind::TimedOut,
-                    "view-process did not respond in 5 seconds",
-                ))
-            })
-        }
+    fn try_talk(&mut self, req: Request) -> ipc::Result<Response> {
+        self.request_chan.send(req)?;
+        self.response_chan.recv()
     }
 
     fn talk(&mut self, req: Request) -> Result<Response> {
-        match self.try_talk(&req) {
+        match self.try_talk(req) {
             Ok(r) => return Ok(r),
-            Err(e) => match e {
-                ipmpsc::Error::AlreadyReceived => unreachable!("we don't use ZeroCopyContext, yet? TODO"),
-                ipmpsc::Error::ZeroSizedMessage => panic!("implementation error, ZeroSizedMessage"),
-                ipmpsc::Error::MessageTooLarge => panic!("implementation error, MessageTooLarge"),
-                ipmpsc::Error::TooManySenders => panic!("expected one sender per view-process"),
-                ipmpsc::Error::IncompatibleRingBuffer => {
-                    unreachable!("app-process and view-process must be build with the same version of zero-ui-vp")
-                }
-                ipmpsc::Error::Runtime(e) => {
-                    log::error!(target: "vp_recover", "will retry after ipmpsc runtime error, {}", e);
-                    self.try_recover();
-                }
-                ipmpsc::Error::Io(e) => {
-                    log::error!(target: "vp_recover", "will retry after ipmpsc IO error, {}", e);
-                    self.try_recover();
-                }
-                ipmpsc::Error::Bincode(e) => {
-                    log::error!(target: "vp_recover", "will retry after ipmpsc bincode error, {}", e);
-                    self.try_recover();
-                }
-            },
+            Err(e) => {
+                log::error!(target: "vp_recover", "will retry after channel IO error, {}", e);
+                self.try_recover();
+            }
         }
         Err(Error::Respawn)
     }
 
-    fn spawn_view_process(view_process_exe: &Path, headless: bool) -> (PathBuf, Option<Child>, Sender, Receiver, Receiver, File) {
-        let channel_dir = loop {
-            let temp_dir = env::temp_dir().join(format!("zero_ui_vp_{}", uuid::Uuid::new_v4().to_simple()));
-            match std::fs::create_dir(&temp_dir) {
-                Ok(_) => break temp_dir,
-                Err(e) if e.kind() == ErrorKind::AlreadyExists => continue,
-                Err(e) => panic!("failed to create channel directory: {}", e),
-            }
-        };
-
-        let rsp = Receiver::new(
-            SharedRingBuffer::create(channel_dir.join("response").display().to_string().as_str(), MAX_RESPONSE_SIZE)
-                .expect("response channel creation failed"),
-        );
-        let ev = Receiver::new(
-            SharedRingBuffer::create(channel_dir.join("event").display().to_string().as_str(), MAX_EVENT_SIZE)
-                .expect("event channel creation failed"),
-        );
-        let req = Sender::new(
-            SharedRingBuffer::create(channel_dir.join("request").display().to_string().as_str(), MAX_REQUEST_SIZE)
-                .expect("request channel creation failed"),
-        );
-
-        // view-process periodically tries to get write access to this file and exits if it succeeds.
-        let mut exit_handle = File::create(channel_dir.join("exit")).expect("exit signal file creation failed");
-        exit_handle.try_lock_exclusive().unwrap();
-        exit_handle.write_all(b"exit signal").unwrap();
-        exit_handle.flush().unwrap();
+    fn spawn_view_process(
+        view_process_exe: &Path,
+        headless: bool,
+    ) -> (Option<Child>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EvReceiver) {
+        let init = ipc::AppInit::new();
 
         // create process and spawn it, unless is running in same process mode.
-        if let Some(config) = &mut *SAME_PROCESS_CONFIG.lock() {
-            config.channel_dir = channel_dir.clone();
+        let process = if let Some(config) = &mut *SAME_PROCESS_CONFIG.lock() {
+            config.server_name = init.name().to_owned();
             config.headless = headless;
             config.waiter.notify_one();
-            (channel_dir, None, req, rsp, ev, exit_handle)
+            None
         } else {
             let process = Command::new(&view_process_exe)
-                .env(CHANNEL_VAR, &channel_dir)
+                .env(SERVER_NAME_VAR, init.name())
                 .env(MODE_VAR, if headless { "headless" } else { "headed" })
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
                 .expect("view-process failed to spawn");
-            (channel_dir, Some(process), req, rsp, ev, exit_handle)
-        }
+            Some(process)
+        };
+
+        let (req, rsp, ev) = init.connect();
+
+        (process, req, rsp, ev)
     }
 
     fn try_recover(&mut self) {
@@ -588,16 +505,13 @@ impl Controller {
             Err(p) => panic::resume_unwind(p),
         };
 
-        let (channel_dir, new_process, request, response, event, exit_handle) =
-            Self::spawn_view_process(&self.view_process_exe, self.headless);
+        let (new_process, request, response, mut event) = Self::spawn_view_process(&self.view_process_exe, self.headless);
 
         on_event(Ev::Respawned);
 
-        self.channel_dir = channel_dir;
         *process = new_process.unwrap();
         self.request_chan = request;
         self.response_chan = response;
-        self.exit_handle = exit_handle;
 
         let ev = thread::spawn(move || {
             while let Ok(ev) = event.recv() {
@@ -614,23 +528,19 @@ impl Controller {
 impl Drop for Controller {
     /// Kills the View Process, unless it is running in the same process.
     fn drop(&mut self) {
-        let _ = self.exit_handle.unlock();
-
         if let Some(mut process) = self.process.take() {
             let _ = process.kill();
         } else {
             let _ = self.exit_same_process();
         }
-
-        let _ = fs::remove_dir_all(&self.channel_dir);
     }
 }
 
 /// The View Process.
 pub(crate) struct ViewApp {
     event_loop: EventLoopProxy<AppEvent>,
-    response_chan: Sender,
-    event_chan: Sender,
+    response_chan: ipc::ResponseSender,
+    event_chan: ipc::EvSender,
 
     redirect_enabled: Arc<AtomicBool>,
     redirect_chan: flume::Receiver<Request>,
@@ -650,16 +560,12 @@ pub(crate) struct ViewApp {
 
     // if one or more events where send after the last on_events_cleared.
     pending_clear: bool,
-
-    // after channels dropped.
-    _channel_cleanup: RunOnDrop<Box<dyn FnOnce()>>,
 }
 impl ViewApp {
     pub fn new(
         event_loop: EventLoopProxy<AppEvent>,
-        channel_dir: PathBuf,
-        response_chan: Sender,
-        event_chan: Sender,
+        response_chan: ipc::ResponseSender,
+        event_chan: ipc::EvSender,
         redirect_enabled: Arc<AtomicBool>,
         redirect_chan: flume::Receiver<Request>,
         headless: bool,
@@ -680,19 +586,15 @@ impl ViewApp {
             device_id_count: u32::from_ne_bytes(*b"zdvp"),
             devices: vec![],
             pending_clear: false,
-
-            _channel_cleanup: RunOnDrop::new(Box::new(move || {
-                let _ = std::fs::remove_dir_all(channel_dir);
-            })),
         }
     }
 
-    fn respond(&self, response: Response) {
-        self.response_chan.send(&response).expect("TODO")
+    fn respond(&mut self, response: Response) {
+        self.response_chan.send(response).expect("TODO")
     }
     fn notify(&mut self, event: Ev) {
         self.pending_clear = true;
-        self.event_chan.send(&event).expect("TODO")
+        self.event_chan.send(event).expect("TODO")
     }
 
     fn monitor_id(&mut self, handle: &MonitorHandle) -> MonId {
