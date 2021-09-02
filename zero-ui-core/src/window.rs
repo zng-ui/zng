@@ -2068,6 +2068,7 @@ impl AppWindow {
 
         //let fps = 1.secs().as_nanos() / (frame_info.timestamp() - w_info.frame_info.timestamp()).as_nanos();
         //println!("fps: {}", fps);
+        //std::thread::sleep(std::time::Duration::from_millis(500));
 
         w_info.frame_info = frame_info;
 
@@ -2174,9 +2175,7 @@ impl AppWindow {
         let frame = self.render_frame(ctx);
 
         if let Some(renderer) = &mut self.renderer {
-                renderer
-                    .render(frame.unwrap())
-                    .expect("TODO, deal with respawn here?");
+            renderer.render(frame.unwrap()).expect("TODO, deal with respawn here?");
         }
     }
 

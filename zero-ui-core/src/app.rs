@@ -897,27 +897,34 @@ impl<E: AppExtension> RunningApp<E> {
         let mut _idle = crate::profiler::ProfileScope::new("<poll-recv>");
 
         while let ControlFlow::Poll = flow {
-            if let Some(timer) = self.wake_time {
-                flow = match self.receiver.recv_deadline(timer) {
-                    Ok(ev) => self.app_event(ev, observer),
+            let ev = if let Some(timer) = self.wake_time {
+                match self.receiver.recv_deadline(timer) {
+                    Ok(ev) => ev,
                     Err(e) => match e {
                         flume::RecvTimeoutError::Timeout => {
+                            // update timers
                             self.maybe_has_updates = true;
-                            self.update(observer)
+                            flow = self.update(observer);
+                            continue;
                         }
                         flume::RecvTimeoutError::Disconnected => panic!("app events channel disconnected"),
                     },
                 }
             } else {
-                let ev = self.receiver.recv().expect("app events channel disconnected");
+                self.receiver.recv().expect("app events channel disconnected")
+            };
 
-                #[cfg(feature = "app_profiler")]
-                {
-                    _idle = crate::profiler::ProfileScope::new("<poll-recv>");
-                }
-
-                flow = self.app_event(ev, observer);
+            #[cfg(feature = "app_profiler")]
+            {
+                _idle = crate::profiler::ProfileScope::new("<poll-recv>");
             }
+
+            flow = if !matches!(ev, AppEvent::ViewEvent(view_process::Ev::EventsCleared)) || self.receiver.is_empty() {
+                // notify event, ignores `EventsCleared` if there is already more events in the channel.
+                self.app_event(ev, observer)
+            } else {
+                ControlFlow::Poll
+            };
         }
         flow
     }
@@ -990,6 +997,9 @@ impl<E: AppExtension> RunningApp<E> {
             zero_ui_vp::Ev::WindowResized(w_id, size, cause) => {
                 let args = RawWindowResizedArgs::now(self.window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args);
+                // view-process blocks waiting for a frame on resize, so update as early
+                // as possible to generate this frame
+                return self.update(observer);
             }
             zero_ui_vp::Ev::WindowMoved(w_id, pos, cause) => {
                 let args = RawWindowMovedArgs::now(self.window_id(w_id), pos, cause);

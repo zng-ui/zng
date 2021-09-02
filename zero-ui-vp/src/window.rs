@@ -24,7 +24,7 @@ use webrender::{
 
 use crate::{
     config::{set_raw_windows_event_handler, text_aa},
-    types::FramePixels,
+    types::{FramePixels, RunOnDrop},
     AppEvent, Context, Ev, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
 };
 
@@ -366,9 +366,12 @@ impl ViewWindow {
     /// Returns `true` if received before `deadline`, if `true` already redraw too.
     pub fn wait_frame_ready(&mut self, deadline: Instant) -> bool {
         self.redirect_frame.store(true, Ordering::Relaxed);
+        let stop_redirect = RunOnDrop::new(|| self.redirect_frame.store(false, Ordering::Relaxed));
 
         let received = self.redirect_frame_recv.recv_deadline(deadline).is_ok();
-        self.redirect_frame.store(false, Ordering::Relaxed);
+
+        drop(stop_redirect);
+
         if received {
             self.redraw();
         }
