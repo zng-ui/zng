@@ -14,7 +14,7 @@ use glutin::{
     event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode},
     event_loop::EventLoopProxy,
     window::{Window, WindowBuilder, WindowId},
-    ContextBuilder, ContextWrapper, PossiblyCurrent,
+    ContextBuilder, ContextWrapper, NotCurrent, PossiblyCurrent,
 };
 use serde_bytes::ByteBuf;
 use webrender::{
@@ -83,10 +83,10 @@ pub struct GlContextManager {
     current: Rc<Cell<Option<WinId>>>,
 }
 impl GlContextManager {
-    fn manage(&self, id: WinId, ctx: ContextWrapper<PossiblyCurrent, ()>) -> GlContext {
+    fn manage(&self, id: WinId, ctx: ContextWrapper<NotCurrent, ()>) -> GlContext {
         GlContext {
             id,
-            ctx: Some(ctx),
+            ctx: Some(unsafe { ctx.treat_as_current() }),
             current: Rc::clone(&self.current),
         }
     }
@@ -125,7 +125,7 @@ pub(crate) struct ViewWindow {
 
 impl ViewWindow {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(ctx: &Context, id: u32, w: WindowConfig) -> Self {
+    pub fn new(ctx: &Context, id: WinId, w: WindowConfig) -> Self {
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
             .with_title(w.title)
@@ -146,8 +146,9 @@ impl ViewWindow {
         }
 
         let glutin = ContextBuilder::new().build_windowed(winit, ctx.window_target).unwrap();
-        // SAFETY: we drop the context before the window.
+        // SAFETY: we drop the context before the window (or panic if we don't).
         let (context, winit_window) = unsafe { glutin.split() };
+        let mut context = ctx.gl_manager.manage(id, context);
 
         // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
         let allow_alt_f4 = Rc::new(Cell::new(w.allow_alt_f4));
@@ -178,11 +179,11 @@ impl ViewWindow {
         }
 
         // create renderer and start the first frame.
-        let context = unsafe { context.make_current() }.unwrap();
+        let gl_ctx = context.make_current();
 
-        let gl = match context.get_api() {
-            glutin::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
-            glutin::Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
+        let gl = match gl_ctx.get_api() {
+            glutin::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| gl_ctx.get_proc_address(symbol) as *const _) },
+            glutin::Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| gl_ctx.get_proc_address(symbol) as *const _) },
             glutin::Api::WebGl => panic!("WebGl is not supported"),
         };
 
@@ -226,8 +227,6 @@ impl ViewWindow {
         let document_id = api.add_document(device_size, 0);
 
         let pipeline_id = webrender::api::PipelineId(1, 0);
-
-        let context = ctx.gl_manager.manage(id, context);
 
         let mut win = Self {
             id,
