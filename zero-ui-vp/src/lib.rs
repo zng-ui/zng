@@ -29,7 +29,7 @@ use std::{
     time::{Duration, Instant},
 };
 use types::RunOnDrop;
-use window::ViewWindow;
+use window::{GlContextManager, ViewWindow};
 
 mod config;
 mod ipc;
@@ -175,10 +175,13 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
     );
 
     let el = event_loop.create_proxy();
+    let gl_manager = GlContextManager::default();
+
     #[cfg(windows)]
     let config_listener = config::config_listener(&Context {
         event_loop: &el,
         window_target: &event_loop,
+        gl_manager: &gl_manager,
     });
 
     event_loop.run(move |event, window_target, control| {
@@ -187,6 +190,7 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
         let ctx = Context {
             event_loop: &el,
             window_target,
+            gl_manager: &gl_manager,
         };
 
         match event {
@@ -232,6 +236,7 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
 pub(crate) struct Context<'a> {
     pub event_loop: &'a EventLoopProxy<AppEvent>,
     pub window_target: &'a EventLoopWindowTarget<AppEvent>,
+    pub gl_manager: &'a GlContextManager,
 }
 
 /// Custom event loop event.

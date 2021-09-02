@@ -14,7 +14,7 @@ use glutin::{
     event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode},
     event_loop::EventLoopProxy,
     window::{Window, WindowBuilder, WindowId},
-    ContextBuilder, ContextWrapper, NotCurrent,
+    ContextBuilder, ContextWrapper, PossiblyCurrent,
 };
 use serde_bytes::ByteBuf;
 use webrender::{
@@ -28,10 +28,74 @@ use crate::{
     AppEvent, Context, Ev, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
 };
 
+/// Managed Open-GL context.
+struct GlContext {
+    id: WinId,
+    ctx: Option<ContextWrapper<PossiblyCurrent, ()>>,
+    current: Rc<Cell<Option<WinId>>>,
+}
+impl GlContext {
+    /// Gets the context as current.
+    ///
+    /// It can already be current or it is made current.
+    fn make_current(&mut self) -> &mut ContextWrapper<PossiblyCurrent, ()> {
+        let id = Some(self.id);
+        if self.current.get() != id {
+            self.current.set(id);
+            let c = self.ctx.take().unwrap();
+            // glutin docs says that calling `make_not_current` is not necessary and
+            // that "If you call make_current on some context, you should call treat_as_not_current as soon
+            // as possible on the previously current context."
+            //
+            // As far as the glutin code goes `treat_as_not_current` just changes the state tag, so we can call
+            // `treat_as_not_current` just to get access to the `make_current` when we know it is not current
+            // anymore, and just ignore the whole "current state tag" thing.
+            let c = unsafe { c.treat_as_not_current().make_current() }.expect("failed to make current");
+            self.ctx = Some(c);
+        }
+        self.ctx.as_mut().unwrap()
+    }
+
+    /// Glutin requires that the context is [dropped before the window][1], calling this
+    /// function safely disposes of the context, the winit window should be dropped immediately after.
+    /// 
+    /// [1]: https://docs.rs/glutin/0.27.0/glutin/type.WindowedContext.html#method.split
+    fn drop_before_winit(&mut self) {
+        if self.current.get() == Some(self.id) {
+            let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
+            self.current.set(None);
+        } else {
+            let _ = unsafe { self.ctx.take().unwrap().treat_as_not_current() };
+        }
+    }
+}
+impl Drop for GlContext {
+    fn drop(&mut self) {
+        if self.ctx.is_some() {
+            panic!("call `drop_before_winit` before dropping")
+        }
+    }
+}
+
+/// Manages the "current" glutin OpenGL context.
+#[derive(Default)]
+pub struct GlContextManager {
+    current: Rc<Cell<Option<WinId>>>,
+}
+impl GlContextManager {
+    fn manage(&self, id: WinId, ctx: ContextWrapper<PossiblyCurrent, ()>) -> GlContext {
+        GlContext {
+            id,
+            ctx: Some(ctx),
+            current: Rc::clone(&self.current),
+        }
+    }
+}
+
 pub(crate) struct ViewWindow {
     id: WinId,
     window: Window,
-    context: Option<ContextWrapper<NotCurrent, ()>>,
+    context: GlContext,
     gl: Rc<dyn gl::Gl>,
     renderer: Option<Renderer>,
     api: RenderApi,
@@ -163,14 +227,14 @@ impl ViewWindow {
 
         let pipeline_id = webrender::api::PipelineId(1, 0);
 
-        let context = unsafe { context.make_not_current() }.unwrap();
+        let context = ctx.gl_manager.manage(id, context);
 
         let mut win = Self {
             id,
             prev_pos: winit_window.outer_position().unwrap_or_default(),
             prev_size: winit_window.inner_size(),
             window: winit_window,
-            context: Some(context),
+            context,
             gl,
             renderer: Some(renderer),
             redirect_frame,
@@ -270,9 +334,8 @@ impl ViewWindow {
 
     /// window.inner_size maybe new.
     pub fn on_resized(&mut self) {
-        let ctx = unsafe { self.context.take().unwrap().make_current().unwrap() };
+        let ctx = self.context.make_current();
         ctx.resize(self.window.inner_size());
-        self.context = unsafe { Some(ctx.make_not_current().unwrap()) };
         self.resized = true;
     }
 
@@ -396,13 +459,12 @@ impl ViewWindow {
     }
 
     pub fn redraw(&mut self) {
-        let ctx = unsafe { self.context.take().unwrap().make_current() }.unwrap();
+        let ctx = self.context.make_current();
         let renderer = self.renderer.as_mut().unwrap();
         renderer.update();
         let s = self.window.inner_size();
         renderer.render(DeviceIntSize::new(s.width as i32, s.height as i32)).unwrap();
         ctx.swap_buffers().unwrap();
-        self.context = Some(unsafe { ctx.make_not_current() }.unwrap());
     }
 
     /// Does a hit-test on the current frame.
@@ -488,14 +550,13 @@ impl ViewWindow {
             };
         }
 
-        let ctx = unsafe { self.context.take().unwrap().make_current() }.unwrap();
+        // `self.gl` is only valid if we are the current context.
+        let _ctx = self.context.make_current();
 
         let bgra = self
             .gl
             .read_pixels(x as _, (y + height) as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
         assert!(self.gl.get_error() == 0);
-
-        self.context = Some(unsafe { ctx.make_not_current() }.unwrap());
 
         FramePixels {
             width: width as u32,
@@ -590,13 +651,14 @@ impl ViewWindow {
 }
 impl Drop for ViewWindow {
     fn drop(&mut self) {
-        // context must be dropped before the winit window and webrender deinit needs an active context.
+        // webrender deinit panics if the context is not current.
+        let _ctx = self.context.make_current();
+        self.renderer.take().unwrap().deinit();
 
-        let ctx = self.context.take().unwrap();
-        if let Ok(ctx) = unsafe { ctx.make_current() } {
-            self.renderer.take().unwrap().deinit();
-            let _ = unsafe { ctx.make_not_current() };
-        }
+        // context must be dropped before the winit window (glutin requirement).
+        self.context.drop_before_winit();
+
+        // the winit window will be dropped normally after this.
     }
 }
 
