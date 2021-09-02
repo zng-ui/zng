@@ -552,14 +552,21 @@ impl ViewWindow {
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
 
+        let inverted_y = max.height() - y - rect.height();
+        let width = width as u32;
+        let height = height as u32;
+
         let bgra = self
             .gl
-            .read_pixels(x as _, (y + height) as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
+            .read_pixels(x as _, inverted_y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
         assert!(self.gl.get_error() == 0);
 
+        let has_color = bgra.iter().any(|&b| b > 0);
+        println!("has_color: {}", has_color);
+
         FramePixels {
-            width: width as u32,
-            height: height as u32,
+            width,
+            height,
             bgra: ByteBuf::from(bgra),
             scale_factor,
             opaque: true,

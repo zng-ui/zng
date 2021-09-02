@@ -2146,7 +2146,9 @@ impl fmt::Debug for FramePixels {
     }
 }
 impl FramePixels {
-    /// **BGRA8** frame pixels.
+    /// **BGRA8** frame pixels, bottom-to-top.
+    /// 
+    /// 
     #[inline]
     pub fn bgra(&self) -> &Arc<Vec<u8>> {
         &self.bgra
@@ -2190,7 +2192,16 @@ impl FramePixels {
     /// # ICO
     ///
     /// The `.ico` format only works if the image buffer width and height are in the `1..=256` range.
+    /// 
+    /// # Panics
+    /// 
+    /// If [`width`] or [`height`] are zero.
+    /// 
+    /// [`width`]: FramePixels::width
+    /// [`height`]: FramePixels::height
     pub async fn save(&self, path: impl Into<std::path::PathBuf>) -> image::ImageResult<()> {
+        assert!(self.width > 0 && self.height > 0);
+
         use image::*;
         use std::fs;
 
@@ -2198,7 +2209,9 @@ impl FramePixels {
         let format = ImageFormat::from_path(&path)?;
         let mut file = task::wait(move || fs::File::create(path)).await?;
 
-        let bgra = Arc::clone(&self.bgra);
+        // invert rows, `image` only supports top-to-bottom buffers.
+        let bgra: Vec<_> = self.bgra.rchunks_exact(self.width as usize * 4).flatten().copied().collect();
+
         let width = self.width;
         let height = self.height;
         let scale_factor = self.scale_factor;
@@ -2247,7 +2260,7 @@ impl FramePixels {
                         }
                     } else {
                         color_type = ColorType::Rgba8;
-                        pixels = (*bgra).clone();
+                        pixels = bgra;
                         for pixel in pixels.chunks_mut(4) {
                             pixel.swap(0, 2);
                         }
