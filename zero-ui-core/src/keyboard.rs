@@ -213,6 +213,9 @@ impl AppExtension for KeyboardManager {
 /// This service is provided by the [`KeyboardManager`] extension.
 #[derive(Service)]
 pub struct Keyboard {
+    // the `modifiers` variable only updates after a burst of raw events
+    // we need the most current modifiers immediately.
+    current_modifiers: ModifiersState,
     modifiers: RcVar<ModifiersState>,
     codes: RcVar<Vec<ScanCode>>,
     keys: RcVar<Vec<Key>>,
@@ -223,6 +226,7 @@ pub struct Keyboard {
 impl Keyboard {
     fn new(vp: Option<&mut ViewProcess>) -> Self {
         Keyboard {
+            current_modifiers: ModifiersState::empty(),
             modifiers: var(ModifiersState::empty()),
             codes: var(vec![]),
             keys: var(vec![]),
@@ -234,8 +238,12 @@ impl Keyboard {
     }
 
     fn set_modifiers(&mut self, events: &mut Events, vars: &Vars, modifiers: ModifiersState) {
-        let prev_modifiers = self.modifiers.copy(vars);
-        if self.modifiers.set_ne(vars, modifiers) {
+        if self.current_modifiers != modifiers {
+            self.modifiers.set(vars, modifiers);
+
+            let prev_modifiers = self.current_modifiers;
+            self.current_modifiers = modifiers;
+
             ModifiersChangedEvent.notify(events, ModifiersChangedArgs::now(prev_modifiers, modifiers));
         }
     }
@@ -307,7 +315,7 @@ impl Keyboard {
                     args.scan_code,
                     args.state,
                     args.key,
-                    self.modifiers.copy(vars),
+                    self.current_modifiers,
                     repeat,
                     target,
                 );

@@ -58,7 +58,7 @@ impl GlContext {
 
     /// Glutin requires that the context is [dropped before the window][1], calling this
     /// function safely disposes of the context, the winit window should be dropped immediately after.
-    /// 
+    ///
     /// [1]: https://docs.rs/glutin/0.27.0/glutin/type.WindowedContext.html#method.split
     fn drop_before_winit(&mut self) {
         if self.current.get() == Some(self.id) {
