@@ -118,7 +118,7 @@ pub trait HeadlessAppWindowExt {
     /// Copy the current frame pixels of the window.
     fn frame_pixels(&mut self, window_id: WindowId) -> FramePixels;
 
-    /// Sleeps until the next window frame is rendered, then returns the frame pixels.
+    /// Sleeps until the current frame info is rendered then returns the frame pixels.
     fn wait_frame(&mut self, window_id: WindowId) -> FramePixels;
 
     /// Sends a close request, returns if the window was found and closed.
@@ -153,20 +153,19 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
     }
 
     fn wait_frame(&mut self, window_id: WindowId) -> FramePixels {
-        // the current frame for comparison.
-        let frame_id = self.ctx().services.windows().frame_info(window_id).ok().map(|w| w.frame_id());
-
+        let (mut frame_id, mut pixels_id) = self.ctx().services.windows().latest_frame_ids(window_id).unwrap();
         loop {
+            if frame_id == pixels_id {
+                return self.ctx().services.windows().frame_pixels(window_id).unwrap();
+            }
+
             if let ControlFlow::Exit = self.update(true) {
                 return FramePixels::default();
             }
 
-            let windows = self.ctx().services.windows();
-            if let Ok(frame) = windows.frame_info(window_id) {
-                if Some(frame.frame_id()) != frame_id {
-                    return windows.frame_pixels(window_id).unwrap();
-                }
-            }
+            let (f_id, p_id) = self.ctx().services.windows().latest_frame_ids(window_id).unwrap();
+            frame_id = f_id;
+            pixels_id = p_id;
         }
     }
 
@@ -878,6 +877,46 @@ event_args! {
             true
         }
     }
+
+    /// [`FramePixelsReadyEvent`] args.
+    pub struct FramePixelsReadyArgs {
+        /// Window ID.
+        pub window_id: WindowId,
+
+        /// Frame that finished rendering.
+        ///
+        /// This is *probably* the ID of frame pixels if they are requested immediately.
+        pub frame_id: FrameId,
+
+        /// Latest window frame metadata.
+        ///
+        /// The window can have newer frames while a previous frame is rendering, the
+        /// frame metadata is available immediately and is also send to the view-process
+        /// for rendering.
+        pub latest_frame_id: FrameId,
+
+        ..
+
+        /// If the widget is in the same window.
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            ctx.path.window_id() == self.window_id
+        }
+    }
+}
+impl FramePixelsReadyArgs {
+    /// If [`frame_id`] and [`latest_frame_id`] are equal.
+    ///
+    /// Returns `true` if there where no newer frames rendering at the [`timestamp`] moment.
+    /// This means that if [`Windows::frame_pixels`] are requested they will probably be the same frame.
+    ///
+    /// You can request a copy of the pixels using [`Windows::frame_pixels`].
+    ///
+    /// [`frame_id`]: FramePixelsReadyArgs::frame_id
+    /// [`latest_frame_id`]: FramePixelsReadyArgs::latest_frame_id
+    /// [`timestamp`]: FramePixelsReadyArgs::timestamp
+    pub fn is_latest(&self) -> bool {
+        self.frame_id == self.latest_frame_id
+    }
 }
 cancelable_event_args! {
     /// [`WindowCloseRequestedEvent`] args.
@@ -926,6 +965,11 @@ event! {
 
     /// Monitors added or removed event.
     pub MonitorsChangedEvent: MonitorsChangedArgs;
+
+    /// A window frame has finished rendering.
+    ///
+    /// You can request a copy of the pixels using [`Windows::frame_pixels`].
+    pub FramePixelsReadyEvent: FramePixelsReadyArgs;
 }
 
 /// Application extension that manages windows.
@@ -973,6 +1017,14 @@ impl AppExtension for WindowManager {
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawFrameRenderedEvent.update(args) {
+            let wns = ctx.services.windows();
+            if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
+                window.frame_pixels_id = args.frame_id;
+                let args = FramePixelsReadyArgs::new(args.timestamp, args.window_id, args.frame_id, window.frame_info.frame_id());
+                FramePixelsReadyEvent.notify(ctx.events, args);
+            }
+        }
         if let Some(args) = RawWindowFocusEvent.update(args) {
             let wns = ctx.services.windows();
             if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
@@ -1477,6 +1529,14 @@ impl Windows {
             .ok_or(WindowNotFound(window_id))
     }
 
+    /// Returns IDs of the latest frame generated and the latest frame rendered.
+    pub fn latest_frame_ids(&self, window_id: WindowId) -> Result<(FrameId, FrameId), WindowNotFound> {
+        self.windows_info
+            .get(&window_id)
+            .map(|w| (w.frame_info.frame_id(), w.frame_pixels_id))
+            .ok_or(WindowNotFound(window_id))
+    }
+
     /// Copy the pixels of the window's latest frame.
     ///
     /// Returns an empty zero-by-zero frame if the window is headless without renderer.
@@ -1597,6 +1657,8 @@ struct AppWindowInfo {
 
     // latest frame.
     frame_info: FrameInfo,
+    // latest frame rendered.
+    frame_pixels_id: FrameId,
     // focus tracked by the raw focus events.
     is_focused: bool,
 }
@@ -1674,7 +1736,7 @@ impl AppWindow {
         let root = ctx.window_context(id, mode, &mut wn_state, &None, new_window).0;
         let root_id = root.id;
 
-        let headless_monitor = if matches!(mode, WindowMode::Headless) {
+        let headless_monitor = if mode.is_headless() {
             Some(root.headless_monitor.clone())
         } else {
             None
@@ -1727,6 +1789,7 @@ impl AppWindow {
             mode,
             renderer: None, // will be set on the first render
             vars,
+            frame_pixels_id: frame_info.frame_id(),
             scale_factor: 1.0, // will be set on the first layout
             frame_info,        // TODO
             is_focused: false, // will be set by listening to RawWindowFocusEvent, usually in first render

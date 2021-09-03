@@ -181,6 +181,8 @@ fn inspect(scope: WindowId) -> impl Widget {
 }
 
 fn headless() -> impl Widget {
+    use zero_ui::core::window::FramePixelsReadyArgs;
+
     let enabled = var(true);
     button! {
         content = text(enabled.map(|&enabled| {
@@ -201,7 +203,7 @@ fn headless() -> impl Widget {
                     font_size = 72;
                     content = text("No Head!");
 
-                    on_open = hn_once!(|ctx, args: &WindowOpenArgs| {
+                    on_pixels_ready = hn_once!(|ctx, args: &FramePixelsReadyArgs| {
                         let img = ctx.services.windows().frame_pixels(args.window_id).unwrap();
                         let enabled = enabled.sender(ctx.vars);
 

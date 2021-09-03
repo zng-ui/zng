@@ -9,12 +9,15 @@
 //! event using [`Events`](crate::core::event::Events).
 
 use super::event_property;
-use crate::core::window::{WindowCloseRequestedArgs, WindowCloseRequestedEvent, WindowOpenArgs, WindowOpenEvent};
+use crate::core::window::*;
 
 event_property! {
     /// On window opened.
     ///
-    /// This event notifies once per window, after the window content is inited and the first frame is rendered.
+    /// This event notifies once per window, after the window content is inited and the first frame was send to the renderer.
+    ///
+    /// Note, the frame metadata is available using [`Windows::frame_info`] but the frame pixels are probably not ready yet,
+    /// use [`on_frame_pixels_ready`] if you want to copy the pixels of the first frame.
     pub fn window_open {
         event: WindowOpenEvent,
         args: WindowOpenArgs,
@@ -27,5 +30,14 @@ event_property! {
     pub fn window_close_requested {
         event: WindowCloseRequestedEvent,
         args: WindowCloseRequestedArgs
+    }
+
+    /// On window frame finished rendering.
+    ///
+    /// This event notifies every time a frame rendering task has completed, you can use [`Windows::frame_pixels`]
+    /// to request a copy of the frame pixels.
+    pub fn frame_pixels_ready {
+        event: FramePixelsReadyEvent,
+        args: FramePixelsReadyArgs
     }
 }

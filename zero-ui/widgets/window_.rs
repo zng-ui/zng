@@ -227,7 +227,8 @@ pub mod window {
 
         /// Event just after the window opens.
         ///
-        /// This event notifies once per window, after the window content is inited and the first frame is rendered.
+        /// This event notifies once per window, after the window content is inited and the first frame was send to the renderer.
+        /// Note that the first frame metadata is available in [`Windows::frame_info`], but it probably has not finished rendering.
         ///
         /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
         on_pre_window_open as on_open;
@@ -237,6 +238,13 @@ pub mod window {
         /// This event notifies every time the user or the app tries to close the window, you can call
         /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
         on_window_close_requested as on_close_requested;
+
+        /// Event just after a frame finishes rendering.
+        ///
+        /// You can call [`Windows::frame_pixels`] to get a copy of the pixels.
+        ///
+        /// This property is the [`on_pre_frame_pixels_ready`](fn@on_pre_frame_pixels_ready) so window handlers see it first.
+        on_pre_frame_pixels_ready as on_pixels_ready;
 
         remove {
             // replaced with `root_id` to more clearly indicate that it is not the window ID.

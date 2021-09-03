@@ -2147,8 +2147,8 @@ impl fmt::Debug for FramePixels {
 }
 impl FramePixels {
     /// **BGRA8** frame pixels, bottom-to-top.
-    /// 
-    /// 
+    ///
+    ///
     #[inline]
     pub fn bgra(&self) -> &Arc<Vec<u8>> {
         &self.bgra
@@ -2192,15 +2192,15 @@ impl FramePixels {
     /// # ICO
     ///
     /// The `.ico` format only works if the image buffer width and height are in the `1..=256` range.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// If [`width`] or [`height`] are zero.
-    /// 
+    ///
     /// [`width`]: FramePixels::width
     /// [`height`]: FramePixels::height
     pub async fn save(&self, path: impl Into<std::path::PathBuf>) -> image::ImageResult<()> {
-        assert!(self.width > 0 && self.height > 0);
+        assert!(self.width > 0 && self.height > 0, "cannot save empty frame pixels");
 
         use image::*;
         use std::fs;
