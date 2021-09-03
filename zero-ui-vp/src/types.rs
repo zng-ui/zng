@@ -304,6 +304,22 @@ pub struct WindowConfig {
     pub text_aa: TextAntiAliasing,
 }
 
+/// Configuration of a headless surface.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HeadlessConfig {
+    /// Scale for the layout units in this config.
+    pub scale_factor: f32,
+
+    /// Surface area (viewport size).
+    pub size: LayoutSize,
+
+    /// OpenGL clear color.
+    pub clear_color: Option<ColorF>,
+
+    /// Text anti-aliasing.
+    pub text_aa: TextAntiAliasing,
+}
+
 /// BGRA8 pixel data copied from a rendered frame.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FramePixels {

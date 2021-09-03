@@ -11,7 +11,7 @@ use crate::{
     app::{
         self,
         raw_events::*,
-        view_process::{self, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
+        view_process::{self, ViewHeadless, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
     },
     cancelable_event_args,
@@ -1679,10 +1679,12 @@ impl AppWindowInfo {
 
 /// An open window.
 struct AppWindow {
-    // Is some if the window is headed.
+    // Is some if the window is headed and the first frame was generated.
     headed: Option<ViewWindow>,
     // Is some if the window is headless, a fake screen for size calculations.
     headless_monitor: Option<HeadlessMonitor>,
+    // Is some if the window is headless with renderer and the first frame was generated.
+    headless_surface: Option<ViewHeadless>,
 
     // Is some if the window is headed or headless with renderer.
     renderer: Option<ViewRenderer>,
@@ -1766,6 +1768,7 @@ impl AppWindow {
             headed: None, // headed & renderer will initialize on first render.
             renderer: None,
             headless_monitor,
+            headless_surface: None,
             context,
             mode,
             id,
@@ -2204,7 +2207,19 @@ impl AppWindow {
                     self.headed = Some(headed);
                     ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
                 }
-                WindowMode::HeadlessWithRenderer => todo!(),
+                WindowMode::HeadlessWithRenderer => {
+                    let config = view_process::HeadlessConfig {
+                        size: self.size,
+                        clear_color: None,
+                        scale_factor: self.headless_monitor.as_ref().unwrap().scale_factor,
+                        text_aa: self.vars.text_aa().copy(ctx.vars),
+                    };
+
+                    let surface = vp.unwrap().open_headless(self.id, config).expect("TODO");
+                    self.renderer = Some(surface.renderer());
+                    self.headless_surface = Some(surface);
+                    ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
+                }
                 WindowMode::Headless => {
                     // headless without renderer only provides the `FrameInfo` (notified in `render_frame`),
                     // but if we are in a full headless app we can simulate the behavior of headed windows that

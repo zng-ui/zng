@@ -13,6 +13,7 @@ use glutin::{
     monitor::MonitorHandle,
     window::WindowId,
 };
+use headless::ViewHeadless;
 use parking_lot::{Condvar, Mutex};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -29,11 +30,14 @@ use std::{
     time::{Duration, Instant},
 };
 use types::RunOnDrop;
-use window::{GlContextManager, ViewWindow};
+use util::GlContextManager;
+use window::ViewWindow;
 
 mod config;
+mod headless;
 mod ipc;
 mod types;
+mod util;
 mod window;
 
 const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
@@ -120,9 +124,9 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 }
 
 pub use types::{
-    AxisId, ButtonId, ByteBuf, CursorIcon, DevId, ElementState, Error, Ev, EventCause, FramePixels, FrameRequest, Icon, ModifiersState,
-    MonId, MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Result, ScanCode, TextAntiAliasing, VideoMode, VirtualKeyCode,
-    WinId, WindowConfig, WindowTheme,
+    AxisId, ButtonId, ByteBuf, CursorIcon, DevId, ElementState, Error, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon,
+    ModifiersState, MonId, MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Result, ScanCode, TextAntiAliasing, VideoMode,
+    VirtualKeyCode, WinId, WindowConfig, WindowTheme,
 };
 
 use webrender::api::{
@@ -180,6 +184,7 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
     #[cfg(windows)]
     let config_listener = config::config_listener(&Context {
         event_loop: &el,
+        headless_ev_sender: &el,
         window_target: &event_loop,
         gl_manager: &gl_manager,
     });
@@ -189,6 +194,7 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
 
         let ctx = Context {
             event_loop: &el,
+            headless_ev_sender: &el,
             window_target,
             gl_manager: &gl_manager,
         };
@@ -206,6 +212,7 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
             Event::UserEvent(ev) => match ev {
                 AppEvent::Request(req) => app.on_request(&ctx, req),
                 AppEvent::FrameReady(window_id) => app.on_frame_ready(window_id),
+                AppEvent::HeadlessFrameReady(id) => app.on_headless_frame_ready(id),
                 AppEvent::RefreshMonitors => app.refresh_monitors(&ctx),
                 AppEvent::Notify(ev) => app.notify(ev),
                 AppEvent::ParentProcessExited => {
@@ -235,6 +242,7 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
 
 pub(crate) struct Context<'a> {
     pub event_loop: &'a EventLoopProxy<AppEvent>,
+    pub headless_ev_sender: &'a dyn AppEventSender,
     pub window_target: &'a EventLoopWindowTarget<AppEvent>,
     pub gl_manager: &'a GlContextManager,
 }
@@ -243,9 +251,32 @@ pub(crate) struct Context<'a> {
 pub(crate) enum AppEvent {
     Request(Request),
     FrameReady(WindowId),
+    HeadlessFrameReady(WinId),
     RefreshMonitors,
     Notify(Ev),
     ParentProcessExited,
+}
+
+/// Can be `EventLoopProxy<AppEvent>` or `flume::Sender<AppEvent>` in headless apps.
+pub(crate) trait AppEventSender: Send {
+    fn clone_boxed(&self) -> Box<dyn AppEventSender>;
+    fn send(&self, ev: AppEvent) -> ipc::Result<()>;
+}
+impl AppEventSender for EventLoopProxy<AppEvent> {
+    fn clone_boxed(&self) -> Box<dyn AppEventSender> {
+        Box::new(self.clone())
+    }
+    fn send(&self, ev: AppEvent) -> ipc::Result<()> {
+        self.send_event(ev).map_err(|_| ipc::Disconnected)
+    }
+}
+impl AppEventSender for flume::Sender<AppEvent> {
+    fn clone_boxed(&self) -> Box<dyn AppEventSender> {
+        Box::new(self.clone())
+    }
+    fn send(&self, ev: AppEvent) -> ipc::Result<()> {
+        self.send(ev).map_err(|_| ipc::Disconnected)
+    }
 }
 
 /// Declares the `Request` and `Response` enums, and two methods in `Controller` and `ViewApp`, in the
@@ -556,6 +587,7 @@ pub(crate) struct ViewApp {
 
     window_id_count: WinId,
     windows: Vec<ViewWindow>,
+    headless_views: Vec<ViewHeadless>,
 
     monitor_id_count: MonId,
     monitors: Vec<(MonId, MonitorHandle)>,
@@ -586,6 +618,7 @@ impl ViewApp {
             headless,
             window_id_count: u32::from_ne_bytes(*b"zwvp"),
             windows: vec![],
+            headless_views: vec![],
             monitor_id_count: u32::from_ne_bytes(*b"zsvp"),
             monitors: vec![],
             device_id_count: u32::from_ne_bytes(*b"zdvp"),
@@ -630,17 +663,49 @@ impl ViewApp {
         }
     }
 
-    fn with_window<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewWindow) -> R) -> Result<R> {
-        assert!(self.started);
-
+    fn window_mut(&mut self, id: WinId) -> Result<&mut ViewWindow> {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            Ok(f(w))
+            Ok(w)
         } else {
             Err(Error::WindowNotFound(id))
         }
     }
-}
 
+    fn headless_mut(&mut self, id: WinId) -> Result<&mut ViewHeadless> {
+        if let Some(w) = self.headless_views.iter_mut().find(|w| w.id() == id) {
+            Ok(w)
+        } else {
+            Err(Error::WindowNotFound(id))
+        }
+    }
+
+    fn with_window<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewWindow) -> R) -> Result<R> {
+        assert!(self.started);
+        Ok(f(self.window_mut(id)?))
+    }
+
+    fn with_headless<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewHeadless) -> R) -> Result<R> {
+        assert!(self.started);
+        Ok(f(self.headless_mut(id)?))
+    }
+}
+macro_rules! with_window_or_headless {
+    ($self:ident, $id:ident, |$w:ident| $($expr:tt)+) => {
+        if !$self.started {
+            panic!("expected `self.started`");
+        } else if let Ok($w) = $self.window_mut($id) {
+            Ok({
+                $($expr)+
+            })
+        } else if let Ok($w) = $self.headless_mut($id) {
+            Ok({
+                $($expr)+
+            })
+        } else {
+            Err(Error::WindowNotFound($id))
+        }
+    }
+}
 declare_ipc! {
     fn version(&mut self, _ctx: &Context) -> Result<String> {
         Ok(crate::VERSION.to_string())
@@ -708,7 +773,7 @@ declare_ipc! {
 
     /// Open a window.
     ///
-    /// Returns the window id.
+    /// Returns the window id, and renderer ids.
     pub fn open_window(
         &mut self,
         ctx: &Context,
@@ -731,12 +796,39 @@ declare_ipc! {
         Ok((id, namespace, pipeline))
     }
 
-    /// Close the window.
+    /// Open a headless surface.
+    ///
+    /// This is a real renderer but not connected to any window, you can requests pixels to get the
+    /// rendered frames.
+    ///
+    /// The surface is identified with a "window" id, but no window is created, also returns the renderer ids.
+    pub fn open_headless(&mut self, ctx: &Context, config: HeadlessConfig) -> Result<(WinId, IdNamespace, PipelineId)> {
+        assert!(self.started);
+
+        let mut id = self.window_id_count.wrapping_add(1);
+        if id == 0 {
+            id = 1;
+        }
+        self.window_id_count = id;
+
+        let view = ViewHeadless::new(ctx, id, config);
+        let namespace = view.namespace_id();
+        let pipeline = view.pipeline_id();
+
+        self.headless_views.push(view);
+
+        Ok((id, namespace, pipeline))
+    }
+
+    /// Close the window or headless surface.
     pub fn close_window(&mut self, _ctx: &Context, id: WinId) -> Result<()> {
         assert!(self.started);
 
         if let Some(i) = self.windows.iter().position(|w|w.id() == id) {
             self.windows.remove(i);
+            Ok(())
+        } else if let Some(i) = self.headless_views.iter().position(|h|h.id() == id) {
+            self.headless_views.remove(i);
             Ok(())
         } else {
             Err(Error::WindowNotFound(id))
@@ -864,6 +956,11 @@ declare_ipc! {
         Ok(())
     }
 
+    /// Set the headless surface are size (viewport size).
+    pub fn set_headless_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, scale_factor: f32) -> Result<()> {
+        self.with_headless(id, |h|h.set_size(size, scale_factor))
+    }
+
     /// Set the window minimum content area size.
     pub fn set_min_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> Result<()> {
         self.with_window(id, |w|w.set_min_inner_size(size))
@@ -880,37 +977,37 @@ declare_ipc! {
 
     /// Gets the root pipeline ID.
     pub fn pipeline_id(&mut self, _ctx: &Context, id: WinId) -> Result<PipelineId> {
-        self.with_window(id, |w|w.pipeline_id())
+        with_window_or_headless!(self, id, |w|w.pipeline_id())
     }
 
     /// Gets the resources namespace.
     pub fn namespace_id(&mut self, _ctx: &Context, id: WinId) -> Result<IdNamespace> {
-        self.with_window(id, |w|w.namespace_id())
+        with_window_or_headless!(self, id, |w|w.namespace_id())
     }
 
     /// New image resource key.
     pub fn generate_image_key(&mut self, _ctx: &Context, id: WinId) -> Result<ImageKey> {
-        self.with_window(id, |w|w.generate_image_key())
+        with_window_or_headless!(self, id, |w|w.generate_image_key())
     }
 
     /// New font resource key.
     pub fn generate_font_key(&mut self, _ctx: &Context, id: WinId) -> Result<FontKey> {
-        self.with_window(id, |w|w.generate_font_key())
+        with_window_or_headless!(self, id, |w|w.generate_font_key())
     }
 
     /// New font instance key.
     pub fn generate_font_instance_key(&mut self, _ctx: &Context, id: WinId) -> Result<FontInstanceKey> {
-        self.with_window(id, |w|w.generate_font_instance_key())
+        with_window_or_headless!(self, id, |w|w.generate_font_instance_key())
     }
 
     /// Gets the window content are size.
     pub fn size(&mut self, _ctx: &Context, id: WinId) -> Result<LayoutSize> {
-        self.with_window(id, |w|w.inner_size())
+        with_window_or_headless!(self, id, |w|w.size())
     }
 
     /// Gets the window content are size.
     pub fn scale_factor(&mut self, _ctx: &Context, id: WinId) -> Result<f32> {
-        self.with_window(id, |w|w.scale_factor())
+        with_window_or_headless!(self, id, |w|w.scale_factor())
     }
 
     /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
@@ -922,41 +1019,59 @@ declare_ipc! {
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels(&mut self, _ctx: &Context, id: WinId) -> Result<FramePixels> {
-        self.with_window(id, |w|w.read_pixels())
+        with_window_or_headless!(self, id, |w|w.read_pixels())
     }
 
     /// `glReadPixels` a new buffer.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels_rect(&mut self, _ctx: &Context, id: WinId, rect: LayoutRect) -> Result<FramePixels> {
-        self.with_window(id, |w|w.read_pixels_rect(rect))
+        with_window_or_headless!(self, id, |w|w.read_pixels_rect(rect))
     }
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
     /// Returns the frame ID and all hits from front-to-back.
     pub fn hit_test(&mut self, _ctx: &Context, id: WinId, point: LayoutPoint) -> Result<(Epoch, HitTestResult)> {
-        self.with_window(id, |w|w.hit_test(point))
+        with_window_or_headless!(self, id, |w|w.hit_test(point))
     }
 
     /// Set the text anti-aliasing used in the window renderer.
     pub fn set_text_aa(&mut self, _ctx: &Context, id: WinId, aa: TextAntiAliasing) -> Result<()> {
-        self.with_window(id, |w|w.set_text_aa(aa))
+        with_window_or_headless!(self, id, |w|w.set_text_aa(aa))
     }
 
     /// Render a new frame.
     pub fn render(&mut self, _ctx: &Context, id: WinId, frame: FrameRequest) -> Result<()> {
-        self.with_window(id, |w|w.render(frame))
+        assert!(self.started);
+
+        if let Ok(w) = self.window_mut(id) {
+            w.render(frame);
+        } else if let Ok(h) = self.headless_mut(id) {
+            h.render(frame);
+        } else {
+            return Err(Error::WindowNotFound(id))
+        }
+        Ok(())
     }
 
     /// Update the current frame and re-render it.
     pub fn render_update(&mut self, _ctx: &Context, id: WinId, updates: DynamicProperties) -> Result<()> {
-        self.with_window(id, |w|w.render_update(updates))
+        assert!(self.started);
+
+        if let Ok(w) = self.window_mut(id) {
+            w.render_update(updates);
+        } else if let Ok(h) = self.headless_mut(id) {
+            h.render_update(updates);
+        } else {
+            return Err(Error::WindowNotFound(id))
+        }
+        Ok(())
     }
 
     /// Add/remove/update resources such as images and fonts.
     pub fn update_resources(&mut self, _ctx: &Context, id: WinId, updates: Vec<ResourceUpdate>) -> Result<()> {
-        self.with_window(id, |w|w.update_resources(updates))
+        with_window_or_headless!(self, id, |w| w.update_resources(updates))
     }
 
     /// Can be used to profile the ipc-channel.
@@ -964,7 +1079,6 @@ declare_ipc! {
         Ok(())
     }
 }
-
 impl ViewApp {
     fn on_window_event(&mut self, ctx: &Context, window_id: WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.is_window(window_id)) {
@@ -1182,13 +1296,19 @@ impl ViewApp {
 
             if first_frame {
                 let pos = w.outer_position();
-                let size = w.inner_size();
+                let size = w.size();
 
                 self.notify(Ev::WindowMoved(id, pos, EventCause::App));
                 self.notify(Ev::WindowResized(id, size, EventCause::App));
             }
 
             self.notify(Ev::FrameRendered(id, frame_id));
+        }
+    }
+
+    fn on_headless_frame_ready(&mut self, id: WinId) {
+        if let Some(v) = self.headless_views.iter_mut().find(|w| w.id() == id) {
+            v.redraw();
         }
     }
 

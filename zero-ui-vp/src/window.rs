@@ -14,83 +14,19 @@ use glutin::{
     event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode},
     event_loop::EventLoopProxy,
     window::{Window, WindowBuilder, WindowId},
-    ContextBuilder, ContextWrapper, NotCurrent, PossiblyCurrent,
+    ContextBuilder,
 };
-use serde_bytes::ByteBuf;
 use webrender::{
     api::{units::*, *},
     euclid, Renderer, RendererKind, RendererOptions,
 };
 
 use crate::{
-    config::{set_raw_windows_event_handler, text_aa},
+    config,
     types::{FramePixels, RunOnDrop},
+    util::{self, GlContext},
     AppEvent, Context, Ev, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
 };
-
-/// Managed Open-GL context.
-struct GlContext {
-    id: WinId,
-    ctx: Option<ContextWrapper<PossiblyCurrent, ()>>,
-    current: Rc<Cell<Option<WinId>>>,
-}
-impl GlContext {
-    /// Gets the context as current.
-    ///
-    /// It can already be current or it is made current.
-    fn make_current(&mut self) -> &mut ContextWrapper<PossiblyCurrent, ()> {
-        let id = Some(self.id);
-        if self.current.get() != id {
-            self.current.set(id);
-            let c = self.ctx.take().unwrap();
-            // glutin docs says that calling `make_not_current` is not necessary and
-            // that "If you call make_current on some context, you should call treat_as_not_current as soon
-            // as possible on the previously current context."
-            //
-            // As far as the glutin code goes `treat_as_not_current` just changes the state tag, so we can call
-            // `treat_as_not_current` just to get access to the `make_current` when we know it is not current
-            // anymore, and just ignore the whole "current state tag" thing.
-            let c = unsafe { c.treat_as_not_current().make_current() }.expect("failed to make current");
-            self.ctx = Some(c);
-        }
-        self.ctx.as_mut().unwrap()
-    }
-
-    /// Glutin requires that the context is [dropped before the window][1], calling this
-    /// function safely disposes of the context, the winit window should be dropped immediately after.
-    ///
-    /// [1]: https://docs.rs/glutin/0.27.0/glutin/type.WindowedContext.html#method.split
-    fn drop_before_winit(&mut self) {
-        if self.current.get() == Some(self.id) {
-            let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
-            self.current.set(None);
-        } else {
-            let _ = unsafe { self.ctx.take().unwrap().treat_as_not_current() };
-        }
-    }
-}
-impl Drop for GlContext {
-    fn drop(&mut self) {
-        if self.ctx.is_some() {
-            panic!("call `drop_before_winit` before dropping")
-        }
-    }
-}
-
-/// Manages the "current" glutin OpenGL context.
-#[derive(Default)]
-pub struct GlContextManager {
-    current: Rc<Cell<Option<WinId>>>,
-}
-impl GlContextManager {
-    fn manage(&self, id: WinId, ctx: ContextWrapper<NotCurrent, ()>) -> GlContext {
-        GlContext {
-            id,
-            ctx: Some(unsafe { ctx.treat_as_current() }),
-            current: Rc::clone(&self.current),
-        }
-    }
-}
 
 pub(crate) struct ViewWindow {
     id: WinId,
@@ -148,7 +84,7 @@ impl ViewWindow {
         let glutin = ContextBuilder::new().build_windowed(winit, ctx.window_target).unwrap();
         // SAFETY: we drop the context before the window (or panic if we don't).
         let (context, winit_window) = unsafe { glutin.split() };
-        let mut context = ctx.gl_manager.manage(id, context);
+        let mut context = ctx.gl_manager.manage_headed(id, context);
 
         // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
         let allow_alt_f4 = Rc::new(Cell::new(w.allow_alt_f4));
@@ -157,7 +93,7 @@ impl ViewWindow {
             let allow_alt_f4 = allow_alt_f4.clone();
             let event_loop = ctx.event_loop.clone();
 
-            set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
+            util::set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
                 if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && allow_alt_f4.get() {
                     let device_id = 0; // TODO recover actual ID
 
@@ -192,7 +128,7 @@ impl ViewWindow {
 
         let mut text_aa = w.text_aa;
         if let TextAntiAliasing::Default = w.text_aa {
-            text_aa = self::text_aa();
+            text_aa = config::text_aa();
         }
 
         let opts = RendererOptions {
@@ -387,13 +323,7 @@ impl ViewWindow {
         );
         txn.set_root_pipeline(self.pipeline_id);
 
-        if self.resized {
-            self.resized = false;
-            txn.set_document_view(
-                DeviceIntRect::new(euclid::point2(0, 0), euclid::size2(size.width as i32, size.height as i32)),
-                scale_factor,
-            );
-        }
+        self.push_resize(&mut txn);
 
         txn.generate_frame();
         self.api.send_transaction(self.document_id, txn);
@@ -405,6 +335,13 @@ impl ViewWindow {
         txn.set_root_pipeline(self.pipeline_id);
         txn.update_dynamic_properties(updates);
 
+        self.push_resize(&mut txn);
+
+        txn.generate_frame();
+        self.api.send_transaction(self.document_id, txn);
+    }
+
+    fn push_resize(&mut self, txn: &mut Transaction) {
         if self.resized {
             self.resized = false;
             let scale_factor = self.window.scale_factor() as f32;
@@ -414,9 +351,6 @@ impl ViewWindow {
                 scale_factor,
             );
         }
-
-        txn.generate_frame();
-        self.api.send_transaction(self.document_id, txn);
     }
 
     pub fn update_resources(&mut self, updates: Vec<ResourceUpdate>) {
@@ -514,7 +448,7 @@ impl ViewWindow {
         LayoutPoint::new(pos.x, pos.y)
     }
 
-    pub fn inner_size(&self) -> LayoutSize {
+    pub fn size(&self) -> LayoutSize {
         let size = self.window.inner_size().to_logical(self.window.scale_factor());
         LayoutSize::new(size.width, size.height)
     }
@@ -523,54 +457,18 @@ impl ViewWindow {
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels(&mut self) -> FramePixels {
-        self.read_pixels_rect(LayoutRect::from_size(self.inner_size()))
+        self.read_pixels_rect(LayoutRect::from_size(self.size()))
     }
 
     /// Read a selection of pixels of the current frame.
     ///
     /// This is a call to `glReadPixels`, the pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels_rect(&mut self, rect: LayoutRect) -> FramePixels {
-        let max = LayoutRect::from_size(self.inner_size());
-        let rect = rect.intersection(&max).unwrap_or_default();
-
+        let max_size = self.size();
         let scale_factor = self.scale_factor();
-        let x = rect.origin.x * scale_factor;
-        let y = rect.origin.y * scale_factor;
-        let width = rect.size.width * scale_factor;
-        let height = rect.size.height * scale_factor;
-
-        if width < 1.0 || height < 1.0 {
-            return FramePixels {
-                width: 0,
-                height: 0,
-                bgra: ByteBuf::new(),
-                scale_factor,
-                opaque: true,
-            };
-        }
-
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-
-        let inverted_y = max.height() - y - rect.height();
-        let width = width as u32;
-        let height = height as u32;
-
-        let bgra = self
-            .gl
-            .read_pixels(x as _, inverted_y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
-        assert!(self.gl.get_error() == 0);
-
-        let has_color = bgra.iter().any(|&b| b > 0);
-        println!("has_color: {}", has_color);
-
-        FramePixels {
-            width,
-            height,
-            bgra: ByteBuf::from(bgra),
-            scale_factor,
-            opaque: true,
-        }
+        util::read_pixels_rect(&self.gl, max_size, scale_factor, rect)
     }
 
     #[cfg(not(windows))]

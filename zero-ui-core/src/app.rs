@@ -1827,8 +1827,8 @@ pub mod view_process {
     use webrender_api::{DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate};
     use zero_ui_vp::{Controller, DevId, WinId};
     pub use zero_ui_vp::{
-        CursorIcon, Error, Ev, EventCause, FramePixels, FrameRequest, Icon, MonitorInfo, Result, TextAntiAliasing, VideoMode, WindowConfig,
-        WindowTheme,
+        CursorIcon, Error, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Result, TextAntiAliasing,
+        VideoMode, WindowConfig, WindowTheme,
     };
 
     use super::DeviceId;
@@ -1889,6 +1889,26 @@ pub mod view_process {
             app.window_ids.insert(id, window_id);
 
             Ok(ViewWindow(Rc::new(WindowConnection {
+                id,
+                app: self.0.clone(),
+                namespace_id,
+                pipeline_id,
+            })))
+        }
+
+        /// Open a headless renderer and associate it with the `window_id`.
+        ///
+        /// Note that no actual window is created, only the renderer, the use of window-ids to identify
+        /// this renderer is only for convenience.
+        pub fn open_headless(&self, window_id: WindowId, config: HeadlessConfig) -> Result<ViewHeadless> {
+            let mut app = self.0.borrow_mut();
+            assert!(app.window_ids.values().all(|&v| v != window_id));
+
+            let (id, namespace_id, pipeline_id) = app.process.open_headless(config)?;
+
+            app.window_ids.insert(id, window_id);
+
+            Ok(ViewHeadless(Rc::new(WindowConnection {
                 id,
                 app: self.0.clone(),
                 namespace_id,
@@ -2106,6 +2126,25 @@ pub mod view_process {
         /// Drop `self`.
         pub fn close(self) {
             drop(self)
+        }
+    }
+
+    /// Connection to a headless surface open in the View Process.
+    ///
+    /// This is a strong reference to the window connection. The view is disposed when every reference drops.
+    #[derive(Clone)]
+    pub struct ViewHeadless(Rc<WindowConnection>);
+    impl ViewHeadless {
+        /// Resize the headless surface.
+        #[inline]
+        pub fn set_size(&self, size: LayoutSize, scale_factor: f32) -> Result<()> {
+            self.0.call(|id, p| p.set_headless_size(id, size, scale_factor))
+        }
+
+        /// Reference the window renderer.
+        #[inline]
+        pub fn renderer(&self) -> ViewRenderer {
+            ViewRenderer(Rc::downgrade(&self.0))
         }
     }
 

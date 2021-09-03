@@ -1,13 +1,13 @@
 use crate::{AppEvent, MultiClickConfig, TextAntiAliasing};
 use std::time::Duration;
-use winapi::um::winuser::*;
 
 /// Create a hidden window that listen to Windows config change events.
 #[cfg(windows)]
 pub(crate) fn config_listener(ctx: &crate::Context) -> glutin::window::Window {
     use glutin::window::WindowBuilder;
+    use winapi::um::winuser::*;
 
-    use crate::Ev;
+    use crate::{util, Ev};
 
     let w = WindowBuilder::new()
         .with_title("config-event-listener")
@@ -16,7 +16,7 @@ pub(crate) fn config_listener(ctx: &crate::Context) -> glutin::window::Window {
         .unwrap();
 
     let event_proxy = ctx.event_loop.clone();
-    set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
+    util::set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
         let notify = |ev| {
             let _ = event_proxy.send_event(AppEvent::Notify(ev));
             Some(0)
@@ -43,93 +43,11 @@ pub(crate) fn config_listener(ctx: &crate::Context) -> glutin::window::Window {
     w
 }
 
-/// Sets a window subclass that calls a raw event handler.
-///
-/// Use this to receive Windows OS events not covered in [`raw_events`].
-///
-/// Returns if adding a subclass handler succeeded.
-///
-/// # Handler
-///
-/// The handler inputs are the first 4 arguments of a [`SUBCLASSPROC`].
-/// You can use closure capture to include extra data.
-///
-/// The handler must return `Some(LRESULT)` to stop the propagation of a specific message.
-///
-/// The handler is dropped after it receives the `WM_DESTROY` message.
-///
-/// # Panics
-///
-/// Panics in headless mode.
-///
-/// [`raw_events`]: crate::app::raw_events
-/// [`SUBCLASSPROC`]: https://docs.microsoft.com/en-us/windows/win32/api/commctrl/nc-commctrl-subclassproc
-#[cfg(windows)]
-pub fn set_raw_windows_event_handler<
-    H: FnMut(
-            winapi::shared::windef::HWND,
-            winapi::shared::minwindef::UINT,
-            winapi::shared::minwindef::WPARAM,
-            winapi::shared::minwindef::LPARAM,
-        ) -> Option<winapi::shared::minwindef::LRESULT>
-        + 'static,
->(
-    window: &glutin::window::Window,
-    subclass_id: winapi::shared::basetsd::UINT_PTR,
-    handler: H,
-) -> bool {
-    use glutin::platform::windows::WindowExtWindows;
-
-    let hwnd = window.hwnd() as winapi::shared::windef::HWND;
-    let data = Box::new(handler);
-    unsafe {
-        winapi::um::commctrl::SetWindowSubclass(
-            hwnd,
-            Some(subclass_raw_event_proc::<H>),
-            subclass_id,
-            Box::into_raw(data) as winapi::shared::basetsd::DWORD_PTR,
-        ) != 0
-    }
-}
-#[cfg(windows)]
-unsafe extern "system" fn subclass_raw_event_proc<
-    H: FnMut(
-            winapi::shared::windef::HWND,
-            winapi::shared::minwindef::UINT,
-            winapi::shared::minwindef::WPARAM,
-            winapi::shared::minwindef::LPARAM,
-        ) -> Option<winapi::shared::minwindef::LRESULT>
-        + 'static,
->(
-    hwnd: winapi::shared::windef::HWND,
-    msg: winapi::shared::minwindef::UINT,
-    wparam: winapi::shared::minwindef::WPARAM,
-    lparam: winapi::shared::minwindef::LPARAM,
-    _id: winapi::shared::basetsd::UINT_PTR,
-    data: winapi::shared::basetsd::DWORD_PTR,
-) -> winapi::shared::minwindef::LRESULT {
-    match msg {
-        WM_DESTROY => {
-            // last call and cleanup.
-            let mut handler = Box::from_raw(data as *mut H);
-            handler(hwnd, msg, wparam, lparam).unwrap_or_default()
-        }
-
-        msg => {
-            let handler = &mut *(data as *mut H);
-            if let Some(r) = handler(hwnd, msg, wparam, lparam) {
-                r
-            } else {
-                winapi::um::commctrl::DefSubclassProc(hwnd, msg, wparam, lparam)
-            }
-        }
-    }
-}
-
 /// Gets the system text anti-aliasing config.
 #[cfg(windows)]
 pub fn text_aa() -> TextAntiAliasing {
     use winapi::um::errhandlingapi::GetLastError;
+    use winapi::um::winuser::*;
 
     unsafe {
         let mut enabled = 0;
@@ -164,6 +82,8 @@ pub fn text_aa() -> TextAntiAliasing {
 /// Gets the "double-click" settings.
 #[cfg(target_os = "windows")]
 pub fn multi_click_config() -> MultiClickConfig {
+    use winapi::um::winuser::*;
+
     unsafe {
         MultiClickConfig {
             time: Duration::from_millis(u64::from(GetDoubleClickTime())),
@@ -186,6 +106,7 @@ pub fn multi_click_time() -> MultiClickConfig {
 #[cfg(windows)]
 pub fn animation_enabled() -> bool {
     use winapi::um::errhandlingapi::GetLastError;
+    use winapi::um::winuser::*;
 
     unsafe {
         let mut enabled = true;
@@ -206,6 +127,7 @@ pub fn animation_enabled() -> bool {
 #[cfg(windows)]
 pub fn key_repeat_delay() -> Duration {
     use winapi::um::errhandlingapi::GetLastError;
+    use winapi::um::winuser::*;
 
     unsafe {
         let mut index = 0;
