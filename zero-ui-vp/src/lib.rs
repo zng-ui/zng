@@ -1309,6 +1309,8 @@ impl ViewApp {
     fn on_headless_frame_ready(&mut self, id: WinId) {
         if let Some(v) = self.headless_views.iter_mut().find(|w| w.id() == id) {
             v.redraw();
+            let frame_id = v.frame_id();
+            self.notify(Ev::FrameRendered(id, frame_id));
         }
     }
 

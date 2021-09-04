@@ -177,6 +177,10 @@ impl ViewHeadless {
         self.size
     }
 
+    pub fn frame_id(&self) -> Epoch {
+        self.frame_id
+    }
+
     pub fn scale_factor(&self) -> f32 {
         self.scale_factor
     }
