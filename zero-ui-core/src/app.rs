@@ -816,7 +816,10 @@ impl<E: AppExtension> RunningApp<E> {
             });
             ctx.services.register(view_app);
         } else if with_renderer {
-            let renderer = view_process::ViewProcess::start(view_process_exe, false, true, |_| unreachable!());
+            let view_evs_sender = ctx.updates.sender();
+            let renderer = view_process::ViewProcess::start(view_process_exe, false, true, move |ev| {
+                view_evs_sender.send_view_event(ev).unwrap()
+            });
             ctx.services.register(renderer);
         }
 

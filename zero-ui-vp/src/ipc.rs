@@ -17,7 +17,7 @@ impl std::error::Error for Disconnected {}
 
 /// Call `new`, then spawn the view-process using the `name` then call `connect`.
 pub struct AppInit {
-    server: IpcOneShotServer<(IpcSender<Request>, IpcReceiver<Response>, IpcReceiver<Ev>)>,
+    server: IpcOneShotServer<(IpcSender<Request>, IpcSender<IpcSender<Response>>, IpcReceiver<Ev>)>,
     name: String,
 }
 impl AppInit {
@@ -33,7 +33,9 @@ impl AppInit {
 
     /// Tries to connect to the view-process and receive the actual channels.
     pub(crate) fn connect(self) -> (RequestSender, ResponseReceiver, EvReceiver) {
-        let (_, (req_sender, rsp_recv, evt_recv)) = self.server.accept().expect("failed to receive channels");
+        let (_, (req_sender, rsp_chan_sender, evt_recv)) = self.server.accept().expect("failed to receive channels");
+        let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel().expect("failed to create response channel");
+        rsp_chan_sender.send(rsp_sender).expect("failed to create response channel");
         (RequestSender(req_sender), ResponseReceiver(rsp_recv), EvReceiver(evt_recv))
     }
 }
@@ -43,12 +45,16 @@ pub(crate) fn connect_view_process(server_name: String) -> (RequestReceiver, Res
     let app_init_sender = IpcSender::connect(server_name).expect("failed to connect to init channel");
 
     let (req_sender, req_recv) = ipc_channel::ipc::channel().expect("failed to create request channel");
-    let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel().expect("failed to create response channel");
+    // Large messages can only be received in a receiver created in the same process that is receiving (on Windows)
+    // so we create a channel to transfer the response sender, because it is the app process that will receive responses.
+    // See issue: https://github.com/servo/ipc-channel/issues/277
+    let (rsp_chan_sender, rsp_chan_recv) = ipc_channel::ipc::channel().expect("failed to create response channel");
     let (evt_sender, evt_recv) = ipc_channel::ipc::channel().expect("failed to create event channel");
 
     app_init_sender
-        .send((req_sender, rsp_recv, evt_recv))
+        .send((req_sender, rsp_chan_sender, evt_recv))
         .expect("failed to send channels");
+    let rsp_sender = rsp_chan_recv.recv().expect("failed to create response channel");
 
     (RequestReceiver(req_recv), ResponseSender(rsp_sender), EvSender(evt_sender))
 }

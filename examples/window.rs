@@ -1,16 +1,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 
-fn main() {
-    if cfg!(debug_assertions) {
-        zero_ui_core::app::run_same_process(app_main);
-    } else {
-        init_view_process();
-        app_main();
-    }
-}
+//fn main() {
+//    if cfg!(debug_assertions) {
+//        zero_ui_core::app::run_same_process(app_main);
+//    } else {
+//        init_view_process();
+//        app_main();
+//    }
+//}
 
-fn app_main() {
+fn main() {
     App::default().run_window(|ctx| {
         let vars = ctx.window_state.req(WindowVarsKey);
 
