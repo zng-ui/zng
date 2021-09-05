@@ -32,7 +32,7 @@ pub(crate) struct ViewHeadless {
     resized: bool,
 }
 impl ViewHeadless {
-    pub fn new(ctx: &Context, id: WinId, cfg: HeadlessConfig) -> Self {
+    pub fn new<E: AppEventSender>(ctx: &Context<E>, id: WinId, cfg: HeadlessConfig) -> Self {
         let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
             opengl_version: (3, 2),
             opengles_version: (3, 0),
@@ -123,7 +123,7 @@ impl ViewHeadless {
             Rc::clone(&gl),
             Box::new(Notifier {
                 id,
-                sender: ctx.headless_ev_sender.clone_boxed(),
+                sender: ctx.app_ev_sender.clone_boxed(),
             }),
             opts,
             None,

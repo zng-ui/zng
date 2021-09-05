@@ -2,6 +2,15 @@ use zero_ui::prelude::*;
 use zero_ui_core::window::HeadlessAppWindowExt;
 
 fn main() {
+    if cfg!(debug_assertions) {
+        zero_ui_core::app::run_same_process(app_main);
+    } else {
+        init_view_process();
+        app_main();
+    }
+}
+
+fn app_main() {
     init_view_process();
 
     println!("-=Headless Example=-\n");
@@ -14,8 +23,8 @@ fn main() {
     // open the window that is our image.
     let window_id = app.open_window(|_| image());
 
-    // the first frame is already rendered.
-    let frame = app.frame_pixels(window_id);
+    // copy the first frame.
+    let frame = app.wait_frame(window_id);
 
     // save the frame.
     print!("saving ./screenshot.png ... ");

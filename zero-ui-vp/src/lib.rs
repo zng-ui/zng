@@ -144,30 +144,92 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
 
     let event_loop = EventLoop::<AppEvent>::with_user_event();
 
-    // requests are inserted in the winit event loop.
-    let request_sender = event_loop.create_proxy();
-
     // unless redirecting, for operations like the blocking Resize.
     let redirect_enabled = Arc::new(AtomicBool::new(false));
-    let redirect_enabled_ = redirect_enabled.clone();
+
     let (redirect_sender, redirect_receiver) = flume::unbounded();
 
-    thread::spawn(move || {
-        loop {
-            // wait for requests, every second checks if app-process is still running.
-            match request_receiver.recv() {
-                Ok(req) => {
-                    if redirect_enabled_.load(Ordering::Relaxed) {
-                        redirect_sender.send(req).expect("redirect_sender error");
-                    } else if request_sender.send_event(AppEvent::Request(req)).is_err() {
-                        // event-loop shutdown
-                        return;
+    let (headless_app_ev_sender, headless_app_ev_receiver) = flume::unbounded();
+
+    if headless {
+        let redirect_enabled = redirect_enabled.clone();
+        let headless_app_ev_sender = headless_app_ev_sender.clone();
+        let _ = redirect_sender;
+        thread::spawn(move || {
+            loop {
+                match request_receiver.recv() {
+                    Ok(req) => {
+                        if cfg!(debug_assertions) && redirect_enabled.load(Ordering::Relaxed) {
+                            unreachable!("headless apps don't use redirect")
+                        } else if headless_app_ev_sender.send(AppEvent::Request(req)).is_err() {
+                            // event-loop shutdown
+                            return;
+                        }
                     }
+                    Err(ipc::Disconnected) => todo!(),
                 }
-                Err(ipc::Disconnected) => return,
+            }
+        });
+    } else {
+        // requests are inserted in the winit event loop.
+        let request_sender = event_loop.create_proxy();
+        let redirect_enabled = redirect_enabled.clone();
+        thread::spawn(move || {
+            loop {
+                // wait for requests, every second checks if app-process is still running.
+                match request_receiver.recv() {
+                    Ok(req) => {
+                        if redirect_enabled.load(Ordering::Relaxed) {
+                            redirect_sender.send(req).expect("redirect_sender error");
+                        } else if request_sender.send_event(AppEvent::Request(req)).is_err() {
+                            // event-loop shutdown
+                            return;
+                        }
+                    }
+                    Err(ipc::Disconnected) => todo!(),
+                }
+            }
+        });
+    }
+
+    let el = event_loop.create_proxy();
+    let gl_manager = GlContextManager::default();
+
+    if headless {
+        let mut app = ViewApp::new(
+            headless_app_ev_sender.clone(),
+            response_sender,
+            event_sender,
+            redirect_enabled,
+            redirect_receiver,
+            headless,
+        );
+
+        let ctx = Context {
+            event_loop: &el,
+            app_ev_sender: &headless_app_ev_sender,
+            window_target: &event_loop,
+            gl_manager: &gl_manager,
+        };
+
+        loop {
+            match headless_app_ev_receiver.recv().expect("headless receiver error") {
+                AppEvent::Request(req) => app.on_request(&ctx, req),
+                AppEvent::FrameReady(_) => unreachable!("headless-app FrameReady"),
+                AppEvent::HeadlessFrameReady(id) => app.on_headless_frame_ready(id),
+                AppEvent::RefreshMonitors => unreachable!("headless-app RefreshMonitors"),
+                AppEvent::Notify(ev) => app.notify(ev),
+                AppEvent::ParentProcessExited => {
+                    if let Some(app_thread) = same_process_app.take() {
+                        if let Err(p) = app_thread.join() {
+                            std::panic::resume_unwind(p);
+                        }
+                    }
+                    std::process::exit(0)
+                }
             }
         }
-    });
+    }
 
     let mut app = ViewApp::new(
         event_loop.create_proxy(),
@@ -178,13 +240,10 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
         headless,
     );
 
-    let el = event_loop.create_proxy();
-    let gl_manager = GlContextManager::default();
-
     #[cfg(windows)]
     let config_listener = config::config_listener(&Context {
         event_loop: &el,
-        headless_ev_sender: &el,
+        app_ev_sender: &el,
         window_target: &event_loop,
         gl_manager: &gl_manager,
     });
@@ -194,7 +253,7 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
 
         let ctx = Context {
             event_loop: &el,
-            headless_ev_sender: &el,
+            app_ev_sender: &el,
             window_target,
             gl_manager: &gl_manager,
         };
@@ -240,9 +299,9 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
     })
 }
 
-pub(crate) struct Context<'a> {
+pub(crate) struct Context<'a, E: AppEventSender> {
     pub event_loop: &'a EventLoopProxy<AppEvent>,
-    pub headless_ev_sender: &'a dyn AppEventSender,
+    pub app_ev_sender: &'a E,
     pub window_target: &'a EventLoopWindowTarget<AppEvent>,
     pub gl_manager: &'a GlContextManager,
 }
@@ -325,8 +384,8 @@ macro_rules! declare_ipc {
         }
 
         #[allow(unused_parens)]
-        impl ViewApp {
-            pub fn on_request(&mut self, ctx: &Context, request: Request) {
+        impl<E: AppEventSender> ViewApp<E> {
+            pub fn on_request(&mut self, ctx: &Context<E>, request: Request) {
                 match request {
                     $(
                         Request::$method { $($input),* } => {
@@ -339,7 +398,7 @@ macro_rules! declare_ipc {
 
             $(
                 #[allow(clippy::too_many_arguments)]
-                fn $method(&mut $self, $ctx: &Context $(, $input: $RequestType)*) -> Result<$ResponseType> {
+                fn $method(&mut $self, $ctx: &Context<E> $(, $input: $RequestType)*) -> Result<$ResponseType> {
                     $($impl)*
                 }
             )*
@@ -573,8 +632,8 @@ impl Drop for Controller {
 }
 
 /// The View Process.
-pub(crate) struct ViewApp {
-    event_loop: EventLoopProxy<AppEvent>,
+pub(crate) struct ViewApp<E> {
+    event_loop: E,
     response_chan: ipc::ResponseSender,
     event_chan: ipc::EvSender,
 
@@ -598,16 +657,16 @@ pub(crate) struct ViewApp {
     // if one or more events where send after the last on_events_cleared.
     pending_clear: bool,
 }
-impl ViewApp {
+impl<E: AppEventSender> ViewApp<E> {
     pub fn new(
-        event_loop: EventLoopProxy<AppEvent>,
+        event_loop: E,
         response_chan: ipc::ResponseSender,
         event_chan: ipc::EvSender,
         redirect_enabled: Arc<AtomicBool>,
         redirect_chan: flume::Receiver<Request>,
         headless: bool,
-    ) -> ViewApp {
-        ViewApp {
+    ) -> Self {
+        Self {
             event_loop,
             response_chan,
             event_chan,
@@ -723,7 +782,7 @@ declare_ipc! {
     }
 
     fn exit_same_process(&mut self, _ctx: &Context) -> Result<()> {
-        let _ = self.event_loop.send_event(AppEvent::ParentProcessExited);
+        let _ = self.event_loop.send(AppEvent::ParentProcessExited);
         Ok(())
     }
 
@@ -1079,8 +1138,8 @@ declare_ipc! {
         Ok(())
     }
 }
-impl ViewApp {
-    fn on_window_event(&mut self, ctx: &Context, window_id: WindowId, event: WindowEvent) {
+impl<E: AppEventSender> ViewApp<E> {
+    fn on_window_event(&mut self, ctx: &Context<E>, window_id: WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.is_window(window_id)) {
             i
         } else {
@@ -1250,7 +1309,7 @@ impl ViewApp {
         }
     }
 
-    fn refresh_monitors(&mut self, ctx: &Context) {
+    fn refresh_monitors(&mut self, ctx: &Context<E>) {
         let mut monitors = Vec::with_capacity(self.monitors.len());
 
         let mut added_check = false; // set to `true` if a new id is generated.

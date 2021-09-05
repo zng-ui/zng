@@ -3,7 +3,7 @@ use std::time::Duration;
 
 /// Create a hidden window that listen to Windows config change events.
 #[cfg(windows)]
-pub(crate) fn config_listener(ctx: &crate::Context) -> glutin::window::Window {
+pub(crate) fn config_listener(ctx: &crate::Context<glutin::event_loop::EventLoopProxy<crate::AppEvent>>) -> glutin::window::Window {
     use glutin::window::WindowBuilder;
     use winapi::um::winuser::*;
 

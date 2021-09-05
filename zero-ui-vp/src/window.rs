@@ -25,7 +25,7 @@ use crate::{
     config,
     types::{FramePixels, RunOnDrop},
     util::{self, GlContext},
-    AppEvent, Context, Ev, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
+    AppEvent, AppEventSender, Context, Ev, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
 };
 
 pub(crate) struct ViewWindow {
@@ -61,7 +61,7 @@ pub(crate) struct ViewWindow {
 
 impl ViewWindow {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(ctx: &Context, id: WinId, w: WindowConfig) -> Self {
+    pub fn new<E: AppEventSender>(ctx: &Context<E>, id: WinId, w: WindowConfig) -> Self {
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
             .with_title(w.title)

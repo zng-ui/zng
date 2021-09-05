@@ -864,14 +864,17 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Notify an event directly to the app extensions.
-    pub fn notify_event<Ev: crate::event::Event>(&mut self, _event: Ev, args: Ev::Args) {
+    pub fn notify_event<Ev: crate::event::Event, O: AppEventObserver>(&mut self, _event: Ev, args: Ev::Args, observer: &mut O) {
         profile_scope!("notify_event<{}>", type_name::<Ev>());
 
         let update = EventUpdate::<Ev>(args);
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.event_preview(&mut ctx, &update);
+        observer.event_preview(&mut ctx, &update);
         self.extensions.event_ui(&mut ctx, &update);
+        observer.event_ui(&mut ctx, &update);
         self.extensions.event(&mut ctx, &update);
+        observer.event(&mut ctx, &update);
         self.maybe_has_updates = true;
     }
 
@@ -995,38 +998,38 @@ impl<E: AppExtension> RunningApp<E> {
             }
             zero_ui_vp::Ev::FrameRendered(w_id, frame_id) => {
                 let args = RawFrameRenderedArgs::now(self.window_id(w_id), frame_id);
-                self.notify_event(RawFrameRenderedEvent, args);
+                self.notify_event(RawFrameRenderedEvent, args, observer);
             }
             zero_ui_vp::Ev::WindowResized(w_id, size, cause) => {
                 let args = RawWindowResizedArgs::now(self.window_id(w_id), size, cause);
-                self.notify_event(RawWindowResizedEvent, args);
+                self.notify_event(RawWindowResizedEvent, args, observer);
                 // view-process blocks waiting for a frame on resize, so update as early
                 // as possible to generate this frame
                 return self.update(observer);
             }
             zero_ui_vp::Ev::WindowMoved(w_id, pos, cause) => {
                 let args = RawWindowMovedArgs::now(self.window_id(w_id), pos, cause);
-                self.notify_event(RawWindowMovedEvent, args);
+                self.notify_event(RawWindowMovedEvent, args, observer);
             }
             zero_ui_vp::Ev::DroppedFile(w_id, file) => {
                 let args = RawDroppedFileArgs::now(self.window_id(w_id), file);
-                self.notify_event(RawDroppedFileEvent, args);
+                self.notify_event(RawDroppedFileEvent, args, observer);
             }
             zero_ui_vp::Ev::HoveredFile(w_id, file) => {
                 let args = RawHoveredFileArgs::now(self.window_id(w_id), file);
-                self.notify_event(RawHoveredFileEvent, args);
+                self.notify_event(RawHoveredFileEvent, args, observer);
             }
             zero_ui_vp::Ev::HoveredFileCancelled(w_id) => {
                 let args = RawHoveredFileCancelledArgs::now(self.window_id(w_id));
-                self.notify_event(RawHoveredFileCancelledEvent, args);
+                self.notify_event(RawHoveredFileCancelledEvent, args, observer);
             }
             zero_ui_vp::Ev::ReceivedCharacter(w_id, c) => {
                 let args = RawCharInputArgs::now(self.window_id(w_id), c);
-                self.notify_event(RawCharInputEvent, args);
+                self.notify_event(RawCharInputEvent, args, observer);
             }
             zero_ui_vp::Ev::Focused(w_id, focused) => {
                 let args = RawWindowFocusArgs::now(self.window_id(w_id), focused);
-                self.notify_event(RawWindowFocusEvent, args);
+                self.notify_event(RawWindowFocusEvent, args, observer);
             }
             zero_ui_vp::Ev::KeyboardInput(w_id, d_id, input) => {
                 let args = RawKeyInputArgs::now(
@@ -1036,133 +1039,133 @@ impl<E: AppExtension> RunningApp<E> {
                     input.state,
                     input.virtual_keycode.map(Into::into),
                 );
-                self.notify_event(RawKeyInputEvent, args);
+                self.notify_event(RawKeyInputEvent, args, observer);
             }
             zero_ui_vp::Ev::ModifiersChanged(w_id, state) => {
                 let args = RawModifiersChangedArgs::now(self.window_id(w_id), state);
-                self.notify_event(RawModifiersChangedEvent, args);
+                self.notify_event(RawModifiersChangedEvent, args, observer);
             }
             zero_ui_vp::Ev::CursorMoved(w_id, d_id, pos, hit_test, frame_id) => {
                 let args = RawCursorMovedArgs::now(self.window_id(w_id), self.device_id(d_id), pos, hit_test, frame_id);
-                self.notify_event(RawCursorMovedEvent, args);
+                self.notify_event(RawCursorMovedEvent, args, observer);
             }
             zero_ui_vp::Ev::CursorEntered(w_id, d_id) => {
                 let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
-                self.notify_event(RawCursorEnteredEvent, args);
+                self.notify_event(RawCursorEnteredEvent, args, observer);
             }
             zero_ui_vp::Ev::CursorLeft(w_id, d_id) => {
                 let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
-                self.notify_event(RawCursorLeftEvent, args);
+                self.notify_event(RawCursorLeftEvent, args, observer);
             }
             zero_ui_vp::Ev::MouseWheel(w_id, d_id, delta, phase) => {
                 // TODO
                 let _ = (delta, phase);
                 let args = RawMouseWheelArgs::now(self.window_id(w_id), self.device_id(d_id));
-                self.notify_event(RawMouseWheelEvent, args);
+                self.notify_event(RawMouseWheelEvent, args, observer);
             }
             zero_ui_vp::Ev::MouseInput(w_id, d_id, state, button) => {
                 let args = RawMouseInputArgs::now(self.window_id(w_id), self.device_id(d_id), state, button);
-                self.notify_event(RawMouseInputEvent, args);
+                self.notify_event(RawMouseInputEvent, args, observer);
             }
             zero_ui_vp::Ev::TouchpadPressure(w_id, d_id, pressure, stage) => {
                 // TODO
                 let _ = (pressure, stage);
                 let args = RawTouchpadPressureArgs::now(self.window_id(w_id), self.device_id(d_id));
-                self.notify_event(RawTouchpadPressureEvent, args);
+                self.notify_event(RawTouchpadPressureEvent, args, observer);
             }
             zero_ui_vp::Ev::AxisMotion(w_id, d_id, axis, value) => {
                 let args = RawAxisMotionArgs::now(self.window_id(w_id), self.device_id(d_id), axis, value);
-                self.notify_event(RawAxisMotionEvent, args);
+                self.notify_event(RawAxisMotionEvent, args, observer);
             }
             zero_ui_vp::Ev::Touch(w_id, d_id, phase, pos, force, finger_id) => {
                 // TODO
                 let _ = (phase, pos, force, finger_id);
                 let args = RawTouchArgs::now(self.window_id(w_id), self.device_id(d_id));
-                self.notify_event(RawTouchEvent, args);
+                self.notify_event(RawTouchEvent, args, observer);
             }
             zero_ui_vp::Ev::ScaleFactorChanged(w_id, scale) => {
                 let args = RawWindowScaleFactorChangedArgs::now(self.window_id(w_id), scale);
-                self.notify_event(RawWindowScaleFactorChangedEvent, args);
+                self.notify_event(RawWindowScaleFactorChangedEvent, args, observer);
             }
             zero_ui_vp::Ev::MonitorsChanged(monitors) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 let monitors: Vec<_> = monitors.into_iter().map(|(id, info)| (view.monitor_id(id), info)).collect();
                 let args = RawMonitorsChangedArgs::now(monitors);
-                self.notify_event(RawMonitorsChangedEvent, args);
+                self.notify_event(RawMonitorsChangedEvent, args, observer);
             }
             zero_ui_vp::Ev::ThemeChanged(w_id, theme) => {
                 let args = RawWindowThemeChangedArgs::now(self.window_id(w_id), theme);
-                self.notify_event(RawWindowThemeChangedEvent, args);
+                self.notify_event(RawWindowThemeChangedEvent, args, observer);
             }
             zero_ui_vp::Ev::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(self.window_id(w_id));
-                self.notify_event(RawWindowCloseRequestedEvent, args);
+                self.notify_event(RawWindowCloseRequestedEvent, args, observer);
             }
             zero_ui_vp::Ev::WindowClosed(w_id) => {
                 let args = RawWindowCloseArgs::now(self.window_id(w_id));
-                self.notify_event(RawWindowCloseEvent, args);
+                self.notify_event(RawWindowCloseEvent, args, observer);
             }
 
             // config events
             zero_ui_vp::Ev::FontsChanged => {
                 let args = RawFontChangedArgs::now();
-                self.notify_event(RawFontChangedEvent, args);
+                self.notify_event(RawFontChangedEvent, args, observer);
             }
             zero_ui_vp::Ev::TextAaChanged(aa) => {
                 let args = RawTextAaChangedArgs::now(aa);
-                self.notify_event(RawTextAaChangedEvent, args);
+                self.notify_event(RawTextAaChangedEvent, args, observer);
             }
             zero_ui_vp::Ev::MultiClickConfigChanged(cfg) => {
                 let args = RawMultiClickConfigChangedArgs::now(cfg);
-                self.notify_event(RawMultiClickConfigChangedEvent, args);
+                self.notify_event(RawMultiClickConfigChangedEvent, args, observer);
             }
             zero_ui_vp::Ev::AnimationEnabledChanged(enabled) => {
                 let args = RawAnimationEnabledChangedArgs::now(enabled);
-                self.notify_event(RawAnimationEnabledChangedEvent, args);
+                self.notify_event(RawAnimationEnabledChangedEvent, args, observer);
             }
             zero_ui_vp::Ev::KeyRepeatDelayChanged(delay) => {
                 let args = RawKeyRepeatDelayChangedArgs::now(delay);
-                self.notify_event(RawKeyRepeatDelayChangedEvent, args);
+                self.notify_event(RawKeyRepeatDelayChangedEvent, args, observer);
             }
 
             // `device_events`
             zero_ui_vp::Ev::DeviceAdded(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
-                self.notify_event(DeviceAddedEvent, args);
+                self.notify_event(DeviceAddedEvent, args, observer);
             }
             zero_ui_vp::Ev::DeviceRemoved(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
-                self.notify_event(DeviceRemovedEvent, args);
+                self.notify_event(DeviceRemovedEvent, args, observer);
             }
             zero_ui_vp::Ev::DeviceMouseMotion(d_id, delta) => {
                 let args = MouseMotionArgs::now(self.device_id(d_id), delta);
-                self.notify_event(MouseMotionEvent, args);
+                self.notify_event(MouseMotionEvent, args, observer);
             }
             zero_ui_vp::Ev::DeviceMouseWheel(d_id, delta) => {
                 let args = MouseWheelArgs::now(self.device_id(d_id), delta);
-                self.notify_event(MouseWheelEvent, args);
+                self.notify_event(MouseWheelEvent, args, observer);
             }
             zero_ui_vp::Ev::DeviceMotion(d_id, axis, value) => {
                 let args = MotionArgs::now(self.device_id(d_id), axis, value);
-                self.notify_event(MotionEvent, args);
+                self.notify_event(MotionEvent, args, observer);
             }
             zero_ui_vp::Ev::DeviceButton(d_id, button, state) => {
                 let args = ButtonArgs::now(self.device_id(d_id), button, state);
-                self.notify_event(ButtonEvent, args);
+                self.notify_event(ButtonEvent, args, observer);
             }
             zero_ui_vp::Ev::DeviceKey(d_id, k) => {
                 let args = KeyArgs::now(self.device_id(d_id), k.scancode, k.state, k.virtual_keycode.map(Into::into));
-                self.notify_event(KeyEvent, args);
+                self.notify_event(KeyEvent, args, observer);
             }
             zero_ui_vp::Ev::DeviceText(d_id, c) => {
                 let args = TextArgs::now(self.device_id(d_id), c);
-                self.notify_event(TextEvent, args);
+                self.notify_event(TextEvent, args, observer);
             }
 
             // Other
             zero_ui_vp::Ev::Respawned => {
                 let args = view_process::ViewProcessRespawnedArgs::now();
-                self.notify_event(view_process::ViewProcessRespawnedEvent, args);
+                self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
             }
         }
 
