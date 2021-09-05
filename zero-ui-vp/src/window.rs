@@ -71,6 +71,7 @@ impl ViewWindow {
             .with_transparent(w.transparent)
             .with_min_inner_size(LogicalSize::new(w.min_size.width, w.min_size.height))
             .with_max_inner_size(LogicalSize::new(w.max_size.width, w.max_size.height))
+            .with_always_on_top(w.always_on_top)
             .with_window_icon(
                 w.icon
                     .and_then(|i| glutin::window::Icon::from_rgba(i.rgba.into_vec(), i.width, i.height).ok()),

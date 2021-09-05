@@ -1,16 +1,16 @@
 use zero_ui::prelude::*;
 use zero_ui_core::window::HeadlessAppWindowExt;
 
-fn main() {
-    if cfg!(debug_assertions) {
-        zero_ui_core::app::run_same_process(app_main);
-    } else {
-        init_view_process();
-        app_main();
-    }
-}
+//fn main() {
+//    if cfg!(debug_assertions) {
+//        zero_ui_core::app::run_same_process(app_main);
+//    } else {
+//        init_view_process();
+//        app_main();
+//    }
+//}
 
-fn app_main() {
+fn main() {
     init_view_process();
 
     println!("-=Headless Example=-\n");
