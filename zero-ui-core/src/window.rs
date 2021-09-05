@@ -38,7 +38,7 @@ unique_id! {
 }
 impl fmt::Display for WindowId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "WinId({})", self.get())
+        write!(f, "WinId({})", self.sequential())
     }
 }
 
@@ -49,7 +49,7 @@ unique_id! {
 }
 impl fmt::Display for MonitorId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "MonitorId({})", self.get())
+        write!(f, "MonitorId({})", self.sequential())
     }
 }
 

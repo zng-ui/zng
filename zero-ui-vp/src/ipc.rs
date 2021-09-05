@@ -17,6 +17,12 @@ impl std::error::Error for Disconnected {}
 
 /// Call `new`, then spawn the view-process using the `name` then call `connect`.
 pub struct AppInit {
+    // (
+    //    RequestSender,
+    //    Workaround-sender-for-response-channel,
+    //    EventReceiver,
+    // )
+    #[allow(clippy::type_complexity)]
     server: IpcOneShotServer<(IpcSender<Request>, IpcSender<IpcSender<Response>>, IpcReceiver<Ev>)>,
     name: String,
 }
