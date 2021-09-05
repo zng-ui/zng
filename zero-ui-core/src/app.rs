@@ -999,6 +999,8 @@ impl<E: AppExtension> RunningApp<E> {
             zero_ui_vp::Ev::FrameRendered(w_id, frame_id) => {
                 let args = RawFrameRenderedArgs::now(self.window_id(w_id), frame_id);
                 self.notify_event(RawFrameRenderedEvent, args, observer);
+                // `FrameRendered` is not followed by a `EventsCleared`.
+                return self.update(observer);
             }
             zero_ui_vp::Ev::WindowResized(w_id, size, cause) => {
                 let args = RawWindowResizedArgs::now(self.window_id(w_id), size, cause);

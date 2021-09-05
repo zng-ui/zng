@@ -48,8 +48,14 @@ pub enum Ev {
     /// each such sequence of window and device events, even if it only one event.
     EventsCleared,
 
-    // Window events
+    
+    /// A frame finished rendering.
+    /// 
+    /// `EventsCleared` is not send after this event.
     FrameRendered(WinId, Epoch),
+    
+    
+    // Window events
     WindowResized(WinId, LayoutSize, EventCause),
     WindowMoved(WinId, LayoutPoint, EventCause),
     DroppedFile(WinId, PathBuf),
