@@ -166,7 +166,10 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
                             return;
                         }
                     }
-                    Err(ipc::Disconnected) => todo!(),
+                    Err(ipc::Disconnected) => {
+                        let _ = headless_app_ev_sender.send(AppEvent::ParentProcessExited);
+                        return;
+                    }
                 }
             }
         });
@@ -186,7 +189,10 @@ fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHan
                             return;
                         }
                     }
-                    Err(ipc::Disconnected) => todo!(),
+                    Err(ipc::Disconnected) => {
+                        let _ = request_sender.send(AppEvent::ParentProcessExited);
+                        return;
+                    }
                 }
             }
         });
@@ -350,7 +356,7 @@ macro_rules! declare_ipc {
             }
         )*
     ) => {
-        #[derive(Serialize, Deserialize)]
+        #[derive(Debug, Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::large_enum_variant)]
         #[repr(u32)]
@@ -360,7 +366,7 @@ macro_rules! declare_ipc {
             )*
         }
 
-        #[derive(Serialize, Deserialize)]
+        #[derive(Debug, Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
         #[repr(u32)]
         pub(crate) enum Response {

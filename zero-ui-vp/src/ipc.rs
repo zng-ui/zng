@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, io};
 
 use crate::{Ev, Request, Response};
 
@@ -107,14 +107,56 @@ impl EvReceiver {
 fn handle_recv_error(e: ipc_channel::ipc::IpcError) -> Disconnected {
     match e {
         ipc_channel::ipc::IpcError::Disconnected => Disconnected,
-        e => panic!("ipc error: {:?}", e),
+        e => panic!("IO or bincode error: {:?}", e),
     }
 }
 
 #[allow(clippy::boxed_local)]
 fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
     match *e {
-        ipc_channel::ErrorKind::Io(_) => todo!(),
+        ipc_channel::ErrorKind::Io(e) if e.kind() == io::ErrorKind::BrokenPipe => Disconnected,
+        ipc_channel::ErrorKind::Io(e) => panic!("unexpected IO error: {:?}", e),
         e => panic!("serialization error: {:?}", e),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::thread;
+
+    use super::*;
+
+    #[test]
+    fn disconnect_recv() {
+        let app = AppInit::new();
+
+        let name = app.name().to_owned();
+
+        let view = thread::spawn(move || {
+            let (_request_recv, _response_sender, _event_sender) = connect_view_process(name);
+        });
+
+        let (_request_sender, mut response_recv, _event_recv) = app.connect();
+
+        view.join().unwrap();
+
+        let _ = response_recv.recv().unwrap_err();
+    }
+
+    #[test]
+    fn disconnect_send() {
+        let app = AppInit::new();
+
+        let name = app.name().to_owned();
+
+        let view = thread::spawn(move || {
+            let (_request_recv, _response_sender, _event_sender) = connect_view_process(name);
+        });
+
+        let (mut request_sender, _response_recv, _event_recv) = app.connect();
+
+        view.join().unwrap();
+
+        let _ = request_sender.send(Request::version {}).unwrap_err();
     }
 }

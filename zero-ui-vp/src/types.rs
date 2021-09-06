@@ -48,13 +48,11 @@ pub enum Ev {
     /// each such sequence of window and device events, even if it only one event.
     EventsCleared,
 
-    
     /// A frame finished rendering.
-    /// 
+    ///
     /// `EventsCleared` is not send after this event.
     FrameRendered(WinId, Epoch),
-    
-    
+
     // Window events
     WindowResized(WinId, LayoutSize, EventCause),
     WindowMoved(WinId, LayoutPoint, EventCause),
@@ -342,6 +340,17 @@ pub struct FramePixels {
 
     /// If all alpha values are `255`.
     pub opaque: bool,
+}
+impl fmt::Debug for FramePixels {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FramePixels")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
+            .field("scale_factor", &self.scale_factor)
+            .field("opaque", &self.opaque)
+            .finish()
+    }
 }
 
 /// Information about a monitor screen.
