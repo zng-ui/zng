@@ -428,8 +428,8 @@ type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
 pub struct Controller {
     process: Option<Child>,
     view_process_exe: PathBuf,
-    request_chan: ipc::RequestSender,
-    response_chan: ipc::ResponseReceiver,
+    request_sender: ipc::RequestSender,
+    response_receiver: ipc::ResponseReceiver,
     event_listener: Option<EventListenerJoin>,
     headless: bool,
 }
@@ -460,13 +460,14 @@ impl Controller {
             std::env::current_exe().expect("failed to get the current exetuable, consider using an external view-process exe")
         });
 
-        let (process, request_chan, response_chan, mut event_chan) = Self::spawn_view_process(&view_process_exe, headless);
+        let (process, request_chan, response_chan, mut event_chan) =
+            Self::spawn_view_process(&view_process_exe, headless).expect("failed to spawn or connecto to view-process");
 
         let ev = thread::spawn(move || {
             while let Ok(ev) = event_chan.recv() {
                 on_event(ev);
             }
-            // return to use in respawn.
+            // return to reuse in respawn.
             let t: Box<dyn FnMut(Ev) + Send> = Box::new(on_event);
             t
         });
@@ -474,8 +475,8 @@ impl Controller {
         let mut c = Controller {
             process,
             view_process_exe,
-            request_chan,
-            response_chan,
+            request_sender: request_chan,
+            response_receiver: response_chan,
             event_listener: Some(ev),
             headless,
         };
@@ -501,15 +502,15 @@ impl Controller {
     }
 
     fn try_talk(&mut self, req: Request) -> ipc::Result<Response> {
-        self.request_chan.send(req)?;
-        self.response_chan.recv()
+        self.request_sender.send(req)?;
+        self.response_receiver.recv()
     }
 
     fn talk(&mut self, req: Request) -> Result<Response> {
         match self.try_talk(req) {
             Ok(r) => return Ok(r),
-            Err(e) => {
-                log::error!(target: "vp_recover", "will retry after channel IO error, {}", e);
+            Err(ipc::Disconnected) => {
+                log::error!(target: "vp_recover", "started recovery after channel diconnected");
                 self.try_recover();
             }
         }
@@ -519,7 +520,7 @@ impl Controller {
     fn spawn_view_process(
         view_process_exe: &Path,
         headless: bool,
-    ) -> (Option<Child>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EvReceiver) {
+    ) -> util::AnyResult<(Option<Child>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EvReceiver)> {
         let init = ipc::AppInit::new();
 
         // create process and spawn it, unless is running in same process mode.
@@ -534,26 +535,44 @@ impl Controller {
                 .env(MODE_VAR, if headless { "headless" } else { "headed" })
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
-                .spawn()
-                .expect("view-process failed to spawn");
+                .spawn()?;
             Some(process)
         };
 
-        let (req, rsp, ev) = init.connect();
+        let (req, rsp, ev) = match init.connect() {
+            Ok(r) => r,
+            Err(e) => {
+                if let Some(mut p) = process {
+                    if let Err(e) = p.kill() {
+                        log::error!(
+                            "failed to kill new view-process after failing to connect to it\n connection error: {:?}\n kill error: {:?}",
+                            p,
+                            e
+                        );
+                    }
+                }
+                return Err(e);
+            }
+        };
 
-        (process, req, rsp, ev)
+        Ok((process, req, rsp, ev))
     }
 
-    fn try_recover(&mut self) {
-        let process = self.process.as_mut().expect("cannot recover in same_process mode");
 
-        log::info!(target: "vp_recover", "trying to recover view-process");
+    /// Tries to reopen the view-process.
+    fn try_recover(&mut self) {
+        let process = if let Some(p) = self.process.as_mut() {
+            p
+        } else {
+            log::error!("cannot recover in same_process mode");
+            return;
+        };
 
         // try exit
         let exit_code = match process.try_wait() {
             Ok(Some(code)) => Some(code),
             Ok(None) => {
-                log::warn!(target: "vp_recover", "view-process still running");
+                log::warn!(target: "vp_recover", "view-process still running, attempting kill");
                 match process.kill() {
                     Ok(_) => {
                         log::info!(target: "vp_recover", "killed view-process");
@@ -567,7 +586,7 @@ impl Controller {
                         }
                     }
                     Err(e) => {
-                        log::error!(target: "vp_recover", "view process kill error, {:?}", e);
+                        log::error!(target: "vp_recover", "view-process kill error, {:?}", e);
                         None
                     }
                 }
@@ -581,6 +600,13 @@ impl Controller {
         // try print stdout/err and exit code.
         if let Some(code) = exit_code {
             log::info!(target: "vp_recover", "view-process reaped");
+
+            if cfg!(windows) && code.code().unwrap_or(0) == 1 {
+                log::warn!(target: "vp_recover", "view-process exit code is `1`, probably killed by the Task Manager, \
+                                    will exit app-process with the same code");
+                std::process::exit(1);
+            }
+
             log::error!(target: "vp_recover", "view-process exit_code: {:x}", code.code().unwrap_or(0));
 
             if let Some(mut err) = process.stderr.take() {
@@ -598,32 +624,46 @@ impl Controller {
                 }
             }
         } else {
-            log::error!(target: "vp_recover", "failed to reap view-process, will abandon it running");
+            log::error!(target: "vp_recover", "failed to reap view-process, will abandon it running and spawn a new one");
         }
 
+        // recover event listener closure (in a box).
         let mut on_event = match self.event_listener.take().unwrap().join() {
             Ok(fn_) => fn_,
             Err(p) => panic::resume_unwind(p),
         };
 
-        let (new_process, request, response, mut event) = Self::spawn_view_process(&self.view_process_exe, self.headless);
+        // respawn
+        let mut retries = 3;
+        let (new_process, request, response, mut event) = loop {
+            match Self::spawn_view_process(&self.view_process_exe, self.headless) {
+                Ok(r) => break r,
+                Err(e) => {
+                    log::error!(target: "vp_recover",  "failed to respawn, {:?}", e);
+                    retries -= 1;
+                    if retries == 0 {
+                        panic!("failed to respawn `view-process` after 3 retries");
+                    }
+                    log::info!(target: "vp_recover", "retrying respawn");
+                },
+            }
+        };
 
-        on_event(Ev::Respawned);
-
+        // update connections
         *process = new_process.unwrap();
-        self.request_chan = request;
-        self.response_chan = response;
+        self.request_sender = request;
+        self.response_receiver = response;
 
         let ev = thread::spawn(move || {
+            // notify a respawn.
+            on_event(Ev::Respawned);
+
             while let Ok(ev) = event.recv() {
                 on_event(ev);
             }
             on_event
         });
-
         self.event_listener = Some(ev);
-
-        todo!("limit retries")
     }
 }
 impl Drop for Controller {
@@ -693,11 +733,15 @@ impl<E: AppEventSender> ViewApp<E> {
     }
 
     fn respond(&mut self, response: Response) {
-        self.response_chan.send(response).expect("TODO")
+        if self.response_chan.send(response).is_err() {
+            let _ = self.event_loop.send(AppEvent::ParentProcessExited);
+        }
     }
     fn notify(&mut self, event: Ev) {
         self.pending_clear = true;
-        self.event_chan.send(event).expect("TODO")
+        if self.event_chan.send(event).is_err() {
+            let _ = self.event_loop.send(AppEvent::ParentProcessExited);
+        }
     }
 
     fn monitor_id(&mut self, handle: &MonitorHandle) -> MonId {

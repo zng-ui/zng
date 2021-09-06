@@ -1,6 +1,6 @@
 use std::{fmt, io};
 
-use crate::{Ev, Request, Response};
+use crate::{util, Ev, Request, Response};
 
 use ipc_channel::ipc::{IpcOneShotServer, IpcReceiver, IpcSender};
 
@@ -38,11 +38,11 @@ impl AppInit {
     }
 
     /// Tries to connect to the view-process and receive the actual channels.
-    pub(crate) fn connect(self) -> (RequestSender, ResponseReceiver, EvReceiver) {
-        let (_, (req_sender, rsp_chan_sender, evt_recv)) = self.server.accept().expect("failed to receive channels");
-        let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel().expect("failed to create response channel");
-        rsp_chan_sender.send(rsp_sender).expect("failed to create response channel");
-        (RequestSender(req_sender), ResponseReceiver(rsp_recv), EvReceiver(evt_recv))
+    pub(crate) fn connect(self) -> util::AnyResult<(RequestSender, ResponseReceiver, EvReceiver)> {
+        let (_, (req_sender, rsp_chan_sender, evt_recv)) = self.server.accept()?;
+        let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel()?;
+        rsp_chan_sender.send(rsp_sender)?;
+        Ok((RequestSender(req_sender), ResponseReceiver(rsp_recv), EvReceiver(evt_recv)))
     }
 }
 
@@ -136,7 +136,7 @@ mod tests {
             let (_request_recv, _response_sender, _event_sender) = connect_view_process(name);
         });
 
-        let (_request_sender, mut response_recv, _event_recv) = app.connect();
+        let (_request_sender, mut response_recv, _event_recv) = app.connect().unwrap();
 
         view.join().unwrap();
 
@@ -153,7 +153,7 @@ mod tests {
             let (_request_recv, _response_sender, _event_sender) = connect_view_process(name);
         });
 
-        let (mut request_sender, _response_recv, _event_recv) = app.connect();
+        let (mut request_sender, _response_recv, _event_recv) = app.connect().unwrap();
 
         view.join().unwrap();
 

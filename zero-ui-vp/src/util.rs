@@ -7,6 +7,8 @@ use webrender::api::units::{LayoutRect, LayoutSize};
 
 use crate::{FramePixels, WinId};
 
+pub type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
 /// Managed headed Open-GL context.
 pub(crate) struct GlContext {
     id: WinId,
