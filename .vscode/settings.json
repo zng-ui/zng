@@ -24,4 +24,5 @@
         "Cargo.toml",
         "tools/do-tasks/Cargo.toml"
     ],
+    "files.eol": "\n",
 }
