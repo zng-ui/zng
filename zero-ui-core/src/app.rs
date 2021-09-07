@@ -29,6 +29,7 @@ use std::{
     fmt,
     time::Instant,
 };
+use view_process::ViewProcessExt;
 
 /// Call this function before anything else in the app `main` function.
 ///
@@ -1169,6 +1170,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = view_process::ViewProcessRespawnedArgs::now();
                 self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
             }
+
+            zero_ui_vp::Ev::Disconnected => {
+                self.ctx().services.view_process().try_respawn();
+            }
         }
 
         self.maybe_has_updates = true;
@@ -1997,6 +2002,11 @@ pub mod view_process {
                 .iter()
                 .find(|(_, app_id)| **app_id == monitor_id)
                 .map(|(id, _)| *id)
+        }
+
+        /// Tries to respawn the view-process, only returns if it succeeded.
+        pub fn try_respawn(&self) {
+            self.0.borrow_mut().process.try_respawn()
         }
     }
 

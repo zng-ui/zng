@@ -318,7 +318,7 @@ pub fn error(msg: impl std::fmt::Display) {
     }
 }
 
-// Prints an [`error`] and exists with code `-1`.
+// Prints an [`error`] and exits with code `-1`.
 pub fn fatal(msg: impl std::fmt::Display) -> ! {
     error(msg);
     process::exit(-1)

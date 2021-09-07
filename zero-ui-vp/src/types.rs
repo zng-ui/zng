@@ -40,8 +40,10 @@ pub type MonId = u32;
 #[repr(u32)]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Ev {
-    /// The View Process crashed and respawned, all resources must be rebuild.
+    /// The view-process crashed and respawned, all resources must be rebuild.
     Respawned,
+    /// The event channel disconnected, probably because the view-process crashed.
+    Disconnected,
     /// A sequence of events that happened at the *same time* finished sending.
     ///
     /// The same device action can generate multiple events, this event is send after

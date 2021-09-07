@@ -13,6 +13,7 @@ use zero_ui::prelude::*;
 fn main() {
     App::default().run_window(|ctx| {
         let vars = ctx.window_state.req(WindowVarsKey);
+        //ctx.services.windows().shutdown_on_last_close = false;
 
         let title = merge_var!(vars.actual_position(), vars.actual_size(), |p: &LayoutPoint, s: &LayoutSize| {
             formatx!("Window Example - position: {:.0}, size: {:.0}", p, s)

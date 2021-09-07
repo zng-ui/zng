@@ -432,6 +432,7 @@ pub struct Controller {
     response_receiver: ipc::ResponseReceiver,
     event_listener: Option<EventListenerJoin>,
     headless: bool,
+    same_process: bool,
 }
 impl Controller {
     /// Start with a custom view process.
@@ -460,23 +461,26 @@ impl Controller {
             std::env::current_exe().expect("failed to get the current exetuable, consider using an external view-process exe")
         });
 
-        let (process, request_chan, response_chan, mut event_chan) =
+        let (process, request_sender, response_receiver, mut event_receiver) =
             Self::spawn_view_process(&view_process_exe, headless).expect("failed to spawn or connecto to view-process");
 
         let ev = thread::spawn(move || {
-            while let Ok(ev) = event_chan.recv() {
+            while let Ok(ev) = event_receiver.recv() {
                 on_event(ev);
             }
+            on_event(Ev::Disconnected);
+
             // return to reuse in respawn.
             let t: Box<dyn FnMut(Ev) + Send> = Box::new(on_event);
             t
         });
 
         let mut c = Controller {
+            same_process: process.is_none(),
             process,
             view_process_exe,
-            request_sender: request_chan,
-            response_receiver: response_chan,
+            request_sender,
+            response_receiver,
             event_listener: Some(ev),
             headless,
         };
@@ -498,7 +502,7 @@ impl Controller {
     /// If is running both view and app in the same process.
     #[inline]
     pub fn same_process(&self) -> bool {
-        self.process.is_none()
+        self.same_process
     }
 
     fn try_talk(&mut self, req: Request) -> ipc::Result<Response> {
@@ -511,7 +515,7 @@ impl Controller {
             Ok(r) => return Ok(r),
             Err(ipc::Disconnected) => {
                 log::error!(target: "vp_recover", "started recovery after channel diconnected");
-                self.try_recover();
+                self.try_respawn();
             }
         }
         Err(Error::Respawn)
@@ -559,11 +563,13 @@ impl Controller {
     }
 
     /// Tries to reopen the view-process.
-    fn try_recover(&mut self) {
-        let process = if let Some(p) = self.process.as_mut() {
+    pub fn try_respawn(&mut self) {
+        let mut process = if let Some(p) = self.process.take() {
             p
         } else {
-            log::error!("cannot recover in same_process mode");
+            if self.same_process {
+                log::error!("cannot recover in same_process mode");
+            }
             return;
         };
 
@@ -572,7 +578,13 @@ impl Controller {
             Ok(Some(code)) => Some(code),
             Ok(None) => {
                 log::warn!(target: "vp_recover", "view-process still running, attempting kill");
-                match process.kill() {
+
+                let result = match process.kill() {
+                    Ok(_) => Ok(()),
+                    Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Ok(()),
+                    Err(e) => Err(e),
+                };
+                match result {
                     Ok(_) => {
                         log::info!(target: "vp_recover", "killed view-process");
                         match process.try_wait() {
@@ -649,17 +661,18 @@ impl Controller {
         };
 
         // update connections
-        *process = new_process.unwrap();
+        self.process = new_process;
         self.request_sender = request;
         self.response_receiver = response;
 
         let ev = thread::spawn(move || {
             // notify a respawn.
             on_event(Ev::Respawned);
-
             while let Ok(ev) = event.recv() {
                 on_event(ev);
             }
+            on_event(Ev::Disconnected);
+
             on_event
         });
         self.event_listener = Some(ev);
