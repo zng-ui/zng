@@ -17,9 +17,7 @@ use headless::ViewHeadless;
 use parking_lot::{Condvar, Mutex};
 use serde::{Deserialize, Serialize};
 use std::{
-    env,
-    io::Read,
-    panic,
+    env, panic,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
@@ -574,65 +572,37 @@ impl Controller {
         };
 
         // try exit
-        let exit_code = match process.try_wait() {
-            Ok(Some(code)) => Some(code),
-            Ok(None) => {
-                log::warn!(target: "vp_recover", "view-process still running, attempting kill");
-
-                let result = match process.kill() {
-                    Ok(_) => Ok(()),
-                    Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Ok(()),
-                    Err(e) => Err(e),
-                };
-                match result {
-                    Ok(_) => {
-                        log::info!(target: "vp_recover", "killed view-process");
-                        match process.try_wait() {
-                            Ok(Some(s)) => Some(s),
-                            Ok(None) => unreachable!(),
-                            Err(e) => {
-                                log::error!(target: "vp_recover", "try_wait after kill error, {:?}", e);
-                                None
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        log::error!(target: "vp_recover", "view-process kill error, {:?}", e);
-                        None
-                    }
-                }
-            }
+        let _ = process.kill();
+        let code_and_output = match process.wait_with_output() {
+            Ok(c) => Some(c),
             Err(e) => {
-                log::error!(target: "vp_recover", "try_wait error, {:?}", e);
+                log::error!(target: "vp_recover", "view-process could not be heaped, will abandone running, {:?}", e);
                 None
             }
         };
 
         // try print stdout/err and exit code.
-        if let Some(code) = exit_code {
+        if let Some(c) = code_and_output {
             log::info!(target: "vp_recover", "view-process reaped");
 
-            if cfg!(windows) && code.code().unwrap_or(0) == 1 {
+            let code = c.status.code().unwrap_or(0);
+
+            if cfg!(windows) && code == 1 {
                 log::warn!(target: "vp_recover", "view-process exit code is `1`, probably killed by the Task Manager, \
                                     will exit app-process with the same code");
                 std::process::exit(1);
             }
 
-            log::error!(target: "vp_recover", "view-process exit_code: {:x}", code.code().unwrap_or(0));
+            log::error!(target: "vp_recover", "view-process exit_code: {:x}", code);
 
-            if let Some(mut err) = process.stderr.take() {
-                let mut s = String::new();
-                match err.read_to_string(&mut s) {
-                    Ok(l) => log::error!(target: "vp_recover", "view-process stderr ({} bytes):\n{}\n=====", l, s),
-                    Err(e) => log::error!(target: "vp_recover", "failed to read view-process stderr: {}", e),
-                }
+            match String::from_utf8(c.stderr) {
+                Ok(s) => log::error!(target: "vp_recover", "view-process stderr:\n{}\n=====", s),
+                Err(e) => log::error!(target: "vp_recover", "failed to read view-process stderr: {}", e),
             }
-            if let Some(mut out) = process.stdout.take() {
-                let mut s = String::new();
-                match out.read_to_string(&mut s) {
-                    Ok(l) => log::info!(target: "vp_recover", "view-process stdout ({} bytes):\n{}\n=====", l, s),
-                    Err(e) => log::error!(target: "vp_recover", "failed to read view-process stdout: {}", e),
-                }
+
+            match String::from_utf8(c.stdout) {
+                Ok(s) => log::info!(target: "vp_recover", "view-process stdout:\n{}\n=====", s),
+                Err(e) => log::error!(target: "vp_recover", "failed to read view-process stdout: {}", e),
             }
         } else {
             log::error!(target: "vp_recover", "failed to reap view-process, will abandon it running and spawn a new one");
