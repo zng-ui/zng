@@ -1195,12 +1195,24 @@ impl AppExtension for WindowManager {
 
             if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
                 w.deinit(ctx);
+
+                let is_headless_app = ctx.services.get::<ViewProcess>().map(|vp| vp.headless()).unwrap_or(true);
+
                 let wns = ctx.services.windows();
                 let info = wns.windows_info.remove(&args.window_id).unwrap();
 
                 info.vars.0.is_open.set(ctx.vars, false);
 
-                if wns.shutdown_on_last_close && wns.windows.is_empty() && wns.open_requests.is_empty() {
+                // if set to shutdown on last headed window close in a headed app,
+                // AND there is no more open headed window OR request for opening a headed window.
+                if wns.shutdown_on_last_close
+                    && !is_headless_app
+                    && !wns.windows.values().any(|w| matches!(w.mode, WindowMode::Headed))
+                    && !wns
+                        .open_requests
+                        .iter()
+                        .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
+                {
                     // fulfill `shutdown_on_last_close`
                     ctx.services.app_process().shutdown();
                 }
@@ -1376,6 +1388,9 @@ impl Monitors {
 #[derive(Service)]
 pub struct Windows {
     /// If shutdown is requested when a window closes and there are no more windows open, `true` by default.
+    ///
+    /// This setting is ignored in headless apps, in headed apps the shutdown happens when all headed windows
+    /// are closed, headless windows are ignored.
     pub shutdown_on_last_close: bool,
 
     windows: LinearMap<WindowId, AppWindow>,

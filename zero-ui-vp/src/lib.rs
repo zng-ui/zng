@@ -558,7 +558,6 @@ impl Controller {
         Ok((process, req, rsp, ev))
     }
 
-
     /// Tries to reopen the view-process.
     fn try_recover(&mut self) {
         let process = if let Some(p) = self.process.as_mut() {
@@ -645,7 +644,7 @@ impl Controller {
                         panic!("failed to respawn `view-process` after 3 retries");
                     }
                     log::info!(target: "vp_recover", "retrying respawn");
-                },
+                }
             }
         };
 

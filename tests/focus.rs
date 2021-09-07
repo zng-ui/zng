@@ -49,7 +49,6 @@ pub fn first_and_last_window_events() {
         Last Events
     */
 
-    app.set_shutdown_on_last_close(false);
     app.close_main_window();
 
     let events = app.take_focus_changed();
@@ -1536,11 +1535,6 @@ impl TestApp {
     pub fn set_vars(&mut self, set: impl FnOnce(&Vars)) {
         set(self.app.ctx().vars);
         let _ = self.app.update(false);
-    }
-
-    pub fn set_shutdown_on_last_close(&mut self, shutdown: bool) {
-        let w = self.app.ctx().services.req::<zero_ui::core::window::Windows>();
-        w.shutdown_on_last_close = shutdown;
     }
 
     pub fn close_main_window(&mut self) {
