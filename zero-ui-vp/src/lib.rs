@@ -431,6 +431,7 @@ pub struct Controller {
     event_listener: Option<EventListenerJoin>,
     headless: bool,
     same_process: bool,
+    device_events: bool,
 }
 impl Controller {
     /// Start with a custom view process.
@@ -481,20 +482,33 @@ impl Controller {
             response_receiver,
             event_listener: Some(ev),
             headless,
+            device_events,
         };
-        if crate::VERSION != c.version().unwrap() {
-            panic!("app-process and view-process must be build using the same exact version of zero-ui-vp");
+
+        if let Err(Respawned) = c.try_startup() {
+            panic!("respawn on startup"); // TODO recover from this
         }
 
-        assert!(c.startup(device_events, headless).unwrap());
-
         c
+    }
+    fn try_startup(&mut self) -> Result<()> {
+        if crate::VERSION != self.version()? {
+            panic!("app-process and view-process must be build using the same exact version of zero-ui-vp");
+        }
+        assert!(self.startup(self.device_events, self.headless)?);
+        Ok(())
     }
 
     /// If is running in headless mode.
     #[inline]
     pub fn headless(&self) -> bool {
         self.headless
+    }
+
+    /// If device events are enabled.
+    #[inline]
+    pub fn device_events(&self) -> bool {
+        self.device_events
     }
 
     /// If is running both view and app in the same process.

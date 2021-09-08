@@ -15,7 +15,7 @@ use super::{
 use crate::{
     app::{
         raw_events::{RawFontChangedEvent, RawTextAaChangedEvent},
-        view_process::{ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
+        view_process::{Respawned, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
         AppEventSender, AppExtension,
     },
     context::AppContext,
@@ -500,8 +500,16 @@ impl FontFace {
         self.unregistered.set(true);
     }
 
+    const DUMMY_FONT_KEY: webrender_api::FontKey = webrender_api::FontKey(webrender_api::IdNamespace(0), 0);
+
     fn render_face(&self, renderer: &ViewRenderer, txn: &mut webrender_api::Transaction) -> webrender_api::FontKey {
-        let namespace = renderer.namespace_id().unwrap();
+        let namespace = match renderer.namespace_id() {
+            Ok(n) => n,
+            Err(Respawned) => {
+                log::error!("respawned calling `namespace_id`, will return dummy font key");
+                return Self::DUMMY_FONT_KEY;
+            }
+        };
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter() {
             if r.key.0 == namespace {
@@ -511,9 +519,9 @@ impl FontFace {
 
         let key = match renderer.generate_font_key() {
             Ok(k) => k,
-            Err(e) => {
-                log::error!("failed `generate_font_key`, will return `default, 0`, {:?}", e);
-                return webrender_api::FontKey(webrender_api::IdNamespace::default(), 0);
+            Err(Respawned) => {
+                log::error!("respawned calling `generate_font_key`, will return dummy font key");
+                return Self::DUMMY_FONT_KEY;
             }
         };
         txn.add_raw_font(key, (*self.bytes).clone(), self.face_index);
@@ -667,8 +675,16 @@ impl Font {
         }
     }
 
+    const DUMMY_FONT_KEY: webrender_api::FontInstanceKey = webrender_api::FontInstanceKey(webrender_api::IdNamespace(0), 0);
+
     fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
-        let namespace = renderer.namespace_id().unwrap();
+        let namespace = match renderer.namespace_id() {
+            Ok(n) => n,
+            Err(Respawned) => {
+                log::error!("respawned calling `namespace_id`, will return dummy font key");
+                return Self::DUMMY_FONT_KEY;
+            }
+        };
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter() {
             if r.key.0 == namespace && r.synthesis == synthesis {
@@ -682,9 +698,9 @@ impl Font {
 
         let key = match renderer.generate_font_instance_key() {
             Ok(k) => k,
-            Err(e) => {
-                log::error!("failed `generate_font_instance_key`, will return `default`, {:?}", e);
-                return webrender_api::FontInstanceKey::default();
+            Err(Respawned) => {
+                log::error!("respawned calling `generate_font_instance_key`, will return dummy font key");
+                return Self::DUMMY_FONT_KEY;
             }
         };
 
@@ -710,9 +726,9 @@ impl Font {
                 .collect(),
         );
 
-        if let Err(e) = renderer.update_resources(txn.resource_updates) {
-            log::error!("failed `update_resources`, will return `default`, {:?}", e);
-            return webrender_api::FontInstanceKey::default();
+        if let Err(Respawned) = renderer.update_resources(txn.resource_updates) {
+            log::error!("respawned calling `update_resources`, will return dummy font key");
+            return Self::DUMMY_FONT_KEY;
         }
 
         keys.push(RenderFont::new(renderer, synthesis, key));

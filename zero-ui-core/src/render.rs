@@ -742,8 +742,6 @@ impl FrameBuilder {
         if let Some(r) = &self.renderer {
             let instance_key = font.instance_key(r, synthesis);
 
-            debug_assert_eq!(r.namespace_id().unwrap(), instance_key.0);
-
             self.display_list
                 .push_text(&self.common_item_properties(rect), rect, glyphs, instance_key, color, None);
         }

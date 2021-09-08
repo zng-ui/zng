@@ -19,7 +19,7 @@ use webrender_api::ImageKey;
 
 use crate::{
     app::{
-        view_process::{ViewProcessRespawnedEvent, ViewRenderer},
+        view_process::{Respawned, ViewProcessRespawnedEvent, ViewRenderer},
         AppExtension,
     },
     context::{AppContext, LayoutMetrics},
@@ -419,16 +419,22 @@ impl crate::render::Image for Image {
     fn image_key(&self, renderer: &ViewRenderer) -> ImageKey {
         use webrender_api::*;
 
-        let namespace = renderer.namespace_id().unwrap();
+        let namespace = match renderer.namespace_id() {
+            Ok(n) => n,
+            Err(Respawned) => {
+                log::error!("respawned calling `namespace_id`, will return DUMMY");
+                return ImageKey::DUMMY;
+            }
+        };
         let mut rms = self.render_keys.borrow_mut();
         if let Some(rm) = rms.iter().find(|k| k.key.0 == namespace) {
             return rm.key;
         }
         let key = match renderer.generate_image_key() {
             Ok(k) => k,
-            Err(e) => {
-                log::error!("failed `generate_image_key`, will return DUMMY, {:?}", e);
-                ImageKey::DUMMY
+            Err(Respawned) => {
+                log::error!("respawned calling `generate_image_key`, will return DUMMY");
+                return ImageKey::DUMMY;
             }
         };
 
@@ -448,8 +454,8 @@ impl crate::render::Image for Image {
             ImageData::Raw(self.bgra.clone()),
             None,
         );
-        if let Err(e) = renderer.update_resources(txn.resource_updates) {
-            log::error!("failed `update_resources`, will return DUMMY, {:?}", e);
+        if let Err(Respawned) = renderer.update_resources(txn.resource_updates) {
+            log::error!("respawned `update_resources`, will return DUMMY");
             return ImageKey::DUMMY;
         }
 

@@ -11,7 +11,7 @@ use crate::{
     app::{
         self,
         raw_events::*,
-        view_process::{self, ViewHeadless, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
+        view_process::{self, Respawned, ViewHeadless, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
     },
     cancelable_event_args,
@@ -1684,7 +1684,7 @@ impl AppWindowInfo {
                 Ok((frame_id, hit_test)) => {
                     return FrameHitInfo::new(self.id, frame_id, point, &hit_test);
                 }
-                Err(e) => log::error!("failed `hit_test`, will return `no_hits`, {:?}", e),
+                Err(Respawned) => log::error!("respawned calling `hit_test`, will return `no_hits`"),
             }
         }
 
@@ -1839,11 +1839,14 @@ impl AppWindow {
                 self.on_size_vars_update(ctx);
             }
 
+            /// Respawned error is ok here, because we recreate the window on respawn.
+            type Ignore = Result<(), Respawned>;
+
             if self.vars.position().is_new(ctx) && !self.first_render {
                 self.position = self.layout_position(ctx);
 
                 if let Some(w) = &self.headed {
-                    w.set_position(self.position).unwrap();
+                    let _: Ignore = w.set_position(self.position);
                 } else {
                     RawWindowMovedEvent.notify(ctx.events, RawWindowMovedArgs::now(self.id, self.position, EventCause::App));
                 }
@@ -1865,22 +1868,30 @@ impl AppWindow {
                 }
 
                 if let Some(title) = self.vars.title().get_new(ctx) {
-                    w.set_title(title.to_string()).unwrap();
+                    let _: Ignore = w.set_title(title.to_string());
                 }
                 if let Some(chrome) = self.vars.chrome().get_new(ctx) {
                     match chrome {
-                        WindowChrome::Default => w.set_chrome_visible(true).unwrap(),
-                        WindowChrome::None => w.set_chrome_visible(false).unwrap(),
+                        WindowChrome::Default => {
+                            let _: Ignore = w.set_chrome_visible(true);
+                        }
+                        WindowChrome::None => {
+                            let _: Ignore = w.set_chrome_visible(false);
+                        }
                         WindowChrome::Custom => {
-                            w.set_chrome_visible(false).unwrap();
+                            let _: Ignore = w.set_chrome_visible(false);
                             todo!();
                         }
                     }
                 }
                 if let Some(ico) = self.vars.icon().get_new(ctx) {
                     match ico {
-                        WindowIcon::Default => w.set_icon(None).unwrap(),
-                        WindowIcon::Icon(ico) => w.set_icon(Some(view_process::Icon::clone(ico))).unwrap(),
+                        WindowIcon::Default => {
+                            let _: Ignore = w.set_icon(None);
+                        }
+                        WindowIcon::Icon(ico) => {
+                            let _: Ignore = w.set_icon(Some(view_process::Icon::clone(ico)));
+                        }
                         WindowIcon::Render(_) => todo!(),
                     }
                 }
@@ -1888,34 +1899,34 @@ impl AppWindow {
                     todo!("apply {:?}", state);
                 }
                 if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
-                    w.set_resizable(resizable).unwrap();
+                    let _: Ignore = w.set_resizable(resizable);
                 }
                 if let Some(movable) = self.vars.movable().copy_new(ctx) {
-                    w.set_movable(movable).unwrap();
+                    let _: Ignore = w.set_movable(movable);
                 }
                 if let Some(always_on_top) = self.vars.always_on_top().copy_new(ctx) {
-                    w.set_always_on_top(always_on_top).unwrap();
+                    let _: Ignore = w.set_always_on_top(always_on_top);
                 }
                 if let Some(visible) = self.vars.visible().copy_new(ctx) {
-                    w.set_visible(visible).unwrap();
+                    let _: Ignore = w.set_visible(visible);
                 }
                 if let Some(visible) = self.vars.taskbar_visible().copy_new(ctx) {
-                    w.set_taskbar_visible(visible).unwrap();
+                    let _: Ignore = w.set_taskbar_visible(visible);
                 }
                 if self.vars.parent().is_new(ctx) || self.vars.modal().is_new(ctx) {
-                    w.set_parent(self.vars.parent().copy(ctx), self.vars.modal().copy(ctx)).unwrap();
+                    let _: Ignore = w.set_parent(self.vars.parent().copy(ctx), self.vars.modal().copy(ctx));
                 }
                 if let Some(transparent) = self.vars.transparent().copy_new(ctx) {
-                    w.set_transparent(transparent).unwrap();
+                    let _: Ignore = w.set_transparent(transparent);
                 }
                 if let Some(allow) = self.vars.allow_alt_f4().copy_new(ctx) {
-                    w.set_allow_alt_f4(allow).unwrap();
+                    let _: Ignore = w.set_allow_alt_f4(allow);
                 }
             }
 
             if let Some(r) = &self.renderer {
                 if let Some(text_aa) = self.vars.text_aa().copy_new(ctx) {
-                    r.set_text_aa(text_aa).unwrap();
+                    let _: Ignore = r.set_text_aa(text_aa);
                 }
             }
         }
@@ -2216,7 +2227,11 @@ impl AppWindow {
                     };
 
                     // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
-                    let headed = vp.unwrap().open_window(self.id, config).expect("TODO, deal with respawn here?");
+                    let headed = match vp.unwrap().open_window(self.id, config) {
+                        Ok(h) => h,
+                        // we re-render and re-open the window on respawn event.
+                        Err(Respawned) => return,
+                    };
 
                     self.renderer = Some(headed.renderer());
                     self.headed = Some(headed);
@@ -2230,7 +2245,11 @@ impl AppWindow {
                         text_aa: self.vars.text_aa().copy(ctx.vars),
                     };
 
-                    let surface = vp.unwrap().open_headless(self.id, config).expect("TODO");
+                    let surface = match vp.unwrap().open_headless(self.id, config) {
+                        Ok(h) => h,
+                        // we re-render and re-open the window on respawn event.
+                        Err(Respawned) => return,
+                    };
                     self.renderer = Some(surface.renderer());
                     self.headless_surface = Some(surface);
                     ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
@@ -2268,7 +2287,8 @@ impl AppWindow {
         let frame = self.render_frame(ctx);
 
         if let Some(renderer) = &mut self.renderer {
-            renderer.render(frame.unwrap()).expect("TODO, deal with respawn here?");
+            // we re-render and re-open the window on respawn event.
+            let _: Result<(), Respawned> = renderer.render(frame.unwrap());
         }
     }
 
@@ -2287,12 +2307,12 @@ impl AppWindow {
             return;
         }
 
-        if let Some(renderer) = &self.renderer {
-            // send update if we have a renderer.
-            renderer.render_update(updates).expect("TODO, deal with respawn here?");
-        }
-
         // TODO notify, after we implement metadata modification in render_update.
+
+        if let Some(renderer) = &self.renderer {
+            // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
+            let _: Result<(), Respawned> = renderer.render_update(updates);
+        }
     }
 
     /// Send an empty frame update.
@@ -2301,13 +2321,11 @@ impl AppWindow {
     /// (like a resize to same size).
     fn render_empty_update(&mut self) {
         if let Some(renderer) = &self.renderer {
-            // send update if we have a renderer.
-            renderer
-                .render_update(DynamicProperties {
-                    transforms: vec![],
-                    floats: vec![],
-                })
-                .expect("TODO, deal with respawn here?");
+            // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
+            let _: Result<(), Respawned> = renderer.render_update(DynamicProperties {
+                transforms: vec![],
+                floats: vec![],
+            });
         }
     }
 

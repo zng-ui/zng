@@ -2239,11 +2239,11 @@ pub mod view_process {
         }
 
         /// Returns `true` if the renderer is still alive.
-        /// 
+        ///
         /// The renderer is dropped when the window closes or the view-process respawns.
         #[inline]
         pub fn alive(&self) -> bool {
-            self.0.upgrade().map(|c|c.alive()).unwrap_or(false)
+            self.0.upgrade().map(|c| c.alive()).unwrap_or(false)
         }
 
         /// Gets the root pipeline ID.
