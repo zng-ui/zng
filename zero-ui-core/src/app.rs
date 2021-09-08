@@ -1832,6 +1832,8 @@ impl fmt::Display for DeviceId {
 pub mod view_process {
     use std::path::PathBuf;
     use std::rc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
     use std::time::{Duration, Instant};
     use std::{cell::RefCell, rc::Rc};
 
@@ -1840,7 +1842,7 @@ pub mod view_process {
     use webrender_api::{DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate};
     use zero_ui_vp::{Controller, DevId, WinId};
     pub use zero_ui_vp::{
-        CursorIcon, Error, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Result, TextAntiAliasing,
+        CursorIcon, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, Result, TextAntiAliasing,
         VideoMode, WindowConfig, WindowTheme,
     };
 
@@ -1865,18 +1867,48 @@ pub mod view_process {
         window_ids: LinearMap<WinId, WindowId>,
         device_ids: LinearMap<DevId, DeviceId>,
         monitor_ids: LinearMap<zero_ui_vp::MonId, MonitorId>,
+
+        data_generation: usize,
+
+        // incremented each respawn.
+        process_generation: Arc<AtomicUsize>,
+    }
+    impl ViewApp {
+        #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
+        fn check_generation(&mut self) -> bool {
+            let gen = self.process_generation.load(Ordering::Relaxed);
+            let invalid = gen != self.data_generation;
+            if invalid {
+                self.data_generation = gen;
+                self.window_ids.clear();
+                self.device_ids.clear();
+                self.monitor_ids.clear();
+            }
+            invalid
+        }
     }
     impl ViewProcess {
         /// Spawn the View Process.
-        pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F) -> Self
+        pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, mut on_event: F) -> Self
         where
             F: FnMut(Ev) + Send + 'static,
         {
+            let process_generation = Arc::new(AtomicUsize::new(0));
+            let pg = Arc::clone(&process_generation);
+
             Self(Rc::new(RefCell::new(ViewApp {
-                process: zero_ui_vp::Controller::start(view_process_exe, device_events, headless, on_event),
+                process: zero_ui_vp::Controller::start(view_process_exe, device_events, headless, move |ev| {
+                    if let Ev::Respawned = ev {
+                        pg.fetch_add(1, Ordering::Relaxed);
+                    }
+                    on_event(ev)
+                }),
                 window_ids: LinearMap::default(),
                 device_ids: LinearMap::default(),
                 monitor_ids: LinearMap::default(),
+
+                data_generation: 0,
+                process_generation,
             })))
         }
 
@@ -1895,6 +1927,8 @@ pub mod view_process {
         /// Open a window and associate it with the `window_id`.
         pub fn open_window(&self, window_id: WindowId, config: WindowConfig) -> Result<ViewWindow> {
             let mut app = self.0.borrow_mut();
+            let _ = app.check_generation();
+
             assert!(app.window_ids.values().all(|&v| v != window_id));
 
             let (id, namespace_id, pipeline_id) = app.process.open_window(config)?;
@@ -1906,6 +1940,7 @@ pub mod view_process {
                 app: self.0.clone(),
                 namespace_id,
                 pipeline_id,
+                generation: app.data_generation,
             })))
         }
 
@@ -1926,6 +1961,7 @@ pub mod view_process {
                 app: self.0.clone(),
                 namespace_id,
                 pipeline_id,
+                generation: app.data_generation,
             })))
         }
 
@@ -2014,11 +2050,21 @@ pub mod view_process {
         id: WinId,
         namespace_id: IdNamespace,
         pipeline_id: PipelineId,
+        generation: usize,
         app: Rc<RefCell<ViewApp>>,
     }
     impl WindowConnection {
+        fn alive(&self) -> bool {
+            self.generation == self.app.borrow().process_generation.load(Ordering::Relaxed)
+        }
+
         fn call<R>(&self, f: impl FnOnce(WinId, &mut Controller) -> Result<R>) -> Result<R> {
-            f(self.id, &mut self.app.borrow_mut().process)
+            let mut app = self.app.borrow_mut();
+            if app.check_generation() {
+                Err(Respawned)
+            } else {
+                f(self.id, &mut app.process)
+            }
         }
     }
     impl Drop for WindowConnection {
@@ -2033,6 +2079,16 @@ pub mod view_process {
     #[derive(Clone)]
     pub struct ViewWindow(Rc<WindowConnection>);
     impl ViewWindow {
+        /// Returns `true` if this window connection is still valid.
+        ///
+        /// The connection can be permanently lost in case the "view-process" respawns, in this
+        /// case all methods will return [`Respawned`], and you must discard this connection and
+        /// create a new one.
+        #[inline]
+        pub fn alive(&self) -> bool {
+            self.0.alive()
+        }
+
         /// Set the window title.
         #[inline]
         pub fn set_title(&self, title: String) -> Result<()> {
@@ -2084,8 +2140,7 @@ pub mod view_process {
                 if let Some((parent_id, _)) = self.0.app.borrow().window_ids.iter().find(|(_, window_id)| **window_id == parent) {
                     self.0.call(|id, p| p.set_parent(id, Some(*parent_id), modal))
                 } else {
-                    self.0.call(|id, p| p.set_parent(id, None, modal))?;
-                    Err(Error::WindowNotFound(0))
+                    self.0.call(|id, p| p.set_parent(id, None, modal))
                 }
             } else {
                 self.0.call(|id, p| p.set_parent(id, None, modal))
@@ -2168,10 +2223,10 @@ pub mod view_process {
 
     /// Connection to a renderer in the View Process.
     ///
-    /// This is only a weak reference, every method returns [`WindowNotFound`] if the
+    /// This is only a weak reference, every method returns [`Respawned`] if the
     /// renderer has been dropped.
     ///
-    /// [`WindowNotFound`]: Error::WindowNotFound(0)
+    /// [`Respawned`]: Respawned
     #[derive(Clone)]
     pub struct ViewRenderer(rc::Weak<WindowConnection>);
     impl ViewRenderer {
@@ -2179,8 +2234,16 @@ pub mod view_process {
             if let Some(c) = self.0.upgrade() {
                 c.call(f)
             } else {
-                Err(Error::WindowNotFound(0))
+                Err(Respawned)
             }
+        }
+
+        /// Returns `true` if the renderer is still alive.
+        /// 
+        /// The renderer is dropped when the window closes or the view-process respawns.
+        #[inline]
+        pub fn alive(&self) -> bool {
+            self.0.upgrade().map(|c|c.alive()).unwrap_or(false)
         }
 
         /// Gets the root pipeline ID.
@@ -2188,7 +2251,12 @@ pub mod view_process {
         /// This value is cached locally (not an IPC call).
         #[inline]
         pub fn pipeline_id(&self) -> Result<PipelineId> {
-            self.0.upgrade().map(|c| c.pipeline_id).ok_or(Error::WindowNotFound(0))
+            if let Some(c) = self.0.upgrade() {
+                if c.alive() {
+                    return Ok(c.pipeline_id);
+                }
+            }
+            Err(Respawned)
         }
 
         /// Resource namespace.
@@ -2196,7 +2264,12 @@ pub mod view_process {
         /// This value is cached locally (not an IPC call).
         #[inline]
         pub fn namespace_id(&self) -> Result<IdNamespace> {
-            self.0.upgrade().map(|c| c.namespace_id).ok_or(Error::WindowNotFound(0))
+            if let Some(c) = self.0.upgrade() {
+                if c.alive() {
+                    return Ok(c.namespace_id);
+                }
+            }
+            Err(Respawned)
         }
 
         /// New image resource key.

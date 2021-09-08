@@ -220,26 +220,18 @@ impl fmt::Debug for TextAntiAliasing {
     }
 }
 
-/// View Process IPC error.
+/// The View-Process crashed and respawned, all resources must be recreated.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-pub enum Error {
-    /// Tried to operate on an unknown window.
-    WindowNotFound(WinId),
-    /// The View Process crashed and respawned, all resources must be recreated.
-    Respawn,
-}
-impl fmt::Display for Error {
+pub struct Respawned;
+impl fmt::Display for Respawned {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::WindowNotFound(id) => write!(f, "unknown window `{}`", id),
-            Error::Respawn => write!(f, "view-process crashed and respawned, all resources must be rebuild"),
-        }
+        write!(f, "view-process crashed and respawned, all resources must be rebuild")
     }
 }
-impl std::error::Error for Error {}
+impl std::error::Error for Respawned {}
 
 /// View Process IPC result.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Respawned>;
 
 /// Data for rendering a new frame.
 #[derive(Clone, Serialize, Deserialize)]

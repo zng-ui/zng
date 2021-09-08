@@ -122,9 +122,9 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 }
 
 pub use types::{
-    AxisId, ButtonId, ByteBuf, CursorIcon, DevId, ElementState, Error, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon,
-    ModifiersState, MonId, MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Result, ScanCode, TextAntiAliasing, VideoMode,
-    VirtualKeyCode, WinId, WindowConfig, WindowTheme,
+    AxisId, ButtonId, ByteBuf, CursorIcon, DevId, ElementState, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon,
+    ModifiersState, MonId, MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Respawned, Result, ScanCode, TextAntiAliasing,
+    VideoMode, VirtualKeyCode, WinId, WindowConfig, WindowTheme,
 };
 
 use webrender::api::{
@@ -349,7 +349,7 @@ macro_rules! declare_ipc {
     (
         $(
             $(#[$doc:meta])*
-            $vis:vis fn $method:ident(&mut $self:ident, $ctx:ident: &Context $(, $input:ident : $RequestType:ty)* $(,)?) -> Result<$ResponseType:ty> {
+            $vis:vis fn $method:ident(&mut $self:ident, $ctx:ident: &Context $(, $input:ident : $RequestType:ty)* $(,)?) -> $ResponseType:ty {
                 $($impl:tt)*
             }
         )*
@@ -369,7 +369,7 @@ macro_rules! declare_ipc {
         #[repr(u32)]
         pub(crate) enum Response {
             $(
-                $method(Result<$ResponseType>),
+                $method($ResponseType),
             )*
         }
 
@@ -380,7 +380,7 @@ macro_rules! declare_ipc {
                 #[allow(clippy::too_many_arguments)]
                 $vis fn $method(&mut self $(, $input: $RequestType)*) -> Result<$ResponseType> {
                     match self.talk(Request::$method { $($input),* })? {
-                        Response::$method(r) => r,
+                        Response::$method(r) => Ok(r),
                         _ => panic!("view-process did not respond correctly")
                     }
                 }
@@ -402,7 +402,7 @@ macro_rules! declare_ipc {
 
             $(
                 #[allow(clippy::too_many_arguments)]
-                fn $method(&mut $self, $ctx: &Context<E> $(, $input: $RequestType)*) -> Result<$ResponseType> {
+                fn $method(&mut $self, $ctx: &Context<E> $(, $input: $RequestType)*) -> $ResponseType {
                     $($impl)*
                 }
             )*
@@ -516,7 +516,7 @@ impl Controller {
                 self.try_respawn();
             }
         }
-        Err(Error::Respawn)
+        Err(Respawned)
     }
 
     fn spawn_view_process(
@@ -754,55 +754,39 @@ impl<E: AppEventSender> ViewApp<E> {
         }
     }
 
-    fn window_mut(&mut self, id: WinId) -> Result<&mut ViewWindow> {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            Ok(w)
-        } else {
-            Err(Error::WindowNotFound(id))
-        }
-    }
-
-    fn headless_mut(&mut self, id: WinId) -> Result<&mut ViewHeadless> {
-        if let Some(w) = self.headless_views.iter_mut().find(|w| w.id() == id) {
-            Ok(w)
-        } else {
-            Err(Error::WindowNotFound(id))
-        }
-    }
-
-    fn with_window<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewWindow) -> R) -> Result<R> {
+    fn with_window<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewWindow) -> R) -> R {
         assert!(self.started);
-        Ok(f(self.window_mut(id)?))
+        f(self.windows.iter_mut().find(|w| w.id() == id).expect("unknown headed WinId"))
     }
 
-    fn with_headless<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewHeadless) -> R) -> Result<R> {
+    fn with_headless<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewHeadless) -> R) -> R {
         assert!(self.started);
-        Ok(f(self.headless_mut(id)?))
+        f(self
+            .headless_views
+            .iter_mut()
+            .find(|w| w.id() == id)
+            .expect("unknown headless WinId"))
     }
 }
 macro_rules! with_window_or_headless {
     ($self:ident, $id:ident, |$w:ident| $($expr:tt)+) => {
         if !$self.started {
             panic!("expected `self.started`");
-        } else if let Ok($w) = $self.window_mut($id) {
-            Ok({
-                $($expr)+
-            })
-        } else if let Ok($w) = $self.headless_mut($id) {
-            Ok({
-                $($expr)+
-            })
+        } else if let Some($w) = $self.windows.iter_mut().find(|w| w.id() == $id) {
+            $($expr)+
+        } else if let Some($w) = $self.headless_views.iter_mut().find(|w| w.id() == $id) {
+            $($expr)+
         } else {
-            Err(Error::WindowNotFound($id))
+            panic!("unknown headed or headless WinId")
         }
     }
 }
 declare_ipc! {
-    fn version(&mut self, _ctx: &Context) -> Result<String> {
-        Ok(crate::VERSION.to_string())
+    fn version(&mut self, _ctx: &Context) -> String {
+        crate::VERSION.to_string()
     }
 
-    fn startup(&mut self, _ctx: &Context, device_events: bool, headless: bool) -> Result<bool> {
+    fn startup(&mut self, _ctx: &Context, device_events: bool, headless: bool) -> bool {
         assert!(!self.started, "view-process already started");
 
         self.device_events = device_events;
@@ -810,56 +794,52 @@ declare_ipc! {
         assert!(self.headless == headless, "view-process environemt and startup do not agree");
 
         self.started = true;
-        Ok(true)
+        true
     }
 
-    fn exit_same_process(&mut self, _ctx: &Context) -> Result<()> {
+    fn exit_same_process(&mut self, _ctx: &Context) -> () {
         let _ = self.event_loop.send(AppEvent::ParentProcessExited);
-        Ok(())
     }
 
     /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
-    pub fn primary_monitor(&mut self, ctx: &Context) -> Result<Option<(MonId, MonitorInfo)>> {
-        Ok(
-            ctx.window_target
-            .primary_monitor()
-            .or_else(|| ctx.window_target.available_monitors().next())
-            .map(|m| {
-                let id = self.monitor_id(&m);
-                let mut info = MonitorInfo::from(m);
-                info.is_primary = true;
-                (id, info)
-            })
-        )
+    pub fn primary_monitor(&mut self, ctx: &Context) -> Option<(MonId, MonitorInfo)> {
+        ctx.window_target
+        .primary_monitor()
+        .or_else(|| ctx.window_target.available_monitors().next())
+        .map(|m| {
+            let id = self.monitor_id(&m);
+            let mut info = MonitorInfo::from(m);
+            info.is_primary = true;
+            (id, info)
+        })
     }
 
     /// Returns information about the specific monitor, if it exists.
-    pub fn monitor_info(&mut self, ctx: &Context, id: MonId) -> Result<Option<MonitorInfo>> {
-        Ok(self.monitors.iter().find(|(i, _)| *i == id).map(|(_, h)| {
+    pub fn monitor_info(&mut self, ctx: &Context, id: MonId) -> Option<MonitorInfo> {
+        self.monitors.iter().find(|(i, _)| *i == id).map(|(_, h)| {
             let mut info = MonitorInfo::from(h);
             info.is_primary = ctx.window_target
                 .primary_monitor()
                 .map(|p| &p == h)
                 .unwrap_or(false);
             info
-        }))
+        })
     }
 
     /// Returns all available monitors.
-    pub fn available_monitors(&mut self, ctx: &Context) -> Result<Vec<(MonId, MonitorInfo)>> {
+    pub fn available_monitors(&mut self, ctx: &Context) -> Vec<(MonId, MonitorInfo)> {
         let primary = ctx.window_target.primary_monitor();
-        Ok(
-            ctx.window_target
-            .available_monitors()
-            .map(|m| {
-                let id = self.monitor_id(&m);
-                let is_primary = primary.as_ref().map(|h|h == &m).unwrap_or(false);
-                let mut info = MonitorInfo::from(m);
-                info.is_primary = is_primary;
-                (id, info)
-            })
-            .collect()
-        )
+
+        ctx.window_target
+        .available_monitors()
+        .map(|m| {
+            let id = self.monitor_id(&m);
+            let is_primary = primary.as_ref().map(|h|h == &m).unwrap_or(false);
+            let mut info = MonitorInfo::from(m);
+            info.is_primary = is_primary;
+            (id, info)
+        })
+        .collect()
     }
 
     /// Open a window.
@@ -869,7 +849,7 @@ declare_ipc! {
         &mut self,
         ctx: &Context,
         config: WindowConfig,
-    ) -> Result<(WinId, IdNamespace, PipelineId)> {
+    ) -> (WinId, IdNamespace, PipelineId) {
         assert!(self.started);
 
         let mut id = self.window_id_count.wrapping_add(1);
@@ -884,7 +864,7 @@ declare_ipc! {
 
         self.windows.push(window);
 
-        Ok((id, namespace, pipeline))
+        (id, namespace, pipeline)
     }
 
     /// Open a headless surface.
@@ -893,7 +873,7 @@ declare_ipc! {
     /// rendered frames.
     ///
     /// The surface is identified with a "window" id, but no window is created, also returns the renderer ids.
-    pub fn open_headless(&mut self, ctx: &Context, config: HeadlessConfig) -> Result<(WinId, IdNamespace, PipelineId)> {
+    pub fn open_headless(&mut self, ctx: &Context, config: HeadlessConfig) -> (WinId, IdNamespace, PipelineId) {
         assert!(self.started);
 
         let mut id = self.window_id_count.wrapping_add(1);
@@ -908,21 +888,17 @@ declare_ipc! {
 
         self.headless_views.push(view);
 
-        Ok((id, namespace, pipeline))
+        (id, namespace, pipeline)
     }
 
     /// Close the window or headless surface.
-    pub fn close_window(&mut self, _ctx: &Context, id: WinId) -> Result<()> {
+    pub fn close_window(&mut self, _ctx: &Context, id: WinId) -> () {
         assert!(self.started);
 
         if let Some(i) = self.windows.iter().position(|w|w.id() == id) {
             self.windows.remove(i);
-            Ok(())
         } else if let Some(i) = self.headless_views.iter().position(|h|h.id() == id) {
             self.headless_views.remove(i);
-            Ok(())
-        } else {
-            Err(Error::WindowNotFound(id))
         }
     }
 
@@ -931,8 +907,8 @@ declare_ipc! {
     /// # TODO
     ///
     /// Only implemented for Windows, other systems return `TextAntiAliasing::Subpixel`.
-    pub fn text_aa(&mut self, _ctx: &Context) -> Result<TextAntiAliasing> {
-        Ok(text_aa())
+    pub fn text_aa(&mut self, _ctx: &Context) -> TextAntiAliasing {
+        text_aa()
     }
 
     /// Reads the system "double-click" config.
@@ -940,8 +916,8 @@ declare_ipc! {
     /// # TODO
     ///
     /// Only implemented for Windows, other systems return [`MultiClickConfig::default`].
-    pub fn multi_click_config(&mut self, _ctx: &Context) -> Result<MultiClickConfig> {
-        Ok(multi_click_config())
+    pub fn multi_click_config(&mut self, _ctx: &Context) -> MultiClickConfig {
+        multi_click_config()
     }
 
     /// Returns `true` if animations are enabled in the operating system.
@@ -951,8 +927,8 @@ declare_ipc! {
     /// # TODO
     ///
     /// Only implemented for Windows, other systems return `true`.
-    pub fn animation_enabled(&mut self, _ctx: &Context) -> Result<bool> {
-        Ok(animation_enabled())
+    pub fn animation_enabled(&mut self, _ctx: &Context) -> bool {
+        animation_enabled()
     }
 
     /// Retrieves the keyboard repeat-delay setting from the operating system.
@@ -968,48 +944,47 @@ declare_ipc! {
     /// # TODO
     ///
     /// Only implemented for Windows, other systems return `600ms`.
-    pub fn key_repeat_delay(&mut self, _ctx: &Context) -> Result<Duration> {
-        Ok(key_repeat_delay())
+    pub fn key_repeat_delay(&mut self, _ctx: &Context) -> Duration {
+        key_repeat_delay()
     }
 
     /// Set window title.
-    pub fn set_title(&mut self, _ctx: &Context, id: WinId, title: String) -> Result<()> {
+    pub fn set_title(&mut self, _ctx: &Context, id: WinId, title: String) -> () {
         self.with_window(id, |w| w.set_title(title))
     }
 
     /// Set window visible.
-    pub fn set_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> Result<()> {
+    pub fn set_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> () {
         self.with_window(id, |w| w.set_visible(visible))
     }
 
     /// Set if the window is "top-most".
-    pub fn set_always_on_top(&mut self, _ctx: &Context, id: WinId, always_on_top: bool) -> Result<()> {
+    pub fn set_always_on_top(&mut self, _ctx: &Context, id: WinId, always_on_top: bool) -> () {
         self.with_window(id, |w| w.set_always_on_top(always_on_top))
     }
 
     /// Set if the user can drag-move the window.
-    pub fn set_movable(&mut self, _ctx: &Context, id: WinId, movable: bool) -> Result<()> {
+    pub fn set_movable(&mut self, _ctx: &Context, id: WinId, movable: bool) -> () {
         self.with_window(id, |w| w.set_movable(movable))
     }
 
     /// Set if the user can resize the window.
-    pub fn set_resizable(&mut self, _ctx: &Context, id: WinId, resizable: bool) -> Result<()> {
+    pub fn set_resizable(&mut self, _ctx: &Context, id: WinId, resizable: bool) -> () {
         self.with_window(id, |w| w.set_resizable(resizable))
     }
 
     /// Set the window taskbar icon visibility.
-    pub fn set_taskbar_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> Result<()> {
+    pub fn set_taskbar_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> () {
         self.with_window(id, |w| w.set_taskbar_visible(visible))
     }
 
     /// Set the window parent and if `self` blocks the parent events while open (`modal`).
-    pub fn set_parent(&mut self, _ctx: &Context, id: WinId, parent: Option<WinId>, modal: bool) -> Result<()> {
+    pub fn set_parent(&mut self, _ctx: &Context, id: WinId, parent: Option<WinId>, modal: bool) -> () {
         if let Some(parent_id) = parent {
             if let Some(parent_id) = self.windows.iter().find(|w|w.id() == parent_id).map(|w|w.actual_id()) {
                 self.with_window(id, |w|w.set_parent(Some(parent_id), modal))
             } else {
-                self.with_window(id, |w| w.set_parent(None, modal))?;
-                Err(Error::WindowNotFound(parent_id))
+                self.with_window(id, |w| w.set_parent(None, modal))
             }
         } else {
             self.with_window(id, |w| w.set_parent(None, modal))
@@ -1017,157 +992,137 @@ declare_ipc! {
     }
 
     /// Set if the window is see-through.
-    pub fn set_transparent(&mut self, _ctx: &Context, id: WinId, transparent: bool) -> Result<()> {
+    pub fn set_transparent(&mut self, _ctx: &Context, id: WinId, transparent: bool) -> () {
         self.with_window(id, |w| w.set_transparent(transparent))
     }
 
     /// Set the window system border and title visibility.
-    pub fn set_chrome_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> Result<()> {
+    pub fn set_chrome_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> () {
         self.with_window(id, |w|w.set_chrome_visible(visible))
     }
 
     /// Set the window top-left offset, includes the window chrome (outer-position).
-    pub fn set_position(&mut self, _ctx: &Context, id: WinId, pos: LayoutPoint) -> Result<()> {
-        if self.with_window(id, |w|w.set_outer_pos(pos))? {
+    pub fn set_position(&mut self, _ctx: &Context, id: WinId, pos: LayoutPoint) -> () {
+        if self.with_window(id, |w|w.set_outer_pos(pos)) {
             self.notify(Ev::WindowMoved(id, pos, EventCause::App));
         }
-        Ok(())
     }
 
     /// Set the window content area size (inner-size).
-    pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, frame: FrameRequest) -> Result<()> {
+    pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, frame: FrameRequest) -> () {
         let frame_id = frame.id;
-        let (resized, rendered) = self.with_window(id, |w|w.resize_inner(size, frame))?;
+        let (resized, rendered) = self.with_window(id, |w|w.resize_inner(size, frame));
         if resized {
             self.notify(Ev::WindowResized(id, size, EventCause::App));
             if rendered {
                 self.notify(Ev::FrameRendered(id, frame_id))
             }
         }
-        Ok(())
     }
 
     /// Set the headless surface are size (viewport size).
-    pub fn set_headless_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, scale_factor: f32) -> Result<()> {
+    pub fn set_headless_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, scale_factor: f32) -> () {
         self.with_headless(id, |h|h.set_size(size, scale_factor))
     }
 
     /// Set the window minimum content area size.
-    pub fn set_min_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> Result<()> {
+    pub fn set_min_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> () {
         self.with_window(id, |w|w.set_min_inner_size(size))
     }
     /// Set the window maximum content area size.
-    pub fn set_max_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> Result<()> {
+    pub fn set_max_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> () {
         self.with_window(id, |w|w.set_max_inner_size(size))
     }
 
     /// Set the window icon.
-    pub fn set_icon(&mut self, _ctx: &Context, id: WinId, icon: Option<Icon>) -> Result<()> {
+    pub fn set_icon(&mut self, _ctx: &Context, id: WinId, icon: Option<Icon>) -> () {
         self.with_window(id, |w|w.set_icon(icon))
     }
 
     /// Gets the root pipeline ID.
-    pub fn pipeline_id(&mut self, _ctx: &Context, id: WinId) -> Result<PipelineId> {
+    pub fn pipeline_id(&mut self, _ctx: &Context, id: WinId) -> PipelineId {
         with_window_or_headless!(self, id, |w|w.pipeline_id())
     }
 
     /// Gets the resources namespace.
-    pub fn namespace_id(&mut self, _ctx: &Context, id: WinId) -> Result<IdNamespace> {
+    pub fn namespace_id(&mut self, _ctx: &Context, id: WinId) -> IdNamespace {
         with_window_or_headless!(self, id, |w|w.namespace_id())
     }
 
     /// New image resource key.
-    pub fn generate_image_key(&mut self, _ctx: &Context, id: WinId) -> Result<ImageKey> {
+    pub fn generate_image_key(&mut self, _ctx: &Context, id: WinId) -> ImageKey {
         with_window_or_headless!(self, id, |w|w.generate_image_key())
     }
 
     /// New font resource key.
-    pub fn generate_font_key(&mut self, _ctx: &Context, id: WinId) -> Result<FontKey> {
+    pub fn generate_font_key(&mut self, _ctx: &Context, id: WinId) -> FontKey {
         with_window_or_headless!(self, id, |w|w.generate_font_key())
     }
 
     /// New font instance key.
-    pub fn generate_font_instance_key(&mut self, _ctx: &Context, id: WinId) -> Result<FontInstanceKey> {
+    pub fn generate_font_instance_key(&mut self, _ctx: &Context, id: WinId) -> FontInstanceKey {
         with_window_or_headless!(self, id, |w|w.generate_font_instance_key())
     }
 
     /// Gets the window content are size.
-    pub fn size(&mut self, _ctx: &Context, id: WinId) -> Result<LayoutSize> {
+    pub fn size(&mut self, _ctx: &Context, id: WinId) -> LayoutSize {
         with_window_or_headless!(self, id, |w|w.size())
     }
 
     /// Gets the window content are size.
-    pub fn scale_factor(&mut self, _ctx: &Context, id: WinId) -> Result<f32> {
+    pub fn scale_factor(&mut self, _ctx: &Context, id: WinId) -> f32 {
         with_window_or_headless!(self, id, |w|w.scale_factor())
     }
 
     /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
-    pub fn set_allow_alt_f4(&mut self, _ctx: &Context, id: WinId, allow: bool) -> Result<()> {
+    pub fn set_allow_alt_f4(&mut self, _ctx: &Context, id: WinId, allow: bool) -> () {
         self.with_window(id, |w|w.set_allow_alt_f4(allow))
     }
 
     /// Read all pixels of the current frame.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels(&mut self, _ctx: &Context, id: WinId) -> Result<FramePixels> {
+    pub fn read_pixels(&mut self, _ctx: &Context, id: WinId) -> FramePixels {
         with_window_or_headless!(self, id, |w|w.read_pixels())
     }
 
     /// `glReadPixels` a new buffer.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels_rect(&mut self, _ctx: &Context, id: WinId, rect: LayoutRect) -> Result<FramePixels> {
+    pub fn read_pixels_rect(&mut self, _ctx: &Context, id: WinId, rect: LayoutRect) -> FramePixels {
         with_window_or_headless!(self, id, |w|w.read_pixels_rect(rect))
     }
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
     /// Returns the frame ID and all hits from front-to-back.
-    pub fn hit_test(&mut self, _ctx: &Context, id: WinId, point: LayoutPoint) -> Result<(Epoch, HitTestResult)> {
+    pub fn hit_test(&mut self, _ctx: &Context, id: WinId, point: LayoutPoint) -> (Epoch, HitTestResult) {
         with_window_or_headless!(self, id, |w|w.hit_test(point))
     }
 
     /// Set the text anti-aliasing used in the window renderer.
-    pub fn set_text_aa(&mut self, _ctx: &Context, id: WinId, aa: TextAntiAliasing) -> Result<()> {
+    pub fn set_text_aa(&mut self, _ctx: &Context, id: WinId, aa: TextAntiAliasing) -> () {
         with_window_or_headless!(self, id, |w|w.set_text_aa(aa))
     }
 
     /// Render a new frame.
-    pub fn render(&mut self, _ctx: &Context, id: WinId, frame: FrameRequest) -> Result<()> {
-        assert!(self.started);
-
-        if let Ok(w) = self.window_mut(id) {
-            w.render(frame);
-        } else if let Ok(h) = self.headless_mut(id) {
-            h.render(frame);
-        } else {
-            return Err(Error::WindowNotFound(id))
-        }
-        Ok(())
+    pub fn render(&mut self, _ctx: &Context, id: WinId, frame: FrameRequest) -> () {
+        with_window_or_headless!(self, id, |w|w.render(frame))
     }
 
     /// Update the current frame and re-render it.
-    pub fn render_update(&mut self, _ctx: &Context, id: WinId, updates: DynamicProperties) -> Result<()> {
-        assert!(self.started);
-
-        if let Ok(w) = self.window_mut(id) {
-            w.render_update(updates);
-        } else if let Ok(h) = self.headless_mut(id) {
-            h.render_update(updates);
-        } else {
-            return Err(Error::WindowNotFound(id))
-        }
-        Ok(())
+    pub fn render_update(&mut self, _ctx: &Context, id: WinId, updates: DynamicProperties) -> () {
+        with_window_or_headless!(self, id, |w|w.render_update(updates))
     }
 
     /// Add/remove/update resources such as images and fonts.
-    pub fn update_resources(&mut self, _ctx: &Context, id: WinId, updates: Vec<ResourceUpdate>) -> Result<()> {
+    pub fn update_resources(&mut self, _ctx: &Context, id: WinId, updates: Vec<ResourceUpdate>) -> () {
         with_window_or_headless!(self, id, |w| w.update_resources(updates))
     }
 
     /// Can be used to profile the ipc-channel.
-    pub fn ping(&mut self, _ctx: &Context, _bytes: ByteBuf) -> Result<()> {
-        Ok(())
+    pub fn ping(&mut self, _ctx: &Context, _bytes: ByteBuf) -> () {
+        todo!()
     }
 }
 impl<E: AppEventSender> ViewApp<E> {
@@ -1374,7 +1329,7 @@ impl<E: AppEventSender> ViewApp<E> {
         if added_check || removed_check > 1 {
             self.monitors = monitors;
 
-            let monitors = self.available_monitors(ctx).unwrap();
+            let monitors = self.available_monitors(ctx);
             self.notify(Ev::MonitorsChanged(monitors));
         }
     }
