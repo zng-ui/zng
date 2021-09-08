@@ -2329,8 +2329,13 @@ impl AppWindow {
         }
     }
 
-    fn respawn(&mut self, _ctx: &mut AppContext) {
-        todo!("window respawn")
+    fn respawn(&mut self, ctx: &mut AppContext) {
+        self.first_render = true;
+        self.headed = None;
+        self.renderer = None;
+        ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = None;
+
+        self.on_render(ctx, UpdateDisplayRequest::ForceRender);
     }
 
     fn deinit(mut self, ctx: &mut AppContext) {

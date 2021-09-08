@@ -586,6 +586,8 @@ impl Controller {
         };
 
         // try exit
+        let killed_by_respawn = matches!(process.try_wait(), Ok(None));
+
         let _ = process.kill();
         let code_and_output = match process.wait_with_output() {
             Ok(c) => Some(c),
@@ -599,13 +601,27 @@ impl Controller {
         if let Some(c) = code_and_output {
             log::info!(target: "vp_recover", "view-process reaped");
 
-            let code = c.status.code().unwrap_or(0);
+            let code = c.status.code();
 
-            if cfg!(windows) && code == 1 {
-                log::warn!(target: "vp_recover", "view-process exit code is `1`, probably killed by the Task Manager, \
-                                    will exit app-process with the same code");
-                std::process::exit(1);
+            if !killed_by_respawn {
+                // check if user killed the view-process, in this case we exit too.
+
+                #[cfg(windows)]
+                if code == Some(1) {
+                    log::warn!(target: "vp_recover", "view-process exit code is `1`, probably killed by the Task Manager, \
+                                        will exit app-process with the same code");
+                    std::process::exit(1);
+                }
+
+                #[cfg(unix)]
+                if code == None {
+                    log::warn!(target: "vp_recover", "view-process exited by signal, probably killed by the user, \
+                                        will exit app-process too");
+                    std::process::exit(1);
+                }
             }
+
+            let code = code.unwrap();
 
             log::error!(target: "vp_recover", "view-process exit_code: {:x}", code);
 
