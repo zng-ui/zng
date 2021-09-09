@@ -81,7 +81,7 @@ where
     #[UiNode]
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
         self.final_size = final_size;
-        self.render_line = self.axis.get(ctx).layout(final_size, ctx);
+        self.render_line = self.axis.get(ctx).layout(ctx, final_size);
 
         let length = self.render_line.length();
 
@@ -134,8 +134,8 @@ where
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-        self.render_tile_size = self.tile_size.get(ctx).to_layout(final_size, ctx);
-        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(final_size, ctx);
+        self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, final_size);
+        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, final_size);
         self.g.arrange(ctx, self.render_tile_size);
         self.g.final_size = final_size;
     }

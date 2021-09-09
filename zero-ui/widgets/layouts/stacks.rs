@@ -1,99 +1,4 @@
 use crate::prelude::new_widget::*;
-use std::marker::PhantomData;
-
-trait StackDimension: 'static {
-    fn length(size: LayoutSize) -> f32;
-    /// Orthogonal length.
-    fn ort_length(size: LayoutSize) -> f32;
-    /// (length, ort_length).
-    fn lengths_mut(size: &mut LayoutSize) -> (&mut f32, &mut f32);
-    fn origin_mut(origin: &mut LayoutPoint) -> &mut f32;
-}
-
-struct StackNode<C, S, D> {
-    children: C,
-    rectangles: Box<[LayoutRect]>,
-    spacing: S,
-    _d: PhantomData<D>,
-}
-#[impl_ui_node(children)]
-impl<C, S, D> StackNode<C, S, D>
-where
-    C: WidgetList,
-    S: Var<Length>,
-    D: StackDimension,
-{
-    fn new(children: C, spacing: S, _dimension: D) -> Self {
-        StackNode {
-            rectangles: vec![LayoutRect::zero(); children.len()].into_boxed_slice(),
-            children,
-            spacing,
-            _d: PhantomData,
-        }
-    }
-
-    #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.spacing.is_new(ctx) {
-            ctx.updates.layout();
-        }
-        self.children.update_all(ctx);
-    }
-
-    #[UiNode]
-    fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: LayoutSize) -> LayoutSize {
-        *D::lengths_mut(&mut available_size).0 = LAYOUT_ANY_SIZE;
-
-        let mut total_size = LayoutSize::zero();
-        let (total_len, max_ort_len) = D::lengths_mut(&mut total_size);
-        let spacing = self
-            .spacing
-            .get(ctx)
-            .to_layout(LayoutLength::new(D::length(available_size)), ctx)
-            .get();
-        let mut first = true;
-        let rectangles = &mut self.rectangles;
-        self.children.measure_all(
-            ctx,
-            |_, _| available_size,
-            |i, s, _| {
-                let r = &mut rectangles[i];
-                r.size = s;
-
-                let origin = D::origin_mut(&mut r.origin);
-                *origin = *total_len;
-                *total_len += D::length(r.size);
-
-                if first {
-                    first = false;
-                } else if D::ort_length(r.size) > 0.00001 {
-                    *origin += spacing;
-                    *total_len += spacing;
-                }
-
-                *max_ort_len = max_ort_len.max(D::ort_length(r.size));
-            },
-        );
-
-        total_size
-    }
-
-    #[UiNode]
-    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-        let max_ort_len = D::ort_length(final_size);
-        let rectangles = &mut self.rectangles;
-        self.children.arrange_all(ctx, |i, _| {
-            let mut size = rectangles[i].size;
-            *D::lengths_mut(&mut size).1 = max_ort_len;
-            size
-        });
-    }
-
-    #[UiNode]
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.children.render_all(|i| self.rectangles[i].origin, ctx, frame);
-    }
-}
 
 /// Horizontal stack layout.
 ///
@@ -119,34 +24,137 @@ pub mod h_stack {
 
     properties! {
         child {
-            /// Space in-between items.
-            spacing(impl IntoVar<Length>) = 0.0;
             /// Widget items.
             #[allowed_in_when = false]
             items(impl WidgetList) = widgets![];
-            /// Items margin.
+
+            /// Space in-between items.
+            spacing(impl IntoVar<Length>) = 0.0;
+
+            /// Margin around all items together.
             margin as padding;
+
+            /// Items alignment.
+            ///
+            /// Horizontal alignment applies to all items together, vertical alignment applies to each
+            /// item individually. The default is [`LEFT_FILL`].
+            ///
+            /// [`LEFT_FILL`]: Alignment::LEFT_FILL
+            items_align(impl IntoVar<Alignment>) = Alignment::LEFT_FILL;
         }
     }
 
     #[inline]
-    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>) -> impl UiNode {
-        StackNode::new(items, spacing.into_var(), HorizontalD)
+    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
+        HStackNode {
+            rectangles: vec![LayoutRect::zero(); items.len()].into_boxed_slice(),
+            items_width: 0.0,
+            visible_count: 0,
+            children: items,
+            spacing: spacing.into_var(),
+            align: items_align.into_var(),
+        }
     }
 
-    struct HorizontalD;
-    impl StackDimension for HorizontalD {
-        fn length(size: LayoutSize) -> f32 {
-            size.width
+    struct HStackNode<C, S, A> {
+        children: C,
+        rectangles: Box<[LayoutRect]>,
+        items_width: f32,
+        visible_count: usize,
+
+        spacing: S,
+        align: A,
+    }
+    #[impl_ui_node(children)]
+    impl<C: WidgetList, S: Var<Length>, A: Var<Alignment>> UiNode for HStackNode<C, S, A> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.children.update_all(ctx);
+
+            if self.spacing.is_new(ctx) || self.align.is_new(ctx) {
+                ctx.updates.layout();
+            }
         }
-        fn ort_length(size: LayoutSize) -> f32 {
-            size.height
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let mut ds = LayoutSize::zero();
+            self.visible_count = 0;
+
+            let rectangles = &mut self.rectangles;
+            let visible_count = &mut self.visible_count;
+            self.children.measure_all(
+                ctx,
+                |_, _| available_size,
+                |i, s, _| {
+                    rectangles[i].size = s;
+                    ds.height = ds.height.max(s.height);
+                    if s.width > 0.0 {
+                        ds.width += s.width;
+                        *visible_count += 1;
+                    }
+                },
+            );
+
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, LayoutLength::new(available_size.width)).0;
+
+            ds.width += self.visible_count.saturating_sub(1) as f32 * spacing;
+            self.items_width = ds.width;
+
+            if self.align.get(ctx).fill_width() {
+                ds.max(available_size)
+            } else {
+                ds
+            }
         }
-        fn lengths_mut(size: &mut LayoutSize) -> (&mut f32, &mut f32) {
-            (&mut size.width, &mut size.height)
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, LayoutLength::new(final_size.width)).0;
+            let align = self.align.copy(ctx);
+            let fill_width = align.fill_width();
+
+            // if `fill_width` and there is space to fill we give the extra width divided equally
+            // for each visible item. The fill alignment is usually only set for the height so this is a corner case.
+            let extra_width = if fill_width && self.items_width < final_size.width {
+                let vis_count = self.visible_count.saturating_sub(1) as f32;
+                (final_size.width - vis_count * spacing) / vis_count
+            } else {
+                0.0
+            };
+
+            // offset for each item to apply the vertical alignment.
+            let mut x_offset = if fill_width {
+                0.0
+            } else {
+                let diff = final_size.width - self.items_width;
+                diff * align.x.0
+            };
+
+            let rectangles = &mut self.rectangles;
+            let fill_height = align.fill_height();
+
+            self.children.arrange_all(ctx, |i, ctx| {
+                let r = &mut rectangles[i];
+
+                r.size.width += extra_width;
+                r.origin.x = x_offset;
+
+                x_offset += r.size.width + spacing;
+
+                if fill_height {
+                    r.size.height = final_size.height;
+                    r.origin.y = 0.0;
+                } else {
+                    r.size.height = r.size.height.min(final_size.height);
+                    r.origin.y = (final_size.height - r.size.height) * align.y.0;
+                };
+
+                *r = r.snap_to(ctx.pixel_grid);
+
+                r.size
+            });
         }
-        fn origin_mut(origin: &mut LayoutPoint) -> &mut f32 {
-            &mut origin.x
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.children.render_all(|i| self.rectangles[i].origin, ctx, frame);
         }
     }
 }
@@ -181,27 +189,132 @@ pub mod v_stack {
             items(impl WidgetList) = widgets![];
             /// Items margin.
             margin as padding;
+
+            /// Items alignment.
+            ///
+            /// Vertical alignment applies to all items together, horizontal alignment applies to each
+            /// item individually. The default is [`FILL_TOP`].
+            ///
+            /// [`FILL_TOP`]: Alignment::FILL_TOP
+            items_align(impl IntoVar<Alignment>) = Alignment::FILL_TOP;
         }
     }
 
     #[inline]
-    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>) -> impl UiNode {
-        StackNode::new(items, spacing.into_var(), VerticalD)
+    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
+        VStackNode {
+            rectangles: vec![LayoutRect::zero(); items.len()].into_boxed_slice(),
+            items_height: 0.0,
+            visible_count: 0,
+            children: items,
+            spacing: spacing.into_var(),
+            align: items_align.into_var(),
+        }
     }
 
-    struct VerticalD;
-    impl StackDimension for VerticalD {
-        fn length(size: LayoutSize) -> f32 {
-            size.height
+    struct VStackNode<C, S, A> {
+        children: C,
+        rectangles: Box<[LayoutRect]>,
+        items_height: f32,
+        visible_count: usize,
+
+        spacing: S,
+        align: A,
+    }
+    #[impl_ui_node(children)]
+    impl<C: WidgetList, S: Var<Length>, A: Var<Alignment>> UiNode for VStackNode<C, S, A> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.children.update_all(ctx);
+
+            if self.spacing.is_new(ctx) || self.align.is_new(ctx) {
+                ctx.updates.layout();
+            }
         }
-        fn ort_length(size: LayoutSize) -> f32 {
-            size.width
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let mut ds = LayoutSize::zero();
+            self.visible_count = 0;
+
+            let rectangles = &mut self.rectangles;
+            let visible_count = &mut self.visible_count;
+            self.children.measure_all(
+                ctx,
+                |_, _| available_size,
+                |i, s, _| {
+                    rectangles[i].size = s;
+                    ds.width = ds.width.max(s.width);
+                    if s.height > 0.0 {
+                        ds.height += s.height;
+                        *visible_count += 1;
+                    }
+                },
+            );
+
+            let spacing = self
+                .spacing
+                .get(ctx.vars)
+                .to_layout(ctx, LayoutLength::new(available_size.height))
+                .0;
+
+            ds.height += self.visible_count.saturating_sub(1) as f32 * spacing;
+            self.items_height = ds.height;
+
+            if self.align.get(ctx).fill_height() {
+                ds.max(available_size)
+            } else {
+                ds
+            }
         }
-        fn lengths_mut(size: &mut LayoutSize) -> (&mut f32, &mut f32) {
-            (&mut size.height, &mut size.width)
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, LayoutLength::new(final_size.height)).0;
+            let align = self.align.copy(ctx);
+            let fill_height = align.fill_height();
+
+            // if `fill_height` and there is space to fill we give the extra height divided equally
+            // for each visible item. The fill alignment is usually only set for the width so this is a corner case.
+            let extra_height = if fill_height && self.items_height < final_size.height {
+                let vis_count = self.visible_count.saturating_sub(1) as f32;
+                (final_size.height - vis_count * spacing) / vis_count
+            } else {
+                0.0
+            };
+
+            // offset for each item to apply the vertical alignment.
+            let mut y_offset = if fill_height {
+                0.0
+            } else {
+                let diff = final_size.height - self.items_height;
+                diff * align.y.0
+            };
+
+            let rectangles = &mut self.rectangles;
+            let fill_width = align.fill_width();
+
+            self.children.arrange_all(ctx, |i, ctx| {
+                let r = &mut rectangles[i];
+
+                r.size.height += extra_height;
+                r.origin.y = y_offset;
+
+                y_offset += r.size.height + spacing;
+
+                if fill_width {
+                    r.size.width = final_size.width;
+                    r.origin.x = 0.0;
+                } else {
+                    r.size.width = r.size.width.min(final_size.width);
+                    r.origin.x = (final_size.width - r.size.width) * align.x.0;
+                };
+
+                *r = r.snap_to(ctx.pixel_grid);
+
+                r.size
+            });
         }
-        fn origin_mut(origin: &mut LayoutPoint) -> &mut f32 {
-            &mut origin.y
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.children.render_all(|i| self.rectangles[i].origin, ctx, frame);
         }
     }
 }
@@ -279,19 +392,67 @@ pub mod z_stack {
             items(impl UiNodeList) = nodes![];
             /// Items margin.
             margin as padding;
+
+            /// Items alignment.
+            ///
+            /// Alignment applies to each item individually. The default is [`FILL`].
+            ///
+            /// [`FILL`]: Alignment::FILL
+            items_align(impl IntoVar<Alignment>) = Alignment::FILL;
         }
     }
 
     #[inline]
-    fn new_child(items: impl UiNodeList) -> impl UiNode {
-        ZStackNode { children: items }
+    fn new_child(items: impl UiNodeList, items_align: impl IntoVar<Alignment>) -> impl UiNode {
+        ZStackNode {
+            rectangles: vec![LayoutRect::zero(); items.len()].into_boxed_slice(),
+            children: items,
+            align: items_align.into_var(),
+        }
     }
 
-    struct ZStackNode<C: UiNodeList> {
+    struct ZStackNode<C, A> {
         children: C,
+        rectangles: Box<[LayoutRect]>,
+        align: A,
     }
     #[impl_ui_node(children)]
-    impl<C: UiNodeList> UiNode for ZStackNode<C> {}
+    impl<I: UiNodeList, A: Var<Alignment>> UiNode for ZStackNode<I, A> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.align.is_new(ctx) {
+                ctx.updates.layout()
+            }
+            self.children.update_all(ctx);
+        }
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            let rectangles = &mut self.rectangles;
+            let mut ds = LayoutSize::zero();
+            self.children.measure_all(
+                ctx,
+                |_, _| available_size,
+                |i, s, _| {
+                    ds = ds.max(s);
+                    rectangles[i].size = s;
+                },
+            );
+            ds
+        }
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            let align = self.align.copy(ctx);
+
+            let rectangles = &mut self.rectangles;
+            self.children.arrange_all(ctx, |i, ctx| {
+                rectangles[i] = align.solve(rectangles[i].size, final_size).snap_to(ctx.pixel_grid);
+                rectangles[i].size
+            });
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.children.render_all(|i| self.rectangles[i].origin, ctx, frame);
+        }
+    }
 }
 
 /// Basic layering stack layout.

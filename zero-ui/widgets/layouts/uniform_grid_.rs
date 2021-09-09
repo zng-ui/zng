@@ -155,7 +155,7 @@ pub mod uniform_grid {
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get(ctx).to_layout(available_size, ctx);
+            let layout_spacing = self.spacing.get(ctx).to_layout(ctx, available_size);
 
             let available_size = LayoutSize::new(
                 (available_size.width - layout_spacing.column / 2.0) / columns,
@@ -178,7 +178,7 @@ pub mod uniform_grid {
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get(ctx).to_layout(final_size, ctx);
+            let layout_spacing = self.spacing.get(ctx).to_layout(ctx, final_size);
 
             let cell_size = LayoutSize::new(
                 (final_size.width - layout_spacing.column * (columns - 1.0)) / columns,

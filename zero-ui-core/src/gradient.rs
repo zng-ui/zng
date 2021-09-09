@@ -87,7 +87,7 @@ impl fmt::Debug for LinearGradientAxis {
 }
 impl LinearGradientAxis {
     /// Compute a [`LayoutLine`].
-    pub fn layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutLine {
+    pub fn layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutLine {
         match self {
             LinearGradientAxis::Angle(rad) => {
                 let dir = LayoutPoint::new(rad.0.sin(), -rad.0.cos());
@@ -107,7 +107,7 @@ impl LinearGradientAxis {
 
                 line.snap_to(ctx.pixel_grid)
             }
-            LinearGradientAxis::Line(line) => line.to_layout(available_size, ctx),
+            LinearGradientAxis::Line(line) => line.to_layout(ctx, available_size),
         }
     }
 }
@@ -209,9 +209,9 @@ impl ColorStop {
     /// Note that if this color stop [is positional](Self::is_positional) the returned offset is [`f32::INFINITY`].
     /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
     #[inline]
-    pub fn to_layout(&self, length: LayoutLength, ctx: &LayoutMetrics) -> RenderGradientStop {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, length: LayoutLength) -> RenderGradientStop {
         RenderGradientStop {
-            offset: self.offset.to_layout(length, ctx).get(),
+            offset: self.offset.to_layout(ctx, length).get(),
             color: self.color.into(),
         }
     }
@@ -610,7 +610,7 @@ impl GradientStops {
             render_stops.reserve(self.middle.len() + 2);
         }
 
-        let mut start = self.start.to_layout(length, ctx); // 1
+        let mut start = self.start.to_layout(ctx, length); // 1
         if is_positional(start.offset) {
             start.offset = 0.0;
         }
@@ -623,7 +623,7 @@ impl GradientStops {
         for gs in self.middle.iter() {
             match gs {
                 GradientStop::Color(s) => {
-                    let mut stop = s.to_layout(length, ctx); // 1
+                    let mut stop = s.to_layout(ctx, length); // 1
                     #[allow(clippy::branches_sharing_code)]
                     // TODO this lint is broken, see https://github.com/rust-lang/rust-clippy/issues/7369
                     if is_positional(stop.offset) {
@@ -657,7 +657,7 @@ impl GradientStops {
             }
         }
 
-        let mut stop = self.end.to_layout(length, ctx); // 1
+        let mut stop = self.end.to_layout(ctx, length); // 1
         if is_positional(stop.offset) {
             stop.offset = length.get();
         }
@@ -679,7 +679,7 @@ impl GradientStops {
             let length = after.offset - prev.offset;
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
-                    let mut offset = offset.to_layout(LayoutLength::new(length), ctx).get();
+                    let mut offset = offset.to_layout(ctx, LayoutLength::new(length)).get();
                     if is_positional(offset) {
                         offset = length / 2.0;
                     } else {

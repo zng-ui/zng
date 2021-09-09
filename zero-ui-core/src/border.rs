@@ -310,12 +310,12 @@ impl BorderRadius {
 
     /// Compute the radii in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutBorderRadius {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutBorderRadius {
         LayoutBorderRadius {
-            top_left: self.top_left.to_layout(available_size, ctx),
-            top_right: self.top_right.to_layout(available_size, ctx),
-            bottom_left: self.bottom_left.to_layout(available_size, ctx),
-            bottom_right: self.bottom_right.to_layout(available_size, ctx),
+            top_left: self.top_left.to_layout(ctx, available_size),
+            top_right: self.top_right.to_layout(ctx, available_size),
+            bottom_left: self.bottom_left.to_layout(ctx, available_size),
+            bottom_right: self.bottom_right.to_layout(ctx, available_size),
         }
     }
 }

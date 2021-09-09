@@ -1,6 +1,7 @@
 //! Angle, factor and length units.
 
 use derive_more as dm;
+use std::fmt::Write;
 use std::{f32::consts::*, fmt, time::Duration};
 use std::{mem, ops};
 use webrender_api::units as wr;
@@ -913,7 +914,7 @@ impl Length {
     }
 
     /// Compute the length at a context.
-    pub fn to_layout(&self, available_size: LayoutLength, ctx: &LayoutMetrics) -> LayoutLength {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutLength) -> LayoutLength {
         use Length::*;
         let l = match self {
             Exact(l) => *l,
@@ -924,7 +925,7 @@ impl Length {
             ViewportHeight(p) => p * ctx.viewport_size.height / 100.0,
             ViewportMin(p) => p * ctx.viewport_min() / 100.0,
             ViewportMax(p) => p * ctx.viewport_max() / 100.0,
-            Expr(e) => e.to_layout(available_size, ctx).0,
+            Expr(e) => e.to_layout(ctx, available_size).0,
         };
         LayoutLength::new(ctx.pixel_grid.snap(l))
     }
@@ -1030,24 +1031,24 @@ pub enum LengthExpr {
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn to_layout(&self, available_size: LayoutLength, ctx: &LayoutMetrics) -> LayoutLength {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutLength) -> LayoutLength {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.to_layout(available_size, ctx) + b.to_layout(available_size, ctx),
-            Sub(a, b) => a.to_layout(available_size, ctx) - b.to_layout(available_size, ctx),
-            Mul(l, s) => l.to_layout(available_size, ctx) * s.0,
-            Div(l, s) => l.to_layout(available_size, ctx) / s.0,
+            Add(a, b) => a.to_layout(ctx, available_size) + b.to_layout(ctx, available_size),
+            Sub(a, b) => a.to_layout(ctx, available_size) - b.to_layout(ctx, available_size),
+            Mul(l, s) => l.to_layout(ctx, available_size) * s.0,
+            Div(l, s) => l.to_layout(ctx, available_size) / s.0,
             Max(a, b) => {
-                let a = a.to_layout(available_size, ctx).0;
-                let b = b.to_layout(available_size, ctx).0;
+                let a = a.to_layout(ctx, available_size).0;
+                let b = b.to_layout(ctx, available_size).0;
                 LayoutLength::new(a.max(b))
             }
             Min(a, b) => {
-                let a = a.to_layout(available_size, ctx).0;
-                let b = b.to_layout(available_size, ctx).0;
+                let a = a.to_layout(ctx, available_size).0;
+                let b = b.to_layout(ctx, available_size).0;
                 LayoutLength::new(a.min(b))
             }
-            Abs(e) => LayoutLength::new(e.to_layout(available_size, ctx).0.abs()),
+            Abs(e) => LayoutLength::new(e.to_layout(ctx, available_size).0.abs()),
         }
     }
 }
@@ -1372,10 +1373,10 @@ impl Point {
 
     /// Compute the point in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutPoint {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutPoint {
         LayoutPoint::from_lengths(
-            self.x.to_layout(LayoutLength::new(available_size.width), ctx),
-            self.y.to_layout(LayoutLength::new(available_size.height), ctx),
+            self.x.to_layout(ctx, LayoutLength::new(available_size.width)),
+            self.y.to_layout(ctx, LayoutLength::new(available_size.height)),
         )
     }
 }
@@ -1453,10 +1454,10 @@ impl Size {
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutSize {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutSize {
         LayoutSize::from_lengths(
-            self.width.to_layout(LayoutLength::new(available_size.width), ctx),
-            self.height.to_layout(LayoutLength::new(available_size.height), ctx),
+            self.width.to_layout(ctx, LayoutLength::new(available_size.width)),
+            self.height.to_layout(ctx, LayoutLength::new(available_size.height)),
         )
     }
 }
@@ -1553,10 +1554,10 @@ impl Ellipse {
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutEllipse {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutEllipse {
         LayoutEllipse::from_lengths(
-            self.width.to_layout(LayoutLength::new(available_size.width), ctx),
-            self.height.to_layout(LayoutLength::new(available_size.height), ctx),
+            self.width.to_layout(ctx, LayoutLength::new(available_size.width)),
+            self.height.to_layout(ctx, LayoutLength::new(available_size.height)),
         )
     }
 
@@ -1629,10 +1630,10 @@ impl GridSpacing {
 
     /// Compute the spacing in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutGridSpacing {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutGridSpacing {
         LayoutGridSpacing {
-            column: self.column.to_layout(LayoutLength::new(available_size.width), ctx).get(),
-            row: self.row.to_layout(LayoutLength::new(available_size.height), ctx).get(),
+            column: self.column.to_layout(ctx, LayoutLength::new(available_size.width)).get(),
+            row: self.row.to_layout(ctx, LayoutLength::new(available_size.height)).get(),
         }
     }
 }
@@ -1754,8 +1755,8 @@ impl Rect {
 
     /// Compute the rectangle in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutRect {
-        LayoutRect::new(self.origin.to_layout(available_size, ctx), self.size.to_layout(available_size, ctx))
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutRect {
+        LayoutRect::new(self.origin.to_layout(ctx, available_size), self.size.to_layout(ctx, available_size))
     }
 }
 impl From<Size> for Rect {
@@ -1921,10 +1922,10 @@ impl Line {
 
     /// Compute the line in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutLine {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutLine {
         LayoutLine {
-            start: self.start.to_layout(available_size, ctx),
-            end: self.end.to_layout(available_size, ctx),
+            start: self.start.to_layout(ctx, available_size),
+            end: self.end.to_layout(ctx, available_size),
         }
     }
 }
@@ -2093,14 +2094,14 @@ impl SideOffsets {
 
     /// Compute the offsets in a layout context.
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutSideOffsets {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutSideOffsets {
         let width = LayoutLength::new(available_size.width);
         let height = LayoutLength::new(available_size.height);
         LayoutSideOffsets::from_lengths(
-            self.top.to_layout(height, ctx),
-            self.right.to_layout(width, ctx),
-            self.bottom.to_layout(height, ctx),
-            self.left.to_layout(width, ctx),
+            self.top.to_layout(ctx, height),
+            self.right.to_layout(ctx, width),
+            self.bottom.to_layout(ctx, height),
+            self.left.to_layout(ctx, width),
         )
     }
 }
@@ -2159,28 +2160,33 @@ pub type LayoutSideOffsets = wr::LayoutSideOffsets;
 ///
 /// There is a constant for each of the usual alignment values, the alignment is defined as two factors like this
 /// primarily for animating transition between alignments.
-/// 
+///
 /// Values outside of the `[0.0..=1.0]` range places the content outside of the container bounds. A **non-finite
 /// value** means the content stretches to fill the container bounds.
-#[derive(PartialEq, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct Alignment {
     /// *x* alignment in a `[0.0..=1.0]` range.
     pub x: FactorNormal,
     /// *y* alignment in a `[0.0..=1.0]` range.
     pub y: FactorNormal,
 }
+impl PartialEq for Alignment {
+    fn eq(&self, other: &Self) -> bool {
+        self.fill_width() == other.fill_width() && self.fill_height() == other.fill_height() && self.x == other.x && self.y == other.y
+    }
+}
 impl Alignment {
     /// Returns `true` if [`x`] is a special value that indicates the content width must be the container width.
-    /// 
+    ///
     /// [`x`]: Alignment::x
-    pub fn fill_width(&self) -> bool {
+    pub fn fill_width(self) -> bool {
         !self.x.0.is_finite()
     }
 
     /// Returns `true` if [`y`] is a special value that indicates the content height must be the container height.
-    /// 
+    ///
     /// [`y`]: Alignment::y
-    pub fn fill_height(&self) -> bool {
+    pub fn fill_height(self) -> bool {
         !self.y.0.is_finite()
     }
 }
@@ -2201,76 +2207,81 @@ macro_rules! named_aligns {
         [stringify!(($x, $y))] $NAME = ($x, $y);
     )+}};
 
-    ( $([$doc:expr] $NAME:ident = ($x:expr, $y:expr);)+ ) => {$(
+    ( $([$doc:expr] $NAME:ident = ($x:expr, $y:expr);)+ ) => {
+        $(
         #[doc=$doc]
         pub const $NAME: Alignment = Alignment { x: FactorNormal($x), y: FactorNormal($y) };
+        )+
 
-    )+};
-}
-impl Alignment {
-    named_aligns! {
-        TOP_LEFT = (0.0, 0.0);
-        TOP = (0.5, 0.0);
-        TOP_RIGHT = (1.0, 0.0);
-
-        LEFT = (0.0, 0.5);
-        CENTER = (0.5, 0.5);
-        RIGHT = (1.0, 0.5);
-
-        BOTTOM_LEFT = (0.0, 1.0);
-        BOTTOM = (0.5, 1.0);
-        BOTTOM_RIGHT = (1.0, 1.0);
-
-        FILL = (f32::NAN, f32::NAN);
-        TOP_FILL = (f32::NAN, 0.0);
-        BOTTOM_FILL = (f32::NAN, 1.0);
-        FILL_LEFT = (0.0, f32::NAN);
-        FILL_RIGHT = (1.0, f32::NAN);
-    }
-}
-macro_rules! debug_display_align {
-    (  $($NAME:ident),+ $(,)?) => {
-        impl fmt::Display for Alignment {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let a = *self;
-                $(if a == Alignment::$NAME {
-                    write!(f, "{}", stringify!($NAME))
-                }) else +
-                else {
-                    write!(f, "({}%, {}%)", a.x.0 * 100.0, a.y.0 * 100.0)
+        /// Returns the alignment `const` name if `self` is equal to one of then.
+        pub fn name(self) -> Option<&'static str> {
+            $(
+                if self == Self::$NAME {
+                    Some(stringify!($NAME))
                 }
-            }
-        }
-        impl fmt::Debug for Alignment {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let a = *self;
-                $(if a == Alignment::$NAME {
-                    if f.alternate() {
-                        write!(f, "Alignment::")?;
-                    }
-                    write!(f, "{}", stringify!($NAME))
-                }) else +
-                else {
-                    f.debug_struct("Alignment").field("x", &a.x).field("y", &a.y).finish()
-                }
+            )else+
+            else {
+                None
             }
         }
     };
 }
-debug_display_align! {
-   TOP_LEFT,
-   TOP,
-   TOP_RIGHT,
-
-   LEFT,
-   CENTER,
-   RIGHT,
-
-   BOTTOM_LEFT,
-   BOTTOM,
-   BOTTOM_RIGHT,
+impl fmt::Debug for Alignment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(name) = self.name() {
+            if f.alternate() {
+                write!(f, "Alignment::{}", name)
+            } else {
+                f.write_str(name)
+            }
+        } else {
+            f.debug_struct("Alignment").field("x", &self.x).field("y", &self.y).finish()
+        }
+    }
 }
+impl fmt::Display for Alignment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(name) = self.name() {
+            f.write_str(name)
+        } else {
+            f.write_char('(')?;
+            if self.fill_width() {
+                f.write_str("<fill>")?;
+            } else {
+                write!(f, "{}", FactorPercent::from(self.x))?;
+            }
+            f.write_str(", ")?;
+            if self.fill_height() {
+                f.write_str("<fill>")?;
+            } else {
+                write!(f, "{}", FactorPercent::from(self.x))?;
+            }
+            f.write_char(')')
+        }
+    }
+}
+impl Alignment {
+    named_aligns! {
+        LEFT_TOP = (0.0, 0.0);
+        LEFT_BOTTOM = (0.0, 1.0);
+        LEFT_FILL = (0.0, f32::NAN);
 
+        RIGHT_TOP = (1.0, 0.0);
+        RIGHT_BOTTOM = (1.0, 1.0);
+        RIGHT_FILL = (1.0, f32::NAN);
+
+        FILL_TOP = (f32::NAN, 0.0);
+        FILL_BOTTOM = (f32::NAN, 1.0);
+
+        LEFT = (0.0, 0.5);
+        RIGHT = (1.0, 0.5);
+        TOP = (0.5, 0.0);
+        BOTTOM = (0.5, 1.0);
+
+        CENTER = (0.5, 0.5);
+        FILL = (f32::NAN, f32::NAN);
+    }
+}
 impl_from_and_into_var! {
      /// To relative length x and y.
     fn from(alignment: Alignment) -> Point {
@@ -2278,6 +2289,36 @@ impl_from_and_into_var! {
             x: alignment.x.into(),
             y: alignment.y.into(),
         }
+    }
+}
+impl Alignment {
+    /// Compute a content rectangle given this alignment, the content size and the available size.
+    ///
+    /// To implement alignment, the `content_size` should be measured and recorded in [`UiNode::measure`]
+    /// and then this method called in the [`UiNode::arrange`] with the final container size to get the
+    /// content rectangle that must be recorded and used in [`UiNode::render`] to size and position the content
+    /// in the space of the container.
+    ///
+    /// [`UiNode::measure`]: crate::UiNode::measure
+    /// [`UiNode::arrange`]: crate::UiNode::arrange
+    /// [`UiNode::render`]: crate::UiNode::render
+    pub fn solve(self, content_size: LayoutSize, container_size: LayoutSize) -> LayoutRect {
+        let mut r = LayoutRect::zero();
+
+        if self.fill_width() {
+            r.size.width = container_size.width;
+        } else {
+            r.size.width = container_size.width.min(content_size.width);
+            r.origin.x = (container_size.width - r.size.width) * self.x.0;
+        }
+        if self.fill_height() {
+            r.size.height = container_size.height;
+        } else {
+            r.size.height = container_size.height.min(content_size.height);
+            r.origin.y = (container_size.height - r.size.height) * self.y.0;
+        }
+
+        r
     }
 }
 
@@ -2704,14 +2745,14 @@ impl Transform {
 
     /// Compute a [`LayoutTransform`].
     #[inline]
-    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutMetrics) -> LayoutTransform {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutTransform {
         let mut r = LayoutTransform::identity();
         for step in &self.steps {
             r = match step {
                 TransformStep::Computed(m) => r.post_transform(m),
                 TransformStep::Translate(x, y) => r.post_translate(webrender_api::euclid::vec3(
-                    x.to_layout(LayoutLength::new(available_size.width), ctx).get(),
-                    y.to_layout(LayoutLength::new(available_size.height), ctx).get(),
+                    x.to_layout(ctx, LayoutLength::new(available_size.width)).get(),
+                    y.to_layout(ctx, LayoutLength::new(available_size.height)).get(),
                     0.0,
                 )),
             };
@@ -3286,7 +3327,8 @@ mod tests {
     #[test]
     pub fn length_expr_eval() {
         let l = (Length::from(200) - 100.pct()).abs();
-        let l = l.to_layout(LayoutLength::new(600.0), &LayoutMetrics::new(LayoutSize::new(600.0, 400.0), 14.0));
+        let ctx = LayoutMetrics::new(LayoutSize::new(600.0, 400.0), 14.0);
+        let l = l.to_layout(&ctx, LayoutLength::new(600.0));
 
         assert!(about_eq(l.0, (200.0f32 - 600.0).abs(), 0.0001));
     }
@@ -3298,13 +3340,13 @@ mod tests {
 
         let metrics = LayoutMetrics::new(LayoutSize::zero(), 0.0);
 
-        let r = l.to_layout(LayoutLength::new(200.0), &metrics);
+        let r = l.to_layout(&metrics, LayoutLength::new(200.0));
         assert!(about_eq(r.0, 200.0, 0.0001));
 
-        let r = l.to_layout(LayoutLength::new(50.0), &metrics);
+        let r = l.to_layout(&metrics, LayoutLength::new(50.0));
         assert!(about_eq(r.0, 100.0, 0.0001));
 
-        let r = l.to_layout(LayoutLength::new(550.0), &metrics);
+        let r = l.to_layout(&metrics, LayoutLength::new(550.0));
         assert!(about_eq(r.0, 500.0, 0.0001));
     }
 

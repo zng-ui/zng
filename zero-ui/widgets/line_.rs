@@ -72,8 +72,8 @@ pub mod line_w {
                 LineOrientation::Vertical => (self.width.get(ctx), self.length.get(ctx)),
             };
 
-            let width = width.to_layout(LayoutLength::new(available_space.width), ctx);
-            let height = height.to_layout(LayoutLength::new(available_space.height), ctx);
+            let width = width.to_layout(ctx, LayoutLength::new(available_space.width));
+            let height = height.to_layout(ctx, LayoutLength::new(available_space.height));
 
             LayoutSize::new(width.0, height.0)
         }

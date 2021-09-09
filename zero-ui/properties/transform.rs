@@ -28,7 +28,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.layout_transform = self.transform.get(ctx).to_layout(final_size, ctx);
+            self.layout_transform = self.transform.get(ctx).to_layout(ctx, final_size);
             self.child.arrange(ctx, final_size);
         }
 
@@ -180,7 +180,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.layout_origin = self.origin.get(ctx).to_layout(final_size, ctx);
+            self.layout_origin = self.origin.get(ctx).to_layout(ctx, final_size);
             self.child.arrange(ctx, final_size);
         }
 

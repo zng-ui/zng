@@ -13,6 +13,7 @@ fn main() {
             });
             content = v_stack! {
                 spacing = 5;
+                items_align = Alignment::TOP;
                 items = widgets![
                     text(
                         "The renderer and OS windows are created in another process, the `view-process`,\n\

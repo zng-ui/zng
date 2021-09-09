@@ -48,8 +48,8 @@ pub fn border(
 
         #[UiNode]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            self.final_widths = self.widths.get(ctx).to_layout(available_size, ctx);
-            self.final_radius = self.radius.get(ctx).to_layout(available_size, ctx);
+            self.final_widths = self.widths.get(ctx).to_layout(ctx, available_size);
+            self.final_radius = self.radius.get(ctx).to_layout(ctx, available_size);
 
             let size_inc = self.size_increment();
             self.child.measure(ctx, available_size - size_inc) + size_inc

@@ -2090,7 +2090,7 @@ impl AppWindow {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
         ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
-            self.vars.position().get(ctx.vars).to_layout(scr_size, ctx)
+            self.vars.position().get(ctx.vars).to_layout(ctx, scr_size)
         })
     }
 
@@ -2105,10 +2105,10 @@ impl AppWindow {
                 let mut size = if use_system_size {
                     self.size
                 } else {
-                    self.vars.size().get(ctx.vars).to_layout(scr_size, ctx)
+                    self.vars.size().get(ctx.vars).to_layout(ctx, scr_size)
                 };
-                let min_size = self.vars.min_size().get(ctx.vars).to_layout(scr_size, ctx);
-                let max_size = self.vars.max_size().get(ctx.vars).to_layout(scr_size, ctx);
+                let min_size = self.vars.min_size().get(ctx.vars).to_layout(ctx, scr_size);
+                let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, scr_size);
 
                 let auto_size = self.vars.auto_size().copy(ctx);
                 if auto_size.contains(AutoSize::CONTENT_WIDTH) {
