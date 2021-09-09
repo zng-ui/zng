@@ -1,22 +1,30 @@
 error[E0277]: the trait bound `NoDebug: Clone` is not satisfied
-  --> $DIR/input_no_debug.rs:14:37
-   |
-14 | pub fn bar(child: impl UiNode, bar: NoDebug) -> impl UiNode {
-   |                                     ^^^^^^^ the trait `Clone` is not implemented for `NoDebug`
-   |
-   = note: required by `allowed_in_when_property_requires_IntoVar_members`
+   --> $DIR/input_no_debug.rs:14:37
+    |
+14  | pub fn bar(child: impl UiNode, bar: NoDebug) -> impl UiNode {
+    |                                     ^^^^^^^ the trait `Clone` is not implemented for `NoDebug`
+    |
+note: required by `allowed_in_when_property_requires_IntoVar_members`
+   --> $DIR/var.rs:234:5
+    |
+234 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: `NoDebug` doesn't implement `Debug`
-  --> $DIR/input_no_debug.rs:14:37
-   |
-14 | pub fn bar(child: impl UiNode, bar: NoDebug) -> impl UiNode {
-   |                                     ^^^^^^^ `NoDebug` cannot be formatted using `{:?}`
-   |
-   = help: the trait `Debug` is not implemented for `NoDebug`
-   = note: add `#[derive(Debug)]` or manually implement `Debug`
-   = note: required because of the requirements on the impl of `VarValue` for `NoDebug`
-   = note: required because of the requirements on the impl of `IntoVar<NoDebug>` for `NoDebug`
-   = note: required by `allowed_in_when_property_requires_IntoVar_members`
+   --> $DIR/input_no_debug.rs:14:37
+    |
+14  | pub fn bar(child: impl UiNode, bar: NoDebug) -> impl UiNode {
+    |                                     ^^^^^^^ `NoDebug` cannot be formatted using `{:?}`
+    |
+    = help: the trait `Debug` is not implemented for `NoDebug`
+    = note: add `#[derive(Debug)]` to `NoDebug` or manually `impl Debug for NoDebug`
+    = note: required because of the requirements on the impl of `VarValue` for `NoDebug`
+    = note: required because of the requirements on the impl of `IntoVar<NoDebug>` for `NoDebug`
+note: required by `allowed_in_when_property_requires_IntoVar_members`
+   --> $DIR/var.rs:234:5
+    |
+234 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0308]: mismatched types
   --> $DIR/input_no_debug.rs:14:37

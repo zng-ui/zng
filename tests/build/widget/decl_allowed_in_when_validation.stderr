@@ -1,8 +1,12 @@
 error[E0283]: type annotations needed
- --> $DIR/decl_allowed_in_when_validation.rs:9:13
-  |
-9 |         foo(&'static str) = "";
-  |             ^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
-  |
-  = note: cannot satisfy `_: VarValue`
-  = note: required by `allowed_in_when_property_requires_IntoVar_members`
+   --> $DIR/decl_allowed_in_when_validation.rs:9:13
+    |
+9   |         foo(&'static str) = "";
+    |             ^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
+    |
+    = note: cannot satisfy `_: VarValue`
+note: required by `allowed_in_when_property_requires_IntoVar_members`
+   --> $DIR/var.rs:234:5
+    |
+234 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
