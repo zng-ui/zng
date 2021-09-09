@@ -341,7 +341,7 @@ impl Timers {
             }
             !h.pending // drop if just called, deadline handlers are *once*.
         });
-        handlers.extend(ctx.timers.deadline_handlers.drain(..));
+        handlers.append(&mut ctx.timers.deadline_handlers);
         ctx.timers.deadline_handlers = handlers;
 
         // call `on_interval` handlers.
@@ -358,7 +358,7 @@ impl Timers {
 
             !h.handle.is_dropped() // drop if called stop inside the handler.
         });
-        handlers.extend(ctx.timers.timer_handlers.drain(..));
+        handlers.append(&mut ctx.timers.timer_handlers);
         ctx.timers.timer_handlers = handlers;
     }
 }

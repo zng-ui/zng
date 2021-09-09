@@ -367,14 +367,14 @@ impl Updates {
     pub(crate) fn on_pre_updates(ctx: &mut AppContext) {
         let mut handlers = mem::take(&mut ctx.updates.pre_handlers);
         Self::retain_updates(ctx, &mut handlers);
-        handlers.extend(ctx.updates.pre_handlers.drain(..));
+        handlers.append(&mut ctx.updates.pre_handlers);
         ctx.updates.pre_handlers = handlers;
     }
 
     pub(crate) fn on_updates(ctx: &mut AppContext) {
         let mut handlers = mem::take(&mut ctx.updates.pos_handlers);
         Self::retain_updates(ctx, &mut handlers);
-        handlers.extend(ctx.updates.pos_handlers.drain(..));
+        handlers.append(&mut ctx.updates.pos_handlers);
         ctx.updates.pos_handlers = handlers;
     }
 
