@@ -4,4 +4,4 @@ error[E0433]: failed to resolve: could not find `not` in the crate root
 3 | #[widget($crate::not::a::valid::path)]
   |                  ^^^ could not find `not` in the crate root
   |
-  = note: this error originates in the macro `__test_widget_assert_mod_path_u381` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the macro `__test_widget_assert_mod_path_u384` (in Nightly builds, run with -Z macro-backtrace for more info)
