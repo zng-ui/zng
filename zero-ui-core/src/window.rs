@@ -1089,16 +1089,6 @@ impl AppExtension for WindowManager {
                 let args = WindowCloseArgs::new(args.timestamp, args.window_id);
                 WindowCloseEvent.notify(ctx, args);
             }
-        } else if ViewProcessRespawnedEvent.update(args).is_some() {
-            // `respawn` will force a `render` only and the `RenderContext` does not
-            // give access to `services` so this is fine.
-            let mut windows = mem::take(&mut ctx.services.windows().windows);
-
-            for (_, w) in windows.iter_mut() {
-                w.respawn(ctx);
-            }
-
-            ctx.services.windows().windows = windows;
         } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
             let monitors = ctx.services.monitors();
             let ms: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
@@ -1223,6 +1213,16 @@ impl AppExtension for WindowManager {
                     WindowFocusChangedEvent.notify(ctx.events, args)
                 }
             }
+        } else if ViewProcessRespawnedEvent.update(args).is_some() {
+            // `respawn` will force a `render` only and the `RenderContext` does not
+            // give access to `services` so this is fine.
+            let mut windows = mem::take(&mut ctx.services.windows().windows);
+
+            for (_, w) in windows.iter_mut() {
+                w.respawn(ctx);
+            }
+
+            ctx.services.windows().windows = windows;
         }
     }
 

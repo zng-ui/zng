@@ -588,12 +588,15 @@ impl Controller {
     pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
         if gen == self.generation {
             log::error!(target: "vp_respawn", "channel disconnect, will try respawn");
-            self.respawn()
+            self.respawn_impl(false)
         }
     }
 
     /// Reopen the view-process, causing an [`Ev::Respawned`].
     pub fn respawn(&mut self) {
+        self.respawn_impl(true);
+    }
+    fn respawn_impl(&mut self, respawn: bool) {
         let mut process = if let Some(p) = self.process.take() {
             p
         } else {
@@ -605,13 +608,11 @@ impl Controller {
 
         let t = Instant::now();
         if t - self.last_respawn < Duration::from_millis(500) {
-            panic!("second respawn requested in 500ms");// TODO review this
+            panic!("second respawn requested in 500ms"); // TODO review this
         }
         self.last_respawn = t;
 
         // try exit
-        let killed_by_respawn = matches!(process.try_wait(), Ok(None));
-
         let _ = process.kill();
         let code_and_output = match process.wait_with_output() {
             Ok(c) => Some(c),
@@ -627,7 +628,7 @@ impl Controller {
 
             let code = c.status.code();
 
-            if !killed_by_respawn {
+            if !respawn {
                 // check if user killed the view-process, in this case we exit too.
 
                 #[cfg(windows)]
@@ -647,8 +648,8 @@ impl Controller {
 
             let code = code.unwrap();
 
-            if !killed_by_respawn {
-                log::error!(target: "vp_respawn", "view-process exit_code: {:x}{}", code, if killed_by_respawn { " by respawn" } else { "" });
+            if !respawn {
+                log::error!(target: "vp_respawn", "view-process exit_code: {:x}", code);
             }
 
             match String::from_utf8(c.stderr) {

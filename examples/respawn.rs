@@ -1,10 +1,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use zero_ui::core::app::view_process::ViewProcessExt;
 use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|_| {
         window! {
             title = "View-Process Respawn Example";
+            on_key_down = hn!(|ctx, args: &KeyInputArgs| {
+                if args.key == Some(Key::F5) {
+                    ctx.services.view_process().respawn();
+                }
+            });
             content = v_stack! {
                 spacing = 5;
                 items = widgets![
@@ -23,9 +29,8 @@ fn main() {
 
 fn respawn() -> impl Widget {
     button! {
-        content = text("Respawn");
+        content = text("Respawn (F5)");
         on_click = hn!(|ctx, _| {
-            use zero_ui::core::app::view_process::ViewProcessExt;
             ctx.services.view_process().respawn();
         });
     }

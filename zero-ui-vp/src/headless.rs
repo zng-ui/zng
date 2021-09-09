@@ -7,7 +7,11 @@ use webrender::{
     Renderer, RendererKind, RendererOptions,
 };
 
-use crate::{AppEvent, AppEventSender, Context, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WinId, config, util::{self, GlHeadlessContext}};
+use crate::{
+    config,
+    util::{self, GlHeadlessContext},
+    AppEvent, AppEventSender, Context, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WinId,
+};
 
 pub(crate) struct ViewHeadless {
     id: WinId,

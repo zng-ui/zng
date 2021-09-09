@@ -1171,7 +1171,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
             }
 
-            zero_ui_vp::Ev::Disconnected(gen) => {                
+            zero_ui_vp::Ev::Disconnected(gen) => {
                 self.ctx().services.view_process().handle_disconnect(gen);
             }
         }
