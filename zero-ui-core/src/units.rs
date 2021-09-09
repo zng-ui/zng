@@ -2159,12 +2159,30 @@ pub type LayoutSideOffsets = wr::LayoutSideOffsets;
 ///
 /// There is a constant for each of the usual alignment values, the alignment is defined as two factors like this
 /// primarily for animating transition between alignments.
+/// 
+/// Values outside of the `[0.0..=1.0]` range places the content outside of the container bounds. A **non-finite
+/// value** means the content stretches to fill the container bounds.
 #[derive(PartialEq, Clone, Copy)]
 pub struct Alignment {
     /// *x* alignment in a `[0.0..=1.0]` range.
     pub x: FactorNormal,
     /// *y* alignment in a `[0.0..=1.0]` range.
     pub y: FactorNormal,
+}
+impl Alignment {
+    /// Returns `true` if [`x`] is a special value that indicates the content width must be the container width.
+    /// 
+    /// [`x`]: Alignment::x
+    pub fn fill_width(&self) -> bool {
+        !self.x.0.is_finite()
+    }
+
+    /// Returns `true` if [`y`] is a special value that indicates the content height must be the container height.
+    /// 
+    /// [`y`]: Alignment::y
+    pub fn fill_height(&self) -> bool {
+        !self.y.0.is_finite()
+    }
 }
 impl<X: Into<FactorNormal>, Y: Into<FactorNormal>> From<(X, Y)> for Alignment {
     fn from((x, y): (X, Y)) -> Self {
@@ -2202,6 +2220,12 @@ impl Alignment {
         BOTTOM_LEFT = (0.0, 1.0);
         BOTTOM = (0.5, 1.0);
         BOTTOM_RIGHT = (1.0, 1.0);
+
+        FILL = (f32::NAN, f32::NAN);
+        TOP_FILL = (f32::NAN, 0.0);
+        BOTTOM_FILL = (f32::NAN, 1.0);
+        FILL_LEFT = (0.0, f32::NAN);
+        FILL_RIGHT = (1.0, f32::NAN);
     }
 }
 macro_rules! debug_display_align {

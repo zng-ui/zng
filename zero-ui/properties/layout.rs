@@ -115,17 +115,26 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
             self.child_rect.size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.child_rect.size = final_size.min(self.child_rect.size);
-            self.child.arrange(ctx, self.child_rect.size);
-
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {            
             let alignment = self.alignment.get(ctx);
 
-            self.child_rect.origin = LayoutPoint::new(
-                (final_size.width - self.child_rect.size.width) * alignment.x.0,
-                (final_size.height - self.child_rect.size.height) * alignment.y.0,
-            )
-            .snap_to(ctx.metrics.pixel_grid);
+            if alignment.fill_width() {
+                self.child_rect.size.width = final_size.width;
+                self.child_rect.origin.x = 0.0;
+            } else {
+                self.child_rect.size.width = final_size.width.min(self.child_rect.size.width);
+                self.child_rect.origin.x = (final_size.width - self.child_rect.size.width) * alignment.x.0;
+            }
+            if alignment.fill_height() {
+                self.child_rect.size.height = final_size.height;
+                self.child_rect.origin.y = 0.0;
+            } else {
+                self.child_rect.size.height = final_size.height.min(self.child_rect.size.height);
+                self.child_rect.origin.y = (final_size.height - self.child_rect.size.height) * alignment.y.0;
+            }
+            self.child_rect = self.child_rect.snap_to(ctx.pixel_grid);
+
+            self.child.arrange(ctx, self.child_rect.size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
