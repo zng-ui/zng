@@ -374,8 +374,9 @@ event! {
 pub struct MouseManager {
     /// last cursor move position (scaled).
     pos: LayoutPoint,
-    /// last cursor move over `pos_window`.
+    /// last cursor move over `pos_window` and source device.
     pos_window: Option<WindowId>,
+    pos_device: Option<DeviceId>,
 
     /// last modifiers.
     modifiers: ModifiersState,
@@ -393,6 +394,7 @@ impl Default for MouseManager {
         MouseManager {
             pos: LayoutPoint::default(),
             pos_window: None,
+            pos_device: None,
 
             modifiers: ModifiersState::default(),
 
@@ -624,11 +626,12 @@ impl MouseManager {
     }
 
     fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, pos: LayoutPoint, hits: FrameHitInfo, ctx: &mut AppContext) {
-        let mut moved = Some(window_id) != self.pos_window;
+        let mut moved = Some(window_id) != self.pos_window || Some(device_id) != self.pos_device;
 
         if moved {
             // if is over another window now.
             self.pos_window = Some(window_id);
+            self.pos_device = Some(device_id);
         }
 
         moved |= pos != self.pos;

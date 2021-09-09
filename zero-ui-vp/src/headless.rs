@@ -7,11 +7,7 @@ use webrender::{
     Renderer, RendererKind, RendererOptions,
 };
 
-use crate::{
-    config,
-    util::{self, GlHeadlessContext},
-    AppEvent, AppEventSender, Context, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, WinId,
-};
+use crate::{AppEvent, AppEventSender, Context, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WinId, config, util::{self, GlHeadlessContext}};
 
 pub(crate) struct ViewHeadless {
     id: WinId,
@@ -32,7 +28,7 @@ pub(crate) struct ViewHeadless {
     resized: bool,
 }
 impl ViewHeadless {
-    pub fn new<E: AppEventSender>(ctx: &Context<E>, id: WinId, cfg: HeadlessConfig) -> Self {
+    pub fn new<E: AppEventSender>(ctx: &Context<E>, gen: ViewProcessGen, id: WinId, cfg: HeadlessConfig) -> Self {
         let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
             opengl_version: (3, 2),
             opengles_version: (3, 0),
@@ -109,6 +105,7 @@ impl ViewHeadless {
             clear_color: cfg.clear_color,
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
+            renderer_id: Some((gen as u64) << 32 | id as u64),
             //panic_on_gl_error: true,
             // TODO expose more options to the user.
             ..Default::default()
@@ -134,7 +131,7 @@ impl ViewHeadless {
         let api = sender.create_api();
         let document_id = api.add_document(device_size, 0);
 
-        let pipeline_id = webrender::api::PipelineId(1, 0);
+        let pipeline_id = webrender::api::PipelineId(gen, id);
 
         Self {
             id,

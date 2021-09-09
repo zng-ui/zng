@@ -506,7 +506,7 @@ impl FontFace {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
-                log::error!("respawned calling `namespace_id`, will return dummy font key");
+                log::debug!("respawned calling `namespace_id`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
@@ -520,7 +520,7 @@ impl FontFace {
         let key = match renderer.generate_font_key() {
             Ok(k) => k,
             Err(Respawned) => {
-                log::error!("respawned calling `generate_font_key`, will return dummy font key");
+                log::debug!("respawned calling `generate_font_key`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
@@ -681,7 +681,7 @@ impl Font {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
-                log::error!("respawned calling `namespace_id`, will return dummy font key");
+                log::debug!("respawned calling `namespace_id`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
@@ -699,7 +699,7 @@ impl Font {
         let key = match renderer.generate_font_instance_key() {
             Ok(k) => k,
             Err(Respawned) => {
-                log::error!("respawned calling `generate_font_instance_key`, will return dummy font key");
+                log::debug!("respawned calling `generate_font_instance_key`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
@@ -727,7 +727,7 @@ impl Font {
         );
 
         if let Err(Respawned) = renderer.update_resources(txn.resource_updates) {
-            log::error!("respawned calling `update_resources`, will return dummy font key");
+            log::debug!("respawned calling `update_resources`, will return dummy font key");
             return Self::DUMMY_FONT_KEY;
         }
 

@@ -2,30 +2,33 @@
 use zero_ui::prelude::*;
 
 fn main() {
-    if cfg!(debug_assertions) {
-        zero_ui_core::app::run_same_process(app_main);
-    } else {
-        init_view_process();
-        app_main();
-    }
-}
-
-fn app_main() {
     App::default().run_window(|_| {
         window! {
-            title = "Same-Process Setup Example";
+            title = "View-Process Respawn Example";
             content = v_stack! {
                 spacing = 5;
                 items = widgets![
+                    text(
+                        "The renderer and OS windows are created in another process, the `view-process`,\n\
+                        it automatically respawns in case of a graphics driver crash or other similar fatal error.\n"
+                    ),
+                    respawn(),
                     click_counter(),
                     click_counter(),
                 ];
             };
         }
     });
+}
 
-    #[cfg(feature = "app_profiler")]
-    zero_ui::core::profiler::write_profile("same_process-profile.json", false);
+fn respawn() -> impl Widget {
+    button! {
+        content = text("Respawn");
+        on_click = hn!(|ctx, _| {
+            use zero_ui::core::app::view_process::ViewProcessExt;
+            ctx.services.view_process().respawn();
+        });
+    }
 }
 
 fn click_counter() -> impl Widget {

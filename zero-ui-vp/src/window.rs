@@ -25,7 +25,7 @@ use crate::{
     config,
     types::{FramePixels, RunOnDrop},
     util::{self, GlContext},
-    AppEvent, AppEventSender, Context, Ev, FrameRequest, TextAntiAliasing, WinId, WindowConfig,
+    AppEvent, AppEventSender, Context, Ev, FrameRequest, TextAntiAliasing, ViewProcessGen, WinId, WindowConfig,
 };
 
 pub(crate) struct ViewWindow {
@@ -61,7 +61,7 @@ pub(crate) struct ViewWindow {
 
 impl ViewWindow {
     #[allow(clippy::too_many_arguments)]
-    pub fn new<E: AppEventSender>(ctx: &Context<E>, id: WinId, w: WindowConfig) -> Self {
+    pub fn new<E: AppEventSender>(ctx: &Context<E>, gen: ViewProcessGen, id: WinId, w: WindowConfig) -> Self {
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
             .with_title(w.title)
@@ -138,6 +138,7 @@ impl ViewWindow {
             clear_color: w.clear_color,
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
+            renderer_id: Some((gen as u64) << 32 | id as u64),
             //panic_on_gl_error: true,
             // TODO expose more options to the user.
             ..Default::default()
@@ -163,7 +164,7 @@ impl ViewWindow {
         let api = sender.create_api();
         let document_id = api.add_document(device_size, 0);
 
-        let pipeline_id = webrender::api::PipelineId(1, 0);
+        let pipeline_id = webrender::api::PipelineId(gen, id);
 
         let mut win = Self {
             id,

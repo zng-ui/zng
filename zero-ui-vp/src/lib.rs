@@ -124,7 +124,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 pub use types::{
     AxisId, ButtonId, ByteBuf, CursorIcon, DevId, ElementState, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon,
     ModifiersState, MonId, MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Respawned, Result, ScanCode, TextAntiAliasing,
-    VideoMode, VirtualKeyCode, WinId, WindowConfig, WindowTheme,
+    VideoMode, ViewProcessGen, VirtualKeyCode, WinId, WindowConfig, WindowTheme,
 };
 
 use webrender::api::{
@@ -425,6 +425,7 @@ type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
 /// [exits]: std::process::exit
 pub struct Controller {
     process: Option<Child>,
+    generation: ViewProcessGen,
     view_process_exe: PathBuf,
     request_sender: ipc::RequestSender,
     response_receiver: ipc::ResponseReceiver,
@@ -432,6 +433,7 @@ pub struct Controller {
     headless: bool,
     same_process: bool,
     device_events: bool,
+    last_respawn: Instant,
 }
 impl Controller {
     /// Start with a custom view process.
@@ -467,7 +469,7 @@ impl Controller {
             while let Ok(ev) = event_receiver.recv() {
                 on_event(ev);
             }
-            on_event(Ev::Disconnected);
+            on_event(Ev::Disconnected(1));
 
             // return to reuse in respawn.
             let t: Box<dyn FnMut(Ev) + Send> = Box::new(on_event);
@@ -483,6 +485,8 @@ impl Controller {
             event_listener: Some(ev),
             headless,
             device_events,
+            generation: 1,
+            last_respawn: Instant::now(),
         };
 
         if let Err(Respawned) = c.try_startup() {
@@ -495,8 +499,13 @@ impl Controller {
         if crate::VERSION != self.version()? {
             panic!("app-process and view-process must be build using the same exact version of zero-ui-vp");
         }
-        assert!(self.startup(self.device_events, self.headless)?);
+        assert!(self.startup(self.generation, self.device_events, self.headless)?);
         Ok(())
+    }
+
+    /// View-process generation.
+    pub fn generation(&self) -> ViewProcessGen {
+        self.generation
     }
 
     /// If is running in headless mode.
@@ -526,8 +535,7 @@ impl Controller {
         match self.try_talk(req) {
             Ok(r) => return Ok(r),
             Err(ipc::Disconnected) => {
-                log::error!(target: "vp_recover", "started recovery after channel diconnected");
-                self.try_respawn();
+                self.handle_disconnect(self.generation);
             }
         }
         Err(Respawned)
@@ -574,8 +582,18 @@ impl Controller {
         Ok((process, req, rsp, ev))
     }
 
-    /// Tries to reopen the view-process.
-    pub fn try_respawn(&mut self) {
+    /// Handle an [`Ev::Disconnected`].
+    ///
+    /// The process will exit if the view-process was killed by the user.
+    pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
+        if gen == self.generation {
+            log::error!(target: "vp_respawn", "channel disconnect, will try respawn");
+            self.respawn()
+        }
+    }
+
+    /// Reopen the view-process, causing an [`Ev::Respawned`].
+    pub fn respawn(&mut self) {
         let mut process = if let Some(p) = self.process.take() {
             p
         } else {
@@ -585,6 +603,12 @@ impl Controller {
             return;
         };
 
+        let t = Instant::now();
+        if t - self.last_respawn < Duration::from_millis(500) {
+            panic!("second respawn requested in 500ms");// TODO review this
+        }
+        self.last_respawn = t;
+
         // try exit
         let killed_by_respawn = matches!(process.try_wait(), Ok(None));
 
@@ -592,14 +616,14 @@ impl Controller {
         let code_and_output = match process.wait_with_output() {
             Ok(c) => Some(c),
             Err(e) => {
-                log::error!(target: "vp_recover", "view-process could not be heaped, will abandone running, {:?}", e);
+                log::error!(target: "vp_respawn", "view-process could not be heaped, will abandon running, {:?}", e);
                 None
             }
         };
 
         // try print stdout/err and exit code.
         if let Some(c) = code_and_output {
-            log::info!(target: "vp_recover", "view-process reaped");
+            log::info!(target: "vp_respawn", "view-process reaped");
 
             let code = c.status.code();
 
@@ -608,14 +632,14 @@ impl Controller {
 
                 #[cfg(windows)]
                 if code == Some(1) {
-                    log::warn!(target: "vp_recover", "view-process exit code is `1`, probably killed by the Task Manager, \
+                    log::warn!(target: "vp_respawn", "view-process exit code is `1`, probably killed by the Task Manager, \
                                         will exit app-process with the same code");
                     std::process::exit(1);
                 }
 
                 #[cfg(unix)]
                 if code == None {
-                    log::warn!(target: "vp_recover", "view-process exited by signal, probably killed by the user, \
+                    log::warn!(target: "vp_respawn", "view-process exited by signal, probably killed by the user, \
                                         will exit app-process too");
                     std::process::exit(1);
                 }
@@ -623,19 +647,29 @@ impl Controller {
 
             let code = code.unwrap();
 
-            log::error!(target: "vp_recover", "view-process exit_code: {:x}", code);
+            if !killed_by_respawn {
+                log::error!(target: "vp_respawn", "view-process exit_code: {:x}{}", code, if killed_by_respawn { " by respawn" } else { "" });
+            }
 
             match String::from_utf8(c.stderr) {
-                Ok(s) => log::error!(target: "vp_recover", "view-process stderr:\n{}\n=====", s),
-                Err(e) => log::error!(target: "vp_recover", "failed to read view-process stderr: {}", e),
+                Ok(s) => {
+                    if !s.is_empty() {
+                        log::error!(target: "vp_respawn", "view-process stderr:\n```stderr\n{}\n```", s)
+                    }
+                }
+                Err(e) => log::error!(target: "vp_respawn", "failed to read view-process stderr: {}", e),
             }
 
             match String::from_utf8(c.stdout) {
-                Ok(s) => log::info!(target: "vp_recover", "view-process stdout:\n{}\n=====", s),
-                Err(e) => log::error!(target: "vp_recover", "failed to read view-process stdout: {}", e),
+                Ok(s) => {
+                    if !s.is_empty() {
+                        log::info!(target: "vp_respawn", "view-process stdout:\n```stdout\n{}\n```", s)
+                    }
+                }
+                Err(e) => log::error!(target: "vp_respawn", "failed to read view-process stdout: {}", e),
             }
         } else {
-            log::error!(target: "vp_recover", "failed to reap view-process, will abandon it running and spawn a new one");
+            log::error!(target: "vp_respawn", "failed to reap view-process, will abandon it running and spawn a new one");
         }
 
         // recover event listener closure (in a box).
@@ -650,12 +684,12 @@ impl Controller {
             match Self::spawn_view_process(&self.view_process_exe, self.headless) {
                 Ok(r) => break r,
                 Err(e) => {
-                    log::error!(target: "vp_recover",  "failed to respawn, {:?}", e);
+                    log::error!(target: "vp_respawn",  "failed to respawn, {:?}", e);
                     retries -= 1;
                     if retries == 0 {
                         panic!("failed to respawn `view-process` after 3 retries");
                     }
-                    log::info!(target: "vp_recover", "retrying respawn");
+                    log::info!(target: "vp_respawn", "retrying respawn");
                 }
             }
         };
@@ -665,13 +699,23 @@ impl Controller {
         self.request_sender = request;
         self.response_receiver = response;
 
+        let mut next_id = self.generation.wrapping_add(1);
+        if next_id == 0 {
+            next_id = 1;
+        }
+        self.generation = next_id;
+
+        if let Err(Respawned) = self.try_startup() {
+            panic!("respawn on respawn startup"); // TODO recover from this?
+        }
+
         let ev = thread::spawn(move || {
             // notify a respawn.
-            on_event(Ev::Respawned);
+            on_event(Ev::Respawned(next_id));
             while let Ok(ev) = event.recv() {
                 on_event(ev);
             }
-            on_event(Ev::Disconnected);
+            on_event(Ev::Disconnected(next_id));
 
             on_event
         });
@@ -694,6 +738,8 @@ pub(crate) struct ViewApp<E> {
     event_loop: E,
     response_chan: ipc::ResponseSender,
     event_chan: ipc::EvSender,
+
+    generation: ViewProcessGen,
 
     redirect_enabled: Arc<AtomicBool>,
     redirect_chan: flume::Receiver<Request>,
@@ -730,6 +776,7 @@ impl<E: AppEventSender> ViewApp<E> {
             event_chan,
             redirect_enabled,
             redirect_chan,
+            generation: 0,
             started: false,
             device_events: false,
             headless,
@@ -784,22 +831,26 @@ impl<E: AppEventSender> ViewApp<E> {
         }
     }
 
-    fn with_window<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewWindow) -> R) -> R {
+    fn with_window<R>(&mut self, id: WinId, d: impl FnOnce() -> R, f: impl FnOnce(&mut ViewWindow) -> R) -> R {
         assert!(self.started);
-        f(self.windows.iter_mut().find(|w| w.id() == id).expect("unknown headed WinId"))
+        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
+            f(w)
+        } else {
+            d()
+        }
     }
 
-    fn with_headless<R>(&mut self, id: WinId, f: impl FnOnce(&mut ViewHeadless) -> R) -> R {
+    fn with_headless<R>(&mut self, id: WinId, d: impl FnOnce() -> R, f: impl FnOnce(&mut ViewHeadless) -> R) -> R {
         assert!(self.started);
-        f(self
-            .headless_views
-            .iter_mut()
-            .find(|w| w.id() == id)
-            .expect("unknown headless WinId"))
+        if let Some(w) = self.headless_views.iter_mut().find(|w| w.id() == id) {
+            f(w)
+        } else {
+            d()
+        }
     }
 }
 macro_rules! with_window_or_headless {
-    ($self:ident, $id:ident, |$w:ident| $($expr:tt)+) => {
+    ($self:ident, $id:ident, $default:expr, |$w:ident| $($expr:tt)+) => {
         if !$self.started {
             panic!("expected `self.started`");
         } else if let Some($w) = $self.windows.iter_mut().find(|w| w.id() == $id) {
@@ -807,7 +858,7 @@ macro_rules! with_window_or_headless {
         } else if let Some($w) = $self.headless_views.iter_mut().find(|w| w.id() == $id) {
             $($expr)+
         } else {
-            panic!("unknown headed or headless WinId")
+            $default
         }
     }
 }
@@ -816,9 +867,10 @@ declare_ipc! {
         crate::VERSION.to_string()
     }
 
-    fn startup(&mut self, _ctx: &Context, device_events: bool, headless: bool) -> bool {
+    fn startup(&mut self, _ctx: &Context, gen: ViewProcessGen, device_events: bool, headless: bool) -> bool {
         assert!(!self.started, "view-process already started");
 
+        self.generation = gen;
         self.device_events = device_events;
 
         assert!(self.headless == headless, "view-process environemt and startup do not agree");
@@ -888,7 +940,7 @@ declare_ipc! {
         }
         self.window_id_count = id;
 
-        let window = ViewWindow::new(ctx, id, config);
+        let window = ViewWindow::new(ctx, self.generation, id, config);
         let namespace = window.namespace_id();
         let pipeline = window.pipeline_id();
 
@@ -912,7 +964,7 @@ declare_ipc! {
         }
         self.window_id_count = id;
 
-        let view = ViewHeadless::new(ctx, id, config);
+        let view = ViewHeadless::new(ctx, self.generation, id, config);
         let namespace = view.namespace_id();
         let pipeline = view.pipeline_id();
 
@@ -980,60 +1032,60 @@ declare_ipc! {
 
     /// Set window title.
     pub fn set_title(&mut self, _ctx: &Context, id: WinId, title: String) -> () {
-        self.with_window(id, |w| w.set_title(title))
+        self.with_window(id, ||(), |w| w.set_title(title))
     }
 
     /// Set window visible.
     pub fn set_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> () {
-        self.with_window(id, |w| w.set_visible(visible))
+        self.with_window(id, ||(), |w| w.set_visible(visible))
     }
 
     /// Set if the window is "top-most".
     pub fn set_always_on_top(&mut self, _ctx: &Context, id: WinId, always_on_top: bool) -> () {
-        self.with_window(id, |w| w.set_always_on_top(always_on_top))
+        self.with_window(id, ||(), |w| w.set_always_on_top(always_on_top))
     }
 
     /// Set if the user can drag-move the window.
     pub fn set_movable(&mut self, _ctx: &Context, id: WinId, movable: bool) -> () {
-        self.with_window(id, |w| w.set_movable(movable))
+        self.with_window(id, ||(), |w| w.set_movable(movable))
     }
 
     /// Set if the user can resize the window.
     pub fn set_resizable(&mut self, _ctx: &Context, id: WinId, resizable: bool) -> () {
-        self.with_window(id, |w| w.set_resizable(resizable))
+        self.with_window(id, ||(), |w| w.set_resizable(resizable))
     }
 
     /// Set the window taskbar icon visibility.
     pub fn set_taskbar_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> () {
-        self.with_window(id, |w| w.set_taskbar_visible(visible))
+        self.with_window(id, ||(), |w| w.set_taskbar_visible(visible))
     }
 
     /// Set the window parent and if `self` blocks the parent events while open (`modal`).
     pub fn set_parent(&mut self, _ctx: &Context, id: WinId, parent: Option<WinId>, modal: bool) -> () {
         if let Some(parent_id) = parent {
             if let Some(parent_id) = self.windows.iter().find(|w|w.id() == parent_id).map(|w|w.actual_id()) {
-                self.with_window(id, |w|w.set_parent(Some(parent_id), modal))
+                self.with_window(id, ||(), |w|w.set_parent(Some(parent_id), modal))
             } else {
-                self.with_window(id, |w| w.set_parent(None, modal))
+                self.with_window(id, ||(), |w| w.set_parent(None, modal))
             }
         } else {
-            self.with_window(id, |w| w.set_parent(None, modal))
+            self.with_window(id, ||(), |w| w.set_parent(None, modal))
         }
     }
 
     /// Set if the window is see-through.
     pub fn set_transparent(&mut self, _ctx: &Context, id: WinId, transparent: bool) -> () {
-        self.with_window(id, |w| w.set_transparent(transparent))
+        self.with_window(id, ||(), |w| w.set_transparent(transparent))
     }
 
     /// Set the window system border and title visibility.
     pub fn set_chrome_visible(&mut self, _ctx: &Context, id: WinId, visible: bool) -> () {
-        self.with_window(id, |w|w.set_chrome_visible(visible))
+        self.with_window(id, ||(), |w|w.set_chrome_visible(visible))
     }
 
     /// Set the window top-left offset, includes the window chrome (outer-position).
     pub fn set_position(&mut self, _ctx: &Context, id: WinId, pos: LayoutPoint) -> () {
-        if self.with_window(id, |w|w.set_outer_pos(pos)) {
+        if self.with_window(id, ||false, |w|w.set_outer_pos(pos)) {
             self.notify(Ev::WindowMoved(id, pos, EventCause::App));
         }
     }
@@ -1041,7 +1093,7 @@ declare_ipc! {
     /// Set the window content area size (inner-size).
     pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, frame: FrameRequest) -> () {
         let frame_id = frame.id;
-        let (resized, rendered) = self.with_window(id, |w|w.resize_inner(size, frame));
+        let (resized, rendered) = self.with_window(id, ||(false, false), |w|w.resize_inner(size, frame));
         if resized {
             self.notify(Ev::WindowResized(id, size, EventCause::App));
             if rendered {
@@ -1052,102 +1104,102 @@ declare_ipc! {
 
     /// Set the headless surface are size (viewport size).
     pub fn set_headless_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, scale_factor: f32) -> () {
-        self.with_headless(id, |h|h.set_size(size, scale_factor))
+        self.with_headless(id, ||(), |h|h.set_size(size, scale_factor))
     }
 
     /// Set the window minimum content area size.
     pub fn set_min_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> () {
-        self.with_window(id, |w|w.set_min_inner_size(size))
+        self.with_window(id, ||(), |w|w.set_min_inner_size(size))
     }
     /// Set the window maximum content area size.
     pub fn set_max_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> () {
-        self.with_window(id, |w|w.set_max_inner_size(size))
+        self.with_window(id, ||(), |w|w.set_max_inner_size(size))
     }
 
     /// Set the window icon.
     pub fn set_icon(&mut self, _ctx: &Context, id: WinId, icon: Option<Icon>) -> () {
-        self.with_window(id, |w|w.set_icon(icon))
+        self.with_window(id, ||(), |w|w.set_icon(icon))
     }
 
     /// Gets the root pipeline ID.
     pub fn pipeline_id(&mut self, _ctx: &Context, id: WinId) -> PipelineId {
-        with_window_or_headless!(self, id, |w|w.pipeline_id())
+        with_window_or_headless!(self, id, PipelineId::dummy(), |w|w.pipeline_id())
     }
 
     /// Gets the resources namespace.
     pub fn namespace_id(&mut self, _ctx: &Context, id: WinId) -> IdNamespace {
-        with_window_or_headless!(self, id, |w|w.namespace_id())
+        with_window_or_headless!(self, id, IdNamespace(0), |w|w.namespace_id())
     }
 
     /// New image resource key.
     pub fn generate_image_key(&mut self, _ctx: &Context, id: WinId) -> ImageKey {
-        with_window_or_headless!(self, id, |w|w.generate_image_key())
+        with_window_or_headless!(self, id, ImageKey::DUMMY, |w|w.generate_image_key())
     }
 
     /// New font resource key.
     pub fn generate_font_key(&mut self, _ctx: &Context, id: WinId) -> FontKey {
-        with_window_or_headless!(self, id, |w|w.generate_font_key())
+        with_window_or_headless!(self, id, FontKey(IdNamespace(0), 0), |w|w.generate_font_key())
     }
 
     /// New font instance key.
     pub fn generate_font_instance_key(&mut self, _ctx: &Context, id: WinId) -> FontInstanceKey {
-        with_window_or_headless!(self, id, |w|w.generate_font_instance_key())
+        with_window_or_headless!(self, id, FontInstanceKey(IdNamespace(0), 0), |w|w.generate_font_instance_key())
     }
 
     /// Gets the window content are size.
     pub fn size(&mut self, _ctx: &Context, id: WinId) -> LayoutSize {
-        with_window_or_headless!(self, id, |w|w.size())
+        with_window_or_headless!(self, id, LayoutSize::zero(), |w|w.size())
     }
 
     /// Gets the window content are size.
     pub fn scale_factor(&mut self, _ctx: &Context, id: WinId) -> f32 {
-        with_window_or_headless!(self, id, |w|w.scale_factor())
+        with_window_or_headless!(self, id, 1.0, |w|w.scale_factor())
     }
 
     /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
     pub fn set_allow_alt_f4(&mut self, _ctx: &Context, id: WinId, allow: bool) -> () {
-        self.with_window(id, |w|w.set_allow_alt_f4(allow))
+        self.with_window(id, ||(), |w|w.set_allow_alt_f4(allow))
     }
 
     /// Read all pixels of the current frame.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels(&mut self, _ctx: &Context, id: WinId) -> FramePixels {
-        with_window_or_headless!(self, id, |w|w.read_pixels())
+        with_window_or_headless!(self, id, FramePixels::default(), |w|w.read_pixels())
     }
 
     /// `glReadPixels` a new buffer.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels_rect(&mut self, _ctx: &Context, id: WinId, rect: LayoutRect) -> FramePixels {
-        with_window_or_headless!(self, id, |w|w.read_pixels_rect(rect))
+        with_window_or_headless!(self, id, FramePixels::default(), |w|w.read_pixels_rect(rect))
     }
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
     /// Returns the frame ID and all hits from front-to-back.
     pub fn hit_test(&mut self, _ctx: &Context, id: WinId, point: LayoutPoint) -> (Epoch, HitTestResult) {
-        with_window_or_headless!(self, id, |w|w.hit_test(point))
+        with_window_or_headless!(self, id, (Epoch(0), HitTestResult::default()), |w|w.hit_test(point))
     }
 
     /// Set the text anti-aliasing used in the window renderer.
     pub fn set_text_aa(&mut self, _ctx: &Context, id: WinId, aa: TextAntiAliasing) -> () {
-        with_window_or_headless!(self, id, |w|w.set_text_aa(aa))
+        with_window_or_headless!(self, id, (), |w|w.set_text_aa(aa))
     }
 
     /// Render a new frame.
     pub fn render(&mut self, _ctx: &Context, id: WinId, frame: FrameRequest) -> () {
-        with_window_or_headless!(self, id, |w|w.render(frame))
+        with_window_or_headless!(self, id, (), |w|w.render(frame))
     }
 
     /// Update the current frame and re-render it.
     pub fn render_update(&mut self, _ctx: &Context, id: WinId, updates: DynamicProperties) -> () {
-        with_window_or_headless!(self, id, |w|w.render_update(updates))
+        with_window_or_headless!(self, id, (), |w|w.render_update(updates))
     }
 
     /// Add/remove/update resources such as images and fonts.
     pub fn update_resources(&mut self, _ctx: &Context, id: WinId, updates: Vec<ResourceUpdate>) -> () {
-        with_window_or_headless!(self, id, |w| w.update_resources(updates))
+        with_window_or_headless!(self, id, (), |w| w.update_resources(updates))
     }
 
     /// Can be used to profile the ipc-channel.

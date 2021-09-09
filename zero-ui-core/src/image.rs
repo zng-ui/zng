@@ -422,7 +422,7 @@ impl crate::render::Image for Image {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
-                log::error!("respawned calling `namespace_id`, will return DUMMY");
+                log::debug!("respawned calling `namespace_id`, will return DUMMY");
                 return ImageKey::DUMMY;
             }
         };
@@ -433,7 +433,7 @@ impl crate::render::Image for Image {
         let key = match renderer.generate_image_key() {
             Ok(k) => k,
             Err(Respawned) => {
-                log::error!("respawned calling `generate_image_key`, will return DUMMY");
+                log::debug!("respawned calling `generate_image_key`, will return DUMMY");
                 return ImageKey::DUMMY;
             }
         };
@@ -455,7 +455,7 @@ impl crate::render::Image for Image {
             None,
         );
         if let Err(Respawned) = renderer.update_resources(txn.resource_updates) {
-            log::error!("respawned `update_resources`, will return DUMMY");
+            log::debug!("respawned `update_resources`, will return DUMMY");
             return ImageKey::DUMMY;
         }
 

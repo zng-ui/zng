@@ -36,14 +36,24 @@ pub type DevId = u32;
 /// Zero is never an ID.
 pub type MonId = u32;
 
+/// View-process generation, starts at one and changes every respawn, it is never zero.
+pub type ViewProcessGen = u32;
+
 /// System/User events sent from the View Process.
 #[repr(u32)]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Ev {
     /// The view-process crashed and respawned, all resources must be rebuild.
-    Respawned,
+    ///
+    /// The [`ViewProcessGen`] is the new generation, after the respawn.
+    Respawned(ViewProcessGen),
     /// The event channel disconnected, probably because the view-process crashed.
-    Disconnected,
+    ///
+    /// The [`ViewProcessGen`] is the generation of the view-process that was lost, it must be passed to
+    /// [`Controller::handle_disconnect`].
+    ///
+    /// [`Controller::handle_disconnect`]: crate::Controller::handle_disconnect
+    Disconnected(ViewProcessGen),
     /// A sequence of events that happened at the *same time* finished sending.
     ///
     /// The same device action can generate multiple events, this event is send after
@@ -334,6 +344,17 @@ pub struct FramePixels {
 
     /// If all alpha values are `255`.
     pub opaque: bool,
+}
+impl Default for FramePixels {
+    fn default() -> Self {
+        Self {
+            width: 0,
+            height: 0,
+            bgra: ByteBuf::default(),
+            scale_factor: 1.0,
+            opaque: true,
+        }
+    }
 }
 impl fmt::Debug for FramePixels {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

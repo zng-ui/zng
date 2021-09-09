@@ -1067,6 +1067,7 @@ impl AppExtension for WindowManager {
         } else if let Some(args) = RawWindowMovedEvent.update(args) {
             if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
                 if window.vars.0.actual_position.set_ne(ctx.vars, args.position) {
+                    window.position = args.position;
                     WindowMoveEvent.notify(
                         ctx.events,
                         WindowMoveArgs::new(args.timestamp, args.window_id, args.position, args.cause),
@@ -1684,7 +1685,7 @@ impl AppWindowInfo {
                 Ok((frame_id, hit_test)) => {
                     return FrameHitInfo::new(self.id, frame_id, point, &hit_test);
                 }
-                Err(Respawned) => log::error!("respawned calling `hit_test`, will return `no_hits`"),
+                Err(Respawned) => log::debug!("respawned calling `hit_test`, will return `no_hits`"),
             }
         }
 

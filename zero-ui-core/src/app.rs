@@ -1166,13 +1166,13 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Other
-            zero_ui_vp::Ev::Respawned => {
+            zero_ui_vp::Ev::Respawned(_) => {
                 let args = view_process::ViewProcessRespawnedArgs::now();
                 self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
             }
 
-            zero_ui_vp::Ev::Disconnected => {
-                self.ctx().services.view_process().try_respawn();
+            zero_ui_vp::Ev::Disconnected(gen) => {                
+                self.ctx().services.view_process().handle_disconnect(gen);
             }
         }
 
@@ -1832,8 +1832,6 @@ impl fmt::Display for DeviceId {
 pub mod view_process {
     use std::path::PathBuf;
     use std::rc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
     use std::time::{Duration, Instant};
     use std::{cell::RefCell, rc::Rc};
 
@@ -1843,7 +1841,7 @@ pub mod view_process {
     use zero_ui_vp::{Controller, DevId, WinId};
     pub use zero_ui_vp::{
         CursorIcon, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, Result, TextAntiAliasing,
-        VideoMode, WindowConfig, WindowTheme,
+        VideoMode, ViewProcessGen, WindowConfig, WindowTheme,
     };
 
     use super::DeviceId;
@@ -1868,15 +1866,12 @@ pub mod view_process {
         device_ids: LinearMap<DevId, DeviceId>,
         monitor_ids: LinearMap<zero_ui_vp::MonId, MonitorId>,
 
-        data_generation: usize,
-
-        // incremented each respawn.
-        process_generation: Arc<AtomicUsize>,
+        data_generation: ViewProcessGen,
     }
     impl ViewApp {
         #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
         fn check_generation(&mut self) -> bool {
-            let gen = self.process_generation.load(Ordering::Relaxed);
+            let gen = self.process.generation();
             let invalid = gen != self.data_generation;
             if invalid {
                 self.data_generation = gen;
@@ -1889,26 +1884,17 @@ pub mod view_process {
     }
     impl ViewProcess {
         /// Spawn the View Process.
-        pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, mut on_event: F) -> Self
+        pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F) -> Self
         where
             F: FnMut(Ev) + Send + 'static,
         {
-            let process_generation = Arc::new(AtomicUsize::new(0));
-            let pg = Arc::clone(&process_generation);
-
             Self(Rc::new(RefCell::new(ViewApp {
-                process: zero_ui_vp::Controller::start(view_process_exe, device_events, headless, move |ev| {
-                    if let Ev::Respawned = ev {
-                        pg.fetch_add(1, Ordering::Relaxed);
-                    }
-                    on_event(ev)
-                }),
+                process: zero_ui_vp::Controller::start(view_process_exe, device_events, headless, on_event),
                 window_ids: LinearMap::default(),
                 device_ids: LinearMap::default(),
                 monitor_ids: LinearMap::default(),
 
                 data_generation: 0,
-                process_generation,
             })))
         }
 
@@ -2040,9 +2026,21 @@ pub mod view_process {
                 .map(|(id, _)| *id)
         }
 
-        /// Tries to respawn the view-process, only returns if it succeeded.
-        pub fn try_respawn(&self) {
-            self.0.borrow_mut().process.try_respawn()
+        /// Reopen the view-process, causing an [`Ev::Respawned`].
+        pub fn respawn(&self) {
+            self.0.borrow_mut().process.respawn()
+        }
+
+        /// Handle an [`Ev::Disconnected`].
+        ///
+        /// The process will exit if the view-process was killed by the user.
+        pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
+            self.0.borrow_mut().process.handle_disconnect(gen)
+        }
+
+        /// Gets the current view-process generation.
+        pub fn generation(&self) -> ViewProcessGen {
+            self.0.borrow().process.generation()
         }
     }
 
@@ -2050,12 +2048,12 @@ pub mod view_process {
         id: WinId,
         namespace_id: IdNamespace,
         pipeline_id: PipelineId,
-        generation: usize,
+        generation: ViewProcessGen,
         app: Rc<RefCell<ViewApp>>,
     }
     impl WindowConnection {
         fn alive(&self) -> bool {
-            self.generation == self.app.borrow().process_generation.load(Ordering::Relaxed)
+            self.generation == self.app.borrow().process.generation()
         }
 
         fn call<R>(&self, f: impl FnOnce(WinId, &mut Controller) -> Result<R>) -> Result<R> {
@@ -2087,6 +2085,12 @@ pub mod view_process {
         #[inline]
         pub fn alive(&self) -> bool {
             self.0.alive()
+        }
+
+        /// Returns the view-process generation on which the window was open.
+        #[inline]
+        pub fn generation(&self) -> ViewProcessGen {
+            self.0.generation
         }
 
         /// Set the window title.
