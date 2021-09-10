@@ -434,6 +434,7 @@ pub struct Controller {
     same_process: bool,
     device_events: bool,
     last_respawn: Instant,
+    fast_respawn_count: u8,
 }
 impl Controller {
     /// Start with a custom view process.
@@ -487,6 +488,7 @@ impl Controller {
             device_events,
             generation: 1,
             last_respawn: Instant::now(),
+            fast_respawn_count: 0,
         };
 
         if let Err(Respawned) = c.try_startup() {
@@ -608,7 +610,12 @@ impl Controller {
 
         let t = Instant::now();
         if t - self.last_respawn < Duration::from_millis(500) {
-            panic!("second respawn requested in 500ms"); // TODO review this
+            self.fast_respawn_count += 1;
+            if self.fast_respawn_count > 5 {
+                panic!("respawn requested 5 times less than 500ms apart");
+            }
+        } else {
+            self.fast_respawn_count = 0;
         }
         self.last_respawn = t;
 
