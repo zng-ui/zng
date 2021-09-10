@@ -348,7 +348,7 @@ impl AppEventSender for flume::Sender<AppEvent> {
 macro_rules! declare_ipc {
     (
         $(
-            $(#[$doc:meta])*
+            $(#[$meta:meta])*
             $vis:vis fn $method:ident(&mut $self:ident, $ctx:ident: &Context $(, $input:ident : $RequestType:ty)* $(,)?) -> $ResponseType:ty {
                 $($impl:tt)*
             }
@@ -360,6 +360,7 @@ macro_rules! declare_ipc {
         #[repr(u32)]
         pub(crate) enum Request {
             $(
+                $(#[$meta])*
                 $method { $($input: $RequestType),* },
             )*
         }
@@ -369,6 +370,7 @@ macro_rules! declare_ipc {
         #[repr(u32)]
         pub(crate) enum Response {
             $(
+                $(#[$meta])*
                 $method($ResponseType),
             )*
         }
@@ -376,7 +378,7 @@ macro_rules! declare_ipc {
         #[allow(unused_parens)]
         impl Controller {
             $(
-                $(#[$doc])*
+                $(#[$meta])*
                 #[allow(clippy::too_many_arguments)]
                 $vis fn $method(&mut self $(, $input: $RequestType)*) -> Result<$ResponseType> {
                     match self.talk(Request::$method { $($input),* })? {
@@ -392,6 +394,8 @@ macro_rules! declare_ipc {
             pub fn on_request(&mut self, ctx: &Context<E>, request: Request) {
                 match request {
                     $(
+                        #[allow(unused_doc_comments)]
+                        $(#[$meta])* // for the cfg
                         Request::$method { $($input),* } => {
                             let r = self.$method(ctx, $($input),*);
                             self.respond(Response::$method(r));
@@ -401,6 +405,7 @@ macro_rules! declare_ipc {
             }
 
             $(
+                $(#[$meta])*
                 #[allow(clippy::too_many_arguments)]
                 fn $method(&mut $self, $ctx: &Context<E> $(, $input: $RequestType)*) -> $ResponseType {
                     $($impl)*
@@ -559,6 +564,7 @@ impl Controller {
             let process = Command::new(&view_process_exe)
                 .env(SERVER_NAME_VAR, init.name())
                 .env(MODE_VAR, if headless { "headless" } else { "headed" })
+                .env("RUST_BACKTRACE", "1")
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()?;
@@ -586,7 +592,23 @@ impl Controller {
 
     /// Handle an [`Ev::Disconnected`].
     ///
-    /// The process will exit if the view-process was killed by the user.
+    /// The `gen` parameter is the generation provided by the event. It is used to determinate if the disconnect has
+    /// not been handled already.
+    ///
+    /// Tries to cleanup the old view-process and start a new one, if all is successful an [`Ev::Respawned`] is send.
+    ///
+    /// The old view-process exit code and std output is logged using the `vp_respawn` target.
+    ///
+    /// Exits the current process with code `1` if the view-process was killed by the user. In Windows this is if
+    /// the view-process exit code is `1` and in Unix if there is no exit code (killed by signal).
+    ///
+    /// # Panics
+    ///
+    /// If the last five respawns happened all within 500ms of the previous respawn.
+    ///
+    /// If the an error happens three times when trying to spawn the new view-process.
+    ///
+    /// If another disconnect happens during the view-process startup dialog.
     pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
         if gen == self.generation {
             log::error!(target: "vp_respawn", "channel disconnect, will try respawn");
@@ -595,24 +617,29 @@ impl Controller {
     }
 
     /// Reopen the view-process, causing an [`Ev::Respawned`].
+    ///
+    /// This is similar to [`handle_disconnect`] but the current process does not
+    /// exit depending on the view-process exit code.
+    ///
+    /// [`handle_disconnect`]: Controller::handle_disconnect
     pub fn respawn(&mut self) {
         self.respawn_impl(true);
     }
-    fn respawn_impl(&mut self, respawn: bool) {
+    fn respawn_impl(&mut self, is_respawn: bool) {
         let mut process = if let Some(p) = self.process.take() {
             p
         } else {
             if self.same_process {
-                log::error!("cannot recover in same_process mode");
+                log::error!(target: "vp_respawn", "cannot recover in same_process mode");
             }
             return;
         };
 
         let t = Instant::now();
-        if t - self.last_respawn < Duration::from_millis(500) {
+        if t - self.last_respawn < Duration::from_secs(1) {
             self.fast_respawn_count += 1;
             if self.fast_respawn_count > 5 {
-                panic!("respawn requested 5 times less than 500ms apart");
+                panic!("disconnect respawn happened 5 times less than 1 second apart");
             }
         } else {
             self.fast_respawn_count = 0;
@@ -620,7 +647,21 @@ impl Controller {
         self.last_respawn = t;
 
         // try exit
-        let _ = process.kill();
+        let mut killed_by_us = false;
+        if is_respawn {
+            let _ = process.kill();
+            killed_by_us = true;
+        } else if !matches!(process.try_wait(), Ok(Some(_))) {
+            // if not exited, give the process 300ms to close with the preferred exit code.
+            thread::sleep(Duration::from_millis(300));
+
+            if !matches!(process.try_wait(), Ok(Some(_))) {
+                // if still not exited, kill it.
+                killed_by_us = true;
+                let _ = process.kill();
+            }
+        }
+
         let code_and_output = match process.wait_with_output() {
             Ok(c) => Some(c),
             Err(e) => {
@@ -635,7 +676,7 @@ impl Controller {
 
             let code = c.status.code();
 
-            if !respawn {
+            if !killed_by_us {
                 // check if user killed the view-process, in this case we exit too.
 
                 #[cfg(windows)]
@@ -655,8 +696,8 @@ impl Controller {
 
             let code = code.unwrap();
 
-            if !respawn {
-                log::error!(target: "vp_respawn", "view-process exit_code: {:x}", code);
+            if !killed_by_us {
+                log::error!(target: "vp_respawn", "view-process exit_code: 0x{:x}", code);
             }
 
             match String::from_utf8(c.stderr) {
@@ -714,7 +755,7 @@ impl Controller {
         self.generation = next_id;
 
         if let Err(Respawned) = self.try_startup() {
-            panic!("respawn on respawn startup"); // TODO recover from this?
+            panic!("respawn on respawn startup");
         }
 
         let ev = thread::spawn(move || {
@@ -877,6 +918,8 @@ declare_ipc! {
 
     fn startup(&mut self, _ctx: &Context, gen: ViewProcessGen, device_events: bool, headless: bool) -> bool {
         assert!(!self.started, "view-process already started");
+
+        util::write_trace!("-------STARTED---------");
 
         self.generation = gen;
         self.device_events = device_events;
@@ -1210,9 +1253,11 @@ declare_ipc! {
         with_window_or_headless!(self, id, (), |w| w.update_resources(updates))
     }
 
-    /// Can be used to profile the ipc-channel.
-    pub fn ping(&mut self, _ctx: &Context, _bytes: ByteBuf) -> () {
-        todo!()
+    /// Used for testing respawn.
+    #[cfg(debug_assertions)]
+    pub fn crash(&mut self, _ctx: &Context) -> () {
+        util::write_trace!("TEST TRACE");
+        panic!("TEST CRASH")
     }
 }
 impl<E: AppEventSender> ViewApp<E> {

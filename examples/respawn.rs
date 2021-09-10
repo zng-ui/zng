@@ -20,6 +20,7 @@ fn main() {
                         it automatically respawns in case of a graphics driver crash or other similar fatal error.\n"
                     ),
                     respawn(),
+                    crash_respawn(),
                     click_counter(),
                     click_counter(),
                 ];
@@ -33,6 +34,16 @@ fn respawn() -> impl Widget {
         content = text("Respawn (F5)");
         on_click = hn!(|ctx, _| {
             ctx.services.view_process().respawn();
+        });
+    }
+}
+
+#[cfg(debug_assertions)]
+fn crash_respawn() -> impl Widget {
+    button! {
+        content = text("Crash View-Process");
+        on_click = hn!(|ctx, _| {
+            ctx.services.view_process().crash_view_process();
         });
     }
 }

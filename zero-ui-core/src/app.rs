@@ -1832,7 +1832,7 @@ impl fmt::Display for DeviceId {
 pub mod view_process {
     use std::path::PathBuf;
     use std::rc;
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
     use std::{cell::RefCell, rc::Rc};
 
     use linear_map::LinearMap;
@@ -1993,14 +1993,6 @@ pub mod view_process {
             }
         }
 
-        /// Returns the time it takes for the view-process to respond.
-        #[inline]
-        pub fn ping(&self, bytes: Vec<u8>) -> Result<Duration> {
-            let before = Instant::now();
-            self.0.borrow_mut().process.ping(zero_ui_vp::ByteBuf::from(bytes))?;
-            Ok(before.elapsed())
-        }
-
         /// Translate `WinId` to `WindowId`.
         pub(super) fn window_id(&self, id: WinId) -> Option<WindowId> {
             self.0.borrow().window_ids.get(&id).copied()
@@ -2029,6 +2021,12 @@ pub mod view_process {
         /// Reopen the view-process, causing an [`Ev::Respawned`].
         pub fn respawn(&self) {
             self.0.borrow_mut().process.respawn()
+        }
+
+        /// Causes a panic in the view-process to test respawn.
+        #[cfg(debug_assertions)]
+        pub fn crash_view_process(&self) {
+            self.0.borrow_mut().process.crash().expect_err("expected Respawn error");
         }
 
         /// Handle an [`Ev::Disconnected`].

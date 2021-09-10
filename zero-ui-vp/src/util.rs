@@ -1,4 +1,4 @@
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, io::Write, rc::Rc};
 
 use gleam::gl;
 use glutin::{ContextWrapper, NotCurrent, PossiblyCurrent};
@@ -241,3 +241,26 @@ unsafe extern "system" fn subclass_raw_event_proc<
         }
     }
 }
+
+#[doc(hidden)]
+pub fn write_trace(msg: std::fmt::Arguments) {
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .append(true)
+        .create(true)
+        .open("dump.view-process-trace.log")
+        .unwrap();
+
+    file.write_fmt(msg).expect("failed trace");
+    file.write_all(b"\n").expect("failed trace");
+    file.flush().expect("failed trace");
+}
+#[doc(hidden)]
+#[macro_export]
+macro_rules! write_trace {
+    ($($tt:tt)*) => {
+        #[cfg(debug_assertions)]
+        $crate::util::write_trace(format_args!($($tt)*))
+    };
+}
+pub use crate::write_trace;
