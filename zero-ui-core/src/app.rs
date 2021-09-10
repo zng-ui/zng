@@ -1888,13 +1888,13 @@ pub mod view_process {
         where
             F: FnMut(Ev) + Send + 'static,
         {
+            let process = zero_ui_vp::Controller::start(view_process_exe, device_events, headless, on_event);
             Self(Rc::new(RefCell::new(ViewApp {
-                process: zero_ui_vp::Controller::start(view_process_exe, device_events, headless, on_event),
+                data_generation: process.generation(),
+                process,
                 window_ids: LinearMap::default(),
                 device_ids: LinearMap::default(),
                 monitor_ids: LinearMap::default(),
-
-                data_generation: 0,
             })))
         }
 
