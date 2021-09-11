@@ -153,7 +153,7 @@ pub mod window {
         /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial value.
         properties::max_height;
 
-        /// Window auto size to content.
+        /// Window auto-size to content.
         ///
         /// If enabled overwrites the other sizes with the content size.
         properties::auto_size;
