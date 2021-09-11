@@ -1,4 +1,4 @@
-//! Tests that use zero-ui without directly depending on it.
+//! Tests that you can use `zero-ui` generated widget macros without directly depending on `zero-ui`.
 
 fn main() {}
 
