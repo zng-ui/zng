@@ -5,3 +5,4 @@
 * Auto-size should reset when the user resizes.
 
 * Implement and test window respawn (need to test NVIDIA actual driver version change (two blinks)).
+* Implement software rendering using https://github.com/servo/webrender/tree/master/swgl

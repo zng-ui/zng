@@ -14,7 +14,7 @@ use glutin::{
     event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode},
     event_loop::EventLoopProxy,
     window::{Window, WindowBuilder, WindowId},
-    ContextBuilder,
+    ContextBuilder, CreationError, GlRequest,
 };
 use webrender::{
     api::{units::*, *},
@@ -82,7 +82,22 @@ impl ViewWindow {
             winit = winit.with_position(LogicalPosition::new(w.pos.x, w.pos.y));
         }
 
-        let glutin = ContextBuilder::new().build_windowed(winit, ctx.window_target).unwrap();
+        let glutin = match ContextBuilder::new()
+            .with_hardware_acceleration(None)
+            .with_gl(GlRequest::GlThenGles {
+                opengl_version: (3, 2),
+                opengles_version: (3, 0),
+            })
+            .build_windowed(winit, ctx.window_target)
+        {
+            Ok(c) => c,
+            Err(
+                CreationError::NoAvailablePixelFormat | CreationError::NoBackendAvailable(_) | CreationError::OpenGlVersionNotSupported,
+            ) => {
+                panic!("software rendering is not implemented");
+            }
+            Err(e) => panic!("failed to create OpenGL context, {:?}", e),
+        };
         // SAFETY: we drop the context before the window (or panic if we don't).
         let (context, winit_window) = unsafe { glutin.split() };
         let mut context = ctx.gl_manager.manage_headed(id, context);

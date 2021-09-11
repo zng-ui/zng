@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use gleam::gl;
-use glutin::{Api as GApi, ContextBuilder, GlRequest};
+use glutin::{dpi::PhysicalSize, Api as GApi, ContextBuilder, GlRequest};
 use webrender::{
     api::{units::*, *},
     Renderer, RendererKind, RendererOptions,
@@ -33,12 +33,14 @@ pub(crate) struct ViewHeadless {
 }
 impl ViewHeadless {
     pub fn new<E: AppEventSender>(ctx: &Context<E>, gen: ViewProcessGen, id: WinId, cfg: HeadlessConfig) -> Self {
-        let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
-            opengl_version: (3, 2),
-            opengles_version: (3, 0),
-        });
+        let context = ContextBuilder::new()
+            .with_gl(GlRequest::GlThenGles {
+                opengl_version: (3, 2),
+                opengles_version: (3, 0),
+            })
+            .with_hardware_acceleration(None);
 
-        let size_one = glutin::dpi::PhysicalSize::new(1, 1);
+        let size_one = PhysicalSize::new(1, 1);
         let renderer_kind;
         #[cfg(target_os = "linux")]
         let context = {
