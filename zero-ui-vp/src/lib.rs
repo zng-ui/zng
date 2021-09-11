@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     env, panic,
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -429,7 +428,7 @@ type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
 /// [same process mode]: run_same_process
 /// [exits]: std::process::exit
 pub struct Controller {
-    process: Option<Child>,
+    process: Option<duct::Handle>,
     generation: ViewProcessGen,
     view_process_exe: PathBuf,
     request_sender: ipc::RequestSender,
@@ -551,7 +550,7 @@ impl Controller {
     fn spawn_view_process(
         view_process_exe: &Path,
         headless: bool,
-    ) -> util::AnyResult<(Option<Child>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EvReceiver)> {
+    ) -> util::AnyResult<(Option<duct::Handle>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EvReceiver)> {
         let init = ipc::AppInit::new();
 
         // create process and spawn it, unless is running in same process mode.
@@ -561,20 +560,21 @@ impl Controller {
             config.waiter.notify_one();
             None
         } else {
-            let process = Command::new(&view_process_exe)
+            let process = duct::cmd!(view_process_exe)
                 .env(SERVER_NAME_VAR, init.name())
                 .env(MODE_VAR, if headless { "headless" } else { "headed" })
-                .env("RUST_BACKTRACE", "1")
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()?;
+                .env("RUST_BACKTRACE", "full")
+                .stdout_capture()
+                .stderr_capture()
+                .unchecked()
+                .start()?;
             Some(process)
         };
 
         let (req, rsp, ev) = match init.connect() {
             Ok(r) => r,
             Err(e) => {
-                if let Some(mut p) = process {
+                if let Some(p) = process {
                     if let Err(e) = p.kill() {
                         log::error!(
                             "failed to kill new view-process after failing to connect to it\n connection error: {:?}\n kill error: {:?}",
@@ -626,7 +626,7 @@ impl Controller {
         self.respawn_impl(true);
     }
     fn respawn_impl(&mut self, is_respawn: bool) {
-        let mut process = if let Some(p) = self.process.take() {
+        let process = if let Some(p) = self.process.take() {
             p
         } else {
             if self.same_process {
@@ -662,7 +662,7 @@ impl Controller {
             }
         }
 
-        let code_and_output = match process.wait_with_output() {
+        let code_and_output = match process.into_output() {
             Ok(c) => Some(c),
             Err(e) => {
                 log::error!(target: "vp_respawn", "view-process could not be heaped, will abandon running, {:?}", e);
@@ -774,7 +774,7 @@ impl Controller {
 impl Drop for Controller {
     /// Kills the View Process, unless it is running in the same process.
     fn drop(&mut self) {
-        if let Some(mut process) = self.process.take() {
+        if let Some(process) = self.process.take() {
             let _ = process.kill();
         } else {
             let _ = self.exit_same_process();
