@@ -637,10 +637,10 @@ impl Controller {
 
         let t = Instant::now();
         if t - self.last_respawn < Duration::from_secs(1) {
-            self.fast_respawn_count += 1;
-            if self.fast_respawn_count > 5 {
+            if self.fast_respawn_count == 5 {
                 panic!("disconnect respawn happened 5 times less than 1 second apart");
             }
+            self.fast_respawn_count += 1;
         } else {
             self.fast_respawn_count = 0;
         }
@@ -918,8 +918,6 @@ declare_ipc! {
 
     fn startup(&mut self, _ctx: &Context, gen: ViewProcessGen, device_events: bool, headless: bool) -> bool {
         assert!(!self.started, "view-process already started");
-
-        util::write_trace!("-------STARTED---------");
 
         self.generation = gen;
         self.device_events = device_events;
@@ -1256,7 +1254,6 @@ declare_ipc! {
     /// Used for testing respawn.
     #[cfg(debug_assertions)]
     pub fn crash(&mut self, _ctx: &Context) -> () {
-        util::write_trace!("TEST TRACE");
         panic!("TEST CRASH")
     }
 }

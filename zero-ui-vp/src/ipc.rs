@@ -97,11 +97,6 @@ impl EvSender {
         self.0.send(ev).map_err(handle_send_error)
     }
 }
-impl Drop for ResponseSender {
-    fn drop(&mut self) {
-        util::write_trace!("EvSender::drop");
-    }
-}
 pub(crate) struct EvReceiver(IpcReceiver<Ev>);
 impl EvReceiver {
     pub fn recv(&mut self) -> Result<Ev> {

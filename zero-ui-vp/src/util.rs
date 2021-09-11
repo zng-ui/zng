@@ -1,4 +1,4 @@
-use std::{cell::Cell, io::Write, rc::Rc};
+use std::{cell::Cell, rc::Rc};
 
 use gleam::gl;
 use glutin::{ContextWrapper, NotCurrent, PossiblyCurrent};
@@ -242,6 +242,9 @@ unsafe extern "system" fn subclass_raw_event_proc<
     }
 }
 
+/*
+use io::Write;
+
 #[doc(hidden)]
 pub fn write_trace(msg: std::fmt::Arguments) {
     let mut file = std::fs::OpenOptions::new()
@@ -264,3 +267,4 @@ macro_rules! write_trace {
     };
 }
 pub use crate::write_trace;
+*/

@@ -1,6 +1,6 @@
 //! App window manager.
 
-use std::{fmt, mem, rc::Rc, time::Instant};
+use std::{fmt, mem, rc::Rc, thread, time::Instant};
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowTheme};
 use linear_map::LinearMap;
@@ -11,7 +11,7 @@ use crate::{
     app::{
         self,
         raw_events::*,
-        view_process::{self, Respawned, ViewHeadless, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
+        view_process::{self, Respawned, ViewHeadless, ViewProcess, ViewProcessGen, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
     },
     cancelable_event_args,
@@ -33,8 +33,19 @@ unique_id! {
     /// Unique identifier of an open window.
     ///
     /// Can be obtained from [`WindowContext::window_id`] or [`WidgetContext::path`].
-    #[derive(Debug)]
     pub struct WindowId;
+}
+impl fmt::Debug for WindowId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("WindowId")
+                .field("id", &self.get())
+                .field("sequential", &self.sequential())
+                .finish()
+        } else {
+            write!(f, "WindowId({})", self.sequential())
+        }
+    }
 }
 impl fmt::Display for WindowId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -44,8 +55,19 @@ impl fmt::Display for WindowId {
 
 unique_id! {
     /// Unique identifier of a monitor screen.
-    #[derive(Debug)]
     pub struct MonitorId;
+}
+impl fmt::Debug for MonitorId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("MonitorId")
+                .field("id", &self.get())
+                .field("sequential", &self.sequential())
+                .finish()
+        } else {
+            write!(f, "MonitorId({})", self.sequential())
+        }
+    }
 }
 impl fmt::Display for MonitorId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1213,13 +1235,13 @@ impl AppExtension for WindowManager {
                     WindowFocusChangedEvent.notify(ctx.events, args)
                 }
             }
-        } else if ViewProcessRespawnedEvent.update(args).is_some() {
+        } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
             // `respawn` will force a `render` only and the `RenderContext` does not
             // give access to `services` so this is fine.
             let mut windows = mem::take(&mut ctx.services.windows().windows);
 
             for (_, w) in windows.iter_mut() {
-                w.respawn(ctx);
+                w.respawn(ctx, args.generation);
             }
 
             ctx.services.windows().windows = windows;
@@ -2330,7 +2352,15 @@ impl AppWindow {
         }
     }
 
-    fn respawn(&mut self, ctx: &mut AppContext) {
+    fn respawn(&mut self, ctx: &mut AppContext, gen: ViewProcessGen) {
+        if let Some(r) = &self.renderer {
+            if r.generation() == Ok(gen) {
+                // already recovered, this can happen in case of two respawns
+                // happening very fast.
+                return;
+            }
+        }
+
         self.first_render = true;
         self.headed = None;
         self.renderer = None;
@@ -2347,7 +2377,7 @@ impl AppWindow {
 }
 impl Drop for AppWindow {
     fn drop(&mut self) {
-        if !self.deinited {
+        if !self.deinited && !thread::panicking() {
             log::error!("`AppWindow` dropped without calling `deinit`, no memory is leaked but shared state may be incorrect now");
         }
     }

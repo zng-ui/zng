@@ -1166,8 +1166,8 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Other
-            zero_ui_vp::Ev::Respawned(_) => {
-                let args = view_process::ViewProcessRespawnedArgs::now();
+            zero_ui_vp::Ev::Respawned(g) => {
+                let args = view_process::ViewProcessRespawnedArgs::now(g);
                 self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
             }
 
@@ -1800,7 +1800,6 @@ impl log::Log for DebugLogger {
 
 unique_id! {
     /// Unique identifier of a device event source.
-    #[derive(Debug)]
     pub struct DeviceId;
 }
 impl DeviceId {
@@ -1820,6 +1819,18 @@ impl DeviceId {
     pub fn virtual_generic() -> DeviceId {
         static ID: Lazy<DeviceId> = Lazy::new(DeviceId::new_unique);
         *ID
+    }
+}
+impl fmt::Debug for DeviceId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("DeviceId")
+                .field("id", &self.get())
+                .field("sequential", &self.sequential())
+                .finish()
+        } else {
+            write!(f, "DeviceId({})", self.sequential())
+        }
     }
 }
 impl fmt::Display for DeviceId {
@@ -1915,7 +1926,7 @@ pub mod view_process {
             let mut app = self.0.borrow_mut();
             let _ = app.check_generation();
 
-            assert!(app.window_ids.values().all(|&v| v != window_id));
+            assert!(app.window_ids.values().all(|&v| v != window_id), "{} already open", window_id);
 
             let (id, namespace_id, pipeline_id) = app.process.open_window(config)?;
 
@@ -2240,6 +2251,11 @@ pub mod view_process {
             }
         }
 
+        /// Returns the view-process generation on which the renderer was created.
+        pub fn generation(&self) -> Result<ViewProcessGen> {
+            self.0.upgrade().map(|c| c.generation).ok_or(Respawned)
+        }
+
         /// Returns `true` if the renderer is still alive.
         ///
         /// The renderer is dropped when the window closes or the view-process respawns.
@@ -2345,6 +2361,8 @@ pub mod view_process {
     event_args! {
         /// Arguments for the [`ViewProcessRespawnedEvent`].
         pub struct ViewProcessRespawnedArgs {
+            /// New view-process generation
+            pub generation: ViewProcessGen,
 
             ..
 
