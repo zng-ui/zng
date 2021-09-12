@@ -1,8 +1,7 @@
 use zero_ui_renamed::core::{widget, Widget};
 
 #[widget($crate::test_widget)]
-pub mod test_widget {
-}
+pub mod test_widget {}
 
 /// Test util.
 ///

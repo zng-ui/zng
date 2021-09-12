@@ -6,6 +6,8 @@ edition = "2018"
 license = "Apache-2.0"
 
 [features]
+default = ["vp_full"]
+
 # Enable the zero_ui_core::profiler module.
 #
 # USAGE:
@@ -23,6 +25,22 @@ app_profiler = []
 # For external dependents, build with this feature to use the test helper types that show
 # in the documentation.
 test_util = []
+
+# Full View-Process, includes `glutin` and the full `webrender` crate.
+#
+# This feature is enabled by default, if you are splitting the view-process from the
+# app-process executable, in the app-process crate you can disable this feature and enable
+# `vp_not_full` to speedup compilation.
+#
+# USAGE:
+#
+# zero-ui-core = { version = "0.1", default-features = false, features = ["vp_not_full"] }
+vp_full = ["zero-ui-vp/full"]
+
+# This feature exists because this is not implemented: https://github.com/rust-lang/cargo/issues/1839
+#
+# Enable it if you are disabling `vp_full`.
+vp_not_full = ["zero-ui-vp/not_full"]
 
 # # Other Features
 #
@@ -48,7 +66,7 @@ rustybuzz = "0.4"
 xi-unicode = "0.3"
 
 # render
-zero-ui-vp = { path = "../zero-ui-vp" }
+zero-ui-vp = { path = "../zero-ui-vp", default-features = false }
 webrender_api = "0.61"
 image = "0.23"
 

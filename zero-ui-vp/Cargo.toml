@@ -5,14 +5,47 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
 license = "Apache-2.0"
 
+[features]
+default = ["full"]
+
+# Full View-Process, includes `glutin` and the full `webrender` crate.
+#
+# This feature is enabled by default, if you are splitting the view-process from the
+# app-process executable, in the app-process crate you can disable this feature and enable
+# `not_full` to speedup compilation.
+#
+# USAGE:
+#
+# zero-ui-vp = { version = "0.1", default-features = false, features = ["not_full"] }
+full = ["glutin", "webrender", "gleam", "is_main_thread"]
+
+# This feature exists because this is not implemented: https://github.com/rust-lang/cargo/issues/1839
+#
+# Enable it if you are disabling `full`.
+not_full = ["webrender_api"]
+
+# # Other Features
+#
+# ## `doc_nightly`
+#
+# Activates nightly only `rustdoc` features. The crate is already configured to use this feature
+# in "docs.rs" and `do doc`.
+# 
+# Use `#![cfg_attr(doc_nightly, feature(doc_foo))]` in the `lib.rs` to activate a `rustdoc` feature. Then
+# use `#[cfg_attr(doc_nightly, doc(foo))]` in an item.
+# 
+# Use `RUSTDOCFLAGS="--cfg doc_nightly" cargo +nightly doc` to run `cargo doc` without using `do`.
+
 [dependencies]
 
 # windowing
-glutin = { version = "0.27", features = ["serde"] }
+glutin = { version = "0.27", features = ["serde"], optional = true }
 
 # render
-webrender = "0.61"
-gleam = "0.6.17" #version required by webrender
+webrender = { version = "0.61", optional = true }
+webrender_api = { version = "0.61", optional = true }
+#version required by webrender
+gleam = { version = "0.6.17", optional = true  }
 
 # ipc
 serde = { version = "1.0", features = ["derive"] }
@@ -24,5 +57,9 @@ duct = "0.13"
 # util
 winapi = "0.3"
 log = "0.4"
-is_main_thread = "0.1"
+is_main_thread = { version = "0.1", optional = true }
 flume = "0.10"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "doc_nightly"]

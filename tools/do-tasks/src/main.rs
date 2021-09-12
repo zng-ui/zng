@@ -312,7 +312,7 @@ fn fmt(args: Vec<&str>) {
 
     print("    fmt test-crates ... ");
     for test_crate in top_cargo_toml("test-crates") {
-        cmd("cargo", &["fmt", "--manifest-path", &test_crate], &args);
+        cmd("cargo", &["fmt", "--manifest-path", &test_crate, "--all"], &args);
     }
     println("done");
 

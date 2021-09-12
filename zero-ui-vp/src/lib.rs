@@ -5,6 +5,20 @@
 //! with the app process is done using `ipmpsc`.
 
 #![allow(unused_parens)]
+#![cfg_attr(doc_nightly, feature(doc_cfg))]
+
+#[cfg(not(feature = "full"))]
+fn _not_full_asserts() {
+    // This is due to a limitation in cargo, see ./Cargo.toml for more details.
+    #[cfg(not(feature = "not_full"))]
+    compile_error!("enable `not_full` feature if you are disabling the `full` feature");
+}
+
+#[cfg(feature = "full")]
+pub use webrender::api as webrender_api;
+
+#[cfg(not(feature = "full"))]
+pub use webrender_api;
 
 use config::*;
 use glutin::{
@@ -40,13 +54,13 @@ mod window;
 const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
 const MODE_VAR: &str = "ZERO_UI_WR_MODE";
 
-/// Version 0.1.
-///
 /// The *App Process* and *View Process* must be build using the same exact version of `zero-ui-vp` and this is
 /// validated during run-time, causing a panic if the versions don't match. Usually the same executable is used
 /// for both processes so this is not a problem.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[cfg(feature = "full")]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "full")))]
 /// Call this function before anything else in the app `main` function.
 ///
 /// If the process is started with the right environment configuration this function
@@ -85,11 +99,13 @@ struct SameProcessConfig {
 }
 static SAME_PROCESS_CONFIG: Mutex<Option<SameProcessConfig>> = parking_lot::const_mutex(None);
 
+#[cfg(feature = "full")]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "full")))]
 /// Run both View and App in the same process.
 ///
 /// This function must be called in the main thread, it initializes the View and calls `run_app`
 /// in a new thread to initialize the App.
-
+///
 /// The primary use of this function is debugging the view process code
 pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
