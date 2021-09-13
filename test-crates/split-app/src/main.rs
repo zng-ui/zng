@@ -1,11 +1,18 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use zero_ui::prelude::*;
 
+use std::path::PathBuf; 
+
 /// Created by `build.rs`.
-const VIEW_PROCESS: &str = "split-view";
+fn view_process() -> PathBuf {
+    let mut p = std::env::current_exe().unwrap();
+    p.set_file_name("split-view");
+    p
+}
 
 fn main() {
-    App::default().view_process_exe(VIEW_PROCESS).run_window(|_| {
+    App::default().view_process_exe(view_process()).run_window(|_| {
         window! {
             title = "My App";
             content = v_stack! {
