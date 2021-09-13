@@ -11,7 +11,6 @@ use std::{
 use gleam::gl;
 use glutin::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
-    event::{ElementState, KeyboardInput, ModifiersState, VirtualKeyCode},
     event_loop::EventLoopProxy,
     window::{Window, WindowBuilder, WindowId},
     ContextBuilder, CreationError, GlRequest,
@@ -23,9 +22,9 @@ use webrender::{
 
 use crate::{
     config,
-    types::{FramePixels, RunOnDrop},
+    types::{FramePixels, RunOnDrop, ScanCode},
     util::{self, GlContext},
-    AppEvent, AppEventSender, Context, Ev, FrameRequest, TextAntiAliasing, ViewProcessGen, WinId, WindowConfig,
+    AppEvent, AppEventSender, Context, Ev, FrameRequest, Key, KeyState, TextAntiAliasing, ViewProcessGen, WinId, WindowConfig,
 };
 
 pub(crate) struct ViewWindow {
@@ -113,16 +112,12 @@ impl ViewWindow {
                 if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && allow_alt_f4.get() {
                     let device_id = 0; // TODO recover actual ID
 
-                    #[allow(deprecated)] // `modifiers` is deprecated but there is no other way to init a KeyboardInput
                     let _ = event_loop.send_event(AppEvent::Notify(Ev::KeyboardInput(
                         id,
                         device_id,
-                        KeyboardInput {
-                            scancode: wparam as u32,
-                            state: ElementState::Pressed,
-                            virtual_keycode: Some(VirtualKeyCode::F4),
-                            modifiers: ModifiersState::ALT,
-                        },
+                        wparam as ScanCode,
+                        KeyState::Pressed,
+                        Some(Key::F4),
                     )));
                     return Some(0);
                 }

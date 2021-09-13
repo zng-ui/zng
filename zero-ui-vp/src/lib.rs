@@ -10,8 +10,9 @@
 pub use webrender_api;
 
 use config::*;
+#[cfg(feature = "full")]
 use glutin::{
-    event::*,
+    event::{DeviceEvent, DeviceId, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     window::WindowId,
@@ -39,6 +40,13 @@ mod ipc;
 mod types;
 mod util;
 mod window;
+
+pub use types::*;
+
+use webrender::api::{
+    units::{LayoutPoint, LayoutRect, LayoutSize},
+    DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
+};
 
 const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
 const MODE_VAR: &str = "ZERO_UI_WR_MODE";
@@ -124,17 +132,6 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     let config = config.take().unwrap();
     run(config.server_name, config.headless, Some(app_thread))
 }
-
-pub use types::{
-    AxisId, ButtonId, ByteBuf, CursorIcon, DevId, ElementState, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon,
-    ModifiersState, MonId, MonitorInfo, MouseButton, MouseScrollDelta, MultiClickConfig, Respawned, Result, ScanCode, TextAntiAliasing,
-    VideoMode, ViewProcessGen, VirtualKeyCode, WinId, WindowConfig, WindowTheme,
-};
-
-use webrender::api::{
-    units::{LayoutPoint, LayoutRect, LayoutSize},
-    DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
-};
 
 /// Start the event loop in the View Process.
 fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHandle<()>>) -> ! {
@@ -372,6 +369,7 @@ macro_rules! declare_ipc {
         #[derive(Debug, Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
         #[repr(u32)]
+        #[cfg(feature = "full")]
         pub(crate) enum Response {
             $(
                 $(#[$meta])*
@@ -394,6 +392,7 @@ macro_rules! declare_ipc {
         }
 
         #[allow(unused_parens)]
+        #[cfg(feature = "full")]
         impl<E: AppEventSender> ViewApp<E> {
             pub fn on_request(&mut self, ctx: &Context<E>, request: Request) {
                 match request {
@@ -788,6 +787,7 @@ impl Drop for Controller {
 }
 
 /// The View Process.
+#[cfg(feature = "full")]
 pub(crate) struct ViewApp<E> {
     event_loop: E,
     response_chan: ipc::ResponseSender,
@@ -815,6 +815,7 @@ pub(crate) struct ViewApp<E> {
     // if one or more events where send after the last on_events_cleared.
     pending_clear: bool,
 }
+#[cfg(feature = "full")]
 impl<E: AppEventSender> ViewApp<E> {
     pub fn new(
         event_loop: E,
@@ -1262,6 +1263,8 @@ declare_ipc! {
         panic!("TEST CRASH")
     }
 }
+
+#[cfg(feature = "full")]
 impl<E: AppEventSender> ViewApp<E> {
     fn on_window_event(&mut self, ctx: &Context<E>, window_id: WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.is_window(window_id)) {
@@ -1363,11 +1366,17 @@ impl<E: AppEventSender> ViewApp<E> {
             WindowEvent::Focused(focused) => self.notify(Ev::Focused(id, focused)),
             WindowEvent::KeyboardInput { device_id, input, .. } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Ev::KeyboardInput(id, d_id, input))
+                self.notify(Ev::KeyboardInput(
+                    id,
+                    d_id,
+                    input.scancode,
+                    input.state.into(),
+                    input.virtual_keycode.map(Into::into),
+                ));
             }
             WindowEvent::ModifiersChanged(m) => {
                 self.refresh_monitors(ctx);
-                self.notify(Ev::ModifiersChanged(id, m));
+                self.notify(Ev::ModifiersChanged(id, m.into()));
             }
             WindowEvent::CursorMoved { device_id, position, .. } => {
                 let p = LayoutPoint::new(position.x as f32 / scale_factor, position.y as f32 / scale_factor);
@@ -1387,13 +1396,13 @@ impl<E: AppEventSender> ViewApp<E> {
                 device_id, delta, phase, ..
             } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Ev::MouseWheel(id, d_id, delta, phase));
+                self.notify(Ev::MouseWheel(id, d_id, delta.into(), phase.into()));
             }
             WindowEvent::MouseInput {
                 device_id, state, button, ..
             } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Ev::MouseInput(id, d_id, state, button));
+                self.notify(Ev::MouseInput(id, d_id, state.into(), button.into()));
             }
             WindowEvent::TouchpadPressure {
                 device_id,
@@ -1410,7 +1419,7 @@ impl<E: AppEventSender> ViewApp<E> {
             WindowEvent::Touch(t) => {
                 let d_id = self.device_id(t.device_id);
                 let location = LayoutPoint::new(t.location.x as f32 / scale_factor, t.location.y as f32 / scale_factor);
-                self.notify(Ev::Touch(id, d_id, t.phase, location, t.force.map(Into::into), t.id));
+                self.notify(Ev::Touch(id, d_id, t.phase.into(), location, t.force.map(Into::into), t.id));
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => self.notify(Ev::ScaleFactorChanged(id, scale_factor as f32)),
             WindowEvent::ThemeChanged(t) => self.notify(Ev::ThemeChanged(id, t.into())),
@@ -1424,10 +1433,10 @@ impl<E: AppEventSender> ViewApp<E> {
                 DeviceEvent::Added => self.notify(Ev::DeviceAdded(d_id)),
                 DeviceEvent::Removed => self.notify(Ev::DeviceRemoved(d_id)),
                 DeviceEvent::MouseMotion { delta } => self.notify(Ev::DeviceMouseMotion(d_id, delta)),
-                DeviceEvent::MouseWheel { delta } => self.notify(Ev::DeviceMouseWheel(d_id, delta)),
+                DeviceEvent::MouseWheel { delta } => self.notify(Ev::DeviceMouseWheel(d_id, delta.into())),
                 DeviceEvent::Motion { axis, value } => self.notify(Ev::DeviceMotion(d_id, axis, value)),
-                DeviceEvent::Button { button, state } => self.notify(Ev::DeviceButton(d_id, button, state)),
-                DeviceEvent::Key(k) => self.notify(Ev::DeviceKey(d_id, k)),
+                DeviceEvent::Button { button, state } => self.notify(Ev::DeviceButton(d_id, button, state.into())),
+                DeviceEvent::Key(k) => self.notify(Ev::DeviceKey(d_id, k.scancode, k.state.into(), k.virtual_keycode.map(Into::into))),
                 DeviceEvent::Text { codepoint } => self.notify(Ev::DeviceText(d_id, codepoint)),
             }
         }

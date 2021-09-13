@@ -6,7 +6,7 @@ edition = "2018"
 license = "Apache-2.0"
 
 [features]
-default = ["full"]
+default = ["full", "x11", "wayland"]
 
 # Full View-Process, includes `glutin` and the full `webrender` crate.
 #
@@ -19,6 +19,21 @@ default = ["full"]
 # # in view_process/Cargo.toml
 # zero-ui-vp = { version = "0.1", default-features = false }
 full = ["glutin", "webrender", "gleam", "is_main_thread"]
+
+# Enable `winit` **x11** integration.
+#
+# Enabled by default.
+x11 = ["glutin/x11"]
+# Enable `winit` **wayland** integration.
+#
+# Enabled by default.
+wayland = ["glutin/wayland"]
+
+# Use `memfd_create` in Linux builds.
+#
+# Not enabled by default, the function was introduced in kernel version 3.17
+# enabling this with an older kernel version will cause panics.
+memfd = ["ipc-channel/memfd"]
 
 # # Other Features
 #
@@ -35,7 +50,7 @@ full = ["glutin", "webrender", "gleam", "is_main_thread"]
 [dependencies]
 
 # windowing
-glutin = { version = "0.27", features = ["serde"], optional = true }
+glutin = { version = "0.27", default-features  = false, optional = true }
 
 # render
 webrender = { version = "0.61", optional = true }
@@ -51,10 +66,13 @@ ipc-channel = "0.15"
 duct = "0.13"
 
 # util
-winapi = "0.3"
 log = "0.4"
 is_main_thread = { version = "0.1", optional = true }
-flume = "0.10"
+flume = { version = "0.10", default-features  = false }
+bitflags = "1"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3" }
 
 [package.metadata.docs.rs]
 all-features = true

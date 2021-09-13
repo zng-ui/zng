@@ -1,7 +1,4 @@
-pub use glutin::event::{
-    AxisId, ButtonId, ElementState, KeyboardInput, ModifiersState, MouseButton, MouseScrollDelta, ScanCode, TouchPhase, VirtualKeyCode,
-};
-pub use glutin::window::CursorIcon;
+use bitflags::*;
 use serde::{Deserialize, Serialize};
 pub use serde_bytes::ByteBuf;
 use std::time::Duration;
@@ -39,6 +36,713 @@ pub type MonId = u32;
 /// View-process generation, starts at one and changes every respawn, it is never zero.
 pub type ViewProcessGen = u32;
 
+/// Hardware-dependent keyboard scan code.
+pub type ScanCode = u32;
+
+/// Identifier for a specific analog axis on some device.
+pub type AxisId = u32;
+
+/// Identifier for a specific button on some device.
+pub type ButtonId = u32;
+
+/// State a [`Key`] has entered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum KeyState {
+    /// The key was pressed.
+    Pressed,
+    /// The key was released.
+    Released,
+}
+#[cfg(feature = "full")]
+impl From<glutin::event::ElementState> for KeyState {
+    fn from(s: glutin::event::ElementState) -> Self {
+        match s {
+            glutin::event::ElementState::Pressed => KeyState::Pressed,
+            glutin::event::ElementState::Released => KeyState::Released,
+        }
+    }
+}
+
+/// State a [`MouseButton`] has entered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ButtonState {
+    /// The button was pressed.
+    Pressed,
+    /// The button was released.
+    Released,
+}
+#[cfg(feature = "full")]
+impl From<glutin::event::ElementState> for ButtonState {
+    fn from(s: glutin::event::ElementState) -> Self {
+        match s {
+            glutin::event::ElementState::Pressed => ButtonState::Pressed,
+            glutin::event::ElementState::Released => ButtonState::Released,
+        }
+    }
+}
+
+bitflags! {
+    /// Represents the current state of the keyboard modifiers.
+    ///
+    /// Each flag represents a modifier and is set if this modifier is active.
+    #[derive(Default, Serialize, Deserialize)]
+    pub struct ModifiersState: u32 {
+        // left and right modifiers are currently commented out, but we should be able to support
+        // them in a future release
+        /// The "shift" key.
+        const SHIFT = 0b100;
+        // const LSHIFT = 0b010 << 0;
+        // const RSHIFT = 0b001 << 0;
+        /// The "control" key.
+        const CTRL = 0b100 << 3;
+        // const LCTRL = 0b010 << 3;
+        // const RCTRL = 0b001 << 3;
+        /// The "alt" key.
+        const ALT = 0b100 << 6;
+        // const LALT = 0b010 << 6;
+        // const RALT = 0b001 << 6;
+        /// This is the "windows" key on PC and "command" key on Mac.
+        const LOGO = 0b100 << 9;
+        // const LLOGO = 0b010 << 9;
+        // const RLOGO = 0b001 << 9;
+    }
+}
+impl ModifiersState {
+    /// Returns `true` if the shift key is pressed.
+    pub fn shift(&self) -> bool {
+        self.intersects(Self::SHIFT)
+    }
+    /// Returns `true` if the control key is pressed.
+    pub fn ctrl(&self) -> bool {
+        self.intersects(Self::CTRL)
+    }
+    /// Returns `true` if the alt key is pressed.
+    pub fn alt(&self) -> bool {
+        self.intersects(Self::ALT)
+    }
+    /// Returns `true` if the logo key is pressed.
+    pub fn logo(&self) -> bool {
+        self.intersects(Self::LOGO)
+    }
+}
+#[cfg(feature = "full")]
+impl From<glutin::event::ModifiersState> for ModifiersState {
+    fn from(s: glutin::event::ModifiersState) -> Self {
+        Self::from_bits(s.bits()).unwrap()
+    }
+}
+
+/// Describes a button of a mouse controller.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+pub enum MouseButton {
+    /// Left button.
+    Left,
+    /// Right button.
+    Right,
+    /// Middle button.
+    Middle,
+    /// Any other button.
+    Other(u16),
+}
+#[cfg(feature = "full")]
+impl From<glutin::event::MouseButton> for MouseButton {
+    fn from(btn: glutin::event::MouseButton) -> Self {
+        match btn {
+            glutin::event::MouseButton::Left => Self::Left,
+            glutin::event::MouseButton::Right => Self::Right,
+            glutin::event::MouseButton::Middle => Self::Middle,
+            glutin::event::MouseButton::Other(btn) => Self::Other(btn),
+        }
+    }
+}
+
+/// Describes touch-screen input state.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+pub enum TouchPhase {
+    Started,
+    Moved,
+    Ended,
+    Cancelled,
+}
+#[cfg(feature = "full")]
+impl From<glutin::event::TouchPhase> for TouchPhase {
+    fn from(s: glutin::event::TouchPhase) -> Self {
+        match s {
+            glutin::event::TouchPhase::Started => Self::Started,
+            glutin::event::TouchPhase::Moved => Self::Moved,
+            glutin::event::TouchPhase::Ended => Self::Ended,
+            glutin::event::TouchPhase::Cancelled => Self::Cancelled,
+        }
+    }
+}
+
+/// Describes a difference in the mouse scroll wheel state.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum MouseScrollDelta {
+    /// Amount in lines or rows to scroll in the horizontal
+    /// and vertical directions.
+    ///
+    /// Positive values indicate movement forward
+    /// (away from the user) or rightwards.
+    LineDelta(f32, f32),
+    /// Amount in pixels to scroll in the horizontal and
+    /// vertical direction.
+    ///
+    /// Scroll events are expressed as a PixelDelta if
+    /// supported by the device (eg. a touchpad) and
+    /// platform.
+    PixelDelta(f32, f32),
+}
+#[cfg(feature = "full")]
+impl From<glutin::event::MouseScrollDelta> for MouseScrollDelta {
+    fn from(s: glutin::event::MouseScrollDelta) -> Self {
+        match s {
+            glutin::event::MouseScrollDelta::LineDelta(x, y) => Self::LineDelta(x, y),
+            glutin::event::MouseScrollDelta::PixelDelta(d) => Self::PixelDelta(d.x as f32, d.y as f32),
+        }
+    }
+}
+
+// Symbolic name for a keyboard key.
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[repr(u32)]
+#[allow(missing_docs)] // some of these are self-explanatory.
+pub enum Key {
+    /// The '1' key over the letters.
+    Key1,
+    /// The '2' key over the letters.
+    Key2,
+    /// The '3' key over the letters.
+    Key3,
+    /// The '4' key over the letters.
+    Key4,
+    /// The '5' key over the letters.
+    Key5,
+    /// The '6' key over the letters.
+    Key6,
+    /// The '7' key over the letters.
+    Key7,
+    /// The '8' key over the letters.
+    Key8,
+    /// The '9' key over the letters.
+    Key9,
+    /// The '0' key over the 'O' and 'P' keys.
+    Key0,
+
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
+
+    /// The Escape key, next to F1.
+    Escape,
+
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+    F13,
+    F14,
+    F15,
+    F16,
+    F17,
+    F18,
+    F19,
+    F20,
+    F21,
+    F22,
+    F23,
+    F24,
+
+    /// Print Screen/SysRq.
+    PrtScr,
+    ScrollLock,
+    /// Pause/Break key, next to Scroll lock.
+    Pause,
+
+    /// `Insert`, next to Backspace.
+    Insert,
+    Home,
+    Delete,
+    End,
+    PageDown,
+    PageUp,
+
+    Left,
+    Up,
+    Right,
+    Down,
+
+    /// The Backspace key, right over Enter.
+    Backspace,
+    /// The Return key.
+    Enter,
+    /// The space bar.
+    Space,
+
+    /// The "Compose" key on Linux.
+    Compose,
+
+    Caret,
+
+    NumLock,
+    Numpad0,
+    Numpad1,
+    Numpad2,
+    Numpad3,
+    Numpad4,
+    Numpad5,
+    Numpad6,
+    Numpad7,
+    Numpad8,
+    Numpad9,
+    NumpadAdd,
+    NumpadDivide,
+    NumpadDecimal,
+    NumpadComma,
+    NumpadEnter,
+    NumpadEquals,
+    NumpadMultiply,
+    NumpadSubtract,
+
+    AbntC1,
+    AbntC2,
+    Apostrophe,
+    Apps,
+    Asterisk,
+    At,
+    Ax,
+    Backslash,
+    Calculator,
+    CapsLock,
+    Colon,
+    Comma,
+    Convert,
+    Equals,
+    Grave,
+    Kana,
+    Kanji,
+    /// Left Alt
+    LAlt,
+    LBracket,
+    /// Left Control
+    LCtrl,
+    /// Left Shift
+    LShift,
+    LLogo,
+    Mail,
+    MediaSelect,
+    MediaStop,
+    Minus,
+    Mute,
+    MyComputer,
+    // also called "Next"
+    NavigateForward,
+    // also called "Prior"
+    NavigateBackward,
+    NextTrack,
+    NoConvert,
+    Oem102,
+    /// The '.' key, also called a dot.
+    Period,
+    PlayPause,
+    Plus,
+    Power,
+    PrevTrack,
+    /// Right Alt.
+    RAlt,
+    RBracket,
+    RControl,
+    RShift,
+    RLogo,
+    Semicolon,
+    Slash,
+    Sleep,
+    Stop,
+    Sysrq,
+    Tab,
+    Underline,
+    Unlabeled,
+    VolumeDown,
+    VolumeUp,
+    Wake,
+    WebBack,
+    WebFavorites,
+    WebForward,
+    WebHome,
+    WebRefresh,
+    WebSearch,
+    WebStop,
+    Yen,
+    Copy,
+    Paste,
+    Cut,
+}
+impl Key {
+    /// If the key is a modifier key.
+    pub fn is_modifier(self) -> bool {
+        matches!(
+            self,
+            Key::LAlt | Key::LCtrl | Key::LShift | Key::LLogo | Key::RAlt | Key::RControl | Key::RShift | Key::RLogo
+        )
+    }
+
+    /// If the key is left alt or right alt.
+    pub fn is_alt(self) -> bool {
+        matches!(self, Key::LAlt | Key::RAlt)
+    }
+
+    /// If the key is left ctrl or right ctrl.
+    pub fn is_ctrl(self) -> bool {
+        matches!(self, Key::LCtrl | Key::RControl)
+    }
+
+    /// If the key is left shift or right shift.
+    pub fn is_shift(self) -> bool {
+        matches!(self, Key::LShift | Key::RShift)
+    }
+
+    /// If the key is left logo or right logo.
+    pub fn is_logo(self) -> bool {
+        matches!(self, Key::LLogo | Key::RLogo)
+    }
+
+    /// If the key is a numpad key, includes numlock.
+    pub fn is_numpad(self) -> bool {
+        let key = self as u32;
+        key >= Key::NumLock as u32 && key <= Key::NumpadSubtract as u32
+    }
+}
+#[cfg(feature = "full")]
+use glutin::event::VirtualKeyCode as VKey;
+#[cfg(feature = "full")]
+impl From<VKey> for Key {
+    fn from(v_key: VKey) -> Self {
+        #[cfg(debug_assertions)]
+        let _assert = match v_key {
+            VKey::Key1 => Key::Key1,
+            VKey::Key2 => Key::Key2,
+            VKey::Key3 => Key::Key3,
+            VKey::Key4 => Key::Key4,
+            VKey::Key5 => Key::Key5,
+            VKey::Key6 => Key::Key6,
+            VKey::Key7 => Key::Key7,
+            VKey::Key8 => Key::Key8,
+            VKey::Key9 => Key::Key9,
+            VKey::Key0 => Key::Key0,
+            VKey::A => Key::A,
+            VKey::B => Key::B,
+            VKey::C => Key::C,
+            VKey::D => Key::D,
+            VKey::E => Key::E,
+            VKey::F => Key::F,
+            VKey::G => Key::G,
+            VKey::H => Key::H,
+            VKey::I => Key::I,
+            VKey::J => Key::J,
+            VKey::K => Key::K,
+            VKey::L => Key::L,
+            VKey::M => Key::M,
+            VKey::N => Key::N,
+            VKey::O => Key::O,
+            VKey::P => Key::P,
+            VKey::Q => Key::Q,
+            VKey::R => Key::R,
+            VKey::S => Key::S,
+            VKey::T => Key::T,
+            VKey::U => Key::U,
+            VKey::V => Key::V,
+            VKey::W => Key::W,
+            VKey::X => Key::X,
+            VKey::Y => Key::Y,
+            VKey::Z => Key::Z,
+            VKey::Escape => Key::Escape,
+            VKey::F1 => Key::F1,
+            VKey::F2 => Key::F2,
+            VKey::F3 => Key::F3,
+            VKey::F4 => Key::F4,
+            VKey::F5 => Key::F5,
+            VKey::F6 => Key::F6,
+            VKey::F7 => Key::F7,
+            VKey::F8 => Key::F8,
+            VKey::F9 => Key::F9,
+            VKey::F10 => Key::F10,
+            VKey::F11 => Key::F11,
+            VKey::F12 => Key::F12,
+            VKey::F13 => Key::F13,
+            VKey::F14 => Key::F14,
+            VKey::F15 => Key::F15,
+            VKey::F16 => Key::F16,
+            VKey::F17 => Key::F17,
+            VKey::F18 => Key::F18,
+            VKey::F19 => Key::F19,
+            VKey::F20 => Key::F20,
+            VKey::F21 => Key::F21,
+            VKey::F22 => Key::F22,
+            VKey::F23 => Key::F23,
+            VKey::F24 => Key::F24,
+            VKey::Snapshot => Key::PrtScr,
+            VKey::Scroll => Key::ScrollLock,
+            VKey::Pause => Key::Pause,
+            VKey::Insert => Key::Insert,
+            VKey::Home => Key::Home,
+            VKey::Delete => Key::Delete,
+            VKey::End => Key::End,
+            VKey::PageDown => Key::PageDown,
+            VKey::PageUp => Key::PageUp,
+            VKey::Left => Key::Left,
+            VKey::Up => Key::Up,
+            VKey::Right => Key::Right,
+            VKey::Down => Key::Down,
+            VKey::Back => Key::Backspace,
+            VKey::Return => Key::Enter,
+            VKey::Space => Key::Space,
+            VKey::Compose => Key::Compose,
+            VKey::Caret => Key::Caret,
+            VKey::Numlock => Key::NumLock,
+            VKey::Numpad0 => Key::Numpad0,
+            VKey::Numpad1 => Key::Numpad1,
+            VKey::Numpad2 => Key::Numpad2,
+            VKey::Numpad3 => Key::Numpad3,
+            VKey::Numpad4 => Key::Numpad4,
+            VKey::Numpad5 => Key::Numpad5,
+            VKey::Numpad6 => Key::Numpad6,
+            VKey::Numpad7 => Key::Numpad7,
+            VKey::Numpad8 => Key::Numpad8,
+            VKey::Numpad9 => Key::Numpad9,
+            VKey::NumpadAdd => Key::NumpadAdd,
+            VKey::NumpadDivide => Key::NumpadDivide,
+            VKey::NumpadDecimal => Key::NumpadDecimal,
+            VKey::NumpadComma => Key::NumpadComma,
+            VKey::NumpadEnter => Key::NumpadEnter,
+            VKey::NumpadEquals => Key::NumpadEquals,
+            VKey::NumpadMultiply => Key::NumpadMultiply,
+            VKey::NumpadSubtract => Key::NumpadSubtract,
+            VKey::AbntC1 => Key::AbntC1,
+            VKey::AbntC2 => Key::AbntC2,
+            VKey::Apostrophe => Key::Apostrophe,
+            VKey::Apps => Key::Apps,
+            VKey::Asterisk => Key::Asterisk,
+            VKey::At => Key::At,
+            VKey::Ax => Key::Ax,
+            VKey::Backslash => Key::Backslash,
+            VKey::Calculator => Key::Calculator,
+            VKey::Capital => Key::CapsLock,
+            VKey::Colon => Key::Colon,
+            VKey::Comma => Key::Comma,
+            VKey::Convert => Key::Convert,
+            VKey::Equals => Key::Equals,
+            VKey::Grave => Key::Grave,
+            VKey::Kana => Key::Kana,
+            VKey::Kanji => Key::Kanji,
+            VKey::LAlt => Key::LAlt,
+            VKey::LBracket => Key::LBracket,
+            VKey::LControl => Key::LCtrl,
+            VKey::LShift => Key::LShift,
+            VKey::LWin => Key::LLogo,
+            VKey::Mail => Key::Mail,
+            VKey::MediaSelect => Key::MediaSelect,
+            VKey::MediaStop => Key::MediaStop,
+            VKey::Minus => Key::Minus,
+            VKey::Mute => Key::Mute,
+            VKey::MyComputer => Key::MyComputer,
+            VKey::NavigateForward => Key::NavigateForward,
+            VKey::NavigateBackward => Key::NavigateBackward,
+            VKey::NextTrack => Key::NextTrack,
+            VKey::NoConvert => Key::NoConvert,
+            VKey::OEM102 => Key::Oem102,
+            VKey::Period => Key::Period,
+            VKey::PlayPause => Key::PlayPause,
+            VKey::Plus => Key::Plus,
+            VKey::Power => Key::Power,
+            VKey::PrevTrack => Key::PrevTrack,
+            VKey::RAlt => Key::RAlt,
+            VKey::RBracket => Key::RBracket,
+            VKey::RControl => Key::RControl,
+            VKey::RShift => Key::RShift,
+            VKey::RWin => Key::RLogo,
+            VKey::Semicolon => Key::Semicolon,
+            VKey::Slash => Key::Slash,
+            VKey::Sleep => Key::Sleep,
+            VKey::Stop => Key::Stop,
+            VKey::Sysrq => Key::Sysrq,
+            VKey::Tab => Key::Tab,
+            VKey::Underline => Key::Underline,
+            VKey::Unlabeled => Key::Unlabeled,
+            VKey::VolumeDown => Key::VolumeDown,
+            VKey::VolumeUp => Key::VolumeUp,
+            VKey::Wake => Key::Wake,
+            VKey::WebBack => Key::WebBack,
+            VKey::WebFavorites => Key::WebFavorites,
+            VKey::WebForward => Key::WebForward,
+            VKey::WebHome => Key::WebHome,
+            VKey::WebRefresh => Key::WebRefresh,
+            VKey::WebSearch => Key::WebSearch,
+            VKey::WebStop => Key::WebStop,
+            VKey::Yen => Key::Yen,
+            VKey::Copy => Key::Copy,
+            VKey::Paste => Key::Paste,
+            VKey::Cut => Key::Cut,
+        };
+        // SAFETY: If the `match` above compiles then we have an exact copy of VKey.
+        unsafe { std::mem::transmute(v_key) }
+    }
+}
+#[cfg(feature = "full")]
+impl From<Key> for VKey {
+    fn from(key: Key) -> Self {
+        // SAFETY: This is safe if `From<VKey> for Key` is safe.
+        unsafe { std::mem::transmute(key) }
+    }
+}
+
+/// Describes the appearance of the mouse cursor.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CursorIcon {
+    /// The platform-dependent default cursor.
+    Default,
+    /// A simple crosshair.
+    Crosshair,
+    /// A hand (often used to indicate links in web browsers).
+    Hand,
+    /// Self explanatory.
+    Arrow,
+    /// Indicates something is to be moved.
+    Move,
+    /// Indicates text that may be selected or edited.
+    Text,
+    /// Program busy indicator.
+    Wait,
+    /// Help indicator (often rendered as a "?")
+    Help,
+    /// Progress indicator. Shows that processing is being done. But in contrast
+    /// with "Wait" the user may still interact with the program. Often rendered
+    /// as a spinning beach ball, or an arrow with a watch or hourglass.
+    Progress,
+
+    /// Cursor showing that something cannot be done.
+    NotAllowed,
+    ContextMenu,
+    Cell,
+    VerticalText,
+    Alias,
+    Copy,
+    NoDrop,
+    /// Indicates something can be grabbed.
+    Grab,
+    /// Indicates something is grabbed.
+    Grabbing,
+    AllScroll,
+    ZoomIn,
+    ZoomOut,
+
+    /// Indicate that some edge is to be moved. For example, the 'SeResize' cursor
+    /// is used when the movement starts from the south-east corner of the box.
+    EResize,
+    NResize,
+    NeResize,
+    NwResize,
+    SResize,
+    SeResize,
+    SwResize,
+    WResize,
+    EwResize,
+    NsResize,
+    NeswResize,
+    NwseResize,
+    ColResize,
+    RowResize,
+}
+impl Default for CursorIcon {
+    fn default() -> Self {
+        CursorIcon::Default
+    }
+}
+#[cfg(feature = "full")]
+use glutin::window::CursorIcon as WCursorIcon;
+#[cfg(feature = "full")]
+impl From<WCursorIcon> for CursorIcon {
+    fn from(s: WCursorIcon) -> Self {
+        let _assert = match s {
+            WCursorIcon::Default => CursorIcon::Default,
+            WCursorIcon::Crosshair => CursorIcon::Crosshair,
+            WCursorIcon::Hand => CursorIcon::Hand,
+            WCursorIcon::Arrow => CursorIcon::Arrow,
+            WCursorIcon::Move => CursorIcon::Move,
+            WCursorIcon::Text => CursorIcon::Text,
+            WCursorIcon::Wait => CursorIcon::Wait,
+            WCursorIcon::Help => CursorIcon::Help,
+            WCursorIcon::Progress => CursorIcon::Progress,
+            WCursorIcon::NotAllowed => CursorIcon::NotAllowed,
+            WCursorIcon::ContextMenu => CursorIcon::ContextMenu,
+            WCursorIcon::Cell => CursorIcon::Cell,
+            WCursorIcon::VerticalText => CursorIcon::VerticalText,
+            WCursorIcon::Alias => CursorIcon::Alias,
+            WCursorIcon::Copy => CursorIcon::Copy,
+            WCursorIcon::NoDrop => CursorIcon::NoDrop,
+            WCursorIcon::Grab => CursorIcon::Grab,
+            WCursorIcon::Grabbing => CursorIcon::Grabbing,
+            WCursorIcon::AllScroll => CursorIcon::AllScroll,
+            WCursorIcon::ZoomIn => CursorIcon::ZoomIn,
+            WCursorIcon::ZoomOut => CursorIcon::ZoomOut,
+            WCursorIcon::EResize => CursorIcon::EResize,
+            WCursorIcon::NResize => CursorIcon::NResize,
+            WCursorIcon::NeResize => CursorIcon::NeResize,
+            WCursorIcon::NwResize => CursorIcon::NwResize,
+            WCursorIcon::SResize => CursorIcon::SResize,
+            WCursorIcon::SeResize => CursorIcon::SeResize,
+            WCursorIcon::SwResize => CursorIcon::SwResize,
+            WCursorIcon::WResize => CursorIcon::WResize,
+            WCursorIcon::EwResize => CursorIcon::EwResize,
+            WCursorIcon::NsResize => CursorIcon::NsResize,
+            WCursorIcon::NeswResize => CursorIcon::NeswResize,
+            WCursorIcon::NwseResize => CursorIcon::NwseResize,
+            WCursorIcon::ColResize => CursorIcon::ColResize,
+            WCursorIcon::RowResize => CursorIcon::RowResize,
+        };
+
+        // SAFETY: If the `match` above compiles then we have an exact copy of VKey.
+        unsafe { std::mem::transmute(s) }
+    }
+}
+#[cfg(feature = "full")]
+impl From<CursorIcon> for WCursorIcon {
+    fn from(c: CursorIcon) -> Self {
+        // SAFETY: This is safe if `From<WCursorIcon> for CursorIcon` is safe.
+        unsafe { std::mem::transmute(c) }
+    }
+}
+
 /// System/User events sent from the View Process.
 #[repr(u32)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,13 +777,13 @@ pub enum Ev {
     HoveredFileCancelled(WinId),
     ReceivedCharacter(WinId, char),
     Focused(WinId, bool),
-    KeyboardInput(WinId, DevId, KeyboardInput),
+    KeyboardInput(WinId, DevId, ScanCode, KeyState, Option<Key>),
     ModifiersChanged(WinId, ModifiersState),
     CursorMoved(WinId, DevId, LayoutPoint, HitTestResult, Epoch),
     CursorEntered(WinId, DevId),
     CursorLeft(WinId, DevId),
     MouseWheel(WinId, DevId, MouseScrollDelta, TouchPhase),
-    MouseInput(WinId, DevId, ElementState, MouseButton),
+    MouseInput(WinId, DevId, ButtonState, MouseButton),
     TouchpadPressure(WinId, DevId, f32, i64),
     AxisMotion(WinId, DevId, AxisId, f64),
     Touch(WinId, DevId, TouchPhase, LayoutPoint, Option<Force>, u64),
@@ -102,8 +806,8 @@ pub enum Ev {
     DeviceMouseMotion(DevId, (f64, f64)),
     DeviceMouseWheel(DevId, MouseScrollDelta),
     DeviceMotion(DevId, AxisId, f64),
-    DeviceButton(DevId, ButtonId, ElementState),
-    DeviceKey(DevId, KeyboardInput),
+    DeviceButton(DevId, ButtonId, ButtonState),
+    DeviceKey(DevId, ScanCode, KeyState, Option<Key>),
     DeviceText(DevId, char),
 }
 

@@ -1034,14 +1034,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowFocusArgs::now(self.window_id(w_id), focused);
                 self.notify_event(RawWindowFocusEvent, args, observer);
             }
-            zero_ui_vp::Ev::KeyboardInput(w_id, d_id, input) => {
-                let args = RawKeyInputArgs::now(
-                    self.window_id(w_id),
-                    self.device_id(d_id),
-                    input.scancode,
-                    input.state,
-                    input.virtual_keycode.map(Into::into),
-                );
+            zero_ui_vp::Ev::KeyboardInput(w_id, d_id, scan_code, state, key) => {
+                let args = RawKeyInputArgs::now(self.window_id(w_id), self.device_id(d_id), scan_code, state, key);
                 self.notify_event(RawKeyInputEvent, args, observer);
             }
             zero_ui_vp::Ev::ModifiersChanged(w_id, state) => {
@@ -1156,8 +1150,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = ButtonArgs::now(self.device_id(d_id), button, state);
                 self.notify_event(ButtonEvent, args, observer);
             }
-            zero_ui_vp::Ev::DeviceKey(d_id, k) => {
-                let args = KeyArgs::now(self.device_id(d_id), k.scancode, k.state, k.virtual_keycode.map(Into::into));
+            zero_ui_vp::Ev::DeviceKey(d_id, scan_code, state, key) => {
+                let args = KeyArgs::now(self.device_id(d_id), scan_code, state, key);
                 self.notify_event(KeyEvent, args, observer);
             }
             zero_ui_vp::Ev::DeviceText(d_id, c) => {

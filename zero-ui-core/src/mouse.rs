@@ -20,7 +20,7 @@ use crate::{
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
-pub use zero_ui_vp::{MouseButton, MultiClickConfig};
+pub use zero_ui_vp::{ButtonState, MouseButton, MultiClickConfig};
 
 event_args! {
     /// [`MouseMoveEvent`] event args.
@@ -427,22 +427,6 @@ enum ClickState {
     },
 }
 
-/// State a mouse button has entered.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ButtonState {
-    /// The button was pressed.
-    Pressed,
-    /// The button was released.
-    Released,
-}
-impl From<zero_ui_vp::ElementState> for ButtonState {
-    fn from(s: zero_ui_vp::ElementState) -> Self {
-        match s {
-            zero_ui_vp::ElementState::Pressed => ButtonState::Pressed,
-            zero_ui_vp::ElementState::Released => ButtonState::Released,
-        }
-    }
-}
 impl MouseManager {
     fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ButtonState, button: MouseButton, ctx: &mut AppContext) {
         let position = if self.pos_window == Some(window_id) {
