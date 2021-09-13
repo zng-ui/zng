@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 pub use serde_bytes::ByteBuf;
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
-use webrender::api::units::{LayoutPoint, LayoutSize};
-use webrender::api::{BuiltDisplayListDescriptor, ColorF, Epoch, HitTestResult, PipelineId};
+use webrender_api::units::{LayoutPoint, LayoutSize};
+use webrender_api::{BuiltDisplayListDescriptor, ColorF, Epoch, HitTestResult, PipelineId};
 
 /// Window ID in channel.
 ///
@@ -852,6 +852,7 @@ pub enum Force {
     /// press really really hard, or not hard at all, depending on the device.
     Normalized(f64),
 }
+#[cfg(feature = "full")]
 impl From<glutin::event::Force> for Force {
     fn from(f: glutin::event::Force) -> Self {
         match f {
@@ -878,6 +879,7 @@ pub enum WindowTheme {
     /// Light text on dark background.
     Dark,
 }
+#[cfg(feature = "full")]
 impl From<glutin::window::Theme> for WindowTheme {
     fn from(t: glutin::window::Theme) -> Self {
         match t {
@@ -1096,6 +1098,7 @@ impl MonitorInfo {
         LayoutSize::new(self.size.0 as f32 / self.scale_factor, self.size.1 as f32 / self.scale_factor)
     }
 }
+#[cfg(feature = "full")]
 impl<'a> From<&'a glutin::monitor::MonitorHandle> for MonitorInfo {
     fn from(m: &'a glutin::monitor::MonitorHandle) -> Self {
         let pos = m.position();
@@ -1110,6 +1113,7 @@ impl<'a> From<&'a glutin::monitor::MonitorHandle> for MonitorInfo {
         }
     }
 }
+#[cfg(feature = "full")]
 impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
     fn from(m: glutin::monitor::MonitorHandle) -> Self {
         (&m).into()
@@ -1132,6 +1136,7 @@ pub struct VideoMode {
     /// Note: the returned refresh rate is an integer approximation, and you shouldn’t rely on this value to be exact.
     pub refresh_rate: u16,
 }
+#[cfg(feature = "full")]
 impl From<glutin::monitor::VideoMode> for VideoMode {
     fn from(v: glutin::monitor::VideoMode) -> Self {
         let size = v.size();
@@ -1162,20 +1167,6 @@ impl Default for MultiClickConfig {
         Self {
             time: Duration::from_millis(500),
             area: (4, 4),
-        }
-    }
-}
-
-pub(crate) struct RunOnDrop<F: FnOnce()>(Option<F>);
-impl<F: FnOnce()> RunOnDrop<F> {
-    pub fn new(clean: F) -> Self {
-        RunOnDrop(Some(clean))
-    }
-}
-impl<F: FnOnce()> Drop for RunOnDrop<F> {
-    fn drop(&mut self) {
-        if let Some(clean) = self.0.take() {
-            clean();
         }
     }
 }

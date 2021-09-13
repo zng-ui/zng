@@ -22,8 +22,8 @@ use webrender::{
 
 use crate::{
     config,
-    types::{FramePixels, RunOnDrop, ScanCode},
-    util::{self, GlContext},
+    types::{FramePixels, ScanCode},
+    util::{self, GlContext, RunOnDrop},
     AppEvent, AppEventSender, Context, Ev, FrameRequest, Key, KeyState, TextAntiAliasing, ViewProcessGen, WinId, WindowConfig,
 };
 

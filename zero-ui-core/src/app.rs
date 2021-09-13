@@ -74,6 +74,8 @@ use view_process::ViewProcessExt;
 ///
 /// Just be careful more code does not get added before `App::default` later.
 #[inline]
+#[cfg(feature = "vp_full")]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "vp_full")))]
 pub fn init_view_process() {
     zero_ui_vp::init_view_process();
 }
@@ -109,6 +111,8 @@ pub fn init_view_process() {
 /// }
 /// ```
 #[inline]
+#[cfg(feature = "vp_full")]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "vp_full")))]
 pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     zero_ui_vp::run_same_process(run_app)
 }
@@ -552,6 +556,7 @@ impl App {
 impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        #[cfg(feature = "full")]
         init_view_process();
         DebugLogger::init();
         AppExtended {

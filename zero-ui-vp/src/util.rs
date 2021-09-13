@@ -1,20 +1,27 @@
+#[cfg(feature = "full")]
 use std::{cell::Cell, rc::Rc};
 
+#[cfg(feature = "full")]
 use gleam::gl;
+#[cfg(feature = "full")]
 use glutin::{ContextWrapper, NotCurrent, PossiblyCurrent};
+#[cfg(feature = "full")]
 use serde_bytes::ByteBuf;
-use webrender::api::units::{LayoutRect, LayoutSize};
-
+#[cfg(feature = "full")]
+use webrender_api::units::{LayoutRect, LayoutSize};
+#[cfg(feature = "full")]
 use crate::{FramePixels, WinId};
 
 pub type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// Managed headed Open-GL context.
+#[cfg(feature = "full")]
 pub(crate) struct GlContext {
     id: WinId,
     ctx: Option<ContextWrapper<PossiblyCurrent, ()>>,
     current: Rc<Cell<Option<WinId>>>,
 }
+#[cfg(feature = "full")]
 impl GlContext {
     /// Gets the context as current.
     ///
@@ -50,6 +57,7 @@ impl GlContext {
         }
     }
 }
+#[cfg(feature = "full")]
 impl Drop for GlContext {
     fn drop(&mut self) {
         if self.ctx.is_some() {
@@ -59,11 +67,13 @@ impl Drop for GlContext {
 }
 
 /// Managed headless Open-GL context.
+#[cfg(feature = "full")]
 pub(crate) struct GlHeadlessContext {
     id: WinId,
     ctx: Option<glutin::Context<PossiblyCurrent>>,
     current: Rc<Cell<Option<WinId>>>,
 }
+#[cfg(feature = "full")]
 impl GlHeadlessContext {
     /// Gets the context as current.
     ///
@@ -86,6 +96,7 @@ impl GlHeadlessContext {
         self.ctx.as_mut().unwrap()
     }
 }
+#[cfg(feature = "full")]
 impl Drop for GlHeadlessContext {
     fn drop(&mut self) {
         if self.current.get() == Some(self.id) {
@@ -99,9 +110,11 @@ impl Drop for GlHeadlessContext {
 
 /// Manages the "current" glutin OpenGL context.
 #[derive(Default)]
+#[cfg(feature = "full")]
 pub(crate) struct GlContextManager {
     current: Rc<Cell<Option<WinId>>>,
 }
+#[cfg(feature = "full")]
 impl GlContextManager {
     pub fn manage_headed(&self, id: WinId, ctx: glutin::RawContext<NotCurrent>) -> GlContext {
         GlContext {
@@ -120,6 +133,7 @@ impl GlContextManager {
     }
 }
 
+#[cfg(feature = "full")]
 /// Read a selection of pixels of the current frame.
 ///
 /// This is a call to `glReadPixels`, the pixel row order is bottom-to-top and the pixel type is BGRA.
@@ -179,7 +193,7 @@ pub(crate) fn read_pixels_rect(gl: &Rc<dyn gl::Gl>, max_size: LayoutSize, scale_
 ///
 /// [`raw_events`]: crate::app::raw_events
 /// [`SUBCLASSPROC`]: https://docs.microsoft.com/en-us/windows/win32/api/commctrl/nc-commctrl-subclassproc
-#[cfg(windows)]
+#[cfg(all(windows, feature = "full"))]
 pub fn set_raw_windows_event_handler<
     H: FnMut(
             winapi::shared::windef::HWND,
@@ -206,7 +220,7 @@ pub fn set_raw_windows_event_handler<
         ) != 0
     }
 }
-#[cfg(windows)]
+#[cfg(all(windows, feature = "full"))]
 unsafe extern "system" fn subclass_raw_event_proc<
     H: FnMut(
             winapi::shared::windef::HWND,
@@ -241,6 +255,24 @@ unsafe extern "system" fn subclass_raw_event_proc<
         }
     }
 }
+
+#[cfg(feature = "full")]
+pub(crate) struct RunOnDrop<F: FnOnce()>(Option<F>);
+#[cfg(feature = "full")]
+impl<F: FnOnce()> RunOnDrop<F> {
+    pub fn new(clean: F) -> Self {
+        RunOnDrop(Some(clean))
+    }
+}
+#[cfg(feature = "full")]
+impl<F: FnOnce()> Drop for RunOnDrop<F> {
+    fn drop(&mut self) {
+        if let Some(clean) = self.0.take() {
+            clean();
+        }
+    }
+}
+
 
 /*
 use io::Write;

@@ -47,6 +47,7 @@ impl AppInit {
 }
 
 /// Start the view-process server and waits for `(request, response, event)`.
+#[cfg(feature = "full")]
 pub(crate) fn connect_view_process(server_name: String) -> (RequestReceiver, ResponseSender, EvSender) {
     let app_init_sender = IpcSender::connect(server_name).expect("failed to connect to init channel");
 
@@ -71,14 +72,17 @@ impl RequestSender {
         self.0.send(req).map_err(handle_send_error)
     }
 }
+#[cfg(feature = "full")]
 pub(crate) struct RequestReceiver(IpcReceiver<Request>);
+#[cfg(feature = "full")]
 impl RequestReceiver {
     pub fn recv(&mut self) -> Result<Request> {
         self.0.recv().map_err(handle_recv_error)
     }
 }
-
+#[cfg(feature = "full")]
 pub(crate) struct ResponseSender(IpcSender<Response>);
+#[cfg(feature = "full")]
 impl ResponseSender {
     pub fn send(&mut self, rsp: Response) -> Result<()> {
         self.0.send(rsp).map_err(handle_send_error)
@@ -91,7 +95,9 @@ impl ResponseReceiver {
     }
 }
 
+#[cfg(feature = "full")]
 pub(crate) struct EvSender(IpcSender<Ev>);
+#[cfg(feature = "full")]
 impl EvSender {
     pub fn send(&mut self, ev: Ev) -> Result<()> {
         self.0.send(ev).map_err(handle_send_error)
@@ -122,6 +128,9 @@ fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "full"))]
+    compile_error!("can only test with `full` feature enabled");
+
     use std::thread;
 
     use super::*;
