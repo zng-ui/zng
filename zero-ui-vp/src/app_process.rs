@@ -1,8 +1,14 @@
-use std::{path::{Path, PathBuf}, panic, sync::Arc, thread::{self, JoinHandle}, time::{Duration, Instant}};
+use std::{
+    panic,
+    path::{Path, PathBuf},
+    sync::Arc,
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
+};
 
 use parking_lot::{Condvar, Mutex};
 
-use crate::{Ev, MODE_VAR, Request, Respawned, Response, Result, SERVER_NAME_VAR, ViewProcessGen, ipc, util};
+use crate::{ipc, util, Ev, Request, Respawned, Response, Result, ViewProcessGen, MODE_VAR, SERVER_NAME_VAR};
 
 /// The listener returns the closure on join for reuse in respawn.
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
@@ -15,7 +21,7 @@ type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
 /// then the current process [exits] with code 0 on drop.
 ///
 /// [killed]: std::process::Child::kill
-/// [same process mode]: run_same_process
+/// [same process mode]: crate::run_same_process
 /// [exits]: std::process::exit
 pub struct Controller {
     process: Option<duct::Handle>,
@@ -48,6 +54,7 @@ impl Controller {
     ///
     /// [`current_exe`]: std::env::current_exe
     /// [`init_view_process`]: crate::init_view_process
+    /// [`run_same_process`]: crate::run_same_process
     /// [`VERSION`]: crate::VERSION
     pub fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, mut on_event: F) -> Self
     where

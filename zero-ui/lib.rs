@@ -892,7 +892,7 @@ pub mod prelude {
 
     #[doc(no_inline)]
     pub use crate::core::{
-        app::App,        
+        app::App,
         async_clone_move,
         border::{BorderSides, BorderStyle, LineOrientation},
         clone_move,

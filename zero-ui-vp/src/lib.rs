@@ -5,6 +5,8 @@
 //! with the app process is done using `ipmpsc`.
 
 #![allow(unused_parens)]
+#![warn(missing_docs)]
+#![warn(unused_extern_crates)]
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
 
 use std::time::Duration;
@@ -29,12 +31,12 @@ mod headless;
 #[cfg(feature = "full")]
 mod window;
 
+mod app_process;
 mod ipc;
 mod types;
-mod app_process;
 
-pub use types::*;
 pub use app_process::*;
+pub use types::*;
 
 use webrender_api::{
     units::{LayoutPoint, LayoutRect, LayoutSize},
@@ -482,4 +484,3 @@ declare_ipc! {
         panic!("TEST CRASH")
     }
 }
-

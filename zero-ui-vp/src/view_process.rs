@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use std::{env, thread};
@@ -13,7 +13,7 @@ use webrender_api::units::{LayoutPoint, LayoutSize};
 
 use crate::headless::ViewHeadless;
 use crate::window::ViewWindow;
-use crate::{MODE_VAR, Request, Response, SAME_PROCESS_CONFIG, SERVER_NAME_VAR, SameProcessConfig, config, ipc, types::*, util};
+use crate::{config, ipc, types::*, util, Request, Response, SameProcessConfig, MODE_VAR, SAME_PROCESS_CONFIG, SERVER_NAME_VAR};
 
 #[cfg_attr(doc_nightly, doc(cfg(feature = "full")))]
 /// Call this function before anything else in the app `main` function.
@@ -82,8 +82,6 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     let config = config.take().unwrap();
     run(config.server_name, config.headless, Some(app_thread))
 }
-
-
 
 /// The View Process.
 #[cfg(feature = "full")]
@@ -359,7 +357,7 @@ impl<E: AppEventSender> ViewApp<E> {
                 self.notify(Ev::Touch(id, d_id, t.phase.into(), location, t.force.map(Into::into), t.id));
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => self.notify(Ev::ScaleFactorChanged(id, scale_factor as f32)),
-            WindowEvent::ThemeChanged(t) => self.notify(Ev::ThemeChanged(id, t.into())),
+            WindowEvent::ThemeChanged(t) => self.notify(Ev::WindowThemeChanged(id, t.into())),
         }
     }
 
@@ -456,7 +454,6 @@ impl<E: AppEventSender> ViewApp<E> {
         }
     }
 }
-
 
 /// Start the event loop in the View Process.
 fn run(server_name: String, headless: bool, mut same_process_app: Option<JoinHandle<()>>) -> ! {

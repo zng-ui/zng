@@ -2,7 +2,7 @@
 
 use zero_ui::prelude::*;
 
-use std::path::PathBuf; 
+use std::path::PathBuf;
 
 /// Created by `build.rs`.
 fn view_process() -> PathBuf {

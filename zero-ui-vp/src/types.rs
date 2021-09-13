@@ -159,9 +159,13 @@ impl From<glutin::event::MouseButton> for MouseButton {
 /// Describes touch-screen input state.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum TouchPhase {
+    /// A finger touched the screen.
     Started,
+    /// A finger moved on the screen.
     Moved,
+    /// A finger was lifted from the screen.
     Ended,
+    /// The system cancelled tracking for the touch.
     Cancelled,
 }
 #[cfg(feature = "full")]
@@ -203,7 +207,7 @@ impl From<glutin::event::MouseScrollDelta> for MouseScrollDelta {
     }
 }
 
-// Symbolic name for a keyboard key.
+/// Symbolic name for a keyboard key.
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[repr(u32)]
 #[allow(missing_docs)] // some of these are self-explanatory.
@@ -639,7 +643,7 @@ pub enum CursorIcon {
     Arrow,
     /// Indicates something is to be moved.
     Move,
-    /// Indicates text that may be selected or edited.
+    /// Indicates horizontal text that may be selected or edited.
     Text,
     /// Program busy indicator.
     Wait,
@@ -652,35 +656,56 @@ pub enum CursorIcon {
 
     /// Cursor showing that something cannot be done.
     NotAllowed,
+    /// Indicates that a context menu is available.
     ContextMenu,
+    /// Indicates a table cell or set of cells can be selected.
     Cell,
+    /// Indicates vertical text that may be selected or edited.
     VerticalText,
+    /// Indicates an alias or shortcut is to be created.
     Alias,
+    /// Indicates something is to be copied.
     Copy,
+    /// An item may not be dropped at the current location.
     NoDrop,
     /// Indicates something can be grabbed.
     Grab,
     /// Indicates something is grabbed.
     Grabbing,
+    /// Something can be scrolled in any direction (panned).
     AllScroll,
+    /// Something can be zoomed (magnified) in.
     ZoomIn,
+    /// Something can be zoomed (magnified) out.
     ZoomOut,
 
-    /// Indicate that some edge is to be moved. For example, the 'SeResize' cursor
-    /// is used when the movement starts from the south-east corner of the box.
+    /// Indicate that the right vertical edge is to be moved left/right.
     EResize,
+    /// Indicates that the top horizontal edge is to be moved up/down.
     NResize,
+    /// Indicates that top-right corner is to be moved.
     NeResize,
+    /// Indicates that the top-left corner is to be moved.
     NwResize,
+    /// Indicates that the bottom vertical edge is to be moved up/down.
     SResize,
+    /// Indicates that the bottom-right corner is to be moved.
     SeResize,
+    /// Indicates that the bottom-left corner is to be moved.
     SwResize,
+    /// Indicates that the left vertical edge is to be moved left/right.
     WResize,
+    /// Indicates that the any of the vertical edges is to be moved left/right.
     EwResize,
+    /// Indicates that the any of the horizontal edges is to be moved up/down.
     NsResize,
+    /// Indicates that the top-right or bottom-left corners are to be moved.
     NeswResize,
+    /// Indicates that the top-left or bottom-right corners are to be moved.
     NwseResize,
+    /// Indicates that the item/column can be resized horizontally.
     ColResize,
+    /// Indicates that the item/row can be resized vertically.
     RowResize,
 }
 impl Default for CursorIcon {
@@ -769,45 +794,100 @@ pub enum Ev {
     /// `EventsCleared` is not send after this event.
     FrameRendered(WinId, Epoch),
 
-    // Window events
+    /// The size of the window has changed. Contains the client area’s new dimensions.
+    ///
+    /// The [`EventCause`] can be used to identify a resize initiated by the app.
     WindowResized(WinId, LayoutSize, EventCause),
+    /// The position of the window has changed. Contains the window’s new position.
+    ///
+    /// The [`EventCause`] can be used to identify a move initiated by the app.
     WindowMoved(WinId, LayoutPoint, EventCause),
+    /// A file has been dropped into the window.
+    ///
+    /// When the user drops multiple files at once, this event will be emitted for each file separately.
     DroppedFile(WinId, PathBuf),
+    /// A file is being hovered over the window.
+    ///
+    /// When the user hovers multiple files at once, this event will be emitted for each file separately.
     HoveredFile(WinId, PathBuf),
+    /// A file was hovered, but has exited the window.
+    ///
+    /// There will be a single event triggered even if multiple files were hovered.
     HoveredFileCancelled(WinId),
+    /// The window received a Unicode character.
     ReceivedCharacter(WinId, char),
+    /// The window gained or lost focus.
+    ///
+    /// The parameter is true if the window has gained focus, and false if it has lost focus.
     Focused(WinId, bool),
+    /// An event from the keyboard has been received.
     KeyboardInput(WinId, DevId, ScanCode, KeyState, Option<Key>),
+    /// The keyboard modifiers have changed.
     ModifiersChanged(WinId, ModifiersState),
+    /// The cursor has moved on the window.
+    ///
+    /// Contains a hit-test of the point and the frame epoch that was hit.
     CursorMoved(WinId, DevId, LayoutPoint, HitTestResult, Epoch),
+
+    /// The cursor has entered the window.
     CursorEntered(WinId, DevId),
+    /// The cursor has left the window.
     CursorLeft(WinId, DevId),
+    /// A mouse wheel movement or touchpad scroll occurred.
     MouseWheel(WinId, DevId, MouseScrollDelta, TouchPhase),
+    /// An mouse button press has been received.
     MouseInput(WinId, DevId, ButtonState, MouseButton),
+    /// Touchpad pressure event.
     TouchpadPressure(WinId, DevId, f32, i64),
+    /// Motion on some analog axis. May report data redundant to other, more specific events.
     AxisMotion(WinId, DevId, AxisId, f64),
+    /// Touch event has been received.
     Touch(WinId, DevId, TouchPhase, LayoutPoint, Option<Force>, u64),
+    /// The window’s scale factor has changed.
     ScaleFactorChanged(WinId, f32),
+
+    /// The available monitors have changed.
     MonitorsChanged(Vec<(MonId, MonitorInfo)>),
-    ThemeChanged(WinId, WindowTheme),
+
+    /// The system window theme has changed.
+    WindowThemeChanged(WinId, WindowTheme),
+    /// The window has been requested to close.
     WindowCloseRequested(WinId),
+    /// The window has closed.
     WindowClosed(WinId),
 
     // Config events
+    /// System fonts have changed.
     FontsChanged,
+    /// System text-antialiasing configuration has changed.
     TextAaChanged(TextAntiAliasing),
+    /// System double-click definition changed.
     MultiClickConfigChanged(MultiClickConfig),
+    /// System animation enabled config changed.
     AnimationEnabledChanged(bool),
+    /// System definition of pressed key repeat event changed.
     KeyRepeatDelayChanged(Duration),
 
     // Raw device events
+    /// Device added or installed.
     DeviceAdded(DevId),
+    /// Device removed.
     DeviceRemoved(DevId),
+    /// Mouse pointer motion.
+    ///
+    /// The values if the delta of movement (x, y), not position.
     DeviceMouseMotion(DevId, (f64, f64)),
+    /// Mouse scroll wheel turn.
     DeviceMouseWheel(DevId, MouseScrollDelta),
+    /// Motion on some analog axis.
+    ///
+    /// This includes the mouse device and any other that fits.
     DeviceMotion(DevId, AxisId, f64),
+    /// Device button press or release.
     DeviceButton(DevId, ButtonId, ButtonState),
+    /// Device key press or release.
     DeviceKey(DevId, ScanCode, KeyState, Option<Key>),
+    /// Device Unicode character input.
     DeviceText(DevId, char),
 }
 
@@ -889,10 +969,14 @@ impl From<glutin::window::Theme> for WindowTheme {
     }
 }
 
+/// Window icon.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Icon {
+    /// RGBA8 data.
     pub rgba: ByteBuf,
+    /// Pixel width.
     pub width: u32,
+    /// Pixel height.
     pub height: u32,
 }
 impl fmt::Debug for Icon {

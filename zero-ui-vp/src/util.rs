@@ -2,6 +2,8 @@
 use std::{cell::Cell, rc::Rc};
 
 #[cfg(feature = "full")]
+use crate::{FramePixels, WinId};
+#[cfg(feature = "full")]
 use gleam::gl;
 #[cfg(feature = "full")]
 use glutin::{ContextWrapper, NotCurrent, PossiblyCurrent};
@@ -9,8 +11,6 @@ use glutin::{ContextWrapper, NotCurrent, PossiblyCurrent};
 use serde_bytes::ByteBuf;
 #[cfg(feature = "full")]
 use webrender_api::units::{LayoutRect, LayoutSize};
-#[cfg(feature = "full")]
-use crate::{FramePixels, WinId};
 
 pub type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -272,7 +272,6 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
         }
     }
 }
-
 
 /*
 use io::Write;
