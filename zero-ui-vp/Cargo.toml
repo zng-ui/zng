@@ -10,19 +10,15 @@ default = ["full"]
 
 # Full View-Process, includes `glutin` and the full `webrender` crate.
 #
-# This feature is enabled by default, if you are splitting the view-process from the
-# app-process executable, in the app-process crate you can disable this feature and enable
-# `not_full` to speedup compilation.
+# Enabled by default. Without this only the API and capability to spawn and 
+# connect an external view-process is build. You can disable this feature in
+# a crate that is only the app-process that will use a different executable as the view-process.
 #
 # USAGE:
 #
-# zero-ui-vp = { version = "0.1", default-features = false, features = ["not_full"] }
+# # in view_process/Cargo.toml
+# zero-ui-vp = { version = "0.1", default-features = false }
 full = ["glutin", "webrender", "gleam", "is_main_thread"]
-
-# This feature exists because this is not implemented: https://github.com/rust-lang/cargo/issues/1839
-#
-# Enable it if you are disabling `full`.
-not_full = ["webrender_api"]
 
 # # Other Features
 #
@@ -43,7 +39,7 @@ glutin = { version = "0.27", features = ["serde"], optional = true }
 
 # render
 webrender = { version = "0.61", optional = true }
-webrender_api = { version = "0.61", optional = true }
+webrender_api = { version = "0.61" }
 #version required by webrender
 gleam = { version = "0.6.17", optional = true  }
 
@@ -61,5 +57,6 @@ is_main_thread = { version = "0.1", optional = true }
 flume = "0.10"
 
 [package.metadata.docs.rs]
+all-features = true
 targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
 rustdoc-args = ["--cfg", "doc_nightly"]

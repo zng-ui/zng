@@ -1,2 +1,0 @@
-[workspace]
-members = ["./app_process", "./view_process"]

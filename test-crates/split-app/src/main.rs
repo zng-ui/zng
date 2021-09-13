@@ -1,18 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 
-fn view_process_path() -> std::path::PathBuf {
-    let dir = std::env::current_exe().unwrap().parent().unwrap();
-
-    if cfg!(windows) {
-        dir.join("view_process.exe")
-    } else {
-        dir.join("view_process")
-    }
-}
+/// Created by `build.rs`.
+const VIEW_PROCESS: &str = "split-view";
 
 fn main() {
-    App::default().view_process_exe(view_process_path()).run_window(|_| {
+    App::default().view_process_exe(VIEW_PROCESS).run_window(|_| {
         window! {
             title = "My App";
             content = v_stack! {

@@ -1,0 +1,9 @@
+[package]
+name = "split-view"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+zero-ui-vp = { path = "../../zero-ui-vp" }
+
+[workspace]

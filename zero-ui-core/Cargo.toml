@@ -28,19 +28,15 @@ test_util = []
 
 # Full View-Process, includes `glutin` and the full `webrender` crate.
 #
-# This feature is enabled by default, if you are splitting the view-process from the
-# app-process executable, in the app-process crate you can disable this feature and enable
-# `vp_not_full` to speedup compilation.
+# This feature is enabled by default, disable it if you are building the view-process as a
+# separate process. See the `./test-crates/split-vp` workspace for a demo of this.
 #
 # USAGE:
 #
-# zero-ui-core = { version = "0.1", default-features = false, features = ["vp_not_full"] }
-vp_full = ["zero-ui-vp/full"]
-
-# This feature exists because this is not implemented: https://github.com/rust-lang/cargo/issues/1839
+# # To remove in a crate that is the app-process only:
 #
-# Enable it if you are disabling `vp_full`.
-vp_not_full = ["zero-ui-vp/not_full"]
+# zero-ui-core = { version = "0.1", default-features = false }
+vp_full = ["zero-ui-vp/full"]
 
 # # Other Features
 #

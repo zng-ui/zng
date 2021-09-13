@@ -7,17 +7,6 @@
 #![allow(unused_parens)]
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
 
-#[cfg(not(feature = "full"))]
-fn _not_full_asserts() {
-    // This is due to a limitation in cargo, see ./Cargo.toml for more details.
-    #[cfg(not(feature = "not_full"))]
-    compile_error!("enable `not_full` feature if you are disabling the `full` feature");
-}
-
-#[cfg(feature = "full")]
-pub use webrender::api as webrender_api;
-
-#[cfg(not(feature = "full"))]
 pub use webrender_api;
 
 use config::*;
