@@ -556,7 +556,7 @@ impl App {
 impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        #[cfg(feature = "full")]
+        #[cfg(feature = "vp_full")]
         init_view_process();
         DebugLogger::init();
         AppExtended {
