@@ -18,7 +18,7 @@ default = ["full", "x11", "wayland"]
 #
 # # in view_process/Cargo.toml
 # zero-ui-vp = { version = "0.1", default-features = false }
-full = ["glutin", "webrender", "gleam", "is_main_thread"]
+full = ["glutin", "webrender", "gleam", "is_main_thread", "winapi"]
 
 # Enable `winit` **x11** integration.
 #
@@ -72,7 +72,7 @@ flume = { version = "0.10", default-features  = false }
 bitflags = "1"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3" }
+winapi = { version = "0.3", optional = true, features = ["winuser", "errhandlingapi", "windef", "minwindef", "commctrl", "basetsd", "winerror", "combaseapi", "shobjidl_core", "wtypesbase"] }
 
 [package.metadata.docs.rs]
 all-features = true

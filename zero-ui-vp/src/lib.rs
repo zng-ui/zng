@@ -1,8 +1,25 @@
 //! Zero-Ui View Process.
 //!
-//! Zero-Ui isolates all OpenGL and windowing related code to a different process to be able to recover from driver errors.
+//! Zero-Ui isolates all OpenGL and windowing related code to a different process so it can recover from graphics driver errors.
 //! This crate contains the `glutin` and `webrender` code that interacts with the actual system. Communication
-//! with the app process is done using `ipmpsc`.
+//! with the app process is done using the `ipc-channel` crate.
+//!
+//! # VERSION
+//!
+//! The [`VERSION`] of the `zero-ui-vp` dependency must match in both *App-Process* and *View-Process*, otherwise a runtime
+//! panic error is generated. Usually both processes are initialized from the same executable so this is not a problem.
+//!
+//! # `webrender_api`
+//!
+//! You must use the `webrender_api` that is re-exported as the [`webrender_api`] module. This is because Mozilla
+//! does not follow the crate versioning and publishing conventions, so we depend on `webrender` as a git submodule.
+//! The *version* re-exported is, usually, the latest commit that was included in the latest Firefox stable release.
+//!
+//! # Features
+//!
+//! The crate features are documented in the `zero-ui-vp/Cargo.toml` file, the most important one is the `"full"` feature
+//! that is enabled by default, but can be removed to only build the *client* API code that can be used in a *App-Process*
+//! that is not also the *View-Process*.
 
 #![allow(unused_parens)]
 #![warn(missing_docs)]
@@ -11,6 +28,7 @@
 
 use std::time::Duration;
 
+#[doc(inline)]
 pub use webrender_api;
 
 use serde::{Deserialize, Serialize};

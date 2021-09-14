@@ -1,5 +1,6 @@
 //! Image cache API.
 
+use crate::render::webrender_api::ImageKey;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -10,7 +11,6 @@ use std::{
     sync::{Arc, Weak},
     time::Duration,
 };
-use webrender_api::ImageKey;
 
 //pub mod bmp;
 //pub mod farbfeld;
@@ -417,7 +417,7 @@ impl Image {
 }
 impl crate::render::Image for Image {
     fn image_key(&self, renderer: &ViewRenderer) -> ImageKey {
-        use webrender_api::*;
+        use crate::render::webrender_api::*;
 
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
@@ -514,7 +514,7 @@ struct RenderImage {
 }
 impl Drop for RenderImage {
     fn drop(&mut self) {
-        let mut txn = webrender_api::Transaction::new();
+        let mut txn = crate::render::webrender_api::Transaction::new();
         txn.delete_image(self.key);
         // error here means the entire renderer was dropped.
         let _ = self.renderer.update_resources(txn.resource_updates);

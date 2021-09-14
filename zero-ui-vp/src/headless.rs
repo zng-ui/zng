@@ -279,11 +279,12 @@ impl ViewHeadless {
 
         renderer.update();
 
-        renderer.render(euclid::size2(
-            (self.size.width * self.scale_factor) as i32,
-            (self.size.height * self.scale_factor) as i32,
-        ))
-        .unwrap();
+        renderer
+            .render(euclid::size2(
+                (self.size.width * self.scale_factor) as i32,
+                (self.size.height * self.scale_factor) as i32,
+            ))
+            .unwrap();
         let _ = renderer.flush_pipeline_info();
     }
 

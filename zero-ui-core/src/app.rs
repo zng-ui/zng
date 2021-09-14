@@ -1847,7 +1847,9 @@ pub mod view_process {
 
     use linear_map::LinearMap;
 
-    use webrender_api::{DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate};
+    use zero_ui_vp::webrender_api::{
+        DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
+    };
     use zero_ui_vp::{Controller, DevId, WinId};
     pub use zero_ui_vp::{
         CursorIcon, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, Result, TextAntiAliasing,
@@ -2629,7 +2631,7 @@ pub mod raw_events {
             pub position: LayoutPoint,
 
             /// Raw hit-test.
-            pub hit_test: webrender_api::HitTestResult,
+            pub hit_test: crate::render::webrender_api::HitTestResult,
 
             /// Frame that was hit-test.
             pub frame_id: FrameId,

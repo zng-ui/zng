@@ -63,7 +63,6 @@ xi-unicode = "0.3"
 
 # render
 zero-ui-vp = { path = "../zero-ui-vp", default-features = false }
-webrender_api = "0.61"
 image = "0.23"
 
 # task

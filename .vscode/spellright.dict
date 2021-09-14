@@ -96,3 +96,14 @@ vp
 wmf
 Cmyk
 Rle
+winapi
+winuser
+errhandlingapi
+windef
+minwindef
+commctrl
+basetsd
+winerror
+combaseapi
+shobjidl_core
+wtypesbase

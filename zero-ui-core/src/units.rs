@@ -1,10 +1,10 @@
 //! Angle, factor and length units.
 
+use crate::render::webrender_api::{euclid, units as wr};
 use derive_more as dm;
 use std::fmt::Write;
 use std::{f32::consts::*, fmt, time::Duration};
 use std::{mem, ops};
-use webrender_api::units as wr;
 
 use crate::context::LayoutMetrics;
 use crate::var::{impl_from_and_into_var, IntoVar, OwnedVar};
@@ -342,7 +342,7 @@ impl_from_and_into_var! {
 }
 
 /// Radian angle type used by webrender.
-pub type LayoutAngle = webrender_api::euclid::Angle<f32>;
+pub type LayoutAngle = euclid::Angle<f32>;
 impl From<AngleRadian> for LayoutAngle {
     fn from(rad: AngleRadian) -> Self {
         LayoutAngle::radians(rad.0)
@@ -1094,7 +1094,7 @@ impl fmt::Display for LengthExpr {
 }
 
 /// Computed [`Length`].
-pub type LayoutLength = webrender_api::euclid::Length<f32, wr::LayoutPixel>;
+pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
 
 /// Convert a [`LayoutLength`] to font units.
 #[inline]
@@ -2750,7 +2750,7 @@ impl Transform {
         for step in &self.steps {
             r = match step {
                 TransformStep::Computed(m) => r.post_transform(m),
-                TransformStep::Translate(x, y) => r.post_translate(webrender_api::euclid::vec3(
+                TransformStep::Translate(x, y) => r.post_translate(euclid::vec3(
                     x.to_layout(ctx, LayoutLength::new(available_size.width)).get(),
                     y.to_layout(ctx, LayoutLength::new(available_size.height)).get(),
                     0.0,

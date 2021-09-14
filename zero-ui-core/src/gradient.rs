@@ -4,6 +4,7 @@ use std::{fmt, ops::Range};
 
 use crate::color::*;
 use crate::context::*;
+use crate::render::webrender_api::{self as wr, euclid};
 use crate::units::*;
 use crate::var::*;
 
@@ -44,7 +45,7 @@ impl From<ExtendMode> for RenderExtendMode {
 ///
 /// Note that [`ExtendMode::Reflect`](crate::gradient::ExtendMode::Reflect) is not supported
 /// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
-pub type RenderExtendMode = webrender_api::ExtendMode;
+pub type RenderExtendMode = crate::render::webrender_api::ExtendMode;
 
 /// The [angle](AngleUnits) or [line](crate::units::Line) that defines a linear gradient.
 ///
@@ -96,7 +97,7 @@ impl LinearGradientAxis {
 
                 let inv_dir_length = 1.0 / (dir.x * dir.x + dir.y * dir.y).sqrt();
 
-                let delta = webrender_api::euclid::Vector2D::new(
+                let delta = euclid::Vector2D::new(
                     dir.x * inv_dir_length * line_length / 2.0,
                     dir.y * inv_dir_length * line_length / 2.0,
                 );
@@ -237,7 +238,7 @@ impl_from_and_into_var! {
 /// Computed [`GradientStop`].
 ///
 /// The color offset is in the 0..=1 range.
-pub type RenderGradientStop = webrender_api::GradientStop;
+pub type RenderGradientStop = wr::GradientStop;
 
 /// A stop in a gradient.
 #[derive(Clone, PartialEq)]

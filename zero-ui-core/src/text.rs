@@ -1,5 +1,6 @@
 //! Font resolving and text shaping.
 
+pub use crate::render::webrender_api::GlyphInstance;
 use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
 use crate::var::impl_from_and_into_var;
 use derive_more as dm;
@@ -9,7 +10,6 @@ use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
 };
-pub use webrender_api::GlyphInstance;
 
 pub use unicode_script::{self, Script};
 
@@ -256,7 +256,7 @@ pub struct FontFaceMetrics {
     /// A rectangle that surrounds all bounding boxes of all glyphs, in font units.
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
-    pub bounding_box: webrender_api::euclid::Rect<f32, FontUnit>,
+    pub bounding_box: crate::render::webrender_api::euclid::Rect<f32, FontUnit>,
 }
 impl FontFaceMetrics {
     /// Compute [`FontMetrics`] given a font size in pixels.

@@ -16,10 +16,10 @@ use crate::{
 use derive_more as dm;
 use ego_tree::Tree;
 use std::{fmt, io::Write, marker::PhantomData, mem, sync::Arc, time::Instant};
-use webrender_api::*;
 
-#[doc(no_inline)]
-pub use webrender_api;
+pub use zero_ui_vp::webrender_api;
+
+use webrender_api::*;
 
 macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {

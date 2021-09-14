@@ -284,6 +284,7 @@ impl Fonts {
     }
 }
 
+use crate::render::webrender_api::{self as wr, euclid};
 pub use font_kit::error::FontLoadingError;
 
 impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
@@ -297,7 +298,7 @@ impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
             underline_thickness: m.underline_thickness,
             cap_height: m.cap_height,
             x_height: m.x_height,
-            bounding_box: webrender_api::euclid::rect(
+            bounding_box: euclid::rect(
                 m.bounding_box.origin_x(),
                 m.bounding_box.origin_y(),
                 m.bounding_box.width(),
@@ -487,7 +488,7 @@ impl FontFace {
                 underline_thickness: 84.0,
                 cap_height: 1170.0,
                 x_height: 866.0,
-                bounding_box: webrender_api::euclid::rect(1524.0, 3483.0, -249.0, -1392.0),
+                bounding_box: euclid::rect(1524.0, 3483.0, -249.0, -1392.0),
             },
             instances: Default::default(),
             render_keys: Default::default(),
@@ -500,9 +501,9 @@ impl FontFace {
         self.unregistered.set(true);
     }
 
-    const DUMMY_FONT_KEY: webrender_api::FontKey = webrender_api::FontKey(webrender_api::IdNamespace(0), 0);
+    const DUMMY_FONT_KEY: wr::FontKey = wr::FontKey(wr::IdNamespace(0), 0);
 
-    fn render_face(&self, renderer: &ViewRenderer, txn: &mut webrender_api::Transaction) -> webrender_api::FontKey {
+    fn render_face(&self, renderer: &ViewRenderer, txn: &mut wr::Transaction) -> wr::FontKey {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
@@ -675,9 +676,9 @@ impl Font {
         }
     }
 
-    const DUMMY_FONT_KEY: webrender_api::FontInstanceKey = webrender_api::FontInstanceKey(webrender_api::IdNamespace(0), 0);
+    const DUMMY_FONT_KEY: wr::FontInstanceKey = wr::FontInstanceKey(wr::IdNamespace(0), 0);
 
-    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
+    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> wr::FontInstanceKey {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
@@ -692,7 +693,7 @@ impl Font {
             }
         }
 
-        let mut txn = webrender_api::Transaction::new();
+        let mut txn = wr::Transaction::new();
 
         let font_key = self.face.render_face(renderer, &mut txn);
 
@@ -704,22 +705,22 @@ impl Font {
             }
         };
 
-        let mut opt = webrender_api::FontInstanceOptions::default();
+        let mut opt = wr::FontInstanceOptions::default();
         if synthesis.contains(FontSynthesis::STYLE) {
-            opt.synthetic_italics = webrender_api::SyntheticItalics::enabled();
+            opt.synthetic_italics = wr::SyntheticItalics::enabled();
         }
         if synthesis.contains(FontSynthesis::BOLD) {
-            opt.flags |= webrender_api::FontInstanceFlags::SYNTHETIC_BOLD;
+            opt.flags |= wr::FontInstanceFlags::SYNTHETIC_BOLD;
         }
         txn.add_font_instance(
             key,
             font_key,
-            webrender_api::units::Au::from_f32_px(self.size.get()),
+            wr::units::Au::from_f32_px(self.size.get()),
             Some(opt),
             None,
             self.variations
                 .iter()
-                .map(|v| webrender_api::FontVariation {
+                .map(|v| wr::FontVariation {
                     tag: v.tag.0,
                     value: v.value,
                 })
@@ -773,7 +774,7 @@ impl Font {
     }
 }
 impl crate::render::Font for Font {
-    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
+    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> wr::FontInstanceKey {
         // how does cache clear works with this?
         self.render_font(renderer, synthesis)
     }
@@ -783,7 +784,7 @@ impl crate::render::Font for Font {
 pub type FontRef = Rc<Font>;
 
 impl crate::render::Font for FontRef {
-    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> webrender_api::FontInstanceKey {
+    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> wr::FontInstanceKey {
         self.render_font(renderer, synthesis)
     }
 }
@@ -1289,10 +1290,10 @@ impl FontFaceLoader {
 
 struct RenderFontFace {
     renderer: ViewRenderer,
-    key: webrender_api::FontKey,
+    key: wr::FontKey,
 }
 impl RenderFontFace {
-    fn new(renderer: &ViewRenderer, key: webrender_api::FontKey) -> Self {
+    fn new(renderer: &ViewRenderer, key: wr::FontKey) -> Self {
         RenderFontFace {
             renderer: renderer.clone(),
             key,
@@ -1301,7 +1302,7 @@ impl RenderFontFace {
 }
 impl Drop for RenderFontFace {
     fn drop(&mut self) {
-        let mut txn = webrender_api::Transaction::new();
+        let mut txn = wr::Transaction::new();
         txn.delete_font(self.key);
         // error here means the entire renderer was already dropped.
         let _ = self.renderer.update_resources(txn.resource_updates);
@@ -1311,10 +1312,10 @@ impl Drop for RenderFontFace {
 struct RenderFont {
     renderer: ViewRenderer,
     synthesis: FontSynthesis,
-    key: webrender_api::FontInstanceKey,
+    key: wr::FontInstanceKey,
 }
 impl RenderFont {
-    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, key: webrender_api::FontInstanceKey) -> RenderFont {
+    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, key: wr::FontInstanceKey) -> RenderFont {
         RenderFont {
             renderer: renderer.clone(),
             synthesis,
@@ -1324,7 +1325,7 @@ impl RenderFont {
 }
 impl Drop for RenderFont {
     fn drop(&mut self) {
-        let mut txn = webrender_api::Transaction::new();
+        let mut txn = wr::Transaction::new();
         txn.delete_font_instance(self.key);
         // error here means the entire renderer was already dropped.
         let _ = self.renderer.update_resources(txn.resource_updates);
