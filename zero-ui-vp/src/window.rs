@@ -409,6 +409,7 @@ impl ViewWindow {
         renderer.update();
         let s = self.window.inner_size();
         renderer.render(DeviceIntSize::new(s.width as i32, s.height as i32)).unwrap();
+        let _ = renderer.flush_pipeline_info();
         ctx.swap_buffers().unwrap();
     }
 

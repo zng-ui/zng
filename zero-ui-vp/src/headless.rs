@@ -275,15 +275,16 @@ impl ViewHeadless {
     pub fn redraw(&mut self) {
         let _ctx = self.context.make_current();
 
-        let r = self.renderer.as_mut().unwrap();
+        let renderer = self.renderer.as_mut().unwrap();
 
-        r.update();
+        renderer.update();
 
-        r.render(euclid::size2(
+        renderer.render(euclid::size2(
             (self.size.width * self.scale_factor) as i32,
             (self.size.height * self.scale_factor) as i32,
         ))
         .unwrap();
+        let _ = renderer.flush_pipeline_info();
     }
 
     pub fn hit_test(&self, point: LayoutPoint) -> (Epoch, HitTestResult) {
