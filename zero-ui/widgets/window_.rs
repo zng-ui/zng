@@ -155,7 +155,12 @@ pub mod window {
 
         /// Window auto-size to content.
         ///
-        /// If enabled overwrites the other sizes with the content size.
+        /// When enabled overwrites [`size`](#wp-size), but is still coerced by [`min_size`](#wp-min_size)
+        /// and [`max_size`](#wp-max_size). Auto-size is disabled if the user [manually resizes](#wp-resizable).
+        ///
+        /// The default value is [`AutoSize::DISABLED`].
+        ///
+        /// [`AutoSize::DISABLED`]: crate::prelude::AutoSize::DISABLED
         properties::auto_size;
 
         /// Window background color.

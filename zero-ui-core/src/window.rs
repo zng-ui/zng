@@ -1068,6 +1068,9 @@ impl AppExtension for WindowManager {
         } else if let Some(args) = RawWindowResizedEvent.update(args) {
             if let Some(mut window) = ctx.services.windows().windows.remove(&args.window_id) {
                 if window.vars.0.actual_size.set_ne(ctx.vars, args.size) {
+                    if args.cause == EventCause::System {
+                        window.vars.0.auto_size.set_ne(ctx.vars, AutoSize::DISABLED);
+                    }
                     window.size = args.size;
                     // raise window_resize
                     WindowResizeEvent.notify(

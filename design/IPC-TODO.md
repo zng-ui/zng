@@ -10,6 +10,7 @@
   - There is no `swgl` crate, we will need to link to the git, and it needs to match the `webrender` commit.
   - We should use the latest sync commit from the Firefox stable version.
     - Currently it is https://github.com/servo/webrender/commit/526a423bc2f069ea90e219fb155f379ee0fe662a for Firefox 92.0
+    - https://crates.io does not allow git dependencies, but it allows the use of `git submodule`s, adding them to our crate.
     - Found by following the `ghsync` link and checking the Firefox milestone.
 
 * Test build two executables, for app-process and view-process.

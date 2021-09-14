@@ -892,7 +892,7 @@ pub enum Ev {
 }
 
 /// Cause of a window move or resize event.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EventCause {
     /// Operating system or end-user moved or resized the window.
     System,
