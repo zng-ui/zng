@@ -352,13 +352,28 @@ impl FrameBuilder {
     ///
     /// This is a common case helper, the `clip_rect` is not snapped to pixels.
     #[inline]
-    pub fn common_item_properties(&self, clip_rect: LayoutRect) -> CommonItemProperties {
+    pub fn common_item_ps(&self, clip_rect: LayoutRect) -> CommonItemProperties {
         CommonItemProperties {
             clip_rect,
             clip_id: self.clip_id,
             spatial_id: self.spatial_id,
             flags: PrimitiveFlags::empty(),
         }
+    }
+
+    /// Generate a [`common_item_ps`] and, if the current context is [`hit_testable`], pushes
+    /// a hit-test [`item_tag`].
+    ///
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`hit_testable`]: FrameBuilder::hit_testable
+    /// [`item_tag`]: FrameBuilder::item_tag
+    #[inline]
+    pub fn common_hit_item_ps(&mut self, clip_rect: LayoutRect) -> CommonItemProperties {
+        let item = self.common_item_ps(clip_rect);
+        if self.hit_testable {
+            self.display_list.push_hit_test(&item, self.item_tag());
+        }
+        item
     }
 
     /// The hit-test bounding-box used to take the coordinates of the widget hit
@@ -368,10 +383,8 @@ impl FrameBuilder {
     fn push_widget_hit_area(&mut self, id: WidgetId, area: LayoutSize) {
         self.open_widget_display();
 
-        self.display_list.push_hit_test(
-            &self.common_item_properties(LayoutRect::from_size(area)),
-            (id.get(), WIDGET_HIT_AREA),
-        );
+        self.display_list
+            .push_hit_test(&self.common_item_ps(LayoutRect::from_size(area)), (id.get(), WIDGET_HIT_AREA));
     }
 
     /// Includes a widget transform and continues the render build.
@@ -594,7 +607,7 @@ impl FrameBuilder {
 
         if self.hit_testable {
             self.open_widget_display();
-            self.display_list.push_hit_test(&self.common_item_properties(rect), self.item_tag());
+            self.display_list.push_hit_test(&self.common_item_ps(rect), self.item_tag());
         }
     }
 
@@ -724,8 +737,11 @@ impl FrameBuilder {
             do_aa: true,
         });
 
-        self.display_list
-            .push_border(&self.common_item_properties(bounds), bounds, widths, details);
+        let info = self.common_hit_item_ps(bounds);
+        if self.hit_testable {
+            self.display_list.push_hit_test(&info, self.item_tag());
+        }
+        self.display_list.push_border(&info, bounds, widths, details);
     }
 
     /// Push a text run using [`common_item_properties`].
@@ -744,8 +760,8 @@ impl FrameBuilder {
         if let Some(r) = &self.renderer {
             let instance_key = font.instance_key(r, synthesis);
 
-            self.display_list
-                .push_text(&self.common_item_properties(rect), rect, glyphs, instance_key, color, None);
+            let item = self.common_hit_item_ps(rect);
+            self.display_list.push_text(&item, rect, glyphs, instance_key, color, None);
         }
     }
 
@@ -761,14 +777,9 @@ impl FrameBuilder {
 
         if let Some(r) = &self.renderer {
             let image_key = image.image_key(r);
-            self.display_list.push_image(
-                &self.common_item_properties(rect),
-                rect,
-                rendering.into(),
-                image.alpha_type(),
-                image_key,
-                RenderColor::WHITE,
-            )
+            let item = self.common_hit_item_ps(rect);
+            self.display_list
+                .push_image(&item, rect, rendering.into(), image.alpha_type(), image_key, RenderColor::WHITE)
         }
     }
 
@@ -797,7 +808,8 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
-        self.display_list.push_rect(&self.common_item_properties(rect), rect, color);
+        let item = self.common_hit_item_ps(rect);
+        self.display_list.push_rect(&item, rect, color);
     }
 
     /// Push a repeating linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
@@ -839,8 +851,8 @@ impl FrameBuilder {
             extend_mode,
         };
 
-        self.display_list
-            .push_gradient(&self.common_item_properties(rect), rect, gradient, tile_size, tile_spacing);
+        let item = self.common_hit_item_ps(rect);
+        self.display_list.push_gradient(&item, rect, gradient, tile_size, tile_spacing);
     }
 
     /// Push a styled vertical or horizontal line.
@@ -860,15 +872,13 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
+        let item = self.common_hit_item_ps(bounds);
+
         match style.render_command() {
-            RenderLineCommand::Line(style, thickness) => self.display_list.push_line(
-                &self.common_item_properties(bounds),
-                &bounds,
-                thickness,
-                orientation.into(),
-                &color,
-                style,
-            ),
+            RenderLineCommand::Line(style, thickness) => {
+                self.display_list
+                    .push_line(&item, &bounds, thickness, orientation.into(), &color, style)
+            }
             RenderLineCommand::Border(style) => {
                 use crate::border::LineOrientation as LO;
                 let widths = match orientation {
@@ -890,8 +900,7 @@ impl FrameBuilder {
                     do_aa: false,
                 });
 
-                self.display_list
-                    .push_border(&self.common_item_properties(bounds), bounds, widths, details);
+                self.display_list.push_border(&item, bounds, widths, details);
             }
         }
     }
