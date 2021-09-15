@@ -2177,8 +2177,7 @@ impl AppWindow {
         let next_frame_id = crate::render::webrender_api::Epoch(next_frame_id);
 
         // `UiNode::render`
-        let ((pipeline_id, size, display_list), frame_info) =
-            self.context.render(ctx, next_frame_id, self.size, scale_factor, &self.renderer);
+        let ((pipeline_id, display_list), frame_info) = self.context.render(ctx, next_frame_id, self.size, scale_factor, &self.renderer);
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
@@ -2200,8 +2199,7 @@ impl AppWindow {
             Some(view_process::FrameRequest {
                 id: self.frame_id,
                 pipeline_id,
-                size,
-                display_list: (ByteBuf::from(payload), descriptor),
+                display_list: (ByteBuf::from(payload.data), descriptor),
             })
         } else {
             None
@@ -2351,6 +2349,7 @@ impl AppWindow {
             let _: Result<(), Respawned> = renderer.render_update(DynamicProperties {
                 transforms: vec![],
                 floats: vec![],
+                colors: vec![],
             });
         }
     }
@@ -2457,7 +2456,7 @@ impl OwnedWindowContext {
         root_size: LayoutSize,
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
-    ) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
+    ) -> ((PipelineId, BuiltDisplayList), FrameInfo) {
         profile_scope!("OwnedWindowContext::render");
 
         self.update = UpdateDisplayRequest::None;

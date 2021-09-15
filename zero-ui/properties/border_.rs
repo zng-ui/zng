@@ -57,10 +57,11 @@ pub fn border(
 
         #[UiNode]
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.child_rect.origin = LayoutPoint::new(self.final_widths.left, self.final_widths.top);
-            self.child_rect.size = final_size - self.size_increment();
+            self.child_rect.min = LayoutPoint::new(self.final_widths.left, self.final_widths.top);
+            let child_size = final_size - self.size_increment();
+            self.child_rect.set_size(child_size);
             self.final_size = final_size;
-            self.child.arrange(ctx, self.child_rect.size);
+            self.child.arrange(ctx, child_size);
         }
 
         fn size_increment(&self) -> LayoutSize {
@@ -76,7 +77,7 @@ pub fn border(
                 *self.sides.get(ctx),
                 self.final_radius,
             );
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.child_rect.min, |frame| self.child.render(ctx, frame));
         }
     }
 

@@ -503,7 +503,7 @@ impl FontFace {
 
     const DUMMY_FONT_KEY: wr::FontKey = wr::FontKey(wr::IdNamespace(0), 0);
 
-    fn render_face(&self, renderer: &ViewRenderer, txn: &mut wr::Transaction) -> wr::FontKey {
+    fn render_face(&self, renderer: &ViewRenderer) -> wr::FontKey {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
@@ -518,14 +518,13 @@ impl FontFace {
             }
         }
 
-        let key = match renderer.generate_font_key() {
+        let key = match renderer.add_font((*self.bytes).clone(), self.face_index) {
             Ok(k) => k,
             Err(Respawned) => {
-                log::debug!("respawned calling `generate_font_key`, will return dummy font key");
+                log::debug!("respawned calling `add_font`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
-        txn.add_raw_font(key, (*self.bytes).clone(), self.face_index);
 
         keys.push(RenderFontFace::new(renderer, key));
 
@@ -693,17 +692,7 @@ impl Font {
             }
         }
 
-        let mut txn = wr::Transaction::new();
-
-        let font_key = self.face.render_face(renderer, &mut txn);
-
-        let key = match renderer.generate_font_instance_key() {
-            Ok(k) => k,
-            Err(Respawned) => {
-                log::debug!("respawned calling `generate_font_instance_key`, will return dummy font key");
-                return Self::DUMMY_FONT_KEY;
-            }
-        };
+        let font_key = self.face.render_face(renderer);
 
         let mut opt = wr::FontInstanceOptions::default();
         if synthesis.contains(FontSynthesis::STYLE) {
@@ -712,25 +701,21 @@ impl Font {
         if synthesis.contains(FontSynthesis::BOLD) {
             opt.flags |= wr::FontInstanceFlags::SYNTHETIC_BOLD;
         }
-        txn.add_font_instance(
-            key,
-            font_key,
-            wr::units::Au::from_f32_px(self.size.get()),
-            Some(opt),
-            None,
-            self.variations
-                .iter()
-                .map(|v| wr::FontVariation {
-                    tag: v.tag.0,
-                    value: v.value,
-                })
-                .collect(),
-        );
+        let variations =  self.variations
+        .iter()
+        .map(|v| wr::FontVariation {
+            tag: v.tag.0,
+            value: v.value,
+        })
+        .collect();
 
-        if let Err(Respawned) = renderer.update_resources(txn.resource_updates) {
-            log::debug!("respawned calling `update_resources`, will return dummy font key");
-            return Self::DUMMY_FONT_KEY;
-        }
+        let key = match renderer.add_font_instance(font_key, self.size.get(), Some(opt), None, variations) {
+            Ok(k) => k,
+            Err(Respawned) => {
+                log::debug!("respawned calling `add_font_instance`, will return dummy font key");
+                return Self::DUMMY_FONT_KEY;
+            }
+        };
 
         keys.push(RenderFont::new(renderer, synthesis, key));
 
@@ -1302,10 +1287,8 @@ impl RenderFontFace {
 }
 impl Drop for RenderFontFace {
     fn drop(&mut self) {
-        let mut txn = wr::Transaction::new();
-        txn.delete_font(self.key);
         // error here means the entire renderer was already dropped.
-        let _ = self.renderer.update_resources(txn.resource_updates);
+        let _ = self.renderer.delete_font(self.key);
     }
 }
 
@@ -1325,10 +1308,8 @@ impl RenderFont {
 }
 impl Drop for RenderFont {
     fn drop(&mut self) {
-        let mut txn = wr::Transaction::new();
-        txn.delete_font_instance(self.key);
         // error here means the entire renderer was already dropped.
-        let _ = self.renderer.update_resources(txn.resource_updates);
+        let _ = self.renderer.delete_font_instance(self.key);
     }
 }
 

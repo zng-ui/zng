@@ -16,7 +16,7 @@ fn main() {
         //ctx.services.windows().shutdown_on_last_close = false;
 
         let title = merge_var!(vars.actual_position(), vars.actual_size(), |p: &LayoutPoint, s: &LayoutSize| {
-            formatx!("Window Example - position: {:.0}, size: {:.0}", p, s)
+            formatx!("Window Example - position: {:.0?}, size: {:.0?}", p, s)
         });
         let background_color = var(rgb(0.1, 0.1, 0.1));
 

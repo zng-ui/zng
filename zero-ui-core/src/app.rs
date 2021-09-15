@@ -1847,10 +1847,9 @@ pub mod view_process {
 
     use linear_map::LinearMap;
 
-    use zero_ui_vp::webrender_api::{
-        DynamicProperties, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
-    };
-    use zero_ui_vp::{Controller, DevId, WinId};
+    use zero_ui_vp::webrender_api::units::ImageDirtyRect;
+    use zero_ui_vp::webrender_api::{DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageDescriptor, ImageKey, PipelineId};
+    use zero_ui_vp::{ByteBuf, Controller, DevId, WinId};
     pub use zero_ui_vp::{
         CursorIcon, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, Result, TextAntiAliasing,
         VideoMode, ViewProcessGen, WindowConfig, WindowTheme,
@@ -2291,19 +2290,55 @@ pub mod view_process {
             Err(Respawned)
         }
 
-        /// New image resource key.
-        pub fn generate_image_key(&self) -> Result<ImageKey> {
-            self.call(|id, p| p.generate_image_key(id))
+        /// Add an image resource to the window renderer.
+        /// 
+        /// Returns the image key.
+        pub fn add_image(&self, descriptor: ImageDescriptor, data: Vec<u8>) -> Result<ImageKey> {
+            self.call(|id, p| p.add_image(id, descriptor, ByteBuf::from(data)))
         }
 
-        /// New font resource key.
-        pub fn generate_font_key(&self) -> Result<FontKey> {
-            self.call(|id, p| p.generate_font_key(id))
+        /// Replace the image resource in the window renderer.
+        pub fn update_image(
+            &mut self,
+            key: ImageKey,
+            descriptor: ImageDescriptor,
+            data: ByteBuf,
+            dirty_rect: ImageDirtyRect,
+        ) -> Result<()> {
+            self.call(|id, p| p.update_image(id, key, descriptor, data, dirty_rect))
         }
 
-        /// New font instance key.
-        pub fn generate_font_instance_key(&self) -> Result<FontInstanceKey> {
-            self.call(|id, p| p.generate_font_instance_key(id))
+        /// Delete the image resource in the window renderer.
+        pub fn delete_image(&mut self, key: ImageKey) -> Result<()> {
+            self.call(|id, p| p.delete_image(id, key))
+        }
+
+        /// Add a raw font resource to the window renderer.
+        /// 
+        /// Returns the new font key.
+        pub fn add_font(&self, bytes: Vec<u8>, index: u32) -> Result<FontKey> {
+            self.call(|id, p| p.add_font(id, ByteBuf::from(bytes), index))
+        }
+
+        /// Delete the font resource in the window renderer.
+        pub fn delete_font(&self, key: FontKey) -> Result<()> {
+            self.call(|id, p| p.delete_font(id, key))
+        }
+
+        /// Add a font instance to the window renderer.
+        /// 
+        /// Returns the new instance key.
+        pub fn add_font_instance(&self, font_key: FontKey, 
+            glyph_size: f32,
+            options: Option<FontInstanceOptions>,
+            plataform_options: Option<FontInstancePlatformOptions>,
+            variations: Vec<FontVariation>,) -> Result<FontInstanceKey> {
+            self.call(|id, p| p.add_font_instance(id, font_key, glyph_size, options, plataform_options, variations))
+        }
+
+        /// Delete the font instance.
+        pub fn delete_font_instance(&self, key: FontInstanceKey) -> Result<()> {
+            self.call(|id, p| p.delete_font_instance(id, key))
         }
 
         /// Gets the viewport size (window inner size).
@@ -2321,7 +2356,7 @@ pub mod view_process {
         /// This is a call to `glReadPixels`, each pixel row is stacked from
         /// bottom-to-top with the pixel type BGRA8.
         pub fn read_pixels_rect(&self, rect: LayoutRect) -> Result<FramePixels> {
-            self.call(|id, p| p.read_pixels_rect(id, rect))
+            self.call(|id, p| p.read_pixels_rect(id, rect.to_rect()))
         }
 
         /// Read all pixels of the current frame.
@@ -2351,11 +2386,6 @@ pub mod view_process {
         /// Update the current frame and re-render it.
         pub fn render_update(&self, updates: DynamicProperties) -> Result<()> {
             self.call(|id, p| p.render_update(id, updates))
-        }
-
-        /// Add/remove/update resources such as images and fonts.
-        pub fn update_resources(&self, updates: Vec<ResourceUpdate>) -> Result<()> {
-            self.call(|id, p| p.update_resources(id, updates))
         }
     }
 

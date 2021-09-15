@@ -63,6 +63,7 @@ zero-ui-core = { path = "zero-ui-core", features = ["test_util"] }
 
 [workspace]
 members = ["zero-ui-proc-macros", "zero-ui-vp", "zero-ui-core"]
+exclude = ["dependencies/webrender"]
 
 [package.metadata.docs.rs]
 all-features = true

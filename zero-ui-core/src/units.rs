@@ -2,6 +2,7 @@
 
 use crate::render::webrender_api::{euclid, units as wr};
 use derive_more as dm;
+use zero_ui_vp::webrender_api::units::LayoutPixel;
 use std::fmt::Write;
 use std::{f32::consts::*, fmt, time::Duration};
 use std::{mem, ops};
@@ -1756,7 +1757,7 @@ impl Rect {
     /// Compute the rectangle in a layout context.
     #[inline]
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutRect {
-        LayoutRect::new(self.origin.to_layout(ctx, available_size), self.size.to_layout(ctx, available_size))
+        LayoutRect::from_origin_and_size(self.origin.to_layout(ctx, available_size), self.size.to_layout(ctx, available_size))
     }
 }
 impl From<Size> for Rect {
@@ -1795,7 +1796,7 @@ impl_length_comp_conversions! {
 impl_from_and_into_var! {
     /// New in exact length.
     fn from(rect: LayoutRect) -> Rect {
-        Rect::new(rect.origin, rect.size)
+        Rect::new(rect.min, rect.size())
     }
 }
 
@@ -2303,7 +2304,7 @@ impl Alignment {
     /// [`UiNode::arrange`]: crate::UiNode::arrange
     /// [`UiNode::render`]: crate::UiNode::render
     pub fn solve(self, content_size: LayoutSize, container_size: LayoutSize) -> LayoutRect {
-        let mut r = LayoutRect::zero();
+        let mut r = euclid::Rect::zero();
 
         if self.fill_width() {
             r.size.width = container_size.width;
@@ -2318,7 +2319,7 @@ impl Alignment {
             r.origin.y = (container_size.height - r.size.height) * self.y.0;
         }
 
-        r
+        r.to_box2d()
     }
 }
 
@@ -2605,18 +2606,19 @@ impl PixelGridExt for LayoutSize {
 impl PixelGridExt for LayoutRect {
     #[inline]
     fn snap_to(self, grid: PixelGrid) -> Self {
-        LayoutRect::new(self.origin.snap_to(grid), self.size.snap_to(grid))
+        LayoutRect::new(self.min.snap_to(grid), self.max.snap_to(grid))
     }
     #[inline]
     fn is_aligned_to(self, grid: PixelGrid) -> bool {
-        self.origin.is_aligned_to(grid) && self.size.is_aligned_to(grid)
+        self.min.is_aligned_to(grid) && self.max.is_aligned_to(grid)
     }
 }
 impl PixelGridExt for LayoutLine {
+    #[inline]
     fn snap_to(self, grid: PixelGrid) -> Self {
         LayoutLine::new(self.start.snap_to(grid), self.end.snap_to(grid))
     }
-
+    #[inline]
     fn is_aligned_to(self, grid: PixelGrid) -> bool {
         self.start.is_aligned_to(grid) && self.end.is_aligned_to(grid)
     }
@@ -2634,6 +2636,16 @@ impl PixelGridExt for LayoutSideOffsets {
     #[inline]
     fn is_aligned_to(self, grid: PixelGrid) -> bool {
         grid.is_aligned(self.top) && grid.is_aligned(self.right) && grid.is_aligned(self.bottom) && grid.is_aligned(self.left)
+    }
+}
+impl PixelGridExt for euclid::Rect<f32, LayoutPixel> {
+    #[inline]
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        euclid::Rect::new(self.origin.snap_to(grid), self.size.snap_to(grid))
+    }
+    #[inline]
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
+        self.origin.is_aligned_to(grid) && self.size.is_aligned_to(grid)
     }
 }
 
@@ -2681,7 +2693,7 @@ impl Transform {
 
     fn push_transform(&mut self, transform: LayoutTransform) {
         if let Some(TransformStep::Computed(last)) = self.steps.last_mut() {
-            *last = last.post_transform(&transform);
+            *last = last.then(&transform);
         } else {
             self.steps.push(TransformStep::Computed(transform));
         }
@@ -2689,7 +2701,7 @@ impl Transform {
 
     /// Append a 2d rotation transform.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.push_transform(LayoutTransform::create_rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
+        self.push_transform(LayoutTransform::rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
         self
     }
 
@@ -2712,7 +2724,7 @@ impl Transform {
 
     /// Append a 2d skew transform.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-        self.push_transform(LayoutTransform::create_skew(x.into().to_layout(), y.into().to_layout()));
+        self.push_transform(LayoutTransform::skew(x.into().to_layout(), y.into().to_layout()));
         self
     }
     /// Append a 2d skew transform in the X dimension.
@@ -2726,7 +2738,7 @@ impl Transform {
 
     /// Append a 2d scale transform.
     pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(mut self, x: X, y: Y) -> Self {
-        self.push_transform(LayoutTransform::create_scale(x.into().0, y.into().0, 1.0));
+        self.push_transform(LayoutTransform::scale(x.into().0, y.into().0, 1.0));
         self
     }
     /// Append a 2d scale transform in the X dimension.
@@ -2749,8 +2761,8 @@ impl Transform {
         let mut r = LayoutTransform::identity();
         for step in &self.steps {
             r = match step {
-                TransformStep::Computed(m) => r.post_transform(m),
-                TransformStep::Translate(x, y) => r.post_translate(euclid::vec3(
+                TransformStep::Computed(m) => r.then(m),
+                TransformStep::Translate(x, y) => r.then(&LayoutTransform::translation(
                     x.to_layout(ctx, LayoutLength::new(available_size.width)).get(),
                     y.to_layout(ctx, LayoutLength::new(available_size.height)).get(),
                     0.0,

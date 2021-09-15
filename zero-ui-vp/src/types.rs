@@ -1041,12 +1041,6 @@ pub struct FrameRequest {
     /// Pipeline Tag.
     pub pipeline_id: PipelineId,
 
-    /// Window inner size in layout pixels.
-    ///
-    /// This is both the viewport_size and document_size for webrender
-    /// as we don't do root level scrolling.
-    pub size: LayoutSize,
-
     /// Display list, split in serializable parts.
     pub display_list: (ByteBuf, BuiltDisplayListDescriptor),
 }
@@ -1055,7 +1049,6 @@ impl fmt::Debug for FrameRequest {
         f.debug_struct("FrameRequest")
             .field("id", &self.id)
             .field("pipeline_id", &self.pipeline_id)
-            .field("size", &self.size)
             .finish_non_exhaustive()
     }
 }

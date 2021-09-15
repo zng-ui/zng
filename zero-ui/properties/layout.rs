@@ -53,18 +53,21 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
             let margin = self.margin.get(ctx).to_layout(ctx, available_size);
             self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
-            self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
+
+            // the size is set in `arrange`
+            self.child_rect.min = LayoutPoint::new(margin.left, margin.top);
+
             self.child.measure(ctx, available_size - self.size_increment) + self.size_increment
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: LayoutSize) {
             final_size -= self.size_increment;
-            self.child_rect.size = final_size;
+            self.child_rect.set_size(final_size);
             self.child.arrange(ctx, final_size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.child_rect.min, |frame| self.child.render(ctx, frame));
         }
     }
     MarginNode {
@@ -111,22 +114,23 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            self.child_rect.size = self.child.measure(ctx, available_size);
-            self.child_rect.size
+            let size = self.child.measure(ctx, available_size);
+            self.child_rect.set_size(size);
+            size
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
             self.child_rect = self
                 .alignment
                 .get(ctx.vars)
-                .solve(self.child_rect.size, final_size)
+                .solve(self.child_rect.size(), final_size)
                 .snap_to(ctx.pixel_grid);
 
-            self.child.arrange(ctx, self.child_rect.size);
+            self.child.arrange(ctx, self.child_rect.size());
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.child_rect.min, |frame| self.child.render(ctx, frame));
         }
     }
 

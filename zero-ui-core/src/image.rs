@@ -430,34 +430,26 @@ impl crate::render::Image for Image {
         if let Some(rm) = rms.iter().find(|k| k.key.0 == namespace) {
             return rm.key;
         }
-        let key = match renderer.generate_image_key() {
+
+        let descriptor = ImageDescriptor::new(
+            self.size.0 as i32,
+            self.size.1 as i32,
+            ImageFormat::BGRA8,
+            if self.opaque {
+                ImageDescriptorFlags::IS_OPAQUE
+            } else {
+                ImageDescriptorFlags::empty()
+            },
+        );
+
+        // TODO can we send the image without cloning?
+        let key = match renderer.add_image(descriptor, (*self.bgra).clone()) {
             Ok(k) => k,
             Err(Respawned) => {
-                log::debug!("respawned calling `generate_image_key`, will return DUMMY");
+                log::debug!("respawned `add_image`, will return DUMMY");
                 return ImageKey::DUMMY;
             }
         };
-
-        let mut txn = Transaction::new();
-        txn.add_image(
-            key,
-            ImageDescriptor::new(
-                self.size.0 as i32,
-                self.size.1 as i32,
-                ImageFormat::BGRA8,
-                if self.opaque {
-                    ImageDescriptorFlags::IS_OPAQUE
-                } else {
-                    ImageDescriptorFlags::empty()
-                },
-            ),
-            ImageData::Raw(self.bgra.clone()),
-            None,
-        );
-        if let Err(Respawned) = renderer.update_resources(txn.resource_updates) {
-            log::debug!("respawned `update_resources`, will return DUMMY");
-            return ImageKey::DUMMY;
-        }
 
         rms.push(RenderImage {
             key,
@@ -514,10 +506,8 @@ struct RenderImage {
 }
 impl Drop for RenderImage {
     fn drop(&mut self) {
-        let mut txn = crate::render::webrender_api::Transaction::new();
-        txn.delete_image(self.key);
         // error here means the entire renderer was dropped.
-        let _ = self.renderer.update_resources(txn.resource_updates);
+        let _ = self.renderer.delete_image(self.key);
     }
 }
 impl fmt::Debug for RenderImage {

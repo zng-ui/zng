@@ -1,4 +1,5 @@
 use crate::prelude::new_widget::*;
+use zero_ui_core::render::webrender_api::{units::LayoutPixel, euclid};
 
 /// Horizontal stack layout.
 ///
@@ -20,6 +21,7 @@ use crate::prelude::new_widget::*;
 /// If you only want to set the `items` property you can use the [`h_stack`](function@h_stack) shortcut function.
 #[widget($crate::widgets::layouts::h_stack)]
 pub mod h_stack {
+
     use super::*;
 
     properties! {
@@ -47,7 +49,7 @@ pub mod h_stack {
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         HStackNode {
-            rectangles: vec![LayoutRect::zero(); items.len()].into_boxed_slice(),
+            rectangles: vec![euclid::Rect::zero(); items.len()].into_boxed_slice(),
             items_width: 0.0,
             visible_count: 0,
             children: items,
@@ -58,7 +60,7 @@ pub mod h_stack {
 
     struct HStackNode<C, S, A> {
         children: C,
-        rectangles: Box<[LayoutRect]>,
+        rectangles: Box<[euclid::Rect<f32, LayoutPixel>]>,
         items_width: f32,
         visible_count: usize,
 
@@ -203,7 +205,7 @@ pub mod v_stack {
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         VStackNode {
-            rectangles: vec![LayoutRect::zero(); items.len()].into_boxed_slice(),
+            rectangles: vec![euclid::Rect::zero(); items.len()].into_boxed_slice(),
             items_height: 0.0,
             visible_count: 0,
             children: items,
@@ -214,7 +216,7 @@ pub mod v_stack {
 
     struct VStackNode<C, S, A> {
         children: C,
-        rectangles: Box<[LayoutRect]>,
+        rectangles: Box<[euclid::Rect<f32, LayoutPixel>]>,
         items_height: f32,
         visible_count: usize,
 
@@ -405,7 +407,7 @@ pub mod z_stack {
     #[inline]
     fn new_child(items: impl UiNodeList, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         ZStackNode {
-            rectangles: vec![LayoutRect::zero(); items.len()].into_boxed_slice(),
+            rectangles: vec![euclid::Rect::zero(); items.len()].into_boxed_slice(),
             children: items,
             align: items_align.into_var(),
         }
@@ -413,7 +415,7 @@ pub mod z_stack {
 
     struct ZStackNode<C, A> {
         children: C,
-        rectangles: Box<[LayoutRect]>,
+        rectangles: Box<[euclid::Rect<f32, LayoutPixel>]>,
         align: A,
     }
     #[impl_ui_node(children)]
@@ -444,7 +446,7 @@ pub mod z_stack {
 
             let rectangles = &mut self.rectangles;
             self.children.arrange_all(ctx, |i, ctx| {
-                rectangles[i] = align.solve(rectangles[i].size, final_size).snap_to(ctx.pixel_grid);
+                rectangles[i] = align.solve(rectangles[i].size, final_size).snap_to(ctx.pixel_grid).to_rect();
                 rectangles[i].size
             });
         }

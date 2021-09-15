@@ -17,7 +17,7 @@ use glutin::{
 };
 use webrender::{
     api::{units::*, *},
-    euclid, Renderer, RendererKind, RendererOptions,
+    euclid, RenderApi, Renderer, RendererOptions, Transaction,
 };
 
 use crate::{
@@ -142,10 +142,7 @@ impl ViewWindow {
             text_aa = config::text_aa();
         }
 
-        let opts = RendererOptions {
-            device_pixel_ratio: winit_window.scale_factor() as f32,
-            renderer_kind: RendererKind::Native,
-            clear_color: w.clear_color,
+        let mut opts = RendererOptions {
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
             renderer_id: Some((gen as u64) << 32 | id as u64),
@@ -153,6 +150,9 @@ impl ViewWindow {
             // TODO expose more options to the user.
             ..Default::default()
         };
+        if let Some(clear_color) = w.clear_color {
+            opts.clear_color = clear_color;
+        }
 
         let redirect_frame = Arc::new(AtomicBool::new(false));
         let (rf_sender, redirect_frame_recv) = flume::unbounded();
@@ -167,12 +167,11 @@ impl ViewWindow {
             }),
             opts,
             None,
-            device_size,
         )
         .unwrap();
 
         let api = sender.create_api();
-        let document_id = api.add_document(device_size, 0);
+        let document_id = api.add_document(device_size);
 
         let pipeline_id = webrender::api::PipelineId(gen, id);
 
@@ -325,19 +324,18 @@ impl ViewWindow {
         let viewport_size = LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor);
 
         let mut txn = Transaction::new();
-        let display_list = BuiltDisplayList::from_data(frame.display_list.0.into_vec(), frame.display_list.1);
-        txn.set_display_list(
-            frame.id,
-            self.clear_color,
-            viewport_size,
-            (frame.pipeline_id, frame.size, display_list),
-            true,
+        let display_list = BuiltDisplayList::from_data(
+            DisplayListPayload {
+                data: frame.display_list.0.into_vec(),
+            },
+            frame.display_list.1,
         );
+        txn.set_display_list(frame.id, self.clear_color, viewport_size, (frame.pipeline_id, display_list), true);
         txn.set_root_pipeline(self.pipeline_id);
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame();
+        txn.generate_frame(self.frame_id.0 as u64); // TODO review frame_id != Epoch?
         self.api.send_transaction(self.document_id, txn);
     }
 
@@ -349,24 +347,23 @@ impl ViewWindow {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame();
+        txn.generate_frame(self.frame_id.0 as u64);
         self.api.send_transaction(self.document_id, txn);
     }
 
     fn push_resize(&mut self, txn: &mut Transaction) {
         if self.resized {
             self.resized = false;
-            let scale_factor = self.window.scale_factor() as f32;
             let size = self.window.inner_size();
-            txn.set_document_view(
-                DeviceIntRect::new(euclid::point2(0, 0), euclid::size2(size.width as i32, size.height as i32)),
-                scale_factor,
-            );
+            txn.set_document_view(DeviceIntRect::new(
+                euclid::point2(0, 0),
+                euclid::point2(size.width as i32, size.height as i32),
+            ));
         }
     }
 
-    pub fn update_resources(&mut self, updates: Vec<ResourceUpdate>) {
-        self.api.update_resources(updates);
+    pub fn send_transaction(&mut self, txn: Transaction) {
+        self.api.send_transaction(self.document_id, txn);
     }
 
     /// Capture the next frame-ready event.
@@ -408,7 +405,7 @@ impl ViewWindow {
         let renderer = self.renderer.as_mut().unwrap();
         renderer.update();
         let s = self.window.inner_size();
-        renderer.render(DeviceIntSize::new(s.width as i32, s.height as i32)).unwrap();
+        renderer.render(DeviceIntSize::new(s.width as i32, s.height as i32), 0).unwrap();
         let _ = renderer.flush_pipeline_info();
         ctx.swap_buffers().unwrap();
     }
@@ -419,12 +416,8 @@ impl ViewWindow {
     pub fn hit_test(&self, point: LayoutPoint) -> (Epoch, HitTestResult) {
         (
             self.frame_id,
-            self.api.hit_test(
-                self.document_id,
-                Some(self.pipeline_id),
-                units::WorldPoint::new(point.x, point.y),
-                HitTestFlags::all(),
-            ),
+            self.api
+                .hit_test(self.document_id, Some(self.pipeline_id), units::WorldPoint::new(point.x, point.y)),
         )
     }
 
@@ -470,13 +463,13 @@ impl ViewWindow {
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels(&mut self) -> FramePixels {
-        self.read_pixels_rect(LayoutRect::from_size(self.size()))
+        self.read_pixels_rect(euclid::Rect::from_size(self.size()))
     }
 
     /// Read a selection of pixels of the current frame.
     ///
     /// This is a call to `glReadPixels`, the pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels_rect(&mut self, rect: LayoutRect) -> FramePixels {
+    pub fn read_pixels_rect(&mut self, rect: euclid::Rect<f32, LayoutPixel>) -> FramePixels {
         let max_size = self.size();
         let scale_factor = self.scale_factor();
         // `self.gl` is only valid if we are the current context.
@@ -595,7 +588,7 @@ impl RenderNotifier for Notifier {
         })
     }
 
-    fn wake_up(&self) {}
+    fn wake_up(&self, _: bool) {}
 
     fn new_frame_ready(&self, _: DocumentId, _: bool, _: bool, _: Option<u64>) {
         if self.redirect.load(Ordering::Relaxed) {

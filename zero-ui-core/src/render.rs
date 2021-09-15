@@ -196,7 +196,7 @@ impl FrameBuilder {
         let mut new = FrameBuilder {
             renderer,
             scale_factor,
-            display_list: DisplayListBuilder::with_capacity(pipeline_id, root_size, 100),
+            display_list: DisplayListBuilder::with_capacity(pipeline_id, 100),
             info_id: info.root_id(),
             info,
             widget_id: root_id,
@@ -355,7 +355,6 @@ impl FrameBuilder {
     pub fn common_item_properties(&self, clip_rect: LayoutRect) -> CommonItemProperties {
         CommonItemProperties {
             clip_rect,
-            hit_info: if self.hit_testable { Some(self.item_tag()) } else { None },
             clip_id: self.clip_id,
             spatial_id: self.spatial_id,
             flags: PrimitiveFlags::empty(),
@@ -369,13 +368,10 @@ impl FrameBuilder {
     fn push_widget_hit_area(&mut self, id: WidgetId, area: LayoutSize) {
         self.open_widget_display();
 
-        self.display_list.push_hit_test(&CommonItemProperties {
-            hit_info: Some((id.get(), WIDGET_HIT_AREA)),
-            clip_rect: LayoutRect::from_size(area),
-            clip_id: self.clip_id,
-            spatial_id: self.spatial_id,
-            flags: PrimitiveFlags::empty(),
-        });
+        self.display_list.push_hit_test(
+            &self.common_item_properties(LayoutRect::from_size(area)),
+            (id.get(), WIDGET_HIT_AREA),
+        );
     }
 
     /// Includes a widget transform and continues the render build.
@@ -396,7 +392,7 @@ impl FrameBuilder {
         if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
             // we don't use post_transform here fore the same reason `Self::open_widget_display`
             // reverses filters, there is a detailed comment there.
-            *t = t.pre_transform(transform);
+            *t = transform.then(t);
             child.render(ctx, self);
             Ok(())
         } else {
@@ -475,7 +471,10 @@ impl FrameBuilder {
                     self.spatial_id,
                     TransformStyle::Flat,
                     self.widget_transform_key.bind(transform),
-                    ReferenceFrameKind::Transform,
+                    ReferenceFrameKind::Transform {
+                        is_2d_scale_translation: false, // TODO track this
+                        should_snap: false,
+                    },
                 );
             }
 
@@ -561,8 +560,7 @@ impl FrameBuilder {
 
         let parent_meta = mem::take(&mut self.meta);
 
-        let mut bounds = LayoutRect::from_size(area);
-        bounds.origin = self.offset;
+        let bounds = LayoutRect::from_origin_and_size(self.offset, area);
 
         let node = self.info.push(self.info_id, id, bounds);
         let parent_node = mem::replace(&mut self.info_id, node);
@@ -596,7 +594,7 @@ impl FrameBuilder {
 
         if self.hit_testable {
             self.open_widget_display();
-            self.display_list.push_hit_test(&self.common_item_properties(rect));
+            self.display_list.push_hit_test(&self.common_item_properties(rect), self.item_tag());
         }
     }
 
@@ -625,14 +623,12 @@ impl FrameBuilder {
 
         let parent_clip_id = self.clip_id;
 
-        self.clip_id = self.display_list.define_clip(
+        self.clip_id = self.display_list.define_clip_rect(
             &SpaceAndClipInfo {
                 spatial_id: self.spatial_id,
                 clip_id: self.clip_id,
             },
             LayoutRect::from_size(bounds),
-            None,
-            None,
         );
 
         f(self);
@@ -662,7 +658,10 @@ impl FrameBuilder {
             parent_spatial_id,
             TransformStyle::Flat,
             PropertyBinding::default(),
-            ReferenceFrameKind::Transform,
+            ReferenceFrameKind::Transform {
+                is_2d_scale_translation: false,
+                should_snap: false,
+            },
         );
 
         let offset = origin.to_vector();
@@ -690,7 +689,10 @@ impl FrameBuilder {
             parent_spatial_id,
             TransformStyle::Flat,
             transform,
-            ReferenceFrameKind::Transform,
+            ReferenceFrameKind::Transform {
+                is_2d_scale_translation: false,
+                should_snap: false,
+            },
         );
 
         f(self);
@@ -795,7 +797,7 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
-        self.display_list.push_rect(&self.common_item_properties(rect), color);
+        self.display_list.push_rect(&self.common_item_properties(rect), rect, color);
     }
 
     /// Push a repeating linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
@@ -870,8 +872,8 @@ impl FrameBuilder {
             RenderLineCommand::Border(style) => {
                 use crate::border::LineOrientation as LO;
                 let widths = match orientation {
-                    LO::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, bounds.size.width),
-                    LO::Horizontal => LayoutSideOffsets::new(bounds.size.height, 0.0, 0.0, 0.0),
+                    LO::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, bounds.width()),
+                    LO::Horizontal => LayoutSideOffsets::new(bounds.height(), 0.0, 0.0, 0.0),
                 };
                 let details = BorderDetails::Normal(NormalBorder {
                     left: BorderSide { color, style },
@@ -906,7 +908,7 @@ impl FrameBuilder {
             let s = LayoutSize::new(s, s);
             o.x -= s.width / 2.0;
             o.y -= s.height / 2.0;
-            let rect = LayoutRect::new(o, s).snap_to(self.pixel_grid());
+            let rect = LayoutRect::from_origin_and_size(o, s).snap_to(self.pixel_grid());
             self.push_color(rect, c);
         };
 
@@ -919,9 +921,9 @@ impl FrameBuilder {
     ///
     /// # Returns
     ///
-    /// `(PipelineId, LayoutSize, BuiltDisplayList)` : The display list finalize data.
+    /// `(PipelineId, BuiltDisplayList)` : The display list finalize data.
     /// `FrameInfo`: The built frame info.
-    pub fn finalize(mut self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
+    pub fn finalize(mut self) -> ((PipelineId, BuiltDisplayList), FrameInfo) {
         self.close_widget_display();
         self.info.set_meta(self.info_id, self.meta);
         (self.display_list.finalize(), self.info.build())
@@ -1010,7 +1012,7 @@ impl FrameUpdate {
     /// Includes the widget transform.
     #[inline]
     pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode, ctx: &mut RenderContext) {
-        self.widget_transform = self.widget_transform.post_transform(transform);
+        self.widget_transform = self.widget_transform.then(transform);
         child.render_update(ctx, self);
     }
 

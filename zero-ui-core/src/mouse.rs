@@ -998,7 +998,7 @@ impl Mouse {
     /// **NOT IMPLEMENTED**
     #[inline]
     pub fn lock_cursor_pt(&mut self, window_id: WindowId, point: LayoutPoint) {
-        self.lock_cursor(window_id, LayoutRect::new(point, LayoutSize::new(0.0, 0.0)))
+        self.lock_cursor(window_id, LayoutRect::new(point, point))
     }
 
     /// Locks the cursor to the `area` of a widget in a window that is focused.

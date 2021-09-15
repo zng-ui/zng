@@ -274,7 +274,7 @@ impl FontFaceMetrics {
             x_height: (s(self.x_height)),
             bounding_box: {
                 let b = self.bounding_box;
-                LayoutRect::new(
+                LayoutRect::from_origin_and_size(
                     LayoutPoint::new(s(b.origin.x), s(b.origin.y)),
                     LayoutSize::new(s(b.size.width), s(b.size.height)),
                 )

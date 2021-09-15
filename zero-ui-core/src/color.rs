@@ -968,7 +968,10 @@ impl Filter {
             .iter()
             .map(|f| match f {
                 FilterData::Op(op) => *op,
-                FilterData::Blur(l) => FilterOp::Blur(l.to_layout(ctx, LayoutLength::new(available_size.width)).get()),
+                FilterData::Blur(l) => {
+                    let l = l.to_layout(ctx, LayoutLength::new(available_size.width)).get();
+                    FilterOp::Blur(l, l)
+                }
                 FilterData::DropShadow {
                     offset,
                     blur_radius,
@@ -1097,7 +1100,7 @@ impl fmt::Debug for FilterData {
             match self {
                 FilterData::Op(op) => match op {
                     FilterOp::Identity => todo!(),
-                    FilterOp::Blur(b) => write!(f, "blur({})", b),
+                    FilterOp::Blur(w, _) => write!(f, "blur({})", w),
                     FilterOp::Brightness(b) => write!(f, "brightness({}.pct())", b * 100.0),
                     FilterOp::Contrast(c) => write!(f, "brightness({}.pct())", c * 100.0),
                     FilterOp::Grayscale(c) => bool_or_pct("grayscale", *c, f),

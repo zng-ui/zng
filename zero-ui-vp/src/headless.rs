@@ -4,7 +4,7 @@ use gleam::gl;
 use glutin::{dpi::PhysicalSize, Api as GApi, ContextBuilder, GlRequest};
 use webrender::{
     api::{units::*, *},
-    Renderer, RendererKind, RendererOptions,
+    RenderApi, Renderer, RendererOptions, Transaction,
 };
 
 use crate::{
@@ -41,25 +41,15 @@ impl ViewHeadless {
             .with_hardware_acceleration(None);
 
         let size_one = PhysicalSize::new(1, 1);
-        let renderer_kind;
         #[cfg(target_os = "linux")]
         let context = {
             use glutin::platform::unix::HeadlessContextExt;
             match context.clone().build_surfaceless(ctx.window_target) {
-                Ok(ctx) => {
-                    renderer_kind = RendererKind::Native;
-                    ctx
-                }
+                Ok(ctx) => ctx,
                 Err(suf_e) => match context.clone().build_headless(ctx.window_target, size_one) {
-                    Ok(ctx) => {
-                        renderer_kind = RendererKind::Native;
-                        ctx
-                    }
+                    Ok(ctx) => ctx,
                     Err(hea_e) => match context.build_osmesa(size_one) {
-                        Ok(ctx) => {
-                            renderer_kind = RendererKind::OSMesa;
-                            ctx
-                        }
+                        Ok(ctx) => ctx,
                         Err(osm_e) => panic!(
                             "failed all headless modes supported in linux\nsurfaceless: {:?}\n\nheadless: {:?}\n\n osmesa: {:?}",
                             suf_e, hea_e, osm_e
@@ -69,13 +59,9 @@ impl ViewHeadless {
             }
         };
         #[cfg(not(target_os = "linux"))]
-        let context = {
-            let c = context
-                .build_headless(ctx.window_target, size_one)
-                .expect("failed to build headless context");
-            renderer_kind = RendererKind::Native;
-            c
-        };
+        let context = context
+            .build_headless(ctx.window_target, size_one)
+            .expect("failed to build headless context");
 
         let mut context = ctx.gl_manager.manage_headless(id, context);
         let gl_ctx = context.make_current();
@@ -105,10 +91,7 @@ impl ViewHeadless {
             text_aa = config::text_aa();
         }
 
-        let opts = RendererOptions {
-            device_pixel_ratio: cfg.scale_factor,
-            renderer_kind,
-            clear_color: cfg.clear_color,
+        let mut opts = RendererOptions {
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
             renderer_id: Some((gen as u64) << 32 | id as u64),
@@ -116,6 +99,9 @@ impl ViewHeadless {
             // TODO expose more options to the user.
             ..Default::default()
         };
+        if let Some(clear_color) = cfg.clear_color {
+            opts.clear_color = clear_color;
+        }
 
         let device_size = DeviceIntSize::new(
             (cfg.size.width * cfg.scale_factor) as i32,
@@ -130,12 +116,11 @@ impl ViewHeadless {
             }),
             opts,
             None,
-            device_size,
         )
         .unwrap();
 
         let api = sender.create_api();
-        let document_id = api.add_document(device_size, 0);
+        let document_id = api.add_document(device_size);
 
         let pipeline_id = webrender::api::PipelineId(gen, id);
 
@@ -225,19 +210,18 @@ impl ViewHeadless {
         self.frame_id = frame.id;
 
         let mut txn = Transaction::new();
-        let display_list = BuiltDisplayList::from_data(frame.display_list.0.into_vec(), frame.display_list.1);
-        txn.set_display_list(
-            frame.id,
-            self.clear_color,
-            self.size,
-            (frame.pipeline_id, frame.size, display_list),
-            true,
+        let display_list = BuiltDisplayList::from_data(
+            DisplayListPayload {
+                data: frame.display_list.0.into_vec(),
+            },
+            frame.display_list.1,
         );
+        txn.set_display_list(frame.id, self.clear_color, self.size, (frame.pipeline_id, display_list), true);
         txn.set_root_pipeline(self.pipeline_id);
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame();
+        txn.generate_frame(self.frame_id.0 as u64);
         self.api.send_transaction(self.document_id, txn);
     }
 
@@ -248,28 +232,25 @@ impl ViewHeadless {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame();
+        txn.generate_frame(self.frame_id.0 as u64);
         self.api.send_transaction(self.document_id, txn);
     }
 
     fn push_resize(&mut self, txn: &mut Transaction) {
         if self.resized {
             self.resized = false;
-            txn.set_document_view(
-                DeviceIntRect::new(
-                    euclid::point2(0, 0),
-                    euclid::size2(
-                        (self.size.width * self.scale_factor) as i32,
-                        (self.size.height * self.scale_factor) as i32,
-                    ),
+            txn.set_document_view(DeviceIntRect::new(
+                euclid::point2(0, 0),
+                euclid::point2(
+                    (self.size.width * self.scale_factor) as i32,
+                    (self.size.height * self.scale_factor) as i32,
                 ),
-                self.scale_factor,
-            );
+            ));
         }
     }
 
-    pub fn update_resources(&mut self, updates: Vec<ResourceUpdate>) {
-        self.api.update_resources(updates);
+    pub fn send_transaction(&mut self, txn: Transaction) {
+        self.api.send_transaction(self.document_id, txn);
     }
 
     pub fn redraw(&mut self) {
@@ -280,10 +261,13 @@ impl ViewHeadless {
         renderer.update();
 
         renderer
-            .render(euclid::size2(
-                (self.size.width * self.scale_factor) as i32,
-                (self.size.height * self.scale_factor) as i32,
-            ))
+            .render(
+                euclid::size2(
+                    (self.size.width * self.scale_factor) as i32,
+                    (self.size.height * self.scale_factor) as i32,
+                ),
+                0,
+            )
             .unwrap();
         let _ = renderer.flush_pipeline_info();
     }
@@ -295,16 +279,15 @@ impl ViewHeadless {
                 self.document_id,
                 Some(self.pipeline_id),
                 webrender::api::units::WorldPoint::new(point.x, point.y),
-                webrender::api::HitTestFlags::all(),
             ),
         )
     }
 
     pub fn read_pixels(&mut self) -> FramePixels {
-        self.read_pixels_rect(LayoutRect::from_size(self.size))
+        self.read_pixels_rect(euclid::Rect::from_size(self.size))
     }
 
-    pub fn read_pixels_rect(&mut self, rect: LayoutRect) -> FramePixels {
+    pub fn read_pixels_rect(&mut self, rect: euclid::Rect<f32, LayoutPixel>) -> FramePixels {
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
         util::read_pixels_rect(&self.gl, self.size, self.scale_factor, rect)
@@ -333,7 +316,7 @@ impl RenderNotifier for Notifier {
         })
     }
 
-    fn wake_up(&self) {}
+    fn wake_up(&self, _: bool) {}
 
     fn new_frame_ready(&self, _: DocumentId, _: bool, _: bool, _: Option<u64>) {
         let _ = self.sender.send(AppEvent::HeadlessFrameReady(self.id));

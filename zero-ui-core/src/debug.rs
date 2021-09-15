@@ -1018,7 +1018,7 @@ impl WriteFrameState {
                 widgets.insert(
                     info.instance_id,
                     WriteWidgetState {
-                        outer_size: w.bounds().size,
+                        outer_size: w.bounds().size(),
                         properties,
                     },
                 );
@@ -1139,7 +1139,7 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
             (".layout", false),
             ".outer_size",
             {
-                let size = widget.bounds().size;
+                let size = widget.bounds().size();
                 &ValueInfo {
                     debug: formatx!("({}, {})", size.width, size.height),
                     debug_alt: formatx!("LayoutSize {{\n    width: {},\n     height: {}\n}}", size.width, size.height),
@@ -1148,7 +1148,7 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
             },
             false,
             true,
-            updates_from.outer_size_diff(wgt.instance_id, widget.bounds().size),
+            updates_from.outer_size_diff(wgt.instance_id, widget.bounds().size()),
         );
 
         for child in widget.children() {
@@ -1163,7 +1163,7 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
             (".layout", false),
             ".bounds",
             {
-                let bounds = widget.bounds();
+                let bounds = widget.bounds().to_rect();
                 &ValueInfo {
                     debug: formatx!(
                         "({}, {}).at({}, {})",

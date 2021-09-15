@@ -10,7 +10,10 @@ use glutin::{ContextWrapper, NotCurrent, PossiblyCurrent};
 #[cfg(feature = "full")]
 use serde_bytes::ByteBuf;
 #[cfg(feature = "full")]
-use webrender_api::units::{LayoutRect, LayoutSize};
+use webrender_api::{
+    euclid,
+    units::{LayoutPixel, LayoutSize},
+};
 
 pub type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -137,8 +140,13 @@ impl GlContextManager {
 /// Read a selection of pixels of the current frame.
 ///
 /// This is a call to `glReadPixels`, the pixel row order is bottom-to-top and the pixel type is BGRA.
-pub(crate) fn read_pixels_rect(gl: &Rc<dyn gl::Gl>, max_size: LayoutSize, scale_factor: f32, rect: LayoutRect) -> FramePixels {
-    let max = LayoutRect::from_size(max_size);
+pub(crate) fn read_pixels_rect(
+    gl: &Rc<dyn gl::Gl>,
+    max_size: LayoutSize,
+    scale_factor: f32,
+    rect: euclid::Rect<f32, LayoutPixel>,
+) -> FramePixels {
+    let max = euclid::Rect::from_size(max_size);
     let rect = rect.intersection(&max).unwrap_or_default();
 
     let x = rect.origin.x * scale_factor;

@@ -57,8 +57,9 @@ pub use app_process::*;
 pub use types::*;
 
 use webrender_api::{
-    units::{LayoutPoint, LayoutRect, LayoutSize},
-    DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId, ResourceUpdate,
+    euclid,
+    units::{LayoutPixel, LayoutPoint, LayoutSize},
+    DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId,
 };
 
 const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
@@ -425,19 +426,96 @@ declare_ipc! {
         with_window_or_headless!(self, id, IdNamespace(0), |w|w.namespace_id())
     }
 
-    /// New image resource key.
-    pub fn generate_image_key(&mut self, _ctx: &Context, id: WinId) -> ImageKey {
-        with_window_or_headless!(self, id, ImageKey::DUMMY, |w|w.generate_image_key())
+    /// Add an image resource to the window renderer.
+    /// 
+    /// Returns the new image key.
+    pub fn add_image(&mut self, _ctx: &Context, id: WinId, descriptor: webrender_api::ImageDescriptor, data: ByteBuf) -> ImageKey {
+        with_window_or_headless!(self, id, ImageKey::DUMMY, |w| {
+            let key = w.generate_image_key();
+            let mut txn = webrender::Transaction::new();
+            txn.add_image(key, descriptor, webrender_api::ImageData::Raw(std::sync::Arc::new(data.into_vec())), None);
+            w.send_transaction(txn);
+            key
+        })
     }
 
-    /// New font resource key.
-    pub fn generate_font_key(&mut self, _ctx: &Context, id: WinId) -> FontKey {
-        with_window_or_headless!(self, id, FontKey(IdNamespace(0), 0), |w|w.generate_font_key())
+    /// Replace the image resource in the window renderer.
+    pub fn update_image(
+        &mut self,
+        _ctx: &Context,
+        id: WinId,
+        key: ImageKey,
+        descriptor: webrender_api::ImageDescriptor,
+        data: ByteBuf,
+        dirty_rect: webrender_api::units::ImageDirtyRect
+    ) -> () {
+        with_window_or_headless!(self, id, (), |w| {
+            let mut txn = webrender::Transaction::new();
+            txn.update_image(key, descriptor, webrender_api::ImageData::Raw(std::sync::Arc::new(data.into_vec())), &dirty_rect);
+            w.send_transaction(txn);
+        })
     }
 
-    /// New font instance key.
-    pub fn generate_font_instance_key(&mut self, _ctx: &Context, id: WinId) -> FontInstanceKey {
-        with_window_or_headless!(self, id, FontInstanceKey(IdNamespace(0), 0), |w|w.generate_font_instance_key())
+    /// Delete the image resource in the window renderer.
+    pub fn delete_image(&mut self, _ctx: &Context, id: WinId, key: ImageKey) -> () {
+        with_window_or_headless!(self, id, (), |w| {
+            let mut txn = webrender::Transaction::new();
+            txn.delete_image(key);
+            w.send_transaction(txn);
+        })
+    }
+
+    /// Add a raw font resource to the window renderer.
+    /// 
+    /// Returns the new font key.
+    pub fn add_font(&mut self, _ctx: &Context, id: WinId, bytes: ByteBuf, index: u32) -> FontKey {
+        with_window_or_headless!(self, id, FontKey(IdNamespace(0), 0), |w| {
+            let key = w.generate_font_key();
+            let mut txn = webrender::Transaction::new();
+            txn.add_raw_font(key, bytes.into_vec(), index);
+            w.send_transaction(txn);
+            key
+        })
+    }
+
+    /// Delete the font resource in the window renderer.
+    pub fn delete_font(&mut self, _ctx: &Context, id: WinId, key: FontKey) -> () {
+        with_window_or_headless!(self, id, (), |w| {
+            let mut txn = webrender::Transaction::new();
+            txn.delete_font(key);
+            w.send_transaction(txn);
+        })
+    }
+
+    /// Add a font instance to the window renderer.
+    /// 
+    /// Returns the new instance key.
+    pub fn add_font_instance(
+        &mut self, 
+        _ctx: &Context, 
+        id: WinId, 
+        font_key: FontKey, 
+        glyph_size: f32,
+        options: Option<webrender_api::FontInstanceOptions>,
+        plataform_options: Option<webrender_api::FontInstancePlatformOptions>,
+        variations: Vec<webrender_api::FontVariation>,
+    ) -> FontInstanceKey {
+        with_window_or_headless!(self, id, FontInstanceKey(IdNamespace(0), 0), |w| {
+            let key = w.generate_font_instance_key();
+            let mut txn = webrender::Transaction::new();
+            txn.add_font_instance(key, font_key, glyph_size, options, plataform_options, variations);
+            w.send_transaction(txn);
+            key
+        })
+    }
+
+    /// Delete a font instance.
+    pub fn delete_font_instance(&mut self, _ctx: &Context, id: WinId, instance_key: FontInstanceKey) -> () {
+        with_window_or_headless!(self, id, (), |w| {
+            let mut txn = webrender::Transaction::new();
+            txn.delete_font_instance(instance_key);
+            w.send_transaction(txn);
+        })
     }
 
     /// Gets the window content are size.
@@ -465,7 +543,7 @@ declare_ipc! {
     /// `glReadPixels` a new buffer.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels_rect(&mut self, _ctx: &Context, id: WinId, rect: LayoutRect) -> FramePixels {
+    pub fn read_pixels_rect(&mut self, _ctx: &Context, id: WinId, rect: euclid::Rect<f32, LayoutPixel>) -> FramePixels {
         with_window_or_headless!(self, id, FramePixels::default(), |w|w.read_pixels_rect(rect))
     }
 
@@ -489,11 +567,6 @@ declare_ipc! {
     /// Update the current frame and re-render it.
     pub fn render_update(&mut self, _ctx: &Context, id: WinId, updates: DynamicProperties) -> () {
         with_window_or_headless!(self, id, (), |w|w.render_update(updates))
-    }
-
-    /// Add/remove/update resources such as images and fonts.
-    pub fn update_resources(&mut self, _ctx: &Context, id: WinId, updates: Vec<ResourceUpdate>) -> () {
-        with_window_or_headless!(self, id, (), |w| w.update_resources(updates))
     }
 
     /// Used for testing respawn.
