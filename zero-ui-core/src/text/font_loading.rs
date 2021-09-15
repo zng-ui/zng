@@ -710,7 +710,7 @@ impl Font {
             })
             .collect();
 
-        let key = match renderer.add_font_instance(font_key, self.size.get(), Some(opt), None, variations) {
+        let key = match renderer.add_font_instance(font_key, self.size.get() * 1.5, Some(opt), None, variations) {
             Ok(k) => k,
             Err(Respawned) => {
                 log::debug!("respawned calling `add_font_instance`, will return dummy font key");

@@ -21,25 +21,6 @@ pub use zero_ui_vp::webrender_api;
 
 use webrender_api::*;
 
-macro_rules! debug_assert_aligned {
-    ($value:expr, $grid: expr) => {
-        #[cfg(debug_assertions)]
-        {
-            let value = $value;
-            let grid = $grid;
-            if !value.is_aligned_to(grid) {
-                log::error!(
-                    target: "render",
-                    "{}: `{:?}` is not aligned, expected `{:?}`",
-                    stringify!($value),
-                    value,
-                    value.snap_to(grid)
-                );
-            }
-        }
-    };
-}
-
 /// Id of a rendered or rendering window frame. Not unique across windows.
 pub type FrameId = webrender_api::Epoch;
 
@@ -186,7 +167,8 @@ impl FrameBuilder {
         root_size: LayoutSize,
         scale_factor: f32,
     ) -> Self {
-        debug_assert_aligned!(root_size, PixelGrid::new(scale_factor));
+        let root_size = LayoutSize::new(root_size.width * scale_factor, root_size.height * scale_factor).round();
+
         let pipeline_id = renderer
             .as_ref()
             .and_then(|r| r.pipeline_id().ok())
@@ -561,7 +543,7 @@ impl FrameBuilder {
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
 
-        debug_assert_aligned!(area, self.pixel_grid());
+        let area = LayoutSize::new(area.width * self.scale_factor, area.height * self.scale_factor).round();
 
         self.push_widget_hit_area(id, area); // self.open_widget_display() happens here.
 
@@ -603,7 +585,7 @@ impl FrameBuilder {
             return;
         }
 
-        debug_assert_aligned!(rect, self.pixel_grid());
+        let rect = (rect * self.scale_factor).round();
 
         if self.hit_testable {
             self.open_widget_display();
@@ -630,7 +612,7 @@ impl FrameBuilder {
             return;
         }
 
-        debug_assert_aligned!(bounds, self.pixel_grid());
+        let bounds = (bounds * self.scale_factor).round();
 
         self.open_widget_display();
 
@@ -661,7 +643,7 @@ impl FrameBuilder {
             return f(self);
         }
 
-        debug_assert_aligned!(origin, self.pixel_grid());
+        let origin = (origin * self.scale_factor).round();
 
         self.open_widget_display();
 
@@ -723,8 +705,8 @@ impl FrameBuilder {
             return;
         }
 
-        debug_assert_aligned!(bounds, self.pixel_grid());
-        debug_assert_aligned!(widths, self.pixel_grid());
+        let bounds = (bounds * self.scale_factor).round();
+        let widths = widths * self.scale_factor;
 
         self.open_widget_display();
 
@@ -753,7 +735,11 @@ impl FrameBuilder {
             return;
         }
 
-        debug_assert_aligned!(rect, self.pixel_grid());
+        let rect = (rect * self.scale_factor).round();
+        let mut glyphs = glyphs.to_vec();
+        for g in &mut glyphs {
+            g.point *= self.scale_factor;
+        }
 
         self.open_widget_display();
 
@@ -761,7 +747,7 @@ impl FrameBuilder {
             let instance_key = font.instance_key(r, synthesis);
 
             let item = self.common_hit_item_ps(rect);
-            self.display_list.push_text(&item, rect, glyphs, instance_key, color, None);
+            self.display_list.push_text(&item, rect, &glyphs, instance_key, color, None);
         }
     }
 
@@ -804,7 +790,7 @@ impl FrameBuilder {
             return;
         }
 
-        debug_assert_aligned!(rect, self.pixel_grid());
+        let rect = (rect * self.scale_factor).round();
 
         self.open_widget_display();
 
@@ -831,9 +817,10 @@ impl FrameBuilder {
             return;
         }
 
-        debug_assert_aligned!(rect, self.pixel_grid());
-        debug_assert_aligned!(tile_size, self.pixel_grid());
-        debug_assert_aligned!(tile_spacing, self.pixel_grid());
+        let rect = (rect * self.scale_factor).round();
+        let tile_size = (tile_size * self.scale_factor).round();
+        let tile_spacing = (tile_spacing * self.scale_factor).round();
+
         debug_assert!(stops.len() >= 2);
         debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
         debug_assert!(
@@ -846,8 +833,8 @@ impl FrameBuilder {
         self.display_list.push_stops(stops);
 
         let gradient = Gradient {
-            start_point: line.start,
-            end_point: line.end,
+            start_point: (line.start * self.scale_factor).round(),
+            end_point: (line.end * self.scale_factor).round(),
             extend_mode,
         };
 
@@ -868,7 +855,7 @@ impl FrameBuilder {
             return;
         }
 
-        debug_assert_aligned!(bounds, self.pixel_grid());
+        let bounds = (bounds * self.scale_factor).round();
 
         self.open_widget_display();
 

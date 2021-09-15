@@ -414,10 +414,14 @@ impl ViewWindow {
     ///
     /// Returns all hits from front-to-back.
     pub fn hit_test(&self, point: LayoutPoint) -> (Epoch, HitTestResult) {
+        let scale_factor = self.scale_factor();
         (
             self.frame_id,
-            self.api
-                .hit_test(self.document_id, Some(self.pipeline_id), units::WorldPoint::new(point.x, point.y)),
+            self.api.hit_test(
+                self.document_id,
+                Some(self.pipeline_id),
+                units::WorldPoint::new(point.x * scale_factor, point.y * scale_factor),
+            ),
         )
     }
 
