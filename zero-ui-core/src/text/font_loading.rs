@@ -701,13 +701,14 @@ impl Font {
         if synthesis.contains(FontSynthesis::BOLD) {
             opt.flags |= wr::FontInstanceFlags::SYNTHETIC_BOLD;
         }
-        let variations =  self.variations
-        .iter()
-        .map(|v| wr::FontVariation {
-            tag: v.tag.0,
-            value: v.value,
-        })
-        .collect();
+        let variations = self
+            .variations
+            .iter()
+            .map(|v| wr::FontVariation {
+                tag: v.tag.0,
+                value: v.value,
+            })
+            .collect();
 
         let key = match renderer.add_font_instance(font_key, self.size.get(), Some(opt), None, variations) {
             Ok(k) => k,

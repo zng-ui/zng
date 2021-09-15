@@ -427,7 +427,7 @@ declare_ipc! {
     }
 
     /// Add an image resource to the window renderer.
-    /// 
+    ///
     /// Returns the new image key.
     pub fn add_image(&mut self, _ctx: &Context, id: WinId, descriptor: webrender_api::ImageDescriptor, data: ByteBuf) -> ImageKey {
         with_window_or_headless!(self, id, ImageKey::DUMMY, |w| {
@@ -466,7 +466,7 @@ declare_ipc! {
     }
 
     /// Add a raw font resource to the window renderer.
-    /// 
+    ///
     /// Returns the new font key.
     pub fn add_font(&mut self, _ctx: &Context, id: WinId, bytes: ByteBuf, index: u32) -> FontKey {
         with_window_or_headless!(self, id, FontKey(IdNamespace(0), 0), |w| {
@@ -488,13 +488,13 @@ declare_ipc! {
     }
 
     /// Add a font instance to the window renderer.
-    /// 
+    ///
     /// Returns the new instance key.
     pub fn add_font_instance(
-        &mut self, 
-        _ctx: &Context, 
-        id: WinId, 
-        font_key: FontKey, 
+        &mut self,
+        _ctx: &Context,
+        id: WinId,
+        font_key: FontKey,
         glyph_size: f32,
         options: Option<webrender_api::FontInstanceOptions>,
         plataform_options: Option<webrender_api::FontInstancePlatformOptions>,

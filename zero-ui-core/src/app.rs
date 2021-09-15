@@ -1848,7 +1848,10 @@ pub mod view_process {
     use linear_map::LinearMap;
 
     use zero_ui_vp::webrender_api::units::ImageDirtyRect;
-    use zero_ui_vp::webrender_api::{DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageDescriptor, ImageKey, PipelineId};
+    use zero_ui_vp::webrender_api::{
+        DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult,
+        IdNamespace, ImageDescriptor, ImageKey, PipelineId,
+    };
     use zero_ui_vp::{ByteBuf, Controller, DevId, WinId};
     pub use zero_ui_vp::{
         CursorIcon, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, Result, TextAntiAliasing,
@@ -2291,7 +2294,7 @@ pub mod view_process {
         }
 
         /// Add an image resource to the window renderer.
-        /// 
+        ///
         /// Returns the image key.
         pub fn add_image(&self, descriptor: ImageDescriptor, data: Vec<u8>) -> Result<ImageKey> {
             self.call(|id, p| p.add_image(id, descriptor, ByteBuf::from(data)))
@@ -2314,7 +2317,7 @@ pub mod view_process {
         }
 
         /// Add a raw font resource to the window renderer.
-        /// 
+        ///
         /// Returns the new font key.
         pub fn add_font(&self, bytes: Vec<u8>, index: u32) -> Result<FontKey> {
             self.call(|id, p| p.add_font(id, ByteBuf::from(bytes), index))
@@ -2326,13 +2329,16 @@ pub mod view_process {
         }
 
         /// Add a font instance to the window renderer.
-        /// 
+        ///
         /// Returns the new instance key.
-        pub fn add_font_instance(&self, font_key: FontKey, 
+        pub fn add_font_instance(
+            &self,
+            font_key: FontKey,
             glyph_size: f32,
             options: Option<FontInstanceOptions>,
             plataform_options: Option<FontInstancePlatformOptions>,
-            variations: Vec<FontVariation>,) -> Result<FontInstanceKey> {
+            variations: Vec<FontVariation>,
+        ) -> Result<FontInstanceKey> {
             self.call(|id, p| p.add_font_instance(id, font_key, glyph_size, options, plataform_options, variations))
         }
 
