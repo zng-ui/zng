@@ -519,7 +519,12 @@ impl<T: Copy + num_traits::Zero, U> CornerRadius<T, U> {
 }
 impl<T: fmt::Debug, U> fmt::Debug for CornerRadius<T, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CornerRadius").field("top_left", &self.top_left).field("top_right", &self.top_right).field("bottom_left", &self.bottom_left).field("bottom_right", &self.bottom_right).finish()
+        f.debug_struct("CornerRadius")
+            .field("top_left", &self.top_left)
+            .field("top_right", &self.top_right)
+            .field("bottom_left", &self.bottom_left)
+            .field("bottom_right", &self.bottom_right)
+            .finish()
     }
 }
 
