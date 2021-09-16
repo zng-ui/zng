@@ -588,7 +588,7 @@ impl GradientStops {
 
         let vx = vx / av_l;
         let vy = vx / av_l;
-       
+
         line.end.x = line.start.x + vx * end_offset;
         line.end.y = line.start.y + vy * end_offset;
 
@@ -695,7 +695,7 @@ impl GradientStops {
             let length = after.offset - prev.offset;
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
-                    let mut offset = offset.to_layout(ctx, AvailablePx::Max(Px(length as i32))).to_wr().get();
+                    let mut offset = offset.to_layout(ctx, AvailablePx::Finite(Px(length as i32))).to_wr().get();
                     if is_positional(offset) {
                         offset = length / 2.0;
                     } else {
@@ -1014,7 +1014,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
         ctx.layout_context(20.0, 20.0, PxSize::new(Px(100), Px(100)), 1.0, 96.0, |ctx| {
             stops.layout_linear(
-                AvailablePx::Max(100.into()),
+                AvailablePx::Finite(100.into()),
                 ctx,
                 ExtendMode::Clamp,
                 &mut PxLine::new(PxPoint::zero(), PxPoint::new(Px(100), Px(100))),

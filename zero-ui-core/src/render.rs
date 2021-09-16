@@ -631,7 +631,7 @@ impl FrameBuilder {
 
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
-            origin,
+            origin.to_wr(),
             parent_spatial_id,
             TransformStyle::Flat,
             PropertyBinding::default(),
@@ -737,8 +737,14 @@ impl FrameBuilder {
         if let Some(r) = &self.renderer {
             let image_key = image.image_key(r);
             let item = self.common_hit_item_ps(rect);
-            self.display_list
-                .push_image(&item, rect.to_wr(), rendering.into(), image.alpha_type(), image_key, RenderColor::WHITE)
+            self.display_list.push_image(
+                &item,
+                rect.to_wr(),
+                rendering.into(),
+                image.alpha_type(),
+                image_key,
+                RenderColor::WHITE,
+            )
         }
     }
 
@@ -766,7 +772,7 @@ impl FrameBuilder {
         self.open_widget_display();
 
         let item = self.common_hit_item_ps(rect);
-        self.display_list.push_rect(&item, rect, color);
+        self.display_list.push_rect(&item, rect.to_wr(), color);
     }
 
     /// Push a repeating linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
@@ -806,7 +812,8 @@ impl FrameBuilder {
         };
 
         let item = self.common_hit_item_ps(rect);
-        self.display_list.push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+        self.display_list
+            .push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
     }
 
     /// Push a styled vertical or horizontal line.
@@ -852,7 +859,7 @@ impl FrameBuilder {
                     do_aa: false,
                 });
 
-                self.display_list.push_border(&item, bounds, widths, details);
+                self.display_list.push_border(&item, bounds.to_wr(), widths.to_wr(), details);
             }
         }
     }
@@ -872,9 +879,9 @@ impl FrameBuilder {
             self.push_color(rect, c);
         };
 
-        centered_rect(offset, 8.0, crate::color::colors::BLACK.into());
-        centered_rect(offset, 6.0, crate::color::colors::WHITE.into());
-        centered_rect(offset, 4.0, color.into());
+        centered_rect(offset, Px(8), crate::color::colors::BLACK.into());
+        centered_rect(offset, Px(6), crate::color::colors::WHITE.into());
+        centered_rect(offset, Px(4), color.into());
     }
 
     /// Finalizes the build.
@@ -1164,7 +1171,7 @@ impl FrameHitInfo {
             if let Some(raw_cursor) = actual_hits.remove(&widget_id) {
                 hits.push(HitInfo {
                     widget_id,
-                    point,
+                    point: point.to_px(),
                     cursor: unpack_cursor(raw_cursor),
                 })
             }
@@ -1174,7 +1181,7 @@ impl FrameHitInfo {
         for (widget_id, raw_cursor) in actual_hits.drain() {
             hits.push(HitInfo {
                 widget_id,
-                point: PxPoint::new(Px(-1.0), Px(-1.0)),
+                point: PxPoint::new(Px(-1), Px(-1)),
                 cursor: unpack_cursor(raw_cursor),
             })
         }
@@ -1195,7 +1202,7 @@ impl FrameHitInfo {
         FrameHitInfo::new(
             window_id,
             FrameId::invalid(),
-            PxPoint::new(-1.0, -1.0),
+            PxPoint::new(Px(-1), Px(-1)),
             &HitTestResult::default(),
         )
     }
@@ -1931,8 +1938,8 @@ impl<'a> WidgetInfo<'a> {
     #[inline]
     pub fn distance_key(self, origin: PxPoint) -> usize {
         let o = self.center();
-        let a = (o.x - origin.x).pow(2);
-        let b = (o.y - origin.y).pow(2);
+        let a = (o.x - origin.x).0.pow(2);
+        let b = (o.y - origin.y).0.pow(2);
         (a + b) as usize
     }
 
@@ -2073,8 +2080,8 @@ impl_from_and_into_var! {
 #[derive(Clone)]
 pub struct FramePixels {
     bgra: Arc<Vec<u8>>,
-    width: u32,
-    height: u32,
+    width: Px,
+    height: Px,
     opaque: bool,
 
     /// Scale factor used when rendering the frame.
@@ -2087,8 +2094,8 @@ impl Default for FramePixels {
     fn default() -> Self {
         Self {
             bgra: Arc::default(),
-            width: 0,
-            height: 0,
+            width: Px(0),
+            height: Px(0),
             opaque: true,
             scale_factor: 96.0,
         }
@@ -2116,14 +2123,24 @@ impl FramePixels {
 
     /// Pixels width.
     #[inline]
-    pub fn width(&self) -> u32 {
+    pub fn width(&self) -> Px {
         self.width
     }
 
     /// Pixels height.
     #[inline]
-    pub fn height(&self) -> u32 {
+    pub fn height(&self) -> Px {
         self.height
+    }
+
+    /// Width in [`Dip`] units.
+    pub fn width_dip(&self) -> Dip {
+        Dip::from_px(self.width, self.scale_factor)
+    }
+
+    /// Height in [`Dip`] units.
+    pub fn height_dip(&self) -> Dip {
+        Dip::from_px(self.height, self.scale_factor)
     }
 
     /// Returns `true` if all pixels in [`bgra`] are fully opaque.
@@ -2137,7 +2154,7 @@ impl FramePixels {
     /// Get the underlying data `(bgra, width, height)`.
     #[inline]
     pub fn raw(self) -> (Arc<Vec<u8>>, u32, u32) {
-        (self.bgra, self.width, self.height)
+        (self.bgra, self.width.0 as u32, self.height.0 as u32)
     }
 
     /// Encode and save the pixels as an image.
@@ -2160,7 +2177,7 @@ impl FramePixels {
     /// [`width`]: FramePixels::width
     /// [`height`]: FramePixels::height
     pub async fn save(&self, path: impl Into<std::path::PathBuf>) -> image::ImageResult<()> {
-        assert!(self.width > 0 && self.height > 0, "cannot save empty frame pixels");
+        assert!(self.width > Px(0) && self.height > Px(0), "cannot save empty frame pixels");
 
         use image::*;
         use std::fs;
@@ -2170,10 +2187,10 @@ impl FramePixels {
         let mut file = task::wait(move || fs::File::create(path)).await?;
 
         // invert rows, `image` only supports top-to-bottom buffers.
-        let bgra: Vec<_> = self.bgra.rchunks_exact(self.width as usize * 4).flatten().copied().collect();
+        let bgra: Vec<_> = self.bgra.rchunks_exact(self.width.0 as usize * 4).flatten().copied().collect();
 
-        let width = self.width;
-        let height = self.height;
+        let width = self.width.0 as u32;
+        let height = self.height.0 as u32;
         let scale_factor = self.scale_factor;
         let opaque = self.opaque;
 
@@ -2303,7 +2320,7 @@ impl FramePixels {
     /// [`Image`]: crate::image::Image
     #[inline]
     pub fn image(&self) -> crate::image::Image {
-        crate::image::Image::from_raw(self.bgra.clone(), (self.width, self.height), self.opaque)
+        crate::image::Image::from_raw(self.bgra.clone(), (self.width.0 as u32, self.height.0 as u32), self.opaque)
     }
 }
 impl From<FramePixels> for crate::image::Image {

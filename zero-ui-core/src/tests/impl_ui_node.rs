@@ -101,12 +101,12 @@ fn test_trace(node: impl UiNode) {
     wgt.test_measure(&mut ctx, l_size);
     assert_only_traced!(wgt.state(), "measure");
 
-    wgt.test_arrange(&mut ctx, l_size);
+    wgt.test_arrange(&mut ctx, l_size.to_px());
     assert_only_traced!(wgt.state(), "arrange");
 
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::invalid(), window_id, wgt.id(), root_transform_key, l_size, 1.0);
+    let mut frame = FrameBuilder::new_renderless(FrameId::invalid(), window_id, wgt.id(), root_transform_key, l_size.to_px(), 1.0);
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
@@ -185,7 +185,7 @@ pub fn default_no_child() {
 
     // we expect default to fill available space and collapse in infinite spaces.
     let desired_size = wgt.test_measure(&mut ctx, available_size);
-    assert_eq!(desired_size, available_size);
+    assert_eq!(desired_size, available_size.to_px());
 
     let available_size = AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite);
     let desired_size = wgt.test_measure(&mut ctx, available_size);
@@ -220,7 +220,7 @@ mod util {
         event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         state_key,
-        units::PxSize,
+        units::*,
         UiNode,
     };
 
@@ -302,12 +302,12 @@ mod util {
             self.trace("event");
         }
 
-        fn measure(&mut self, _: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, _: &mut LayoutContext, _: AvailableSize) -> PxSize {
             self.trace("measure");
-            LayoutSize::zero()
+            PxSize::zero()
         }
 
-        fn arrange(&mut self, _: &mut LayoutContext, _: LayoutSize) {
+        fn arrange(&mut self, _: &mut LayoutContext, _: PxSize) {
             self.trace("arrange");
         }
 

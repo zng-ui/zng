@@ -1596,12 +1596,9 @@ impl Windows {
     ///
     /// The `rect` is converted to pixels coordinates using the current window's scale factor.
     pub fn frame_pixels_rect(&self, window_id: WindowId, rect: impl Into<DipRect>) -> Result<FramePixels, WindowNotFound> {
-        let info = 
-        self.windows_info
-            .get(&window_id)
-            .ok_or(WindowNotFound(window_id))?; // not found here
+        let info = self.windows_info.get(&window_id).ok_or(WindowNotFound(window_id))?; // not found here
 
-        let rect = rect.into().to_px(info.scale_factor);        
+        let rect = rect.into().to_px(info.scale_factor);
 
         info.renderer
             .as_ref()
@@ -1752,7 +1749,7 @@ struct AppWindow {
     // latest frame.
     frame_id: FrameId,
 
-    position: DipPoint,
+    position: Option<DipPoint>,
     size: DipSize,
     min_size: DipSize,
     max_size: DipSize,
@@ -1826,7 +1823,7 @@ impl AppWindow {
             first_render: true,
 
             frame_id: frame_info.frame_id(),
-            position: DipPoint::zero(),
+            position: None,
             size: DipSize::zero(),
             min_size: DipSize::zero(),
             max_size: DipSize::zero(),
@@ -1877,9 +1874,9 @@ impl AppWindow {
                 self.position = self.layout_position(ctx);
 
                 if let Some(w) = &self.headed {
-                    let _: Ignore = w.set_position(self.position);
+                    let _: Ignore = w.set_position(self.position.unwrap_or_default());
                 } else {
-                    RawWindowMovedEvent.notify(ctx.events, RawWindowMovedArgs::now(self.id, self.position, EventCause::App));
+                    RawWindowMovedEvent.notify(ctx.events, RawWindowMovedArgs::now(self.id, self.position.unwrap_or_default(), EventCause::App));
                 }
             }
 
@@ -2100,14 +2097,16 @@ impl AppWindow {
         // compute start position.
         match self.context.root.start_position {
             StartPosition::Default => {
-                // `layout_position` can return `NAN` or a computed position.
-                // We use NAN to signal the view-process to let the OS define the start position.
+                // `layout_position` can return `None` or a computed position.
+                // We use `None` to signal the view-process to let the OS define the start position.
                 self.position = self.layout_position(ctx);
             }
             StartPosition::CenterMonitor => {
                 let (scr_size, _, _) = self.monitor_metrics(ctx);
-                self.position.x = (scr_size.width - self.size.width) / 2.0;
-                self.position.y = (scr_size.height - self.size.height) / 2.0;
+                self.position = Some(DipPoint::new(
+                    (scr_size.width - self.size.width) / Dip::new(2),
+                    (scr_size.height - self.size.height) / Dip::new(2),
+                ));
             }
             StartPosition::CenterParent => todo!(),
         }
@@ -2117,12 +2116,15 @@ impl AppWindow {
     }
 
     /// Calculate the position var in the current monitor.
-    fn layout_position(&mut self, ctx: &mut AppContext) -> DipPoint {
-        let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+    fn layout_position(&mut self, ctx: &mut AppContext) -> Option<DipPoint> {
+        self.vars.position().get(ctx.vars).map(|pos| {
+            let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
-        ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
-            self.vars.position().get(ctx.vars).to_layout(ctx, scr_size)
-        }).to_dip(scr_factor)
+            ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+                pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size))
+            })
+            .to_dip(scr_factor)
+        })
     }
 
     /// Measure and arrange the content, returns the final, min and max sizes.
@@ -2133,13 +2135,14 @@ impl AppWindow {
 
         let (available_size, min_size, max_size, auto_size) =
             ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+                let scr_size = AvailableSize::finite(ctx.viewport_size);
                 let mut size = if use_system_size {
                     self.size
                 } else {
-                    self.vars.size().get(ctx.vars).to_layout(ctx, scr_size)
+                    self.vars.size().get(ctx.vars).to_layout(ctx, scr_size).to_dip(ctx.scale_factor)
                 };
-                let min_size = self.vars.min_size().get(ctx.vars).to_layout(ctx, scr_size);
-                let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, scr_size);
+                let min_size = self.vars.min_size().get(ctx.vars).to_layout(ctx, scr_size).to_dip(ctx.scale_factor);
+                let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, scr_size).to_dip(ctx.scale_factor);
 
                 let auto_size = self.vars.auto_size().copy(ctx);
                 if auto_size.contains(AutoSize::CONTENT_WIDTH) {
@@ -2156,16 +2159,18 @@ impl AppWindow {
                 (size, min_size, max_size, auto_size)
             });
 
-        let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size.to_px(scr_factor), |desired_size| {
-            let mut final_size = available_size;
-            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                final_size.width = desired_size.width.max(min_size.width).min(available_size.width);
-            }
-            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                final_size.height = desired_size.height.max(min_size.height).min(available_size.height);
-            }
-            final_size
-        });
+        let final_size = self
+            .context
+            .layout(ctx, 16.0, scr_factor, scr_ppi, scr_size.to_px(scr_factor), |desired_size| {
+                let mut final_size = available_size;
+                if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                    final_size.width = desired_size.width.max(min_size.width).min(available_size.width);
+                }
+                if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                    final_size.height = desired_size.height.max(min_size.height).min(available_size.height);
+                }
+                final_size
+            });
 
         (final_size, min_size, max_size)
     }
@@ -2183,7 +2188,9 @@ impl AppWindow {
         let next_frame_id = crate::render::webrender_api::Epoch(next_frame_id);
 
         // `UiNode::render`
-        let ((pipeline_id, display_list), frame_info) = self.context.render(ctx, next_frame_id, self.size, scale_factor, &self.renderer);
+        let ((pipeline_id, display_list), frame_info) =
+            self.context
+                .render(ctx, next_frame_id, self.size.to_px(scale_factor), scale_factor, &self.renderer);
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
@@ -2304,7 +2311,7 @@ impl AppWindow {
 
                     RawWindowMovedEvent.notify(
                         ctx.events,
-                        RawWindowMovedArgs::new(timestamp, self.id, self.position, EventCause::App),
+                        RawWindowMovedArgs::new(timestamp, self.id, self.position.unwrap_or_default(), EventCause::App),
                     );
                     RawWindowResizedEvent.notify(
                         ctx.events,
@@ -2445,7 +2452,7 @@ impl OwnedWindowContext {
                 root.id,
                 &mut root.state,
                 |ctx| {
-                    let desired_size = child.measure(ctx, available_size);
+                    let desired_size = child.measure(ctx, AvailableSize::finite(available_size));
                     let final_size = calc_final_size(desired_size);
                     child.arrange(ctx, final_size);
                     final_size

@@ -24,17 +24,17 @@ pub enum AvailablePx {
     /// The measure may return any desired size, if it derives the size from
     /// the available size it should collapse to zero.
     Infinite,
-    /// The measure must try to fit the up-to this size.
-    Max(Px),
+    /// The measure must try to fit up-to this size.
+    Finite(Px),
 }
 impl From<u32> for AvailablePx {
     fn from(px: u32) -> Self {
-        AvailablePx::Max(Px(px))
+        AvailablePx::Finite(Px(px as i32))
     }
 }
 impl From<Px> for AvailablePx {
     fn from(px: Px) -> Self {
-        AvailablePx::Max(px)
+        AvailablePx::Finite(px)
     }
 }
 impl AvailablePx {
@@ -42,7 +42,7 @@ impl AvailablePx {
     pub fn to_px(self) -> Px {
         match self {
             AvailablePx::Infinite => Px(0),
-            AvailablePx::Max(p) => p,
+            AvailablePx::Finite(p) => p,
         }
     }
 }
@@ -60,22 +60,38 @@ impl Ord for AvailablePx {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         match (self, other) {
             (AvailablePx::Infinite, AvailablePx::Infinite) => cmp::Ordering::Equal,
-            (AvailablePx::Infinite, AvailablePx::Max(_)) => cmp::Ordering::Greater,
-            (AvailablePx::Max(_), AvailablePx::Infinite) => cmp::Ordering::Less,
-            (AvailablePx::Max(s), AvailablePx::Max(o)) => s.cmp(o),
+            (AvailablePx::Infinite, AvailablePx::Finite(_)) => cmp::Ordering::Greater,
+            (AvailablePx::Finite(_), AvailablePx::Infinite) => cmp::Ordering::Less,
+            (AvailablePx::Finite(s), AvailablePx::Finite(o)) => s.cmp(o),
         }
     }
 }
 
-///Maximum [`AvailablePx`] size for an [`UiNode::measure`].
+/// Maximum [`AvailablePx`] size for an [`UiNode::measure`].
 ///
 /// [`UiNode::measure`]: crate::UiNode::measure
 pub type AvailableSize = euclid::Size2D<AvailablePx, ()>;
+/// Extension methods for [`AvailableSize`].
+pub trait AvailableSizeExt {
+    /// Convert `Infinite` to zero, or returns the `Max`.
+    fn to_px(self) -> PxSize;
+    /// Width and height [`AvailablePx::Infinite`].
+    fn inf() -> Self;
+    /// New finite size.
+    fn finite(size: PxSize) -> Self;
+}
+impl AvailableSizeExt for AvailableSize {
+    fn to_px(self) -> PxSize {
+        PxSize::new(self.width.to_px(), self.height.to_px())
+    }
+    #[inline]
+    fn inf() -> Self {
+        AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite)
+    }
 
-/// Width and height [`AvailablePx::Infinite`].
-#[inline]
-pub fn available_size_inf() -> AvailableSize {
-    AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite)
+    fn finite(size: PxSize) -> Self {
+        AvailableSize::new(AvailablePx::Finite(size.width), AvailablePx::Finite(size.height))
+    }
 }
 
 /// [`f32`] equality used in floating-point [`units`](crate::units).
@@ -3198,7 +3214,7 @@ mod tests {
     pub fn length_expr_eval() {
         let l = (Length::from(200) - 100.pct()).abs();
         let ctx = LayoutMetrics::new(PxSize::new(Px(600), Px(400)), 1.0, 14.0);
-        let l = l.to_layout(&ctx, AvailablePx::Max(Px(600)));
+        let l = l.to_layout(&ctx, AvailablePx::Finite(Px(600)));
 
         assert_eq!(l.0, (200i32 - 600i32).abs());
     }
@@ -3210,13 +3226,13 @@ mod tests {
 
         let metrics = LayoutMetrics::new(PxSize::zero(), 0.0, 0.0);
 
-        let r = l.to_layout(&metrics, AvailablePx::Max(Px(200)));
+        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(200)));
         assert_eq!(r.0, 200);
 
-        let r = l.to_layout(&metrics, AvailablePx::Max(Px(50)));
+        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(50)));
         assert_eq!(r.0, 100);
 
-        let r = l.to_layout(&metrics, AvailablePx::Max(Px(550)));
+        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(550)));
         assert_eq!(r.0, 500);
     }
 

@@ -440,7 +440,10 @@ impl MouseManager {
         let frame_info = windows.frame_info(window_id).unwrap();
 
         let (target, position) = if let Some(t) = hits.target() {
-            (frame_info.find(t.widget_id).unwrap().path(), t.point)
+            (
+                frame_info.find(t.widget_id).unwrap().path(),
+                t.point.to_dip(windows.scale_factor(window_id).unwrap()),
+            )
         } else {
             (frame_info.root().path(), position)
         };
@@ -607,7 +610,7 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, pos: DipPoint, hits: FrameHitInfo, ctx: &mut AppContext) {
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, position: DipPoint, hits: FrameHitInfo, ctx: &mut AppContext) {
         let mut moved = Some(window_id) != self.pos_window || Some(device_id) != self.pos_device;
 
         if moved {
@@ -616,12 +619,12 @@ impl MouseManager {
             self.pos_device = Some(device_id);
         }
 
-        moved |= pos != self.pos;
+        moved |= position != self.pos;
 
         if moved {
             // if moved to another window or within the same window.
 
-            self.pos = pos;
+            self.pos = position;
 
             let windows = ctx.services.windows();
 
@@ -631,9 +634,12 @@ impl MouseManager {
                 Err(_) => return, // window closed
             };
             let (target, position) = if let Some(t) = hits.target() {
-                (frame_info.find(t.widget_id).unwrap().path(), t.point)
+                (
+                    frame_info.find(t.widget_id).unwrap().path(),
+                    t.point.to_dip(windows.scale_factor(window_id).unwrap()),
+                )
             } else {
-                (frame_info.root().path(), pos)
+                (frame_info.root().path(), position)
             };
 
             let mouse = ctx.services.mouse();
@@ -780,11 +786,17 @@ impl AppExtension for MouseManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawCursorMovedEvent.update(args) {
+            let windows = ctx.services.windows();
             self.on_cursor_moved(
                 args.window_id,
                 args.device_id,
                 args.position,
-                FrameHitInfo::new(args.window_id, args.frame_id, args.position, &args.hit_test),
+                FrameHitInfo::new(
+                    args.window_id,
+                    args.frame_id,
+                    args.position.to_px(windows.scale_factor(args.window_id).unwrap()),
+                    &args.hit_test,
+                ),
                 ctx,
             );
         } else if let Some(args) = RawMouseInputEvent.update(args) {

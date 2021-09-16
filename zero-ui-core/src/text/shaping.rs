@@ -15,7 +15,7 @@ pub struct TextShapingArgs {
     /// Height of each line.
     ///
     /// Use [`line_height(..)`](function@Self::line_height) to compute the value.
-    pub line_height: Option<f32>,
+    pub line_height: Option<Px>,
 
     /// Unicode script of the text.
     pub script: Script,
@@ -59,7 +59,7 @@ impl Default for TextShapingArgs {
 impl TextShapingArgs {
     /// Gets the custom line height or the font line height.
     #[inline]
-    pub fn line_height(&self, metrics: &FontMetrics) -> f32 {
+    pub fn line_height(&self, metrics: &FontMetrics) -> Px {
         // servo uses the line-gap as default I think.
         self.line_height.unwrap_or_else(|| metrics.line_height())
     }
@@ -157,11 +157,11 @@ impl Font {
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut out = ShapedText::default();
         let metrics = self.metrics();
-        let line_height = config.line_height(metrics);
+        let line_height = config.line_height(metrics).0 as f32;
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
-        let mut origin = euclid::point2(0.0, baseline);
+        let mut origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32);
         let mut max_line_x = 0.0;
-        let ppem = self.size().get().round() as u16;
+        let ppem = self.size().0 as u16;
 
         let mut face = rustybuzz::Face::from_slice(self.face().bytes(), self.face().index()).unwrap();
         face.set_pixels_per_em(Some((ppem, ppem)));
@@ -230,7 +230,7 @@ impl Font {
         }
 
         // longest line width X line heights.
-        out.size = PxSize::new(Px(origin.x.max(max_line_x) as i32), Px((origin.y - metrics.descent) as i32)); // TODO, add descend?
+        out.size = PxSize::new(Px(origin.x.max(max_line_x) as i32), Px(origin.y as i32) - metrics.descent); // TODO, add descend?
 
         out
     }

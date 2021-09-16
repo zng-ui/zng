@@ -1862,7 +1862,7 @@ pub mod view_process {
     use crate::mouse::MultiClickConfig;
     use crate::render::FrameId;
     use crate::service::Service;
-    use crate::units::{DipPoint, DipSize, PxPoint, PxRect};
+    use crate::units::{DipPoint, DipSize, Px, PxPoint, PxRect};
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
 
@@ -2334,7 +2334,7 @@ pub mod view_process {
         pub fn add_font_instance(
             &self,
             font_key: FontKey,
-            glyph_size: f32,
+            glyph_size: Px,
             options: Option<FontInstanceOptions>,
             plataform_options: Option<FontInstancePlatformOptions>,
             variations: Vec<FontVariation>,

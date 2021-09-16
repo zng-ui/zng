@@ -590,8 +590,8 @@ impl FontFace {
     ///
     /// The `variations` are custom [font variations](crate::text::font_features::FontVariations::finalize) that will be used
     /// during shaping and rendering.
-    pub fn sized(self: &Rc<Self>, font_size: Px, mut variations: RFontVariations) -> FontRef {
-        let key = FontInstanceKey::new(&mut font_size, &mut variations);
+    pub fn sized(self: &Rc<Self>, font_size: Px, variations: RFontVariations) -> FontRef {
+        let key = FontInstanceKey::new(font_size, &variations);
         if !self.unregistered.get() {
             let mut instances = self.instances.borrow_mut();
             let f = instances
@@ -654,7 +654,7 @@ impl fmt::Debug for Font {
 impl Font {
     fn new(face: FontFaceRef, size: Px, variations: RFontVariations) -> Self {
         Font {
-            metrics: face.metrics().sized(size.get()),
+            metrics: face.metrics().sized(size),
             face,
             size,
             variations,
@@ -697,7 +697,7 @@ impl Font {
             })
             .collect();
 
-        let key = match renderer.add_font_instance(font_key, self.size.get() * 1.5, Some(opt), None, variations) {
+        let key = match renderer.add_font_instance(font_key, self.size, Some(opt), None, variations) {
             Ok(k) => k,
             Err(Respawned) => {
                 log::debug!("respawned calling `add_font_instance`, will return dummy font key");

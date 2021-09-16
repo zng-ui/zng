@@ -429,8 +429,8 @@ impl crate::render::Image for Image {
         }
 
         let descriptor = ImageDescriptor::new(
-            self.size.0 as i32,
-            self.size.1 as i32,
+            self.size.width.0,
+            self.size.height.0,
             ImageFormat::BGRA8,
             if self.opaque {
                 ImageDescriptorFlags::IS_OPAQUE

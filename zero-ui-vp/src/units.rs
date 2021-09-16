@@ -44,9 +44,9 @@ impl Px {
         Px(self.0.min(other.0))
     }
 
-    /// Computes the absolute value of `self`.
+    /// Computes the saturating absolute value of `self`.
     pub fn abs(self) -> Px {
-        Px(self.0.abs())
+        Px(self.0.saturating_abs())
     }
 }
 impl num_traits::Zero for Px {
@@ -156,7 +156,7 @@ impl ops::Mul<Px> for Px {
     type Output = Px;
 
     fn mul(self, rhs: Px) -> Self::Output {
-        Px(self.0 * rhs.0)
+        Px(self.0.saturating_mul(rhs.0))
     }
 }
 impl ops::MulAssign<Px> for Px {
@@ -192,7 +192,7 @@ impl ops::Neg for Px {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Px(-self.0)
+        Px(self.0.saturating_neg())
     }
 }
 impl ops::Rem for Px {
@@ -241,9 +241,9 @@ impl Dip {
         Dip(self.0.min(other.0))
     }
 
-    /// Computes the absolute value of `self`.
+    /// Computes the saturating absolute value of `self`.
     pub fn abs(self) -> Dip {
-        Dip(self.0.abs())
+        Dip(self.0.saturating_abs())
     }
 }
 impl From<i32> for Dip {
@@ -289,7 +289,7 @@ impl ops::Neg for Dip {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Dip(-self.0)
+        Dip(self.0.saturating_neg())
     }
 }
 impl ops::Mul<f32> for Dip {
@@ -308,7 +308,7 @@ impl ops::Mul<Dip> for Dip {
     type Output = Dip;
 
     fn mul(self, rhs: Dip) -> Self::Output {
-        Dip(self.0 * rhs.0)
+        Dip(self.0.saturating_mul(rhs.0))
     }
 }
 impl ops::MulAssign<Dip> for Dip {
@@ -516,6 +516,14 @@ pub trait PxToWr {
     /// Returns `self` in [`webrender_api::units::LayoutPixel`] units.
     fn to_wr(self) -> Self::AsLayout;
 }
+/// Conversion from `webrender` to [`Px`] units.
+pub trait WrToPx {
+    /// `Self` equivalent in [`Px`] units.
+    type AsPx;
+
+    /// Reutns `self` in [`Px`] units.
+    fn to_px(self) -> Self::AsPx;
+}
 
 /// Conversion from `winit` logical units to [`Dip`].
 ///
@@ -606,6 +614,13 @@ impl PxToWr for PxPoint {
 
     fn to_wr(self) -> Self::AsLayout {
         wr::LayoutPoint::new(self.x.to_wr().0, self.y.to_wr().0)
+    }
+}
+impl WrToPx for wr::LayoutPoint {
+    type AsPx = PxPoint;
+
+    fn to_px(self) -> Self::AsPx {
+        PxPoint::new(Px(self.x.round() as i32), Px(self.y.round() as i32))
     }
 }
 impl DipToPx for DipPoint {
@@ -760,6 +775,35 @@ impl PxToDip for PxSideOffsets {
             self.bottom.to_dip(scale_factor),
             self.left.to_dip(scale_factor),
         )
+    }
+}
+impl PxToWr for PxSideOffsets {
+    type AsDevice = wr::DeviceIntSideOffsets;
+
+    type AsLayout = wr::LayoutSideOffsets;
+
+    type AsWorld = euclid::SideOffsets2D<f32, wr::WorldPixel>;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        wr::DeviceIntSideOffsets::new(
+            self.top.to_wr_device().0,
+            self.right.to_wr_device().0,
+            self.bottom.to_wr_device().0,
+            self.left.to_wr_device().0,
+        )
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        euclid::SideOffsets2D::from_lengths(
+            self.top.to_wr_world(),
+            self.right.to_wr_world(),
+            self.bottom.to_wr_world(),
+            self.left.to_wr_world(),
+        )
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        wr::LayoutSideOffsets::from_lengths(self.top.to_wr(), self.right.to_wr(), self.bottom.to_wr(), self.left.to_wr())
     }
 }
 

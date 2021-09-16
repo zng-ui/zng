@@ -498,7 +498,7 @@ declare_ipc! {
         _ctx: &Context,
         id: WinId,
         font_key: FontKey,
-        glyph_size: f32,
+        glyph_size: Px,
         options: Option<webrender_api::FontInstanceOptions>,
         plataform_options: Option<webrender_api::FontInstancePlatformOptions>,
         variations: Vec<webrender_api::FontVariation>,
@@ -506,7 +506,7 @@ declare_ipc! {
         with_window_or_headless!(self, id, FontInstanceKey(IdNamespace(0), 0), |w| {
             let key = w.generate_font_instance_key();
             let mut txn = webrender::Transaction::new();
-            txn.add_font_instance(key, font_key, glyph_size, options, plataform_options, variations);
+            txn.add_font_instance(key, font_key, glyph_size.to_wr().get(), options, plataform_options, variations);
             w.send_transaction(txn);
             key
         })

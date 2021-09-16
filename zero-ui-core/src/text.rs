@@ -224,7 +224,7 @@ pub struct FontFaceMetrics {
     /// The number of font units per em.
     ///
     /// Font sizes are usually expressed in pixels per em; e.g. `12px` means 12 pixels per em.
-    pub units_per_em: f32,
+    pub units_per_em: u32,
 
     /// The maximum amount the font rises above the baseline, in font units.
     pub ascent: f32,
@@ -260,8 +260,8 @@ pub struct FontFaceMetrics {
 }
 impl FontFaceMetrics {
     /// Compute [`FontMetrics`] given a font size in pixels.
-    pub fn sized(&self, font_size_px: f32) -> FontMetrics {
-        let size_scale = 1.0 / self.units_per_em as f32 * font_size_px;
+    pub fn sized(&self, font_size_px: Px) -> FontMetrics {
+        let size_scale = 1.0 / self.units_per_em as f32 * font_size_px.0 as f32;
         let s = move |f: f32| Px((f * size_scale).round() as i32);
         FontMetrics {
             size_scale,
@@ -289,7 +289,7 @@ impl FontFaceMetrics {
 #[derive(Clone, Debug)]
 pub struct FontMetrics {
     /// Multiply this to a font EM value to get the size in pixels.
-    pub size_scale: Px,
+    pub size_scale: f32,
 
     /// The maximum amount the font rises above the baseline, in pixels.
     pub ascent: Px,

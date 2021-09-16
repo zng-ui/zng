@@ -1474,7 +1474,7 @@ pub struct WidgetFocusInfo<'a> {
     pub info: WidgetInfo<'a>,
 }
 macro_rules! DirectionFn {
-    (impl) => { impl Fn(PxPoint, PxPoint) -> (f32, f32, f32, f32) };
+    (impl) => { impl Fn(PxPoint, PxPoint) -> (Px, Px, Px, Px) };
     (up) => { |from_pt, cand_c| (cand_c.y, from_pt.y, cand_c.x, from_pt.x) };
     (down) => { |from_pt, cand_c| (from_pt.y, cand_c.y, cand_c.x, from_pt.x) };
     (left) => { |from_pt, cand_c| (cand_c.x, from_pt.x, cand_c.y, from_pt.y) };
@@ -2003,12 +2003,12 @@ impl<'a> WidgetFocusInfo<'a> {
         let skip_id = self.info.widget_id();
 
         let distance = move |other_pt: PxPoint| {
-            let a = (other_pt.x - from_pt.x).pow(2);
-            let b = (other_pt.y - from_pt.y).pow(2);
+            let a = (other_pt.x - from_pt.x).0.pow(2);
+            let b = (other_pt.y - from_pt.y).0.pow(2);
             a + b
         };
 
-        let mut candidate_dist = f32::MAX;
+        let mut candidate_dist = i32::MAX;
         let mut candidate = None;
 
         for w in scope.descendants_skip_directional(if skip_descendants { Some(self) } else { None }) {
@@ -2092,7 +2092,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     self.focusable_up().or_else(|| {
                         // next up from the same X but from the bottom segment of scope.
                         let mut from_pt = point;
-                        from_pt.y = scope.info.bounds().max.y;
+                        from_pt.y = scope.info.bounds().max().y;
                         self.directional_from_pt(scope, from_pt, DirectionFn![up], false)
                     })
                 }
@@ -2117,7 +2117,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 DirectionalNav::Cycle => self.focusable_right().or_else(|| {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = point;
-                    from_pt.x = scope.info.bounds().min.x;
+                    from_pt.x = scope.info.bounds().min().x;
                     self.directional_from_pt(scope, from_pt, DirectionFn![right], false)
                 }),
             }
@@ -2141,7 +2141,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 DirectionalNav::Cycle => self.focusable_down().or_else(|| {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = point;
-                    from_pt.y = scope.info.bounds().min.y;
+                    from_pt.y = scope.info.bounds().min().y;
                     self.directional_from_pt(scope, from_pt, DirectionFn![down], false)
                 }),
             }
@@ -2165,7 +2165,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 DirectionalNav::Cycle => self.focusable_left().or_else(|| {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = point;
-                    from_pt.x = scope.info.bounds().max.x;
+                    from_pt.x = scope.info.bounds().max().x;
                     self.directional_from_pt(scope, from_pt, DirectionFn![left], false)
                 }),
             }

@@ -1473,11 +1473,7 @@ pub fn with_context_var_expr<T: VarValue>(
         }
 
         #[inline(always)]
-        fn measure(
-            &mut self,
-            ctx: &mut crate::context::LayoutContext,
-            available_size: AvailableSize,
-        ) -> PxSize {
+        fn measure(&mut self, ctx: &mut crate::context::LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars
                 .with_context_var(self.var, &self.value, self.version, || child.measure(ctx, available_size))
