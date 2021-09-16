@@ -1092,7 +1092,7 @@ impl AppExtension for WindowManager {
         } else if let Some(args) = RawWindowMovedEvent.update(args) {
             if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
                 if window.vars.0.actual_position.set_ne(ctx.vars, args.position) {
-                    window.position = args.position;
+                    window.position = Some(args.position);
                     WindowMoveEvent.notify(
                         ctx.events,
                         WindowMoveArgs::new(args.timestamp, args.window_id, args.position, args.cause),
@@ -1602,7 +1602,7 @@ impl Windows {
 
         info.renderer
             .as_ref()
-            .map(|r| r.read_pixels_rect(rect.into()).map(Into::into))
+            .map(|r| r.read_pixels_rect(rect).map(Into::into))
             .unwrap_or_else(|| Ok(FramePixels::default())) // no renderer
             .map_err(|_| WindowNotFound(window_id)) // not found in view
     }
@@ -1876,7 +1876,10 @@ impl AppWindow {
                 if let Some(w) = &self.headed {
                     let _: Ignore = w.set_position(self.position.unwrap_or_default());
                 } else {
-                    RawWindowMovedEvent.notify(ctx.events, RawWindowMovedArgs::now(self.id, self.position.unwrap_or_default(), EventCause::App));
+                    RawWindowMovedEvent.notify(
+                        ctx.events,
+                        RawWindowMovedArgs::now(self.id, self.position.unwrap_or_default(), EventCause::App),
+                    );
                 }
             }
 
@@ -2117,14 +2120,17 @@ impl AppWindow {
 
     /// Calculate the position var in the current monitor.
     fn layout_position(&mut self, ctx: &mut AppContext) -> Option<DipPoint> {
-        self.vars.position().get(ctx.vars).map(|pos| {
-            let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+        let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
-            ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+        if let Some(pos) = self.vars.position().get(ctx.vars) {
+            let pos = ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
                 pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size))
-            })
-            .to_dip(scr_factor)
-        })
+            });
+
+            Some(pos.to_dip(scr_factor))
+        } else {
+            None
+        }
     }
 
     /// Measure and arrange the content, returns the final, min and max sizes.
@@ -2137,12 +2143,12 @@ impl AppWindow {
             ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
                 let scr_size = AvailableSize::finite(ctx.viewport_size);
                 let mut size = if use_system_size {
-                    self.size
+                    self.size.to_px(ctx.scale_factor)
                 } else {
-                    self.vars.size().get(ctx.vars).to_layout(ctx, scr_size).to_dip(ctx.scale_factor)
+                    self.vars.size().get(ctx.vars).to_layout(ctx, scr_size)
                 };
-                let min_size = self.vars.min_size().get(ctx.vars).to_layout(ctx, scr_size).to_dip(ctx.scale_factor);
-                let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, scr_size).to_dip(ctx.scale_factor);
+                let min_size = self.vars.min_size().get(ctx.vars).to_layout(ctx, scr_size);
+                let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, scr_size);
 
                 let auto_size = self.vars.auto_size().copy(ctx);
                 if auto_size.contains(AutoSize::CONTENT_WIDTH) {
@@ -2172,7 +2178,7 @@ impl AppWindow {
                 final_size
             });
 
-        (final_size, min_size, max_size)
+        (final_size, min_size.to_dip(scr_factor), max_size.to_dip(scr_factor))
     }
 
     /// Render frame for sending.

@@ -587,7 +587,7 @@ impl GradientStops {
         let av_l = length.to_px();
 
         let vx = vx / av_l;
-        let vy = vx / av_l;
+        let vy = vy / av_l;
 
         line.end.x = line.start.x + vx * end_offset;
         line.end.y = line.start.y + vy * end_offset;

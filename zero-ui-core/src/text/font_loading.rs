@@ -312,7 +312,7 @@ impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
 struct FontInstanceKey(Px, Box<[(rustybuzz::Tag, i32)]>);
 impl FontInstanceKey {
     /// Returns the key.
-    pub fn new(size: Px, variations: &RFontVariations) -> Self {
+    pub fn new(size: Px, variations: &[rustybuzz::Variation]) -> Self {
         let variations_key: Vec<_> = variations.iter().map(|p| (p.tag, (p.value * 1000.0) as i32)).collect();
         FontInstanceKey(size, variations_key.into_boxed_slice())
     }

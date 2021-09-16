@@ -720,7 +720,7 @@ impl FrameBuilder {
             let instance_key = font.instance_key(r, synthesis);
 
             let item = self.common_hit_item_ps(rect);
-            self.display_list.push_text(&item, rect.to_wr(), &glyphs, instance_key, color, None);
+            self.display_list.push_text(&item, rect.to_wr(), glyphs, instance_key, color, None);
         }
     }
 
