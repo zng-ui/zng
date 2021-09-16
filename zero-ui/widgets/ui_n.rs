@@ -2,7 +2,7 @@ use crate::core::{
     context::{LayoutContext, RenderContext, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    units::LayoutSize,
+    units::*,
     UiNode,
 };
 
@@ -38,13 +38,13 @@ macro_rules! ui_n {
                 }
             }
 
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 match self {
                     $($UiEnum::$UiNode(ui) => ui.measure(ctx, available_size),)+
                 }
             }
 
-            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                 match self {
                     $($UiEnum::$UiNode(ui) => ui.arrange(ctx, final_size),)+
                 }

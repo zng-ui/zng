@@ -2122,14 +2122,15 @@ impl AppWindow {
     fn layout_position(&mut self, ctx: &mut AppContext) -> Option<DipPoint> {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
-        if let Some(pos) = self.vars.position().get(ctx.vars) {
-            let pos = ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
-                pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size))
-            });
+        let pos = self.vars.position().get(ctx.vars);
+        let pos = ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+            pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size))
+        });
 
-            Some(pos.to_dip(scr_factor))
-        } else {
+        if pos.x == Px::MAX || pos.y == Px::MAX {
             None
+        } else {
+            Some(pos.to_dip(scr_factor))
         }
     }
 
@@ -2530,7 +2531,7 @@ struct WindowVarsData {
 
     state: RcVar<WindowState>,
 
-    position: RcVar<Option<Point>>,
+    position: RcVar<Point>,
     monitor: RcVar<MonitorQuery>,
 
     size: RcVar<Size>,
@@ -2581,15 +2582,15 @@ impl WindowVars {
 
             state: var(WindowState::Normal),
 
-            position: var(None),
+            position: var(Point::new(Px::MAX, Px::MAX)),
             monitor: var(MonitorQuery::Primary),
-            size: var(Size::new(800.0, 600.0)),
+            size: var(Size::new(800, 600)),
 
             actual_position: var(DipPoint::zero()),
             actual_monitor: var(None),
             actual_size: var(DipSize::zero()),
 
-            min_size: var(Size::new(192.0, 48.0)),
+            min_size: var(Size::new(192, 48)),
             max_size: var(Size::new(100.pct(), 100.pct())),
             auto_size: var(AutoSize::empty()),
 
@@ -2674,12 +2675,12 @@ impl WindowVars {
     /// When the the window is moved this variable does **not** update back, to track the current position of the window
     /// use [`actual_position`].
     ///
-    /// The default value is `None` that causes the window or OS to select a value.
+    /// The default value is `(Px::MAX, Px::MAX)` that causes the window or OS to select a value.
     ///
     /// [`actual_position`]: WindowVars::actual_position
     /// [`monitor`]: WindowVars::monitor
     #[inline]
-    pub fn position(&self) -> &RcVar<Option<Point>> {
+    pub fn position(&self) -> &RcVar<Point> {
         &self.0.position
     }
 

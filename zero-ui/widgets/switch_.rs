@@ -32,16 +32,16 @@ pub mod switch {
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.widget_measure(index, ctx, available_size)
             } else {
-                LayoutSize::zero()
+                PxSize::zero()
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.widget_arrange(index, ctx, final_size)

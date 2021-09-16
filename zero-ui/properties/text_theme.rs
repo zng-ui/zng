@@ -21,7 +21,7 @@ context_var! {
     pub struct FontSynthesisVar: FontSynthesis = const FontSynthesis::ENABLED;
 
     /// Font size of [`text`](crate::widgets::text) spans.
-    pub struct FontSizeVar: Length = once Length::pt(11.0);
+    pub struct FontSizeVar: Length = once Length::Pt(11.0);
 
     /// Text color of [`text`](crate::widgets::text) spans.
     pub struct TextColorVar: Rgba = const colors::WHITE;
@@ -35,7 +35,7 @@ context_var! {
     pub struct LineHeightVar: LineHeight = return &LineHeight::Font;
 
     /// Extra spacing in between lines of [`text`](crate::widgets::text) spans.
-    pub struct LineSpacingVar: Length = return &Length::Exact(0.0);
+    pub struct LineSpacingVar: Length = return &Length::Px(Px(0));
 
     /// Extra letter spacing of [`text`](crate::widgets::text) spans.
     pub struct LetterSpacingVar: LetterSpacing = return &LetterSpacing::Auto;
@@ -44,7 +44,7 @@ context_var! {
     pub struct WordSpacingVar: WordSpacing = return &WordSpacing::Auto;
 
     /// Extra paragraph spacing of text blocks.
-    pub struct ParagraphSpacingVar: ParagraphSpacing = return &Length::Exact(0.0);
+    pub struct ParagraphSpacingVar: ParagraphSpacing = return &Length::Px(Px(0));
 
     /// Configuration of line breaks inside words during text wrap.
     pub struct WordBreakVar: WordBreak = return &WordBreak::Normal;
@@ -259,14 +259,14 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
                 });
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
                 child.measure(ctx, available_size)
             })
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
                 child.arrange(ctx, final_size);
@@ -381,13 +381,13 @@ where
             });
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars
                 .with_context_var(FontFeaturesVar, &self.features, self.version, || child.measure(ctx, available_size))
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
                 child.arrange(ctx, final_size);

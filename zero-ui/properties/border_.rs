@@ -19,11 +19,11 @@ pub fn border(
         widths: L,
         sides: S,
         radius: R,
-        child_rect: LayoutRect,
+        child_rect: PxRect,
 
-        final_widths: LayoutSideOffsets,
-        final_size: LayoutSize,
-        final_radius: LayoutBorderRadius,
+        final_widths: PxSideOffsets,
+        final_size: PxSize,
+        final_radius: PxCornerRadius,
     }
 
     #[impl_ui_node(child)]
@@ -47,37 +47,37 @@ pub fn border(
         }
 
         #[UiNode]
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             self.final_widths = self.widths.get(ctx).to_layout(ctx, available_size);
             self.final_radius = self.radius.get(ctx).to_layout(ctx, available_size);
 
             let size_inc = self.size_increment();
-            self.child.measure(ctx, available_size - size_inc) + size_inc
+            self.child.measure(ctx, available_size.sub_px(size_inc)) + size_inc
         }
 
         #[UiNode]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.child_rect.min = LayoutPoint::new(self.final_widths.left, self.final_widths.top);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            self.child_rect.origin = PxPoint::new(self.final_widths.left, self.final_widths.top);
             let child_size = final_size - self.size_increment();
-            self.child_rect.set_size(child_size);
+            self.child_rect.size = child_size;
             self.final_size = final_size;
             self.child.arrange(ctx, child_size);
         }
 
-        fn size_increment(&self) -> LayoutSize {
+        fn size_increment(&self) -> PxSize {
             let rw = self.final_widths;
-            LayoutSize::new(rw.left + rw.right, rw.top + rw.bottom)
+            PxSize::new(rw.left + rw.right, rw.top + rw.bottom)
         }
 
         #[UiNode]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.push_border(
-                LayoutRect::from_size(self.final_size),
+                PxRect::from_size(self.final_size),
                 self.final_widths,
                 *self.sides.get(ctx),
                 self.final_radius,
             );
-            frame.push_reference_frame(self.child_rect.min, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
         }
     }
 
@@ -88,9 +88,9 @@ pub fn border(
         sides: sides.into_var(),
         radius: radius.into_var(),
 
-        child_rect: LayoutRect::zero(),
-        final_size: LayoutSize::zero(),
-        final_widths: LayoutSideOffsets::zero(),
-        final_radius: LayoutBorderRadius::zero(),
+        child_rect: PxRect::zero(),
+        final_size: PxSize::zero(),
+        final_widths: PxSideOffsets::zero(),
+        final_radius: PxCornerRadius::zero(),
     }
 }

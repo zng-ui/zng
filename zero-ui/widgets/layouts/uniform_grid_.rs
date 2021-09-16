@@ -35,9 +35,9 @@ pub mod uniform_grid {
             /// Number of columns.
             ///
             /// Set to zero (`0`) for auto TODO.
-            columns(impl IntoVar<usize>) = 0;
+            columns(impl IntoVar<u32>) = 0;
             /// Number of rows.
-            rows(impl IntoVar<usize>) = 0;
+            rows(impl IntoVar<u32>) = 0;
             /// Number of empty cells in the first row.
             ///
             /// Value is ignored if is `>= columns`.
@@ -63,7 +63,7 @@ pub mod uniform_grid {
             /// ----|-----|----
             /// 0,1 | 1,1 | 2,1
             /// ```
-            first_column(impl IntoVar<usize>) = 0;
+            first_column(impl IntoVar<u32>) = 0;
 
             /// Space in-between items.
             spacing(impl IntoVar<GridSpacing>) = 0.0;
@@ -77,9 +77,9 @@ pub mod uniform_grid {
     #[inline]
     fn new_child(
         items: impl WidgetList,
-        columns: impl IntoVar<usize>,
-        rows: impl IntoVar<usize>,
-        first_column: impl IntoVar<usize>,
+        columns: impl IntoVar<u32>,
+        rows: impl IntoVar<u32>,
+        first_column: impl IntoVar<u32>,
         spacing: impl IntoVar<GridSpacing>,
     ) -> impl UiNode {
         UniformGridNode {
@@ -106,39 +106,39 @@ pub mod uniform_grid {
     impl<U, C, R, FC, S> UniformGridNode<U, C, R, FC, S>
     where
         U: WidgetList,
-        C: Var<usize>,
-        R: Var<usize>,
-        FC: Var<usize>,
+        C: Var<u32>,
+        R: Var<u32>,
+        FC: Var<u32>,
         S: Var<GridSpacing>,
     {
         /// cells count for `grid_len`.
-        fn cells_count(&self) -> f32 {
+        fn cells_count(&self) -> i32 {
             match self.children.count_not_collapsed() {
-                0 => 1.0,
-                n => n as f32,
+                0 => 1,
+                n => n as i32,
             }
         }
 
         /// (columns, rows)
-        fn grid_len(&self, vars: &VarsRead) -> (f32, f32) {
-            let mut columns = *self.columns.get(vars) as f32;
-            let mut rows = *self.rows.get(vars) as f32;
+        fn grid_len(&self, vars: &VarsRead) -> (i32, i32) {
+            let mut columns = *self.columns.get(vars) as i32;
+            let mut rows = *self.rows.get(vars) as i32;
 
-            if columns < 1.0 {
-                if rows < 1.0 {
+            if columns == 0 {
+                if rows == 0 {
                     // columns and rows are 0=AUTO, make a square
-                    rows = self.cells_count().sqrt().ceil();
+                    rows = (self.cells_count() as f32).sqrt().ceil() as i32;
                     columns = rows;
                 } else {
                     // only columns is 0=AUTO
-                    columns = (self.cells_count() / rows).ceil();
+                    columns = self.cells_count() / rows;
                 }
-            } else if rows < 1.0 {
+            } else if rows == 0 {
                 // only rows is 0=AUTO
-                rows = (self.cells_count() / columns).ceil();
+                rows = self.cells_count() / columns;
             }
 
-            debug_assert!(columns > 0.0 && rows > 0.0);
+            debug_assert!(columns > 0 && rows > 0);
 
             (columns, rows)
         }
@@ -152,80 +152,77 @@ pub mod uniform_grid {
             }
         }
         #[UiNode]
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: AvailableSize) -> PxSize {
             let (columns, rows) = self.grid_len(ctx.vars);
 
             let layout_spacing = self.spacing.get(ctx).to_layout(ctx, available_size);
 
-            let available_size = LayoutSize::new(
-                (available_size.width - layout_spacing.column / 2.0) / columns,
-                (available_size.height - layout_spacing.row / 2.0) / rows,
-            )
-            .snap_to(ctx.metrics.pixel_grid);
+            if let AvailablePx::Finite(f) = &mut available_size.width {
+                *f = (*f - layout_spacing.column / Px(2)) / Px(columns);
+            }
+            if let AvailablePx::Finite(f) = &mut available_size.height {
+                *f = (*f - layout_spacing.row / Px(2)) / Px(rows);
+            }
 
-            let mut cell_size = LayoutSize::zero();
+            let mut cell_size = PxSize::zero();
 
             self.children
                 .measure_all(ctx, |_, _| available_size, |_, s, _| cell_size = cell_size.max(s));
 
-            LayoutSize::new(
-                cell_size.width * columns + layout_spacing.column * (columns - 1.0),
-                cell_size.height * rows + layout_spacing.row * (rows - 1.0),
+            PxSize::new(
+                cell_size.width * columns + layout_spacing.column * (columns - 1),
+                cell_size.height * rows + layout_spacing.row * (rows - 1),
             )
-            .snap_to(ctx.metrics.pixel_grid)
         }
         #[UiNode]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get(ctx).to_layout(ctx, final_size);
+            let layout_spacing = self.spacing.get(ctx).to_layout(ctx, AvailableSize::finite(final_size));
 
-            let cell_size = LayoutSize::new(
-                (final_size.width - layout_spacing.column * (columns - 1.0)) / columns,
-                (final_size.height - layout_spacing.row * (rows - 1.0)) / rows,
-            )
-            .snap_to(ctx.metrics.pixel_grid);
+            let cell_size = PxSize::new(
+                (final_size.width - layout_spacing.column * Px(columns - 1)) / Px(columns),
+                (final_size.height - layout_spacing.row * Px(rows - 1)) / Px(rows),
+            );
 
             self.children.arrange_all(ctx, |_, _| cell_size);
 
-            let mut first_column = self.first_column.copy(ctx) as f32;
-            if first_column >= columns {
-                first_column = 0.0;
+            let mut first_column = self.first_column.copy(ctx);
+            if first_column as i32 >= columns {
+                first_column = 0;
             }
 
-            self.cells_iter = CellsIter::new(cell_size, columns, first_column, layout_spacing);
+            self.cells_iter = CellsIter::new(cell_size, columns, first_column as i32, layout_spacing);
         }
         #[UiNode]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let mut cells = self.cells_iter.clone();
-            let grid = frame.pixel_grid();
-            self.children
-                .render_not_collapsed(move |_| cells.next().unwrap().snap_to(grid), ctx, frame);
+            self.children.render_not_collapsed(move |_| cells.next().unwrap(), ctx, frame);
         }
     }
     #[derive(Clone, Default)]
     struct CellsIter {
-        r: LayoutPoint,
-        advance: LayoutPoint,
-        max_width: f32,
+        r: PxPoint,
+        advance: PxPoint,
+        max_width: Px,
     }
     impl CellsIter {
-        pub fn new(cell_size: LayoutSize, columns: f32, first_column: f32, spacing: LayoutGridSpacing) -> Self {
-            let advance = LayoutPoint::new(cell_size.width + spacing.column, cell_size.height + spacing.row);
+        pub fn new(cell_size: PxSize, columns: i32, first_column: i32, spacing: PxGridSpacing) -> Self {
+            let advance = PxPoint::new(cell_size.width + spacing.column, cell_size.height + spacing.row);
             CellsIter {
-                r: LayoutPoint::new(advance.x * (first_column - 1.0), 0.0),
-                max_width: advance.x * columns,
+                r: PxPoint::new(advance.x * (Px(first_column - 1)), Px(0)),
+                max_width: advance.x * Px(columns),
                 advance,
             }
         }
     }
     impl Iterator for CellsIter {
-        type Item = LayoutPoint;
+        type Item = PxPoint;
 
         fn next(&mut self) -> Option<Self::Item> {
             self.r.x += self.advance.x;
             if self.r.x >= self.max_width {
-                self.r.x = 0.0;
+                self.r.x = Px(0);
                 self.r.y += self.advance.y;
             }
             Some(self.r)

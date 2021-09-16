@@ -1,9 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::{core::units::pt_to_layout, prelude::*};
+use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|_| {
-        let fs = var(Length::pt(11.0));
+        let fs = var(Length::Pt(11.0));
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {}", s));
             font_size = fs.clone();
@@ -22,12 +22,9 @@ fn main() {
 
 fn font_size(font_size: RcVar<Length>) -> impl Widget {
     fn change_size(font_size: &RcVar<Length>, change: f32, ctx: &mut WidgetContext) {
-        let mut size = match font_size.get(ctx) {
-            Length::Exact(s) => *s,
-            _ => todo!(),
-        };
-        size += pt_to_layout(change).get();
-        font_size.set(ctx, size);
+        font_size.modify(ctx, move |s| {
+            **s += Length::Pt(change);
+        });
     }
     section(
         "font_size",

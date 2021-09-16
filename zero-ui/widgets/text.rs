@@ -162,7 +162,7 @@ pub struct TextNode<T: Var<Text>> {
     // Shaped and wrapped text.
     shaped_text: ShapedText,
     // Box size of the text block.
-    size: LayoutSize,
+    size: PxSize,
 }
 
 impl<T: Var<Text>> TextNode<T> {
@@ -182,7 +182,7 @@ impl<T: Var<Text>> TextNode<T> {
             layout_line_spacing: 0.0,
             font: None,
             shaped_text: ShapedText::default(),
-            size: LayoutSize::zero(),
+            size: PxSize::zero(),
         }
     }
 }
@@ -279,10 +279,10 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         if self.font.is_none() {
             let (size, variations) = TextContext::font(ctx);
-            let size = size.to_layout(ctx, LayoutLength::new(available_size.width));
+            let size = size.to_layout(ctx, available_size.width);
             self.font = Some(
                 self.font_face
                     .as_ref()
@@ -298,17 +298,14 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             self.size = self.shaped_text.size();
         }
 
-        if !is_layout_any_size(available_size.width) && available_size.width < self.size.width {
+        if available_size.width < self.size.width {
             //TODO wrap here? or estimate the height pos wrap?
         }
-
-        // always snap because the scale_factor can have changed.
-        self.size = self.size.snap_to(ctx.metrics.pixel_grid);
 
         self.size
     }
 
-    fn arrange(&mut self, _ctx: &mut LayoutContext, _final_size: LayoutSize) {
+    fn arrange(&mut self, _ctx: &mut LayoutContext, _final_size: PxSize) {
         // TODO use final size for wrapping?
         // http://www.unicode.org/reports/tr14/tr14-45.html
     }
@@ -316,7 +313,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         profile_scope!("text::render");
         frame.push_text(
-            LayoutRect::from_size(self.size),
+            PxRect::from_size(self.size),
             self.shaped_text.glyphs(),
             self.font.as_ref().expect("font not initied in render"),
             RenderColor::from(*TextColorVar::get(ctx)),

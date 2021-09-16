@@ -1,5 +1,4 @@
 use crate::prelude::new_widget::*;
-use zero_ui_core::render::webrender_api::{euclid, units::LayoutPixel};
 
 /// Horizontal stack layout.
 ///
@@ -50,7 +49,7 @@ pub mod h_stack {
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         HStackNode {
             rectangles: vec![euclid::Rect::zero(); items.len()].into_boxed_slice(),
-            items_width: 0.0,
+            items_width: Px(0),
             visible_count: 0,
             children: items,
             spacing: spacing.into_var(),
@@ -60,9 +59,9 @@ pub mod h_stack {
 
     struct HStackNode<C, S, A> {
         children: C,
-        rectangles: Box<[euclid::Rect<f32, LayoutPixel>]>,
-        items_width: f32,
-        visible_count: usize,
+        rectangles: Box<[PxRect]>,
+        items_width: Px,
+        visible_count: u32,
 
         spacing: S,
         align: A,
@@ -77,8 +76,8 @@ pub mod h_stack {
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let mut ds = LayoutSize::zero();
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            let mut ds = PxSize::zero();
             self.visible_count = 0;
 
             let rectangles = &mut self.rectangles;
@@ -89,42 +88,42 @@ pub mod h_stack {
                 |i, s, _| {
                     rectangles[i].size = s;
                     ds.height = ds.height.max(s.height);
-                    if s.width > 0.0 {
+                    if s.width > Px(0) {
                         ds.width += s.width;
                         *visible_count += 1;
                     }
                 },
             );
 
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, LayoutLength::new(available_size.width)).0;
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.width);
 
-            ds.width += self.visible_count.saturating_sub(1) as f32 * spacing;
+            ds.width += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
             self.items_width = ds.width;
 
             if self.align.get(ctx).fill_width() {
-                ds.max(available_size)
+                ds.max(available_size.to_px())
             } else {
                 ds
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, LayoutLength::new(final_size.width)).0;
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, AvailablePx::Finite(final_size.width));
             let align = self.align.copy(ctx);
             let fill_width = align.fill_width();
 
             // if `fill_width` and there is space to fill we give the extra width divided equally
             // for each visible item. The fill alignment is usually only set for the height so this is a corner case.
             let extra_width = if fill_width && self.items_width < final_size.width {
-                let vis_count = self.visible_count.saturating_sub(1) as f32;
+                let vis_count = Px(self.visible_count.saturating_sub(1) as i32);
                 (final_size.width - vis_count * spacing) / vis_count
             } else {
-                0.0
+                Px(0)
             };
 
             // offset for each item to apply the vertical alignment.
             let mut x_offset = if fill_width {
-                0.0
+                Px(0)
             } else {
                 let diff = final_size.width - self.items_width;
                 diff * align.x.0
@@ -133,7 +132,7 @@ pub mod h_stack {
             let rectangles = &mut self.rectangles;
             let fill_height = align.fill_height();
 
-            self.children.arrange_all(ctx, |i, ctx| {
+            self.children.arrange_all(ctx, |i, _| {
                 let r = &mut rectangles[i];
 
                 r.size.width += extra_width;
@@ -143,13 +142,11 @@ pub mod h_stack {
 
                 if fill_height {
                     r.size.height = final_size.height;
-                    r.origin.y = 0.0;
+                    r.origin.y = Px(0);
                 } else {
                     r.size.height = r.size.height.min(final_size.height);
                     r.origin.y = (final_size.height - r.size.height) * align.y.0;
                 };
-
-                *r = r.snap_to(ctx.pixel_grid);
 
                 r.size
             });
@@ -206,7 +203,7 @@ pub mod v_stack {
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         VStackNode {
             rectangles: vec![euclid::Rect::zero(); items.len()].into_boxed_slice(),
-            items_height: 0.0,
+            items_height: Px(0),
             visible_count: 0,
             children: items,
             spacing: spacing.into_var(),
@@ -216,8 +213,8 @@ pub mod v_stack {
 
     struct VStackNode<C, S, A> {
         children: C,
-        rectangles: Box<[euclid::Rect<f32, LayoutPixel>]>,
-        items_height: f32,
+        rectangles: Box<[PxRect]>,
+        items_height: Px,
         visible_count: usize,
 
         spacing: S,
@@ -233,8 +230,8 @@ pub mod v_stack {
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let mut ds = LayoutSize::zero();
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            let mut ds = PxSize::zero();
             self.visible_count = 0;
 
             let rectangles = &mut self.rectangles;
@@ -245,46 +242,42 @@ pub mod v_stack {
                 |i, s, _| {
                     rectangles[i].size = s;
                     ds.width = ds.width.max(s.width);
-                    if s.height > 0.0 {
+                    if s.height > Px(0) {
                         ds.height += s.height;
                         *visible_count += 1;
                     }
                 },
             );
 
-            let spacing = self
-                .spacing
-                .get(ctx.vars)
-                .to_layout(ctx, LayoutLength::new(available_size.height))
-                .0;
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.height);
 
-            ds.height += self.visible_count.saturating_sub(1) as f32 * spacing;
+            ds.height += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
             self.items_height = ds.height;
 
             if self.align.get(ctx).fill_height() {
-                ds.max(available_size)
+                ds.max(available_size.to_px())
             } else {
                 ds
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, LayoutLength::new(final_size.height)).0;
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, AvailablePx::Finite(final_size.height));
             let align = self.align.copy(ctx);
             let fill_height = align.fill_height();
 
             // if `fill_height` and there is space to fill we give the extra height divided equally
             // for each visible item. The fill alignment is usually only set for the width so this is a corner case.
             let extra_height = if fill_height && self.items_height < final_size.height {
-                let vis_count = self.visible_count.saturating_sub(1) as f32;
+                let vis_count = Px(self.visible_count.saturating_sub(1) as i32);
                 (final_size.height - vis_count * spacing) / vis_count
             } else {
-                0.0
+                Px(0)
             };
 
             // offset for each item to apply the vertical alignment.
             let mut y_offset = if fill_height {
-                0.0
+                Px(0)
             } else {
                 let diff = final_size.height - self.items_height;
                 diff * align.y.0
@@ -293,7 +286,7 @@ pub mod v_stack {
             let rectangles = &mut self.rectangles;
             let fill_width = align.fill_width();
 
-            self.children.arrange_all(ctx, |i, ctx| {
+            self.children.arrange_all(ctx, |i, _| {
                 let r = &mut rectangles[i];
 
                 r.size.height += extra_height;
@@ -303,13 +296,11 @@ pub mod v_stack {
 
                 if fill_width {
                     r.size.width = final_size.width;
-                    r.origin.x = 0.0;
+                    r.origin.x = Px(0);
                 } else {
                     r.size.width = r.size.width.min(final_size.width);
                     r.origin.x = (final_size.width - r.size.width) * align.x.0;
                 };
-
-                *r = r.snap_to(ctx.pixel_grid);
 
                 r.size
             });
@@ -415,7 +406,7 @@ pub mod z_stack {
 
     struct ZStackNode<C, A> {
         children: C,
-        rectangles: Box<[euclid::Rect<f32, LayoutPixel>]>,
+        rectangles: Box<[PxRect]>,
         align: A,
     }
     #[impl_ui_node(children)]
@@ -427,9 +418,9 @@ pub mod z_stack {
             self.children.update_all(ctx);
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let rectangles = &mut self.rectangles;
-            let mut ds = LayoutSize::zero();
+            let mut ds = PxSize::zero();
             self.children.measure_all(
                 ctx,
                 |_, _| available_size,
@@ -441,12 +432,12 @@ pub mod z_stack {
             ds
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let align = self.align.copy(ctx);
 
             let rectangles = &mut self.rectangles;
-            self.children.arrange_all(ctx, |i, ctx| {
-                rectangles[i] = align.solve(rectangles[i].size, final_size).snap_to(ctx.pixel_grid).to_rect();
+            self.children.arrange_all(ctx, |i, _| {
+                rectangles[i] = align.solve(rectangles[i].size, final_size);
                 rectangles[i].size
             });
         }

@@ -58,13 +58,13 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let available_size = self.child.measure(ctx, available_size);
-            self.background.measure(ctx, available_size);
+            self.background.measure(ctx, AvailableSize::finite(available_size));
             available_size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             self.background.arrange(ctx, final_size);
             self.child.arrange(ctx, final_size);
         }
@@ -181,13 +181,13 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
             self.foreground.update(ctx);
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let available_size = self.child.measure(ctx, available_size);
-            self.foreground.measure(ctx, available_size);
+            self.foreground.measure(ctx, AvailableSize::finite(available_size));
             available_size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             self.foreground.arrange(ctx, final_size);
             self.child.arrange(ctx, final_size);
         }
@@ -306,12 +306,12 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 ///
 /// container! {
 ///     background_color = rgb(255, 0, 0);
-///     size = (200.0, 300.0);
+///     size = (200, 300);
 ///     clip_to_bounds = true;
 ///     content = container! {
 ///         background_color = rgb(0, 255, 0);
 ///         // fixed size ignores the layout available size.
-///         size = (1000.0, 1000.0);
+///         size = (1000, 1000);
 ///         content = text("1000x1000 green clipped to 200x300");
 ///     };
 /// }
@@ -322,7 +322,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     struct ClipToBoundsNode<T, S> {
         child: T,
         clip: S,
-        bounds: LayoutSize,
+        bounds: PxSize,
     }
 
     #[impl_ui_node(child)]
@@ -335,7 +335,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             self.bounds = final_size;
             self.child.arrange(ctx, final_size)
         }
@@ -351,6 +351,6 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     ClipToBoundsNode {
         child,
         clip: clip.into_var(),
-        bounds: LayoutSize::zero(),
+        bounds: PxSize::zero(),
     }
 }

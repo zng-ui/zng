@@ -38,12 +38,67 @@ impl From<Px> for AvailablePx {
     }
 }
 impl AvailablePx {
-    /// Convert `Infinite` to zero, or returns the `Max`.
+    /// Convert `Infinite` to zero, or returns the `Finite`.
+    #[inline]
     pub fn to_px(self) -> Px {
+        self.to_px_or(Px(0))
+    }
+
+    /// Convert `Infinite` to `fallback` or return the `Finite`.
+    #[inline]
+    pub fn to_px_or(self, fallback: Px) -> Px {
         match self {
-            AvailablePx::Infinite => Px(0),
+            AvailablePx::Infinite => fallback,
             AvailablePx::Finite(p) => p,
         }
+    }
+
+    /// Returns the greater length.
+    ///
+    /// Infinite is greater then any finite value.
+    #[inline]
+    pub fn max(self, other: AvailablePx) -> AvailablePx {
+        if self > other {
+            self
+        } else {
+            other
+        }
+    }
+
+    /// Returns the lesser length.
+    ///
+    /// Infinite is greater then any finite value.
+    #[inline]
+    pub fn min(self, other: AvailablePx) -> AvailablePx {
+        if self < other {
+            self
+        } else {
+            other
+        }
+    }
+
+    /// Returns the greater finite length or `Infinite` if `self` is `Infinite`.
+    #[inline]
+    pub fn max_px(self, other: Px) -> AvailablePx {
+        self.max(AvailablePx::Finite(other))
+    }
+
+    /// Return the lesser finite length.
+    #[inline]
+    pub fn min_px(self, other: Px) -> AvailablePx {
+        self.min(AvailablePx::Finite(other))
+    }
+
+    /// Returns `true` if is `Infinite`.
+    #[inline]
+    pub fn is_infinite(self) -> bool {
+        matches!(self, AvailablePx::Infinite)
+    }
+
+    /// Returns `true` if is `Finite(_)`.
+    #[inline]
+    pub fn is_finite(self) -> bool {
+        matches!(self, AvailablePx::Finite(_))
     }
 }
 impl Default for AvailablePx {
@@ -66,31 +121,145 @@ impl Ord for AvailablePx {
         }
     }
 }
+impl PartialEq<Px> for AvailablePx {
+    fn eq(&self, other: &Px) -> bool {
+        match self {
+            AvailablePx::Infinite => false,
+            AvailablePx::Finite(s) => s == other,
+        }
+    }
+}
+impl PartialOrd<Px> for AvailablePx {
+    fn partial_cmp(&self, other: &Px) -> Option<cmp::Ordering> {
+        Some(match self {
+            AvailablePx::Infinite => cmp::Ordering::Greater,
+            AvailablePx::Finite(s) => s.cmp(other),
+        })
+    }
+}
+impl ops::Add<Px> for AvailablePx {
+    type Output = AvailablePx;
+
+    fn add(self, rhs: Px) -> Self::Output {
+        match self {
+            AvailablePx::Finite(px) => AvailablePx::Finite(px + rhs),
+            s => s,
+        }
+    }
+}
+impl ops::Sub<Px> for AvailablePx {
+    type Output = AvailablePx;
+
+    fn sub(self, rhs: Px) -> Self::Output {
+        match self {
+            AvailablePx::Finite(px) => AvailablePx::Finite(px - rhs),
+            s => s,
+        }
+    }
+}
+impl ops::Add<AvailablePx> for AvailablePx {
+    type Output = AvailablePx;
+
+    fn add(self, rhs: AvailablePx) -> Self::Output {
+        match (self, rhs) {
+            (AvailablePx::Infinite, _) | (_, AvailablePx::Infinite) => AvailablePx::Infinite,
+            (AvailablePx::Finite(a), AvailablePx::Finite(b)) => AvailablePx::Finite(a + b),
+        }
+    }
+}
+impl ops::Sub<AvailablePx> for AvailablePx {
+    type Output = AvailablePx;
+
+    fn sub(self, rhs: AvailablePx) -> Self::Output {
+        match (self, rhs) {
+            (AvailablePx::Infinite, _) | (_, AvailablePx::Infinite) => AvailablePx::Infinite,
+            (AvailablePx::Finite(a), AvailablePx::Finite(b)) => AvailablePx::Finite(a - b),
+        }
+    }
+}
 
 /// Maximum [`AvailablePx`] size for an [`UiNode::measure`].
+///
+/// Methods for this type are implemented by [`AvailableSizeExt`],
+/// it must be imported together with this type definition.
 ///
 /// [`UiNode::measure`]: crate::UiNode::measure
 pub type AvailableSize = euclid::Size2D<AvailablePx, ()>;
 /// Extension methods for [`AvailableSize`].
 pub trait AvailableSizeExt {
-    /// Convert `Infinite` to zero, or returns the `Max`.
-    fn to_px(self) -> PxSize;
     /// Width and height [`AvailablePx::Infinite`].
     fn inf() -> Self;
     /// New finite size.
     fn finite(size: PxSize) -> Self;
+
+    /// Convert `Infinite` to zero, or returns the `Finite`.
+    fn to_px(self) -> PxSize;
+    /// Return the values of `fallback` for `Infinite`, otherwise returns the `Finite`.
+    fn to_px_or(self, fallback: PxSize) -> PxSize;
+
+    /// Increment the `Finite` value.
+    ///
+    /// Returns `Infinite` if `self` is infinite.
+    fn add_px(self, size: PxSize) -> Self;
+    /// Decrement the `Finite` value.
+    ///
+    /// Returns `Infinite` if `self` is infinite.
+    fn sub_px(self, size: PxSize) -> Self;
+
+    /// Returns a size that has the greater dimensions.
+    fn max(self, other: Self) -> Self;
+    /// Returns a size that has the lesser dimensions.
+    fn min(self, other: Self) -> Self;
+
+    /// Returns a size that has the greater dimensions.
+    fn max_px(self, other: PxSize) -> Self;
+    /// Returns a size that has the lesser finite dimensions.
+    fn min_px(self, other: PxSize) -> Self;
 }
 impl AvailableSizeExt for AvailableSize {
-    fn to_px(self) -> PxSize {
-        PxSize::new(self.width.to_px(), self.height.to_px())
-    }
     #[inline]
     fn inf() -> Self {
         AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite)
     }
-
+    #[inline]
     fn finite(size: PxSize) -> Self {
         AvailableSize::new(AvailablePx::Finite(size.width), AvailablePx::Finite(size.height))
+    }
+
+    #[inline]
+    fn to_px(self) -> PxSize {
+        PxSize::new(self.width.to_px(), self.height.to_px())
+    }
+    #[inline]
+    fn to_px_or(self, fallback: PxSize) -> PxSize {
+        PxSize::new(self.width.to_px_or(fallback.width), self.height.to_px_or(fallback.height))
+    }
+
+    #[inline]
+    fn add_px(self, size: PxSize) -> Self {
+        AvailableSize::new(self.width + size.width, self.height + size.height)
+    }
+    #[inline]
+    fn sub_px(self, size: PxSize) -> Self {
+        AvailableSize::new(self.width - size.width, self.height - size.height)
+    }
+
+    #[inline]
+    fn max(self, other: Self) -> Self {
+        AvailableSize::new(self.width.max(other.width), self.height.max(other.height))
+    }
+    #[inline]
+    fn min(self, other: Self) -> Self {
+        AvailableSize::new(self.width.min(other.width), self.height.min(other.height))
+    }
+
+    #[inline]
+    fn max_px(self, other: PxSize) -> Self {
+        AvailableSize::new(self.width.max_px(other.width), self.height.max_px(other.height))
+    }
+    #[inline]
+    fn min_px(self, other: PxSize) -> Self {
+        AvailableSize::new(self.width.min_px(other.width), self.height.min_px(other.height))
     }
 }
 

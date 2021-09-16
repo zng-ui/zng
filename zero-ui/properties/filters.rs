@@ -27,8 +27,8 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
             self.child.update(ctx)
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.render_filter = self.filter.get(ctx).to_render(ctx, final_size);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            self.render_filter = self.filter.get(ctx).to_render(ctx, AvailableSize::finite(final_size));
             self.child.arrange(ctx, final_size);
         }
 

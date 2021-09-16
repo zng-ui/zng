@@ -57,10 +57,10 @@ cancelable_event_args! {
         pub modifiers: ModifiersState,
 
         /// Accumulated move since the drag started.
-        pub offset: LayoutPoint,
+        pub offset: DipPoint,
 
         /// Move since previous added in this event.
-        pub delta: LayoutPoint,
+        pub delta: DipPoint,
 
         ..
 
@@ -81,7 +81,7 @@ event_args! {
         /// Accumulated move since the drag started.
         ///
         /// This offset is now applied to the widget if not [`canceled`](Self::canceled).
-        pub offset: LayoutPoint,
+        pub offset: DipPoint,
 
         /// Is some if the drag-move was canceled.
         pub canceled: Option<DragCancelSource>,
@@ -103,7 +103,7 @@ pub enum DragEventSource {
         button: MouseButton,
 
         /// Position of the mouse in the coordinates of [`target`](DragStartedArgs::target).
-        position: LayoutPoint,
+        position: DipPoint,
     },
     /// Drag started by a shortcut press.
     Shortcut {

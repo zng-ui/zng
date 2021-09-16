@@ -48,6 +48,12 @@ impl Px {
     pub fn abs(self) -> Px {
         Px(self.0.saturating_abs())
     }
+
+    /// [`i32::MAX`].
+    pub const MAX: Px = Px(i32::MAX);
+
+    /// [`i32::MIN`].
+    pub const MIN: Px = Px(i32::MIN);
 }
 impl num_traits::Zero for Px {
     fn zero() -> Self {
@@ -152,6 +158,18 @@ impl ops::MulAssign<f32> for Px {
         *self = *self * rhs;
     }
 }
+impl ops::Mul<i32> for Px {
+    type Output = Px;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        Px(self.0 * rhs)
+    }
+}
+impl ops::MulAssign<i32> for Px {
+    fn mul_assign(&mut self, rhs: i32) {
+        *self = *self * rhs;
+    }
+}
 impl ops::Mul<Px> for Px {
     type Output = Px;
 
@@ -171,6 +189,13 @@ impl ops::Div<f32> for Px {
         Px((self.0 as f32 / rhs).round() as i32)
     }
 }
+impl ops::Div<i32> for Px {
+    type Output = Px;
+
+    fn div(self, rhs: i32) -> Self::Output {
+        Px(self.0 / rhs)
+    }
+}
 impl ops::Div<Px> for Px {
     type Output = Px;
 
@@ -180,6 +205,11 @@ impl ops::Div<Px> for Px {
 }
 impl ops::DivAssign<f32> for Px {
     fn div_assign(&mut self, rhs: f32) {
+        *self = *self / rhs;
+    }
+}
+impl ops::DivAssign<i32> for Px {
+    fn div_assign(&mut self, rhs: i32) {
         *self = *self / rhs;
     }
 }
@@ -438,6 +468,8 @@ pub type PxSideOffsets = euclid::SideOffsets2D<Px, ()>;
 pub type DipSideOffsets = euclid::SideOffsets2D<Dip, ()>;
 
 /// Ellipses that define the radius of the four corners of a 2D box.
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 pub struct CornerRadius<T, U> {
     /// Top-left corner radius.
     pub top_left: euclid::Size2D<T, U>,
@@ -448,7 +480,18 @@ pub struct CornerRadius<T, U> {
     /// Bottom-right corner radius.
     pub bottom_right: euclid::Size2D<T, U>,
 }
-impl<T: Copy, U> CornerRadius<T, U> {
+impl<T: Clone, U> Clone for CornerRadius<T, U> {
+    fn clone(&self) -> Self {
+        Self {
+            top_left: self.top_left.clone(),
+            top_right: self.top_right.clone(),
+            bottom_left: self.bottom_left.clone(),
+            bottom_right: self.bottom_right.clone(),
+        }
+    }
+}
+impl<T: Copy, U> Copy for CornerRadius<T, U> {}
+impl<T: Copy + num_traits::Zero, U> CornerRadius<T, U> {
     /// New with distinct values.
     pub fn new(
         top_left: euclid::Size2D<T, U>,
@@ -467,6 +510,16 @@ impl<T: Copy, U> CornerRadius<T, U> {
     /// New all corners same radius.
     pub fn new_all(radius: euclid::Size2D<T, U>) -> Self {
         Self::new(radius, radius, radius, radius)
+    }
+
+    /// All zeros.
+    pub fn zero() -> Self {
+        Self::new_all(euclid::Size2D::zero())
+    }
+}
+impl<T: fmt::Debug, U> fmt::Debug for CornerRadius<T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CornerRadius").field("top_left", &self.top_left).field("top_right", &self.top_right).field("bottom_left", &self.bottom_left).field("bottom_right", &self.bottom_right).finish()
     }
 }
 
@@ -521,7 +574,7 @@ pub trait WrToPx {
     /// `Self` equivalent in [`Px`] units.
     type AsPx;
 
-    /// Reutns `self` in [`Px`] units.
+    /// Returns `self` in [`Px`] units.
     fn to_px(self) -> Self::AsPx;
 }
 

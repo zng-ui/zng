@@ -39,8 +39,8 @@ pub fn linear_gradient_full(
         g: LinearGradientNode::new(axis.into_var(), stops.into_var(), extend_mode.into_var()),
         tile_size: tile_size.into_var(),
         tile_spacing: tile_spacing.into_var(),
-        render_tile_size: LayoutSize::zero(),
-        render_tile_spacing: LayoutSize::zero(),
+        render_tile_size: PxSize::zero(),
+        render_tile_spacing: PxSize::zero(),
     }
 }
 
@@ -49,10 +49,10 @@ struct LinearGradientNode<A, S, E> {
     stops: S,
     extend_mode: E,
 
-    render_line: LayoutLine,
+    render_line: PxLine,
     render_stops: Vec<RenderGradientStop>,
 
-    final_size: LayoutSize,
+    final_size: PxSize,
 }
 #[impl_ui_node(none)]
 impl<A, S, E> LinearGradientNode<A, S, E>
@@ -66,9 +66,9 @@ where
             axis,
             stops,
             extend_mode,
-            render_line: LayoutLine::zero(),
+            render_line: PxLine::zero(),
             render_stops: vec![],
-            final_size: LayoutSize::zero(),
+            final_size: PxSize::zero(),
         }
     }
 
@@ -79,14 +79,14 @@ where
         }
     }
     #[UiNode]
-    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
         self.final_size = final_size;
-        self.render_line = self.axis.get(ctx).layout(ctx, final_size);
+        self.render_line = self.axis.get(ctx).layout(ctx, AvailableSize::finite(final_size));
 
         let length = self.render_line.length();
 
         self.stops.get(ctx).layout_linear(
-            length,
+            AvailablePx::Finite(length),
             ctx,
             *self.extend_mode.get(ctx),
             &mut self.render_line,
@@ -96,12 +96,12 @@ where
     #[UiNode]
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
-            LayoutRect::from_size(self.final_size),
+            PxRect::from_size(self.final_size),
             self.render_line,
             &self.render_stops,
             (*self.extend_mode.get(ctx)).into(),
             self.final_size,
-            LayoutSize::zero(),
+            PxSize::zero(),
         );
     }
 }
@@ -112,8 +112,8 @@ struct LinearGradientFullNode<A, S, E, T, TS> {
     tile_size: T,
     tile_spacing: TS,
 
-    render_tile_size: LayoutSize,
-    render_tile_spacing: LayoutSize,
+    render_tile_size: PxSize,
+    render_tile_spacing: PxSize,
 }
 
 #[impl_ui_node(none)]
@@ -133,16 +133,17 @@ where
         }
     }
 
-    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-        self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, final_size);
-        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, final_size);
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        let available_size = AvailableSize::finite(final_size);
+        self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, available_size);
+        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, available_size);
         self.g.arrange(ctx, self.render_tile_size);
         self.g.final_size = final_size;
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
-            LayoutRect::from_size(self.g.final_size),
+            PxRect::from_size(self.g.final_size),
             self.g.render_line,
             &self.g.render_stops,
             self.g.extend_mode.copy(ctx).into(),

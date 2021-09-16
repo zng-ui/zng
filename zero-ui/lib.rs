@@ -923,8 +923,8 @@ pub mod prelude {
             TextTransformFn, ToText, WhiteSpace, WordBreak,
         },
         units::{
-            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LayoutPoint, LayoutSize, Length, LengthUnits, Line,
-            LineFromTuplesBuilder, LineHeight, Point, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
+            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight,
+            Point, Px, PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
         },
         var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, Vars},
         widget_base::Visibility,

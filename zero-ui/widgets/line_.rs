@@ -30,7 +30,7 @@ pub mod line_w {
         style: impl IntoVar<LineStyle>,
     ) -> impl UiNode {
         LineNode {
-            bounds: LayoutSize::zero(),
+            bounds: PxSize::zero(),
             orientation: orientation.into_var(),
             length: length.into_var(),
             width: width.into_var(),
@@ -46,7 +46,7 @@ pub mod line_w {
         color: C,
         style: S,
 
-        bounds: LayoutSize,
+        bounds: PxSize,
     }
     #[impl_ui_node(none)]
     impl<W, L, O, C, S> UiNode for LineNode<W, L, O, C, S>
@@ -66,27 +66,27 @@ pub mod line_w {
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_space: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_space: AvailableSize) -> PxSize {
             let (width, height) = match *self.orientation.get(ctx) {
                 LineOrientation::Horizontal => (self.length.get(ctx), self.width.get(ctx)),
                 LineOrientation::Vertical => (self.width.get(ctx), self.length.get(ctx)),
             };
 
-            let width = width.to_layout(ctx, LayoutLength::new(available_space.width));
-            let height = height.to_layout(ctx, LayoutLength::new(available_space.height));
+            let width = width.to_layout(ctx, available_space.width);
+            let height = height.to_layout(ctx, available_space.height);
 
-            LayoutSize::new(width.0, height.0)
+            PxSize::new(width, height)
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.bounds = self.measure(ctx, final_size);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            self.bounds = self.measure(ctx, AvailableSize::finite(final_size));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let bounds = LayoutRect::from_size(self.bounds);
-            let orientation = *self.orientation.get(ctx);
-            let color = *self.color.get(ctx);
-            let style = *self.style.get(ctx);
+            let bounds = PxRect::from_size(self.bounds);
+            let orientation = self.orientation.copy(ctx);
+            let color = self.color.copy(ctx);
+            let style = self.style.copy(ctx);
             frame.push_line(bounds, orientation, color.into(), style);
         }
     }

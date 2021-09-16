@@ -101,7 +101,7 @@ pub mod image {
         struct ImageNode<T> {
             source: T,
             image: Option<ImageRequestVar>,
-            final_size: LayoutSize,
+            final_size: PxSize,
         }
         #[impl_ui_node(none)]
         impl<T: Var<ImageSource>> UiNode for ImageNode<T> {
@@ -129,28 +129,28 @@ pub mod image {
                 }
             }
 
-            fn measure(&mut self, ctx: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
+            fn measure(&mut self, ctx: &mut LayoutContext, _: AvailableSize) -> PxSize {
                 if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx) {
                     img.layout_size(ctx)
                 } else {
-                    LayoutSize::zero()
+                    PxSize::zero()
                 }
             }
 
-            fn arrange(&mut self, _: &mut LayoutContext, final_size: LayoutSize) {
+            fn arrange(&mut self, _: &mut LayoutContext, final_size: PxSize) {
                 self.final_size = final_size;
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 profile_scope!("image::render");
                 if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx.vars) {
-                    frame.push_image(LayoutRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
+                    frame.push_image(PxRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
                 }
             }
         }
         ImageNode {
             source: source.into_var(),
             image: None,
-            final_size: LayoutSize::zero(),
+            final_size: PxSize::zero(),
         }
     }
 

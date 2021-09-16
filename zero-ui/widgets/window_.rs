@@ -48,7 +48,7 @@ pub mod window {
 
         /// Window position (*x*, *y*).
         ///
-        /// Set to [`f32::NAN`] to not give a position. This variable is not updated back
+        /// Set to `Px::MAX` to not give a position. This variable is not updated back
         /// if the user moves the window, you can use the [`actual_position`](#wp-actual_position) to get the
         /// computed position.
         ///
@@ -77,20 +77,14 @@ pub mod window {
         /// Window position *x*.
         ///
         /// This property value is the same as the [`position.x`](#wp-position) value.
-        ///
-        /// Set to [`f32::NAN`] to not give an initial position.
         properties::x;
 
         /// Window position *y*.
         ///
         /// This property value is the same as the [`position.y`](#wp-position) value.
-        ///
-        /// Set to [`f32::NAN`] to not give a position.
         properties::y;
 
         /// Window size (*width*, *height*).
-        ///
-        /// Set to [`f32::NAN`] to not give a size.
         ///
         /// Does not include the OS window border.
         ///
@@ -100,20 +94,14 @@ pub mod window {
         /// Window size *width*.
         ///
         /// This property value is the same as the [`size.width`](#wp-size) value.
-        ///
-        /// Set to [`f32::NAN`] to not give a position.
         properties::width;
 
         /// Window size *height*.
         ///
         /// This property value is the same as the [`size.height`](#wp-size) value.
-        ///
-        /// Set to [`f32::NAN`] to not give a position.
         properties::height;
 
         /// Window minimum size.
-        ///
-        /// Set to [`f32::NAN`] to not give a value.
         ///
         /// You can also set the [`min_width`](#wp-min_width) and [`min_height`](#wp-min_height) as independent properties.
         properties::min_size;
@@ -121,20 +109,14 @@ pub mod window {
         /// Window minimum width.
         ///
         /// This property value is the same as the [`min_size.width`](#wp-min_size) value.
-        ///
-        /// Set to [`f32::NAN`] to not give a value.
         properties::min_width;
 
         /// Window minimum height.
         ///
         /// This property value is the same as the [`min_size.height`](#wp-min_size) value.
-        ///
-        /// Set to [`f32::NAN`] to not give a value.
         properties::min_height;
 
         /// Window maximum size.
-        ///
-        /// Set to [`f32::NAN`] to not give a value.
         ///
         /// You can also set the [`max_width`](#wp-max_width) and [`max_height`](#wp-max_height) as independent properties.
         properties::max_size;
@@ -142,15 +124,11 @@ pub mod window {
         /// Window maximum width.
         ///
         /// This property value is the same as the [`max_size.width`](#wp-max_size) value.
-        ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial value.
         properties::max_width;
 
         /// Window maximum height.
         ///
         /// This property value is the same as the [`max_size.height`](#wp-max_size) value.
-        ///
-        /// If set to a variable it is kept in sync, set to [`f32::NAN`] to not give an initial value.
         properties::max_height;
 
         /// Window auto-size to content.

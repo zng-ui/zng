@@ -272,10 +272,10 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
 #[derive(Debug, Clone, Copy)]
 pub struct OnMeasureArgs {
     /// The maximum size available to the widget.
-    pub available_size: LayoutSize,
+    pub available_size: AvailableSize,
 
     /// The [outer](crate::core::property#outer) size calculated by the widget.
-    pub desired_size: LayoutSize,
+    pub desired_size: PxSize,
 }
 
 /// Event fired during the widget [`measure`](UiNode::measure) layout.
@@ -292,7 +292,7 @@ pub fn on_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, On
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: FnMut(&mut LayoutContext, OnMeasureArgs) + 'static> UiNode for OnMeasureNode<C, F> {
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let desired_size = self.child.measure(ctx, available_size);
             (self.handler)(
                 ctx,
@@ -314,14 +314,14 @@ pub fn on_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, On
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event, default(|_, _|{}))]
-pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, LayoutSize) + 'static) -> impl UiNode {
+pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, AvailableSize) + 'static) -> impl UiNode {
     struct OnPreviewMeasureNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, LayoutSize) + 'static> UiNode for OnPreviewMeasureNode<C, F> {
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, AvailableSize) + 'static> UiNode for OnPreviewMeasureNode<C, F> {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             (self.handler)(ctx, available_size);
             self.child.measure(ctx, available_size)
         }
@@ -335,14 +335,14 @@ pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event, default(|_, _|{}))]
-pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, LayoutSize) + 'static) -> impl UiNode {
+pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, PxSize) + 'static) -> impl UiNode {
     struct OnArrangeNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, LayoutSize) + 'static> UiNode for OnArrangeNode<C, F> {
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, PxSize) + 'static> UiNode for OnArrangeNode<C, F> {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             self.child.arrange(ctx, final_size);
             (self.handler)(ctx, final_size);
         }
@@ -356,14 +356,14 @@ pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, La
 ///
 /// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event, default(|_, _|{}))]
-pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, LayoutSize) + 'static) -> impl UiNode {
+pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, PxSize) + 'static) -> impl UiNode {
     struct OnPreviewArrangeNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, LayoutSize) + 'static> UiNode for OnPreviewArrangeNode<C, F> {
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, PxSize) + 'static> UiNode for OnPreviewArrangeNode<C, F> {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             (self.handler)(ctx, final_size);
             self.child.arrange(ctx, final_size);
         }

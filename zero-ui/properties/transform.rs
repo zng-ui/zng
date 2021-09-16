@@ -27,8 +27,8 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.layout_transform = self.transform.get(ctx).to_layout(ctx, final_size);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            self.layout_transform = self.transform.get(ctx).to_layout(ctx, AvailableSize::finite(final_size));
             self.child.arrange(ctx, final_size);
         }
 
@@ -168,7 +168,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     struct TransformOriginNode<C, O> {
         child: C,
         origin: O,
-        layout_origin: LayoutPoint,
+        layout_origin: PxPoint,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, O: Var<Point>> UiNode for TransformOriginNode<C, O> {
@@ -179,8 +179,8 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
-            self.layout_origin = self.origin.get(ctx).to_layout(ctx, final_size);
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            self.layout_origin = self.origin.get(ctx).to_layout(ctx, AvailableSize::finite(final_size));
             self.child.arrange(ctx, final_size);
         }
 
@@ -198,6 +198,6 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     TransformOriginNode {
         child,
         origin: origin.into_var(),
-        layout_origin: LayoutPoint::zero(),
+        layout_origin: PxPoint::zero(),
     }
 }
