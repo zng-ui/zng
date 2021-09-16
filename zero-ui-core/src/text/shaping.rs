@@ -1,7 +1,7 @@
 use super::{
     font_features::RFontFeatures, Font, FontList, FontMetrics, GlyphInstance, Script, SegmentedText, TextSegment, TextSegmentKind,
 };
-use crate::units::{FactorNormal, FactorPercent, LayoutPoint, LayoutSize};
+use crate::units::*;
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
@@ -112,7 +112,7 @@ impl From<FactorPercent> for TextShapingUnit {
 pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
     glyph_segs: Vec<TextSegment>,
-    size: LayoutSize,
+    size: PxSize,
 }
 impl ShapedText {
     /// Glyphs for the renderer.
@@ -123,7 +123,7 @@ impl ShapedText {
 
     /// Bounding box size.
     #[inline]
-    pub fn size(&self) -> LayoutSize {
+    pub fn size(&self) -> PxSize {
         self.size
     }
 
@@ -159,7 +159,7 @@ impl Font {
         let metrics = self.metrics();
         let line_height = config.line_height(metrics);
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
-        let mut origin = LayoutPoint::new(0.0, baseline);
+        let mut origin = euclid::point2(0.0, baseline);
         let mut max_line_x = 0.0;
         let ppem = self.size().get().round() as u16;
 
@@ -188,7 +188,7 @@ impl Font {
                     let x_advance = to_layout(p.x_advance);
                     let y_advance = to_layout(p.y_advance);
 
-                    let point = LayoutPoint::new(origin.x + x_offset, origin.y + y_offset);
+                    let point = euclid::point2(origin.x + x_offset, origin.y + y_offset);
                     origin.x += x_advance + config.letter_spacing;
                     origin.y += y_advance;
 
@@ -211,7 +211,7 @@ impl Font {
                     shape_seg(config.word_spacing);
                 }
                 TextSegmentKind::Tab => {
-                    let point = LayoutPoint::new(origin.x, origin.y);
+                    let point = euclid::point2(origin.x, origin.y);
                     origin.x += config.tab_size(space_advance);
 
                     out.glyphs.push(GlyphInstance { index: space_index, point });
@@ -230,7 +230,7 @@ impl Font {
         }
 
         // longest line width X line heights.
-        out.size = LayoutSize::new(origin.x.max(max_line_x), origin.y - metrics.descent); // TODO, add descend?
+        out.size = PxSize::new(Px(origin.x.max(max_line_x) as i32), Px((origin.y - metrics.descent) as i32)); // TODO, add descend?
 
         out
     }

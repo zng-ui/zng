@@ -56,15 +56,14 @@ mod window;
 mod app_process;
 mod ipc;
 mod types;
+pub mod units;
 
 pub use app_process::*;
 pub use types::*;
 
-use webrender_api::{
-    euclid,
-    units::{LayoutPixel, LayoutPoint, LayoutSize},
-    DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId,
-};
+use webrender_api::{DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
+
+use crate::units::*;
 
 const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
 const MODE_VAR: &str = "ZERO_UI_WR_MODE";
@@ -383,14 +382,14 @@ declare_ipc! {
     }
 
     /// Set the window top-left offset, includes the window chrome (outer-position).
-    pub fn set_position(&mut self, _ctx: &Context, id: WinId, pos: LayoutPoint) -> () {
+    pub fn set_position(&mut self, _ctx: &Context, id: WinId, pos: DipPoint) -> () {
         if self.with_window(id, ||false, |w|w.set_outer_pos(pos)) {
             self.notify(Ev::WindowMoved(id, pos, EventCause::App));
         }
     }
 
     /// Set the window content area size (inner-size).
-    pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, frame: FrameRequest) -> () {
+    pub fn set_size(&mut self, _ctx: &Context, id: WinId, size: DipSize, frame: FrameRequest) -> () {
         let frame_id = frame.id;
         let (resized, rendered) = self.with_window(id, ||(false, false), |w|w.resize_inner(size, frame));
         if resized {
@@ -402,16 +401,16 @@ declare_ipc! {
     }
 
     /// Set the headless surface are size (viewport size).
-    pub fn set_headless_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize, scale_factor: f32) -> () {
+    pub fn set_headless_size(&mut self, _ctx: &Context, id: WinId, size: DipSize, scale_factor: f32) -> () {
         self.with_headless(id, ||(), |h|h.set_size(size, scale_factor))
     }
 
     /// Set the window minimum content area size.
-    pub fn set_min_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> () {
+    pub fn set_min_size(&mut self, _ctx: &Context, id: WinId, size: DipSize) -> () {
         self.with_window(id, ||(), |w|w.set_min_inner_size(size))
     }
     /// Set the window maximum content area size.
-    pub fn set_max_size(&mut self, _ctx: &Context, id: WinId, size: LayoutSize) -> () {
+    pub fn set_max_size(&mut self, _ctx: &Context, id: WinId, size: DipSize) -> () {
         self.with_window(id, ||(), |w|w.set_max_inner_size(size))
     }
 
@@ -523,8 +522,8 @@ declare_ipc! {
     }
 
     /// Gets the window content are size.
-    pub fn size(&mut self, _ctx: &Context, id: WinId) -> LayoutSize {
-        with_window_or_headless!(self, id, LayoutSize::zero(), |w|w.size())
+    pub fn size(&mut self, _ctx: &Context, id: WinId) -> DipSize {
+        with_window_or_headless!(self, id, DipSize::zero(), |w|w.size())
     }
 
     /// Gets the window content are size.
@@ -547,14 +546,14 @@ declare_ipc! {
     /// `glReadPixels` a new buffer.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels_rect(&mut self, _ctx: &Context, id: WinId, rect: euclid::Rect<f32, LayoutPixel>) -> FramePixels {
+    pub fn read_pixels_rect(&mut self, _ctx: &Context, id: WinId, rect: PxRect) -> FramePixels {
         with_window_or_headless!(self, id, FramePixels::default(), |w|w.read_pixels_rect(rect))
     }
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
     /// Returns the frame ID and all hits from front-to-back.
-    pub fn hit_test(&mut self, _ctx: &Context, id: WinId, point: LayoutPoint) -> (Epoch, HitTestResult) {
+    pub fn hit_test(&mut self, _ctx: &Context, id: WinId, point: PxPoint) -> (Epoch, HitTestResult) {
         with_window_or_headless!(self, id, (Epoch(0), HitTestResult::default()), |w|w.hit_test(point))
     }
 

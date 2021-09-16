@@ -8,7 +8,7 @@ use super::{
     context::{state_key, WidgetContext},
     impl_ui_node,
     render::{FrameBuilder, FrameInfo, FrameUpdate, WidgetInfo},
-    units::LayoutSize,
+    units::*,
     var::{context_var, BoxedVar, Var},
     UiNode,
 };
@@ -650,7 +650,7 @@ impl UiNode for PropertyInfoNode {
         self.child.event(ctx, args);
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         let t = Instant::now();
         let r = self.child.measure(ctx, available_size);
         let d = t.elapsed();
@@ -659,7 +659,7 @@ impl UiNode for PropertyInfoNode {
         info.count.measure += 1;
         r
     }
-    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
         let t = Instant::now();
         self.child.arrange(ctx, final_size);
         let d = t.elapsed();
@@ -979,7 +979,7 @@ pub struct WriteFrameState {
     widgets: IdMap<WidgetInstanceId, WriteWidgetState>,
 }
 struct WriteWidgetState {
-    outer_size: LayoutSize,
+    outer_size: PxSize,
     /// [(property_name, arg_name) => (value_version, value)]
     properties: HashMap<(&'static str, &'static str), (u32, ValueInfo)>,
 }
@@ -1018,7 +1018,7 @@ impl WriteFrameState {
                 widgets.insert(
                     info.instance_id,
                     WriteWidgetState {
-                        outer_size: w.bounds().size(),
+                        outer_size: w.bounds().size,
                         properties,
                     },
                 );
@@ -1047,7 +1047,7 @@ impl WriteFrameState {
     }
 
     /// Gets the change in the widget outer size.
-    pub fn outer_size_diff(&self, widget_id: WidgetInstanceId, outer_size: LayoutSize) -> Option<WriteArgDiff> {
+    pub fn outer_size_diff(&self, widget_id: WidgetInstanceId, outer_size: PxSize) -> Option<WriteArgDiff> {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
                 if wgt_state.outer_size != outer_size {
@@ -1139,16 +1139,16 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
             (".layout", false),
             ".outer_size",
             {
-                let size = widget.bounds().size();
+                let size = widget.bounds().size;
                 &ValueInfo {
                     debug: formatx!("({}, {})", size.width, size.height),
                     debug_alt: formatx!("LayoutSize {{\n    width: {},\n     height: {}\n}}", size.width, size.height),
-                    type_name: std::any::type_name::<LayoutSize>().into(),
+                    type_name: std::any::type_name::<PxSize>().into(),
                 }
             },
             false,
             true,
-            updates_from.outer_size_diff(wgt.instance_id, widget.bounds().size()),
+            updates_from.outer_size_diff(wgt.instance_id, widget.bounds().size),
         );
 
         for child in widget.children() {
@@ -1163,7 +1163,7 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
             (".layout", false),
             ".bounds",
             {
-                let bounds = widget.bounds().to_rect();
+                let bounds = widget.bounds();
                 &ValueInfo {
                     debug: formatx!(
                         "({}, {}).at({}, {})",
@@ -1179,7 +1179,7 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
                         bounds.origin.x,
                         bounds.origin.y
                     ),
-                    type_name: std::any::type_name::<crate::units::LayoutRect>().into(),
+                    type_name: std::any::type_name::<PxRect>().into(),
                 }
             },
             false,

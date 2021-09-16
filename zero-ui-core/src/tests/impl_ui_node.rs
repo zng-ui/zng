@@ -8,7 +8,7 @@ use crate::{
     context::{TestWidgetContext, UpdateDisplayRequest, WidgetContext},
     impl_ui_node, node_vec, nodes,
     render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
-    units::{LayoutSize, LAYOUT_ANY_SIZE},
+    units::*,
     widget_base::implicit_base,
     window::WindowId,
     UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
@@ -96,7 +96,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_update(&mut ctx);
     assert_only_traced!(wgt.state(), "update");
 
-    let l_size = LayoutSize::new(1000.0, 800.0);
+    let l_size = AvailableSize::new(1000.into(), 800.into());
 
     wgt.test_measure(&mut ctx, l_size);
     assert_only_traced!(wgt.state(), "measure");
@@ -181,15 +181,15 @@ pub fn default_no_child() {
 
     wgt.test_init(&mut ctx);
 
-    let available_size = LayoutSize::new(1000.0, 800.0);
+    let available_size = AvailableSize::new(1000.into(), 800.into());
 
     // we expect default to fill available space and collapse in infinite spaces.
     let desired_size = wgt.test_measure(&mut ctx, available_size);
     assert_eq!(desired_size, available_size);
 
-    let available_size = LayoutSize::new(LAYOUT_ANY_SIZE, LAYOUT_ANY_SIZE);
+    let available_size = AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite);
     let desired_size = wgt.test_measure(&mut ctx, available_size);
-    assert_eq!(desired_size, LayoutSize::zero());
+    assert_eq!(desired_size, PxSize::zero());
 
     // arrange does nothing, not really anything to test.
     wgt.test_arrange(&mut ctx, desired_size);
@@ -220,7 +220,7 @@ mod util {
         event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         state_key,
-        units::LayoutSize,
+        units::PxSize,
         UiNode,
     };
 

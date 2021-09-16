@@ -1,14 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
 use crate::{
-    app::view_process::ViewRenderer,
-    event::Events,
-    render::FrameId,
-    service::Services,
-    units::{LayoutSize, PixelGrid},
-    var::Vars,
-    window::WindowId,
-    WidgetId,
+    app::view_process::ViewRenderer, event::Events, render::FrameId, service::Services, units::*, var::Vars, window::WindowId, WidgetId,
 };
 use linear_map::LinearMap;
 use retain_mut::RetainMut;
@@ -608,7 +601,7 @@ impl<'a> AppContext<'a> {
     #[inline(always)]
     pub fn outer_layout_context<R>(
         &mut self,
-        screen_size: LayoutSize,
+        screen_size: PxSize,
         scale_factor: f32,
         screen_ppi: f32,
         window_id: WindowId,
@@ -616,9 +609,7 @@ impl<'a> AppContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(screen_size, 14.0)
-                .with_pixel_grid(PixelGrid::new(scale_factor))
-                .with_screen_ppi(screen_ppi),
+            metrics: &LayoutMetrics::new(screen_size, scale_factor, 14.0).with_screen_ppi(screen_ppi),
             path: &mut WidgetContextPath::new(window_id, root_id),
             app_state: self.app_state,
             window_state: &mut StateMap::new(),
@@ -704,17 +695,15 @@ impl<'a> WindowContext<'a> {
     pub fn layout_context<R>(
         &mut self,
         font_size: f32,
-        pixel_grid: PixelGrid,
+        scale_factor: f32,
         screen_ppi: f32,
-        viewport_size: LayoutSize,
+        viewport_size: PxSize,
         widget_id: WidgetId,
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(viewport_size, font_size)
-                .with_pixel_grid(pixel_grid)
-                .with_screen_ppi(screen_ppi),
+            metrics: &LayoutMetrics::new(viewport_size, scale_factor, font_size).with_screen_ppi(screen_ppi),
 
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -868,15 +857,14 @@ impl TestWidgetContext {
         &mut self,
         root_font_size: f32,
         font_size: f32,
-        viewport_size: LayoutSize,
-        pixel_grid: PixelGrid,
+        viewport_size: PxSize,
+        scale_factor: f32,
         screen_ppi: f32,
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         action(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(viewport_size, root_font_size)
+            metrics: &LayoutMetrics::new(viewport_size, scale_factor, root_font_size)
                 .with_font_size(font_size)
-                .with_pixel_grid(pixel_grid)
                 .with_screen_ppi(screen_ppi),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
@@ -1140,11 +1128,11 @@ pub struct LayoutMetrics {
     /// Computed font size at the root widget.
     pub root_font_size: f32,
 
-    /// Pixel grid of the surface that is rendering the root widget.
-    pub pixel_grid: PixelGrid,
+    /// Pixel scale factor.
+    pub scale_factor: f32,
 
     /// Size of the window content.
-    pub viewport_size: LayoutSize,
+    pub viewport_size: PxSize,
 
     /// The current screen "pixels-per-inch" resolution.
     ///
@@ -1165,11 +1153,11 @@ impl LayoutMetrics {
     /// New root [`LayoutMetrics`].
     ///
     /// The `font_size` sets both font sizes, the pixel grid is the default `1.0`.
-    pub fn new(viewport_size: LayoutSize, font_size: f32) -> Self {
+    pub fn new(viewport_size: PxSize, scale_factor: f32, font_size: f32) -> Self {
         LayoutMetrics {
             font_size,
             root_font_size: font_size,
-            pixel_grid: PixelGrid::default(),
+            scale_factor,
             viewport_size,
             screen_ppi: 96.0,
         }
@@ -1179,7 +1167,7 @@ impl LayoutMetrics {
     ///
     /// [`viewport_size`]: Self::viewport_size
     #[inline]
-    pub fn viewport_min(&self) -> f32 {
+    pub fn viewport_min(&self) -> Px {
         self.viewport_size.width.min(self.viewport_size.height)
     }
 
@@ -1187,7 +1175,7 @@ impl LayoutMetrics {
     ///
     /// [`viewport_size`]: Self::viewport_size
     #[inline]
-    pub fn viewport_max(&self) -> f32 {
+    pub fn viewport_max(&self) -> Px {
         self.viewport_size.width.max(self.viewport_size.height)
     }
 
@@ -1200,12 +1188,12 @@ impl LayoutMetrics {
         self
     }
 
-    /// Sets the [`pixel_grid`].
+    /// Sets the [`scale_factor`].
     ///
-    /// [`pixel_grid`]: Self::pixel_grid
+    /// [`scale_factor`]: Self::scale_factor
     #[inline]
-    pub fn with_pixel_grid(mut self, pixel_grid: PixelGrid) -> Self {
-        self.pixel_grid = pixel_grid;
+    pub fn with_scale_factor(mut self, scale_factor: f32) -> Self {
+        self.scale_factor = scale_factor;
         self
     }
 

@@ -10,7 +10,7 @@ use crate::{
     mouse::*,
     render::*,
     service::Service,
-    units::LayoutPoint,
+    units::DipPoint,
     var::impl_from_and_into_var,
     window::{WindowId, Windows},
     WidgetId,
@@ -32,7 +32,7 @@ pub enum ClickArgsSource {
         button: MouseButton,
 
         /// Position of the mouse in the coordinates of [`target`](ClickArgs::target).
-        position: LayoutPoint,
+        position: DipPoint,
 
         /// Hit-test result for the mouse point in the window, at the moment the click event
         /// was generated.

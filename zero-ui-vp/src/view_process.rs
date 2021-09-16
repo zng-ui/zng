@@ -4,12 +4,12 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use std::{env, thread};
 
+use crate::units::*;
 use glutin::event::{DeviceEvent, DeviceId, Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget};
 use glutin::monitor::MonitorHandle;
 use glutin::window::WindowId;
 use parking_lot::Condvar;
-use webrender_api::units::{LayoutPoint, LayoutSize};
 
 use crate::headless::ViewHeadless;
 use crate::window::ViewWindow;
@@ -213,13 +213,13 @@ impl<E: AppEventSender> ViewApp<E> {
 
         match event {
             WindowEvent::Resized(size) => {
+                let size = size.to_px().to_dip(scale_factor);
+
                 if !self.windows[i].resized(size) {
                     return;
                 }
                 // give the app 300ms to send a new frame, this is the collaborative way to
                 // resize, it should reduce the changes of the user seeing the clear color.
-
-                let size = LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor);
 
                 let redirect_enabled = self.redirect_enabled.clone();
                 redirect_enabled.store(true, Ordering::Relaxed);
@@ -282,11 +282,12 @@ impl<E: AppEventSender> ViewApp<E> {
                 }
             }
             WindowEvent::Moved(p) => {
+                let p = p.to_px().to_dip(scale_factor);
+
                 if !self.windows[i].moved(p) {
                     return;
                 }
 
-                let p = LayoutPoint::new(p.x as f32 / scale_factor, p.y as f32 / scale_factor);
                 self.notify(Ev::WindowMoved(id, p, EventCause::System));
             }
             WindowEvent::CloseRequested => self.notify(Ev::WindowCloseRequested(id)),
@@ -314,9 +315,10 @@ impl<E: AppEventSender> ViewApp<E> {
                 self.notify(Ev::ModifiersChanged(id, m.into()));
             }
             WindowEvent::CursorMoved { device_id, position, .. } => {
-                let p = LayoutPoint::new(position.x as f32 / scale_factor, position.y as f32 / scale_factor);
+                let px_p = position.to_px();
+                let p = px_p.to_dip(scale_factor);
                 let d_id = self.device_id(device_id);
-                let (f_id, ht) = self.windows[i].hit_test(p);
+                let (f_id, ht) = self.windows[i].hit_test(px_p);
                 self.notify(Ev::CursorMoved(id, d_id, p, ht, f_id));
             }
             WindowEvent::CursorEntered { device_id } => {
@@ -353,7 +355,7 @@ impl<E: AppEventSender> ViewApp<E> {
             }
             WindowEvent::Touch(t) => {
                 let d_id = self.device_id(t.device_id);
-                let location = LayoutPoint::new(t.location.x as f32 / scale_factor, t.location.y as f32 / scale_factor);
+                let location = t.location.to_px().to_dip(scale_factor);
                 self.notify(Ev::Touch(id, d_id, t.phase.into(), location, t.force.map(Into::into), t.id));
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => self.notify(Ev::ScaleFactorChanged(id, scale_factor as f32)),

@@ -10,19 +10,16 @@ use std::{
 
 use gleam::gl;
 use glutin::{
-    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
     event_loop::EventLoopProxy,
     window::{Window, WindowBuilder, WindowId},
     ContextBuilder, CreationError, GlRequest,
 };
-use webrender::{
-    api::{units::*, *},
-    euclid, RenderApi, Renderer, RendererOptions, Transaction,
-};
+use webrender::{api::*, RenderApi, Renderer, RendererOptions, Transaction};
 
 use crate::{
     config,
     types::{FramePixels, ScanCode},
+    units::*,
     util::{self, GlContext, RunOnDrop},
     AppEvent, AppEventSender, Context, Ev, FrameRequest, Key, KeyState, TextAntiAliasing, ViewProcessGen, WinId, WindowConfig,
 };
@@ -47,8 +44,8 @@ pub(crate) struct ViewWindow {
     visible: bool,
     waiting_first_frame: bool,
 
-    prev_pos: PhysicalPosition<i32>,
-    prev_size: PhysicalSize<u32>,
+    prev_pos: DipPoint,
+    prev_size: DipSize,
 
     allow_alt_f4: Rc<Cell<bool>>,
     taskbar_visible: bool,
@@ -64,12 +61,12 @@ impl ViewWindow {
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
             .with_title(w.title)
-            .with_inner_size(LogicalSize::new(w.size.width, w.size.height))
+            .with_inner_size(w.size.to_winit())
             .with_decorations(w.chrome_visible)
             .with_resizable(w.resizable)
             .with_transparent(w.transparent)
-            .with_min_inner_size(LogicalSize::new(w.min_size.width, w.min_size.height))
-            .with_max_inner_size(LogicalSize::new(w.max_size.width, w.max_size.height))
+            .with_min_inner_size(w.min_size.to_winit())
+            .with_max_inner_size(w.max_size.to_winit())
             .with_always_on_top(w.always_on_top)
             .with_window_icon(
                 w.icon
@@ -77,8 +74,8 @@ impl ViewWindow {
             )
             .with_visible(false); // we wait for the first frame to show the window.
 
-        if w.pos.x.is_finite() && w.pos.y.is_finite() {
-            winit = winit.with_position(LogicalPosition::new(w.pos.x, w.pos.y));
+        if let Some(pos) = w.pos {
+            winit = winit.with_position(pos.to_winit());
         }
 
         let glutin = match ContextBuilder::new()
@@ -134,8 +131,7 @@ impl ViewWindow {
             glutin::Api::WebGl => panic!("WebGl is not supported"),
         };
 
-        let device_size = winit_window.inner_size();
-        let device_size = DeviceIntSize::new(device_size.width as i32, device_size.height as i32);
+        let device_size = winit_window.inner_size().to_px().to_wr_device();
 
         let mut text_aa = w.text_aa;
         if let TextAntiAliasing::Default = w.text_aa {
@@ -175,10 +171,12 @@ impl ViewWindow {
 
         let pipeline_id = webrender::api::PipelineId(gen, id);
 
+        let scale_factor = winit_window.scale_factor() as f32;
+
         let mut win = Self {
             id,
-            prev_pos: winit_window.outer_position().unwrap_or_default(),
-            prev_size: winit_window.inner_size(),
+            prev_pos: winit_window.outer_position().unwrap_or_default().to_px().to_dip(scale_factor),
+            prev_size: winit_window.inner_size().to_px().to_dip(scale_factor),
             window: winit_window,
             context,
             gl,
@@ -205,14 +203,14 @@ impl ViewWindow {
     }
 
     /// Returns `true` if the `new_pos` is actually different then the previous or init position.
-    pub fn moved(&mut self, new_pos: PhysicalPosition<i32>) -> bool {
+    pub fn moved(&mut self, new_pos: DipPoint) -> bool {
         let moved = self.prev_pos != new_pos;
         self.prev_pos = new_pos;
         moved
     }
 
     /// Returns `true` if the `new_size` is actually different then the previous or init size.
-    pub fn resized(&mut self, new_size: PhysicalSize<u32>) -> bool {
+    pub fn resized(&mut self, new_size: DipSize) -> bool {
         let resized = self.prev_size != new_size;
         self.prev_size = new_size;
         resized
@@ -241,11 +239,10 @@ impl ViewWindow {
 
     /// Move window, returns `true` if actually moved.
     #[must_use = "an event must be send if returns `true`"]
-    pub fn set_outer_pos(&mut self, pos: LayoutPoint) -> bool {
-        let new_pos = LogicalPosition::new(pos.x, pos.y).to_physical(self.window.scale_factor());
-
-        let moved = self.moved(new_pos);
+    pub fn set_outer_pos(&mut self, pos: DipPoint) -> bool {
+        let moved = self.moved(pos);
         if moved {
+            let new_pos = pos.to_winit();
             self.window.set_outer_position(new_pos);
         }
         moved
@@ -255,11 +252,11 @@ impl ViewWindow {
     ///
     /// Returns (resized, rendered)
     #[must_use = "an event must be send if returns `true`"]
-    pub fn resize_inner(&mut self, size: LayoutSize, frame: FrameRequest) -> (bool, bool) {
-        let new_size = LogicalSize::new(size.width, size.height).to_physical(self.window.scale_factor());
-        let resized = self.resized(new_size);
+    pub fn resize_inner(&mut self, size: DipSize, frame: FrameRequest) -> (bool, bool) {
+        let resized = self.resized(size);
         let mut rendered = false;
         if resized {
+            let new_size = size.to_winit();
             self.window.set_inner_size(new_size);
             self.resized = true;
             self.render(frame);
@@ -268,14 +265,12 @@ impl ViewWindow {
         (resized, rendered)
     }
 
-    pub fn set_min_inner_size(&mut self, min_size: LayoutSize) {
-        self.window
-            .set_min_inner_size(Some(LogicalSize::new(min_size.width, min_size.height)))
+    pub fn set_min_inner_size(&mut self, min_size: DipSize) {
+        self.window.set_min_inner_size(Some(min_size.to_winit()))
     }
 
-    pub fn set_max_inner_size(&mut self, max_size: LayoutSize) {
-        self.window
-            .set_max_inner_size(Some(LogicalSize::new(max_size.width, max_size.height)))
+    pub fn set_max_inner_size(&mut self, max_size: DipSize) {
+        self.window.set_max_inner_size(Some(max_size.to_winit()))
     }
 
     /// window.inner_size maybe new.
@@ -319,9 +314,8 @@ impl ViewWindow {
     pub fn render(&mut self, frame: FrameRequest) {
         self.frame_id = frame.id;
 
-        let scale_factor = self.window.scale_factor() as f32;
         let size = self.window.inner_size();
-        let viewport_size = LayoutSize::new(size.width as f32 / scale_factor, size.height as f32 / scale_factor);
+        let viewport_size = size.to_px().to_wr();
 
         let mut txn = Transaction::new();
         let display_list = BuiltDisplayList::from_data(
@@ -355,10 +349,7 @@ impl ViewWindow {
         if self.resized {
             self.resized = false;
             let size = self.window.inner_size();
-            txn.set_document_view(DeviceIntRect::new(
-                euclid::point2(0, 0),
-                euclid::point2(size.width as i32, size.height as i32),
-            ));
+            txn.set_document_view(PxRect::from_size(size.to_px()).to_wr_device());
         }
     }
 
@@ -405,7 +396,7 @@ impl ViewWindow {
         let renderer = self.renderer.as_mut().unwrap();
         renderer.update();
         let s = self.window.inner_size();
-        renderer.render(DeviceIntSize::new(s.width as i32, s.height as i32), 0).unwrap();
+        renderer.render(s.to_px().to_wr_device(), 0).unwrap();
         let _ = renderer.flush_pipeline_info();
         ctx.swap_buffers().unwrap();
     }
@@ -413,15 +404,10 @@ impl ViewWindow {
     /// Does a hit-test on the current frame.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, point: LayoutPoint) -> (Epoch, HitTestResult) {
-        let scale_factor = self.scale_factor();
+    pub fn hit_test(&self, point: PxPoint) -> (Epoch, HitTestResult) {
         (
             self.frame_id,
-            self.api.hit_test(
-                self.document_id,
-                Some(self.pipeline_id),
-                units::WorldPoint::new(point.x * scale_factor, point.y * scale_factor),
-            ),
+            self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),
         )
     }
 
@@ -449,36 +435,29 @@ impl ViewWindow {
         self.api.generate_font_instance_key()
     }
 
-    pub fn outer_position(&self) -> LayoutPoint {
-        let pos = self
-            .window
+    pub fn outer_position(&self) -> DipPoint {
+        self.window
             .outer_position()
             .unwrap_or_default()
-            .to_logical(self.window.scale_factor());
-        LayoutPoint::new(pos.x, pos.y)
+            .to_logical(self.window.scale_factor())
+            .to_dip()
     }
 
-    pub fn size(&self) -> LayoutSize {
-        let size = self.window.inner_size().to_logical(self.window.scale_factor());
-        LayoutSize::new(size.width, size.height)
+    pub fn size(&self) -> DipSize {
+        self.window.inner_size().to_logical(self.window.scale_factor()).to_dip()
     }
 
-    /// Read all pixels of the current frame.
-    ///
-    /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels(&mut self) -> FramePixels {
-        self.read_pixels_rect(euclid::Rect::from_size(self.size()))
-    }
-
-    /// Read a selection of pixels of the current frame.
-    ///
-    /// This is a call to `glReadPixels`, the pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels_rect(&mut self, rect: euclid::Rect<f32, LayoutPixel>) -> FramePixels {
-        let max_size = self.size();
-        let scale_factor = self.scale_factor();
+        let px_size = self.window.inner_size().to_px();
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-        util::read_pixels_rect(&self.gl, max_size, scale_factor, rect)
+        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor())
+    }
+
+    pub fn read_pixels_rect(&mut self, rect: PxRect) -> FramePixels {
+        // `self.gl` is only valid if we are the current context.
+        let _ctx = self.context.make_current();
+        util::read_pixels_rect(&self.gl, self.window.inner_size().to_px(), rect, self.scale_factor())
     }
 
     #[cfg(not(windows))]

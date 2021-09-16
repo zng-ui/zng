@@ -8,7 +8,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    units::LayoutSize,
+    units::*,
     UiNode,
 };
 use std::{
@@ -1290,13 +1290,13 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
             ctx.vars.with_context_bind(self.var, &self.value, || child.event(ctx, args));
         }
         #[inline(always)]
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars
                 .with_context_bind(self.var, &self.value, || child.measure(ctx, available_size))
         }
         #[inline(always)]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.arrange(ctx, final_size));
         }
@@ -1375,13 +1375,13 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
                 .with_context_bind_wgt_only(self.var, &self.value, || child.event(ctx, args));
         }
         #[inline(always)]
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars
                 .with_context_bind_wgt_only(self.var, &self.value, || child.measure(ctx, available_size))
         }
         #[inline(always)]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars
                 .with_context_bind_wgt_only(self.var, &self.value, || child.arrange(ctx, final_size))
@@ -1476,15 +1476,15 @@ pub fn with_context_var_expr<T: VarValue>(
         fn measure(
             &mut self,
             ctx: &mut crate::context::LayoutContext,
-            available_size: crate::units::LayoutSize,
-        ) -> crate::units::LayoutSize {
+            available_size: AvailableSize,
+        ) -> PxSize {
             let child = &mut self.child;
             ctx.vars
                 .with_context_var(self.var, &self.value, self.version, || child.measure(ctx, available_size))
         }
 
         #[inline(always)]
-        fn arrange(&mut self, ctx: &mut crate::context::LayoutContext, final_size: crate::units::LayoutSize) {
+        fn arrange(&mut self, ctx: &mut crate::context::LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars.with_context_var(self.var, &self.value, self.version, || {
                 child.arrange(ctx, final_size);
@@ -1579,14 +1579,14 @@ pub fn with_context_var_wgt_only_expr<T: VarValue>(
         }
 
         #[inline(always)]
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: crate::units::LayoutSize) -> crate::units::LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars
                 .with_context_var_wgt_only(self.var, &self.value, self.version, || child.measure(ctx, available_size))
         }
 
         #[inline(always)]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: crate::units::LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars.with_context_var_wgt_only(self.var, &self.value, self.version, || {
                 child.arrange(ctx, final_size);

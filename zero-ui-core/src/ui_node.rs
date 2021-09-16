@@ -193,14 +193,13 @@ pub trait UiNode: 'static {
     /// Called every time a layout update is needed.
     ///
     /// # Arguments
-    /// * `available_size`: The total available size for the node. Can contain positive infinity to
-    /// indicate the parent will accommodate [any size](crate::units::is_layout_any_size). Finite values are pixel aligned.
+    /// * `available_size`: The total available size for the node. Can be infinity or a maximum size.
     /// * `ctx`: Measure context.
     ///
     /// # Return
     ///
-    /// Return the nodes desired size. Must not contain infinity or NaN. Must be pixel aligned.
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
+    /// Return the nodes desired size.
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
 
     /// Called every time a layout update is needed, after [`measure`](UiNode::measure).
     ///
@@ -208,7 +207,7 @@ pub trait UiNode: 'static {
     /// * `final_size`: The size the parent node reserved for the node. Must reposition its contents
     /// to fit this size. The value does not contain infinity or NaNs and is pixel aligned.
     /// TODO args docs.
-    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize);
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize);
 
     /// Called every time a new frame must be rendered.
     ///
@@ -236,8 +235,8 @@ pub trait UiNodeBoxed: 'static {
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
     fn update_boxed(&mut self, ctx: &mut WidgetContext);
     fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &AnyEventUpdate);
-    fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
-    fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize);
+    fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
+    fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: PxSize);
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
@@ -259,11 +258,11 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.event(ctx, args);
     }
 
-    fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         self.measure(ctx, available_size)
     }
 
-    fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
         self.arrange(ctx, final_size);
     }
 
@@ -300,11 +299,11 @@ impl UiNode for BoxedUiNode {
         self.as_mut().event_boxed(ctx, &args);
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         self.as_mut().measure_boxed(ctx, available_size)
     }
 
-    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
         self.as_mut().arrange_boxed(ctx, final_size);
     }
 
@@ -353,7 +352,7 @@ pub trait Widget: UiNode {
     fn state_mut(&mut self) -> &mut StateMap;
 
     /// Last arranged size.
-    fn size(&self) -> LayoutSize;
+    fn size(&self) -> PxSize;
 
     /// Box this widget node, unless it is already `BoxedWidget`.
     fn boxed_widget(self) -> BoxedWidget
@@ -370,18 +369,14 @@ pub trait Widget: UiNode {
     /// Run [`UiNode::measure`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_measure(&mut self, ctx: &mut TestWidgetContext, available_size: LayoutSize) -> LayoutSize {
-        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), 96.0, |ctx| {
-            self.measure(ctx, available_size)
-        })
+    fn test_measure(&mut self, ctx: &mut TestWidgetContext, available_size: AvailableSize) -> PxSize {
+        ctx.layout_context(14.0, 14.0, self.size(), 1.0, 96.0, |ctx| self.measure(ctx, available_size))
     }
     /// Run [`UiNode::arrange`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_arrange(&mut self, ctx: &mut TestWidgetContext, final_size: LayoutSize) {
-        ctx.layout_context(14.0, 14.0, self.size(), PixelGrid::new(1.0), 96.0, |ctx| {
-            self.arrange(ctx, final_size)
-        })
+    fn test_arrange(&mut self, ctx: &mut TestWidgetContext, final_size: PxSize) {
+        ctx.layout_context(14.0, 14.0, self.size(), 1.0, 96.0, |ctx| self.arrange(ctx, final_size))
     }
 
     // TODO don't require user to init frame?
@@ -406,7 +401,7 @@ pub trait WidgetBoxed: UiNodeBoxed {
     fn id_boxed(&self) -> WidgetId;
     fn state_boxed(&self) -> &StateMap;
     fn state_mut_boxed(&mut self) -> &mut StateMap;
-    fn size_boxed(&self) -> LayoutSize;
+    fn size_boxed(&self) -> PxSize;
 }
 impl<W: Widget> WidgetBoxed for W {
     fn id_boxed(&self) -> WidgetId {
@@ -421,7 +416,7 @@ impl<W: Widget> WidgetBoxed for W {
         self.state_mut()
     }
 
-    fn size_boxed(&self) -> LayoutSize {
+    fn size_boxed(&self) -> PxSize {
         self.size()
     }
 }
@@ -450,11 +445,11 @@ impl UiNode for BoxedWidget {
         self.as_mut().event_boxed(ctx, &args);
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         self.as_mut().measure_boxed(ctx, available_size)
     }
 
-    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
         self.as_mut().arrange_boxed(ctx, final_size)
     }
 
@@ -479,7 +474,7 @@ impl Widget for BoxedWidget {
         self.as_mut().state_mut_boxed()
     }
 
-    fn size(&self) -> LayoutSize {
+    fn size(&self) -> PxSize {
         self.as_ref().size_boxed()
     }
 }
@@ -488,8 +483,8 @@ impl Widget for BoxedWidget {
 pub struct NilUiNode;
 #[impl_ui_node(none)]
 impl UiNode for NilUiNode {
-    fn measure(&mut self, _: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
-        LayoutSize::zero()
+    fn measure(&mut self, _: &mut LayoutContext, _: AvailableSize) -> PxSize {
+        PxSize::zero()
     }
 }
 
@@ -505,7 +500,7 @@ pub mod impl_ui_node_util {
         context::{LayoutContext, RenderContext, WidgetContext},
         event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
-        units::LayoutSize,
+        units::{AvailableSize, PxSize},
         UiNode, UiNodeList,
     };
 
@@ -541,8 +536,8 @@ pub mod impl_ui_node_util {
         fn deinit_all(self, ctx: &mut WidgetContext);
         fn update_all(self, ctx: &mut WidgetContext);
         fn event_all<EU: EventUpdateArgs>(self, ctx: &mut WidgetContext, args: &EU);
-        fn measure_all(self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
-        fn arrange_all(self, ctx: &mut LayoutContext, final_size: LayoutSize);
+        fn measure_all(self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
+        fn arrange_all(self, ctx: &mut LayoutContext, final_size: PxSize);
     }
     pub trait IterImpl {
         fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
@@ -574,15 +569,15 @@ pub mod impl_ui_node_util {
             }
         }
 
-        fn measure_all(self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-            let mut size = LayoutSize::zero();
+        fn measure_all(self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            let mut size = PxSize::zero();
             for child in self {
                 size = child.measure(ctx, available_size).max(size);
             }
             size
         }
 
-        fn arrange_all(self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange_all(self, ctx: &mut LayoutContext, final_size: PxSize) {
             for child in self {
                 child.arrange(ctx, final_size);
             }
@@ -942,15 +937,15 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         if let SlotNodeState::Active(rc) = &self.state {
             rc.node.borrow_mut().as_mut().unwrap().measure(ctx, available_size)
         } else {
-            LayoutSize::zero()
+            PxSize::zero()
         }
     }
 
-    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
         if let SlotNodeState::Active(rc) = &self.state {
             rc.node.borrow_mut().as_mut().unwrap().arrange(ctx, final_size);
         }

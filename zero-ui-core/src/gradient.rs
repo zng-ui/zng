@@ -88,25 +88,32 @@ impl fmt::Debug for LinearGradientAxis {
 }
 impl LinearGradientAxis {
     /// Compute a [`LayoutLine`].
-    pub fn layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutLine {
+    pub fn layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxLine {
         match self {
             LinearGradientAxis::Angle(rad) => {
-                let dir = LayoutPoint::new(rad.0.sin(), -rad.0.cos());
+                let dir_x = rad.0.sin();
+                let dir_y = -rad.0.cos();
 
-                let line_length = (dir.x * available_size.width).abs() + (dir.y * available_size.height).abs();
+                let av_width = available_size.width.to_px().0 as f32;
+                let av_height = available_size.height.to_px().0 as f32;
 
-                let inv_dir_length = 1.0 / (dir.x * dir.x + dir.y * dir.y).sqrt();
+                let line_length = (dir_x * av_width).abs() + (dir_y * av_height).abs();
 
-                let delta = euclid::Vector2D::new(
-                    dir.x * inv_dir_length * line_length / 2.0,
-                    dir.y * inv_dir_length * line_length / 2.0,
+                let inv_dir_length = 1.0 / (dir_x * dir_x + dir_y * dir_y).sqrt();
+
+                let delta = euclid::Vector2D::<_, ()>::new(
+                    dir_x * inv_dir_length * line_length / 2.0,
+                    dir_y * inv_dir_length * line_length / 2.0,
                 );
 
-                let center = LayoutPoint::new(available_size.width / 2.0, available_size.height / 2.0);
+                let center = euclid::Point2D::new(av_width / 2.0, av_height / 2.0);
 
-                let line = LayoutLine::new(center - delta, center + delta);
-
-                line.snap_to(ctx.pixel_grid)
+                let start = center - delta;
+                let end = center + delta;
+                PxLine::new(
+                    PxPoint::new(Px(start.x as i32), Px(start.y as i32)),
+                    PxPoint::new(Px(end.x as i32), Px(end.y as i32)),
+                )
             }
             LinearGradientAxis::Line(line) => line.to_layout(ctx, available_size),
         }
@@ -210,9 +217,9 @@ impl ColorStop {
     /// Note that if this color stop [is positional](Self::is_positional) the returned offset is [`f32::INFINITY`].
     /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, length: LayoutLength) -> RenderGradientStop {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, length: AvailablePx) -> RenderGradientStop {
         RenderGradientStop {
-            offset: self.offset.to_layout(ctx, length).get(),
+            offset: self.offset.to_layout(ctx, length).to_wr().get(),
             color: self.color.into(),
         }
     }
@@ -566,19 +573,27 @@ impl GradientStops {
     /// The `start_pt` and `end_pt` points are moved to accommodate input offsets outside the line bounds.
     pub fn layout_linear(
         &self,
-        length: LayoutLength,
+        length: AvailablePx,
         ctx: &LayoutMetrics,
         extend_mode: ExtendMode,
-        line: &mut LayoutLine,
+        line: &mut PxLine,
         render_stops: &mut Vec<RenderGradientStop>,
     ) {
         let (start_offset, end_offset) = self.layout(length, ctx, extend_mode, render_stops);
 
-        let v = line.end - line.start;
-        let v = v / length.get();
+        let vx = line.end.x - line.start.x;
+        let vy = line.end.y - line.start.y;
 
-        line.end = line.start + v * end_offset;
-        line.start += v * start_offset;
+        let av_l = length.to_px();
+
+        let vx = vx / av_l;
+        let vy = vx / av_l;
+       
+        line.end.x = line.start.x + vx * end_offset;
+        line.end.y = line.start.y + vy * end_offset;
+
+        line.start.x += vx * start_offset;
+        line.start.y += vy * start_offset;
     }
 
     /// Computes the actual color stops.
@@ -586,7 +601,7 @@ impl GradientStops {
     /// Returns offsets of the first and last stop in the `length` line.
     fn layout(
         &self,
-        length: LayoutLength,
+        length: AvailablePx,
         ctx: &LayoutMetrics,
         extend_mode: ExtendMode,
         render_stops: &mut Vec<RenderGradientStop>,
@@ -660,7 +675,7 @@ impl GradientStops {
 
         let mut stop = self.end.to_layout(ctx, length); // 1
         if is_positional(stop.offset) {
-            stop.offset = length.get();
+            stop.offset = length.to_px().to_wr().get();
         }
         if stop.offset < prev_offset {
             stop.offset = prev_offset; // 2
@@ -680,7 +695,7 @@ impl GradientStops {
             let length = after.offset - prev.offset;
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
-                    let mut offset = offset.to_layout(ctx, LayoutLength::new(length)).get();
+                    let mut offset = offset.to_layout(ctx, AvailablePx::Max(Px(length as i32))).to_wr().get();
                     if is_positional(offset) {
                         offset = length / 2.0;
                     } else {
@@ -997,12 +1012,12 @@ mod tests {
     fn test_layout_stops(stops: GradientStops) -> Vec<RenderGradientStop> {
         let mut render_stops = vec![];
         let mut ctx = TestWidgetContext::new();
-        ctx.layout_context(20.0, 20.0, LayoutSize::new(100.0, 100.0), PixelGrid::new(1.0), 96.0, |ctx| {
+        ctx.layout_context(20.0, 20.0, PxSize::new(Px(100), Px(100)), 1.0, 96.0, |ctx| {
             stops.layout_linear(
-                LayoutLength::new(100.0),
+                AvailablePx::Max(100.into()),
                 ctx,
                 ExtendMode::Clamp,
-                &mut LayoutLine::new(LayoutPoint::zero(), LayoutPoint::new(100.0, 100.0)),
+                &mut PxLine::new(PxPoint::zero(), PxPoint::new(Px(100), Px(100))),
                 &mut render_stops,
             );
         });

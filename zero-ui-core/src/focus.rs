@@ -85,7 +85,7 @@ use crate::{
     mouse::MouseDownEvent,
     render::{DescendantFilter, FrameId, FrameInfo, WidgetInfo, WidgetPath},
     service::Service,
-    units::LayoutPoint,
+    units::*,
     var::impl_from_and_into_var,
     widget_base::WidgetEnabledExt,
     window::{WindowFocusChangedEvent, WindowId, Windows},
@@ -1474,7 +1474,7 @@ pub struct WidgetFocusInfo<'a> {
     pub info: WidgetInfo<'a>,
 }
 macro_rules! DirectionFn {
-    (impl) => { impl Fn(LayoutPoint, LayoutPoint) -> (f32, f32, f32, f32) };
+    (impl) => { impl Fn(PxPoint, PxPoint) -> (f32, f32, f32, f32) };
     (up) => { |from_pt, cand_c| (cand_c.y, from_pt.y, cand_c.x, from_pt.x) };
     (down) => { |from_pt, cand_c| (from_pt.y, cand_c.y, cand_c.x, from_pt.x) };
     (left) => { |from_pt, cand_c| (cand_c.x, from_pt.x, cand_c.y, from_pt.y) };
@@ -1996,15 +1996,15 @@ impl<'a> WidgetFocusInfo<'a> {
     fn directional_from_pt(
         self,
         scope: WidgetFocusInfo<'a>,
-        from_pt: LayoutPoint,
+        from_pt: PxPoint,
         direction: DirectionFn![impl],
         skip_descendants: bool,
     ) -> Option<WidgetFocusInfo<'a>> {
         let skip_id = self.info.widget_id();
 
-        let distance = move |other_pt: LayoutPoint| {
-            let a = (other_pt.x - from_pt.x).powf(2.);
-            let b = (other_pt.y - from_pt.y).powf(2.);
+        let distance = move |other_pt: PxPoint| {
+            let a = (other_pt.x - from_pt.x).pow(2);
+            let b = (other_pt.y - from_pt.y).pow(2);
             a + b
         };
 
@@ -2081,7 +2081,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn next_up(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_up_from(self.info.center())
     }
-    fn next_up_from(self, point: LayoutPoint) -> Option<WidgetFocusInfo<'a>> {
+    fn next_up_from(self, point: PxPoint) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
@@ -2107,7 +2107,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn next_right(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_right_from(self.info.center())
     }
-    fn next_right_from(self, point: LayoutPoint) -> Option<WidgetFocusInfo<'a>> {
+    fn next_right_from(self, point: PxPoint) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
@@ -2131,7 +2131,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn next_down(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_down_from(self.info.center())
     }
-    fn next_down_from(self, point: LayoutPoint) -> Option<WidgetFocusInfo<'a>> {
+    fn next_down_from(self, point: PxPoint) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
@@ -2155,7 +2155,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn next_left(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_left_from(self.info.center())
     }
-    fn next_left_from(self, point: LayoutPoint) -> Option<WidgetFocusInfo<'a>> {
+    fn next_left_from(self, point: PxPoint) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {

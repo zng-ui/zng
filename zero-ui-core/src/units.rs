@@ -1,11 +1,9 @@
 //! Angle, factor and length units.
 
-use crate::render::webrender_api::{euclid, units as wr};
 use derive_more as dm;
 use std::fmt::Write;
+use std::{cmp, mem, ops};
 use std::{f32::consts::*, fmt, time::Duration};
-use std::{mem, ops};
-use zero_ui_vp::webrender_api::units::LayoutPixel;
 
 use crate::context::LayoutMetrics;
 use crate::var::{impl_from_and_into_var, IntoVar, OwnedVar};
@@ -15,111 +13,72 @@ const EPSILON: f32 = 0.00001;
 /// Minimal difference between values in around the 1.0..=100.0 scale.
 const EPSILON_100: f32 = 0.001;
 
-/// If a layout value indicates that any size is available during layout.
-///
-/// Returns `true` if [`UiNode::measure`] implementers must return a finite size that is the nodes ideal
-/// size given infinite space. Nodes that only fill the available space and have no inherent size must collapse (zero size).
-///
-/// # Examples
-///
-/// If the node can decide on a size without a finite `available_size` it must return that size:
-///
-/// ```
-/// # use zero_ui_core::{*, units::*, context::*};
-/// # struct FillOrMaxNode { max_size: LayoutSize }
-/// #[impl_ui_node(none)]
-/// impl UiNode for FillOrMaxNode {
-///     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-///         let mut desired_size = available_size;
-///         if is_layout_any_size(desired_size.width) {
-///             desired_size.width = self.max_size.width;
-///         }
-///         if is_layout_any_size(desired_size.height) {
-///             desired_size.height = self.max_size.height;
-///         }
-///         desired_size
-///     }
-/// }
-/// ```
-///
-/// If the node cannot decide on a size it must collapse:
-///
-/// ```
-/// # use zero_ui_core::{*, units::*, context::*};
-/// # struct FillNode { }
-/// #[impl_ui_node(none)]
-/// impl UiNode for FillNode {
-///     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
-///         let mut desired_size = available_size;
-///         if is_layout_any_size(desired_size.width) {
-///             desired_size.width = 0.0;
-///         }
-///         if is_layout_any_size(desired_size.height) {
-///             desired_size.height = 0.0;
-///         }
-///         desired_size
-///     }
-/// }
-/// ```
-///
-/// Note that both nodes don't delegate the measure to inner nodes, these *leaf* nodes need to check
-/// the size, because returning a not-finite value is an error. It is ok to delegate the layout-any-size
-/// value to an inner node, and that is what happens in the default delegating implementation of measure.
-/// See [`UiNode::measure`] for more information about how to implement layout nodes.
+#[doc(inline)]
+pub use zero_ui_vp::units::*;
+
+/// Maximum [`Px`] available for an [`UiNode::measure`].
 ///
 /// [`UiNode::measure`]: crate::UiNode::measure
-#[inline]
-pub fn is_layout_any_size(value: f32) -> bool {
-    value.is_infinite() && value.is_sign_positive()
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AvailablePx {
+    /// The measure may return any desired size, if it derives the size from
+    /// the available size it should collapse to zero.
+    Infinite,
+    /// The measure must try to fit the up-to this size.
+    Max(Px),
+}
+impl From<u32> for AvailablePx {
+    fn from(px: u32) -> Self {
+        AvailablePx::Max(Px(px))
+    }
+}
+impl From<Px> for AvailablePx {
+    fn from(px: Px) -> Self {
+        AvailablePx::Max(px)
+    }
+}
+impl AvailablePx {
+    /// Convert `Infinite` to zero, or returns the `Max`.
+    pub fn to_px(self) -> Px {
+        match self {
+            AvailablePx::Infinite => Px(0),
+            AvailablePx::Max(p) => p,
+        }
+    }
+}
+impl Default for AvailablePx {
+    fn default() -> Self {
+        AvailablePx::Infinite
+    }
+}
+impl PartialOrd for AvailablePx {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for AvailablePx {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        match (self, other) {
+            (AvailablePx::Infinite, AvailablePx::Infinite) => cmp::Ordering::Equal,
+            (AvailablePx::Infinite, AvailablePx::Max(_)) => cmp::Ordering::Greater,
+            (AvailablePx::Max(_), AvailablePx::Infinite) => cmp::Ordering::Less,
+            (AvailablePx::Max(s), AvailablePx::Max(o)) => s.cmp(o),
+        }
+    }
 }
 
-/// Value that indicates that any size is available during layout.
-///
-/// Use [`is_layout_any_size`] to check if a layout value indicates this.
-///
-/// # Examples
-///
-/// A layout node can use this value to tell its children that they have any space available:
-///
-/// ```
-/// # use zero_ui_core::{*, units::*, context::*};
-/// # struct VerticalStackNode<C> { children: C }
-/// #[impl_ui_node(children)]
-/// impl<C: UiNodeList> UiNode for VerticalStackNode<C> {
-///     fn measure(
-///         &mut self,
-///         ctx: &mut LayoutContext,
-///         mut available_size: LayoutSize
-///     ) -> LayoutSize {
-///
-///         // children can be any height
-///         available_size.height = LAYOUT_ANY_SIZE;
-///
-///         let mut desired_size = LayoutSize::zero();
-///         self.children.measure_all(
-///             ctx,
-///             |_, _| available_size,
-///             |i, child_ds, _| {
-///                 desired_size.width = desired_size.width.max(child_ds.width);
-///
-///                 // each child returns a finite height
-///                 desired_size.height += child_ds.height;
-///
-///             },
-///         );
-///         desired_size
-///     }
-/// }
-/// ```
-///
-/// The child nodes in the example return any finite height. See [`UiNode::measure`] and [`UiNode::arrange`]
-/// for more information about how to implement layout panel nodes.
+///Maximum [`AvailablePx`] size for an [`UiNode::measure`].
 ///
 /// [`UiNode::measure`]: crate::UiNode::measure
-/// [`UiNode::arrange`]: crate::UiNode::arrange
-pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
+pub type AvailableSize = euclid::Size2D<AvailablePx, ()>;
 
-/// [`f32`] equality used in [`units`](crate::units).
+/// Width and height [`AvailablePx::Infinite`].
+#[inline]
+pub fn available_size_inf() -> AvailableSize {
+    AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite)
+}
+
+/// [`f32`] equality used in floating-point [`units`](crate::units).
 ///
 /// * [`NaN`](f32::is_nan) values are equal.
 /// * [`INFINITY`](f32::INFINITY) values are equal.
@@ -610,13 +569,17 @@ impl FactorUnits for i32 {
 ///
 /// Two lengths are equal if they are of the same variant and if:
 ///
-/// * `Exact` lengths uses [`about_eq`] with `0.001` epsilon.
+/// * `Dip` and `px` lengths uses [`Dip`] and [`Px`] equality.
 /// * `Relative`, `Em`, `RootEm` lengths use the [`FactorNormal`] equality.
 /// * Viewport lengths uses [`about_eq`] with `0.00001` epsilon.
 #[derive(Clone)]
 pub enum Length {
-    /// The exact length.
-    Exact(f32),
+    /// The exact length in device independent units.
+    Dip(Dip),
+    /// The exact length in device pixel units.
+    Px(Px),
+    /// The exact length in font points.
+    Pt(f32),
     /// Relative to the available size.
     Relative(FactorNormal),
     /// Relative to the font-size of the widget.
@@ -641,7 +604,8 @@ impl<L: Into<Length>> ops::Add<L> for Length {
         use Length::*;
 
         match (self, rhs.into()) {
-            (Exact(a), Exact(b)) => Exact(a + b),
+            (Dip(a), Dip(b)) => Dip(a + b),
+            (Px(a), Px(b)) => Px(a + b),
             (Relative(a), Relative(b)) => Relative(a + b),
             (Em(a), Em(b)) => Em(a + b),
             (RootEm(a), RootEm(b)) => RootEm(a + b),
@@ -655,7 +619,7 @@ impl<L: Into<Length>> ops::Add<L> for Length {
 }
 impl<L: Into<Length>> ops::AddAssign<L> for Length {
     fn add_assign(&mut self, rhs: L) {
-        let lhs = mem::replace(self, Length::Exact(f32::NAN));
+        let lhs = mem::replace(self, Length::Px(Px(0)));
         *self = lhs + rhs.into();
     }
 }
@@ -666,7 +630,8 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
         use Length::*;
 
         match (self, rhs.into()) {
-            (Exact(a), Exact(b)) => Exact(a - b),
+            (Dip(a), Dip(b)) => Dip(a - b),
+            (Px(a), Px(b)) => Px(a - b),
             (Relative(a), Relative(b)) => Relative(a - b),
             (Em(a), Em(b)) => Em(a - b),
             (RootEm(a), RootEm(b)) => RootEm(a - b),
@@ -680,7 +645,7 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
 }
 impl<L: Into<Length>> ops::SubAssign<L> for Length {
     fn sub_assign(&mut self, rhs: L) {
-        let lhs = mem::replace(self, Length::Exact(f32::NAN));
+        let lhs = mem::replace(self, Length::Px(Px(0)));
         *self = lhs - rhs.into();
     }
 }
@@ -691,7 +656,8 @@ impl<F: Into<FactorNormal>> ops::Mul<F> for Length {
         use Length::*;
         let rhs = rhs.into();
         match self {
-            Exact(e) => Exact(e * rhs.0),
+            Dip(e) => Dip(e * rhs.0),
+            Px(e) => Px(e * rhs.0),
             Relative(r) => Relative(r * rhs),
             Em(e) => Em(e * rhs),
             RootEm(e) => RootEm(e * rhs),
@@ -705,7 +671,7 @@ impl<F: Into<FactorNormal>> ops::Mul<F> for Length {
 }
 impl<F: Into<FactorNormal>> ops::MulAssign<F> for Length {
     fn mul_assign(&mut self, rhs: F) {
-        let lhs = mem::replace(self, Length::Exact(f32::NAN));
+        let lhs = mem::replace(self, Length::Px(Px(0)));
         *self = lhs * rhs.into();
     }
 }
@@ -718,7 +684,8 @@ impl<F: Into<FactorNormal>> ops::Div<F> for Length {
         let rhs = rhs.into();
 
         match self {
-            Exact(e) => Exact(e / rhs.0),
+            Dip(e) => Dip(e / rhs.0),
+            Px(e) => Px(e / rhs.0),
             Relative(r) => Relative(r / rhs),
             Em(e) => Em(e / rhs),
             RootEm(e) => RootEm(e / rhs),
@@ -732,21 +699,22 @@ impl<F: Into<FactorNormal>> ops::Div<F> for Length {
 }
 impl<F: Into<FactorNormal>> ops::DivAssign<F> for Length {
     fn div_assign(&mut self, rhs: F) {
-        let lhs = mem::replace(self, Length::Exact(f32::NAN));
+        let lhs = mem::replace(self, Length::Px(Px(0)));
         *self = lhs / rhs.into();
     }
 }
 impl Default for Length {
-    /// Exact `0`.
+    /// Px `0`.
     fn default() -> Self {
-        Length::Exact(0.0)
+        Length::Px(Px(0))
     }
 }
 impl PartialEq for Length {
     fn eq(&self, other: &Self) -> bool {
         use Length::*;
         match (self, other) {
-            (Exact(a), Exact(b)) => about_eq(*a, *b, EPSILON_100),
+            (Dip(a), Dip(b)) => a == b,
+            (Px(a), Px(b)) => a == b,
 
             (Relative(a), Relative(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) => a == b,
 
@@ -766,7 +734,9 @@ impl fmt::Debug for Length {
         use Length::*;
         if f.alternate() {
             match self {
-                Exact(e) => f.debug_tuple("Length::Exact").field(e).finish(),
+                Dip(e) => f.debug_tuple("Length::Dip").field(e).finish(),
+                Px(e) => f.debug_tuple("Length::Px").field(e).finish(),
+                Pt(e) => f.debug_tuple("Length::Pt").field(e).finish(),
                 Relative(e) => f.debug_tuple("Length::Relative").field(e).finish(),
                 Em(e) => f.debug_tuple("Length::Em").field(e).finish(),
                 RootEm(e) => f.debug_tuple("Length::RootEm").field(e).finish(),
@@ -778,7 +748,9 @@ impl fmt::Debug for Length {
             }
         } else {
             match self {
-                Exact(e) => write!(f, "{}", e),
+                Dip(e) => write!(f, "{}.dip()", e),
+                Px(e) => write!(f, "{}.px()", e),
+                Pt(e) => write!(f, "{}.pt()", e),
                 Relative(e) => write!(f, "{}.pct()", e.0 * 100.0),
                 Em(e) => write!(f, "{}.em()", e.0),
                 RootEm(e) => write!(f, "{}.rem()", e.0),
@@ -795,7 +767,9 @@ impl fmt::Display for Length {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Length::*;
         match self {
-            Exact(l) => fmt::Display::fmt(l, f),
+            Dip(l) => write!(f, "{}", l),
+            Px(l) => write!(f, "{}px", l),
+            Pt(l) => write!(f, "{}pt", l),
             Relative(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
             Em(e) => write!(f, "{}em", e),
             RootEm(re) => write!(f, "{}rem", re),
@@ -820,24 +794,29 @@ impl_from_and_into_var! {
 
     /// Conversion to [`Length::Exact`]
     fn from(f: f32) -> Length {
-        Length::Exact(f)
+        Length::Dip(Dip::new_f32(f))
     }
 
     /// Conversion to [`Length::Exact`]
     fn from(i: i32) -> Length {
-        Length::Exact(i as f32)
+        Length::Dip(Dip::new(i))
     }
 
-    /// Conversion to [`Length::Exact`]
-    fn from(l: LayoutLength) -> Length {
-        Length::Exact(l.get())
+    /// Conversion to [`Length::Px`]
+    fn from(l: Px) -> Length {
+        Length::Px(l)
+    }
+
+    /// Conversion to [`Length::Dip`]
+    fn from(l: Dip) -> Length {
+        Length::Dip(l)
     }
 }
 impl Length {
     /// Length of exact zero.
     #[inline]
     pub const fn zero() -> Length {
-        Length::Exact(0.0)
+        Length::Px(Px(0))
     }
 
     /// Length that fills the available space.
@@ -852,18 +831,13 @@ impl Length {
         Length::Relative(FactorNormal(0.5))
     }
 
-    /// Exact length in font units.
-    #[inline]
-    pub fn pt(font_pt: f32) -> Length {
-        // make this const when https://github.com/rust-lang/rust/issues/57241
-        Length::Exact(font_pt * 96.0 / 72.0)
-    }
-
     /// Returns a length that resolves to the maximum layout length between `self` and `other`.
     pub fn max(&self, other: impl Into<Length>) -> Length {
         use Length::*;
         match (self.clone(), other.into()) {
-            (Exact(a), Exact(b)) => Exact(a.max(b)),
+            (Dip(a), Dip(b)) => Dip(a.max(b)),
+            (Px(a), Px(b)) => Px(a.max(b)),
+            (Pt(a), Pt(b)) => Pt(a.max(b)),
             (Relative(a), Relative(b)) => Relative(a.max(b)),
             (Em(a), Em(b)) => Em(a.max(b)),
             (RootEm(a), RootEm(b)) => RootEm(a.max(b)),
@@ -879,7 +853,9 @@ impl Length {
     pub fn min(&self, other: impl Into<Length>) -> Length {
         use Length::*;
         match (self.clone(), other.into()) {
-            (Exact(a), Exact(b)) => Exact(a.min(b)),
+            (Dip(a), Dip(b)) => Dip(a.min(b)),
+            (Px(a), Px(b)) => Px(a.min(b)),
+            (Pt(a), Pt(b)) => Pt(a.min(b)),
             (Relative(a), Relative(b)) => Relative(a.min(b)),
             (Em(a), Em(b)) => Em(a.min(b)),
             (RootEm(a), RootEm(b)) => RootEm(a.min(b)),
@@ -902,7 +878,9 @@ impl Length {
     pub fn abs(&self) -> Length {
         use Length::*;
         match self {
-            Exact(e) => Exact(e.abs()),
+            Dip(e) => Dip(e.abs()),
+            Px(e) => Px(e.abs()),
+            Pt(e) => Pt(e.abs()),
             Relative(r) => Relative(r.abs()),
             Em(e) => Em(e.abs()),
             RootEm(r) => RootEm(r.abs()),
@@ -915,20 +893,21 @@ impl Length {
     }
 
     /// Compute the length at a context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutLength) -> LayoutLength {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx) -> Px {
         use Length::*;
-        let l = match self {
-            Exact(l) => *l,
-            Relative(f) => available_size.get() * f.0,
-            Em(f) => ctx.font_size * f.0,
-            RootEm(f) => ctx.root_font_size * f.0,
-            ViewportWidth(p) => p * ctx.viewport_size.width / 100.0,
-            ViewportHeight(p) => p * ctx.viewport_size.height / 100.0,
-            ViewportMin(p) => p * ctx.viewport_min() / 100.0,
-            ViewportMax(p) => p * ctx.viewport_max() / 100.0,
-            Expr(e) => e.to_layout(ctx, available_size).0,
-        };
-        LayoutLength::new(ctx.pixel_grid.snap(l))
+        match self {
+            Dip(l) => l.to_px(ctx.scale_factor),
+            Px(l) => *l,
+            Pt(l) => self::Px((*l * 96.0 / 72.0) as i32), // TODO is it always 96 here?
+            Relative(f) => available_size.to_px() * f.0,
+            Em(f) => self::Dip::new_f32(ctx.font_size * f.0).to_px(ctx.scale_factor),
+            RootEm(f) => self::Dip::new_f32(ctx.root_font_size * f.0).to_px(ctx.scale_factor),
+            ViewportWidth(p) => ctx.viewport_size.width * *p,
+            ViewportHeight(p) => ctx.viewport_size.height * *p,
+            ViewportMin(p) => ctx.viewport_min() * *p,
+            ViewportMax(p) => ctx.viewport_max() * *p,
+            Expr(e) => e.to_layout(ctx, available_size),
+        }
     }
 
     /// If this length is zero in any finite layout context.
@@ -939,7 +918,9 @@ impl Length {
     pub fn is_zero(&self) -> bool {
         use Length::*;
         match self {
-            Exact(l) => l.abs() < EPSILON_100,
+            Dip(l) => *l == self::Dip::new(0),
+            Px(l) => *l == self::Px(0),
+            Pt(l) => l.abs() < EPSILON,
             Relative(f) => f.0.abs() < EPSILON,
             Em(f) => f.0.abs() < EPSILON,
             RootEm(f) => f.0.abs() < EPSILON,
@@ -959,7 +940,8 @@ impl Length {
     pub fn is_nan(&self) -> bool {
         use Length::*;
         match self {
-            Exact(l) => l.is_nan(),
+            Dip(_) | Px(_) => false,
+            Pt(f) => f.is_nan(),
             Relative(f) => f.0.is_nan(),
             Em(f) => f.0.is_nan(),
             RootEm(f) => f.0.is_nan(),
@@ -979,7 +961,8 @@ impl Length {
     pub fn is_finite(&self) -> bool {
         use Length::*;
         match self {
-            Exact(e) => e.is_finite(),
+            Dip(_) | Px(_) => true,
+            Pt(f) => f.is_finite(),
             Relative(f) => f.0.is_finite(),
             Em(f) => f.0.is_finite(),
             RootEm(f) => f.0.is_finite(),
@@ -999,7 +982,8 @@ impl Length {
     pub fn is_infinite(&self) -> bool {
         use Length::*;
         match self {
-            Exact(e) => e.is_infinite(),
+            Dip(_) | Px(_) => false,
+            Pt(f) => f.is_infinite(),
             Relative(f) => f.0.is_infinite(),
             Em(f) => f.0.is_infinite(),
             RootEm(f) => f.0.is_infinite(),
@@ -1032,7 +1016,7 @@ pub enum LengthExpr {
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutLength) -> LayoutLength {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx) -> Px {
         use LengthExpr::*;
         match self {
             Add(a, b) => a.to_layout(ctx, available_size) + b.to_layout(ctx, available_size),
@@ -1040,16 +1024,16 @@ impl LengthExpr {
             Mul(l, s) => l.to_layout(ctx, available_size) * s.0,
             Div(l, s) => l.to_layout(ctx, available_size) / s.0,
             Max(a, b) => {
-                let a = a.to_layout(ctx, available_size).0;
-                let b = b.to_layout(ctx, available_size).0;
-                LayoutLength::new(a.max(b))
+                let a = a.to_layout(ctx, available_size);
+                let b = b.to_layout(ctx, available_size);
+                a.max(b)
             }
             Min(a, b) => {
-                let a = a.to_layout(ctx, available_size).0;
-                let b = b.to_layout(ctx, available_size).0;
-                LayoutLength::new(a.min(b))
+                let a = a.to_layout(ctx, available_size);
+                let b = b.to_layout(ctx, available_size);
+                a.min(b)
             }
-            Abs(e) => LayoutLength::new(e.to_layout(ctx, available_size).0.abs()),
+            Abs(e) => e.to_layout(ctx, available_size).abs(),
         }
     }
 }
@@ -1094,21 +1078,6 @@ impl fmt::Display for LengthExpr {
     }
 }
 
-/// Computed [`Length`].
-pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
-
-/// Convert a [`LayoutLength`] to font units.
-#[inline]
-pub fn layout_to_pt(length: LayoutLength) -> f32 {
-    length.get() * 72.0 / 96.0
-}
-
-/// Convert font units to a [`LayoutLength`].
-#[inline]
-pub fn pt_to_layout(pt: f32) -> LayoutLength {
-    LayoutLength::new(pt * 96.0 / 72.0) // TODO verify this formula
-}
-
 /// Extension methods for initializing [`Length`] units.
 ///
 /// This trait is implemented for [`f32`] and [`u32`] allowing initialization of length units using the `<number>.<unit>()` syntax.
@@ -1131,6 +1100,12 @@ pub fn pt_to_layout(pt: f32) -> LayoutLength {
 /// let available_size: Length = 1.0.normal().into();// FactorUnits
 /// ```
 pub trait LengthUnits {
+    /// Exact size in device independent pixels.
+    fn dip(self) -> Length;
+
+    /// Exact size in device pixels.
+    fn px(self) -> Length;
+
     /// Exact size in font units.
     ///
     /// Returns [`Length::Exact`].
@@ -1165,8 +1140,16 @@ pub trait LengthUnits {
 }
 impl LengthUnits for f32 {
     #[inline]
+    fn dip(self) -> Length {
+        Length::Dip(Dip::new_f32(self))
+    }
+    #[inline]
+    fn px(self) -> Length {
+        Length::Px(Px(self.round() as i32))
+    }
+    #[inline]
     fn pt(self) -> Length {
-        Length::pt(self)
+        Length::Pt(self)
     }
     #[inline]
     fn em(self) -> Length {
@@ -1195,8 +1178,16 @@ impl LengthUnits for f32 {
 }
 impl LengthUnits for i32 {
     #[inline]
+    fn dip(self) -> Length {
+        Length::Dip(Dip::new(self))
+    }
+    #[inline]
+    fn px(self) -> Length {
+        Length::Px(Px(self))
+    }
+    #[inline]
     fn pt(self) -> Length {
-        Length::pt(self as f32)
+        Length::Pt(self as f32)
     }
     #[inline]
     fn em(self) -> Length {
@@ -1374,10 +1365,10 @@ impl Point {
 
     /// Compute the point in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutPoint {
-        LayoutPoint::from_lengths(
-            self.x.to_layout(ctx, LayoutLength::new(available_size.width)),
-            self.y.to_layout(ctx, LayoutLength::new(available_size.height)),
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxPoint {
+        PxPoint::new(
+            self.x.to_layout(ctx, available_size.width),
+            self.y.to_layout(ctx, available_size.height),
         )
     }
 }
@@ -1387,13 +1378,13 @@ impl_length_comp_conversions! {
     }
 }
 impl_from_and_into_var! {
-    fn from(p: LayoutPoint) -> Point {
+    fn from(p: PxPoint) -> Point {
+        Point::new(p.x, p.y)
+    }
+    fn from(p: DipPoint) -> Point {
         Point::new(p.x, p.y)
     }
 }
-
-/// Computed [`Point`].
-pub type LayoutPoint = wr::LayoutPoint;
 
 /// 2D size in [`Length`] units.
 #[derive(Clone, PartialEq)]
@@ -1455,10 +1446,10 @@ impl Size {
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutSize {
-        LayoutSize::from_lengths(
-            self.width.to_layout(ctx, LayoutLength::new(available_size.width)),
-            self.height.to_layout(ctx, LayoutLength::new(available_size.height)),
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxSize {
+        PxSize::new(
+            self.width.to_layout(ctx, available_size.width),
+            self.height.to_layout(ctx, available_size.height),
         )
     }
 }
@@ -1468,13 +1459,13 @@ impl_length_comp_conversions! {
     }
 }
 impl_from_and_into_var! {
-    fn from(size: LayoutSize) -> Size {
+    fn from(size: PxSize) -> Size {
+        Size::new(size.width, size.height)
+    }
+    fn from(size: DipSize) -> Size {
         Size::new(size.width, size.height)
     }
 }
-
-/// Computed [`Size`].
-pub type LayoutSize = wr::LayoutSize;
 
 /// Ellipse in [`Length`] units.
 ///
@@ -1555,10 +1546,10 @@ impl Ellipse {
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutEllipse {
-        LayoutEllipse::from_lengths(
-            self.width.to_layout(ctx, LayoutLength::new(available_size.width)),
-            self.height.to_layout(ctx, LayoutLength::new(available_size.height)),
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxEllipse {
+        PxEllipse::new(
+            self.width.to_layout(ctx, available_size.width),
+            self.height.to_layout(ctx, available_size.height),
         )
     }
 
@@ -1594,14 +1585,21 @@ impl_from_and_into_var! {
         Ellipse::new_all(i)
     }
 
-    /// New from [`LayoutEllipse`].
-    fn from(ellipse: LayoutEllipse) -> Ellipse {
+    /// New from [`PxEllipse`].
+    fn from(ellipse: PxEllipse) -> Ellipse {
+        Ellipse::new(ellipse.width, ellipse.height)
+    }
+
+    /// New from [`DipEllipse`].
+    fn from(ellipse: DipEllipse) -> Ellipse {
         Ellipse::new(ellipse.width, ellipse.height)
     }
 }
 
 /// Computed [`Ellipse`].
-pub type LayoutEllipse = LayoutSize;
+pub type PxEllipse = PxSize;
+/// [`Ellipse`] in device independent pixels.
+pub type DipEllipse = DipSize;
 
 /// Spacing in-between grid cells in [`Length`] units.
 #[derive(Clone, PartialEq)]
@@ -1631,10 +1629,10 @@ impl GridSpacing {
 
     /// Compute the spacing in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutGridSpacing {
-        LayoutGridSpacing {
-            column: self.column.to_layout(ctx, LayoutLength::new(available_size.width)).get(),
-            row: self.row.to_layout(ctx, LayoutLength::new(available_size.height)).get(),
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxGridSpacing {
+        PxGridSpacing {
+            column: self.column.to_layout(ctx, available_size.width),
+            row: self.row.to_layout(ctx, available_size.height),
         }
     }
 }
@@ -1667,8 +1665,8 @@ impl_from_and_into_var! {
         GridSpacing::new_all(i)
     }
 
-    /// Column and row in exact length.
-    fn from(spacing: LayoutGridSpacing) -> GridSpacing {
+    /// Column and row in device pixel length.
+    fn from(spacing: PxGridSpacing) -> GridSpacing {
         GridSpacing::new(spacing.column, spacing.row)
     }
 }
@@ -1689,11 +1687,11 @@ impl fmt::Debug for GridSpacing {
 
 /// Computed [`GridSpacing`].
 #[derive(Clone, Copy, Debug)]
-pub struct LayoutGridSpacing {
+pub struct PxGridSpacing {
     /// Spacing in-between columns, in layout pixels.
-    pub column: f32,
+    pub column: Px,
     /// Spacing in-between rows, in layout pixels.
-    pub row: f32,
+    pub row: Px,
 }
 
 /// 2D rect in [`Length`] units.
@@ -1756,8 +1754,8 @@ impl Rect {
 
     /// Compute the rectangle in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutRect {
-        LayoutRect::from_origin_and_size(self.origin.to_layout(ctx, available_size), self.size.to_layout(ctx, available_size))
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxRect {
+        PxRect::new(self.origin.to_layout(ctx, available_size), self.size.to_layout(ctx, available_size))
     }
 }
 impl From<Size> for Rect {
@@ -1795,13 +1793,15 @@ impl_length_comp_conversions! {
 }
 impl_from_and_into_var! {
     /// New in exact length.
-    fn from(rect: LayoutRect) -> Rect {
-        Rect::new(rect.min, rect.size())
+    fn from(rect: PxRect) -> Rect {
+        Rect::new(rect.origin, rect.size)
+    }
+
+    /// New in exact length.
+    fn from(rect: DipRect) -> Rect {
+        Rect::new(rect.origin, rect.size)
     }
 }
-
-/// Computed [`Rect`].
-pub type LayoutRect = wr::LayoutRect;
 
 /// 2D line in [`Length`] units.
 #[derive(Clone, PartialEq)]
@@ -1923,8 +1923,8 @@ impl Line {
 
     /// Compute the line in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutLine {
-        LayoutLine {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxLine {
+        PxLine {
             start: self.start.to_layout(ctx, available_size),
             end: self.end.to_layout(ctx, available_size),
         }
@@ -1932,42 +1932,44 @@ impl Line {
 }
 impl_from_and_into_var! {
     /// From exact lengths.
-    fn from(line: LayoutLine) -> Line {
+    fn from(line: PxLine) -> Line {
         Line::new(line.start, line.end)
     }
 }
 
 /// Computed [`Line`].
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct LayoutLine {
+pub struct PxLine {
     /// Start point in layout units.
-    pub start: LayoutPoint,
+    pub start: PxPoint,
     /// End point in layout units.
-    pub end: LayoutPoint,
+    pub end: PxPoint,
 }
-impl LayoutLine {
+impl PxLine {
     /// New layout line defined by two layout points.
     #[inline]
-    pub fn new(start: LayoutPoint, end: LayoutPoint) -> Self {
-        LayoutLine { start, end }
+    pub fn new(start: PxPoint, end: PxPoint) -> Self {
+        Self { start, end }
     }
 
     /// Line from (0, 0) to (0, 0).
     #[inline]
-    pub fn zero() -> LayoutLine {
-        LayoutLine::new(LayoutPoint::zero(), LayoutPoint::zero())
+    pub fn zero() -> Self {
+        Self::new(PxPoint::zero(), PxPoint::zero())
     }
 
-    /// Line length in layout units.
+    /// Line length in rounded pixels.
     #[inline]
-    pub fn length(&self) -> LayoutLength {
-        LayoutLength::new(self.start.distance_to(self.end))
+    pub fn length(&self) -> Px {
+        let s = self.start.to_wr();
+        let e = self.end.to_wr();
+        Px(s.distance_to(e).round() as i32)
     }
 
     /// Bounding box that fits the line points, in layout units.
     #[inline]
-    pub fn bounds(&self) -> LayoutRect {
-        LayoutRect::from_points(&[self.start, self.end])
+    pub fn bounds(&self) -> PxRect {
+        PxRect::from_points(&[self.start, self.end])
     }
 }
 
@@ -2095,10 +2097,10 @@ impl SideOffsets {
 
     /// Compute the offsets in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutSideOffsets {
-        let width = LayoutLength::new(available_size.width);
-        let height = LayoutLength::new(available_size.height);
-        LayoutSideOffsets::from_lengths(
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxSideOffsets {
+        let width = available_size.width;
+        let height = available_size.height;
+        PxSideOffsets::new(
             self.top.to_layout(ctx, height),
             self.right.to_layout(ctx, width),
             self.bottom.to_layout(ctx, height),
@@ -2132,7 +2134,7 @@ impl_from_and_into_var! {
     }
 
     /// From exact lengths.
-    fn from(offsets: LayoutSideOffsets) -> SideOffsets {
+    fn from(offsets: PxSideOffsets) -> SideOffsets {
         SideOffsets::new(offsets.top, offsets.right, offsets.bottom, offsets.left)
     }
 }
@@ -2148,9 +2150,6 @@ impl_length_comp_conversions! {
         SideOffsets::new(top, right, bottom, left)
     }
 }
-
-/// Computed [`SideOffsets`].
-pub type LayoutSideOffsets = wr::LayoutSideOffsets;
 
 /// `x` and `y` alignment.
 ///
@@ -2303,7 +2302,7 @@ impl Alignment {
     /// [`UiNode::measure`]: crate::UiNode::measure
     /// [`UiNode::arrange`]: crate::UiNode::arrange
     /// [`UiNode::render`]: crate::UiNode::render
-    pub fn solve(self, content_size: LayoutSize, container_size: LayoutSize) -> LayoutRect {
+    pub fn solve(self, content_size: PxSize, container_size: PxSize) -> PxRect {
         let mut r = euclid::Rect::zero();
 
         if self.fill_width() {
@@ -2319,7 +2318,7 @@ impl Alignment {
             r.origin.y = (container_size.height - r.size.height) * self.y.0;
         }
 
-        r.to_box2d()
+        r
     }
 }
 
@@ -2511,144 +2510,6 @@ pub type ParagraphSpacing = Length;
 /// So a `400%` length is 4 spaces.
 pub type TabLength = Length;
 
-/// A device pixel scale factor used for pixel alignment.
-///
-/// Types that can be aligned with this grid implement [`PixelGridExt`].
-#[derive(Copy, Clone, Debug)]
-pub struct PixelGrid {
-    /// The scale factor that defines the pixel grid.
-    pub scale_factor: f32,
-}
-impl PixelGrid {
-    /// New from a scale factor. Layout pixels are adjusted so that when the renderer calculates device pixels
-    /// no *half pixels* are generated.
-    #[inline]
-    pub fn new(scale_factor: f32) -> Self {
-        PixelGrid { scale_factor }
-    }
-
-    /// Aligns the layout value `n` using this algorithm:
-    ///
-    /// scaled `n` | op
-    /// -----------|------------------------
-    /// < 0.01     | floor (`0`)
-    /// < 1.0      | ceil (`1` pixel)
-    /// >= 1.0     | round to nearest pixel
-    #[inline]
-    pub fn snap(self, layout_value: f32) -> f32 {
-        let px = layout_value * self.scale_factor;
-
-        if px > 0.0 {
-            if px < 0.01 {
-                0.0
-            } else if px < 1.0 {
-                1.0 / self.scale_factor
-            } else {
-                px.round() / self.scale_factor
-            }
-        } else if px > -0.01 {
-            0.0
-        } else if px > -1.0 {
-            -1.0 / self.scale_factor
-        } else {
-            px.round() / self.scale_factor
-        }
-    }
-
-    /// Checks if the layout value is aligned with this grid.
-    #[inline]
-    pub fn is_aligned(self, layout_value: f32) -> bool {
-        let aligned = self.snap(layout_value);
-        (aligned - layout_value).abs() < 0.0001
-    }
-}
-impl Default for PixelGrid {
-    /// `1.0` scale factor.
-    #[inline]
-    fn default() -> Self {
-        PixelGrid::new(1.0)
-    }
-}
-impl PartialEq for PixelGrid {
-    fn eq(&self, other: &Self) -> bool {
-        (self.scale_factor - other.scale_factor).abs() < EPSILON_100
-    }
-}
-
-/// Methods for types that can be aligned to a [`PixelGrid`].
-pub trait PixelGridExt {
-    /// Gets a copy of self that is aligned with the pixel grid.
-    fn snap_to(self, grid: PixelGrid) -> Self;
-    /// Checks if self is aligned with the pixel grid.
-    #[allow(clippy::wrong_self_convention)] // trait implemented for layout types that are all copy.
-    fn is_aligned_to(self, grid: PixelGrid) -> bool;
-}
-impl PixelGridExt for LayoutPoint {
-    #[inline]
-    fn snap_to(self, grid: PixelGrid) -> Self {
-        LayoutPoint::new(grid.snap(self.x), grid.snap(self.y))
-    }
-    #[inline]
-    fn is_aligned_to(self, grid: PixelGrid) -> bool {
-        grid.is_aligned(self.x) && grid.is_aligned(self.y)
-    }
-}
-impl PixelGridExt for LayoutSize {
-    #[inline]
-    fn snap_to(self, grid: PixelGrid) -> Self {
-        LayoutSize::new(grid.snap(self.width), grid.snap(self.height))
-    }
-    #[inline]
-    fn is_aligned_to(self, grid: PixelGrid) -> bool {
-        grid.is_aligned(self.width) && grid.is_aligned(self.height)
-    }
-}
-impl PixelGridExt for LayoutRect {
-    #[inline]
-    fn snap_to(self, grid: PixelGrid) -> Self {
-        LayoutRect::new(self.min.snap_to(grid), self.max.snap_to(grid))
-    }
-    #[inline]
-    fn is_aligned_to(self, grid: PixelGrid) -> bool {
-        self.min.is_aligned_to(grid) && self.max.is_aligned_to(grid)
-    }
-}
-impl PixelGridExt for LayoutLine {
-    #[inline]
-    fn snap_to(self, grid: PixelGrid) -> Self {
-        LayoutLine::new(self.start.snap_to(grid), self.end.snap_to(grid))
-    }
-    #[inline]
-    fn is_aligned_to(self, grid: PixelGrid) -> bool {
-        self.start.is_aligned_to(grid) && self.end.is_aligned_to(grid)
-    }
-}
-impl PixelGridExt for LayoutSideOffsets {
-    #[inline]
-    fn snap_to(self, grid: PixelGrid) -> Self {
-        LayoutSideOffsets::new(
-            grid.snap(self.top),
-            grid.snap(self.right),
-            grid.snap(self.bottom),
-            grid.snap(self.left),
-        )
-    }
-    #[inline]
-    fn is_aligned_to(self, grid: PixelGrid) -> bool {
-        grid.is_aligned(self.top) && grid.is_aligned(self.right) && grid.is_aligned(self.bottom) && grid.is_aligned(self.left)
-    }
-}
-impl PixelGridExt for euclid::Rect<f32, LayoutPixel> {
-    #[inline]
-    fn snap_to(self, grid: PixelGrid) -> Self {
-        euclid::Rect::new(self.origin.snap_to(grid), self.size.snap_to(grid))
-    }
-    #[inline]
-    fn is_aligned_to(self, grid: PixelGrid) -> bool {
-        self.origin.is_aligned_to(grid) && self.size.is_aligned_to(grid)
-    }
-}
-
 /// A transform builder type.
 ///
 /// # Builder
@@ -2757,14 +2618,14 @@ impl Transform {
 
     /// Compute a [`LayoutTransform`].
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutTransform {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> LayoutTransform {
         let mut r = LayoutTransform::identity();
         for step in &self.steps {
             r = match step {
                 TransformStep::Computed(m) => r.then(m),
                 TransformStep::Translate(x, y) => r.then(&LayoutTransform::translation(
-                    x.to_layout(ctx, LayoutLength::new(available_size.width)).get(),
-                    y.to_layout(ctx, LayoutLength::new(available_size.height)).get(),
+                    x.to_layout(ctx, available_size.width).to_wr().get(),
+                    y.to_layout(ctx, available_size.height).to_wr().get(),
                     0.0,
                 )),
             };
@@ -2830,9 +2691,6 @@ pub fn scale_y<Y: Into<FactorNormal>>(y: Y) -> Transform {
 pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(x: X, y: Y) -> Transform {
     Transform::default().scale_xy(x, y)
 }
-
-/// Computed [`Transform`].
-pub type LayoutTransform = wr::LayoutTransform;
 
 /// Extension methods for initializing [`Duration`] values.
 pub trait TimeUnits {
@@ -3324,7 +3182,7 @@ mod tests {
         let b = Length::from(300);
         let c = a + b;
 
-        assert_eq!(c, Length::Exact(500.0));
+        assert_eq!(c, 500.dip());
     }
 
     #[test]
@@ -3339,10 +3197,10 @@ mod tests {
     #[test]
     pub fn length_expr_eval() {
         let l = (Length::from(200) - 100.pct()).abs();
-        let ctx = LayoutMetrics::new(LayoutSize::new(600.0, 400.0), 14.0);
-        let l = l.to_layout(&ctx, LayoutLength::new(600.0));
+        let ctx = LayoutMetrics::new(PxSize::new(Px(600), Px(400)), 1.0, 14.0);
+        let l = l.to_layout(&ctx, AvailablePx::Max(Px(600)));
 
-        assert!(about_eq(l.0, (200.0f32 - 600.0).abs(), 0.0001));
+        assert_eq!(l.0, (200i32 - 600i32).abs());
     }
 
     #[test]
@@ -3350,16 +3208,16 @@ mod tests {
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));
 
-        let metrics = LayoutMetrics::new(LayoutSize::zero(), 0.0);
+        let metrics = LayoutMetrics::new(PxSize::zero(), 0.0, 0.0);
 
-        let r = l.to_layout(&metrics, LayoutLength::new(200.0));
-        assert!(about_eq(r.0, 200.0, 0.0001));
+        let r = l.to_layout(&metrics, AvailablePx::Max(Px(200)));
+        assert_eq!(r.0, 200);
 
-        let r = l.to_layout(&metrics, LayoutLength::new(50.0));
-        assert!(about_eq(r.0, 100.0, 0.0001));
+        let r = l.to_layout(&metrics, AvailablePx::Max(Px(50)));
+        assert_eq!(r.0, 100);
 
-        let r = l.to_layout(&metrics, LayoutLength::new(550.0));
-        assert!(about_eq(r.0, 500.0, 0.0001));
+        let r = l.to_layout(&metrics, AvailablePx::Max(Px(550)));
+        assert_eq!(r.0, 500);
     }
 
     fn all_equal(rad: AngleRadian, grad: AngleGradian, deg: AngleDegree, turn: AngleTurn) {

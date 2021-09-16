@@ -310,8 +310,8 @@ impl BorderRadius {
 
     /// Compute the radii in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> LayoutBorderRadius {
-        LayoutBorderRadius {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxCornerRadius {
+        PxCornerRadius {
             top_left: self.top_left.to_layout(ctx, available_size),
             top_right: self.top_right.to_layout(ctx, available_size),
             bottom_left: self.bottom_left.to_layout(ctx, available_size),
@@ -360,9 +360,6 @@ impl_from_and_into_var! {
         BorderRadius::new(top_left, top_right, bottom_right, bottom_left)
     }
 }
-
-/// Computed [`BorderRadius`].
-pub type LayoutBorderRadius = w_api::BorderRadius;
 
 /// The line style and color for each side of a widget's border.
 #[derive(Clone, Copy, PartialEq)]

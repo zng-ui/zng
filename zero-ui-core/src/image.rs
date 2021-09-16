@@ -37,7 +37,7 @@ use crate::{
 #[derive(Clone)]
 pub struct Image {
     bgra: Arc<Vec<u8>>,
-    size: (u32, u32),
+    size: PxSize,
     opaque: bool,
     render_keys: Rc<RefCell<Vec<RenderImage>>>,
 }
@@ -142,8 +142,9 @@ impl Image {
     ///
     /// The `opaque` argument indicates if the `image` is fully opaque, with all alpha values equal to `255`.
     pub fn from_premultiplied(image: image::ImageBuffer<image::Bgra<u8>, Vec<u8>>, opaque: bool) -> Self {
+        let (w, h) = image.dimensions();
         Image {
-            size: image.dimensions(),
+            size: PxSize::new(Px(w as i32), Px(h as i32)),
             opaque,
             bgra: Arc::new(image.into_raw()),
             render_keys: Rc::default(),
@@ -156,7 +157,7 @@ impl Image {
 
         Image {
             bgra,
-            size,
+            size: PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
             opaque,
             render_keys: Rc::default(),
         }
@@ -170,7 +171,7 @@ impl Image {
 
     /// Reference the pixel size.
     #[inline]
-    pub fn size(&self) -> (u32, u32) {
+    pub fn size(&self) -> PxSize {
         self.size
     }
 
@@ -200,37 +201,33 @@ impl Image {
     /// [`ppi`]: Self::ppi
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi
     #[inline]
-    pub fn layout_size(&self, ctx: &LayoutMetrics) -> LayoutSize {
-        self.calc_size(ctx, (96.0, 96.0), false, true)
+    pub fn layout_size(&self, ctx: &LayoutMetrics) -> PxSize {
+        self.calc_size(ctx, (96.0, 96.0), false)
     }
 
     /// Calculate a layout size for the image.
     ///
     /// # Parameters
     ///
-    /// * `ctx`: Used to get the screen resolution and snapping to device pixels.
+    /// * `ctx`: Used to get the screen resolution.
     /// * `fallback_ppi`: Resolution used if [`ppi`] is `None`.
     /// * `ignore_image_ppi`: If `true` always uses the `fallback_ppi` as the resolution.
-    /// * `snap`: If the final size is *snapped* to the device pixels.
     ///
     /// [`ppi`]: Self::ppi
-    pub fn calc_size(&self, ctx: &LayoutMetrics, fallback_ppi: (f32, f32), ignore_image_ppi: bool, snap: bool) -> LayoutSize {
+    pub fn calc_size(&self, ctx: &LayoutMetrics, fallback_ppi: (f32, f32), ignore_image_ppi: bool) -> PxSize {
         let (dpi_x, dpi_y) = if ignore_image_ppi {
             fallback_ppi
         } else {
             self.ppi().unwrap_or(fallback_ppi)
         };
 
-        let screen_res = ctx.screen_ppi * ctx.pixel_grid.scale_factor;
-        let (w, h) = self.size();
+        let screen_res = ctx.screen_ppi * ctx.scale_factor;
+        let mut s = self.size();
 
-        let s = LayoutSize::new(w as f32 * dpi_x / screen_res, h as f32 * dpi_y / screen_res);
+        s.width *= dpi_x / screen_res;
+        s.height *= dpi_y / screen_res;
 
-        if snap {
-            s.snap_to(ctx.pixel_grid)
-        } else {
-            s
-        }
+        s
     }
 
     /// Gets the flip-rotate transform requested by the image metadata.
@@ -469,7 +466,7 @@ impl crate::render::Image for Image {
 /// [`upgrade`]: WeakImage::upgrade
 pub struct WeakImage {
     bgra: Weak<Vec<u8>>,
-    size: (u32, u32),
+    size: PxSize,
     opaque: bool,
     render_keys: rc::Weak<RefCell<Vec<RenderImage>>>,
 }
@@ -490,7 +487,7 @@ impl WeakImage {
     ///
     /// This value is local.
     #[inline]
-    pub fn size(&self) -> (u32, u32) {
+    pub fn size(&self) -> PxSize {
         self.size
     }
 

@@ -1,7 +1,7 @@
 //! Font resolving and text shaping.
 
 pub use crate::render::webrender_api::GlyphInstance;
-use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
+use crate::units::*;
 use crate::var::impl_from_and_into_var;
 use derive_more as dm;
 use std::{
@@ -224,7 +224,7 @@ pub struct FontFaceMetrics {
     /// The number of font units per em.
     ///
     /// Font sizes are usually expressed in pixels per em; e.g. `12px` means 12 pixels per em.
-    pub units_per_em: u32,
+    pub units_per_em: f32,
 
     /// The maximum amount the font rises above the baseline, in font units.
     pub ascent: f32,
@@ -256,13 +256,13 @@ pub struct FontFaceMetrics {
     /// A rectangle that surrounds all bounding boxes of all glyphs, in font units.
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
-    pub bounding_box: crate::render::webrender_api::euclid::Rect<f32, FontUnit>,
+    pub bounding_box: euclid::Rect<f32, ()>,
 }
 impl FontFaceMetrics {
     /// Compute [`FontMetrics`] given a font size in pixels.
     pub fn sized(&self, font_size_px: f32) -> FontMetrics {
         let size_scale = 1.0 / self.units_per_em as f32 * font_size_px;
-        let s = move |f: f32| f * size_scale;
+        let s = move |f: f32| Px((f * size_scale).round() as i32);
         FontMetrics {
             size_scale,
             ascent: s(self.ascent),
@@ -274,60 +274,58 @@ impl FontFaceMetrics {
             x_height: (s(self.x_height)),
             bounding_box: {
                 let b = self.bounding_box;
-                LayoutRect::from_origin_and_size(
-                    LayoutPoint::new(s(b.origin.x), s(b.origin.y)),
-                    LayoutSize::new(s(b.size.width), s(b.size.height)),
+                PxRect::new(
+                    PxPoint::new(s(b.origin.x), s(b.origin.y)),
+                    PxSize::new(s(b.size.width), s(b.size.height)),
                 )
             },
         }
     }
 }
-#[doc(hidden)]
-pub struct FontUnit;
 
 /// Various metrics about a [`Font`].
 ///
 /// You can compute these metrics from a [`FontFaceMetrics`]
 #[derive(Clone, Debug)]
 pub struct FontMetrics {
-    /// Multiply this to a font EM value to get the size in layout pixels.
-    pub size_scale: f32,
+    /// Multiply this to a font EM value to get the size in pixels.
+    pub size_scale: Px,
 
-    /// The maximum amount the font rises above the baseline, in layout pixels.
-    pub ascent: f32,
+    /// The maximum amount the font rises above the baseline, in pixels.
+    pub ascent: Px,
 
-    /// The maximum amount the font descends below the baseline, in layout pixels.
+    /// The maximum amount the font descends below the baseline, in pixels.
     ///
     /// NB: This is typically a negative value to match the definition of `sTypoDescender` in the
     /// `OS/2` table in the OpenType specification. If you are used to using Windows or Mac APIs,
     /// beware, as the sign is reversed from what those APIs return.
-    pub descent: f32,
+    pub descent: Px,
 
-    /// Distance between baselines, in layout pixels.
-    pub line_gap: f32,
+    /// Distance between baselines, in pixels.
+    pub line_gap: Px,
 
     /// The suggested distance of the top of the underline from the baseline (negative values
-    /// indicate below baseline), in layout pixels.
-    pub underline_position: f32,
+    /// indicate below baseline), in pixels.
+    pub underline_position: Px,
 
-    /// A suggested value for the underline thickness, in layout pixels.
-    pub underline_thickness: f32,
+    /// A suggested value for the underline thickness, in pixels.
+    pub underline_thickness: Px,
 
-    /// The approximate amount that uppercase letters rise above the baseline, in layout pixels.
-    pub cap_height: f32,
+    /// The approximate amount that uppercase letters rise above the baseline, in pixels.
+    pub cap_height: Px,
 
     /// The approximate amount that non-ascending lowercase letters rise above the baseline, in
     /// font units.
-    pub x_height: f32,
+    pub x_height: Px,
 
-    /// A rectangle that surrounds all bounding boxes of all glyphs, in layout pixels.
+    /// A rectangle that surrounds all bounding boxes of all glyphs, in pixels.
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
-    pub bounding_box: LayoutRect,
+    pub bounding_box: PxRect,
 }
 impl FontMetrics {
     /// The font line height.
-    pub fn line_height(&self) -> f32 {
+    pub fn line_height(&self) -> Px {
         self.ascent - self.descent + self.line_gap
     }
 }

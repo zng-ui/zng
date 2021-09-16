@@ -35,7 +35,7 @@ event_args! {
         pub modifiers: ModifiersState,
 
         /// Position of the mouse in the coordinates of [`target`](MouseMoveArgs::target).
-        pub position: LayoutPoint,
+        pub position: DipPoint,
 
         /// Hit-test result for the mouse point in the window.
         pub hits: FrameHitInfo,
@@ -68,7 +68,7 @@ event_args! {
         pub button: MouseButton,
 
         /// Position of the mouse in the coordinates of [`target`](MouseInputArgs::target).
-        pub position: LayoutPoint,
+        pub position: DipPoint,
 
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
@@ -107,7 +107,7 @@ event_args! {
         pub button: MouseButton,
 
         /// Position of the mouse in the coordinates of [`target`](MouseClickArgs::target).
-        pub position: LayoutPoint,
+        pub position: DipPoint,
 
          /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
@@ -150,7 +150,7 @@ event_args! {
         pub device_id: Option<DeviceId>,
 
         /// Position of the mouse in the window.
-        pub position: LayoutPoint,
+        pub position: DipPoint,
 
         /// Hit-test result for the mouse point in the window.
         pub hits: FrameHitInfo,
@@ -373,7 +373,7 @@ event! {
 /// * [Mouse]
 pub struct MouseManager {
     /// last cursor move position (scaled).
-    pos: LayoutPoint,
+    pos: DipPoint,
     /// last cursor move over `pos_window` and source device.
     pos_window: Option<WindowId>,
     pos_device: Option<DeviceId>,
@@ -392,7 +392,7 @@ pub struct MouseManager {
 impl Default for MouseManager {
     fn default() -> Self {
         MouseManager {
-            pos: LayoutPoint::default(),
+            pos: DipPoint::zero(),
             pos_window: None,
             pos_device: None,
 
@@ -420,7 +420,7 @@ enum ClickState {
     Clicked {
         start_time: Instant,
         btn: MouseButton,
-        pos: LayoutPoint,
+        pos: DipPoint,
         start_tgt: WidgetPath,
 
         count: u8,
@@ -432,7 +432,7 @@ impl MouseManager {
         let position = if self.pos_window == Some(window_id) {
             self.pos
         } else {
-            LayoutPoint::default()
+            DipPoint::default()
         };
 
         let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
@@ -518,10 +518,8 @@ impl MouseManager {
                             // within distance of first click
                             && {
                                 let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(1.0);
-                                let max_x = cfg.area.0 as f32 / scale_factor;
-                                let max_y = cfg.area.1 as f32 / scale_factor;
-
-                                (pos.x - self.pos.x).abs() <= max_x && (pos.y - self.pos.y).abs() <= max_y
+                                let dist = (pos.to_px(scale_factor) - self.pos.to_px(scale_factor)).abs();
+                                dist.x <= cfg.area.width && dist.y <= cfg.area.height
                             };
 
                         if is_multi_click {
@@ -609,7 +607,7 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, pos: LayoutPoint, hits: FrameHitInfo, ctx: &mut AppContext) {
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, pos: DipPoint, hits: FrameHitInfo, ctx: &mut AppContext) {
         let mut moved = Some(window_id) != self.pos_window || Some(device_id) != self.pos_device;
 
         if moved {
@@ -679,7 +677,7 @@ impl MouseManager {
                 let args = MouseHoverArgs::now(
                     window_id,
                     device_id,
-                    LayoutPoint::new(-1., -1.),
+                    DipPoint::new(Dip::new(-1), Dip::new(-1)),
                     FrameHitInfo::no_hits(window_id),
                     args.target,
                     capture,
@@ -832,7 +830,7 @@ impl AppExtension for MouseManager {
                     args.new_capture.as_ref().map(|(path, mode)| CaptureInfo {
                         target: path.clone(),
                         mode: *mode,
-                        position: LayoutPoint::zero(), //TODO
+                        position: DipPoint::zero(), //TODO
                     }),
                 );
                 MouseEnterEvent.notify(ctx.events, hover_args.clone());
@@ -982,7 +980,7 @@ impl Mouse {
     /// The area is relative to the window, if the window moves the cursor gets pushed by the sides of the area.
     ///
     /// **NOT IMPLEMENTED**
-    pub fn lock_cursor(&mut self, window_id: WindowId, area: LayoutRect) {
+    pub fn lock_cursor(&mut self, window_id: WindowId, area: DipRect) {
         // https://docs.rs/winit/0.24.0/winit/window/struct.Window.html#method.set_cursor_grab
         // https://github.com/rust-windowing/winit/issues/1677
         todo!("impl lockcursor({:?}, {:?})", window_id, area)
@@ -997,8 +995,8 @@ impl Mouse {
     ///
     /// **NOT IMPLEMENTED**
     #[inline]
-    pub fn lock_cursor_pt(&mut self, window_id: WindowId, point: LayoutPoint) {
-        self.lock_cursor(window_id, LayoutRect::new(point, point))
+    pub fn lock_cursor_pt(&mut self, window_id: WindowId, point: DipPoint) {
+        self.lock_cursor(window_id, DipRect::new(point, DipSize::zero()))
     }
 
     /// Locks the cursor to the `area` of a widget in a window that is focused.
@@ -1165,7 +1163,7 @@ pub struct CaptureInfo {
     /// Capture mode, see [`allows`](Self::allows) for more details.
     pub mode: CaptureMode,
     /// Position of the pointer related to the `target` area.
-    pub position: LayoutPoint,
+    pub position: DipPoint,
 }
 impl CaptureInfo {
     /// If the widget is allowed by the current capture.

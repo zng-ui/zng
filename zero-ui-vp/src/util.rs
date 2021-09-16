@@ -2,6 +2,8 @@
 use std::{cell::Cell, rc::Rc};
 
 #[cfg(feature = "full")]
+use crate::units::*;
+#[cfg(feature = "full")]
 use crate::{FramePixels, WinId};
 #[cfg(feature = "full")]
 use gleam::gl;
@@ -9,11 +11,6 @@ use gleam::gl;
 use glutin::{ContextWrapper, NotCurrent, PossiblyCurrent};
 #[cfg(feature = "full")]
 use serde_bytes::ByteBuf;
-#[cfg(feature = "full")]
-use webrender_api::{
-    euclid,
-    units::{LayoutPixel, LayoutSize},
-};
 
 pub type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -140,40 +137,31 @@ impl GlContextManager {
 /// Read a selection of pixels of the current frame.
 ///
 /// This is a call to `glReadPixels`, the pixel row order is bottom-to-top and the pixel type is BGRA.
-pub(crate) fn read_pixels_rect(
-    gl: &Rc<dyn gl::Gl>,
-    max_size: LayoutSize,
-    scale_factor: f32,
-    rect: euclid::Rect<f32, LayoutPixel>,
-) -> FramePixels {
-    let max = euclid::Rect::from_size(max_size);
+pub(crate) fn read_pixels_rect(gl: &Rc<dyn gl::Gl>, max_size: PxSize, rect: PxRect, scale_factor: f32) -> FramePixels {
+    let max = PxRect::from_size(max_size);
     let rect = rect.intersection(&max).unwrap_or_default();
 
-    let x = rect.origin.x * scale_factor;
-    let y = rect.origin.y * scale_factor;
-    let width = rect.size.width * scale_factor;
-    let height = rect.size.height * scale_factor;
-
-    if width < 1.0 || height < 1.0 {
+    if rect.size.width <= Px(0) || rect.size.height <= Px(0) {
         return FramePixels {
-            width: 0,
-            height: 0,
+            width: Px(0),
+            height: Px(0),
             bgra: ByteBuf::new(),
             scale_factor,
             opaque: true,
         };
     }
 
-    let inverted_y = max.height() - y - rect.height();
-    let width = width as u32;
-    let height = height as u32;
+    let x = rect.origin.x.0;
+    let inverted_y = (max.size.height - rect.origin.y - rect.size.height).0;
+    let width = rect.size.width.0 as u32;
+    let height = rect.size.height.0 as u32;
 
     let bgra = gl.read_pixels(x as _, inverted_y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
     assert_eq!(gl.get_error(), 0);
 
     FramePixels {
-        width,
-        height,
+        width: rect.size.width,
+        height: rect.size.height,
         bgra: ByteBuf::from(bgra),
         scale_factor,
         opaque: true,

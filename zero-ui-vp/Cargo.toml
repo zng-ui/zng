@@ -70,6 +70,7 @@ log = "0.4"
 is_main_thread = { version = "0.1", optional = true }
 flume = { version = "0.10", default-features  = false }
 bitflags = "1"
+num-traits = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", optional = true, features = ["winuser", "errhandlingapi", "windef", "minwindef", "commctrl", "basetsd", "winerror", "combaseapi", "shobjidl_core", "wtypesbase"] }

@@ -22,7 +22,7 @@ use crate::{
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdateArgs},
     service::Service,
-    units::{layout_to_pt, LayoutLength},
+    units::*,
     var::{var, RcVar, Var},
 };
 
@@ -309,25 +309,12 @@ impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
 }
 
 #[derive(PartialEq, Eq, Hash)]
-struct FontInstanceKey(u32, Box<[(rustybuzz::Tag, i32)]>);
+struct FontInstanceKey(Px, Box<[(rustybuzz::Tag, i32)]>);
 impl FontInstanceKey {
-    /// Returns the key and adjusts the values to match the key rounding.
-    pub fn new(size: &mut LayoutLength, variations: &mut RFontVariations) -> Self {
-        let size_key = (size.get() * 2.0) as u32;
+    /// Returns the key.
+    pub fn new(size: Px, variations: &RFontVariations) -> Self {
         let variations_key: Vec<_> = variations.iter().map(|p| (p.tag, (p.value * 1000.0) as i32)).collect();
-        let key = FontInstanceKey(size_key, variations_key.into_boxed_slice());
-
-        *size = LayoutLength::new(key.0 as f32 / 2.0);
-        *variations = key
-            .1
-            .iter()
-            .map(|&(n, v)| rustybuzz::Variation {
-                tag: n,
-                value: (v as f32 / 1000.0),
-            })
-            .collect();
-
-        key
+        FontInstanceKey(size, variations_key.into_boxed_slice())
     }
 }
 
@@ -599,11 +586,11 @@ impl FontFace {
 
     /// Gets a cached sized [`Font`].
     ///
-    /// The `font_size` is the size of `1 font EM` in layout pixels.
+    /// The `font_size` is the size of `1 font EM` in pixels.
     ///
     /// The `variations` are custom [font variations](crate::text::font_features::FontVariations::finalize) that will be used
     /// during shaping and rendering.
-    pub fn sized(self: &Rc<Self>, mut font_size: LayoutLength, mut variations: RFontVariations) -> FontRef {
+    pub fn sized(self: &Rc<Self>, font_size: Px, mut variations: RFontVariations) -> FontRef {
         let key = FontInstanceKey::new(&mut font_size, &mut variations);
         if !self.unregistered.get() {
             let mut instances = self.instances.borrow_mut();
@@ -649,7 +636,7 @@ pub type FontFaceRef = Rc<FontFace>;
 /// A sized font can be requested from a [`FontFace`].
 pub struct Font {
     face: FontFaceRef,
-    size: LayoutLength,
+    size: Px,
     variations: RFontVariations,
     metrics: FontMetrics,
     render_keys: RefCell<Vec<RenderFont>>,
@@ -665,7 +652,7 @@ impl fmt::Debug for Font {
     }
 }
 impl Font {
-    fn new(face: FontFaceRef, size: LayoutLength, variations: RFontVariations) -> Self {
+    fn new(face: FontFaceRef, size: Px, variations: RFontVariations) -> Self {
         Font {
             metrics: face.metrics().sized(size.get()),
             face,
@@ -731,7 +718,7 @@ impl Font {
 
     /// Font size.
     #[inline]
-    pub fn size(&self) -> LayoutLength {
+    pub fn size(&self) -> Px {
         self.size
     }
 
@@ -739,12 +726,6 @@ impl Font {
     #[inline]
     pub fn variations(&self) -> &RFontVariations {
         &self.variations
-    }
-
-    /// Font size in point units.
-    #[inline]
-    pub fn size_pt(&self) -> f32 {
-        layout_to_pt(self.size)
     }
 
     /// Sized font metrics.
@@ -839,7 +820,7 @@ impl FontFaceList {
     ///
     /// This calls [`FontFace::sized`] for each font in the list.
     #[inline]
-    pub fn sized(&self, font_size: LayoutLength, variations: RFontVariations) -> FontList {
+    pub fn sized(&self, font_size: Px, variations: RFontVariations) -> FontList {
         FontList {
             fonts: self.fonts.iter().map(|f| f.sized(font_size, variations.clone())).collect(),
             requested_style: self.requested_style,

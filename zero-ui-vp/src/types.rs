@@ -1,9 +1,9 @@
+use crate::units::*;
 use bitflags::*;
 use serde::{Deserialize, Serialize};
 pub use serde_bytes::ByteBuf;
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
-use webrender_api::units::{LayoutPoint, LayoutSize};
 use webrender_api::{BuiltDisplayListDescriptor, ColorF, Epoch, HitTestResult, PipelineId};
 
 /// Window ID in channel.
@@ -715,6 +715,7 @@ impl Default for CursorIcon {
 }
 #[cfg(feature = "full")]
 use glutin::window::CursorIcon as WCursorIcon;
+
 #[cfg(feature = "full")]
 impl From<WCursorIcon> for CursorIcon {
     fn from(s: WCursorIcon) -> Self {
@@ -797,11 +798,11 @@ pub enum Ev {
     /// The size of the window has changed. Contains the client area’s new dimensions.
     ///
     /// The [`EventCause`] can be used to identify a resize initiated by the app.
-    WindowResized(WinId, LayoutSize, EventCause),
+    WindowResized(WinId, DipSize, EventCause),
     /// The position of the window has changed. Contains the window’s new position.
     ///
     /// The [`EventCause`] can be used to identify a move initiated by the app.
-    WindowMoved(WinId, LayoutPoint, EventCause),
+    WindowMoved(WinId, DipPoint, EventCause),
     /// A file has been dropped into the window.
     ///
     /// When the user drops multiple files at once, this event will be emitted for each file separately.
@@ -827,7 +828,7 @@ pub enum Ev {
     /// The cursor has moved on the window.
     ///
     /// Contains a hit-test of the point and the frame epoch that was hit.
-    CursorMoved(WinId, DevId, LayoutPoint, HitTestResult, Epoch),
+    CursorMoved(WinId, DevId, DipPoint, HitTestResult, Epoch),
 
     /// The cursor has entered the window.
     CursorEntered(WinId, DevId),
@@ -842,7 +843,7 @@ pub enum Ev {
     /// Motion on some analog axis. May report data redundant to other, more specific events.
     AxisMotion(WinId, DevId, AxisId, f64),
     /// Touch event has been received.
-    Touch(WinId, DevId, TouchPhase, LayoutPoint, Option<Force>, u64),
+    Touch(WinId, DevId, TouchPhase, DipPoint, Option<Force>, u64),
     /// The window’s scale factor has changed.
     ScaleFactorChanged(WinId, f32),
 
@@ -1059,16 +1060,14 @@ pub struct WindowConfig {
     /// Title text.
     pub title: String,
     /// Top-left offset, including the chrome (outer-position).
-    ///
-    /// If *x* or *y* are not-finite the initial position is not set and the OS defines it.
-    pub pos: LayoutPoint,
+    pub pos: Option<DipPoint>,
     /// Content size (inner-size).
-    pub size: LayoutSize,
+    pub size: DipSize,
 
     /// Minimal size allowed.
-    pub min_size: LayoutSize,
+    pub min_size: DipSize,
     /// Maximum size allowed.
-    pub max_size: LayoutSize,
+    pub max_size: DipSize,
 
     /// Window visibility.
     pub visible: bool,
@@ -1102,7 +1101,7 @@ pub struct HeadlessConfig {
     pub scale_factor: f32,
 
     /// Surface area (viewport size).
-    pub size: LayoutSize,
+    pub size: DipSize,
 
     /// OpenGL clear color.
     pub clear_color: Option<ColorF>,
@@ -1115,9 +1114,9 @@ pub struct HeadlessConfig {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FramePixels {
     /// Width in pixels.
-    pub width: u32,
+    pub width: Px,
     /// Height in pixels.
-    pub height: u32,
+    pub height: Px,
 
     /// BGRA8 data, bottom-to-top.
     pub bgra: ByteBuf,
@@ -1131,8 +1130,8 @@ pub struct FramePixels {
 impl Default for FramePixels {
     fn default() -> Self {
         Self {
-            width: 0,
-            height: 0,
+            width: Px(0),
+            height: Px(0),
             bgra: ByteBuf::default(),
             scale_factor: 1.0,
             opaque: true,
@@ -1150,6 +1149,17 @@ impl fmt::Debug for FramePixels {
             .finish()
     }
 }
+impl FramePixels {
+    /// Width in [`Dip`] units.
+    pub fn width(&self) -> Dip {
+        Dip::from_px(self.width, self.scale_factor)
+    }
+
+    /// Height in [`Dip`] units.
+    pub fn height(&self) -> Dip {
+        Dip::from_px(self.height, self.scale_factor)
+    }
+}
 
 /// Information about a monitor screen.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1157,9 +1167,9 @@ pub struct MonitorInfo {
     /// Readable name of the monitor.
     pub name: String,
     /// Top-left offset of the monitor region in the virtual screen, in pixels.
-    pub position: (i32, i32),
+    pub position: PxPoint,
     /// Width/height of the monitor region in the virtual screen, in pixels.
-    pub size: (u32, u32),
+    pub size: PxSize,
     /// The monitor scale factor.
     pub scale_factor: f32,
     /// Exclusive fullscreen video modes.
@@ -1171,19 +1181,19 @@ pub struct MonitorInfo {
 impl MonitorInfo {
     /// Returns the `size` descaled using the `scale_factor`.
     #[inline]
-    pub fn layout_size(&self) -> LayoutSize {
-        LayoutSize::new(self.size.0 as f32 / self.scale_factor, self.size.1 as f32 / self.scale_factor)
+    pub fn dip_size(&self) -> DipSize {
+        self.size.to_dip(self.scale_factor)
     }
 }
 #[cfg(feature = "full")]
 impl<'a> From<&'a glutin::monitor::MonitorHandle> for MonitorInfo {
     fn from(m: &'a glutin::monitor::MonitorHandle) -> Self {
-        let pos = m.position();
-        let size = m.size();
+        let position = m.position().to_px();
+        let size = m.size().to_px();
         Self {
             name: m.name().unwrap_or_default(),
-            position: (pos.x, pos.y),
-            size: (size.width, size.height),
+            position,
+            size,
             scale_factor: m.scale_factor() as f32,
             video_modes: m.video_modes().map(Into::into).collect(),
             is_primary: false,
@@ -1204,7 +1214,7 @@ impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoMode {
     /// Resolution of this video mode.
-    pub size: (u32, u32),
+    pub size: PxSize,
     /// the bit depth of this video mode, as in how many bits you have available per color.
     /// This is generally 24 bits or 32 bits on modern systems, depending on whether the alpha channel is counted or not.
     pub bit_depth: u16,
@@ -1218,7 +1228,7 @@ impl From<glutin::monitor::VideoMode> for VideoMode {
     fn from(v: glutin::monitor::VideoMode) -> Self {
         let size = v.size();
         Self {
-            size: (size.width, size.height),
+            size: PxSize::new(Px(size.width as i32), Px(size.height as i32)),
             bit_depth: v.bit_depth(),
             refresh_rate: v.refresh_rate(),
         }
@@ -1236,14 +1246,14 @@ pub struct MultiClickConfig {
     /// Maximum (x, y) distance in pixels.
     ///
     /// Only repeated clicks that are within this distance of the first click can count as double-clicks.
-    pub area: (u32, u32),
+    pub area: PxSize,
 }
 impl Default for MultiClickConfig {
     /// `500ms` and `4, 4`.
     fn default() -> Self {
         Self {
             time: Duration::from_millis(500),
-            area: (4, 4),
+            area: PxSize::new(Px(4), Px(4)),
         }
     }
 }

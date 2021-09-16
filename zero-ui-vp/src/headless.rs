@@ -2,13 +2,11 @@ use std::rc::Rc;
 
 use gleam::gl;
 use glutin::{dpi::PhysicalSize, Api as GApi, ContextBuilder, GlRequest};
-use webrender::{
-    api::{units::*, *},
-    RenderApi, Renderer, RendererOptions, Transaction,
-};
+use webrender::{api::*, RenderApi, Renderer, RendererOptions, Transaction};
 
 use crate::{
     config,
+    units::*,
     util::{self, GlHeadlessContext},
     AppEvent, AppEventSender, Context, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WinId,
 };
@@ -18,7 +16,7 @@ pub(crate) struct ViewHeadless {
     pipeline_id: PipelineId,
     document_id: DocumentId,
     api: RenderApi,
-    size: LayoutSize,
+    size: DipSize,
     scale_factor: f32,
     clear_color: Option<ColorF>,
 
@@ -103,10 +101,7 @@ impl ViewHeadless {
             opts.clear_color = clear_color;
         }
 
-        let device_size = DeviceIntSize::new(
-            (cfg.size.width * cfg.scale_factor) as i32,
-            (cfg.size.height * cfg.scale_factor) as i32,
-        );
+        let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 
         let (renderer, sender) = webrender::Renderer::new(
             Rc::clone(&gl),
@@ -144,9 +139,10 @@ impl ViewHeadless {
         }
     }
 
-    fn resize(gl: &Rc<dyn gl::Gl>, rbos: [u32; 2], size: LayoutSize, scale_factor: f32) {
-        let width = (size.width / scale_factor) as i32;
-        let height = (size.height / scale_factor) as i32;
+    fn resize(gl: &Rc<dyn gl::Gl>, rbos: [u32; 2], size: DipSize, scale_factor: f32) {
+        let size = size.to_px(scale_factor);
+        let width = size.width.0;
+        let height = size.height.0;
 
         gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[0]);
         gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, width, height);
@@ -161,7 +157,7 @@ impl ViewHeadless {
         self.id
     }
 
-    pub fn size(&self) -> LayoutSize {
+    pub fn size(&self) -> DipSize {
         self.size
     }
 
@@ -193,7 +189,7 @@ impl ViewHeadless {
         self.api.generate_font_instance_key()
     }
 
-    pub fn set_size(&mut self, size: LayoutSize, scale_factor: f32) {
+    pub fn set_size(&mut self, size: DipSize, scale_factor: f32) {
         if self.size != size || (self.scale_factor - scale_factor).abs() > 0.001 {
             self.size = size;
             self.scale_factor = scale_factor;
@@ -216,7 +212,8 @@ impl ViewHeadless {
             },
             frame.display_list.1,
         );
-        txn.set_display_list(frame.id, self.clear_color, self.size, (frame.pipeline_id, display_list), true);
+        let viewport_size = self.size.to_px(self.scale_factor).to_wr();
+        txn.set_display_list(frame.id, self.clear_color, viewport_size, (frame.pipeline_id, display_list), true);
         txn.set_root_pipeline(self.pipeline_id);
 
         self.push_resize(&mut txn);
@@ -239,13 +236,8 @@ impl ViewHeadless {
     fn push_resize(&mut self, txn: &mut Transaction) {
         if self.resized {
             self.resized = false;
-            txn.set_document_view(DeviceIntRect::new(
-                euclid::point2(0, 0),
-                euclid::point2(
-                    (self.size.width * self.scale_factor) as i32,
-                    (self.size.height * self.scale_factor) as i32,
-                ),
-            ));
+            let rect = PxRect::from_size(self.size.to_px(self.scale_factor)).to_wr_device();
+            txn.set_document_view(rect);
         }
     }
 
@@ -259,38 +251,28 @@ impl ViewHeadless {
         let renderer = self.renderer.as_mut().unwrap();
 
         renderer.update();
-
-        renderer
-            .render(
-                euclid::size2(
-                    (self.size.width * self.scale_factor) as i32,
-                    (self.size.height * self.scale_factor) as i32,
-                ),
-                0,
-            )
-            .unwrap();
+        renderer.render((self.size.to_px(self.scale_factor)).to_wr_device(), 0).unwrap();
         let _ = renderer.flush_pipeline_info();
     }
 
-    pub fn hit_test(&self, point: LayoutPoint) -> (Epoch, HitTestResult) {
+    pub fn hit_test(&self, point: PxPoint) -> (Epoch, HitTestResult) {
         (
             self.frame_id,
-            self.api.hit_test(
-                self.document_id,
-                Some(self.pipeline_id),
-                webrender::api::units::WorldPoint::new(point.x, point.y),
-            ),
+            self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),
         )
     }
 
     pub fn read_pixels(&mut self) -> FramePixels {
-        self.read_pixels_rect(euclid::Rect::from_size(self.size))
-    }
-
-    pub fn read_pixels_rect(&mut self, rect: euclid::Rect<f32, LayoutPixel>) -> FramePixels {
+        let px_size = self.size.to_px(self.scale_factor);
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-        util::read_pixels_rect(&self.gl, self.size, self.scale_factor, rect)
+        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor)
+    }
+
+    pub fn read_pixels_rect(&mut self, rect: PxRect) -> FramePixels {
+        // `self.gl` is only valid if we are the current context.
+        let _ctx = self.context.make_current();
+        util::read_pixels_rect(&self.gl, self.size.to_px(self.scale_factor), rect, self.scale_factor)
     }
 }
 impl Drop for ViewHeadless {

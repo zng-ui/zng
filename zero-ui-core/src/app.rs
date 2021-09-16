@@ -1862,7 +1862,7 @@ pub mod view_process {
     use crate::mouse::MultiClickConfig;
     use crate::render::FrameId;
     use crate::service::Service;
-    use crate::units::{LayoutPoint, LayoutRect, LayoutSize};
+    use crate::units::{DipPoint, DipSize, PxPoint, PxRect};
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
 
@@ -2171,25 +2171,25 @@ pub mod view_process {
 
         /// Set the window position.
         #[inline]
-        pub fn set_position(&self, pos: LayoutPoint) -> Result<()> {
+        pub fn set_position(&self, pos: DipPoint) -> Result<()> {
             self.0.call(|id, p| p.set_position(id, pos))
         }
 
         /// Set the window size.
         #[inline]
-        pub fn set_size(&self, size: LayoutSize, frame: FrameRequest) -> Result<()> {
+        pub fn set_size(&self, size: DipSize, frame: FrameRequest) -> Result<()> {
             self.0.call(|id, p| p.set_size(id, size, frame))
         }
 
         /// Set the window minimum size.
         #[inline]
-        pub fn set_min_size(&self, size: LayoutSize) -> Result<()> {
+        pub fn set_min_size(&self, size: DipSize) -> Result<()> {
             self.0.call(|id, p| p.set_min_size(id, size))
         }
 
         /// Set the window maximum size.
         #[inline]
-        pub fn set_max_size(&self, size: LayoutSize) -> Result<()> {
+        pub fn set_max_size(&self, size: DipSize) -> Result<()> {
             self.0.call(|id, p| p.set_max_size(id, size))
         }
 
@@ -2226,7 +2226,7 @@ pub mod view_process {
     impl ViewHeadless {
         /// Resize the headless surface.
         #[inline]
-        pub fn set_size(&self, size: LayoutSize, scale_factor: f32) -> Result<()> {
+        pub fn set_size(&self, size: DipSize, scale_factor: f32) -> Result<()> {
             self.0.call(|id, p| p.set_headless_size(id, size, scale_factor))
         }
 
@@ -2348,7 +2348,7 @@ pub mod view_process {
         }
 
         /// Gets the viewport size (window inner size).
-        pub fn size(&self) -> Result<LayoutSize> {
+        pub fn size(&self) -> Result<DipSize> {
             self.call(|id, p| p.size(id))
         }
 
@@ -2361,8 +2361,8 @@ pub mod view_process {
         ///
         /// This is a call to `glReadPixels`, each pixel row is stacked from
         /// bottom-to-top with the pixel type BGRA8.
-        pub fn read_pixels_rect(&self, rect: LayoutRect) -> Result<FramePixels> {
-            self.call(|id, p| p.read_pixels_rect(id, rect.to_rect()))
+        pub fn read_pixels_rect(&self, rect: PxRect) -> Result<FramePixels> {
+            self.call(|id, p| p.read_pixels_rect(id, rect))
         }
 
         /// Read all pixels of the current frame.
@@ -2375,7 +2375,7 @@ pub mod view_process {
         /// Get display items of the last rendered frame that intercept the `point`.
         ///
         /// Returns all hits from front-to-back.
-        pub fn hit_test(&self, point: LayoutPoint) -> Result<(FrameId, HitTestResult)> {
+        pub fn hit_test(&self, point: PxPoint) -> Result<(FrameId, HitTestResult)> {
             self.call(|id, p| p.hit_test(id, point))
         }
 
@@ -2448,7 +2448,7 @@ pub mod raw_events {
         keyboard::{Key, KeyState, ModifiersState, ScanCode},
         mouse::{ButtonState, MouseButton, MultiClickConfig},
         render::FrameId,
-        units::{LayoutPoint, LayoutSize},
+        units::{DipPoint, DipSize},
         window::{EventCause, MonitorId, WindowId, WindowTheme},
     };
 
@@ -2532,7 +2532,7 @@ pub mod raw_events {
             pub window_id: WindowId,
 
             /// Window top-left offset, including the system chrome.
-            pub position: LayoutPoint,
+            pub position: DipPoint,
 
             /// Who moved the window.
             pub cause: EventCause,
@@ -2567,7 +2567,7 @@ pub mod raw_events {
             pub window_id: WindowId,
 
             /// Window new size.
-            pub size: LayoutSize,
+            pub size: DipSize,
 
             /// Who resized the window.
             pub cause: EventCause,
@@ -2664,7 +2664,7 @@ pub mod raw_events {
             pub device_id: DeviceId,
 
             /// Position of the cursor over the window, (0, 0) is the top-left.
-            pub position: LayoutPoint,
+            pub position: DipPoint,
 
             /// Raw hit-test.
             pub hit_test: crate::render::webrender_api::HitTestResult,

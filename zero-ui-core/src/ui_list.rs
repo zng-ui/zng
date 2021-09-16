@@ -1,4 +1,4 @@
-use super::units::{LayoutPoint, LayoutSize};
+use super::units::{AvailableSize, PxPoint, PxSize};
 #[allow(unused)] // used in docs.
 use super::UiNode;
 use super::{
@@ -61,11 +61,11 @@ pub trait UiNodeList: 'static {
     /// This is how you get the widget desired size.
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
     where
-        A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
-        D: FnMut(usize, LayoutSize, &mut LayoutContext);
+        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
+        D: FnMut(usize, PxSize, &mut LayoutContext);
 
     /// Calls [`UiNode::measure`] in only the `index` widget.
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
 
     /// Calls [`UiNode::arrange`] in all widgets in the list, sequentially.
     ///
@@ -75,10 +75,10 @@ pub trait UiNodeList: 'static {
     /// final size the widget must use.
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> LayoutSize;
+        F: FnMut(usize, &mut LayoutContext) -> PxSize;
 
     /// Calls [`UiNode::arrange`] in only the `index` widget.
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize);
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize);
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially. Uses a reference frame
     /// to offset each widget.
@@ -89,7 +89,7 @@ pub trait UiNodeList: 'static {
     /// be used to render it.
     fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize) -> LayoutPoint;
+        O: FnMut(usize) -> PxPoint;
 
     /// Calls [`UiNode::render`] in only the `index` widget.
     fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder);
@@ -143,7 +143,7 @@ pub trait WidgetList: UiNodeList {
     fn widget_state_mut(&mut self, index: usize) -> &mut StateMap;
 
     /// Gets the last arranged size of the widget at the `index`.
-    fn widget_size(&self, index: usize) -> LayoutSize;
+    fn widget_size(&self, index: usize) -> PxSize;
 
     /// Calls [`UiNode::render`] in all widgets in the list that have an origin, sequentially. Uses a reference frame
     /// to offset each widget.
@@ -154,7 +154,7 @@ pub trait WidgetList: UiNodeList {
     /// be used to render it, if it must be rendered.
     fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>;
+        O: FnMut(usize, &StateMap) -> Option<PxPoint>;
 }
 
 /// A vector of boxed [`Widget`] items.
@@ -279,8 +279,8 @@ impl<U: UiNode> UiNodeList for Vec<U> {
 
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
     where
-        A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
-        D: FnMut(usize, LayoutSize, &mut LayoutContext),
+        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
+        D: FnMut(usize, PxSize, &mut LayoutContext),
     {
         for (i, w) in self.iter_mut().enumerate() {
             let available_size = available_size(i, ctx);
@@ -289,13 +289,13 @@ impl<U: UiNode> UiNodeList for Vec<U> {
         }
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         self[index].measure(ctx, available_size)
     }
 
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
         for (i, w) in self.iter_mut().enumerate() {
             let final_size = final_size(i, ctx);
@@ -303,13 +303,13 @@ impl<U: UiNode> UiNodeList for Vec<U> {
         }
     }
 
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
         self[index].arrange(ctx, final_size)
     }
 
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize) -> LayoutPoint,
+        O: FnMut(usize) -> PxPoint,
     {
         for (i, w) in self.iter().enumerate() {
             let origin = origin(i);
@@ -352,13 +352,13 @@ impl<W: Widget> WidgetList for Vec<W> {
         self[index].state_mut()
     }
 
-    fn widget_size(&self, index: usize) -> LayoutSize {
+    fn widget_size(&self, index: usize) -> PxSize {
         self[index].size()
     }
 
     fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
+        O: FnMut(usize, &StateMap) -> Option<PxPoint>,
     {
         for (i, w) in self.iter().enumerate() {
             if let Some(origin) = origin(i, w.state()) {
@@ -398,30 +398,30 @@ impl UiNodeList for WidgetVec {
 
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
     where
-        A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
-        D: FnMut(usize, LayoutSize, &mut LayoutContext),
+        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
+        D: FnMut(usize, PxSize, &mut LayoutContext),
     {
         self.0.measure_all(ctx, available_size, desired_size)
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         self.0.widget_measure(index, ctx, available_size)
     }
 
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
         self.0.arrange_all(ctx, final_size)
     }
 
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
         self.0.widget_arrange(index, ctx, final_size)
     }
 
     fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize) -> LayoutPoint,
+        O: FnMut(usize) -> PxPoint,
     {
         self.0.render_all(origin, ctx, frame)
     }
@@ -455,13 +455,13 @@ impl WidgetList for WidgetVec {
         self.0.widget_state_mut(index)
     }
 
-    fn widget_size(&self, index: usize) -> LayoutSize {
+    fn widget_size(&self, index: usize) -> PxSize {
         self.0.widget_size(index)
     }
 
     fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
+        O: FnMut(usize, &StateMap) -> Option<PxPoint>,
     {
         self.0.render_filtered(origin, ctx, frame)
     }
@@ -567,30 +567,30 @@ impl UiNodeList for UiNodeVec {
 
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
     where
-        A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
-        D: FnMut(usize, LayoutSize, &mut LayoutContext),
+        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
+        D: FnMut(usize, PxSize, &mut LayoutContext),
     {
         self.0.measure_all(ctx, available_size, desired_size)
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         self.0.widget_measure(index, ctx, available_size)
     }
 
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
         self.0.arrange_all(ctx, final_size)
     }
 
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
         self.0.widget_arrange(index, ctx, final_size)
     }
 
     fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize) -> LayoutPoint,
+        O: FnMut(usize) -> PxPoint,
     {
         self.0.render_all(origin, ctx, frame)
     }
@@ -885,8 +885,8 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     #[inline(always)]
     fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
     where
-        AS: FnMut(usize, &mut LayoutContext) -> LayoutSize,
-        D: FnMut(usize, LayoutSize, &mut LayoutContext),
+        AS: FnMut(usize, &mut LayoutContext) -> AvailableSize,
+        D: FnMut(usize, PxSize, &mut LayoutContext),
     {
         self.0
             .measure_all(ctx, |i, c| available_size(i, c), |i, l, c| desired_size(i, l, c));
@@ -896,7 +896,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline]
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_measure(index, ctx, available_size)
@@ -908,7 +908,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     #[inline(always)]
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
         self.0.arrange_all(ctx, |i, c| final_size(i, c));
         let offset = self.0.len();
@@ -916,7 +916,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline]
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_arrange(index, ctx, final_size)
@@ -928,7 +928,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     #[inline(always)]
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize) -> LayoutPoint,
+        O: FnMut(usize) -> PxPoint,
     {
         self.0.render_all(|i| origin(i), ctx, frame);
         let offset = self.0.len();
@@ -973,7 +973,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
     #[inline(always)]
     fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
+        O: FnMut(usize, &StateMap) -> Option<PxPoint>,
     {
         self.0.render_filtered(|i, s| origin(i, s), ctx, frame);
         let offset = self.0.len();
@@ -1011,7 +1011,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
     }
 
     #[inline]
-    fn widget_size(&self, index: usize) -> LayoutSize {
+    fn widget_size(&self, index: usize) -> PxSize {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_size(index)
@@ -1071,8 +1071,8 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     #[inline(always)]
     fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
     where
-        AS: FnMut(usize, &mut LayoutContext) -> LayoutSize,
-        D: FnMut(usize, LayoutSize, &mut LayoutContext),
+        AS: FnMut(usize, &mut LayoutContext) -> AvailableSize,
+        D: FnMut(usize, PxSize, &mut LayoutContext),
     {
         self.0
             .measure_all(ctx, |i, c| available_size(i, c), |i, l, c| desired_size(i, l, c));
@@ -1082,7 +1082,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline]
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_measure(index, ctx, available_size)
@@ -1094,7 +1094,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     #[inline(always)]
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
         self.0.arrange_all(ctx, |i, c| final_size(i, c));
         let offset = self.0.len();
@@ -1102,7 +1102,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline]
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_arrange(index, ctx, final_size)
@@ -1114,7 +1114,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     #[inline(always)]
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize) -> LayoutPoint,
+        O: FnMut(usize) -> PxPoint,
     {
         self.0.render_all(|i| origin(i), ctx, frame);
         let offset = self.0.len();
@@ -1167,7 +1167,7 @@ macro_rules! impl_tuples {
             #[inline(always)]
             fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
-                O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
+                O: FnMut(usize, &StateMap) -> Option<PxPoint>,
             {
                 $(
                 if let Some(o) = origin($n, self.$n.state()) {
@@ -1201,7 +1201,7 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_size(&self, index: usize) -> LayoutSize {
+            fn widget_size(&self, index: usize) -> PxSize {
                 match index {
                     $($n => self.$n.size(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
@@ -1255,8 +1255,8 @@ macro_rules! impl_tuples {
             #[inline(always)]
             fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
             where
-                A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
-                D: FnMut(usize, LayoutSize, &mut LayoutContext),
+                A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
+                D: FnMut(usize, PxSize, &mut LayoutContext),
             {
                 $(
                 let av_sz = available_size($n, ctx);
@@ -1266,7 +1266,7 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 match index {
                     $(
                         $n => self.$n.measure(ctx, available_size),
@@ -1278,7 +1278,7 @@ macro_rules! impl_tuples {
             #[inline(always)]
             fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
             where
-                F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+                F: FnMut(usize, &mut LayoutContext) -> PxSize,
             {
                 $(
                 let fi_sz = final_size($n, ctx);
@@ -1287,7 +1287,7 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
                 match index {
                     $(
                         $n => self.$n.arrange(ctx, final_size),
@@ -1299,7 +1299,7 @@ macro_rules! impl_tuples {
             #[inline(always)]
             fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
-                O: FnMut(usize) -> LayoutPoint,
+                O: FnMut(usize) -> PxPoint,
             {
                 $(
                 let o = origin($n);
@@ -1380,31 +1380,31 @@ macro_rules! empty_node_list {
             #[inline]
             fn measure_all<A, D>(&mut self, _: &mut LayoutContext, _: A, _: D)
             where
-                A: FnMut(usize, &mut LayoutContext) -> LayoutSize,
-                D: FnMut(usize, LayoutSize, &mut LayoutContext),
+                A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
+                D: FnMut(usize, PxSize, &mut LayoutContext),
             {
             }
 
             #[inline]
-            fn widget_measure(&mut self, index: usize, _: &mut LayoutContext, _: LayoutSize) -> LayoutSize {
+            fn widget_measure(&mut self, index: usize, _: &mut LayoutContext, _: AvailableSize) -> PxSize {
                 panic!("index {} out of range for length 0", index)
             }
 
             #[inline]
             fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: F)
             where
-                F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+                F: FnMut(usize, &mut LayoutContext) -> PxSize,
             {
             }
 
             #[inline]
-            fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: LayoutSize) {
+            fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: PxSize) {
                 panic!("index {} out of range for length 0", index)
             }
 
             fn render_all<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
             where
-                O: FnMut(usize) -> LayoutPoint,
+                O: FnMut(usize) -> PxPoint,
             {
             }
 
@@ -1435,7 +1435,7 @@ impl WidgetList for WidgetList0 {
 
     fn render_filtered<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<LayoutPoint>,
+        O: FnMut(usize, &StateMap) -> Option<PxPoint>,
     {
     }
 
@@ -1451,7 +1451,7 @@ impl WidgetList for WidgetList0 {
         panic!("index {} out of range for length 0", index)
     }
 
-    fn widget_size(&self, index: usize) -> LayoutSize {
+    fn widget_size(&self, index: usize) -> PxSize {
         panic!("index {} out of range for length 0", index)
     }
 }

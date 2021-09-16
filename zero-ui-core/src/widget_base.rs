@@ -4,23 +4,17 @@ use std::{fmt, ops};
 
 use crate::event::EventUpdateArgs;
 use crate::var::{context_var, impl_from_and_into_var, IntoVar, WithVars, WithVarsRead};
+use crate::var::{Var, VarsRead};
 use crate::{
     context::RenderContext,
     render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey},
 };
 use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
-    units::LayoutPoint,
+    units::{AvailableSize, PxPoint, PxSize},
     WidgetList,
 };
 use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
-use crate::{
-    units::LayoutSize,
-    var::{Var, VarsRead},
-};
-
-#[cfg(debug_assertions)]
-use crate::units::PixelGridExt;
 
 /// Base widget inherited implicitly by all [widgets](widget!) that don't inherit from
 /// any other widget.
@@ -125,7 +119,7 @@ pub mod implicit_base {
             transform_key: WidgetTransformKey,
             state: OwnedStateMap,
             child: T,
-            size: LayoutSize,
+            size: PxSize,
             #[cfg(debug_assertions)]
             inited: bool,
         }
@@ -181,24 +175,11 @@ pub mod implicit_base {
                 ctx.widget_context(self.id, &mut self.state, |ctx| child.event(ctx, args));
             }
             #[inline(always)]
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
                         log::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
-                    }
-
-                    fn valid_measure(f: f32) -> bool {
-                        f.is_finite() || crate::units::is_layout_any_size(f)
-                    }
-
-                    if !valid_measure(available_size.width) || !valid_measure(available_size.height) {
-                        log::error!(
-                            target: "widget_base",
-                            "{:?} `UiNode::measure` called with invalid `available_size: {:?}`, must be finite or `LAYOUT_ANY_SIZE`",
-                            self.id,
-                            available_size
-                        );
                     }
                 }
 
@@ -206,50 +187,18 @@ pub mod implicit_base {
                 let child_size = ctx.with_widget(self.id, &mut self.state, |ctx| child.measure(ctx, available_size));
 
                 #[cfg(debug_assertions)]
-                {
-                    if !child_size.width.is_finite() || !child_size.height.is_finite() {
-                        log::error!(target: "widget_base", "{:?} `UiNode::measure` result is not finite: `{:?}`", self.id, child_size);
-                    } else if !child_size.is_aligned_to(ctx.metrics.pixel_grid) {
-                        let snapped = child_size.snap_to(ctx.metrics.pixel_grid);
-                        log::error!(
-                            target: "widget_base",
-                            "{:?} `UiNode::measure` result not aligned, was: `{:?}`, expected: `{:?}`",
-                            self.id,
-                            child_size,
-                            snapped
-                        );
-                        return snapped;
-                    }
-                }
+                {}
 
                 child_size
             }
             #[inline(always)]
-            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                 self.size = final_size;
 
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
                         log::error!(target: "widget_base", "`UiNode::arrange` called in not inited widget {:?}", self.id);
-                    }
-
-                    if !final_size.width.is_finite() || !final_size.height.is_finite() {
-                        log::error!(
-                            target: "widget_base",
-                            "{:?} `UiNode::arrange` called with invalid `final_size: {:?}`, must be finite",
-                            self.id,
-                            final_size
-                        );
-                    } else if !final_size.is_aligned_to(ctx.metrics.pixel_grid) {
-                        self.size = final_size.snap_to(ctx.metrics.pixel_grid);
-                        log::error!(
-                            target: "widget_base",
-                            "{:?} `UiNode::arrange` called with not aligned value, was: `{:?}`, expected: `{:?}`",
-                            self.id,
-                            final_size,
-                            self.size
-                        );
                     }
                 }
 
@@ -296,7 +245,7 @@ pub mod implicit_base {
                 &mut self.state.0
             }
             #[inline]
-            fn size(&self) -> LayoutSize {
+            fn size(&self) -> PxSize {
                 self.size
             }
         }
@@ -306,7 +255,7 @@ pub mod implicit_base {
             transform_key: WidgetTransformKey::new_unique(),
             state: OwnedStateMap::default(),
             child,
-            size: LayoutSize::zero(),
+            size: PxSize::zero(),
             #[cfg(debug_assertions)]
             inited: false,
         }
@@ -507,14 +456,14 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.with_context(ctx.vars, |c| c.update(ctx));
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             match self.visibility.copy(ctx) {
                 Visibility::Visible | Visibility::Hidden => self.child.measure(ctx, available_size),
-                Visibility::Collapsed => LayoutSize::zero(),
+                Visibility::Collapsed => PxSize::zero(),
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             if let Visibility::Visible = self.visibility.get(ctx) {
                 self.child.arrange(ctx, final_size)
             }
@@ -656,7 +605,7 @@ pub trait WidgetListVisibilityExt: WidgetList {
     fn count_not_collapsed(&self) -> usize;
 
     /// Render widgets, calls `origin` only for widgets that are not collapsed.
-    fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+    fn render_not_collapsed<O: FnMut(usize) -> PxPoint>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder);
 }
 
 impl<U: WidgetList> WidgetListVisibilityExt for U {
@@ -664,7 +613,7 @@ impl<U: WidgetList> WidgetListVisibilityExt for U {
         self.count(|_, s| s.visibility() != Visibility::Collapsed)
     }
 
-    fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render_not_collapsed<O: FnMut(usize) -> PxPoint>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         self.render_filtered(
             |i, s| {
                 if s.visibility() != Visibility::Collapsed {

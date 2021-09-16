@@ -274,8 +274,8 @@ pub struct HeadlessMonitor {
     /// This is used to calculate relative lengths in the window size definition and is defined in
     /// layout pixels instead of device like in a real monitor info.
     ///
-    /// `(1920.0, 1080.0)` by default.
-    pub size: LayoutSize,
+    /// `(1920, 1080)` by default.
+    pub size: DipSize,
 
     /// Pixel-per-inches used for the headless layout and rendering.
     ///
@@ -298,13 +298,13 @@ impl fmt::Debug for HeadlessMonitor {
 impl HeadlessMonitor {
     /// New with custom size at `1.0` scale.
     #[inline]
-    pub fn new(size: LayoutSize) -> Self {
+    pub fn new(size: DipSize) -> Self {
         Self::new_scaled(size, 1.0)
     }
 
     /// New with custom size and scale.
     #[inline]
-    pub fn new_scaled(size: LayoutSize, scale_factor: f32) -> Self {
+    pub fn new_scaled(size: DipSize, scale_factor: f32) -> Self {
         HeadlessMonitor {
             scale_factor,
             size,
@@ -324,21 +324,21 @@ impl HeadlessMonitor {
 impl Default for HeadlessMonitor {
     /// New `1920x1080` at `1.0` scale.
     fn default() -> Self {
-        Self::new(LayoutSize::new(1920.0, 1080.0))
+        (1920, 1080).into()
     }
 }
 impl IntoValue<HeadlessMonitor> for (f32, f32) {}
 impl From<(f32, f32)> for HeadlessMonitor {
     /// Calls [`HeadlessMonitor::new_scaled`]
     fn from((width, height): (f32, f32)) -> Self {
-        Self::new(LayoutSize::new(width, height))
+        Self::new(DipSize::new(Dip::new_f32(width), Dip::new_f32(height)))
     }
 }
 impl IntoValue<HeadlessMonitor> for (u32, u32) {}
 impl From<(u32, u32)> for HeadlessMonitor {
     /// Calls [`HeadlessMonitor::new`]
     fn from((width, height): (u32, u32)) -> Self {
-        Self::new(LayoutSize::new(width as f32, height as f32))
+        Self::new(DipSize::new(Dip::new(width as i32), Dip::new(height as i32)))
     }
 }
 impl IntoValue<HeadlessMonitor> for FactorNormal {}
@@ -838,7 +838,7 @@ event_args! {
         /// Window ID.
         pub window_id: WindowId,
         /// New window size.
-        pub new_size: LayoutSize,
+        pub new_size: DipSize,
         /// Who resized the window.
         pub cause: EventCause,
 
@@ -855,7 +855,7 @@ event_args! {
         /// Window ID.
         pub window_id: WindowId,
         /// New window position.
-        pub new_position: LayoutPoint,
+        pub new_position: DipPoint,
         /// Who moved the window.
         pub cause: EventCause,
 
@@ -1595,11 +1595,15 @@ impl Windows {
     /// Copy a rectangle of pixels of the window's latest frame.
     ///
     /// The `rect` is converted to pixels coordinates using the current window's scale factor.
-    pub fn frame_pixels_rect(&self, window_id: WindowId, rect: impl Into<LayoutRect>) -> Result<FramePixels, WindowNotFound> {
+    pub fn frame_pixels_rect(&self, window_id: WindowId, rect: impl Into<DipRect>) -> Result<FramePixels, WindowNotFound> {
+        let info = 
         self.windows_info
             .get(&window_id)
-            .ok_or(WindowNotFound(window_id))? // not found here
-            .renderer
+            .ok_or(WindowNotFound(window_id))?; // not found here
+
+        let rect = rect.into().to_px(info.scale_factor);        
+
+        info.renderer
             .as_ref()
             .map(|r| r.read_pixels_rect(rect.into()).map(Into::into))
             .unwrap_or_else(|| Ok(FramePixels::default())) // no renderer
@@ -1612,7 +1616,7 @@ impl Windows {
     }
 
     /// Hit-test the latest window frame.
-    pub fn hit_test(&self, window_id: WindowId, point: LayoutPoint) -> Result<FrameHitInfo, WindowNotFound> {
+    pub fn hit_test(&self, window_id: WindowId, point: DipPoint) -> Result<FrameHitInfo, WindowNotFound> {
         self.windows_info
             .get(&window_id)
             .map(|w| w.hit_test(point))
@@ -1704,8 +1708,9 @@ struct AppWindowInfo {
     is_focused: bool,
 }
 impl AppWindowInfo {
-    fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
+    fn hit_test(&self, point: DipPoint) -> FrameHitInfo {
         if let Some(r) = &self.renderer {
+            let point = point.to_px(self.scale_factor);
             match r.hit_test(point) {
                 Ok((frame_id, hit_test)) => {
                     return FrameHitInfo::new(self.id, frame_id, point, &hit_test);
@@ -1747,10 +1752,10 @@ struct AppWindow {
     // latest frame.
     frame_id: FrameId,
 
-    position: LayoutPoint,
-    size: LayoutSize,
-    min_size: LayoutSize,
-    max_size: LayoutSize,
+    position: DipPoint,
+    size: DipSize,
+    min_size: DipSize,
+    max_size: DipSize,
 
     deinited: bool,
 }
@@ -1821,10 +1826,10 @@ impl AppWindow {
             first_render: true,
 
             frame_id: frame_info.frame_id(),
-            position: LayoutPoint::new(f32::NAN, f32::NAN), // we use NAN to mean OS start position.
-            size: LayoutSize::zero(),
-            min_size: LayoutSize::zero(),
-            max_size: LayoutSize::zero(),
+            position: DipPoint::zero(),
+            size: DipSize::zero(),
+            min_size: DipSize::zero(),
+            max_size: DipSize::zero(),
 
             deinited: false,
         };
@@ -1959,14 +1964,14 @@ impl AppWindow {
     }
 
     /// (monitor_size, scale_factor, ppi)
-    fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (LayoutSize, f32, f32) {
+    fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (DipSize, f32, f32) {
         if let WindowMode::Headed = self.mode {
             // TODO only query monitors in the first layout and after `monitor` updates only.
 
             // try `actual_monitor`
             if let Some(id) = self.vars.actual_monitor().copy(ctx) {
                 if let Some(m) = ctx.services.monitors().monitor(id) {
-                    return (m.info.layout_size(), m.info.scale_factor, m.ppi.copy(ctx.vars));
+                    return (m.info.dip_size(), m.info.scale_factor, m.ppi.copy(ctx.vars));
                 }
             }
 
@@ -1974,13 +1979,13 @@ impl AppWindow {
             {
                 let query = self.vars.monitor().get(ctx.vars);
                 if let Some(m) = query.select(ctx.services.monitors()) {
-                    return (m.info.layout_size(), m.info.scale_factor, m.ppi.copy(ctx.vars));
+                    return (m.info.dip_size(), m.info.scale_factor, m.ppi.copy(ctx.vars));
                 }
             }
 
             // fallback to primary monitor.
             if let Some(p) = ctx.services.monitors().primary_monitor() {
-                return (p.info.layout_size(), p.info.scale_factor, p.ppi.copy(ctx.vars));
+                return (p.info.dip_size(), p.info.scale_factor, p.ppi.copy(ctx.vars));
             }
 
             // fallback to headless defaults.
@@ -1995,8 +2000,9 @@ impl AppWindow {
     /// On resize we need to re-layout, render and send a frame render quick, because
     /// the view process blocks for up to one second waiting the new frame, to reduce the
     /// chances of the user seeing the clear_color when resizing.
-    fn on_resize_event(&mut self, ctx: &mut AppContext, actual_size: LayoutSize) {
+    fn on_resize_event(&mut self, ctx: &mut AppContext, actual_size: DipSize) {
         let (_scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+        let actual_size = actual_size.to_px(scr_factor);
         self.context.layout(ctx, 16.0, scr_factor, scr_ppi, actual_size, |_| actual_size);
         // the frame is send using the normal request
         self.on_render(ctx, UpdateDisplayRequest::ForceRender);
@@ -2111,22 +2117,22 @@ impl AppWindow {
     }
 
     /// Calculate the position var in the current monitor.
-    fn layout_position(&mut self, ctx: &mut AppContext) -> LayoutPoint {
+    fn layout_position(&mut self, ctx: &mut AppContext) -> DipPoint {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
         ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
             self.vars.position().get(ctx.vars).to_layout(ctx, scr_size)
-        })
+        }).to_dip(scr_factor)
     }
 
     /// Measure and arrange the content, returns the final, min and max sizes.
     ///
     /// If `use_system_size` is `true` the `size` variable is ignored.
-    fn layout_size(&mut self, ctx: &mut AppContext, use_system_size: bool) -> (LayoutSize, LayoutSize, LayoutSize) {
+    fn layout_size(&mut self, ctx: &mut AppContext, use_system_size: bool) -> (DipSize, DipSize, DipSize) {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
         let (available_size, min_size, max_size, auto_size) =
-            ctx.outer_layout_context(scr_size, scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+            ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
                 let mut size = if use_system_size {
                     self.size
                 } else {
@@ -2150,7 +2156,7 @@ impl AppWindow {
                 (size, min_size, max_size, auto_size)
             });
 
-        let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size, |desired_size| {
+        let final_size = self.context.layout(ctx, 16.0, scr_factor, scr_ppi, scr_size.to_px(scr_factor), |desired_size| {
             let mut final_size = available_size;
             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                 final_size.width = desired_size.width.max(min_size.width).min(available_size.width);
@@ -2425,15 +2431,15 @@ impl OwnedWindowContext {
         font_size: f32,
         scale_factor: f32,
         screen_ppi: f32,
-        available_size: LayoutSize,
-        calc_final_size: impl FnOnce(LayoutSize) -> LayoutSize,
-    ) -> LayoutSize {
+        available_size: PxSize,
+        calc_final_size: impl FnOnce(PxSize) -> PxSize,
+    ) -> DipSize {
         let root = &mut self.root;
         let (final_size, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let child = &mut root.child;
             ctx.layout_context(
                 font_size,
-                PixelGrid::new(scale_factor),
+                scale_factor,
                 screen_ppi,
                 available_size,
                 root.id,
@@ -2446,14 +2452,14 @@ impl OwnedWindowContext {
                 },
             )
         });
-        final_size
+        final_size.to_dip(scale_factor)
     }
 
     fn render(
         &mut self,
         ctx: &mut AppContext,
         frame_id: FrameId,
-        root_size: LayoutSize,
+        root_size: PxSize,
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, BuiltDisplayList), FrameInfo) {
@@ -2511,7 +2517,7 @@ struct WindowVarsData {
 
     state: RcVar<WindowState>,
 
-    position: RcVar<Point>,
+    position: RcVar<Option<Point>>,
     monitor: RcVar<MonitorQuery>,
 
     size: RcVar<Size>,
@@ -2519,9 +2525,9 @@ struct WindowVarsData {
     min_size: RcVar<Size>,
     max_size: RcVar<Size>,
 
-    actual_position: RcVar<LayoutPoint>,
+    actual_position: RcVar<DipPoint>,
     actual_monitor: RcVar<Option<MonitorId>>,
-    actual_size: RcVar<LayoutSize>,
+    actual_size: RcVar<DipSize>,
 
     resizable: RcVar<bool>,
     movable: RcVar<bool>,
@@ -2562,13 +2568,13 @@ impl WindowVars {
 
             state: var(WindowState::Normal),
 
-            position: var(Point::new(f32::NAN, f32::NAN)),
+            position: var(None),
             monitor: var(MonitorQuery::Primary),
             size: var(Size::new(800.0, 600.0)),
 
-            actual_position: var(LayoutPoint::new(f32::NAN, f32::NAN)),
+            actual_position: var(DipPoint::zero()),
             actual_monitor: var(None),
-            actual_size: var(LayoutSize::new(f32::NAN, f32::NAN)),
+            actual_size: var(DipSize::zero()),
 
             min_size: var(Size::new(192.0, 48.0)),
             max_size: var(Size::new(100.pct(), 100.pct())),
@@ -2655,12 +2661,12 @@ impl WindowVars {
     /// When the the window is moved this variable does **not** update back, to track the current position of the window
     /// use [`actual_position`].
     ///
-    /// The default value is `(f32::NAN, f32::NAN)` that causes the window or OS to select a value.
+    /// The default value is `None` that causes the window or OS to select a value.
     ///
     /// [`actual_position`]: WindowVars::actual_position
     /// [`monitor`]: WindowVars::monitor
     #[inline]
-    pub fn position(&self) -> &RcVar<Point> {
+    pub fn position(&self) -> &RcVar<Option<Point>> {
         &self.0.position
     }
 
@@ -2704,10 +2710,10 @@ impl WindowVars {
     /// This is a read-only variable that tracks the computed position of the window, it updates every
     /// time the window moves.
     ///
-    /// The initial value is `(f32::NAN, f32::NAN)` but this is updated quickly to an actual value. The point
+    /// The initial value is `(0, 0)` but this is updated quickly to an actual value. The point
     /// is relative to the origin of the virtual screen that envelops all monitors.
     #[inline]
-    pub fn actual_position(&self) -> ReadOnlyRcVar<LayoutPoint> {
+    pub fn actual_position(&self) -> ReadOnlyRcVar<DipPoint> {
         self.0.actual_position.clone().into_read_only()
     }
 
@@ -2731,9 +2737,9 @@ impl WindowVars {
     /// This is a read-only variable that tracks the computed size of the window, it updates every time
     /// the window resizes.
     ///
-    /// The initial value is `(f32::NAN, f32::NAN)` but this is updated quickly to an actual value.
+    /// The initial value is `(0, 0)` but this is updated quickly to an actual value.
     #[inline]
-    pub fn actual_size(&self) -> ReadOnlyRcVar<LayoutSize> {
+    pub fn actual_size(&self) -> ReadOnlyRcVar<DipSize> {
         self.0.actual_size.clone().into_read_only()
     }
 

@@ -82,14 +82,15 @@ pub fn text_aa() -> TextAntiAliasing {
 /// Gets the "double-click" settings.
 #[cfg(target_os = "windows")]
 pub fn multi_click_config() -> MultiClickConfig {
+    use crate::units::*;
     use winapi::um::winuser::*;
 
     unsafe {
         MultiClickConfig {
             time: Duration::from_millis(u64::from(GetDoubleClickTime())),
-            area: (
-                GetSystemMetrics(SM_CXDOUBLECLK).abs() as u32,
-                GetSystemMetrics(SM_CYDOUBLECLK).abs() as u32,
+            area: PxSize::new(
+                Px(GetSystemMetrics(SM_CXDOUBLECLK).abs() as i32),
+                Px(GetSystemMetrics(SM_CYDOUBLECLK).abs() as i32),
             ),
         }
     }

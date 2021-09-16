@@ -963,13 +963,13 @@ impl Filter {
     /// and layout context to calculate relative values.
     ///
     /// Relative blur radius lengths are calculated using the `available_size.width` value.
-    pub fn to_render(&self, ctx: &LayoutMetrics, available_size: LayoutSize) -> RenderFilter {
+    pub fn to_render(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> RenderFilter {
         self.filters
             .iter()
             .map(|f| match f {
                 FilterData::Op(op) => *op,
                 FilterData::Blur(l) => {
-                    let l = l.to_layout(ctx, LayoutLength::new(available_size.width)).get();
+                    let l = l.to_layout(ctx, available_size.width).0 as f32;
                     FilterOp::Blur(l, l)
                 }
                 FilterData::DropShadow {
@@ -977,9 +977,9 @@ impl Filter {
                     blur_radius,
                     color,
                 } => FilterOp::DropShadow(wr::Shadow {
-                    offset: offset.to_layout(ctx, available_size).to_vector(),
+                    offset: offset.to_layout(ctx, available_size).to_wr().to_vector(),
                     color: RenderColor::from(*color),
-                    blur_radius: blur_radius.to_layout(ctx, LayoutLength::new(available_size.width)).get(),
+                    blur_radius: blur_radius.to_layout(ctx, available_size.width).0 as f32,
                 }),
             })
             .collect()

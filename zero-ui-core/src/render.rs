@@ -2,7 +2,7 @@
 
 use crate::{
     app::view_process::ViewRenderer,
-    border::{BorderSides, LayoutBorderRadius},
+    border::BorderSides,
     color::{RenderColor, RenderFilter},
     context::{OwnedStateMap, RenderContext, StateMap},
     crate_util::IdMap,
@@ -137,7 +137,7 @@ pub struct FrameBuilder {
     spatial_id: SpatialId,
     parent_spatial_id: SpatialId,
 
-    offset: LayoutPoint,
+    offset: PxPoint,
 }
 bitflags! {
     struct WidgetDisplayMode: u8 {
@@ -164,11 +164,9 @@ impl FrameBuilder {
         renderer: Option<ViewRenderer>,
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
-        root_size: LayoutSize,
+        root_size: PxSize,
         scale_factor: f32,
     ) -> Self {
-        let root_size = LayoutSize::new(root_size.width * scale_factor, root_size.height * scale_factor).round();
-
         let pipeline_id = renderer
             .as_ref()
             .and_then(|r| r.pipeline_id().ok())
@@ -192,7 +190,7 @@ impl FrameBuilder {
             clip_id: ClipId::root(pipeline_id),
             spatial_id,
             parent_spatial_id: spatial_id,
-            offset: LayoutPoint::zero(),
+            offset: PxPoint::zero(),
         };
         new.push_widget_hit_area(root_id, root_size);
         new.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default()));
@@ -205,7 +203,7 @@ impl FrameBuilder {
         window_id: WindowId,
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
-        root_size: LayoutSize,
+        root_size: PxSize,
         scale_factor: f32,
     ) -> Self {
         Self::new(frame_id, window_id, None, root_id, root_transform_key, root_size, scale_factor)
@@ -217,14 +215,6 @@ impl FrameBuilder {
     #[inline]
     pub fn scale_factor(&self) -> f32 {
         self.scale_factor
-    }
-
-    /// Device pixel grid.
-    ///
-    /// All layout values must align with this grid.
-    #[inline]
-    pub fn pixel_grid(&self) -> PixelGrid {
-        PixelGrid::new(self.scale_factor)
     }
 
     /// Direct access to the display list builder.
@@ -334,9 +324,9 @@ impl FrameBuilder {
     ///
     /// This is a common case helper, the `clip_rect` is not snapped to pixels.
     #[inline]
-    pub fn common_item_ps(&self, clip_rect: LayoutRect) -> CommonItemProperties {
+    pub fn common_item_ps(&self, clip_rect: PxRect) -> CommonItemProperties {
         CommonItemProperties {
-            clip_rect,
+            clip_rect: clip_rect.to_wr(),
             clip_id: self.clip_id,
             spatial_id: self.spatial_id,
             flags: PrimitiveFlags::empty(),
@@ -350,7 +340,7 @@ impl FrameBuilder {
     /// [`hit_testable`]: FrameBuilder::hit_testable
     /// [`item_tag`]: FrameBuilder::item_tag
     #[inline]
-    pub fn common_hit_item_ps(&mut self, clip_rect: LayoutRect) -> CommonItemProperties {
+    pub fn common_hit_item_ps(&mut self, clip_rect: PxRect) -> CommonItemProperties {
         let item = self.common_item_ps(clip_rect);
         if self.hit_testable {
             self.display_list.push_hit_test(&item, self.item_tag());
@@ -362,11 +352,11 @@ impl FrameBuilder {
     /// if the widget id is hit in another ItemTag that is not WIDGET_HIT_AREA.
     ///
     /// This is done so we have consistent hit coordinates with precise hit area.
-    fn push_widget_hit_area(&mut self, id: WidgetId, area: LayoutSize) {
+    fn push_widget_hit_area(&mut self, id: WidgetId, area: PxSize) {
         self.open_widget_display();
 
         self.display_list
-            .push_hit_test(&self.common_item_ps(LayoutRect::from_size(area)), (id.get(), WIDGET_HIT_AREA));
+            .push_hit_test(&self.common_item_ps(PxRect::from_size(area)), (id.get(), WIDGET_HIT_AREA));
     }
 
     /// Includes a widget transform and continues the render build.
@@ -462,7 +452,7 @@ impl FrameBuilder {
 
                 self.parent_spatial_id = self.spatial_id;
                 self.spatial_id = self.display_list.push_reference_frame(
-                    LayoutPoint::zero(),
+                    PxPoint::zero().to_wr(),
                     self.spatial_id,
                     TransformStyle::Flat,
                     self.widget_transform_key.bind(transform),
@@ -485,7 +475,7 @@ impl FrameBuilder {
                 self.widget_display_mode |= WidgetDisplayMode::STACKING_CONTEXT;
 
                 self.display_list.push_simple_stacking_context_with_filters(
-                    LayoutPoint::zero(),
+                    PxPoint::zero().to_wr(),
                     self.spatial_id,
                     PrimitiveFlags::empty(),
                     &filters,
@@ -532,7 +522,7 @@ impl FrameBuilder {
         &mut self,
         id: WidgetId,
         transform_key: WidgetTransformKey,
-        area: LayoutSize,
+        area: PxSize,
         child: &impl UiNode,
         ctx: &mut RenderContext,
     ) {
@@ -542,8 +532,6 @@ impl FrameBuilder {
 
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
-
-        let area = LayoutSize::new(area.width * self.scale_factor, area.height * self.scale_factor).round();
 
         self.push_widget_hit_area(id, area); // self.open_widget_display() happens here.
 
@@ -555,7 +543,7 @@ impl FrameBuilder {
 
         let parent_meta = mem::take(&mut self.meta);
 
-        let bounds = LayoutRect::from_origin_and_size(self.offset, area);
+        let bounds = PxRect::new(self.offset, area);
 
         let node = self.info.push(self.info_id, id, bounds);
         let parent_node = mem::replace(&mut self.info_id, node);
@@ -580,12 +568,10 @@ impl FrameBuilder {
     /// Push a hit-test `rect` using [`common_item_properties`](FrameBuilder::common_item_properties)
     /// if [`hit_testable`](FrameBuilder::hit_testable) is `true`.
     #[inline]
-    pub fn push_hit_test(&mut self, rect: LayoutRect) {
+    pub fn push_hit_test(&mut self, rect: PxRect) {
         if self.cancel_widget {
             return;
         }
-
-        let rect = (rect * self.scale_factor).round();
 
         if self.hit_testable {
             self.open_widget_display();
@@ -607,12 +593,10 @@ impl FrameBuilder {
 
     /// Calls `f` with a new [`clip_id`](FrameBuilder::clip_id) that clips to `bounds`.
     #[inline]
-    pub fn push_simple_clip(&mut self, bounds: LayoutSize, f: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_simple_clip(&mut self, bounds: PxSize, f: impl FnOnce(&mut FrameBuilder)) {
         if self.cancel_widget {
             return;
         }
-
-        let bounds = (bounds * self.scale_factor).round();
 
         self.open_widget_display();
 
@@ -623,7 +607,7 @@ impl FrameBuilder {
                 spatial_id: self.spatial_id,
                 clip_id: self.clip_id,
             },
-            LayoutRect::from_size(bounds),
+            PxRect::from_size(bounds).to_wr(),
         );
 
         f(self);
@@ -634,16 +618,14 @@ impl FrameBuilder {
     // TODO use the widget transform instead of calling this method.
     /// Calls `f` inside a new reference frame at `origin`.
     #[inline]
-    pub fn push_reference_frame(&mut self, origin: LayoutPoint, f: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_reference_frame(&mut self, origin: PxPoint, f: impl FnOnce(&mut FrameBuilder)) {
         if self.cancel_widget {
             return;
         }
 
-        if origin == LayoutPoint::zero() {
+        if origin == PxPoint::zero() {
             return f(self);
         }
-
-        let origin = (origin * self.scale_factor).round();
 
         self.open_widget_display();
 
@@ -680,7 +662,7 @@ impl FrameBuilder {
 
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
-            LayoutPoint::zero(),
+            PxPoint::zero().to_wr(),
             parent_spatial_id,
             TransformStyle::Flat,
             transform,
@@ -700,13 +682,10 @@ impl FrameBuilder {
     ///
     /// [`common_item_properties`]: FrameBuilder::common_item_properties
     #[inline]
-    pub fn push_border(&mut self, bounds: LayoutRect, widths: LayoutSideOffsets, sides: BorderSides, radius: LayoutBorderRadius) {
+    pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         if self.cancel_widget {
             return;
         }
-
-        let bounds = (bounds * self.scale_factor).round();
-        let widths = widths * self.scale_factor;
 
         self.open_widget_display();
 
@@ -715,7 +694,7 @@ impl FrameBuilder {
             right: sides.right.into(),
             top: sides.top.into(),
             bottom: sides.bottom.into(),
-            radius,
+            radius: radius.to_border_radius(),
             do_aa: true,
         });
 
@@ -723,22 +702,16 @@ impl FrameBuilder {
         if self.hit_testable {
             self.display_list.push_hit_test(&info, self.item_tag());
         }
-        self.display_list.push_border(&info, bounds, widths, details);
+        self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
     }
 
     /// Push a text run using [`common_item_properties`].
     ///
     /// [`common_item_properties`]: FrameBuilder::common_item_properties
     #[inline]
-    pub fn push_text(&mut self, rect: LayoutRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
+    pub fn push_text(&mut self, rect: PxRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
         if self.cancel_widget {
             return;
-        }
-
-        let rect = (rect * self.scale_factor).round();
-        let mut glyphs = glyphs.to_vec();
-        for g in &mut glyphs {
-            g.point *= self.scale_factor;
         }
 
         self.open_widget_display();
@@ -747,14 +720,14 @@ impl FrameBuilder {
             let instance_key = font.instance_key(r, synthesis);
 
             let item = self.common_hit_item_ps(rect);
-            self.display_list.push_text(&item, rect, &glyphs, instance_key, color, None);
+            self.display_list.push_text(&item, rect.to_wr(), &glyphs, instance_key, color, None);
         }
     }
 
     /// Push an image using [`common_item_properties`].
     ///
     /// [`common_item_properties`]: FrameBuilder::common_item_properties
-    pub fn push_image(&mut self, rect: LayoutRect, image: &impl Image, rendering: ImageRendering) {
+    pub fn push_image(&mut self, rect: PxRect, image: &impl Image, rendering: ImageRendering) {
         if self.cancel_widget {
             return;
         }
@@ -765,7 +738,7 @@ impl FrameBuilder {
             let image_key = image.image_key(r);
             let item = self.common_hit_item_ps(rect);
             self.display_list
-                .push_image(&item, rect, rendering.into(), image.alpha_type(), image_key, RenderColor::WHITE)
+                .push_image(&item, rect.to_wr(), rendering.into(), image.alpha_type(), image_key, RenderColor::WHITE)
         }
     }
 
@@ -785,12 +758,10 @@ impl FrameBuilder {
 
     /// Push a color rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
-    pub fn push_color(&mut self, rect: LayoutRect, color: RenderColor) {
+    pub fn push_color(&mut self, rect: PxRect, color: RenderColor) {
         if self.cancel_widget {
             return;
         }
-
-        let rect = (rect * self.scale_factor).round();
 
         self.open_widget_display();
 
@@ -806,20 +777,16 @@ impl FrameBuilder {
     #[allow(clippy::too_many_arguments)]
     pub fn push_linear_gradient(
         &mut self,
-        rect: LayoutRect,
-        line: LayoutLine,
+        rect: PxRect,
+        line: PxLine,
         stops: &[RenderGradientStop],
         extend_mode: RenderExtendMode,
-        tile_size: LayoutSize,
-        tile_spacing: LayoutSize,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
     ) {
         if self.cancel_widget {
             return;
         }
-
-        let rect = (rect * self.scale_factor).round();
-        let tile_size = (tile_size * self.scale_factor).round();
-        let tile_spacing = (tile_spacing * self.scale_factor).round();
 
         debug_assert!(stops.len() >= 2);
         debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
@@ -833,20 +800,20 @@ impl FrameBuilder {
         self.display_list.push_stops(stops);
 
         let gradient = Gradient {
-            start_point: (line.start * self.scale_factor).round(),
-            end_point: (line.end * self.scale_factor).round(),
+            start_point: line.start.to_wr(),
+            end_point: line.end.to_wr(),
             extend_mode,
         };
 
         let item = self.common_hit_item_ps(rect);
-        self.display_list.push_gradient(&item, rect, gradient, tile_size, tile_spacing);
+        self.display_list.push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
     }
 
     /// Push a styled vertical or horizontal line.
     #[inline]
     pub fn push_line(
         &mut self,
-        bounds: LayoutRect,
+        bounds: PxRect,
         orientation: crate::border::LineOrientation,
         color: RenderColor,
         style: crate::border::LineStyle,
@@ -855,8 +822,6 @@ impl FrameBuilder {
             return;
         }
 
-        let bounds = (bounds * self.scale_factor).round();
-
         self.open_widget_display();
 
         let item = self.common_hit_item_ps(bounds);
@@ -864,13 +829,13 @@ impl FrameBuilder {
         match style.render_command() {
             RenderLineCommand::Line(style, thickness) => {
                 self.display_list
-                    .push_line(&item, &bounds, thickness, orientation.into(), &color, style)
+                    .push_line(&item, &bounds.to_wr(), thickness, orientation.into(), &color, style)
             }
             RenderLineCommand::Border(style) => {
                 use crate::border::LineOrientation as LO;
                 let widths = match orientation {
-                    LO::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, bounds.width()),
-                    LO::Horizontal => LayoutSideOffsets::new(bounds.height(), 0.0, 0.0, 0.0),
+                    LO::Vertical => PxSideOffsets::new(Px(0), Px(0), Px(0), bounds.width()),
+                    LO::Horizontal => PxSideOffsets::new(bounds.height(), Px(0), Px(0), Px(0)),
                 };
                 let details = BorderDetails::Normal(NormalBorder {
                     left: BorderSide { color, style },
@@ -896,15 +861,14 @@ impl FrameBuilder {
     ///
     /// The *dot* is a 4px/4px circle of the `color` that has two outlines white then black to increase contrast.
     #[inline]
-    pub fn push_debug_dot(&mut self, offset: LayoutPoint, color: impl Into<RenderColor>) {
+    pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
         // TODO use radial gradient to draw a dot.
-        let offset = offset.snap_to(self.pixel_grid());
 
-        let mut centered_rect = |mut o: LayoutPoint, s, c| {
-            let s = LayoutSize::new(s, s);
+        let mut centered_rect = |mut o: PxPoint, s, c| {
+            let s = PxSize::new(s, s);
             o.x -= s.width / 2.0;
             o.y -= s.height / 2.0;
-            let rect = LayoutRect::from_origin_and_size(o, s).snap_to(self.pixel_grid());
+            let rect = PxRect::new(o, s);
             self.push_color(rect, c);
         };
 
@@ -1150,7 +1114,7 @@ pub struct HitInfo {
     /// ID of widget hit.
     pub widget_id: WidgetId,
     /// Exact hit point in the widget space.
-    pub point: LayoutPoint,
+    pub point: PxPoint,
     /// Cursor icon selected for the widget.
     pub cursor: CursorIcon,
 }
@@ -1160,7 +1124,7 @@ pub struct HitInfo {
 pub struct FrameHitInfo {
     window_id: WindowId,
     frame_id: FrameId,
-    point: LayoutPoint,
+    point: PxPoint,
     hits: Vec<HitInfo>,
 }
 
@@ -1176,7 +1140,7 @@ impl FrameHitInfo {
     ///
     /// The tag marked with `WIDGET_HIT_AREA` is used to determine the [`HitInfo::point`](HitInfo::point).
     #[inline]
-    pub fn new(window_id: WindowId, frame_id: FrameId, point: LayoutPoint, hits: &HitTestResult) -> Self {
+    pub fn new(window_id: WindowId, frame_id: FrameId, point: PxPoint, hits: &HitTestResult) -> Self {
         let mut candidates = Vec::default();
         let mut actual_hits = IdMap::default();
 
@@ -1210,7 +1174,7 @@ impl FrameHitInfo {
         for (widget_id, raw_cursor) in actual_hits.drain() {
             hits.push(HitInfo {
                 widget_id,
-                point: LayoutPoint::new(-1.0, -1.0),
+                point: PxPoint::new(Px(-1.0), Px(-1.0)),
                 cursor: unpack_cursor(raw_cursor),
             })
         }
@@ -1231,7 +1195,7 @@ impl FrameHitInfo {
         FrameHitInfo::new(
             window_id,
             FrameId::invalid(),
-            LayoutPoint::new(-1.0, -1.0),
+            PxPoint::new(-1.0, -1.0),
             &HitTestResult::default(),
         )
     }
@@ -1250,7 +1214,7 @@ impl FrameHitInfo {
 
     /// The point in the window that was hit-tested.
     #[inline]
-    pub fn point(&self) -> LayoutPoint {
+    pub fn point(&self) -> PxPoint {
         self.point
     }
 
@@ -1309,10 +1273,10 @@ pub struct FrameInfoBuilder {
 impl FrameInfoBuilder {
     /// Starts building a frame info with the frame root information.
     #[inline]
-    pub fn new(window_id: WindowId, frame_id: FrameId, root_id: WidgetId, size: LayoutSize) -> Self {
+    pub fn new(window_id: WindowId, frame_id: FrameId, root_id: WidgetId, size: PxSize) -> Self {
         let tree = Tree::new(WidgetInfoInner {
             widget_id: root_id,
-            bounds: LayoutRect::from_size(size),
+            bounds: PxRect::from_size(size),
             meta: OwnedStateMap::new(),
         });
 
@@ -1347,7 +1311,7 @@ impl FrameInfoBuilder {
 
     /// Appends a widget child.
     #[inline]
-    pub fn push(&mut self, parent: WidgetInfoId, widget_id: WidgetId, bounds: LayoutRect) -> WidgetInfoId {
+    pub fn push(&mut self, parent: WidgetInfoId, widget_id: WidgetId, bounds: PxRect) -> WidgetInfoId {
         WidgetInfoId(
             self.node(parent)
                 .append(WidgetInfoInner {
@@ -1440,7 +1404,7 @@ impl FrameInfo {
     /// Blank window frame that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        FrameInfoBuilder::new(window_id, Epoch(0), root_id, LayoutSize::zero()).build()
+        FrameInfoBuilder::new(window_id, Epoch(0), root_id, PxSize::zero()).build()
     }
 
     /// Moment the frame info was finalized.
@@ -1649,7 +1613,7 @@ impl WidgetPath {
 
 struct WidgetInfoInner {
     widget_id: WidgetId,
-    bounds: LayoutRect,
+    bounds: PxRect,
     meta: OwnedStateMap,
 }
 
@@ -1740,13 +1704,13 @@ impl<'a> WidgetInfo<'a> {
 
     /// Widget rectangle in the frame.
     #[inline]
-    pub fn bounds(self) -> &'a LayoutRect {
+    pub fn bounds(self) -> &'a PxRect {
         &self.info().bounds
     }
 
     /// Widget bounds center.
     #[inline]
-    pub fn center(self) -> LayoutPoint {
+    pub fn center(self) -> PxPoint {
         self.bounds().center()
     }
 
@@ -1863,7 +1827,7 @@ impl<'a> WidgetInfo<'a> {
 
     /// This widgets [`center`](Self::center) orientation in relation to a `origin`.
     #[inline]
-    pub fn orientation_from(self, origin: LayoutPoint) -> WidgetOrientation {
+    pub fn orientation_from(self, origin: PxPoint) -> WidgetOrientation {
         let o = self.center();
         for &d in &[
             WidgetOrientation::Left,
@@ -1965,10 +1929,10 @@ impl<'a> WidgetInfo<'a> {
     /// Value that indicates the distance between this widget center
     /// and `origin`.
     #[inline]
-    pub fn distance_key(self, origin: LayoutPoint) -> usize {
+    pub fn distance_key(self, origin: PxPoint) -> usize {
         let o = self.center();
-        let a = (o.x - origin.x).powf(2.);
-        let b = (o.y - origin.y).powf(2.);
+        let a = (o.x - origin.x).pow(2);
+        let b = (o.y - origin.y).pow(2);
         (a + b) as usize
     }
 
@@ -2043,7 +2007,7 @@ impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescen
 }
 
 #[inline]
-fn is_in_direction(direction: WidgetOrientation, origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+fn is_in_direction(direction: WidgetOrientation, origin: PxPoint, candidate: PxPoint) -> bool {
     let (a, b, c, d) = match direction {
         WidgetOrientation::Left => (candidate.x, origin.x, candidate.y, origin.y),
         WidgetOrientation::Right => (origin.x, candidate.x, candidate.y, origin.y),
