@@ -585,19 +585,17 @@ impl GradientStops {
     ) {
         let (start_offset, end_offset) = self.layout(length, ctx, extend_mode, render_stops);
 
-        let vx = line.end.x - line.start.x;
-        let vy = line.end.y - line.start.y;
+        let mut l_start = line.start.to_wr();
+        let mut l_end = line.end.to_wr();
 
-        let av_l = length.to_px();
+        let v = l_end - l_start;
+        let v = v / length.to_px().to_wr().get();
 
-        let vx = vx / av_l;
-        let vy = vy / av_l;
+        l_end = l_start + v * end_offset;
+        l_start += v * start_offset;
 
-        line.end.x = line.start.x + vx * end_offset;
-        line.end.y = line.start.y + vy * end_offset;
-
-        line.start.x += vx * start_offset;
-        line.start.y += vy * start_offset;
+        line.start = l_start.to_px();
+        line.end = l_end.to_px();
     }
 
     /// Computes the actual color stops.

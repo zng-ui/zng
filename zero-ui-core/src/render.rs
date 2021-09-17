@@ -782,10 +782,10 @@ impl FrameBuilder {
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The `extend_mode` controls how the gradient fills the tile.
-    /// 
+    ///
     /// The gradient stops must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
-    /// 
+    ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     #[allow(clippy::too_many_arguments)]
