@@ -74,9 +74,9 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `render`
-   --> $DIR/ui_node.rs:217:5
+   --> $DIR/ui_node.rs:216:5
     |
-217 |     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+216 |     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
@@ -86,9 +86,9 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `render_update`
-   --> $DIR/ui_node.rs:223:5
+   --> $DIR/ui_node.rs:222:5
     |
-223 |     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+222 |     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
@@ -98,10 +98,10 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `arrange`
-   --> $DIR/ui_node.rs:211:5
+   --> $DIR/ui_node.rs:210:5
     |
-211 |     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: LayoutSize);
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+210 |     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
    --> $DIR/delegate_expr_error_incorrect_type.rs:9:55
@@ -110,7 +110,7 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `measure`
-   --> $DIR/ui_node.rs:203:5
+   --> $DIR/ui_node.rs:202:5
     |
-203 |     fn measure(&mut self, ctx: &mut LayoutContext, available_size: LayoutSize) -> LayoutSize;
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+202 |     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

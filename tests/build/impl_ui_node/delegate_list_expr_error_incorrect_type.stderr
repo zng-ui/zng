@@ -75,8 +75,8 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
    |
   ::: $WORKSPACE/zero-ui-core/src/ui_list.rs
    |
-   |         O: FnMut(usize) -> LayoutPoint;
-   |            --------------------------- required by this bound in `zero_ui::prelude::UiNodeList::render_all`
+   |         O: FnMut(usize) -> PxPoint;
+   |            ----------------------- required by this bound in `zero_ui::prelude::UiNodeList::render_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65
@@ -98,8 +98,8 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
    |
   ::: $WORKSPACE/zero-ui-core/src/ui_list.rs
    |
-   |         F: FnMut(usize, &mut LayoutContext) -> LayoutSize;
-   |            ---------------------------------------------- required by this bound in `zero_ui::prelude::UiNodeList::arrange_all`
+   |         F: FnMut(usize, &mut LayoutContext) -> PxSize;
+   |            ------------------------------------------ required by this bound in `zero_ui::prelude::UiNodeList::arrange_all`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65

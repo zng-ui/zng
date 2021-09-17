@@ -12,8 +12,8 @@ warning: unused import: `cursor`
   |
   = note: `#[warn(unused_imports)]` on by default
 
-warning: unused import: `zero_ui::core::units::LayoutPoint`
+warning: unused import: `zero_ui::core::units::PxPoint`
  --> $DIR/missing_value5.rs:9:17
   |
-9 |             use zero_ui::core::units::LayoutPoint;
-  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+9 |             use zero_ui::core::units::PxPoint;
+  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

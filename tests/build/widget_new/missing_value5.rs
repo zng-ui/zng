@@ -6,7 +6,7 @@ fn main() {
         cursor =
         #[allow(unused_imports)]
         margin = {
-            use zero_ui::core::units::LayoutPoint;
+            use zero_ui::core::units::PxPoint;
             0
         }
     };
