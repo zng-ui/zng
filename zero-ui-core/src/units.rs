@@ -791,6 +791,7 @@ impl<L: Into<Length>> ops::Add<L> for Length {
         match (self, rhs.into()) {
             (Dip(a), Dip(b)) => Dip(a + b),
             (Px(a), Px(b)) => Px(a + b),
+            (Pt(a), Pt(b)) => Pt(a + b),
             (Relative(a), Relative(b)) => Relative(a + b),
             (Em(a), Em(b)) => Em(a + b),
             (RootEm(a), RootEm(b)) => RootEm(a + b),
@@ -817,6 +818,7 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
         match (self, rhs.into()) {
             (Dip(a), Dip(b)) => Dip(a - b),
             (Px(a), Px(b)) => Px(a - b),
+            (Pt(a), Pt(b)) => Pt(a - b),
             (Relative(a), Relative(b)) => Relative(a - b),
             (Em(a), Em(b)) => Em(a - b),
             (RootEm(a), RootEm(b)) => RootEm(a - b),
@@ -843,6 +845,7 @@ impl<F: Into<FactorNormal>> ops::Mul<F> for Length {
         match self {
             Dip(e) => Dip(e * rhs.0),
             Px(e) => Px(e * rhs.0),
+            Pt(e) => Pt(e * rhs.0),
             Relative(r) => Relative(r * rhs),
             Em(e) => Em(e * rhs),
             RootEm(e) => RootEm(e * rhs),
@@ -871,6 +874,7 @@ impl<F: Into<FactorNormal>> ops::Div<F> for Length {
         match self {
             Dip(e) => Dip(e / rhs.0),
             Px(e) => Px(e / rhs.0),
+            Pt(e) => Pt(e / rhs.0),
             Relative(r) => Relative(r / rhs),
             Em(e) => Em(e / rhs),
             RootEm(e) => RootEm(e / rhs),
@@ -900,6 +904,7 @@ impl PartialEq for Length {
         match (self, other) {
             (Dip(a), Dip(b)) => a == b,
             (Px(a), Px(b)) => a == b,
+            (Pt(a), Pt(b)) => about_eq(*a, *b, EPSILON_100),
 
             (Relative(a), Relative(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) => a == b,
 
@@ -1286,12 +1291,12 @@ impl fmt::Display for LengthExpr {
 /// ```
 pub trait LengthUnits {
     /// Exact size in device independent pixels.
-    /// 
+    ///
     /// Returns [`Length::Dip`].
     fn dip(self) -> Length;
 
     /// Exact size in device pixels.
-    /// 
+    ///
     /// Returns [`Length::Px`].
     fn px(self) -> Length;
 

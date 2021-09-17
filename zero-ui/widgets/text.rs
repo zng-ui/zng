@@ -283,7 +283,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         let (size, variations) = TextContext::font(ctx);
         let size = size.to_layout(ctx, available_size.width);
 
-        if self.font.as_ref().map(|f|f.size() != size).unwrap_or(true) {
+        if self.font.as_ref().map(|f| f.size() != size).unwrap_or(true) {
             self.font = Some(
                 self.font_face
                     .as_ref()

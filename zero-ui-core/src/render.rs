@@ -567,7 +567,7 @@ impl FrameBuilder {
 
     /// Push a hit-test `rect` using [`common_item_ps`]
     /// if [`hit_testable`] is `true`.
-    /// 
+    ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
     /// [`hit_testable`]: FrameBuilder::hit_testable
     #[inline]

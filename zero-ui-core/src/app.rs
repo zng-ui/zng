@@ -1787,6 +1787,12 @@ impl log::Log for DebugLogger {
                     eprintln!("{}: [{}] {}", "error".bright_red().bold(), record.target(), record.args())
                 }
                 log::Level::Warn => {
+                    // suppress webrender vertex debug-only warnings.
+                    // see: https://bugzilla.mozilla.org/show_bug.cgi?id=1615342
+                    if record.target() == "webrender::device::gl" || record.line() == Some(2331) {
+                        return;
+                    }
+
                     eprintln!("{}: [{}] {}", "warn".bright_yellow().bold(), record.target(), record.args())
                 }
                 _ => {}

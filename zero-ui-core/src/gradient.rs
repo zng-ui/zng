@@ -219,7 +219,11 @@ impl ColorStop {
     #[inline]
     pub fn to_layout(&self, ctx: &LayoutMetrics, length: AvailablePx) -> RenderGradientStop {
         RenderGradientStop {
-            offset: self.offset.to_layout(ctx, length).to_wr().get(),
+            offset: if self.is_positional() {
+                f32::INFINITY
+            } else {
+                self.offset.to_layout(ctx, length).to_wr().get()
+            },
             color: self.color.into(),
         }
     }
@@ -640,8 +644,6 @@ impl GradientStops {
             match gs {
                 GradientStop::Color(s) => {
                     let mut stop = s.to_layout(ctx, length); // 1
-                    #[allow(clippy::branches_sharing_code)]
-                    // TODO this lint is broken, see https://github.com/rust-lang/rust-clippy/issues/7369
                     if is_positional(stop.offset) {
                         if positional_start.is_none() {
                             positional_start = Some(render_stops.len());
@@ -1014,7 +1016,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
         ctx.layout_context(20.0, 20.0, PxSize::new(Px(100), Px(100)), 1.0, 96.0, |ctx| {
             stops.layout_linear(
-                AvailablePx::Finite(100.into()),
+                AvailablePx::Finite(Px(100)),
                 ctx,
                 ExtendMode::Clamp,
                 &mut PxLine::new(PxPoint::zero(), PxPoint::new(Px(100), Px(100))),
@@ -1028,7 +1030,6 @@ mod tests {
     #[test]
     fn positional_end_stops() {
         let stops = test_layout_stops(stops![colors::BLACK, colors::WHITE]);
-
         assert_eq!(stops.len(), 2);
 
         assert_eq!(
