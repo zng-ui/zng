@@ -280,16 +280,17 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        if self.font.is_none() {
-            let (size, variations) = TextContext::font(ctx);
-            let size = size.to_layout(ctx, available_size.width);
+        let (size, variations) = TextContext::font(ctx);
+        let size = size.to_layout(ctx, available_size.width);
+
+        if self.font.as_ref().map(|f|f.size() != size).unwrap_or(true) {
             self.font = Some(
                 self.font_face
                     .as_ref()
                     .expect("font not inited in measure")
                     .sized(size, variations.finalize()),
             );
-        };
+        }
 
         if self.shaped_text.is_empty() {
             // TODO

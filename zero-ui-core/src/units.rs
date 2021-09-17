@@ -1083,7 +1083,7 @@ impl Length {
         match self {
             Dip(l) => l.to_px(ctx.scale_factor),
             Px(l) => *l,
-            Pt(l) => self::Px((*l * 96.0 / 72.0) as i32), // TODO is it always 96 here?
+            Pt(l) => self::Px(((*l * 96.0 / 72.0) * ctx.scale_factor).round() as i32),
             Relative(f) => available_size.to_px() * f.0,
             Em(f) => self::Dip::new_f32(ctx.font_size * f.0).to_px(ctx.scale_factor),
             RootEm(f) => self::Dip::new_f32(ctx.root_font_size * f.0).to_px(ctx.scale_factor),

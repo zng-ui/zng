@@ -26,7 +26,7 @@ const DIP_TO_PX: i32 = 60;
 /// Device pixel.
 ///
 /// Represents an actual device pixel, not scaled/descaled by the pixel scale factor.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Px(pub i32);
 impl Px {
     /// See [`DipToPx`].
@@ -54,6 +54,16 @@ impl Px {
 
     /// [`i32::MIN`].
     pub const MIN: Px = Px(i32::MIN);
+}
+impl fmt::Debug for Px {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}px", self.0)
+    }
+}
+impl fmt::Display for Px {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}px", self.0)
+    }
 }
 impl num_traits::Zero for Px {
     fn zero() -> Self {
@@ -115,11 +125,6 @@ impl num_traits::Signed for Px {
 impl From<i32> for Px {
     fn from(px: i32) -> Self {
         Px(px)
-    }
-}
-impl fmt::Display for Px {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}px", self.0)
     }
 }
 impl ops::Add for Px {
@@ -238,7 +243,7 @@ impl ops::Rem for Px {
 /// Represent a device pixel descaled by the pixel scale factor.
 ///
 /// Internally this is an `i32` that represents 1/60th of a pixel.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Dip(i32);
 impl Dip {
     /// New from round integer value.
@@ -253,7 +258,7 @@ impl Dip {
 
     /// See [`PxToDip`].
     pub fn from_px(px: Px, scale_factor: f32) -> Dip {
-        Dip((px.0 as f32 / scale_factor).round() as i32)
+        Dip((px.0 as f32 / scale_factor * DIP_TO_PX as f32).round() as i32)
     }
 
     /// Returns `self` as [`f32`].
@@ -276,6 +281,17 @@ impl Dip {
         Dip(self.0.saturating_abs())
     }
 }
+impl fmt::Debug for Dip {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+impl fmt::Display for Dip {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.to_f32(), f)?;
+        write!(f, "dip")
+    }
+}
 impl From<i32> for Dip {
     fn from(dip: i32) -> Self {
         Dip::new(dip)
@@ -284,11 +300,6 @@ impl From<i32> for Dip {
 impl From<f32> for Dip {
     fn from(dip: f32) -> Self {
         Dip::new_f32(dip)
-    }
-}
-impl fmt::Display for Dip {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 impl ops::Add for Dip {
@@ -898,5 +909,34 @@ impl PxCornerRadius {
             bottom_left: self.bottom_left.to_wr(),
             bottom_right: self.bottom_right.to_wr(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dip_px_1_1_conversion() {
+        let px = Dip::new(100).to_px(1.0);
+        assert_eq!(px, Px(100));
+    }
+
+    #[test]
+    fn px_dip_1_1_conversion() {
+        let dip = Px(100).to_dip(1.0);
+        assert_eq!(dip, Dip::new(100));
+    }
+
+    #[test]
+    fn dip_px_1_15_conversion() {
+        let px = Dip::new(100).to_px(1.5);
+        assert_eq!(px, Px(150));
+    }
+
+    #[test]
+    fn px_dip_1_15_conversion() {
+        let dip = Px(150).to_dip(1.5);
+        assert_eq!(dip, Dip::new(100));
     }
 }
