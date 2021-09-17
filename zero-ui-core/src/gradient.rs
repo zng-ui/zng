@@ -614,7 +614,7 @@ impl GradientStops {
         // 3 - Convert GradientStop::ColorHint to RenderGradientStop.
         // 4 - Manually extend a reflection for ExtendMode::Reflect.
         // 5 - Normalize stop offsets to be all between 0.0..=1.0.
-        // 6 - Return the first and last stop offset in layout units.
+        // 6 - Return the first and last stop offset in pixels.
 
         fn is_positional(o: f32) -> bool {
             ColorStop::is_layout_positional(o)
@@ -731,7 +731,7 @@ impl GradientStops {
 
         let actual_length = last.offset - first.offset;
 
-        if actual_length > 0.00001 {
+        if actual_length >= 1.0 {
             // 5
             for stop in render_stops {
                 stop.offset = (stop.offset - first.offset) / actual_length;
@@ -739,25 +739,24 @@ impl GradientStops {
 
             (first.offset, last.offset) // 5
         } else {
-            // 5 - all stops are at the same offset
+            // 5 - all stops are at the same offset (within 1px)
             match extend_mode {
                 ExtendMode::Clamp => {
                     // we want the first and last color to fill their side
                     // any other middle colors can be removed.
-                    // TODO: can we make this happen with just two stops?
                     render_stops.clear();
                     render_stops.push(first);
                     render_stops.push(first);
                     render_stops.push(last);
                     render_stops.push(last);
                     render_stops[0].offset = 0.0;
-                    render_stops[1].offset = 0.5;
-                    render_stops[2].offset = 0.5;
+                    render_stops[1].offset = 0.48;// not exactly 0.5 to avoid aliasing.
+                    render_stops[2].offset = 0.52;
                     render_stops[3].offset = 1.0;
 
-                    // 6 - line starts and ends at the offset point.
+                    // 6 - stretch the line a bit.
                     let offset = last.offset;
-                    (offset - 0.5, offset + 0.5)
+                    (offset - 10.0, offset + 10.0)
                 }
                 ExtendMode::Repeat | ExtendMode::Reflect => {
                     // fill with the average of all colors.
@@ -772,7 +771,7 @@ impl GradientStops {
                     render_stops.push(RenderGradientStop { offset: 0.0, color });
                     render_stops.push(RenderGradientStop { offset: 1.0, color });
 
-                    (0.0, 1.0) // 6
+                    (0.0, 10.0) // 6
                 }
             }
         }

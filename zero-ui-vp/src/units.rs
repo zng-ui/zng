@@ -756,6 +756,13 @@ impl PxToWr for PxSize {
         wr::LayoutSize::new(self.width.to_wr().0, self.height.to_wr().0)
     }
 }
+impl WrToPx for wr::LayoutSize {
+    type AsPx = PxSize;
+
+    fn to_px(self) -> Self::AsPx {
+        PxSize::new(Px(self.width.round() as i32), Px(self.height.round() as i32))
+    }
+}
 impl DipToPx for DipSize {
     type AsPx = PxSize;
 
