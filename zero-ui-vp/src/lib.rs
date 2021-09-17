@@ -31,7 +31,8 @@ use std::time::Duration;
 #[doc(inline)]
 pub use webrender_api;
 
-#[cfg(all(debug_assertions, feature = "full"))]
+/// ** Debug Docs Only**
+#[cfg(all(doc, debug_assertions, feature = "full"))]
 #[doc(inline)]
 pub use webrender;
 

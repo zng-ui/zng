@@ -778,10 +778,15 @@ impl FrameBuilder {
         self.display_list.push_rect(&item, rect.to_wr(), color);
     }
 
-    /// Push a repeating linear gradient rectangle using [`common_item_ps`](FrameBuilder::common_item_ps).
+    /// Push a repeating linear gradient rectangle using [`common_item_ps`].
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The `extend_mode` controls how the gradient fills the tile.
+    /// 
+    /// The gradient stops must be normalized, first stop at 0.0 and last stop at 1.0, this
+    /// is asserted in debug builds.
+    /// 
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn push_linear_gradient(
@@ -805,6 +810,7 @@ impl FrameBuilder {
         );
 
         self.open_widget_display();
+        let item = self.common_hit_item_ps(rect);
 
         self.display_list.push_stops(stops);
 
@@ -813,8 +819,6 @@ impl FrameBuilder {
             end_point: line.end.to_wr(),
             extend_mode,
         };
-
-        let item = self.common_hit_item_ps(rect);
         self.display_list
             .push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
     }

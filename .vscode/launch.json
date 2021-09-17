@@ -152,5 +152,23 @@
             "args": [],
             "cwd": "${workspaceFolder}"
         },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Example: gradient",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=gradient",
+                    "--package=zero-ui"
+                ],
+                "filter": {
+                    "name": "gradient",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
     ]
 }
