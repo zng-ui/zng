@@ -3402,7 +3402,7 @@ mod tests {
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));
 
-        let metrics = LayoutMetrics::new(PxSize::zero(), 0.0, 0.0);
+        let metrics = LayoutMetrics::new(PxSize::zero(), 1.0, 14.0);
 
         let r = l.to_layout(&metrics, AvailablePx::Finite(Px(200)));
         assert_eq!(r.0, 200);
