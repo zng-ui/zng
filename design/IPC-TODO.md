@@ -2,7 +2,6 @@
   - when monitor changes: See WindowVars::monitor()
   - actual_monitor: Computed by intersection between window and monitors? (the monitor area that contains more than half of the window?)
 * Implement clear-color from first background color, can see when toggling the chrome.
-* Auto-size should reset when the user resizes.
 
 * Implement and test window respawn (need to test NVIDIA actual driver version change (two blinks)).
 * Implement software rendering using https://github.com/servo/webrender/tree/master/swgl
@@ -12,11 +11,3 @@
     - Currently it is https://github.com/servo/webrender/commit/526a423bc2f069ea90e219fb155f379ee0fe662a for Firefox 92.0
     - https://crates.io does not allow git dependencies, but it allows the use of `git submodule`s, adding them to our crate.
     - Found by following the `ghsync` link and checking the Firefox milestone.
-
-* Test build two executables, for app-process and view-process.
-* Implement features for building `zero-ui-vp` without the full webrender so that a crate that is only the app-process
-  does not need to build all of that stuff.
-
-  # FIXME
-
-  Gradient
