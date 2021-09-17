@@ -426,9 +426,11 @@ impl<E: AppEventSender> ViewApp<E> {
             if first_frame {
                 let pos = w.outer_position();
                 let size = w.size();
+                let scale_factor = w.scale_factor();
 
                 self.notify(Ev::WindowMoved(id, pos, EventCause::App));
                 self.notify(Ev::WindowResized(id, size, EventCause::App));
+                self.notify(Ev::ScaleFactorChanged(id, scale_factor));
             }
 
             self.notify(Ev::FrameRendered(id, frame_id));

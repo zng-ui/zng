@@ -861,7 +861,7 @@ impl AppExtension for MouseManager {
         // update hovered
         if self.pos_window == Some(window_id) {
             let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
-            let hits = windows.hit_test(window_id, self.pos).unwrap();
+            let hits = windows.hit_test(window_id, self.pos).unwrap();// TODO optimize this
             let target = hits
                 .target()
                 .and_then(|t| windows.frame_info(window_id).unwrap().find(t.widget_id))

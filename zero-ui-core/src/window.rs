@@ -1104,7 +1104,8 @@ impl AppExtension for WindowManager {
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
             let _ = ctx.services.windows().close(args.window_id);
         } else if let Some(args) = RawWindowScaleFactorChangedEvent.update(args) {
-            if ctx.services.windows().windows.contains_key(&args.window_id) {
+            if let Some(info) = ctx.services.windows().windows_info.get_mut(&args.window_id) {
+                info.scale_factor = args.scale_factor;
                 let args = WindowScaleChangedArgs::new(args.timestamp, args.window_id, args.scale_factor);
                 WindowScaleChangedEvent.notify(ctx.events, args);
             }
