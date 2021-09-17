@@ -977,12 +977,12 @@ impl_from_and_into_var! {
         Length::Relative(norm)
     }
 
-    /// Conversion to [`Length::Exact`]
+    /// Conversion to [`Length::Dip`]
     fn from(f: f32) -> Length {
         Length::Dip(Dip::new_f32(f))
     }
 
-    /// Conversion to [`Length::Exact`]
+    /// Conversion to [`Length::Dip`]
     fn from(i: i32) -> Length {
         Length::Dip(Dip::new(i))
     }
@@ -1286,14 +1286,18 @@ impl fmt::Display for LengthExpr {
 /// ```
 pub trait LengthUnits {
     /// Exact size in device independent pixels.
+    /// 
+    /// Returns [`Length::Dip`].
     fn dip(self) -> Length;
 
     /// Exact size in device pixels.
+    /// 
+    /// Returns [`Length::Px`].
     fn px(self) -> Length;
 
     /// Exact size in font units.
     ///
-    /// Returns [`Length::Exact`].
+    /// Returns [`Length::Pt`].
     fn pt(self) -> Length;
 
     /// Relative to the font-size of the widget.

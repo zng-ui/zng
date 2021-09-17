@@ -87,7 +87,7 @@ impl fmt::Debug for LinearGradientAxis {
     }
 }
 impl LinearGradientAxis {
-    /// Compute a [`LayoutLine`].
+    /// Compute a [`PxLine`].
     pub fn layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxLine {
         match self {
             LinearGradientAxis::Angle(rad) => {
@@ -278,12 +278,12 @@ impl_from_and_into_var! {
         GradientStop::ColorHint(color_hint.into())
     }
 
-    /// Conversion to [`Length::Exact`] color hint.
+    /// Conversion to [`Length::Dip`] color hint.
     fn from(color_hint: f32) -> GradientStop {
         GradientStop::ColorHint(color_hint.into())
     }
 
-    /// Conversion to [`Length::Exact`] color hint.
+    /// Conversion to [`Length::Dip`] color hint.
     fn from(color_hint: i32) -> GradientStop {
         GradientStop::ColorHint(color_hint.into())
     }

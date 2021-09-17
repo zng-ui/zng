@@ -1137,16 +1137,15 @@ pub struct LayoutMetrics {
     /// The current screen "pixels-per-inch" resolution.
     ///
     /// This value is dependent in the actual physical size of the screen that the user must manually measure.
-    /// For most of the UI you only need the *layout units*, they automatically use the *scale-factor* that is
-    /// in the [`pixel_grid`] value.
+    /// For most of the UI you only need the [`scale_factor`].
     ///
     /// If you are implementing some feature like a "print size preview", you need to use this value, and you
     /// can configure a PPI per screen in the [`Monitors`] service.
     ///
     /// Default is `96.0`.
     ///
-    /// [`pixel_grid`]: PixelGrid::scale_factor
     /// [`Monitors`]: crate::window::Monitors
+    /// [`scale_factor`]: LayoutMetrics::scale_factor
     pub screen_ppi: f32,
 }
 impl LayoutMetrics {

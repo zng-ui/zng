@@ -565,8 +565,11 @@ impl FrameBuilder {
         self.info_id = parent_node;
     }
 
-    /// Push a hit-test `rect` using [`common_item_properties`](FrameBuilder::common_item_properties)
-    /// if [`hit_testable`](FrameBuilder::hit_testable) is `true`.
+    /// Push a hit-test `rect` using [`common_item_ps`]
+    /// if [`hit_testable`] is `true`.
+    /// 
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`hit_testable`]: FrameBuilder::hit_testable
     #[inline]
     pub fn push_hit_test(&mut self, rect: PxRect) {
         if self.cancel_widget {
@@ -678,9 +681,9 @@ impl FrameBuilder {
         self.spatial_id = parent_spatial_id;
     }
 
-    /// Push a border using [`common_item_properties`].
+    /// Push a border using [`common_item_ps`].
     ///
-    /// [`common_item_properties`]: FrameBuilder::common_item_properties
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         if self.cancel_widget {
@@ -705,9 +708,9 @@ impl FrameBuilder {
         self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
     }
 
-    /// Push a text run using [`common_item_properties`].
+    /// Push a text run using [`common_item_ps`].
     ///
-    /// [`common_item_properties`]: FrameBuilder::common_item_properties
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     pub fn push_text(&mut self, rect: PxRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
         if self.cancel_widget {
@@ -724,9 +727,9 @@ impl FrameBuilder {
         }
     }
 
-    /// Push an image using [`common_item_properties`].
+    /// Push an image using [`common_item_ps`].
     ///
-    /// [`common_item_properties`]: FrameBuilder::common_item_properties
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     pub fn push_image(&mut self, rect: PxRect, image: &impl Image, rendering: ImageRendering) {
         if self.cancel_widget {
             return;
@@ -762,7 +765,7 @@ impl FrameBuilder {
         self.cursor = parent_cursor;
     }
 
-    /// Push a color rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
+    /// Push a color rectangle using [`common_item_ps`](FrameBuilder::common_item_ps).
     #[inline]
     pub fn push_color(&mut self, rect: PxRect, color: RenderColor) {
         if self.cancel_widget {
@@ -775,7 +778,7 @@ impl FrameBuilder {
         self.display_list.push_rect(&item, rect.to_wr(), color);
     }
 
-    /// Push a repeating linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
+    /// Push a repeating linear gradient rectangle using [`common_item_ps`](FrameBuilder::common_item_ps).
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The `extend_mode` controls how the gradient fills the tile.
