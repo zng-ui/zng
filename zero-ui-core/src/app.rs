@@ -1865,6 +1865,7 @@ pub mod view_process {
     };
 
     use super::DeviceId;
+    use crate::color::RenderColor;
     use crate::mouse::MultiClickConfig;
     use crate::render::FrameId;
     use crate::service::Service;
@@ -2396,8 +2397,8 @@ pub mod view_process {
         }
 
         /// Update the current frame and re-render it.
-        pub fn render_update(&self, updates: DynamicProperties) -> Result<()> {
-            self.call(|id, p| p.render_update(id, updates))
+        pub fn render_update(&self, updates: DynamicProperties, clear_color: Option<RenderColor>) -> Result<()> {
+            self.call(|id, p| p.render_update(id, updates, clear_color))
         }
     }
 

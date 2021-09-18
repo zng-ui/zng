@@ -144,6 +144,14 @@ pub mod window {
         /// Window background color.
         background_color = rgb(0.1, 0.1, 0.1);
 
+        /// Window clear color.
+        /// 
+        /// Color used to *clear* the previous frame pixels before rendering a new frame.
+        /// It is visible if window content does not completely fill the content area, this
+        /// can happen if you do not set a background or the background is semi-transparent, also
+        /// can happen during very fast resizes.
+        properties::clear_color = rgb(0.1, 0.1, 0.1);
+
         /// Unique identifier of the window root widget.
         #[allowed_in_when = false]
         root_id(WidgetId) = WidgetId::new_unique();
@@ -377,6 +385,36 @@ pub mod window {
             min_size.height = min_height: Length,
             max_size.width = max_width: Length,
             max_size.height = max_height: Length,
+        }
+
+        /// Sets the frame clear color.
+        #[property(context, default(colors::WHITE))]
+        pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+            struct ClearColorNode<U, C> {
+                child: U,
+                clear_color: C,
+            }
+            #[impl_ui_node(child)]
+            impl<U: UiNode, C: Var<Rgba>> UiNode for ClearColorNode<U, C> {
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if self.clear_color.is_new(ctx) {
+                        ctx.updates.render_update();
+                    }
+                    self.child.update(ctx);
+                }
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    frame.set_clear_color(self.clear_color.copy(ctx).into());
+                    self.child.render(ctx, frame);
+                }
+                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                    update.set_clear_color(self.clear_color.copy(ctx).into());
+                    self.child.render_update(ctx, update);
+                }
+            }
+            ClearColorNode {
+                child,
+                clear_color: color.into_var()
+            }
         }
 
         // TODO read-only properties.

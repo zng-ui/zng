@@ -336,7 +336,11 @@ impl ViewWindow {
     }
 
     /// Start rendering a new frame based on the data of the last frame.
-    pub fn render_update(&mut self, updates: DynamicProperties) {
+    pub fn render_update(&mut self, updates: DynamicProperties, clear_color: Option<ColorF>) {
+        if let Some(color) = clear_color {
+            self.renderer.as_mut().unwrap().set_clear_color(color);
+        }
+
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
         txn.update_dynamic_properties(updates);

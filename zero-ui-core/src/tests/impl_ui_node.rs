@@ -199,7 +199,7 @@ pub fn default_no_child() {
     let root_transform_key = WidgetTransformKey::new_unique();
     let mut frame = FrameBuilder::new_renderless(FrameId::invalid(), window_id, wgt.id(), root_transform_key, desired_size, 1.0);
     wgt.test_render(&mut ctx, &mut frame);
-    let (_, frame_info) = frame.finalize();
+    let (_, _, frame_info) = frame.finalize();
     let wgt_info = frame_info.find(wgt.id()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
@@ -207,9 +207,11 @@ pub fn default_no_child() {
     // and not update render..
     let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::invalid());
     wgt.test_render_update(&mut ctx, &mut update);
-    let update = update.finalize();
+    let (update, render_color) = update.finalize();
     assert!(update.transforms.is_empty());
     assert!(update.floats.is_empty());
+    assert!(update.colors.is_empty());
+    assert!(render_color.is_none());
 }
 
 mod util {

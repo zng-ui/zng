@@ -3,10 +3,7 @@
 use std::{fmt, mem, rc::Rc, thread, time::Instant};
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowTheme};
-use crate::{
-    color::colors,
-    render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
-};
+use crate::{color::RenderColor, render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId}};
 use linear_map::LinearMap;
 use zero_ui_vp::ByteBuf;
 
@@ -2199,7 +2196,7 @@ impl AppWindow {
         let next_frame_id = crate::render::webrender_api::Epoch(next_frame_id);
 
         // `UiNode::render`
-        let ((pipeline_id, display_list), frame_info) =
+        let ((pipeline_id, display_list), clear_color, frame_info) =
             self.context
                 .render(ctx, next_frame_id, self.size.to_px(scale_factor), scale_factor, &self.renderer);
 
@@ -2223,7 +2220,7 @@ impl AppWindow {
             Some(view_process::FrameRequest {
                 id: self.frame_id,
                 pipeline_id,
-                clear_color: colors::RED.into(),
+                clear_color,
                 display_list: (ByteBuf::from(payload.data), descriptor),
             })
         } else {
@@ -2349,8 +2346,8 @@ impl AppWindow {
 
         debug_assert!(!self.first_render);
 
-        let updates = self.context.render_update(ctx, self.frame_id);
-        if updates.transforms.is_empty() && updates.floats.is_empty() {
+        let (updates, clear_color) = self.context.render_update(ctx, self.frame_id);
+        if clear_color.is_none() && updates.transforms.is_empty() && updates.floats.is_empty() {
             return;
         }
 
@@ -2358,7 +2355,7 @@ impl AppWindow {
 
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
-            let _: Result<(), Respawned> = renderer.render_update(updates);
+            let _: Result<(), Respawned> = renderer.render_update(updates, clear_color);
         }
     }
 
@@ -2373,7 +2370,7 @@ impl AppWindow {
                 transforms: vec![],
                 floats: vec![],
                 colors: vec![],
-            });
+            }, None);
         }
     }
 
@@ -2479,7 +2476,7 @@ impl OwnedWindowContext {
         root_size: PxSize,
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
-    ) -> ((PipelineId, BuiltDisplayList), FrameInfo) {
+    ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
         profile_scope!("OwnedWindowContext::render");
 
         self.update = UpdateDisplayRequest::None;
@@ -2507,7 +2504,7 @@ impl OwnedWindowContext {
         frame.finalize()
     }
 
-    fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId) -> DynamicProperties {
+    fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId) -> (DynamicProperties, Option<RenderColor>) {
         debug_assert!(self.update.is_render_update());
         self.update = UpdateDisplayRequest::None;
 

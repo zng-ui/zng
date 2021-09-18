@@ -1,18 +1,6 @@
 //! Frame render and metadata API.
 
-use crate::{
-    app::view_process::ViewRenderer,
-    border::BorderSides,
-    color::{RenderColor, RenderFilter},
-    context::{OwnedStateMap, RenderContext, StateMap},
-    crate_util::IdMap,
-    gradient::{RenderExtendMode, RenderGradientStop},
-    task,
-    units::*,
-    var::impl_from_and_into_var,
-    window::{CursorIcon, WindowId},
-    UiNode, WidgetId,
-};
+use crate::{UiNode, WidgetId, app::view_process::ViewRenderer, border::BorderSides, color::{RenderColor, RenderFilter}, context::{OwnedStateMap, RenderContext, StateMap}, crate_util::IdMap, gradient::{RenderExtendMode, RenderGradientStop}, task, units::*, var::impl_from_and_into_var, window::{CursorIcon, WindowId}};
 use derive_more as dm;
 use ego_tree::Tree;
 use std::{fmt, io::Write, marker::PhantomData, mem, sync::Arc, time::Instant};
@@ -115,6 +103,8 @@ impl From<ImageRendering> for webrender_api::ImageRendering {
 
 /// A full frame builder.
 pub struct FrameBuilder {
+    clear_color: Option<RenderColor>,
+
     renderer: Option<ViewRenderer>,
 
     scale_factor: f32,
@@ -177,6 +167,7 @@ impl FrameBuilder {
             renderer,
             scale_factor,
             display_list: DisplayListBuilder::with_capacity(pipeline_id, 100),
+            clear_color: None,
             info_id: info.root_id(),
             info,
             widget_id: root_id,
@@ -259,6 +250,17 @@ impl FrameBuilder {
     #[inline]
     pub fn is_renderless(&self) -> bool {
         self.renderer.is_none()
+    }
+
+    /// Set the color used to clear the pixel frame before drawing this frame.
+    /// 
+    /// Note the default clear color is white, and it is not retained, a property
+    /// that sets the clear color must set it every render.
+    /// 
+    /// The [`push_color`] method sets the clear color if it was not set directly and it fill the root.
+    #[inline]
+    pub fn set_clear_color(&mut self, color: RenderColor) {
+        self.clear_color = Some(color);
     }
 
     /// Connection to the renderer that will render this frame.
@@ -767,7 +769,7 @@ impl FrameBuilder {
 
     /// Push a color rectangle using [`common_item_ps`](FrameBuilder::common_item_ps).
     #[inline]
-    pub fn push_color(&mut self, rect: PxRect, color: RenderColor) {
+    pub fn push_color(&mut self, rect: PxRect, color: FrameBinding<RenderColor>) {
         if self.cancel_widget {
             return;
         }
@@ -775,7 +777,7 @@ impl FrameBuilder {
         self.open_widget_display();
 
         let item = self.common_hit_item_ps(rect);
-        self.display_list.push_rect(&item, rect.to_wr(), color);
+        self.display_list.push_rect_with_animation(&item, rect.to_wr(), color);
     }
 
     /// Push a repeating linear gradient rectangle using [`common_item_ps`].
@@ -876,6 +878,7 @@ impl FrameBuilder {
     /// The *dot* is a 4px/4px circle of the `color` that has two outlines white then black to increase contrast.
     #[inline]
     pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
+        use crate::color::colors;
         // TODO use radial gradient to draw a dot.
 
         let mut centered_rect = |mut o: PxPoint, s, c| {
@@ -886,9 +889,9 @@ impl FrameBuilder {
             self.push_color(rect, c);
         };
 
-        centered_rect(offset, Px(8), crate::color::colors::BLACK.into());
-        centered_rect(offset, Px(6), crate::color::colors::WHITE.into());
-        centered_rect(offset, Px(4), color.into());
+        centered_rect(offset, Px(8), FrameBinding::Value(colors::BLACK.into()));
+        centered_rect(offset, Px(6), FrameBinding::Value(colors::WHITE.into()));
+        centered_rect(offset, Px(4), FrameBinding::Value(color.into()));
     }
 
     /// Finalizes the build.
@@ -896,11 +899,12 @@ impl FrameBuilder {
     /// # Returns
     ///
     /// `(PipelineId, BuiltDisplayList)` : The display list finalize data.
+    /// `RenderColor`: The clear color.
     /// `FrameInfo`: The built frame info.
-    pub fn finalize(mut self) -> ((PipelineId, BuiltDisplayList), FrameInfo) {
+    pub fn finalize(mut self) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
         self.close_widget_display();
         self.info.set_meta(self.info_id, self.meta);
-        (self.display_list.finalize(), self.info.build())
+        (self.display_list.finalize(), self.clear_color.unwrap_or(RenderColor::WHITE), self.info.build())
     }
 }
 
@@ -939,6 +943,7 @@ pub struct WidgetStartedError;
 /// Any [`FrameBindingKey`] used in the creation of the frame can be used for updating the frame.
 pub struct FrameUpdate {
     bindings: DynamicProperties,
+    clear_color: Option<RenderColor>,
     frame_id: FrameId,
     window_id: WindowId,
     widget_id: WidgetId,
@@ -957,6 +962,7 @@ impl FrameUpdate {
         FrameUpdate {
             bindings: DynamicProperties::default(),
             window_id,
+            clear_color: None,
             widget_id: root_id,
             widget_transform: LayoutTransform::identity(),
             widget_transform_key: root_transform_key,
@@ -983,6 +989,12 @@ impl FrameUpdate {
         self.frame_id
     }
 
+    /// Change the color used to clear the pixel buffer when redrawing the frame. 
+    #[inline]
+    pub fn set_clear_color(&mut self, color: RenderColor) {
+        self.clear_color = Some(color);
+    }
+
     /// Includes the widget transform.
     #[inline]
     pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode, ctx: &mut RenderContext) {
@@ -1000,6 +1012,12 @@ impl FrameUpdate {
     #[inline]
     pub fn update_f32(&mut self, new_value: FrameValue<f32>) {
         self.bindings.floats.push(new_value);
+    }
+
+    /// Update a color value.
+    #[inline]
+    pub fn update_color(&mut self, new_value: FrameValue<RenderColor>) {
+        self.bindings.colors.push(new_value)
     }
 
     /// Calls [`render_update`](UiNode::render_update) for `child` inside a new widget context.
@@ -1042,12 +1060,14 @@ impl FrameUpdate {
     }
 
     /// Finalize the update.
-    pub fn finalize(mut self) -> DynamicProperties {
+    /// 
+    /// Returns the property updates and the new clear color if any was set.
+    pub fn finalize(mut self) -> (DynamicProperties, Option<RenderColor>) {
         if self.widget_transform != LayoutTransform::identity() {
             self.update_transform(self.widget_transform_key.update(self.widget_transform));
         }
 
-        self.bindings
+        (self.bindings, self.clear_color)
     }
 }
 
@@ -1055,8 +1075,9 @@ impl FrameUpdate {
 ///
 /// Use `FrameBinding::Value(value)` to not use the quick update feature.
 ///
-/// Create a [`FrameBindingKey`] and use its [`bind`](FrameBindingKey::bind) method to
-/// setup a frame binding.
+/// Create a [`FrameBindingKey`] and use its [`bind`] method to setup a frame binding.
+/// 
+/// [`bind`]: FrameBindingKey::bind
 pub type FrameBinding<T> = PropertyBinding<T>; // we rename this to not conflict with the zero_ui property terminology.
 
 /// A frame value update.

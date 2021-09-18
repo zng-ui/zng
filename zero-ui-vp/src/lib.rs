@@ -62,7 +62,7 @@ pub mod units;
 pub use app_process::*;
 pub use types::*;
 
-use webrender_api::{DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
+use webrender_api::{ColorF, DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
 
 use crate::units::*;
 
@@ -569,8 +569,8 @@ declare_ipc! {
     }
 
     /// Update the current frame and re-render it.
-    pub fn render_update(&mut self, _ctx: &Context, id: WinId, updates: DynamicProperties) -> () {
-        with_window_or_headless!(self, id, (), |w|w.render_update(updates))
+    pub fn render_update(&mut self, _ctx: &Context, id: WinId, updates: DynamicProperties, clear_color: Option<ColorF>) -> () {
+        with_window_or_headless!(self, id, (), |w|w.render_update(updates, clear_color))
     }
 
     /// Used for testing respawn.
