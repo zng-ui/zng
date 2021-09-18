@@ -1042,6 +1042,9 @@ pub struct FrameRequest {
     /// Pipeline Tag.
     pub pipeline_id: PipelineId,
 
+    /// Frame clear color.
+    pub clear_color: ColorF,
+
     /// Display list, split in serializable parts.
     pub display_list: (ByteBuf, BuiltDisplayListDescriptor),
 }
@@ -1088,8 +1091,6 @@ pub struct WindowConfig {
     /// If the window is see-through.
     pub transparent: bool,
 
-    /// OpenGL clear color.
-    pub clear_color: Option<ColorF>,
     /// Text anti-aliasing.
     pub text_aa: TextAntiAliasing,
 }
@@ -1102,9 +1103,6 @@ pub struct HeadlessConfig {
 
     /// Surface area (viewport size).
     pub size: DipSize,
-
-    /// OpenGL clear color.
-    pub clear_color: Option<ColorF>,
 
     /// Text anti-aliasing.
     pub text_aa: TextAntiAliasing,

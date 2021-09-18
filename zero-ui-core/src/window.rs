@@ -3,7 +3,10 @@
 use std::{fmt, mem, rc::Rc, thread, time::Instant};
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowTheme};
-use crate::render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId};
+use crate::{
+    color::colors,
+    render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
+};
 use linear_map::LinearMap;
 use zero_ui_vp::ByteBuf;
 
@@ -15,7 +18,6 @@ use crate::{
         AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
     },
     cancelable_event_args,
-    color::rgb,
     context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
     event::{event, EventUpdateArgs},
     event_args, impl_from_and_into_var, profile_scope,
@@ -2111,7 +2113,7 @@ impl AppWindow {
                     (scr_size.width - self.size.width) / Dip::new(2),
                     (scr_size.height - self.size.height) / Dip::new(2),
                 ));
-                println!("{:?}",((scr_size, self.size), self.position));
+                println!("{:?}", ((scr_size, self.size), self.position));
             }
             StartPosition::CenterParent => todo!(),
         }
@@ -2221,6 +2223,7 @@ impl AppWindow {
             Some(view_process::FrameRequest {
                 id: self.frame_id,
                 pipeline_id,
+                clear_color: colors::RED.into(),
                 display_list: (ByteBuf::from(payload.data), descriptor),
             })
         } else {
@@ -2259,7 +2262,6 @@ impl AppWindow {
                         taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
                         chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
                         allow_alt_f4: self.vars.allow_alt_f4().copy(ctx.vars),
-                        clear_color: Some(rgb(255, 0, 0).into()),
                         text_aa: self.vars.text_aa().copy(ctx.vars),
                         always_on_top: self.vars.always_on_top().copy(ctx.vars),
                         movable: self.vars.movable().copy(ctx.vars),
@@ -2286,7 +2288,6 @@ impl AppWindow {
                 WindowMode::HeadlessWithRenderer => {
                     let config = view_process::HeadlessConfig {
                         size: self.size,
-                        clear_color: None,
                         scale_factor: self.headless_monitor.as_ref().unwrap().scale_factor,
                         text_aa: self.vars.text_aa().copy(ctx.vars),
                     };

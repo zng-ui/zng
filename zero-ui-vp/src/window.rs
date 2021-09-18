@@ -37,7 +37,6 @@ pub(crate) struct ViewWindow {
 
     pipeline_id: PipelineId,
     document_id: DocumentId,
-    clear_color: Option<ColorF>,
 
     resized: bool,
 
@@ -138,7 +137,7 @@ impl ViewWindow {
             text_aa = config::text_aa();
         }
 
-        let mut opts = RendererOptions {
+        let opts = RendererOptions {
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
             renderer_id: Some((gen as u64) << 32 | id as u64),
@@ -146,9 +145,6 @@ impl ViewWindow {
             // TODO expose more options to the user.
             ..Default::default()
         };
-        if let Some(clear_color) = w.clear_color {
-            opts.clear_color = clear_color;
-        }
 
         let redirect_frame = Arc::new(AtomicBool::new(false));
         let (rf_sender, redirect_frame_recv) = flume::unbounded();
@@ -187,7 +183,6 @@ impl ViewWindow {
             document_id,
             pipeline_id,
             resized: true,
-            clear_color: w.clear_color,
             waiting_first_frame: true,
             visible: w.visible,
             allow_alt_f4,
@@ -313,6 +308,7 @@ impl ViewWindow {
     /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
     pub fn render(&mut self, frame: FrameRequest) {
         self.frame_id = frame.id;
+        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let size = self.window.inner_size();
         let viewport_size = size.to_px().to_wr();
@@ -324,7 +320,13 @@ impl ViewWindow {
             },
             frame.display_list.1,
         );
-        txn.set_display_list(frame.id, self.clear_color, viewport_size, (frame.pipeline_id, display_list), true);
+        txn.set_display_list(
+            frame.id,
+            Some(frame.clear_color),
+            viewport_size,
+            (frame.pipeline_id, display_list),
+            true,
+        );
         txn.set_root_pipeline(self.pipeline_id);
 
         self.push_resize(&mut txn);

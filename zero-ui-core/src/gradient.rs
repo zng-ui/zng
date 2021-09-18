@@ -750,7 +750,7 @@ impl GradientStops {
                     render_stops.push(last);
                     render_stops.push(last);
                     render_stops[0].offset = 0.0;
-                    render_stops[1].offset = 0.48;// not exactly 0.5 to avoid aliasing.
+                    render_stops[1].offset = 0.48; // not exactly 0.5 to avoid aliasing.
                     render_stops[2].offset = 0.52;
                     render_stops[3].offset = 1.0;
 

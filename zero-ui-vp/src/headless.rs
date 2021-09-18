@@ -18,7 +18,6 @@ pub(crate) struct ViewHeadless {
     api: RenderApi,
     size: DipSize,
     scale_factor: f32,
-    clear_color: Option<ColorF>,
 
     context: GlHeadlessContext,
     gl: Rc<dyn gl::Gl>,
@@ -89,7 +88,7 @@ impl ViewHeadless {
             text_aa = config::text_aa();
         }
 
-        let mut opts = RendererOptions {
+        let opts = RendererOptions {
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
             renderer_id: Some((gen as u64) << 32 | id as u64),
@@ -97,9 +96,6 @@ impl ViewHeadless {
             // TODO expose more options to the user.
             ..Default::default()
         };
-        if let Some(clear_color) = cfg.clear_color {
-            opts.clear_color = clear_color;
-        }
 
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 
@@ -126,7 +122,6 @@ impl ViewHeadless {
             api,
             size: cfg.size,
             scale_factor: cfg.scale_factor,
-            clear_color: cfg.clear_color,
 
             context,
             gl,
@@ -204,6 +199,7 @@ impl ViewHeadless {
 
     pub fn render(&mut self, frame: FrameRequest) {
         self.frame_id = frame.id;
+        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let mut txn = Transaction::new();
         let display_list = BuiltDisplayList::from_data(
@@ -213,7 +209,13 @@ impl ViewHeadless {
             frame.display_list.1,
         );
         let viewport_size = self.size.to_px(self.scale_factor).to_wr();
-        txn.set_display_list(frame.id, self.clear_color, viewport_size, (frame.pipeline_id, display_list), true);
+        txn.set_display_list(
+            frame.id,
+            Some(frame.clear_color),
+            viewport_size,
+            (frame.pipeline_id, display_list),
+            true,
+        );
         txn.set_root_pipeline(self.pipeline_id);
 
         self.push_resize(&mut txn);
