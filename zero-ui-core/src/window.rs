@@ -2111,6 +2111,7 @@ impl AppWindow {
                     (scr_size.width - self.size.width) / Dip::new(2),
                     (scr_size.height - self.size.height) / Dip::new(2),
                 ));
+                println!("{:?}",((scr_size, self.size), self.position));
             }
             StartPosition::CenterParent => todo!(),
         }

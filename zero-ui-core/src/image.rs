@@ -202,7 +202,7 @@ impl Image {
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi
     #[inline]
     pub fn layout_size(&self, ctx: &LayoutMetrics) -> PxSize {
-        self.calc_size(ctx, (96.0, 96.0), false)
+        self.calc_size(ctx, (ctx.screen_ppi, ctx.screen_ppi), false)
     }
 
     /// Calculate a layout size for the image.
@@ -221,11 +221,11 @@ impl Image {
             self.ppi().unwrap_or(fallback_ppi)
         };
 
-        let screen_res = ctx.screen_ppi * ctx.scale_factor;
+        let screen_res = ctx.screen_ppi;
         let mut s = self.size();
 
-        s.width *= dpi_x / screen_res;
-        s.height *= dpi_y / screen_res;
+        s.width *= (dpi_x / screen_res) * ctx.scale_factor;
+        s.height *= (dpi_y / screen_res) * ctx.scale_factor;
 
         s
     }

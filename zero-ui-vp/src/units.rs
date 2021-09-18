@@ -266,6 +266,11 @@ impl Dip {
         self.0 as f32 / DIP_TO_PX as f32
     }
 
+    /// Returns `self` as [`i32`].
+    pub fn to_i32(self) -> i32 {
+        self.0 / DIP_TO_PX
+    }
+
     /// Compares and returns the maximum of two pixel values.
     pub fn max(self, other: Dip) -> Dip {
         Dip(self.0.max(other.0))
@@ -349,7 +354,7 @@ impl ops::Mul<Dip> for Dip {
     type Output = Dip;
 
     fn mul(self, rhs: Dip) -> Self::Output {
-        Dip(self.0.saturating_mul(rhs.0))
+        Dip(self.0.saturating_mul(rhs.to_i32()))
     }
 }
 impl ops::MulAssign<Dip> for Dip {
@@ -373,7 +378,7 @@ impl ops::Div<Dip> for Dip {
     type Output = Dip;
 
     fn div(self, rhs: Dip) -> Self::Output {
-        Dip(self.0 / rhs.0)
+        Dip::new(self.0 / rhs.0)
     }
 }
 impl ops::DivAssign<Dip> for Dip {
