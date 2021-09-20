@@ -268,8 +268,6 @@ impl FrameBuilder {
     ///
     /// Note the default clear color is white, and it is not retained, a property
     /// that sets the clear color must set it every render.
-    ///
-    /// The [`push_color`] method sets the clear color if it was not set directly and it fill the root.
     #[inline]
     pub fn set_clear_color(&mut self, color: RenderColor) {
         self.clear_color = Some(color);
