@@ -145,7 +145,7 @@ pub mod window {
         background_color = rgb(0.1, 0.1, 0.1);
 
         /// Window clear color.
-        /// 
+        ///
         /// Color used to *clear* the previous frame pixels before rendering a new frame.
         /// It is visible if window content does not completely fill the content area, this
         /// can happen if you do not set a background or the background is semi-transparent, also
@@ -413,7 +413,7 @@ pub mod window {
             }
             ClearColorNode {
                 child,
-                clear_color: color.into_var()
+                clear_color: color.into_var(),
             }
         }
 

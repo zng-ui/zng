@@ -1,6 +1,18 @@
 //! Frame render and metadata API.
 
-use crate::{UiNode, WidgetId, app::view_process::ViewRenderer, border::BorderSides, color::{RenderColor, RenderFilter}, context::{OwnedStateMap, RenderContext, StateMap}, crate_util::IdMap, gradient::{RenderExtendMode, RenderGradientStop}, task, units::*, var::impl_from_and_into_var, window::{CursorIcon, WindowId}};
+use crate::{
+    app::view_process::ViewRenderer,
+    border::BorderSides,
+    color::{RenderColor, RenderFilter},
+    context::{OwnedStateMap, RenderContext, StateMap},
+    crate_util::IdMap,
+    gradient::{RenderExtendMode, RenderGradientStop},
+    task,
+    units::*,
+    var::impl_from_and_into_var,
+    window::{CursorIcon, WindowId},
+    UiNode, WidgetId,
+};
 use derive_more as dm;
 use ego_tree::Tree;
 use std::{fmt, io::Write, marker::PhantomData, mem, sync::Arc, time::Instant};
@@ -253,10 +265,10 @@ impl FrameBuilder {
     }
 
     /// Set the color used to clear the pixel frame before drawing this frame.
-    /// 
+    ///
     /// Note the default clear color is white, and it is not retained, a property
     /// that sets the clear color must set it every render.
-    /// 
+    ///
     /// The [`push_color`] method sets the clear color if it was not set directly and it fill the root.
     #[inline]
     pub fn set_clear_color(&mut self, color: RenderColor) {
@@ -904,7 +916,11 @@ impl FrameBuilder {
     pub fn finalize(mut self) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
         self.close_widget_display();
         self.info.set_meta(self.info_id, self.meta);
-        (self.display_list.finalize(), self.clear_color.unwrap_or(RenderColor::WHITE), self.info.build())
+        (
+            self.display_list.finalize(),
+            self.clear_color.unwrap_or(RenderColor::WHITE),
+            self.info.build(),
+        )
     }
 }
 
@@ -989,7 +1005,7 @@ impl FrameUpdate {
         self.frame_id
     }
 
-    /// Change the color used to clear the pixel buffer when redrawing the frame. 
+    /// Change the color used to clear the pixel buffer when redrawing the frame.
     #[inline]
     pub fn set_clear_color(&mut self, color: RenderColor) {
         self.clear_color = Some(color);
@@ -1060,7 +1076,7 @@ impl FrameUpdate {
     }
 
     /// Finalize the update.
-    /// 
+    ///
     /// Returns the property updates and the new clear color if any was set.
     pub fn finalize(mut self) -> (DynamicProperties, Option<RenderColor>) {
         if self.widget_transform != LayoutTransform::identity() {
@@ -1076,7 +1092,7 @@ impl FrameUpdate {
 /// Use `FrameBinding::Value(value)` to not use the quick update feature.
 ///
 /// Create a [`FrameBindingKey`] and use its [`bind`] method to setup a frame binding.
-/// 
+///
 /// [`bind`]: FrameBindingKey::bind
 pub type FrameBinding<T> = PropertyBinding<T>; // we rename this to not conflict with the zero_ui property terminology.
 

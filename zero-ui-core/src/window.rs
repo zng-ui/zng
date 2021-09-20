@@ -3,7 +3,10 @@
 use std::{fmt, mem, rc::Rc, thread, time::Instant};
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowTheme};
-use crate::{color::RenderColor, render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId}};
+use crate::{
+    color::RenderColor,
+    render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
+};
 use linear_map::LinearMap;
 use zero_ui_vp::ByteBuf;
 
@@ -2366,11 +2369,14 @@ impl AppWindow {
     fn render_empty_update(&mut self) {
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
-            let _: Result<(), Respawned> = renderer.render_update(DynamicProperties {
-                transforms: vec![],
-                floats: vec![],
-                colors: vec![],
-            }, None);
+            let _: Result<(), Respawned> = renderer.render_update(
+                DynamicProperties {
+                    transforms: vec![],
+                    floats: vec![],
+                    colors: vec![],
+                },
+                None,
+            );
         }
     }
 
