@@ -72,8 +72,9 @@ blocking = "1"
 parking_lot = "0.11"
 futures-timer = "3"
 isahc = { version = "1", features = ["cookies", "json"] }
-async-trait = "0.1"
 futures-lite = "1"
+async-fs = "1.5"
+pin-project = "1"
 
 # util
 bitflags = "1"

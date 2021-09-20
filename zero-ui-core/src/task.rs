@@ -1,7 +1,7 @@
 //! Parallel async tasks and async task runners.
 //!
-//! Use the [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`] and [`io`] to unblock
-//! IO operations, and use [`ui`] to create async properties.
+//! Use the [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock
+//! IO operations, use [`http`] for async HTTP, and use [`ui`] to create async properties.
 //!
 //! This module also re-exports the [`rayon`] crate for convenience.
 //!
@@ -50,25 +50,39 @@
 //! resolved the responsiveness problem, but there is one extra problem to solve, how to not block one of the worker threads waiting IO.
 //!
 //! We want to keep the [`run`] threads either doing work or available for other tasks, but reading a file is just waiting
-//! for a potentially slow external operation, so if we just call [`std::fs::read_to_string`] directly we can potentially remove one of
+//! for a potentially slow external operation, so if we call [`std::fs::read_to_string`] directly we can potentially remove one of
 //! the worker threads from play, reducing the overall tasks performance. To avoid this we move the IO operation inside a [`wait`]
 //! task, this task is not *async* but it is *parallel*, meaning if does not block but it runs a blocking operation. It runs inside
 //! a [`blocking`] thread-pool, that is optimized for waiting.
 //!
 //! # Async IO
 //!
-//! Zero-Ui uses [`wait`], [`io::ReadTask`] and [`io::WriteTask`] to do async IO internally, the read/write tasks represent the
-//! act of reading/writing a large file in segmented payloads, so that the file is not ever fully in memory. For operations
-//! that have all the data required in memory we just use the `std` blocking API inside [`wait`].
+//! You can use [`wait`], [`io`] and [`fs`] to do async IO, and Zero-UI uses this API for internal async IO, they are just a selection
+//! of external async crates re-exported for convenience.
 //!
-//! This is a different concept from other async IO implementations that try to provide an *async version* of the blocking API, if
-//! you prefer that style you can use [external crates](#async-crates-integration) for async IO, most of then
-//! [integrate well](#async-crates-integration) with Zero-Ui tasks.
+//! The [`io`] module just re-exports the [`futures-lite::io`] traits and types, adding only progress tracking. The
+//! [`fs`] module is the [`async-fs`] crate. Most of the IO async operations are implemented using extensions traits
+//! so we recommend blob importing [`io`] to start implementing async IO.
+//!
+//! ```
+//! use zero_ui_core::task::{io::*, fs, rayon::prelude::*};
+//!
+//! async fn read_numbers() -> Vec<usize> {
+//!     let mut file = fs::File::open("numbers.txt").await.unwrap();
+//!     let mut raw = String::new();
+//!     file.read_to_string(&mut raw).await.unwrap();
+//!     raw.par_split(',').map(|s| s.trim().parse::<usize>().unwrap()).collect()
+//! }
+//! ```
+//!
+//! All the `std::fs` synchronous operations have an async counterpart in [`fs`]. For simpler one shot
+//! operation it is recommended to just use `std::fs` inside [`wait`], the async [`fs`] types are not async at
+//! the OS level, they only offload operations inside the same thread-pool used by [`wait`].
 //!
 //! # HTTP Client
 //!
-//! Zero-Ui uses the [`http`] module for making HTTP functions such as loading an image from a given URL,
-//! the [`http`] module is a thin wrapper around the [`isahc`] crate.
+//! You can use [`http`] to implement asynchronous HTTP requests. Zero-Ui also uses the [`http`] module for
+//! implementing operations such as loading an image from a given URL, the module is a thin wrapper around the [`isahc`] crate.
 //!
 //! ```
 //! # use zero_ui_core::{*, var::*, handler::*, text::*, gesture::*};
@@ -95,8 +109,7 @@
 //! # ; }
 //! ```
 //!
-//! For multi-megabyte file transfers you can also use [`DownloadTask`] and [`UploadTask`]. For other protocols
-//! or alternative HTTP clients you can use [external crates](#async-crates-integration).
+//! For other protocols or alternative HTTP clients you can use [external crates](#async-crates-integration).
 //!
 //! # Async Crates Integration
 //!
@@ -109,12 +122,10 @@
 //! thread only. Just `.await` futures from these crate.
 //!
 //! The [`tokio`] crate on the other hand, does not integrate well. It does not start its own runtime automatically, and expects you
-//! to call its async functions from inside the tokio runtime. After you created a future from inside the runtime you can `.await` then
-//! in any thread at least, so if you have no alternative but to use [`tokio`] we recommend manually starting its runtime in a thread and
-//! then using the `tokio::runtime::Handle` to start futures in the runtime.
+//! to call its async functions from inside the tokio runtime. After you create a future from inside the runtime you can `.await` then
+//! in any thread, so we recommend manually starting its runtime in a thread and then using the `tokio::runtime::Handle` to start
+//! futures in the runtime.
 //!
-//! [`DownloadTask`]: crate::task::http::DownloadTask
-//! [`UploadTask`]: crate::task::http::UploadTask
 //! [`isahc`]: https://docs.rs/isahc
 //! [`AppExtension`]: crate::app::AppExtension
 //! [`blocking`]: https://docs.rs/blocking
@@ -122,6 +133,8 @@
 //! [`async-std`]: https://docs.rs/async-std
 //! [`smol`]: https://docs.rs/smol
 //! [`tokio`]: https://docs.rs/tokio
+//! [`futures-lite::io`]: https://docs.rs/futures-lite/*/futures_lite/io/index.html
+//! [`async-fs`]: https://docs.rs/async-fs
 
 use std::{
     fmt,
@@ -133,17 +146,18 @@ use std::{
     time::{Duration, Instant},
 };
 
-use async_trait::*;
 use parking_lot::Mutex;
 
 use crate::{
     crate_util::{panic_str, PanicResult},
-    units::*,
     var::{response_channel, response_var, ResponseVar, Var, VarValue, WithVars},
 };
 
 #[doc(no_inline)]
 pub use rayon;
+
+#[doc(no_inline)]
+pub use async_fs as fs;
 
 pub mod channel;
 pub mod io;
@@ -521,72 +535,10 @@ where
 /// so we offload this to a `wait` task. The task can be `.await` inside a [`run`] task or inside one of the UI tasks
 /// like in a async event handler.
 ///
-/// # Read/Write Tasks
+/// # Async Read/Write
 ///
-/// For [`std::io::Read`] and [`std::io::Write`] operations you can also use [`io::ReadTask`] and [`io::WriteTask`] when you don't
-/// have or want the full file in memory. The example demonstrates a program that could be processing gibibytes of
-/// data, but only allocates around 16 mebibytes for the task, in the worst case.
-///
-/// ```no_run
-/// # use zero_ui_core::{task::{self, io::{ReadTask, WriteTask}, rayon::prelude::*}, units::*};
-/// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-/// // acquire files, using `wait` directly.
-/// let (input_file, total_len) = task::wait(|| {
-///     let file = std::fs::File::open("large-input.bin")?;
-///     let len = file.metadata()?.len();
-///     Ok::<_, std::io::Error>((file, (len as usize).bytes()))
-/// }).await?;
-/// let output_file = task::wait(|| std::fs::File::create("large-output.bin")).await?;
-///
-/// // start reading the input, immediately tries to read 8 chunks of 1 mebibyte each.
-/// let r = ReadTask::default().spawn(input_file, total_len);
-/// // start an idle write, with a queue of up to 8 write requests.
-/// let w = WriteTask::default().spawn(output_file, total_len);
-///
-/// // both tasks use `wait` internally, the `total_len` is for the metrics info.
-///
-/// let mut eof = false;
-/// while !eof {
-///     // read 1 mebibyte, awaits here if no payload was read yet.
-///     let mut data = r.read().await.map_err(|e|e.unwrap_io())?;
-///
-///     // when EOF is reached, the data is not the full payload.
-///     if data.len() < r.payload_len().bytes() {
-///         eof = true;
-///
-///         let garbage = data.len() % 4;
-///         if garbage != 0 {
-///             data.truncate(data.len() - garbage);
-///         }
-///         
-///         if data.is_empty() {
-///             break;
-///         }
-///     }
-///
-///     // assuming the example is inside a `run` call,
-///     // use rayon to transform the data in parallel.
-///     data.par_chunks_mut(4).for_each(|c| c[3] = 255);
-///     
-///     // queue the data for writing, awaits here if the queue is full.
-///     if w.write(data).await.is_err() {
-///         // write IO error is in `finish`, error here
-///         // just indicates that the task has terminated.
-///         break;
-///     }
-///
-///     print!("{}[2J", 27 as char);
-///     println!("{}; {}", r.metrics(), w.metrics());
-/// }
-/// println!("{}[2J", 27 as char);
-/// println!("Done!\n{}; {}", r.metrics(), w.metrics());
-///
-/// // get the files back for more small operations using `wait` directly.
-/// let input_file = r.stop().await.unwrap();
-/// let output_file = w.finish().await.map_err(|e|e.unwrap_io())?;
-/// task::wait(move || output_file.sync_all()).await?;
-/// # Ok(()) }
-/// ```
+/// For [`std::io::Read`] and [`std::io::Write`] operations you can also use [`io`] and [`fs`] alternatives when you don't
+/// have or want the full file in memory or when you want to apply multiple operations to the file.
 ///
 /// # Panic Propagation
 ///
@@ -1827,127 +1779,6 @@ macro_rules! __all_some {
         }
     }
 }
-
-/// Read some metadata bytes then spawn a [`ReceiverTask`].
-///
-/// This is a common pattern when processing large byte inputs, you need to first read
-/// some metadata the describes the layout of the large amount of data that follows,
-/// this is usually all send as a single stream of bytes but we want to *change-gears* depending
-/// on what part we are reading, this trait is an abstraction over this process.
-///
-/// First you *drip-read* the metadata using [`read_exact`] and when you are ready to start processing
-/// the full data you call [`spawn`], or you can drop the object to cancel without calling [`spawn`].
-///
-/// # Implementers
-///
-/// * [`io::ReadThenReceive`] to read from any [`std::io::Read`].
-/// * [`http::ReadThenReceive`] to download over HTTP.
-///
-/// [`read_exact`]: Self::read_exact
-/// [`spawn`]: Self::spawn
-/// [`cancel`]: Self::cancel
-#[async_trait]
-pub trait ReadThenReceive {
-    /// [`read_exact`] error.
-    ///
-    /// [`read_exact`]: ReadThenReceive::read_exact
-    type Error: std::error::Error + From<std::io::Error>;
-
-    /// Spawned [`ReceiverTask`] returned by [`spawn`].
-    ///
-    /// [`spawn`]: ReadThenReceive::spawn
-    type Spawned: ReceiverTask;
-
-    /// Read a small amount of metadata bytes, each call advances the
-    /// inner byte stream by `N`.
-    async fn read_exact<const N: usize>(&mut self) -> Result<[u8; N], Self::Error>;
-
-    /// Skip the number of `bytes` as a `Vec<u8>`.
-    async fn read_exact_heap(&mut self, bytes: ByteLength) -> Result<Vec<u8>, Self::Error>;
-
-    /// Spawn the [`ReceiverTask`].
-    ///
-    /// The `payload_len` if the number of bytes that is buffered into the `Vec<u8>` returned for each call
-    /// of [`ReceiverTask::recv`]. The `channel_capacity` if the number of payloads that can be waiting in
-    /// memory to be received. You should use the metadata information to calculate this values, for example,
-    /// a progressive image decoder may set the `payload_len` to be one row of pixels and the `channel_capacity`
-    /// to be the image height.
-    ///
-    /// The first payload will start on the byte offset next from the last call to [`read_exact`].
-    ///
-    /// [`read_exact`]: Self::read_exact
-    fn spawn(self, payload_len: ByteLength, channel_capacity: usize) -> Self::Spawned;
-}
-
-/// Abstraction over [`io::ReadTask`] and [`http::DownloadTask`].
-#[async_trait]
-pub trait ReceiverTask: 'static {
-    /// Error returned by [`recv`] that indicates the task has failed and [`stop`] should
-    /// be called.
-    ///
-    /// [`recv`]: ReceiverTask::recv
-    /// [`stop`]: ReceiverTask::stop
-    type Error: std::error::Error + From<std::io::Error>;
-
-    /// Receive the next payload.
-    async fn recv(&self) -> Result<Vec<u8>, Self::Error>;
-
-    /// Finish the task returning the inner *source* if possible.
-    async fn stop(self);
-}
-
-/// Abstraction over [`io::WriteTask`] and [`http::UploadTask`].
-#[async_trait]
-pub trait SenderTask: 'static {
-    /// The underlying *writer* object.
-    ///
-    /// This is a [`std::io::Write`] implementer or [`http::Request`].
-    type Writer;
-
-    /// Error returned by [`finish`].
-    ///
-    /// This error can happen in any of the pending [`send`] calls.
-    ///
-    /// [`send`]: SenderTask::send
-    /// [`finish`]: SenderTask::finish
-    type Error: std::error::Error + From<std::io::Error>;
-
-    /// Send a payload to be written or uploaded.
-    ///
-    /// Returns an error if the worker has closed because of an error during the processing of a previous payload.
-    ///
-    /// If an error is returned call [`finish`] to get the actual error.
-    ///
-    /// [`finish`]: SenderTask::finish
-    async fn send(&self, payload: Vec<u8>) -> Result<(), SenderTaskClosed>;
-
-    /// Flushes all pending payloads and closes the worker, returns the underlying *writer* object.
-    ///
-    /// Returns an error the the worker was closed due to an error or panic.
-    async fn finish(self) -> Result<Self::Writer, Self::Error>;
-}
-
-/// Error from [`SenderTask`].
-///
-/// This error is returned to indicate that the task worker has permanently stopped because
-/// of an error or panic. You can get actual error by calling [`SenderTask::finish`].
-pub struct SenderTaskClosed {
-    /// Payload that could not be send.
-    pub payload: Vec<u8>,
-}
-impl fmt::Debug for SenderTaskClosed {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SenderTaskClosed")
-            .field("payload", &format!("<{} bytes>", self.payload.len()))
-            .finish()
-    }
-}
-impl fmt::Display for SenderTaskClosed {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "sender task worker has closed")
-    }
-}
-impl std::error::Error for SenderTaskClosed {}
 
 #[cfg(test)]
 pub mod tests {

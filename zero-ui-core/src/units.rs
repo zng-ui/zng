@@ -3026,6 +3026,8 @@ impl ByteUnits for usize {
     Copy,
     PartialEq,
     Eq,
+    PartialOrd,
+    Ord,
     Hash,
     Default,
     dm::Add,

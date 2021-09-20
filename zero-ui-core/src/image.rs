@@ -601,9 +601,6 @@ impl AppExtension for ImageManager {
 /// # Cache
 ///
 /// The cache holds images in memory, configured TODO.
-///
-/// Image downloads are also cached in disk because the requests are
-/// made using [`task::http::get_bytes_cached`].
 #[derive(Service)]
 pub struct Images {
     proxies: Vec<Box<dyn ImageCacheProxy>>,
