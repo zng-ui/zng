@@ -4,7 +4,7 @@ use std::{convert::TryInto, fmt, io, ops::Deref};
 
 use rayon::prelude::*;
 
-use crate::{task, units::*};
+use crate::{task::io::*, units::*};
 
 /// All supported image formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -281,6 +281,10 @@ pub(crate) fn invalid_data(error: impl ToString) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, error.to_string())
 }
 
+pub(crate) fn invalid_input(error: impl ToString) -> io::Error {
+    io::Error::new(ErrorKind::InvalidInput, error.to_string())
+}
+
 pub(crate) fn unexpected_eof(error: impl ToString) -> io::Error {
     io::Error::new(io::ErrorKind::UnexpectedEof, error.to_string())
 }
@@ -290,8 +294,9 @@ pub(crate) struct ArrayRead<const N: usize> {
     cur: usize,
 }
 impl<const N: usize> ArrayRead<N> {
-    pub async fn load<R: task::ReadThenReceive>(read: &mut R) -> Result<Self, R::Error> {
-        let buf = read.read_exact::<N>().await?;
+    pub async fn load<R: AsyncRead + Unpin>(read: &mut R) -> Result<Self> {
+        let mut buf = [0; N];
+        read.read_exact(&mut buf).await?;
         Ok(ArrayRead { buf, cur: 0 })
     }
 

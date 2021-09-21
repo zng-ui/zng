@@ -2,13 +2,8 @@
 //!
 //! See [https://en.wikipedia.org/wiki/BMP_file_format] for details about the format.
 
-use std::io;
-
-use rayon::prelude::*;
-
 use super::*;
-use crate::task;
-use crate::task::SenderTask;
+use crate::task::io::*;
 use crate::units::*;
 
 /// BMP header info.
@@ -68,7 +63,7 @@ enum Bpp {
     B32 = 32,
 }
 impl Bpp {
-    fn new(bpp: u16) -> io::Result<Bpp> {
+    fn new(bpp: u16) -> Result<Bpp> {
         match bpp {
             1 => Ok(Bpp::B1),
             4 => Ok(Bpp::B4),
@@ -97,7 +92,7 @@ enum CompressionMtd {
     // CmykRle4,
 }
 impl CompressionMtd {
-    fn new(compression: u32) -> io::Result<Self> {
+    fn new(compression: u32) -> Result<Self> {
         match compression {
             0 => Ok(CompressionMtd::Rgb),
             1 => Ok(CompressionMtd::Rle8),
@@ -133,7 +128,7 @@ enum ColorSpaceType {
     Embedded,
 }
 impl ColorSpaceType {
-    fn new(cs_type: u32) -> io::Result<ColorSpaceType> {
+    fn new(cs_type: u32) -> Result<ColorSpaceType> {
         // https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/eb4bbd50-b3ce-4917-895c-be31f214797f
         match cs_type {
             0 => Ok(ColorSpaceType::CalibratedRgb),
@@ -154,7 +149,7 @@ enum CmsIntent {
     AbsColorimetric = 8,
 }
 impl CmsIntent {
-    fn new(intent: u32) -> io::Result<CmsIntent> {
+    fn new(intent: u32) -> Result<CmsIntent> {
         match intent {
             1 => Ok(CmsIntent::Business),
             2 => Ok(CmsIntent::Graphics),
@@ -246,9 +241,9 @@ impl BmpHeaderFull {
     // https://searchfox.org/mozilla-central/source/image/decoders/nsBMPDecoder.cpp#197
     // https://en.wikipedia.org/wiki/BMP_file_format
 
-    pub async fn read<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    pub async fn read<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut head = ArrayRead::<{ 14 + 4 }>::load(read).await?;
 
@@ -271,7 +266,7 @@ impl BmpHeaderFull {
             }
             16 => {
                 self.read_core_header(read).await?;
-                let _ = read.read_exact::<4>().await?;
+                let _ = read.read_exact(&mut [0; 4]).await?;
             }
             40 => {
                 self.read_info_header(read).await?;
@@ -280,7 +275,10 @@ impl BmpHeaderFull {
                     self.compression,
                     CompressionMtd::Rgb | CompressionMtd::Rle4 | CompressionMtd::Rle8 | CompressionMtd::Bitfields
                 ) {
-                    return Err(invalid_data(format!("compression `{:?}` not supported in BMP-v1", self.compression)).into());
+                    return Err(invalid_data(format!(
+                        "compression `{:?}` not supported in BMP-v1",
+                        self.compression
+                    )));
                 }
             }
             52 => {
@@ -289,7 +287,7 @@ impl BmpHeaderFull {
                     self.compression,
                     CompressionMtd::Rgb | CompressionMtd::Rle4 | CompressionMtd::Rle8 | CompressionMtd::Bitfields
                 ) {
-                    return Err(invalid_data("compression not supported in BMP-v2").into());
+                    return Err(invalid_data("compression not supported in BMP-v2"));
                 }
 
                 if matches!(self.compression, CompressionMtd::Bitfields) {
@@ -298,7 +296,7 @@ impl BmpHeaderFull {
             }
             56 => {
                 self.read_info_header(read).await?;
-                let _ = read.read_exact::<4>().await?;
+                let _ = read.read_exact(&mut [0; 4]).await?;
 
                 // we don't support these compressions
                 // if matches!(self.compression, CompressionMtd::Jpeg | CompressionMtd::Png) {
@@ -321,29 +319,29 @@ impl BmpHeaderFull {
                 self.read_info_header5(read).await?;
             }
 
-            unknown => return Err(invalid_data(format!("unknown header size `{}`", unknown)).into()),
+            unknown => return Err(invalid_data(format!("unknown header size `{}`", unknown))),
         }
 
         match self.compression {
             CompressionMtd::Rle8 => {
                 if !matches!(self.bpp, Bpp::B8) {
-                    return Err(invalid_data("compression RLE8 but BPP not 8").into());
+                    return Err(invalid_data("compression RLE8 but BPP not 8"));
                 }
             }
             CompressionMtd::Rle4 => {
                 if !matches!(self.bpp, Bpp::B4) {
-                    return Err(invalid_data("compression RLE4 but BPP not 4").into());
+                    return Err(invalid_data("compression RLE4 but BPP not 4"));
                 }
             }
             CompressionMtd::Bitfields => {
                 if !matches!(self.bpp, Bpp::B16 | Bpp::B32) {
-                    return Err(invalid_data("compression BITFIELDS but BPP not 16 nor 32").into());
+                    return Err(invalid_data("compression BITFIELDS but BPP not 16 nor 32"));
                 }
             }
 
             CompressionMtd::AlphaBitfields => {
                 if !matches!(self.bpp, Bpp::B32) {
-                    return Err(invalid_data("compression ALPHABITFIELDS but BPP not 32").into());
+                    return Err(invalid_data("compression ALPHABITFIELDS but BPP not 32"));
                 }
             }
             _ => {}
@@ -354,9 +352,9 @@ impl BmpHeaderFull {
         Ok(())
     }
 
-    async fn read_core_header<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn read_core_header<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut h = ArrayRead::<{ 12 - 4 }>::load(read).await?;
 
@@ -368,15 +366,15 @@ impl BmpHeaderFull {
         self.bpp = Bpp::new(h.read_u16_le())?;
 
         if matches!(self.bpp, Bpp::B16 | Bpp::B32) {
-            return Err(invalid_data("invalid bpp for bmp-core").into());
+            return Err(invalid_data("invalid bpp for bmp-core"));
         }
 
         Ok(())
     }
 
-    async fn read_core_header2<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn read_core_header2<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut h = ArrayRead::<{ 64 - 12 - 4 }>::load(read).await?;
 
@@ -390,13 +388,13 @@ impl BmpHeaderFull {
             1 => {
                 let pct = h.read_u32_le();
                 if pct > 100 {
-                    return Err(invalid_data("expected value in the `0..=100` range").into());
+                    return Err(invalid_data("expected value in the `0..=100` range"));
                 }
                 Halftoning::ErrorDiffusion(pct as u8)
             }
             2 => Halftoning::Panda(h.read_u32_le(), h.read_u32_le()),
             3 => Halftoning::SuperCircle(h.read_u32_le(), h.read_u32_le()),
-            _ => return Err(invalid_data("unknown halftoning algorithm").into()),
+            _ => return Err(invalid_data("unknown halftoning algorithm")),
         };
 
         #[cfg(debug_assertions)]
@@ -408,15 +406,15 @@ impl BmpHeaderFull {
         Ok(())
     }
 
-    async fn read_info_header<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn read_info_header<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut header = ArrayRead::<{ 40 - 4 }>::load(read).await?;
 
         let w = header.read_i32_le();
         if w < 0 {
-            return Err(invalid_data("width less then zero").into());
+            return Err(invalid_data("width less then zero"));
         }
         self.width = w as u32;
 
@@ -434,7 +432,7 @@ impl BmpHeaderFull {
         self.compression = CompressionMtd::new(header.read_u32_le())?;
 
         if matches!(self.row_direction, RowDirection::TopDown) && !matches!(self.compression, CompressionMtd::Rgb) {
-            return Err(invalid_data("top-down images cannot be compressed").into());
+            return Err(invalid_data("top-down images cannot be compressed"));
         }
 
         header.skip(4); // ignore image size in bytes
@@ -462,7 +460,7 @@ impl BmpHeaderFull {
 
         let palette_count = header.read_i32_le();
         if !(0..=256).contains(&palette_count) {
-            return Err(invalid_data("incorrect palette colors count").into());
+            return Err(invalid_data("incorrect palette colors count"));
         }
         self.palette_count = palette_count as u32;
 
@@ -474,9 +472,9 @@ impl BmpHeaderFull {
         Ok(())
     }
 
-    async fn maybe_read_bitmasks<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn maybe_read_bitmasks<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         match self.compression {
             CompressionMtd::Bitfields => self.read_rgb_bitmasks(read).await?,
@@ -488,9 +486,9 @@ impl BmpHeaderFull {
         }
         Ok(())
     }
-    async fn read_rgb_bitmasks<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn read_rgb_bitmasks<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut masks = ArrayRead::<{ 4 * 3 }>::load(read).await?;
 
@@ -500,18 +498,18 @@ impl BmpHeaderFull {
 
         Ok(())
     }
-    async fn read_alpha_bitmask<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn read_alpha_bitmask<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut mask = ArrayRead::<4>::load(read).await?;
         self.alpha_bitmask = mask.read_u32_le();
         Ok(())
     }
 
-    async fn read_info_header4<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn read_info_header4<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut header = ArrayRead::<{ 108 - 52 - 4 }>::load(read).await?;
 
@@ -536,9 +534,9 @@ impl BmpHeaderFull {
         Ok(())
     }
 
-    async fn read_info_header5<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn read_info_header5<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut icc_info = ArrayRead::<{ 124 - 108 - 4 }>::load(read).await?;
 
@@ -556,9 +554,9 @@ impl BmpHeaderFull {
         Ok(())
     }
 
-    async fn maybe_read_palette<R>(&mut self, read: &mut R) -> Result<(), R::Error>
+    async fn maybe_read_palette<R>(&mut self, read: &mut R) -> Result<()>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let bpp = self.bpp as u8;
         if bpp <= 8 {
@@ -573,7 +571,7 @@ impl BmpHeaderFull {
             // 256 because some files try to index out of bounds.
             self.palette = vec![[0u8; 4]; 256];
             for c in &mut self.palette[0..self.palette_count as usize] {
-                *c = read.read_exact::<4>().await?;
+                read.read_exact(c).await?;
             }
         }
 
@@ -585,9 +583,8 @@ impl BmpHeaderFull {
 pub struct Decoder<R> {
     header: BmpHeaderFull,
 
-    task: R,
+    read: BufReader<R>,
     pending_lines: u32,
-    next_line: Vec<u8>,
 }
 impl<R> Decoder<R> {
     /// Header info.
@@ -596,9 +593,9 @@ impl<R> Decoder<R> {
     }
 }
 impl Decoder<()> {
-    async fn read_header_full<R>(read: &mut R) -> Result<BmpHeaderFull, R::Error>
+    async fn read_header_full<R>(read: &mut R) -> Result<BmpHeaderFull>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let mut header = BmpHeaderFull::default();
         header.read(read).await?;
@@ -606,28 +603,25 @@ impl Decoder<()> {
     }
 
     /// Read the header only.
-    pub async fn read_header<R>(read: &mut R) -> Result<BmpHeader, R::Error>
+    pub async fn read_header<R>(read: &mut R) -> Result<BmpHeader>
     where
-        R: task::ReadThenReceive,
+        R: AsyncRead + Unpin,
     {
         let header_full = Decoder::read_header_full(read).await?;
         Ok(BmpHeader::new(&header_full))
     }
 }
-impl<R: task::ReceiverTask> Decoder<R> {
+impl<R: AsyncRead + Unpin> Decoder<R> {
     /// Reads the header and starts the decoder task.
     ///
     /// Note that the ICC profile is not in the header but trailing after the pixels so
     /// progressive rendering may show incorrect colors.
-    pub async fn start<RR>(mut read: RR, max_bytes: ByteLength) -> Result<Self, RR::Error>
-    where
-        RR: task::ReadThenReceive<Spawned = R>,
-    {
+    pub async fn start(mut read: R, max_bytes: ByteLength) -> Result<Self> {
         let header = Decoder::read_header_full(&mut read).await?;
 
         check_limit(header.width, header.height, 4.bytes(), max_bytes)?;
 
-        read.read_exact_heap(header.gap1.bytes()).await?;
+        read.read_exact(&mut vec![0; header.gap1]).await?;
 
         let payload_len = match header.compression {
             CompressionMtd::Rgb => {
@@ -639,18 +633,17 @@ impl<R: task::ReceiverTask> Decoder<R> {
             CompressionMtd::Bitfields | CompressionMtd::AlphaBitfields => header.width as usize,
         };
 
-        let task = read.spawn(payload_len.bytes(), header.height as usize);
+        let read = BufReader::with_capacity(payload_len, read);
 
         Ok(Decoder {
             pending_lines: header.height,
-            next_line: vec![],
             header,
-            task,
+            read,
         })
     }
 
     /// Read and decode some pixel lines.
-    pub async fn read_lines(&mut self, line_count: u32) -> Result<Bgra8Buf, R::Error> {
+    pub async fn read_lines(&mut self, line_count: u32) -> Result<Bgra8Buf> {
         let count = line_count.max(self.pending_lines) as usize;
         if count == 0 {
             return Ok(Bgra8Buf::empty());
@@ -666,7 +659,7 @@ impl<R: task::ReceiverTask> Decoder<R> {
     }
 
     /// Read all lines to the end and the trailing ICC profile if any where defined.
-    pub async fn read_end(&mut self) -> Result<(Bgra8Buf, Option<lcms2::Profile>), R::Error> {
+    pub async fn read_end(&mut self) -> Result<(Bgra8Buf, Option<lcms2::Profile>)> {
         let rest = self.read_lines(self.pending_lines).await?;
 
         let icc = if self.header.icc_size > 0 { todo!() } else { None };
@@ -674,7 +667,7 @@ impl<R: task::ReceiverTask> Decoder<R> {
         Ok((rest, icc))
     }
 
-    async fn read_rgb_lines(&mut self, line_count: u32) -> Result<Bgra8Buf, R::Error> {
+    async fn read_rgb_lines(&mut self, line_count: u32) -> Result<Bgra8Buf> {
         match self.header.bpp {
             Bpp::B1 => todo!(),
             Bpp::B4 => todo!(),
@@ -685,13 +678,9 @@ impl<R: task::ReceiverTask> Decoder<R> {
                 let line_len = self.header.width as usize * 3;
                 let mut r = Bgra8Buf::with_capacity(self.header.width as usize * 4 * line_count as usize);
                 for _ in 0..line_count {
-                    let mut line = self.task.recv().await?;
-                    if line.len() < line_len {
-                        return Err(unexpected_eof("did not contain all pixels").into());
-                    } else {
-                        line.truncate(line_len); // remove padding
-                        r.extend(Bgra8Buf::from_bgr8(line));
-                    }
+                    let mut line = vec![0; line_len];
+                    self.read.read_exact(&mut line).await?;
+                    r.extend(Bgra8Buf::from_bgr8(line));
                 }
                 self.pending_lines -= line_count;
                 Ok(r)
@@ -701,13 +690,9 @@ impl<R: task::ReceiverTask> Decoder<R> {
                 let line_len = self.header.width as usize * 4;
                 let mut r = Bgra8Buf::with_capacity(line_len * line_count as usize);
                 for _ in 0..line_count {
-                    let mut line = self.task.recv().await?;
-                    if line.len() < line_len {
-                        return Err(unexpected_eof("did not contain all pixels").into());
-                    } else {
-                        line.truncate(line_len); // remove padding
-                        r.extend(Bgra8Buf::from_bgra8(line));
-                    }
+                    let mut line = vec![0; line_len];
+                    self.read.read_exact(&mut line).await?;
+                    r.extend(Bgra8Buf::from_bgra8(line));
                 }
                 self.pending_lines -= line_count;
                 Ok(r)
@@ -715,24 +700,24 @@ impl<R: task::ReceiverTask> Decoder<R> {
         }
     }
 
-    async fn read_rle_lines(&mut self, line_count: u32, rle8: bool) -> Result<Bgra8Buf, R::Error> {
-        todo!()
+    async fn read_rle_lines(&mut self, line_count: u32, rle8: bool) -> Result<Bgra8Buf> {
+        todo!("TODO read_rle_lines {} {}", line_count, rle8)
     }
 
-    async fn read_bitfield_lines(&mut self, line_count: u32) -> Result<Bgra8Buf, R::Error> {
-        todo!()
+    async fn read_bitfield_lines(&mut self, line_count: u32) -> Result<Bgra8Buf> {
+        todo!("TODO read_bitfield_lines{}", line_count)
     }
 }
 
 /// An async streaming BMP encoder.
-pub struct Encoder<S> {
-    task: S,
+pub struct Encoder<W> {
+    write: W,
     opaque: bool,
     pending_bytes: usize,
 }
-impl<S: SenderTask> Encoder<S> {
+impl<W: AsyncWrite + Unpin> Encoder<W> {
     /// Write the BMP header and starts the writer task.
-    pub async fn start(width: u32, height: u32, ppm: Ppm, opaque: bool, task: S) -> Result<Self, S::Error> {
+    pub async fn start(width: u32, height: u32, ppm: Ppm, opaque: bool, mut write: W) -> Result<Self> {
         let mut header = vec![0; 54];
         header.extend(b"BM");
 
@@ -756,45 +741,40 @@ impl<S: SenderTask> Encoder<S> {
 
         header.extend([0; 8]); // 0u32 colors in palette and 0u32 important colors.
 
-        match task.send(header).await {
-            Ok(_) => Ok(Encoder {
-                task,
-                opaque: true,
-                pending_bytes: pixels_size as usize,
-            }),
-            Err(_) => match task.finish().await {
-                Err(e) => Err(e),
-                Ok(_) => unreachable!(),
-            },
-        }
+        write.write_all(&header).await?;
+
+        Ok(Encoder {
+            write,
+            opaque: true,
+            pending_bytes: pixels_size as usize,
+        })
     }
 
     /// Encode and write more image pixels.
-    pub async fn write(&mut self, partial_bgra8_payload: Bgra8Buf) -> Result<(), task::SenderTaskClosed> {
-        let mut bytes: Vec<u8> = if self.opaque {
+    pub async fn write(&mut self, partial_bgra8_payload: Bgra8Buf) -> Result<()> {
+        let bytes = if self.opaque {
             partial_bgra8_payload.into_bgr8()
         } else {
             partial_bgra8_payload.into_bgra8()
         };
         if self.pending_bytes < bytes.len() {
-            let rest = bytes.drain(self.pending_bytes..).collect();
-            if !bytes.is_empty() {
-                self.task.send(bytes).await?;
-            }
-            Err(task::SenderTaskClosed { payload: rest })
+            self.write.write_all(&bytes[..self.pending_bytes]).await?;
+            Err(invalid_input("payload encoded to more bytes then expected for image"))
         } else {
-            self.task.send(bytes).await
+            self.write.write_all(&bytes).await
         }
     }
 
     /// Flushes and closes the writer task, returns the write back and any error that happened during write.
-    pub async fn finish(self) -> Result<S::Writer, S::Error> {
-        self.task.finish().await
+    pub async fn finish(mut self) -> Result<W> {
+        self.write.flush().await?;
+        Ok(self.write)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::task::fs as afs;
     use std::{fs, future::Future, path::PathBuf, time::Duration};
 
     use super::*;
@@ -859,7 +839,7 @@ mod tests {
             };
 
             async_test(async move {
-                let file = task::io::ReadThenReceive::open(file_path).await.unwrap();
+                let file = afs::File::open(file_path).await.unwrap();
                 let r = Decoder::start(file, 10.kibi_bytes()).await;
                 match allow {
                     Do::Allow | Do::AllowHeader => {
@@ -906,7 +886,7 @@ mod tests {
             //}
 
             async_test(async move {
-                let file = task::io::ReadThenReceive::open(file_path).await.unwrap();
+                let file = afs::File::open(file_path).await.unwrap();
                 let mut d = Decoder::start(file, 10.kibi_bytes())
                     .await
                     .unwrap_or_else(|e| panic!("error decoding good file `{}` header\n{}", file_name, e));

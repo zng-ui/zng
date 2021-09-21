@@ -4,18 +4,17 @@ use crate::render::webrender_api::ImageKey;
 use std::{
     cell::RefCell,
     collections::HashMap,
-    error::Error,
-    fmt,
+    error, fmt,
     path::PathBuf,
     rc::{self, Rc},
     sync::{Arc, Weak},
     time::Duration,
 };
 
-//pub mod bmp;
-//pub mod farbfeld;
-//mod formats;
-//pub use formats::*;
+pub mod bmp;
+pub mod farbfeld;
+mod formats;
+pub use formats::*;
 
 use crate::{
     app::{
@@ -538,8 +537,8 @@ impl fmt::Display for ImageError {
         }
     }
 }
-impl std::error::Error for ImageError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
+impl error::Error for ImageError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             ImageError::Image(e) => e.source(),
             ImageError::Http(e) => e.source(),
