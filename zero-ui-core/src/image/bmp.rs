@@ -669,7 +669,7 @@ impl<R: AsyncRead + Unpin> Decoder<R> {
 
     async fn read_rgb_lines(&mut self, line_count: u32) -> Result<Bgra8Buf> {
         match self.header.bpp {
-            Bpp::B1 => todo!(),
+            Bpp::B1 => self.read_palette1(line_count).await,
             Bpp::B4 => todo!(),
             Bpp::B8 => todo!(),
             Bpp::B16 => todo!(),
@@ -706,6 +706,10 @@ impl<R: AsyncRead + Unpin> Decoder<R> {
 
     async fn read_bitfield_lines(&mut self, line_count: u32) -> Result<Bgra8Buf> {
         todo!("TODO read_bitfield_lines{}", line_count)
+    }
+
+    async fn read_palette1(&mut self, line_count: u32) -> Result<Bgra8Buf> {
+        todo!("TODO read_palette1 {}", line_count)
     }
 }
 
@@ -795,8 +799,8 @@ mod tests {
             let file_path = file.unwrap().path();
             let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
 
-            println!("{}", file_name);
-            //if file_name != "badpalettesize.bmp" {
+            //println!("{}", file_name);
+            //if file_name != "badbitssize.bmp" {
             //    continue;
             //}
 
@@ -840,10 +844,10 @@ mod tests {
 
             async_test(async move {
                 let file = afs::File::open(file_path).await.unwrap();
-                let r = Decoder::start(file, 10.kibi_bytes()).await;
+                let r = Decoder::start(file, 1.mebi_bytes()).await;
                 match allow {
                     Do::Allow | Do::AllowHeader => {
-                        let mut d = r.unwrap_or_else(|e| panic!("error decoding allowed bad file `{}` header\n{}", file_name, e));
+                        let mut d = r.unwrap_or_else(|e| panic!("error decoding allowed bad file `{}` header\nerror: {}", file_name, e));
                         match d.read_end().await {
                             Ok((_, _)) => {
                                 if let Do::AllowHeader = allow {
@@ -855,7 +859,7 @@ mod tests {
                             }
                             Err(e) => {
                                 if let Do::Allow = allow {
-                                    panic!("error decoding allowed bad file `{}` pixels\n{}", file_name, e);
+                                    panic!("error decoding allowed bad file `{}` pixels\nerror: {}", file_name, e);
                                 }
                             }
                         }
@@ -887,7 +891,7 @@ mod tests {
 
             async_test(async move {
                 let file = afs::File::open(file_path).await.unwrap();
-                let mut d = Decoder::start(file, 10.kibi_bytes())
+                let mut d = Decoder::start(file, (127 * 64 * 4).bytes())
                     .await
                     .unwrap_or_else(|e| panic!("error decoding good file `{}` header\n{}", file_name, e));
 

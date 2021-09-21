@@ -1791,7 +1791,7 @@ pub mod tests {
     where
         F: Future,
     {
-        block_on(with_timeout(test, Duration::from_secs(1))).unwrap()
+        block_on(with_timeout(test, Duration::from_secs(5))).unwrap()
     }
 
     #[test]

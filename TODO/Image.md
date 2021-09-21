@@ -30,3 +30,8 @@ The `image` crate does not support these features, no
 progressive decoding, no reading of dpi and color profile metadata.
 
 We tried implementing progressive decoders, even just the BMP decoder seems like to much work to support.
+
+## Solutions
+
+There is an effort to support more metadata parsing in the `image` crate, see https://github.com/image-rs/image/pull/1448
+so we can wait for now and focus in other features.
