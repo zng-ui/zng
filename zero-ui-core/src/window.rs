@@ -2113,7 +2113,6 @@ impl AppWindow {
                     (scr_size.width - self.size.width) / Dip::new(2),
                     (scr_size.height - self.size.height) / Dip::new(2),
                 ));
-                println!("{:?}", ((scr_size, self.size), self.position));
             }
             StartPosition::CenterParent => todo!(),
         }
@@ -2127,13 +2126,13 @@ impl AppWindow {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
         let pos = self.vars.position().get(ctx.vars);
-        let pos = ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
-            pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size))
-        });
 
-        if pos.x == Px::MAX || pos.y == Px::MAX {
+        if pos.x.is_default() || pos.y.is_default() {
             None
         } else {
+            let pos = ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+                pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size), PxPoint::zero())
+            });
             Some(pos.to_dip(scr_factor))
         }
     }
@@ -2147,13 +2146,18 @@ impl AppWindow {
         let (available_size, min_size, max_size, auto_size) =
             ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
                 let scr_size = AvailableSize::finite(ctx.viewport_size);
+
+                let default_size = Size::new(800, 600).to_layout(ctx, scr_size, PxSize::zero());
+                let default_min_size = Size::new(192, 48).to_layout(ctx, scr_size, PxSize::zero());
+                let default_max_size = ctx.viewport_size; // (100%, 100%)
+
                 let mut size = if use_system_size {
                     self.size.to_px(ctx.scale_factor)
                 } else {
-                    self.vars.size().get(ctx.vars).to_layout(ctx, scr_size)
+                    self.vars.size().get(ctx.vars).to_layout(ctx, scr_size, default_size)
                 };
-                let min_size = self.vars.min_size().get(ctx.vars).to_layout(ctx, scr_size);
-                let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, scr_size);
+                let min_size = self.vars.min_size().get(ctx.vars).to_layout(ctx, scr_size, default_min_size);
+                let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, scr_size, default_max_size);
 
                 let auto_size = self.vars.auto_size().copy(ctx);
                 if auto_size.contains(AutoSize::CONTENT_WIDTH) {
@@ -2588,7 +2592,7 @@ impl WindowVars {
 
             state: var(WindowState::Normal),
 
-            position: var(Point::new(Px::MAX, Px::MAX)),
+            position: var(Point::default()),
             monitor: var(MonitorQuery::Primary),
             size: var(Size::new(800, 600)),
 
@@ -2681,7 +2685,7 @@ impl WindowVars {
     /// When the the window is moved this variable does **not** update back, to track the current position of the window
     /// use [`actual_position`].
     ///
-    /// The default value is `(Px::MAX, Px::MAX)` that causes the window or OS to select a value.
+    /// The default value causes the window or OS to select a value.
     ///
     /// [`actual_position`]: WindowVars::actual_position
     /// [`monitor`]: WindowVars::monitor

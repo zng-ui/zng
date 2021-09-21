@@ -180,7 +180,9 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.layout_origin = self.origin.get(ctx).to_layout(ctx, AvailableSize::finite(final_size));
+            let available_size = AvailableSize::finite(final_size);
+            let default_origin = Point::center().to_layout(ctx, available_size, PxPoint::zero());
+            self.layout_origin = self.origin.get(ctx).to_layout(ctx, available_size, default_origin);
             self.child.arrange(ctx, final_size);
         }
 

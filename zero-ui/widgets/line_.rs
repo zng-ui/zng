@@ -12,8 +12,8 @@ pub mod line_w {
         /// Line color.
         color(impl IntoVar<Rgba>) = rgb(0, 0, 0);
 
-        /// Line stroke thickness.
-        width(impl IntoVar<Length>) = 1;
+        /// Line stroke width.
+        stroke_width(impl IntoVar<Length>) = 1;
 
         /// Line length.
         length(impl IntoVar<Length>) = 100.pct();
@@ -25,7 +25,7 @@ pub mod line_w {
     fn new_child(
         orientation: impl IntoVar<LineOrientation>,
         length: impl IntoVar<Length>,
-        width: impl IntoVar<Length>,
+        stroke_width: impl IntoVar<Length>,
         color: impl IntoVar<Rgba>,
         style: impl IntoVar<LineStyle>,
     ) -> impl UiNode {
@@ -33,14 +33,14 @@ pub mod line_w {
             bounds: PxSize::zero(),
             orientation: orientation.into_var(),
             length: length.into_var(),
-            width: width.into_var(),
+            stroke_width: stroke_width.into_var(),
             color: color.into_var(),
             style: style.into_var(),
         }
     }
 
     struct LineNode<W, L, O, C, S> {
-        width: W,
+        stroke_width: W,
         length: L,
         orientation: O,
         color: C,
@@ -58,7 +58,7 @@ pub mod line_w {
         S: Var<LineStyle>,
     {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.width.is_new(ctx) || self.length.is_new(ctx) || self.orientation.is_new(ctx) {
+            if self.stroke_width.is_new(ctx) || self.length.is_new(ctx) || self.orientation.is_new(ctx) {
                 ctx.updates.layout();
             }
             if self.color.is_new(ctx) || self.style.is_new(ctx) {
@@ -67,15 +67,22 @@ pub mod line_w {
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_space: AvailableSize) -> PxSize {
-            let (width, height) = match *self.orientation.get(ctx) {
-                LineOrientation::Horizontal => (self.length.get(ctx), self.width.get(ctx)),
-                LineOrientation::Vertical => (self.width.get(ctx), self.length.get(ctx)),
-            };
+            let default_stroke = Dip::new(1).to_px(ctx.scale_factor);
 
-            let width = width.to_layout(ctx, available_space.width);
-            let height = height.to_layout(ctx, available_space.height);
-
-            PxSize::new(width, height)
+            match *self.orientation.get(ctx) {
+                LineOrientation::Horizontal => PxSize::new(
+                    self.length
+                        .get(ctx)
+                        .to_layout(ctx, available_space.width, available_space.width.to_px()),
+                    self.stroke_width.get(ctx).to_layout(ctx, available_space.height, default_stroke),
+                ),
+                LineOrientation::Vertical => PxSize::new(
+                    self.stroke_width.get(ctx).to_layout(ctx, available_space.height, default_stroke),
+                    self.length
+                        .get(ctx)
+                        .to_layout(ctx, available_space.width, available_space.height.to_px()),
+                ),
+            }
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {

@@ -23,13 +23,13 @@ pub enum ImageFormat {
     Gif,
     /// See [`bmp`].
     ///
-    /// [`bmp`]: crate::image::formats::bmp
+    /// [`bmp`]: crate::image::bmp
     Bmp,
     /// TODO
     Tga,
     /// See [`farbfeld`].
     ///
-    /// [`farbfeld`]: crate::image::formats::farbfeld
+    /// [`farbfeld`]: crate::image::farbfeld
     Farbfeld,
 }
 impl ImageFormat {

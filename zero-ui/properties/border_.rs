@@ -48,8 +48,8 @@ pub fn border(
 
         #[UiNode]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            self.final_widths = self.widths.get(ctx).to_layout(ctx, available_size);
-            self.final_radius = self.radius.get(ctx).to_layout(ctx, available_size);
+            self.final_widths = self.widths.get(ctx).to_layout(ctx, available_size, PxSideOffsets::zero());
+            self.final_radius = self.radius.get(ctx).to_layout(ctx, available_size, PxCornerRadius::zero());
 
             let size_inc = self.size_increment();
             self.child.measure(ctx, available_size.sub_px(size_inc)) + size_inc

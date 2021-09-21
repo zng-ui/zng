@@ -1,6 +1,6 @@
 //! BMP async streaming decoder and encoder.
 //!
-//! See [https://en.wikipedia.org/wiki/BMP_file_format] for details about the format.
+//! See <https://en.wikipedia.org/wiki/BMP_file_format> for details about the format.
 
 use super::*;
 use crate::task::io::*;

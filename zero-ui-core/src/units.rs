@@ -759,6 +759,10 @@ impl FactorUnits for i32 {
 /// * Viewport lengths uses [`about_eq`] with `0.00001` epsilon.
 #[derive(Clone)]
 pub enum Length {
+    /// The default (initial) value.
+    ///
+    /// This is equal to `0.px()`, unless the property matches this and uses their own default value.
+    Default,
     /// The exact length in device independent units.
     Dip(Dip),
     /// The exact length in device pixel units.
@@ -893,15 +897,17 @@ impl<F: Into<FactorNormal>> ops::DivAssign<F> for Length {
     }
 }
 impl Default for Length {
-    /// Px `0`.
+    /// `Length::Default`
     fn default() -> Self {
-        Length::Px(Px(0))
+        Length::Default
     }
 }
 impl PartialEq for Length {
     fn eq(&self, other: &Self) -> bool {
         use Length::*;
         match (self, other) {
+            (Default, Default) => true,
+
             (Dip(a), Dip(b)) => a == b,
             (Px(a), Px(b)) => a == b,
             (Pt(a), Pt(b)) => about_eq(*a, *b, EPSILON_100),
@@ -924,6 +930,7 @@ impl fmt::Debug for Length {
         use Length::*;
         if f.alternate() {
             match self {
+                Default => write!(f, "Length::Default"),
                 Dip(e) => f.debug_tuple("Length::Dip").field(e).finish(),
                 Px(e) => f.debug_tuple("Length::Px").field(e).finish(),
                 Pt(e) => f.debug_tuple("Length::Pt").field(e).finish(),
@@ -938,6 +945,7 @@ impl fmt::Debug for Length {
             }
         } else {
             match self {
+                Default => write!(f, "Default"),
                 Dip(e) => write!(f, "{}.dip()", e),
                 Px(e) => write!(f, "{}.px()", e),
                 Pt(e) => write!(f, "{}.pt()", e),
@@ -957,6 +965,7 @@ impl fmt::Display for Length {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Length::*;
         match self {
+            Default => write!(f, "Default"),
             Dip(l) => write!(f, "{}", l),
             Px(l) => write!(f, "{}px", l),
             Pt(l) => write!(f, "{}pt", l),
@@ -1003,6 +1012,12 @@ impl_from_and_into_var! {
     }
 }
 impl Length {
+    /// If is [`Length::Default`].
+    #[inline]
+    pub fn is_default(&self) -> bool {
+        matches!(self, Length::Default)
+    }
+
     /// Length of exact zero.
     #[inline]
     pub const fn zero() -> Length {
@@ -1025,6 +1040,7 @@ impl Length {
     pub fn max(&self, other: impl Into<Length>) -> Length {
         use Length::*;
         match (self.clone(), other.into()) {
+            (Default, Default) => Default,
             (Dip(a), Dip(b)) => Dip(a.max(b)),
             (Px(a), Px(b)) => Px(a.max(b)),
             (Pt(a), Pt(b)) => Pt(a.max(b)),
@@ -1035,7 +1051,7 @@ impl Length {
             (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a.max(b)),
             (ViewportMin(a), ViewportMin(b)) => ViewportMin(a.max(b)),
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.max(b)),
-            (a, b) => Length::Expr(Box::new(LengthExpr::Max(a, b))),
+            (a, b) => Expr(Box::new(LengthExpr::Max(a, b))),
         }
     }
 
@@ -1043,6 +1059,7 @@ impl Length {
     pub fn min(&self, other: impl Into<Length>) -> Length {
         use Length::*;
         match (self.clone(), other.into()) {
+            (Default, Default) => Default,
             (Dip(a), Dip(b)) => Dip(a.min(b)),
             (Px(a), Px(b)) => Px(a.min(b)),
             (Pt(a), Pt(b)) => Pt(a.min(b)),
@@ -1053,7 +1070,7 @@ impl Length {
             (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a.min(b)),
             (ViewportMin(a), ViewportMin(b)) => ViewportMin(a.min(b)),
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.min(b)),
-            (a, b) => Length::Expr(Box::new(LengthExpr::Min(a, b))),
+            (a, b) => Expr(Box::new(LengthExpr::Min(a, b))),
         }
     }
 
@@ -1068,6 +1085,7 @@ impl Length {
     pub fn abs(&self) -> Length {
         use Length::*;
         match self {
+            Default => Expr(Box::new(LengthExpr::AbsDefault)),
             Dip(e) => Dip(e.abs()),
             Px(e) => Px(e.abs()),
             Pt(e) => Pt(e.abs()),
@@ -1083,9 +1101,10 @@ impl Length {
     }
 
     /// Compute the length at a context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx) -> Px {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx, default_value: Px) -> Px {
         use Length::*;
         match self {
+            Default => default_value,
             Dip(l) => l.to_px(ctx.scale_factor),
             Px(l) => *l,
             Pt(l) => self::Px(((*l * 96.0 / 72.0) * ctx.scale_factor).round() as i32),
@@ -1096,92 +1115,31 @@ impl Length {
             ViewportHeight(p) => ctx.viewport_size.height * *p,
             ViewportMin(p) => ctx.viewport_min() * *p,
             ViewportMax(p) => ctx.viewport_max() * *p,
-            Expr(e) => e.to_layout(ctx, available_size),
+            Expr(e) => e.to_layout(ctx, available_size, default_value),
         }
     }
 
     /// If this length is zero in any finite layout context.
     ///
-    /// If is [`Expr`] returns `false`.
+    /// Returns `None` if the value depends on the input to [`to_layout`].
     ///
     /// [`Expr`]: Length::Expr
-    pub fn is_zero(&self) -> bool {
+    /// [`to_layout`]: Length::to_layout
+    pub fn is_zero(&self) -> Option<bool> {
         use Length::*;
         match self {
-            Dip(l) => *l == self::Dip::new(0),
-            Px(l) => *l == self::Px(0),
-            Pt(l) => l.abs() < EPSILON,
-            Relative(f) => f.0.abs() < EPSILON,
-            Em(f) => f.0.abs() < EPSILON,
-            RootEm(f) => f.0.abs() < EPSILON,
-            ViewportWidth(p) => p.abs() < EPSILON,
-            ViewportHeight(p) => p.abs() < EPSILON,
-            ViewportMin(p) => p.abs() < EPSILON,
-            ViewportMax(p) => p.abs() < EPSILON,
-            Expr(_) => false,
-        }
-    }
-
-    /// If this length is `NaN` in any finite layout context.
-    ///
-    /// If is [`Expr`] returns `false`.
-    ///
-    /// [`Expr`]: Length::Expr
-    pub fn is_nan(&self) -> bool {
-        use Length::*;
-        match self {
-            Dip(_) | Px(_) => false,
-            Pt(f) => f.is_nan(),
-            Relative(f) => f.0.is_nan(),
-            Em(f) => f.0.is_nan(),
-            RootEm(f) => f.0.is_nan(),
-            ViewportWidth(p) => p.is_nan(),
-            ViewportHeight(p) => p.is_nan(),
-            ViewportMin(p) => p.is_nan(),
-            ViewportMax(p) => p.is_nan(),
-            Expr(_) => false,
-        }
-    }
-
-    /// If this length is a finite number in any finite layout context.
-    ///
-    /// If is [`Expr`] returns `false`.
-    ///
-    /// [`Expr`]: Length::Expr
-    pub fn is_finite(&self) -> bool {
-        use Length::*;
-        match self {
-            Dip(_) | Px(_) => true,
-            Pt(f) => f.is_finite(),
-            Relative(f) => f.0.is_finite(),
-            Em(f) => f.0.is_finite(),
-            RootEm(f) => f.0.is_finite(),
-            ViewportWidth(p) => p.is_finite(),
-            ViewportHeight(p) => p.is_finite(),
-            ViewportMin(p) => p.is_finite(),
-            ViewportMax(p) => p.is_finite(),
-            Expr(_) => false,
-        }
-    }
-
-    /// If this length is an infinite number in any finite layout context.
-    ///
-    /// If is [`Expr`] returns `false`.
-    ///
-    /// [`Expr`]: Length::Expr
-    pub fn is_infinite(&self) -> bool {
-        use Length::*;
-        match self {
-            Dip(_) | Px(_) => false,
-            Pt(f) => f.is_infinite(),
-            Relative(f) => f.0.is_infinite(),
-            Em(f) => f.0.is_infinite(),
-            RootEm(f) => f.0.is_infinite(),
-            ViewportWidth(p) => p.is_infinite(),
-            ViewportHeight(p) => p.is_infinite(),
-            ViewportMin(p) => p.is_infinite(),
-            ViewportMax(p) => p.is_infinite(),
-            Expr(_) => false,
+            Default => None,
+            Dip(l) => Some(*l == self::Dip::new(0)),
+            Px(l) => Some(*l == self::Px(0)),
+            Pt(l) => Some(l.abs() < EPSILON),
+            Relative(f) => Some(f.0.abs() < EPSILON),
+            Em(f) => Some(f.0.abs() < EPSILON),
+            RootEm(f) => Some(f.0.abs() < EPSILON),
+            ViewportWidth(p) => Some(p.abs() < EPSILON),
+            ViewportHeight(p) => Some(p.abs() < EPSILON),
+            ViewportMin(p) => Some(p.abs() < EPSILON),
+            ViewportMax(p) => Some(p.abs() < EPSILON),
+            Expr(_) => None,
         }
     }
 }
@@ -1203,27 +1161,30 @@ pub enum LengthExpr {
     Min(Length, Length),
     /// Computes the absolute layout length.
     Abs(Box<LengthExpr>),
+    /// Computes the absolute default length.
+    AbsDefault,
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx) -> Px {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx, default_value: Px) -> Px {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.to_layout(ctx, available_size) + b.to_layout(ctx, available_size),
-            Sub(a, b) => a.to_layout(ctx, available_size) - b.to_layout(ctx, available_size),
-            Mul(l, s) => l.to_layout(ctx, available_size) * s.0,
-            Div(l, s) => l.to_layout(ctx, available_size) / s.0,
+            Add(a, b) => a.to_layout(ctx, available_size, default_value) + b.to_layout(ctx, available_size, default_value),
+            Sub(a, b) => a.to_layout(ctx, available_size, default_value) - b.to_layout(ctx, available_size, default_value),
+            Mul(l, s) => l.to_layout(ctx, available_size, default_value) * s.0,
+            Div(l, s) => l.to_layout(ctx, available_size, default_value) / s.0,
             Max(a, b) => {
-                let a = a.to_layout(ctx, available_size);
-                let b = b.to_layout(ctx, available_size);
+                let a = a.to_layout(ctx, available_size, default_value);
+                let b = b.to_layout(ctx, available_size, default_value);
                 a.max(b)
             }
             Min(a, b) => {
-                let a = a.to_layout(ctx, available_size);
-                let b = b.to_layout(ctx, available_size);
+                let a = a.to_layout(ctx, available_size, default_value);
+                let b = b.to_layout(ctx, available_size, default_value);
                 a.min(b)
             }
-            Abs(e) => e.to_layout(ctx, available_size).abs(),
+            Abs(e) => e.to_layout(ctx, available_size, default_value).abs(),
+            AbsDefault => default_value.abs(),
         }
     }
 }
@@ -1239,6 +1200,7 @@ impl fmt::Debug for LengthExpr {
                 Max(a, b) => f.debug_tuple("LengthExpr::Max").field(a).field(b).finish(),
                 Min(a, b) => f.debug_tuple("LengthExpr::Min").field(a).field(b).finish(),
                 Abs(e) => f.debug_tuple("LengthExpr::Abs").field(e).finish(),
+                AbsDefault => write!(f, "LengthExpr::AbsDefault"),
             }
         } else {
             match self {
@@ -1249,6 +1211,7 @@ impl fmt::Debug for LengthExpr {
                 Max(a, b) => write!(f, "max({:?}, {:?})", a, b),
                 Min(a, b) => write!(f, "min({:?}, {:?})", a, b),
                 Abs(e) => write!(f, "abs({:?})", e),
+                AbsDefault => write!(f, "abs(Default)"),
             }
         }
     }
@@ -1264,6 +1227,7 @@ impl fmt::Display for LengthExpr {
             Max(a, b) => write!(f, "max({}, {})", a, b),
             Min(a, b) => write!(f, "min({}, {})", a, b),
             Abs(e) => write!(f, "abs({})", e),
+            AbsDefault => write!(f, "abs(Default)"),
         }
     }
 }
@@ -1444,7 +1408,7 @@ macro_rules! impl_length_comp_conversions {
 }
 
 /// 2D point in [`Length`] units.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Point {
     /// *x* offset in length units.
     pub x: Length,
@@ -1545,6 +1509,14 @@ impl Point {
         Self::new(Length::fill(), Length::fill())
     }
 
+    /// Point at the center.
+    ///
+    /// ***x:*** [`Length::half`], ***y:*** [`Length::half`]
+    #[inline]
+    pub fn center() -> Self {
+        Self::new(Length::half(), Length::half())
+    }
+
     /// Swap `x` and `y`.
     #[inline]
     pub fn yx(self) -> Self {
@@ -1559,10 +1531,10 @@ impl Point {
 
     /// Compute the point in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxPoint {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxPoint) -> PxPoint {
         PxPoint::new(
-            self.x.to_layout(ctx, available_size.width),
-            self.y.to_layout(ctx, available_size.height),
+            self.x.to_layout(ctx, available_size.width, default_value.x),
+            self.y.to_layout(ctx, available_size.height, default_value.y),
         )
     }
 }
@@ -1581,7 +1553,7 @@ impl_from_and_into_var! {
 }
 
 /// 2D size in [`Length`] units.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Size {
     /// *width* in length units.
     pub width: Length,
@@ -1640,10 +1612,10 @@ impl Size {
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxSize {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxSize) -> PxSize {
         PxSize::new(
-            self.width.to_layout(ctx, available_size.width),
-            self.height.to_layout(ctx, available_size.height),
+            self.width.to_layout(ctx, available_size.width, default_value.width),
+            self.height.to_layout(ctx, available_size.height, default_value.height),
         )
     }
 }
@@ -1664,7 +1636,7 @@ impl_from_and_into_var! {
 /// Ellipse in [`Length`] units.
 ///
 /// This is very similar to [`Size`] but allows initializing from a single [`Length`].
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Ellipse {
     /// *width* in length units.
     pub width: Length,
@@ -1740,10 +1712,10 @@ impl Ellipse {
 
     /// Compute the size in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxEllipse {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxEllipse) -> PxEllipse {
         PxEllipse::new(
-            self.width.to_layout(ctx, available_size.width),
-            self.height.to_layout(ctx, available_size.height),
+            self.width.to_layout(ctx, available_size.width, default_value.height),
+            self.height.to_layout(ctx, available_size.height, default_value.height),
         )
     }
 
@@ -1796,7 +1768,7 @@ pub type PxEllipse = PxSize;
 pub type DipEllipse = DipSize;
 
 /// Spacing in-between grid cells in [`Length`] units.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct GridSpacing {
     /// Spacing in-between columns, in length units.
     pub column: Length,
@@ -1823,10 +1795,10 @@ impl GridSpacing {
 
     /// Compute the spacing in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxGridSpacing {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxGridSpacing) -> PxGridSpacing {
         PxGridSpacing {
-            column: self.column.to_layout(ctx, available_size.width),
-            row: self.row.to_layout(ctx, available_size.height),
+            column: self.column.to_layout(ctx, available_size.width, default_value.column),
+            row: self.row.to_layout(ctx, available_size.height, default_value.row),
         }
     }
 }
@@ -1880,16 +1852,22 @@ impl fmt::Debug for GridSpacing {
 }
 
 /// Computed [`GridSpacing`].
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Default, Copy, Debug)]
 pub struct PxGridSpacing {
     /// Spacing in-between columns, in layout pixels.
     pub column: Px,
     /// Spacing in-between rows, in layout pixels.
     pub row: Px,
 }
+impl PxGridSpacing {
+    /// Zero spacing.
+    pub fn zero() -> Self {
+        PxGridSpacing { column: Px(0), row: Px(0) }
+    }
+}
 
 /// 2D rect in [`Length`] units.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Rect {
     /// Top-left origin of the rectangle in length units.
     pub origin: Point,
@@ -1948,8 +1926,11 @@ impl Rect {
 
     /// Compute the rectangle in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxRect {
-        PxRect::new(self.origin.to_layout(ctx, available_size), self.size.to_layout(ctx, available_size))
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxRect) -> PxRect {
+        PxRect::new(
+            self.origin.to_layout(ctx, available_size, default_value.origin),
+            self.size.to_layout(ctx, available_size, default_value.size),
+        )
     }
 }
 impl From<Size> for Rect {
@@ -1998,7 +1979,7 @@ impl_from_and_into_var! {
 }
 
 /// 2D line in [`Length`] units.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Line {
     /// Start point in length units.
     pub start: Point,
@@ -2117,10 +2098,10 @@ impl Line {
 
     /// Compute the line in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxLine {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxLine) -> PxLine {
         PxLine {
-            start: self.start.to_layout(ctx, available_size),
-            end: self.end.to_layout(ctx, available_size),
+            start: self.start.to_layout(ctx, available_size, default_value.start),
+            end: self.end.to_layout(ctx, available_size, default_value.end),
         }
     }
 }
@@ -2132,7 +2113,7 @@ impl_from_and_into_var! {
 }
 
 /// Computed [`Line`].
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Default, Copy, Debug, PartialEq)]
 pub struct PxLine {
     /// Start point in layout units.
     pub start: PxPoint,
@@ -2208,7 +2189,7 @@ impl<W: Into<Length>, H: Into<Length>> RectFromTuplesBuilder for (W, H) {
 /// 2D size offsets in [`Length`] units.
 ///
 /// This unit defines spacing around all four sides of a box, a widget margin can be defined using a value of this type.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct SideOffsets {
     /// Spacing above, in length units.
     pub top: Length,
@@ -2291,14 +2272,14 @@ impl SideOffsets {
 
     /// Compute the offsets in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxSideOffsets {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxSideOffsets) -> PxSideOffsets {
         let width = available_size.width;
         let height = available_size.height;
         PxSideOffsets::new(
-            self.top.to_layout(ctx, height),
-            self.right.to_layout(ctx, width),
-            self.bottom.to_layout(ctx, height),
-            self.left.to_layout(ctx, width),
+            self.top.to_layout(ctx, height, default_value.top),
+            self.right.to_layout(ctx, width, default_value.right),
+            self.bottom.to_layout(ctx, height, default_value.bottom),
+            self.left.to_layout(ctx, width, default_value.left),
         )
     }
 }
@@ -2818,8 +2799,8 @@ impl Transform {
             r = match step {
                 TransformStep::Computed(m) => r.then(m),
                 TransformStep::Translate(x, y) => r.then(&LayoutTransform::translation(
-                    x.to_layout(ctx, available_size.width).to_wr().get(),
-                    y.to_layout(ctx, available_size.height).to_wr().get(),
+                    x.to_layout(ctx, available_size.width, Px(0)).to_wr().get(),
+                    y.to_layout(ctx, available_size.height, Px(0)).to_wr().get(),
                     0.0,
                 )),
             };
@@ -3394,7 +3375,7 @@ mod tests {
     pub fn length_expr_eval() {
         let l = (Length::from(200) - 100.pct()).abs();
         let ctx = LayoutMetrics::new(PxSize::new(Px(600), Px(400)), 1.0, 14.0);
-        let l = l.to_layout(&ctx, AvailablePx::Finite(Px(600)));
+        let l = l.to_layout(&ctx, AvailablePx::Finite(Px(600)), Px(0));
 
         assert_eq!(l.0, (200i32 - 600i32).abs());
     }
@@ -3406,13 +3387,13 @@ mod tests {
 
         let metrics = LayoutMetrics::new(PxSize::zero(), 1.0, 14.0);
 
-        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(200)));
+        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(200)), Px(0));
         assert_eq!(r.0, 200);
 
-        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(50)));
+        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(50)), Px(0));
         assert_eq!(r.0, 100);
 
-        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(550)));
+        let r = l.to_layout(&metrics, AvailablePx::Finite(Px(550)), Px(0));
         assert_eq!(r.0, 500);
     }
 

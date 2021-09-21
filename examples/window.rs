@@ -21,7 +21,7 @@ fn main() {
         });
         let background_color = var(rgb(0.1, 0.1, 0.1));
 
-        let position = var_from((f32::NAN, f32::NAN));
+        let position = var(Point::default());
         let size = var_from((900, 600));
 
         let icon = var(WindowIcon::Default);

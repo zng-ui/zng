@@ -135,8 +135,8 @@ where
 
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
         let available_size = AvailableSize::finite(final_size);
-        self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, available_size);
-        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, available_size);
+        self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, available_size, final_size);
+        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, available_size, final_size);
         self.g.arrange(ctx, self.render_tile_size);
         self.g.final_size = final_size;
     }

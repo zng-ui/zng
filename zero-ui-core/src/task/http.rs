@@ -1031,11 +1031,11 @@ impl ClientBuilder {
 
     /// Enable or disable automatic decompression of the response body.
     ///
-    /// If enabled the "Accept-Encoding" will also be set automatically, if it was not set using [`header`].
+    /// If enabled the "Accept-Encoding" will also be set automatically, if it was not set using [`default_header`].
     ///
     /// This is enabled by default.
     ///
-    /// [`header`]: Self::header
+    /// [`default_header`]: Self::default_header
     pub fn auto_decompress(self, enabled: bool) -> Self {
         Self(self.0.automatic_decompression(enabled))
     }

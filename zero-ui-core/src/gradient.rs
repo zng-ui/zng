@@ -115,7 +115,10 @@ impl LinearGradientAxis {
                     PxPoint::new(Px(end.x as i32), Px(end.y as i32)),
                 )
             }
-            LinearGradientAxis::Line(line) => line.to_layout(ctx, available_size),
+            LinearGradientAxis::Line(line) => {
+                let default_line = PxLine::new(PxPoint::new(Px(0), ctx.viewport_size.height), PxPoint::zero()); // 0º
+                line.to_layout(ctx, available_size, default_line)
+            }
         }
     }
 }
@@ -156,10 +159,10 @@ impl fmt::Debug for ColorStop {
                 .field("color", &self.color)
                 .field("offset", &self.offset)
                 .finish()
-        } else if self.offset.is_finite() {
-            write!(f, "({:?}, {:?})", self.color, self.offset)
-        } else {
+        } else if self.is_positional() {
             write!(f, "{:?}", self.color)
+        } else {
+            write!(f, "({:?}, {:?})", self.color, self.offset)
         }
     }
 }
@@ -186,7 +189,7 @@ impl ColorStop {
 
     /// If this color stop offset is resolved relative to the position of the color stop in the stops list.
     ///
-    /// Any offset that does not resolve to a finite layout offset is positional.
+    /// A [`Length::Default`] offset indicates that the color stop is positional.
     ///
     /// # Resolution
     ///
@@ -203,10 +206,15 @@ impl ColorStop {
     /// Use [`ColorStop::is_layout_positional`] is you already have the layout offset, it is faster then calling
     /// this method and then converting to layout.
     pub fn is_positional(&self) -> bool {
-        !self.offset.is_finite()
+        !self.offset.is_default()
     }
 
-    /// If a calculated layout offset is [positional](Self::is_positional).
+    /// If a calculated layout offset is [positional].
+    ///
+    /// Positive infinity ([`f32::INFINITY`]) is used to indicate that the color stop is
+    /// positional in layout units.
+    ///
+    /// [positional]: Self::is_positional
     #[inline]
     pub fn is_layout_positional(layout_offset: f32) -> bool {
         !f32::is_finite(layout_offset)
@@ -214,15 +222,17 @@ impl ColorStop {
 
     /// Compute a [`RenderGradientStop`].
     ///
-    /// Note that if this color stop [is positional](Self::is_positional) the returned offset is [`f32::INFINITY`].
+    /// Note that if this color stop [is positional] the returned offset is [`f32::INFINITY`].
     /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
+    ///
+    /// [is positional]: Self::is_positional
     #[inline]
     pub fn to_layout(&self, ctx: &LayoutMetrics, length: AvailablePx) -> RenderGradientStop {
         RenderGradientStop {
             offset: if self.is_positional() {
                 f32::INFINITY
             } else {
-                self.offset.to_layout(ctx, length).to_wr().get()
+                self.offset.to_layout(ctx, length, Px(0)).to_wr().get()
             },
             color: self.color.into(),
         }
@@ -695,7 +705,7 @@ impl GradientStops {
             let length = after.offset - prev.offset;
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
-                    let mut offset = offset.to_layout(ctx, AvailablePx::Finite(Px(length as i32))).to_wr().get();
+                    let mut offset = offset.to_layout(ctx, AvailablePx::Finite(Px(length as i32)), Px(0)).to_wr().get();
                     if is_positional(offset) {
                         offset = length / 2.0;
                     } else {

@@ -969,7 +969,7 @@ impl Filter {
             .map(|f| match f {
                 FilterData::Op(op) => *op,
                 FilterData::Blur(l) => {
-                    let l = l.to_layout(ctx, available_size.width).0 as f32;
+                    let l = l.to_layout(ctx, available_size.width, Px(0)).0 as f32;
                     FilterOp::Blur(l, l)
                 }
                 FilterData::DropShadow {
@@ -977,9 +977,9 @@ impl Filter {
                     blur_radius,
                     color,
                 } => FilterOp::DropShadow(wr::Shadow {
-                    offset: offset.to_layout(ctx, available_size).to_wr().to_vector(),
+                    offset: offset.to_layout(ctx, available_size, PxPoint::zero()).to_wr().to_vector(),
                     color: RenderColor::from(*color),
-                    blur_radius: blur_radius.to_layout(ctx, available_size.width).0 as f32,
+                    blur_radius: blur_radius.to_layout(ctx, available_size.width, Px(0)).0 as f32,
                 }),
             })
             .collect()

@@ -238,7 +238,7 @@ impl Default for BorderSide {
 }
 
 /// Radius of each corner of a border defined from [`Ellipse`] values.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct BorderRadius {
     /// Top-left corner.
     pub top_left: Ellipse,
@@ -310,19 +310,13 @@ impl BorderRadius {
 
     /// Compute the radii in a layout context.
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> PxCornerRadius {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxCornerRadius) -> PxCornerRadius {
         PxCornerRadius {
-            top_left: self.top_left.to_layout(ctx, available_size),
-            top_right: self.top_right.to_layout(ctx, available_size),
-            bottom_left: self.bottom_left.to_layout(ctx, available_size),
-            bottom_right: self.bottom_right.to_layout(ctx, available_size),
+            top_left: self.top_left.to_layout(ctx, available_size, default_value.top_left),
+            top_right: self.top_right.to_layout(ctx, available_size, default_value.top_right),
+            bottom_left: self.bottom_left.to_layout(ctx, available_size, default_value.bottom_left),
+            bottom_right: self.bottom_right.to_layout(ctx, available_size, default_value.bottom_right),
         }
-    }
-}
-impl Default for BorderRadius {
-    /// Returns [`zero`](BorderRadius::zero).
-    fn default() -> Self {
-        Self::zero()
     }
 }
 impl_from_and_into_var! {

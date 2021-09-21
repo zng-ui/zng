@@ -95,7 +95,7 @@ pub mod h_stack {
                 },
             );
 
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.width);
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.width, Px(0));
 
             ds.width += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
             self.items_width = ds.width;
@@ -108,7 +108,10 @@ pub mod h_stack {
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, AvailablePx::Finite(final_size.width));
+            let spacing = self
+                .spacing
+                .get(ctx.vars)
+                .to_layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
             let align = self.align.copy(ctx);
             let fill_width = align.fill_width();
 
@@ -249,7 +252,7 @@ pub mod v_stack {
                 },
             );
 
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.height);
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.height, Px(0));
 
             ds.height += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
             self.items_height = ds.height;
@@ -262,7 +265,10 @@ pub mod v_stack {
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, AvailablePx::Finite(final_size.height));
+            let spacing = self
+                .spacing
+                .get(ctx.vars)
+                .to_layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
             let align = self.align.copy(ctx);
             let fill_height = align.fill_height();
 

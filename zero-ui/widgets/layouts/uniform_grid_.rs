@@ -155,7 +155,7 @@ pub mod uniform_grid {
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: AvailableSize) -> PxSize {
             let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get(ctx).to_layout(ctx, available_size);
+            let layout_spacing = self.spacing.get(ctx).to_layout(ctx, available_size, PxGridSpacing::zero());
 
             if let AvailablePx::Finite(f) = &mut available_size.width {
                 *f = (*f - layout_spacing.column / Px(2)) / Px(columns);
@@ -178,7 +178,10 @@ pub mod uniform_grid {
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let (columns, rows) = self.grid_len(ctx.vars);
 
-            let layout_spacing = self.spacing.get(ctx).to_layout(ctx, AvailableSize::finite(final_size));
+            let layout_spacing = self
+                .spacing
+                .get(ctx)
+                .to_layout(ctx, AvailableSize::finite(final_size), PxGridSpacing::zero());
 
             let cell_size = PxSize::new(
                 (final_size.width - layout_spacing.column * Px(columns - 1)) / Px(columns),
