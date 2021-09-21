@@ -35,8 +35,6 @@ type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 /// Methods that expect the [`VarsRead`] reference usually abstract using the [`WithVarsRead`] trait, that allows passing in
 /// the full context reference or references to async contexts.
 ///
-/// There is only one
-///
 /// # Examples
 ///
 /// You can [`get`] a variable value using the [`VarsRead`] reference:
@@ -302,6 +300,7 @@ impl VarsRead {
     }
 }
 
+/// Applies pending update and returns if updated and is_shared.
 type PendingUpdate = Box<dyn FnOnce(u32) -> bool>;
 
 /// Read-write access to variables.

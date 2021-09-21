@@ -381,7 +381,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// If the variable value changed in this update.
     ///
-    /// When the variable value changes this stays `true` for one app update cycle.
+    /// When the variable value changes this stays `true` for the next app update cycle.
+    /// An app update is requested only if the variable is shared (strong count > 1).
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool;
 
     /// Returns a future that awaits for [`is_new`](Var::is_new) after the current update.
@@ -453,19 +454,38 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Schedule a modification of the variable value.
     ///
-    /// The variable is marked as *new* only if the closure input is dereferenced as `mut`.
+    /// The variable is marked as *new* only if the closure input is dereferenced as `mut`, and if
+    /// it is marked  as new then the same behavior of [`set`] applies.
+    ///
+    /// [`set`]: Var::set
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
         M: FnOnce(&mut VarModify<T>) + 'static;
 
     /// Causes the variable to notify update without changing the value.
+    ///
+    /// The variable will get a new [`version`] and report that it [`is_new`] but the value
+    /// will not actually change. Note that an app update is only automatically requested if
+    /// the variable is shared ([`strong_count`] > 1).
+    ///
+    /// [`version`]: Var::version
+    /// [`is_new`]: Var::is_new
+    /// [`strong_count`]: Var::strong_count
     #[inline]
     fn touch<Vw: WithVars>(&self, vars: &Vw) -> Result<(), VarIsReadOnly> {
         self.modify(vars, |v| v.touch())
     }
 
     /// Schedule a new value for the variable.
+    ///
+    /// After the current app update finishes the `new_value` will be set, the variable will have
+    /// a new [`version`] and [`is_new`] will be `true` for the next app update. If the variable
+    /// is shared ([`strong_count`] > 1) then an app update is also automatically generated.
+    ///
+    /// [`version`]: Var::version
+    /// [`is_new`]: Var::is_new
+    /// [`strong_count`]: Var::strong_count
     #[inline]
     fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
     where
