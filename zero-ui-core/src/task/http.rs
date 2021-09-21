@@ -18,10 +18,9 @@
 //! [`isahc`]: https://docs.rs/isahc
 
 use std::convert::TryFrom;
+use std::pin::Pin;
 use std::time::Duration;
 use std::{fmt, mem};
-
-use pin_project::*;
 
 use super::io::AsyncRead;
 
@@ -85,7 +84,7 @@ where
 {
     fn try_into(self) -> Result<Body, Error> {
         match isahc::AsyncBody::try_from(self) {
-            Ok(r) => Ok(Body { body: r }),
+            Ok(r) => Ok(Body(r)),
             Err(e) => Err(e.into().into()),
         }
     }
@@ -362,7 +361,7 @@ impl RequestBuilder {
         F: FnOnce(isahc::http::request::Builder) -> isahc::http::Result<isahc::Request<isahc::AsyncBody>>,
     {
         let req = custom(self.0)?;
-        Ok(Request(req.map(|b| Body { body: b })))
+        Ok(Request(req.map(Body)))
     }
 }
 
@@ -458,21 +457,15 @@ impl From<Response> for isahc::Response<isahc::AsyncBody> {
 /// HTTP request body.
 ///
 /// Use [`TryBody`] to convert types to body.
-#[pin_project]
 #[derive(Debug, Default)]
-pub struct Body {
-    #[pin]
-    body: isahc::AsyncBody,
-}
+pub struct Body(isahc::AsyncBody);
 impl Body {
     /// Create a new empty body.
     ///
     /// An empty body represents the *absence* of a body, which is semantically different than the presence of a body of zero length.
     #[inline]
     pub fn empty() -> Body {
-        Body {
-            body: isahc::AsyncBody::empty(),
-        }
+        Body(isahc::AsyncBody::empty())
     }
 
     /// Create a new body from a potentially static byte buffer.
@@ -483,25 +476,19 @@ impl Body {
     /// will be copied first. This method guarantees to not require a copy for the following types:
     #[inline]
     pub fn from_bytes_static(bytes: impl AsRef<[u8]> + 'static) -> Self {
-        Body {
-            body: isahc::AsyncBody::from_bytes_static(bytes),
-        }
+        Body(isahc::AsyncBody::from_bytes_static(bytes))
     }
 
     /// Create a streaming body of unknown length.
     #[inline]
     pub fn from_reader(read: impl AsyncRead + Send + Sync + 'static) -> Self {
-        Body {
-            body: isahc::AsyncBody::from_reader(read),
-        }
+        Body(isahc::AsyncBody::from_reader(read))
     }
 
     /// Create a streaming body of with known length.
     #[inline]
     pub fn from_reader_sized(read: impl AsyncRead + Send + Sync + 'static, size: u64) -> Self {
-        Body {
-            body: isahc::AsyncBody::from_reader_sized(read, size),
-        }
+        Body(isahc::AsyncBody::from_reader_sized(read, size))
     }
 
     /// Report if this body is empty.
@@ -511,13 +498,13 @@ impl Body {
     /// This method will only return `true` for the former.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.body.is_empty()
+        self.0.is_empty()
     }
 
     /// Get the size of the body, if known.
     #[inline]
     pub fn len(&self) -> Option<u64> {
-        self.body.len()
+        self.0.len()
     }
 
     /// If this body is repeatable, reset the body stream back to the start of the content.
@@ -525,32 +512,32 @@ impl Body {
     /// Returns false if the body cannot be reset.
     #[inline]
     pub fn reset(&mut self) -> bool {
-        self.body.reset()
+        self.0.reset()
     }
 }
 impl From<Body> for isahc::AsyncBody {
     fn from(r: Body) -> Self {
-        r.body
+        r.0
     }
 }
 impl From<isahc::AsyncBody> for Body {
     fn from(r: isahc::AsyncBody) -> Self {
-        Body { body: r }
+        Body(r)
     }
 }
 impl From<()> for Body {
     fn from(body: ()) -> Self {
-        Body { body: body.into() }
+        Body(body.into())
     }
 }
 impl From<String> for Body {
     fn from(body: String) -> Self {
-        Body { body: body.into() }
+        Body(body.into())
     }
 }
 impl From<Vec<u8>> for Body {
     fn from(body: Vec<u8>) -> Self {
-        Body { body: body.into() }
+        Body(body.into())
     }
 }
 impl From<&'_ [u8]> for Body {
@@ -571,14 +558,13 @@ impl<T: Into<Self>> From<Option<T>> for Body {
         }
     }
 }
-
 impl AsyncRead for Body {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &mut [u8],
     ) -> std::task::Poll<std::io::Result<usize>> {
-        self.project().body.poll_read(cx, buf)
+        Pin::new(&mut self.get_mut().0).poll_read(cx, buf)
     }
 }
 
@@ -923,13 +909,13 @@ impl Client {
     /// Send a PUT request to the `uri` with a given request body.
     #[inline]
     pub async fn put(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
-        self.0.put_async(uri.try_into()?, body.try_into()?.body).await.map(Response)
+        self.0.put_async(uri.try_into()?, body.try_into()?.0).await.map(Response)
     }
 
     /// Send a POST request to the `uri` with a given request body.
     #[inline]
     pub async fn post(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
-        self.0.post_async(uri.try_into()?, body.try_into()?.body).await.map(Response)
+        self.0.post_async(uri.try_into()?, body.try_into()?.0).await.map(Response)
     }
 
     /// Send a DELETE request to the `uri`.

@@ -9,8 +9,6 @@ use std::{
 
 use crate::units::*;
 
-use pin_project::*;
-
 #[doc(no_inline)]
 pub use futures_lite::io::*;
 
@@ -18,9 +16,7 @@ pub use futures_lite::io::*;
 ///
 /// Metrics are updated after each read/write, if you read/write all bytes in one call
 /// the metrics will only update once.
-#[pin_project]
 pub struct Measure<T> {
-    #[pin]
     task: T,
     metrics: Metrics,
     start_time: Instant,
@@ -74,22 +70,22 @@ fn bytes_per_sec(bytes: ByteLength, elapsed: Duration) -> ByteLength {
     ByteLength(bytes_per_sec as usize)
 }
 
-impl<T: AsyncRead> AsyncRead for Measure<T> {
+impl<T: AsyncRead + Unpin> AsyncRead for Measure<T> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &mut [u8]) -> Poll<Result<usize>> {
-        let self_ = self.project();
-        match self_.task.poll_read(cx, buf) {
+        let self_ = self.get_mut();
+        match Pin::new(&mut self_.task).poll_read(cx, buf) {
             Poll::Ready(Ok(bytes)) => {
                 if bytes > 0 {
                     let bytes = bytes.bytes();
                     self_.metrics.read_progress.0 += bytes;
 
                     let now = Instant::now();
-                    let elapsed = now - *self_.last_read;
+                    let elapsed = now - self_.last_read;
 
-                    *self_.last_read = now;
+                    self_.last_read = now;
                     self_.metrics.read_speed = bytes_per_sec(bytes, elapsed);
 
-                    self_.metrics.total_time = now - *self_.start_time;
+                    self_.metrics.total_time = now - self_.start_time;
                 }
                 Poll::Ready(Ok(bytes))
             }
@@ -97,22 +93,22 @@ impl<T: AsyncRead> AsyncRead for Measure<T> {
         }
     }
 }
-impl<T: AsyncWrite> AsyncWrite for Measure<T> {
+impl<T: AsyncWrite + Unpin> AsyncWrite for Measure<T> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &[u8]) -> Poll<Result<usize>> {
-        let self_ = self.project();
-        match self_.task.poll_write(cx, buf) {
+        let self_ = self.get_mut();
+        match Pin::new(&mut self_.task).poll_write(cx, buf) {
             Poll::Ready(Ok(bytes)) => {
                 if bytes > 0 {
                     let bytes = bytes.bytes();
                     self_.metrics.write_progress.0 += bytes;
 
                     let now = Instant::now();
-                    let elapsed = now - *self_.last_write;
+                    let elapsed = now - self_.last_write;
 
-                    *self_.last_write = now;
+                    self_.last_write = now;
                     self_.metrics.write_speed = bytes_per_sec(bytes, elapsed);
 
-                    self_.metrics.total_time = now - *self_.start_time;
+                    self_.metrics.total_time = now - self_.start_time;
                 }
                 Poll::Ready(Ok(bytes))
             }
@@ -121,11 +117,11 @@ impl<T: AsyncWrite> AsyncWrite for Measure<T> {
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Result<()>> {
-        self.project().task.poll_flush(cx)
+        Pin::new(&mut self.get_mut().task).poll_flush(cx)
     }
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Result<()>> {
-        self.project().task.poll_close(cx)
+        Pin::new(&mut self.get_mut().task).poll_close(cx)
     }
 }
 
