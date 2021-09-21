@@ -281,7 +281,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         let (size, variations) = TextContext::font(ctx);
-        let size = size.to_layout(ctx, available_size.width, Px(ctx.metrics.font_size as i32)); // TODO review Metrics font size
+        let size = size.to_layout(ctx, available_size.width, ctx.metrics.root_font_size);
 
         if self.font.as_ref().map(|f| f.size() != size).unwrap_or(true) {
             self.font = Some(

@@ -98,10 +98,70 @@ pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) 
     with_context_var(child, FontSynthesisVar, enabled)
 }
 
-/// Sets the [`FontSizeVar`] context var.
+/// Sets the [`FontSizeVar`] context var and the [`LayoutMetrics::font_size`].
 #[property(context, default(FontSizeVar))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
-    with_context_var(child, FontSizeVar, size)
+    struct FontSizeNode<C, S> {
+        child: C,
+        size: S,
+    }
+    impl<C: UiNode, S: Var<Length>> UiNode for FontSizeNode<C, S> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.init(ctx));
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.deinit(ctx));
+        }
+
+        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.event(ctx, args));
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.update(ctx));
+        }
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            let font_size = self
+                .size
+                .get(ctx.vars)
+                .to_layout(ctx, available_size.height, ctx.metrics.root_font_size);
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(FontSizeVar, &self.size, || {
+                ctx.with_font_size(font_size, |ctx| child.measure(ctx, available_size))
+            })
+        }
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            let font_size = self
+                .size
+                .get(ctx.vars)
+                .to_layout(ctx, AvailablePx::Finite(final_size.height), ctx.metrics.root_font_size);
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(FontSizeVar, &self.size, || {
+                ctx.with_font_size(font_size, |ctx| child.arrange(ctx, final_size))
+            });
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            ctx.vars
+                .with_context_bind(FontSizeVar, &self.size, || self.child.render(ctx, frame));
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            ctx.vars
+                .with_context_bind(FontSizeVar, &self.size, || self.child.render_update(ctx, update));
+        }
+    }
+    FontSizeNode {
+        child,
+        size: size.into_var(),
+    }
 }
 
 /// Sets the [`TextColorVar`] context var.

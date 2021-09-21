@@ -2006,7 +2006,9 @@ impl AppWindow {
     fn on_resize_event(&mut self, ctx: &mut AppContext, actual_size: DipSize) {
         let (_scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
         let actual_size = actual_size.to_px(scr_factor);
-        self.context.layout(ctx, 16.0, scr_factor, scr_ppi, actual_size, |_| actual_size);
+        let font_size = Length::pt_to_px(14.0, scr_factor);
+        self.context
+            .layout(ctx, font_size, scr_factor, scr_ppi, actual_size, |_| actual_size);
         // the frame is send using the normal request
         self.on_render(ctx, UpdateDisplayRequest::ForceRender);
     }
@@ -2174,9 +2176,14 @@ impl AppWindow {
                 (size, min_size, max_size, auto_size)
             });
 
-        let final_size = self
-            .context
-            .layout(ctx, 16.0, scr_factor, scr_ppi, scr_size.to_px(scr_factor), |desired_size| {
+        let root_font_size = Length::pt_to_px(14.0, scr_factor);
+        let final_size = self.context.layout(
+            ctx,
+            root_font_size,
+            scr_factor,
+            scr_ppi,
+            scr_size.to_px(scr_factor),
+            |desired_size| {
                 let mut final_size = available_size;
                 if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                     final_size.width = desired_size.width.max(min_size.width).min(available_size.width);
@@ -2185,7 +2192,8 @@ impl AppWindow {
                     final_size.height = desired_size.height.max(min_size.height).min(available_size.height);
                 }
                 final_size
-            });
+            },
+        );
 
         (final_size, min_size.to_dip(scr_factor), max_size.to_dip(scr_factor))
     }
@@ -2452,7 +2460,7 @@ impl OwnedWindowContext {
     fn layout(
         &mut self,
         ctx: &mut AppContext,
-        font_size: f32,
+        font_size: Px,
         scale_factor: f32,
         screen_ppi: f32,
         available_size: PxSize,

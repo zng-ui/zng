@@ -609,7 +609,7 @@ impl<'a> AppContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(screen_size, scale_factor, 14.0).with_screen_ppi(screen_ppi),
+            metrics: &LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(14.0, scale_factor)).with_screen_ppi(screen_ppi),
             path: &mut WidgetContextPath::new(window_id, root_id),
             app_state: self.app_state,
             window_state: &mut StateMap::new(),
@@ -694,7 +694,7 @@ impl<'a> WindowContext<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn layout_context<R>(
         &mut self,
-        font_size: f32,
+        font_size: Px,
         scale_factor: f32,
         screen_ppi: f32,
         viewport_size: PxSize,
@@ -703,7 +703,7 @@ impl<'a> WindowContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(viewport_size, scale_factor, font_size).with_screen_ppi(screen_ppi),
+            metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi),
 
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -855,15 +855,15 @@ impl TestWidgetContext {
     /// Calls `action` in a fake layout context.
     pub fn layout_context<R>(
         &mut self,
-        root_font_size: f32,
-        font_size: f32,
+        root_font_size: Px,
+        font_size: Px,
         viewport_size: PxSize,
         scale_factor: f32,
         screen_ppi: f32,
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         action(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(viewport_size, scale_factor, root_font_size)
+            metrics: &LayoutMetrics::new(scale_factor, viewport_size, root_font_size)
                 .with_font_size(font_size)
                 .with_screen_ppi(screen_ppi),
 
@@ -1123,10 +1123,10 @@ impl fmt::Display for WidgetContextPath {
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
     /// Current computed font size.
-    pub font_size: f32,
+    pub font_size: Px,
 
     /// Computed font size at the root widget.
-    pub root_font_size: f32,
+    pub root_font_size: Px,
 
     /// Pixel scale factor.
     pub scale_factor: f32,
@@ -1151,8 +1151,11 @@ pub struct LayoutMetrics {
 impl LayoutMetrics {
     /// New root [`LayoutMetrics`].
     ///
-    /// The `font_size` sets both font sizes, the pixel grid is the default `1.0`.
-    pub fn new(viewport_size: PxSize, scale_factor: f32, font_size: f32) -> Self {
+    /// The `font_size` sets both font sizes, the initial PPI is `96.0`, you can use the builder style method and
+    /// [`with_screen_ppi`] to set a different value.
+    ///
+    /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
+    pub fn new(scale_factor: f32, viewport_size: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             font_size,
             root_font_size: font_size,
@@ -1182,7 +1185,7 @@ impl LayoutMetrics {
     ///
     /// [`font_size`]: Self::font_size
     #[inline]
-    pub fn with_font_size(mut self, font_size: f32) -> Self {
+    pub fn with_font_size(mut self, font_size: Px) -> Self {
         self.font_size = font_size;
         self
     }
@@ -1246,7 +1249,7 @@ impl<'a> Deref for LayoutContext<'a> {
 impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.
     #[inline(always)]
-    pub fn with_font_size<R>(&mut self, new_font_size: f32, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_font_size<R>(&mut self, new_font_size: Px, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_font_size(new_font_size),
 

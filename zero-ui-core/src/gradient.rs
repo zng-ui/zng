@@ -1021,7 +1021,7 @@ mod tests {
     fn test_layout_stops(stops: GradientStops) -> Vec<RenderGradientStop> {
         let mut render_stops = vec![];
         let mut ctx = TestWidgetContext::new();
-        ctx.layout_context(20.0, 20.0, PxSize::new(Px(100), Px(100)), 1.0, 96.0, |ctx| {
+        ctx.layout_context(Px(0), Px(0), PxSize::new(Px(100), Px(100)), 1.0, 96.0, |ctx| {
             stops.layout_linear(
                 AvailablePx::Finite(Px(100)),
                 ctx,

@@ -1107,10 +1107,10 @@ impl Length {
             Default => default_value,
             Dip(l) => l.to_px(ctx.scale_factor),
             Px(l) => *l,
-            Pt(l) => self::Px(((*l * 96.0 / 72.0) * ctx.scale_factor).round() as i32),
+            Pt(l) => Self::pt_to_px(*l, ctx.scale_factor),
             Relative(f) => available_size.to_px() * f.0,
-            Em(f) => self::Dip::new_f32(ctx.font_size * f.0).to_px(ctx.scale_factor),
-            RootEm(f) => self::Dip::new_f32(ctx.root_font_size * f.0).to_px(ctx.scale_factor),
+            Em(f) => ctx.font_size * f.0,
+            RootEm(f) => ctx.root_font_size * f.0,
             ViewportWidth(p) => ctx.viewport_size.width * *p,
             ViewportHeight(p) => ctx.viewport_size.height * *p,
             ViewportMin(p) => ctx.viewport_min() * *p,
@@ -1142,6 +1142,21 @@ impl Length {
             Expr(_) => None,
         }
     }
+
+    /// Convert a `pt` unit value to [`Px`] given a `scale_factor`.
+    pub fn pt_to_px(pt: f32, scale_factor: f32) -> Px {
+        let px = pt * Self::PT_TO_DIP * scale_factor;
+        Px(px.round() as i32)
+    }
+
+    /// Convert a [`Px`] unit value to a `Pt` value given a `scale_factor`.
+    pub fn px_to_pt(px: Px, scale_factor: f32) -> f32 {
+        let dip = px.0 as f32 / scale_factor;
+        dip / Self::PT_TO_DIP
+    }
+
+    /// 96.0 / 72.0
+    const PT_TO_DIP: f32 = 96.0 / 72.0; // 1.3333..;
 }
 
 /// Represents an unresolved [`Length`] expression.
@@ -3374,7 +3389,7 @@ mod tests {
     #[test]
     pub fn length_expr_eval() {
         let l = (Length::from(200) - 100.pct()).abs();
-        let ctx = LayoutMetrics::new(PxSize::new(Px(600), Px(400)), 1.0, 14.0);
+        let ctx = LayoutMetrics::new(1.0, PxSize::new(Px(600), Px(400)), Px(0));
         let l = l.to_layout(&ctx, AvailablePx::Finite(Px(600)), Px(0));
 
         assert_eq!(l.0, (200i32 - 600i32).abs());
@@ -3385,7 +3400,7 @@ mod tests {
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));
 
-        let metrics = LayoutMetrics::new(PxSize::zero(), 1.0, 14.0);
+        let metrics = LayoutMetrics::new(1.0, PxSize::zero(), Px(0));
 
         let r = l.to_layout(&metrics, AvailablePx::Finite(Px(200)), Px(0));
         assert_eq!(r.0, 200);
