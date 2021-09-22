@@ -7,6 +7,7 @@ Image loading and rendering.
 * All web formats (jpeg, bmp+ico, gif, png, webp).
 * DPI size correcting.
 * Color profile correcting.
+    Use `qcms` or `lcms2`
 
 ## Nice to Have
 

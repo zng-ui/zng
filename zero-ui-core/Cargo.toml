@@ -91,8 +91,6 @@ log = "0.4"
 unsafe-any = "0.4"
 linear-map = "1"
 rand = "0.8"
-lcms2 = "5"
-
 
 # serde
 serde = "1"

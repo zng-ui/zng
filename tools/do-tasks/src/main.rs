@@ -329,7 +329,7 @@ fn fmt(args: Vec<&str>) {
     println("done");
 }
 
-// do build, b [-e, --example] [--all] [<cargo-build-args>]
+// do build, b [-e, --example] [--all] [-t, --timing] [<cargo-build-args>]
 //    Compile the main crate and its dependencies.
 // USAGE:
 //    build -e <example>
@@ -338,20 +338,26 @@ fn fmt(args: Vec<&str>) {
 //       Compile the root workspace.
 //    build --all
 //       Compile the root workspace and ./test-crates.
+//    build -p <crate> --timing
+//       Compile crate in nightly and report "cargo-timing.html"
 fn build(mut args: Vec<&str>) {
+    let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
+
     let rust_flags = release_rust_flags(args.contains(&"--release"));
     let rust_flags = &[(rust_flags.0, rust_flags.1.as_str())];
 
-    if take_flag(&mut args, &["--all"]) {
+    if take_flag(&mut args, &["-t", "--timing"]) {
+        cmd_env("cargo", &["+nightly", "build", "-Ztimings"], &args, rust_flags);
+    } else if take_flag(&mut args, &["--all"]) {
         for test_crate in top_cargo_toml("test-crates") {
-            cmd_env("cargo", &["build", "--manifest-path", &test_crate], &args, rust_flags);
+            cmd_env("cargo", &[nightly, "build", "--manifest-path", &test_crate], &args, rust_flags);
         }
-        cmd_env("cargo", &["build"], &args, rust_flags);
+        cmd_env("cargo", &[nightly, "build"], &args, rust_flags);
     } else {
         if let Some(example) = args.iter_mut().find(|a| **a == "-e") {
             *example = "--example";
         }
-        cmd_env("cargo", &["build"], &args, rust_flags);
+        cmd_env("cargo", &[nightly, "build"], &args, rust_flags);
     }
 }
 fn release_rust_flags(is_release: bool) -> (&'static str, String) {
