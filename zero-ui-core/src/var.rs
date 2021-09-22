@@ -4,6 +4,7 @@ use std::{
     convert::{TryFrom, TryInto},
     fmt,
     ops::{Deref, DerefMut},
+    str::FromStr,
 };
 
 mod vars;
@@ -654,7 +655,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         RcFilterMapVar::new(self.clone(), fallback_init, map)
     }
 
-    /// Create a [`filter_map`](Var::filter_map) that uses [`TryInto`] to convert from `T` to `O`.
+    /// Create a [`filter_map`] that uses [`TryInto`] to convert from `T` to `O`.
+    ///
+    /// [`filter_map`]: Var::filter_map
     #[inline]
     #[allow(clippy::type_complexity)]
     fn filter_try_into<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
@@ -663,6 +666,20 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         I: FnOnce(&T) -> O + 'static,
     {
         RcFilterMapVar::new(self.clone(), fallback_init, |v| v.clone().try_into().ok())
+    }
+
+    /// Create a [`filter_map`] that uses [`FromStr`] to convert from `T` to `O`.
+    ///
+    /// [`filter_map`]: Var::filter_map
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_parse<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    where
+        O: VarValue + FromStr,
+        T: AsRef<str>,
+        I: FnOnce(&T) -> O + 'static,
+    {
+        RcFilterMapVar::new(self.clone(), fallback_init, |v| v.as_ref().parse().ok())
     }
 
     /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Ok`].
@@ -753,9 +770,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         RcFilterMapBidiVar::new(self.clone(), fallback_init, map, map_back)
     }
 
-    /// Create a [`filter_map_bidi`](Var::filter_map_bidi) that uses [`TryInto`] to convert between `T` and `O`.
-    #[allow(clippy::type_complexity)]
+    /// Create a [`filter_map_bidi`] that uses [`TryInto`] to convert between `T` and `O`.
+    ///
+    /// [`filter_map_bidi`]: Var::filter_map_bidi
     #[inline]
+    #[allow(clippy::type_complexity)]
     fn filter_try_into_bidi<O, I>(&self, fallback_init: I) -> RcFilterMapBidiVar<T, O, I, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
     where
         O: VarValue + TryFrom<T>,
@@ -763,6 +782,45 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         T: TryFrom<O>,
     {
         RcFilterMapBidiVar::new(self.clone(), fallback_init, |t| t.clone().try_into().ok(), |o| o.try_into().ok())
+    }
+
+    /// Create a [`filter_map_bidi`] that uses [`FromStr`] to convert from `T` to `O` and [`ToText`] to convert from `O` to `T`.
+    ///
+    /// The `fallback_init` is called to generate a value if the first [`str::parse`] call fails.
+    ///
+    /// [`filter_map_bidi`]: Var::filter_map_bidi
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_parse_bidi<O, I>(&self, fallback_init: I) -> RcFilterMapBidiVar<T, O, I, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
+    where
+        O: VarValue + FromStr + ToText,
+        I: FnOnce(&T) -> O + 'static,
+        T: AsRef<str> + From<Text>,
+    {
+        RcFilterMapBidiVar::new(
+            self.clone(),
+            fallback_init,
+            |t| t.as_ref().parse().ok(),
+            |o| Some(o.to_text().into()),
+        )
+    }
+
+    /// Create a [`filter_map_bidi`] that uses [`FromStr`] to convert from `O` to `T` and [`ToText`] to convert from `T` to `O`.
+    ///
+    /// [`filter_map_bidi`]: Var::filter_map_bidi
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn filter_to_text_bidi<O>(&self) -> RcFilterMapBidiVar<T, O, fn(&T) -> O, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
+    where
+        O: VarValue + AsRef<str> + From<Text>,
+        T: FromStr + ToText,
+    {
+        RcFilterMapBidiVar::new(
+            self.clone(),
+            |_| unreachable!(),
+            |t| Some(t.to_text().into()),
+            |o| o.as_ref().parse().ok(),
+        )
     }
 
     /// Creates a sender that can set `self` from other threads and without access to [`Vars`].
@@ -951,7 +1009,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         })
     }
 
-    /// Create a [`bind_filter`](Var::bind_filter) that uses [`TryInto`] to convert from `self` to `to_var`.
+    /// Create a [`bind_filter`] that uses [`TryInto`] to convert from `self` to `to_var`.
+    ///
+    /// [`bind_filter`]: Var::bind_filter
     #[inline]
     fn bind_try_into<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
     where
@@ -960,6 +1020,20 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         V2: Var<T2>,
     {
         self.bind_filter(vars, to_var, |_, t| t.clone().try_into().ok())
+    }
+
+    /// Create a [`bind_filter`] that uses [`FromStr`] to convert from `self` to `to_var`.
+    ///
+    /// [`bind_filter`]: Var::bind_filter
+    #[inline]
+    fn bind_parse<Vw, T2, V2>(&self, vars: &Vw, parsed_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue + FromStr,
+        V2: Var<T2>,
+        T: AsRef<str>,
+    {
+        self.bind_filter(vars, parsed_var, |_, t| t.as_ref().parse().ok())
     }
 
     /// Create a [`bind_filter`](Var::bind_filter) that sets `to_var` when `T` is [`Ok`].
@@ -1067,7 +1141,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         })
     }
 
-    /// Create a [`bind_filter_bidi`](Var::bind_filter_bidi) that uses [`TryInto`] to convert between `self` and `other_var`.
+    /// Create a [`bind_filter_bidi`] that uses [`TryInto`] to convert between `self` and `other_var`.
+    ///
+    /// [`bind_filter_bidi`]: Var::bind_filter_bidi
     #[inline]
     fn bind_try_into_bidi<Vw, T2, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
     where
@@ -1077,6 +1153,21 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         T: TryFrom<T2>,
     {
         self.bind_filter_bidi(vars, other_var, |_, t| t.clone().try_into().ok(), |_, o| o.clone().try_into().ok())
+    }
+
+    /// Create a [`bind_filter_bidi`] that uses [`FromStr`] to convert from `self` to `other_var` and [`ToText`]
+    /// to convert from `other_var` to `self`.
+    ///
+    /// [`bind_filter_bidi`]: Var::bind_filter_bidi
+    #[inline]
+    fn bind_parse_bidi<Vw, T2, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue + FromStr + ToText,
+        V2: Var<T2>,
+        T: AsRef<str> + From<Text>,
+    {
+        self.bind_filter_bidi(vars, other_var, |_, t| t.as_ref().parse().ok(), |_, o| Some(o.to_text().into()))
     }
 }
 
@@ -1383,3 +1474,64 @@ macro_rules! impl_from_and_into_var {
 }
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
+
+#[cfg(test)]
+mod tests {
+    use crate::context::TestWidgetContext;
+
+    use super::*;
+
+    #[test]
+    fn filter_to_text_bidi() {
+        fn make(n: i32) -> (impl Var<i32>, impl Var<Text>) {
+            let input = var(n);
+            let output = input.filter_to_text_bidi();
+            (input, output)
+        }
+
+        let mut ctx = TestWidgetContext::new();
+
+        let (i, o) = make(42);
+
+        assert_eq!("42", o.get(&ctx));
+
+        o.set(&ctx, "30").unwrap();
+
+        ctx.apply_updates();
+
+        assert_eq!(30, i.copy(&ctx));
+
+        i.set(&ctx, 10).unwrap();
+
+        ctx.apply_updates();
+
+        assert_eq!("10", o.get(&ctx));
+    }
+
+    #[test]
+    fn filter_parse_bidi() {
+        fn make(s: &str) -> (impl Var<Text>, impl Var<i32>) {
+            let input = var(s.to_text());
+            let output = input.filter_parse_bidi(|s| s.len() as i32);
+            (input, output)
+        }
+
+        let mut ctx = TestWidgetContext::new();
+
+        let (i, o) = make("42");
+
+        assert_eq!(42, o.copy(&ctx));
+
+        o.set(&ctx, 30).unwrap();
+
+        ctx.apply_updates();
+
+        assert_eq!("30", i.get(&ctx));
+
+        i.set(&ctx, "10").unwrap();
+
+        ctx.apply_updates();
+
+        assert_eq!(10, o.copy(&ctx));
+    }
+}

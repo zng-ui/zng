@@ -931,12 +931,22 @@ impl PartialEq<&str> for Text {
         self.0.eq(other)
     }
 }
+impl PartialEq<str> for Text {
+    fn eq(&self, other: &str) -> bool {
+        self.0.eq(other)
+    }
+}
 impl PartialEq<String> for Text {
     fn eq(&self, other: &String) -> bool {
         self.0.eq(other)
     }
 }
 impl PartialEq<Text> for &str {
+    fn eq(&self, other: &Text) -> bool {
+        other.0.eq(self)
+    }
+}
+impl PartialEq<Text> for str {
     fn eq(&self, other: &Text) -> bool {
         other.0.eq(self)
     }
