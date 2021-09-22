@@ -1,4 +1,8 @@
-use std::fmt;
+use std::{
+    fmt,
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use proc_macro2::*;
 use quote::{quote_spanned, ToTokens};
@@ -193,7 +197,13 @@ pub fn parse_all<T: Parse>(input: syn::parse::ParseStream) -> syn::Result<Vec<T>
 pub fn uuid() -> String {
     let call_site = format!("{:?}", Span::call_site());
     if call_site == "Span" {
-        uuid::Uuid::new_v4().to_simple().to_string()
+        static ID: AtomicU64 = AtomicU64::new(0);
+        let mut id = ID.fetch_add(1, Ordering::Relaxed);
+        if id == 0 {
+            id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64;
+            ID.store(id, Ordering::Relaxed);
+        }
+        format!("sp_{:x}", id)
     } else {
         call_site.splitn(2, ' ').next().unwrap().replace('#', "u")
     }
