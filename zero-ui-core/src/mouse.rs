@@ -426,7 +426,6 @@ enum ClickState {
         count: u8,
     },
 }
-
 impl MouseManager {
     fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ButtonState, button: MouseButton, ctx: &mut AppContext) {
         let position = if self.pos_window == Some(window_id) {
@@ -453,10 +452,22 @@ impl MouseManager {
             if self.capture_count == 1 {
                 mouse.start_window_capture(target.clone(), ctx.events);
             }
+
+            if !mouse.buttons.get(ctx.vars).contains(&button) {
+                mouse.buttons.modify(ctx.vars, move |btns| btns.push(button));
+            }
         } else {
             self.capture_count = self.capture_count.saturating_sub(1);
             if self.capture_count == 0 {
                 mouse.end_window_capture(ctx.events);
+            }
+
+            if mouse.buttons.get(ctx.vars).contains(&button) {
+                mouse.buttons.modify(ctx.vars, move |btns| {
+                    if let Some(i) = btns.iter().position(|k| *k == button) {
+                        btns.swap_remove(i);
+                    }
+                });
             }
         }
 
@@ -911,6 +922,7 @@ pub struct Mouse {
     release_requested: bool,
     update_sender: AppEventSender,
     multi_click_config: RcVar<MultiClickConfig>,
+    buttons: RcVar<Vec<MouseButton>>,
 }
 impl Mouse {
     fn new(update_sender: AppEventSender, multi_click_config: RcVar<MultiClickConfig>) -> Self {
@@ -920,7 +932,16 @@ impl Mouse {
             release_requested: false,
             update_sender,
             multi_click_config,
+            buttons: var(vec![]),
         }
+    }
+
+    /// Returns a read-only variable that tracks the [buttons] that are currently pressed.
+    ///
+    /// [buttons]: MouseButton
+    #[inline]
+    pub fn buttons(&self) -> ReadOnlyRcVar<Vec<MouseButton>> {
+        self.buttons.clone().into_read_only()
     }
 
     /// Read-only variable that tracks the system click-count increment time and area, a.k.a. the double-click config.

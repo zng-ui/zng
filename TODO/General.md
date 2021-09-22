@@ -6,7 +6,6 @@ General TODO, items in this file can also be be a `../` file.
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Update the `Mouse` service to be like the new [`Keyboard`] service with button state variables.
 * Finish `./Docs.md`.
 
 * StateKey & Map
