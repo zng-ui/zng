@@ -2,7 +2,6 @@ use std::fmt;
 
 use proc_macro2::*;
 use quote::{quote_spanned, ToTokens};
-use regex::Regex;
 use syn::{
     self,
     parse::{discouraged::Speculative, Parse, ParseStream},
@@ -341,9 +340,8 @@ pub fn display_path(path: &syn::Path) -> String {
 pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     let tokens = tokens.to_string();
     let max = tokens.len().min(40);
-    let tokens = tokens[(tokens.len() - max)..]
-        .replace(".", " ")
-        .replace(":", " ")
+    let mut tokens = tokens[(tokens.len() - max)..]
+        .replace(&['.', ':', ' '][..], "_")
         .replace("!", "not")
         .replace("&&", "and")
         .replace("||", "or")
@@ -351,10 +349,9 @@ pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
         .replace(")", "b")
         .replace("==", "eq");
 
-    let tokens = Regex::new(r"\s+").unwrap().replace_all(&tokens, "_"); // space sequences to `_`
-    let tokens = Regex::new(r"\W").unwrap().replace_all(&tokens, ""); // remove non-word chars
+    tokens.retain(|c| c == '_' || c.is_alphanumeric());
 
-    tokens.to_string()
+    tokens
 }
 
 /// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`Path`].

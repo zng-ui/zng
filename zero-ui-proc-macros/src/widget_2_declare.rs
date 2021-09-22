@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use regex::Regex;
 use syn::{parse::Parse, Ident, LitBool};
 
 use crate::{
@@ -1024,9 +1023,25 @@ fn auto_docs(
     if !whens.is_empty() {
         docs_section_header(&mut r, "When Conditions", "whens", "When conditions and what properties they set.");
         for (i, when) in whens.into_iter().enumerate() {
-            let pattern = Regex::new(r#"self\.(\w+)"#).unwrap();
-            let expr = when.expr;
-            let expr = pattern.replace_all(&expr, r#"<span class='keyword'>self</span>.<a href='#wp-$1' class='fnname'>$1</a>"#);
+            //let pattern = Regex::new(r#"self\.(\w+)"#).unwrap();
+            let mut expr = when.expr;
+            while let Some(i) = expr.find("self.") {
+                let p_start = i + "self.".len();
+                let mut p_end = p_start;
+                for (i, c) in expr[i..].char_indices() {
+                    if c == '_' || c.is_alphanumeric() {
+                        p_end = i + p_start - 1;
+                    } else {
+                        break;
+                    }
+                }
+
+                let p = &expr[p_start..=p_end];
+
+                let replacement = format!("<span class='keyword'>self</span>.<a href='#wp-{0}' class='fnname'>{0}</a>", p);
+                expr.replace_range(i..=p_end, &replacement);
+            }
+
             doc_extend!(r, "\n\n");
             doc_extend!(
                 r,
