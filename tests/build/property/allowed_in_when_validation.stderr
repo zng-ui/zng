@@ -6,9 +6,9 @@ error[E0283]: type annotations needed
     |
     = note: cannot satisfy `_: VarValue`
 note: required by `allowed_in_when_property_requires_IntoVar_members`
-   --> $DIR/var.rs:234:5
+   --> $DIR/var.rs:235:5
     |
-234 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
+235 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
@@ -18,9 +18,9 @@ error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: C
     |                                            ^^^^ the trait `Clone` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
     |
 note: required by `allowed_in_when_property_requires_IntoVar_members`
-   --> $DIR/var.rs:234:5
+   --> $DIR/var.rs:235:5
     |
-234 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
+235 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement `Debug`
@@ -33,9 +33,9 @@ error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement
     = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
     = note: required because of the requirements on the impl of `zero_ui::prelude::IntoVar<<impl invalid2_Args as invalid2_Args>::T_value>` for `<impl invalid2_Args as invalid2_Args>::T_value`
 note: required by `allowed_in_when_property_requires_IntoVar_members`
-   --> $DIR/var.rs:234:5
+   --> $DIR/var.rs:235:5
     |
-234 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
+235 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>: zero_ui::prelude::UiNode` is not satisfied

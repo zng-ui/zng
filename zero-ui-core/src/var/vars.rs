@@ -1958,6 +1958,7 @@ mod tests {
         assert_eq!(1, b.strong_count());
 
         a.set(app.ctx().vars, 100);
+        app.ctx().updates.update();
 
         update_count = 0;
         let _ = app.update_observe(

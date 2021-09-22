@@ -6,7 +6,7 @@ error[E0283]: type annotations needed
     |
     = note: cannot satisfy `_: VarValue`
 note: required by `allowed_in_when_property_requires_IntoVar_members`
-   --> $DIR/var.rs:234:5
+   --> $DIR/var.rs:235:5
     |
-234 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
+235 |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
