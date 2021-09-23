@@ -9,11 +9,7 @@ use std::{
 };
 
 use gleam::gl;
-use glutin::{
-    event_loop::EventLoopProxy,
-    window::{Window, WindowBuilder, WindowId},
-    ContextBuilder, CreationError, GlRequest,
-};
+use glutin::{ContextBuilder, CreationError, GlRequest, event_loop::EventLoopProxy, window::{Fullscreen, Window, WindowBuilder, WindowId}};
 use webrender::{api::*, RenderApi, Renderer, RendererOptions, Transaction};
 
 use crate::{
@@ -249,10 +245,15 @@ impl ViewWindow {
 
     /// Probe state, returns `Some(new_state)`
     pub fn state_change(&mut self) -> Option<WindowState> {
-        let state = if self.window.is_maximized() {
-            WindowState::Maximized
-        } else if self.window.is_maximized() {
+        let state = if self.window.inner_size().width == 0 {
             WindowState::Minimized
+        } else if let Some(h) = self.window.fullscreen() {
+            match h {
+                Fullscreen::Exclusive(_) => WindowState::Exclusive,
+                Fullscreen::Borderless(_) => WindowState::Fullscreen,
+            }
+        } else if self.window.is_maximized() {
+            WindowState::Maximized
         } else {
             WindowState::Normal
         };
@@ -271,11 +272,16 @@ impl ViewWindow {
             WindowState::Normal => self.window.set_maximized(false),
             WindowState::Minimized => self.window.set_minimized(true),
             WindowState::Maximized => self.window.set_maximized(true),
-            WindowState::Fullscreen => todo!(),
+            WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
             WindowState::Exclusive => todo!(),
         }
 
-        self.state_change().is_some()
+        if let Some(s) = self.state_change() {
+            debug_assert_eq!(s, state);
+            true
+        } else {
+            false
+        }
     }
 
     /// Resize and render, returns `true` if actually resized.

@@ -1120,16 +1120,17 @@ impl AppExtension for WindowManager {
                 }
             }
         } else if let Some(args) = RawWindowStateChangedEvent.update(args) {
-            if let EventCause::System = args.cause {
-                if let Some(window) = ctx.services.windows().windows_info.get_mut(&args.window_id) {
-                    let prev_state = window.vars.state().copy(ctx.vars);
-                    if window.vars.state().set_ne(ctx.vars, args.state) {
-                        WindowStateChangedEvent.notify(
-                            ctx.events,
-                            WindowStateChangedArgs::new(args.timestamp, args.window_id, prev_state, args.state, args.cause),
-                        )
+            if let Some(window) = ctx.services.windows().windows_info.get_mut(&args.window_id) {
+                let prev_state = window.vars.state().copy(ctx.vars);
+                if let EventCause::System = args.cause {
+                    if !window.vars.state().set_ne(ctx.vars, args.state) {
+                        log::warn!("received `RawWindowStateChangedEvent` with the same state, caused by system");
                     }
                 }
+                WindowStateChangedEvent.notify(
+                    ctx.events,
+                    WindowStateChangedArgs::new(args.timestamp, args.window_id, prev_state, args.state, args.cause),
+                )
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
             let _ = ctx.services.windows().close(args.window_id);

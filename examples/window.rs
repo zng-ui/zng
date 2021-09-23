@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::units::{DipPoint, DipSize};
+use zero_ui::core::{units::{DipPoint, DipSize}, window::WindowStateChangedArgs};
 use zero_ui::prelude::*;
 
 //fn main() {
@@ -36,6 +36,9 @@ fn main() {
             background_color = background_color.clone();
             state = state.clone();
             title;
+            on_state_changed = hn!(|_, args: &WindowStateChangedArgs| {
+                println!("state: {:?}", args.new_state);
+            });
             content = h_stack! {
                 spacing = 40;
                 items = widgets![
