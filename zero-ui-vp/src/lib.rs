@@ -401,6 +401,13 @@ declare_ipc! {
         }
     }
 
+    /// Set the window state.
+    pub fn set_state(&mut self, _ctx: &Context, id: WinId, state: WindowState) -> () {
+        if self.with_window(id, ||false, |w|w.set_state(state)) {
+            self.notify(Ev::WindowStateChanged(id, state, EventCause::App));
+        }
+    }
+
     /// Set the headless surface are size (viewport size).
     pub fn set_headless_size(&mut self, _ctx: &Context, id: WinId, size: DipSize, scale_factor: f32) -> () {
         self.with_headless(id, ||(), |h|h.set_size(size, scale_factor))

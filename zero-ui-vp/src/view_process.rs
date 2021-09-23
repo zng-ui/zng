@@ -215,6 +215,10 @@ impl<E: AppEventSender> ViewApp<E> {
             WindowEvent::Resized(size) => {
                 let size = size.to_px().to_dip(scale_factor);
 
+                if let Some(state) = self.windows[i].state_change() {
+                    self.notify(Ev::WindowStateChanged(id, state, EventCause::System));
+                }
+
                 if !self.windows[i].resized(size) {
                     return;
                 }

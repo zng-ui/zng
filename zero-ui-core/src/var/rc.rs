@@ -229,6 +229,14 @@ pub fn var_from<T: VarValue, I: Into<T>>(value: I) -> RcVar<T> {
     RcVar::new(value.into())
 }
 
+/// New [`RcVar`] with [default] initial value.
+///
+/// [default]: Default
+#[inline]
+pub fn var_default<T: VarValue + Default>() -> RcVar<T> {
+    RcVar::new(T::default())
+}
+
 /// A weak reference to a [`RcVar`].
 pub struct WeakVar<T: VarValue>(Weak<Data<T>>);
 

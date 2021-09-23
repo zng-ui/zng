@@ -2,7 +2,7 @@
 
 use std::{fmt, mem, rc::Rc, thread, time::Instant};
 
-pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowTheme};
+pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
 use crate::{
     color::RenderColor,
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
@@ -536,35 +536,6 @@ impl WindowMode {
     }
 }
 
-/// Window screen state.
-#[derive(Clone, Copy, PartialEq)]
-pub enum WindowState {
-    /// A visible window, at the `position` and `size` configured.
-    Normal,
-    /// Window not visible, but maybe visible in the taskbar.
-    Minimized,
-    /// Window fills the screen, but window frame and taskbar are visible.
-    Maximized,
-    /// Window fully fills the screen, rendered using a frameless top-most window.
-    Fullscreen,
-    /// Exclusive video access to the monitor, only the window content is visible. TODO video config
-    FullscreenExclusive,
-}
-impl fmt::Debug for WindowState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "WindowState::")?;
-        }
-        match self {
-            WindowState::Normal => write!(f, "Normal"),
-            WindowState::Minimized => write!(f, "Minimized"),
-            WindowState::Maximized => write!(f, "Maximized"),
-            WindowState::Fullscreen => write!(f, "Fullscreen"),
-            WindowState::FullscreenExclusive => write!(f, "FullscreenExclusive"),
-        }
-    }
-}
-
 /// Window chrome, the non-client area of the window.
 #[derive(Clone, PartialEq)]
 pub enum WindowChrome {
@@ -816,7 +787,29 @@ event_args! {
         }
     }
 
-    /// [`WindowFocusChangedEvent`], [`WindowFocusEvent`], [`WindowBlurEvent`] args.
+    /// [`WindowStateChangedEvent`] args.
+    pub struct WindowStateChangedArgs {
+        /// Is of the window that has its state changed.
+        pub window_id: WindowId,
+
+        /// The previous window state.
+        pub prev_state: WindowState,
+
+        /// The new window state.
+        pub new_state: WindowState,
+
+        /// Who changed the window state.
+        pub cause: EventCause,
+
+        ..
+
+        /// If the widget is in the same window.
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            ctx.path.window_id() == self.window_id
+        }
+    }
+
+    /// [`WindowFocusChangedEvent`] args.
     pub struct WindowFocusArgs {
         /// Id of window that got or lost keyboard focus.
         pub window_id: WindowId,
@@ -942,6 +935,39 @@ impl FramePixelsReadyArgs {
         self.frame_id == self.latest_frame_id
     }
 }
+impl WindowStateChangedArgs {
+    /// Returns `true` if [`new_state`] is `state` and [`prev_state`] is not.
+    ///
+    /// [`new_state`]: Self::new_state
+    /// [`prev_state`]: Self::prev_state
+    pub fn entered_state(&self, state: WindowState) -> bool {
+        self.new_state == state && self.prev_state != state
+    }
+
+    /// Returns `true` if [`prev_state`] is `state` and [`new_state`] is not.
+    ///
+    /// [`new_state`]: Self::new_state
+    /// [`prev_state`]: Self::prev_state
+    pub fn exited_state(&self, state: WindowState) -> bool {
+        self.prev_state == state && self.new_state != state
+    }
+
+    /// Returns `true` if [`new_state`] is one of the fullscreen states and [`prev_state`] is not.
+    ///
+    /// [`new_state`]: Self::new_state
+    /// [`prev_state`]: Self::prev_state
+    pub fn entered_fullscreen(&self) -> bool {
+        self.new_state.is_fullscreen() && !self.prev_state.is_fullscreen()
+    }
+
+    /// Returns `true` if [`prev_state`] is one of the fullscreen states and [`new_state`] is not.
+    ///
+    /// [`new_state`]: Self::new_state
+    /// [`prev_state`]: Self::prev_state
+    pub fn exited_fullscreen(&self) -> bool {
+        self.prev_state.is_fullscreen() && !self.new_state.is_fullscreen()
+    }
+}
 cancelable_event_args! {
     /// [`WindowCloseRequestedEvent`] args.
     pub struct WindowCloseRequestedArgs {
@@ -969,14 +995,11 @@ event! {
     /// New window event.
     pub WindowOpenEvent: WindowOpenArgs;
 
+    /// Window state changed event.
+    pub WindowStateChangedEvent: WindowStateChangedArgs;
+
     /// Window focus/blur event.
     pub WindowFocusChangedEvent: WindowFocusArgs;
-
-    /// Window got keyboard focus event.
-    pub WindowFocusEvent: WindowFocusArgs;
-
-    /// Window lost keyboard event.
-    pub WindowBlurEvent: WindowFocusArgs;
 
     /// Window scale factor changed.
     pub WindowScaleChangedEvent: WindowScaleChangedArgs;
@@ -1004,8 +1027,7 @@ event! {
 ///
 /// * [WindowOpenEvent]
 /// * [WindowFocusChangedEvent]
-/// * [WindowFocusEvent]
-/// * [WindowBlurEvent]
+/// * [WindowStateChangedEvent]
 /// * [WindowResizeEvent]
 /// * [WindowMoveEvent]
 /// * [WindowScaleChangedEvent]
@@ -1059,13 +1081,7 @@ impl AppExtension for WindowManager {
                 window.is_focused = args.focused;
 
                 let args = WindowFocusArgs::new(args.timestamp, args.window_id, window.is_focused, false);
-
-                WindowFocusChangedEvent.notify(ctx.events, args.clone());
-                if args.focused {
-                    WindowFocusEvent.notify(ctx.events, args);
-                } else {
-                    WindowBlurEvent.notify(ctx.events, args);
-                }
+                WindowFocusChangedEvent.notify(ctx.events, args);
             }
         } else if let Some(args) = RawWindowResizedEvent.update(args) {
             if let Some(mut window) = ctx.services.windows().windows.remove(&args.window_id) {
@@ -1101,6 +1117,18 @@ impl AppExtension for WindowManager {
                     );
                 } else if matches!(args.cause, EventCause::System) {
                     log::warn!("received `RawWindowMovedEvent` with the same position, caused by system");
+                }
+            }
+        } else if let Some(args) = RawWindowStateChangedEvent.update(args) {
+            if let EventCause::System = args.cause {
+                if let Some(window) = ctx.services.windows().windows_info.get_mut(&args.window_id) {
+                    let prev_state = window.vars.state().copy(ctx.vars);
+                    if window.vars.state().set_ne(ctx.vars, args.state) {
+                        WindowStateChangedEvent.notify(
+                            ctx.events,
+                            WindowStateChangedArgs::new(args.timestamp, args.window_id, prev_state, args.state, args.cause),
+                        )
+                    }
                 }
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
@@ -1929,8 +1957,8 @@ impl AppWindow {
                         WindowIcon::Render(_) => todo!(),
                     }
                 }
-                if let Some(state) = self.vars.state().get_new(ctx) {
-                    todo!("apply {:?}", state);
+                if let Some(state) = self.vars.state().copy_new(ctx) {
+                    let _: Ignore = w.set_state(state);
                 }
                 if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
                     let _: Ignore = w.set_resizable(resizable);
@@ -2270,6 +2298,7 @@ impl AppWindow {
                         size: self.size,
                         min_size: self.min_size,
                         max_size: self.max_size,
+                        state: self.vars.state().copy(ctx.vars),
                         visible: self.vars.visible().copy(ctx.vars),
                         taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
                         chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),

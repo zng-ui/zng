@@ -46,33 +46,24 @@ pub mod window {
         #[allowed_in_when = false]
         start_position(impl IntoValue<StartPosition>) = StartPosition::Default;
 
-        /// Window position (*x*, *y*).
+        /// Window state.
         ///
-        /// Set to `Px::MAX` to not give a position. This variable is not updated back
-        /// if the user moves the window, you can use the [`actual_position`](#wp-actual_position) to get the
-        /// computed position.
+        /// If set to a writeable variable it is updated back if the user changes the window state.
+        ///
+        /// See [`WindowState`] for details.
+        properties::state;
+
+        /// Window position (*x*, *y*).
         ///
         /// The position is computed in relation to the [`monitor`](#wp-monitor) value and is re-applied every
         /// time this property or monitor updates.
         ///
+        /// Setting [`Length::Default`] to either *x* or *y* causes the system initial position to be used in both dimensions.
+        /// This variable is not updated back if the user moves the window, you can use the [`actual_position`](#wp-actual_position)
+        /// to get the computed position.
+        ///
         /// You can also set [`x`](#wp-x) and [`y`](#wp-y) as independent properties.
         properties::position;
-
-        /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.
-        ///
-        /// When the window is dragged to a different monitor this property does not update, you can use the
-        /// [`actual_monitor`] property to get the current monitor.
-        ///
-        /// You can change this property after the window has opened to move the window to a different monitor,
-        /// see [`WindowVars::monitor`] for more details about this function.
-        ///
-        /// Is the [`MonitorQuery::Primary`] by default.
-        ///
-        /// [`start_position`]: #wp-start_position
-        /// [`position`]: #wp-position
-        /// [`size`]: #wp-size
-        /// [`WindowVars::monitor`]: crate::core::window::WindowVars::monitor
-        properties::monitor;
 
         /// Window position *x*.
         ///
@@ -198,6 +189,22 @@ pub mod window {
         #[cfg(debug_assertions)]
         can_inspect(impl IntoVar<bool>) = true;
 
+        /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.
+        ///
+        /// When the window is dragged to a different monitor this property does not update, you can use the
+        /// [`actual_monitor`] property to get the current monitor.
+        ///
+        /// You can change this property after the window has opened to move the window to a different monitor,
+        /// see [`WindowVars::monitor`] for more details about this function.
+        ///
+        /// Is the [`MonitorQuery::Primary`] by default.
+        ///
+        /// [`start_position`]: #wp-start_position
+        /// [`position`]: #wp-position
+        /// [`size`]: #wp-size
+        /// [`WindowVars::monitor`]: crate::core::window::WindowVars::monitor
+        properties::monitor;
+
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
@@ -237,6 +244,105 @@ pub mod window {
         /// This property is the [`on_pre_frame_pixels_ready`](fn@on_pre_frame_pixels_ready) so window handlers see it first.
         on_pre_frame_pixels_ready as on_pixels_ready;
 
+        /// On window position changed.
+        ///
+        /// This event notifies every time the user or app changes the window position. You can also track the window
+        /// position using the [`actual_position`] variable.
+        ///
+        /// This property is the [`on_pre_window_moved`] so window handlers see it first.
+        ///
+        /// [`actual_position`]: WindowVars::actual_position
+        /// [`on_pre_window_moved`]: fn@on_pre_window_moved
+        on_pre_window_moved as on_moved;
+
+        /// On window size changed.
+        ///
+        /// This event notifies every time the user or app changes the window content area size. You can also track
+        /// the window size using the [`actual_size`] variable.
+        ///
+        /// This property is the [`on_pre_window_resized`] so window handlers see it first.
+        ///
+        /// [`actual_size`]: WindowVars::actual_size
+        /// [`on_pre_window_resized`]: fn@on_pre_window_resized
+        on_pre_window_resized as on_resized;
+
+        /// On window state changed.
+        ///
+        /// This event notifies every time the user or app changes the window state. You can also track the window
+        /// state by setting [`state`] to a read-write variable.
+        ///
+        /// This property is the [`on_pre_window_state_changed`] so window handlers see it first.
+        ///
+        /// [`state`]: #wp-state
+        /// [`on_pre_window_state_changed`]: fn@on_pre_window_state_changed
+        on_pre_window_state_changed as on_state_changed;
+
+        /// On window maximized.
+        ///
+        /// This event notifies every time the user or app changes the window state to maximized.
+        ///
+        /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
+        ///
+        /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
+        on_pre_window_maximized as on_maximized;
+
+        /// On window exited the maximized state.
+        ///
+        /// This event notifies every time the user or app changes the window state to a different state from maximized.
+        ///
+        /// This property is the [`on_pre_window_unmaximized`] so window handlers see it first.
+        ///
+        /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
+        on_pre_window_unmaximized as on_unmaximized;
+
+        /// On window minimized.
+        ///
+        /// This event notifies every time the user or app changes the window state to maximized.
+        ///
+        /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
+        ///
+        /// [`on_pre_window_minimized`]: fn@on_pre_window_minimized
+        on_pre_window_minimized as on_minimized;
+
+        /// On window exited the minimized state.
+        ///
+        /// This event notifies every time the user or app changes the window state to a different state from minimized.
+        ///
+        /// This property is the [`on_pre_window_unminimized`] so window handlers see it first.
+        ///
+        /// [`on_pre_window_unminimized`]: fn@on_pre_window_unminimized
+        on_pre_window_unminimized as on_unminimized;
+
+        /// On window state changed to [`Normal`].
+        ///
+        /// This event notifies every time the user or app changes the window state to [`Normal`].
+        ///
+        /// This property is the [`on_pre_window_restored`] so window handlers see it first.
+        ///
+        /// [`Normal`]: WindowState::Normal
+        /// [`on_pre_window_restored`]: fn@on_pre_window_restored
+        on_pre_window_restored as on_restored;
+
+        /// On window enter one of the fullscreen states.
+        ///
+        /// This event notifies every time the user or app changes the window state to [`Fullscreen`] or [`Exclusive`].
+        ///
+        /// This property is the [`on_pre_window_fullscreen`] so window handlers see it first.
+        ///
+        /// [`Fullscreen`]: WindowState::Fullscreen
+        /// [`Exclusive`]: WindowState::Exclusive
+        /// [`on_pre_window_fullscreen`]: fn@on_pre_window_fullscreen
+        on_pre_window_fullscreen as on_fullscreen;
+
+        /// On window is no longer fullscreen.
+        ///
+        /// This event notifies every time the user or app changed the window state to one that is not fullscreen.
+        ///
+        /// This property is the [`on_pre_window_exited_fullscreen`] so window handlers see it first.
+        ///
+        /// [`on_pre_window_exited_fullscreen`]: fn@on_pre_window_exited_fullscreen
+        on_pre_window_exited_fullscreen as on_exited_fullscreen;
+
         remove {
             // replaced with `root_id` to more clearly indicate that it is not the window ID.
             id;
@@ -271,7 +377,7 @@ pub mod window {
     pub mod properties {
         use std::marker::PhantomData;
 
-        use crate::core::window::{AutoSize, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowVars, WindowVarsKey};
+        use crate::core::window::{AutoSize, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowState, WindowVars, WindowVarsKey};
         use crate::prelude::new_property::*;
 
         fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + 'static) -> impl UiNode
@@ -338,6 +444,8 @@ pub mod window {
         set_properties! {
             position: Point,
             monitor: MonitorQuery,
+
+            state: WindowState,
 
             size: Size,
             min_size: Size,

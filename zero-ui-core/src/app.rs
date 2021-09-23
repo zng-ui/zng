@@ -1019,6 +1019,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowMovedArgs::now(self.window_id(w_id), pos, cause);
                 self.notify_event(RawWindowMovedEvent, args, observer);
             }
+            zero_ui_vp::Ev::WindowStateChanged(w_id, state, cause) => {
+                let args = RawWindowStateChangedArgs::now(self.window_id(w_id), state, cause);
+                self.notify_event(RawWindowStateChangedEvent, args, observer);
+            }
             zero_ui_vp::Ev::DroppedFile(w_id, file) => {
                 let args = RawDroppedFileArgs::now(self.window_id(w_id), file);
                 self.notify_event(RawDroppedFileEvent, args, observer);
@@ -1861,7 +1865,7 @@ pub mod view_process {
     use zero_ui_vp::{ByteBuf, Controller, DevId, WinId};
     pub use zero_ui_vp::{
         CursorIcon, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, Result, TextAntiAliasing,
-        VideoMode, ViewProcessGen, WindowConfig, WindowTheme,
+        VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
     };
 
     use super::DeviceId;
@@ -2188,6 +2192,12 @@ pub mod view_process {
             self.0.call(|id, p| p.set_size(id, size, frame))
         }
 
+        /// Set the window state.
+        #[inline]
+        pub fn set_state(&self, state: WindowState) -> Result<()> {
+            self.0.call(|id, p| p.set_state(id, state))
+        }
+
         /// Set the window minimum size.
         #[inline]
         pub fn set_min_size(&self, size: DipSize) -> Result<()> {
@@ -2447,7 +2457,7 @@ pub mod raw_events {
 
     use super::{
         raw_device_events::AxisId,
-        view_process::{MonitorInfo, TextAntiAliasing},
+        view_process::{MonitorInfo, TextAntiAliasing, WindowState},
         DeviceId,
     };
     use crate::{
@@ -2542,6 +2552,25 @@ pub mod raw_events {
             pub position: DipPoint,
 
             /// Who moved the window.
+            pub cause: EventCause,
+
+            ..
+
+            /// Returns `true` for all widgets in the [window](Self::window_id).
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                ctx.path.window_id() == self.window_id
+            }
+        }
+
+        /// Arguments for the [`RawWindowStateChangedEvent`].
+        pub struct RawWindowStateChangedArgs {
+            /// The window.
+            pub window_id: WindowId,
+
+            /// New window state.
+            pub state: WindowState,
+
+            /// Who changed the state.
             pub cause: EventCause,
 
             ..
@@ -2943,6 +2972,9 @@ pub mod raw_events {
 
         /// A window was moved.
         pub RawWindowMovedEvent: RawWindowMovedArgs;
+
+        /// A window was maximized/minimized/restored.
+        pub RawWindowStateChangedEvent: RawWindowStateChangedArgs;
 
         /// A frame finished rendering and was presented in a window.
         pub RawFrameRenderedEvent: RawFrameRenderedArgs;

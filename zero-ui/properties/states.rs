@@ -6,7 +6,7 @@ use zero_ui_core::timer::DeadlineVar;
 use zero_ui_core::widget_base::{IsHitTestable, WidgetHitTestableExt};
 
 use crate::core::mouse::*;
-use crate::core::window::WindowBlurEvent;
+use crate::core::window::WindowFocusChangedEvent;
 use crate::prelude::new_property::*;
 
 /// If the mouse pointer is over the widget or an widget descendant.
@@ -192,8 +192,8 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                     }
                 }
                 self.child.event(ctx, args);
-            } else if let Some(args) = WindowBlurEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
+            } else if let Some(args) = WindowFocusChangedEvent.update(args) {
+                if !args.focused && IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_down = false;
                 }
                 self.child.event(ctx, args);
@@ -270,8 +270,8 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                     self.is_captured = args.is_got(ctx.path.widget_id());
                 }
                 self.child.event(ctx, args);
-            } else if let Some(args) = WindowBlurEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
+            } else if let Some(args) = WindowFocusChangedEvent.update(args) {
+                if !args.focused && IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_down = false;
                 }
                 self.child.event(ctx, args);

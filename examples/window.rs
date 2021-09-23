@@ -26,6 +26,7 @@ fn main() {
 
         let icon = var(WindowIcon::Default);
         let chrome = var(WindowChrome::Default);
+        let state = var(WindowState::Normal);
 
         window! {
             position = position.clone();
@@ -33,6 +34,7 @@ fn main() {
             icon = icon.clone();
             chrome = chrome.clone();
             background_color = background_color.clone();
+            state = state.clone();
             title;
             content = h_stack! {
                 spacing = 40;
@@ -55,11 +57,21 @@ fn main() {
                             ]),
                         ];
                     },
-                    property_stack("size", widgets![
-                        set_size(1000.0, 900.0, &size),
-                        set_size(500.0, 1000.0, &size),
-                        set_size(800.0, 600.0, &size),
-                    ]),
+                    v_stack! {
+                        spacing = 20;
+                        items = widgets![
+                            property_stack("size", widgets![
+                                set_size(1000.0, 900.0, &size),
+                                set_size(500.0, 1000.0, &size),
+                                set_size(800.0, 600.0, &size),
+                            ]),
+                            property_stack("state", widgets![
+                                set_state(WindowState::Normal, &state),
+                                set_state(WindowState::Minimized, &state),
+                                set_state(WindowState::Maximized, &state),
+                            ]),
+                        ]
+                    },
                     property_stack("icon", widgets![
                         set_icon("Default", WindowIcon::Default, &icon),
                         set_icon("Png File", "examples/res/window/icon-file.png", &icon),
@@ -113,6 +125,10 @@ fn set_position(x: f32, y: f32, window_position: &RcVar<Point>) -> impl Widget {
 
 fn set_size(width: f32, height: f32, window_size: &RcVar<Size>) -> impl Widget {
     set_var_btn(window_size, (width, height).into(), formatx!("resize to {}x{}", width, height))
+}
+
+fn set_state(state: WindowState, state_var: &RcVar<WindowState>) -> impl Widget {
+    set_var_btn(state_var, state, formatx!("{:?}", state))
 }
 
 fn set_background(color: Rgba, color_name: &str, background_color: &RcVar<Rgba>) -> impl Widget {

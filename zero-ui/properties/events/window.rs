@@ -23,6 +23,18 @@ event_property! {
         args: WindowOpenArgs,
     }
 
+    /// On window position changed.
+    pub fn window_moved {
+        event: WindowMoveEvent,
+        args: WindowMoveArgs,
+    }
+
+    /// On window size changed.
+    pub fn window_resized {
+        event: WindowResizeEvent,
+        args: WindowResizeArgs,
+    }
+
     /// On window close requested.
     ///
     /// This event notifies every time the user or the app tries to close the window, you can call
@@ -39,5 +51,64 @@ event_property! {
     pub fn frame_pixels_ready {
         event: FramePixelsReadyEvent,
         args: FramePixelsReadyArgs
+    }
+
+    /// On window state changed.
+    ///
+    /// This event notifies every time the user or the app changes the [`WindowState`].
+    pub fn window_state_changed {
+        event: WindowStateChangedEvent,
+        args: WindowStateChangedArgs,
+    }
+
+    /// On window state changed to [`WindowState::Maximized`].
+    pub fn window_maximized {
+        event: WindowStateChangedEvent,
+        args: WindowStateChangedArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.entered_state(WindowState::Maximized),
+    }
+
+    /// On window state changed from [`WindowState::Maximized`].
+    pub fn window_unmaximized {
+        event: WindowStateChangedEvent,
+        args: WindowStateChangedArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.exited_state(WindowState::Maximized),
+    }
+
+    /// On window state changed to [`WindowState::Minimized`].
+    pub fn window_minimized {
+        event: WindowStateChangedEvent,
+        args: WindowStateChangedArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.entered_state(WindowState::Minimized),
+    }
+
+    /// On window state changed from [`WindowState::Minimized`].
+    pub fn window_unminimized {
+        event: WindowStateChangedEvent,
+        args: WindowStateChangedArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.exited_state(WindowState::Minimized),
+    }
+
+    /// On window state changed to [`WindowState::Normal`].
+    pub fn window_restored {
+        event: WindowStateChangedEvent,
+        args: WindowStateChangedArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.entered_state(WindowState::Normal),
+    }
+
+    /// On window state changed to [`WindowState::Fullscreen`] or [`WindowState::Exclusive`] from a previous not
+    /// fullscreen state.
+    pub fn window_fullscreen {
+        event: WindowStateChangedEvent,
+        args: WindowStateChangedArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.entered_fullscreen(),
+    }
+
+    /// On window state changed from [`WindowState::Fullscreen`] or [`WindowState::Exclusive`] from a new not
+    /// fullscreen state.
+    pub fn window_exited_fullscreen {
+        event: WindowStateChangedEvent,
+        args: WindowStateChangedArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.exited_fullscreen(),
     }
 }

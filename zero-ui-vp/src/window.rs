@@ -21,12 +21,13 @@ use crate::{
     types::{FramePixels, ScanCode},
     units::*,
     util::{self, GlContext, RunOnDrop},
-    AppEvent, AppEventSender, Context, Ev, FrameRequest, Key, KeyState, TextAntiAliasing, ViewProcessGen, WinId, WindowConfig,
+    AppEvent, AppEventSender, Context, Ev, FrameRequest, Key, KeyState, TextAntiAliasing, ViewProcessGen, WinId, WindowConfig, WindowState,
 };
 
 pub(crate) struct ViewWindow {
     id: WinId,
     window: Window,
+    state: WindowState,
     context: GlContext,
     gl: Rc<dyn gl::Gl>,
     renderer: Option<Renderer>,
@@ -190,9 +191,12 @@ impl ViewWindow {
             movable: w.movable,
             transparent: w.transparent,
             frame_id: Epoch::invalid(),
+            state: WindowState::Normal,
         };
+        win.state_change(); // update
 
         win.set_taskbar_visible(w.taskbar_visible);
+        win.set_state(w.state);
 
         win
     }
@@ -241,6 +245,37 @@ impl ViewWindow {
             self.window.set_outer_position(new_pos);
         }
         moved
+    }
+
+    /// Probe state, returns `Some(new_state)`
+    pub fn state_change(&mut self) -> Option<WindowState> {
+        let state = if self.window.is_maximized() {
+            WindowState::Maximized
+        } else if self.window.is_maximized() {
+            WindowState::Minimized
+        } else {
+            WindowState::Normal
+        };
+
+        if self.state != state {
+            self.state = state;
+            Some(state)
+        } else {
+            None
+        }
+    }
+
+    /// Apply the new state, returns `true` if the state changed.
+    pub fn set_state(&mut self, state: WindowState) -> bool {
+        match state {
+            WindowState::Normal => self.window.set_maximized(false),
+            WindowState::Minimized => self.window.set_minimized(true),
+            WindowState::Maximized => self.window.set_maximized(true),
+            WindowState::Fullscreen => todo!(),
+            WindowState::Exclusive => todo!(),
+        }
+
+        self.state_change().is_some()
     }
 
     /// Resize and render, returns `true` if actually resized.

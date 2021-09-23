@@ -769,6 +769,35 @@ impl From<CursorIcon> for WCursorIcon {
     }
 }
 
+/// Window state after a resize.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+pub enum WindowState {
+    /// Window is visible but does not fill the screen.
+    Normal,
+    /// Window is only visible as an icon in the taskbar.
+    Minimized,
+    /// Window fills the screen, but not the parts reserved by the system, like the taskbar.
+    Maximized,
+    /// Window is chromeless and completely fills the screen, including over parts reserved by the system.
+    Fullscreen,
+    /// Window has exclusive access to the video output, so only the window content is visible.
+    Exclusive,
+}
+impl Default for WindowState {
+    fn default() -> Self {
+        WindowState::Normal
+    }
+}
+impl WindowState {
+    /// Returns `true` if `self` matches [`Fullscreen`] or [`Exclusive`].
+    ///
+    /// [`Fullscreen`]: WindowState::Fullscreen
+    /// [`Exclusive`]: WindowState::Exclusive
+    pub fn is_fullscreen(self) -> bool {
+        matches!(self, Self::Fullscreen | Self::Exclusive)
+    }
+}
+
 /// System/User events sent from the View Process.
 #[repr(u32)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -795,7 +824,12 @@ pub enum Ev {
     /// `EventsCleared` is not send after this event.
     FrameRendered(WinId, Epoch),
 
-    /// The size of the window has changed. Contains the client area’s new dimensions.
+    /// Window maximized/minimized/restored.
+    ///
+    /// The [`EventCause`] can be used to identify a state change initiated by the app.
+    WindowStateChanged(WinId, WindowState, EventCause),
+
+    /// The size of the window has changed. Contains the client area’s new dimensions and the window state.
     ///
     /// The [`EventCause`] can be used to identify a resize initiated by the app.
     WindowResized(WinId, DipSize, EventCause),
@@ -892,12 +926,12 @@ pub enum Ev {
     DeviceText(DevId, char),
 }
 
-/// Cause of a window move or resize event.
+/// Cause of a window state change.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EventCause {
-    /// Operating system or end-user moved or resized the window.
+    /// Operating system or end-user affected the window.
     System,
-    /// App move resized the window.
+    /// App affected the window.
     App,
 }
 
@@ -1066,6 +1100,8 @@ pub struct WindowConfig {
     pub pos: Option<DipPoint>,
     /// Content size (inner-size).
     pub size: DipSize,
+    ///Initial window state.
+    pub state: WindowState,
 
     /// Minimal size allowed.
     pub min_size: DipSize,
