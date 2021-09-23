@@ -1,8 +1,4 @@
-use std::{
-    fmt,
-    sync::atomic::{AtomicU64, Ordering},
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{env, fmt, fs, path::PathBuf, sync::atomic::{AtomicU64, Ordering}, time::{SystemTime, UNIX_EPOCH}};
 
 use proc_macro2::*;
 use quote::{quote_spanned, ToTokens};
@@ -47,7 +43,6 @@ pub fn crate_core() -> TokenStream {
     static CRATE: OnceCell<(String, bool)> = OnceCell::new();
 
     let (ident, core) = CRATE.get_or_init(|| {
-        use proc_macro_crate::{crate_name, FoundCrate};
         if let Ok(ident) = crate_name("zero-ui") {
             // using the main crate.
             match ident {
@@ -61,7 +56,7 @@ pub fn crate_core() -> TokenStream {
                 FoundCrate::Itself => ("zero_ui_core".to_owned(), false),
             }
         } else {
-            // proc_macro_crate failed?
+            // failed, at least shows "zero_ui" in the compile error.
             ("zero_ui".to_owned(), true)
         }
     });
@@ -72,6 +67,132 @@ pub fn crate_core() -> TokenStream {
     } else {
         ident.to_token_stream()
     }
+}
+
+#[derive(PartialEq, Debug)]
+enum FoundCrate {
+    Name(String),
+    Itself
+}
+
+/// Gets the module name of a given crate name (same behavior as $crate).
+fn crate_name(orig_name: &str) -> Result<FoundCrate, ()> {
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").map_err(|_| ())?);
+ 
+    let toml = fs::read_to_string(manifest_dir.join("Cargo.toml")).map_err(|_|())?;
+    
+    crate_name_impl(orig_name, &toml)
+}
+fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
+    // some of this code is based on the crate `proc-macro-crate` code, we
+    // don't depend on that crate to speedup compile time.
+    enum State<'a> {
+        Seeking,
+        Package,
+        Dependencies,
+        Dependency(&'a str),
+    }
+
+    let mut state = State::Seeking;
+
+    for line in toml.lines() {
+        let line = line.trim();
+
+        let new_state = if line == "[package]" {
+            Some(State::Package)
+        } else if line.contains("dependencies.") && line.ends_with(']') {
+            let name_start = line.rfind('.').unwrap();
+            let name = line[name_start + 1 ..].trim_end_matches(']');
+            Some(State::Dependency(name))
+        } else if line.ends_with("dependencies]") {
+            Some(State::Dependencies)
+        } else if line.starts_with('[') {
+            Some(State::Seeking)
+        }  else {
+            None
+        };
+
+        if let Some(new_state) = new_state {
+            if let State::Dependency(name) = state {
+                if name == orig_name {
+                    // finished `[*dependencies.<name>]` without finding a `package = "other"`
+                    return Ok(FoundCrate::Name(orig_name.replace('-', "_")))
+                }
+            }
+
+            state = new_state;
+            continue;
+        }
+
+        match state {
+            State::Seeking => continue,
+            // Check if it is the crate itself, or one of its tests.
+            State::Package => {
+                if line.starts_with("name ") || line.starts_with("name=") {
+                    if let Some(name_start) = line.find('"') {
+                        if let Some(name_end) = line.rfind('"') {
+                            let name = &line[name_start + 1 .. name_end];
+
+                            if name == orig_name {
+                                return Ok(if env::var_os("CARGO_TARGET_TMPDIR").is_none() {
+                                    FoundCrate::Itself
+                                } else {
+                                    FoundCrate::Name(orig_name.replace('-', "_"))
+                                });
+                            }
+                        }
+                    }
+                }
+            },
+            // Check dependencies, dev-dependencies, target.`..`.dependencies
+            State::Dependencies => {
+                if let Some(eq) = line.find('=') {
+                    let name = line[..eq].trim();
+                    let value = line[eq+1..].trim();
+
+                    if value.starts_with('"') {
+                        if name == orig_name {
+                            return Ok(FoundCrate::Name(orig_name.replace('-', "_")));
+                        }
+                    } else if value.starts_with('{') {
+                        let value = value.replace(' ', "");
+                        if let Some(pkg) = value.find("package=\"") {
+                            let pkg = &value[pkg + "package=\"".len() ..];
+                            if let Some(pkg_name_end) = pkg.find('"') {
+                                let pkg_name = &pkg[..pkg_name_end];
+                                if pkg_name == orig_name {
+                                    return Ok(FoundCrate::Name(name.replace('-', "_")));
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            // Check a dependency in the style [dependency.foo]
+            State::Dependency(name) => {
+                if line.starts_with("package ") || line.starts_with("package=") {
+                    if let Some(pkg_name_start) = line.find('"') {
+                        if let Some(pkg_name_end) = line.rfind('"') {
+                            let pkg_name = &line[pkg_name_start + 1 .. pkg_name_end];
+
+                            if pkg_name == orig_name {
+                                return Ok(FoundCrate::Name(name.replace('-', "_")))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let State::Dependency(name) = state {
+        if name == orig_name {
+            // finished `[*dependencies.<name>]` without finding a `package = "other"`
+            return Ok(FoundCrate::Name(orig_name.replace('-', "_")))
+        }
+    }
+
+    Err(())
 }
 
 /// Generates a return of a compile_error message in the given span.
@@ -860,4 +981,176 @@ pub fn snake_case(camel: &str) -> String {
         prev = ch;
     }
     r.to_lowercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn crate_name_itself_1() {
+        let toml = r#"
+        [package]
+        name = "crate-name"
+        version = "0.1.0"
+        edition = "2018"
+        license = "Apache-2.0"
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Itself, r);
+    }
+
+    #[test]
+    fn crate_name_itself_2() {
+        let toml = r#"
+        [package]
+        version = "0.1.0"
+        edition = "2018"
+        name = "crate-name"
+        license = "Apache-2.0"
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Itself, r);
+    }
+
+    #[test]
+    fn crate_name_dependencies_1() {
+        let toml = r#"
+        [package]
+        name = "foo"
+        version = "0.1.0"
+        edition = "2018"
+        license = "Apache-2.0"
+
+        [dependencies]
+        bar = "1.0"
+        crate-name = "*"
+
+        [workspace]
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Name("crate_name".to_owned()), r);
+    }
+
+    #[test]
+    fn crate_name_dependencies_2() {
+        let toml = r#"
+        [package]
+        name = "foo"
+        version = "0.1.0"
+        edition = "2018"
+        license = "Apache-2.0"
+
+        [dependencies]
+        zum = "1.0"
+        super-name = { version = "*", package = "crate-name" }
+
+        [workspace]
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Name("super_name".to_owned()), r);
+    }
+
+    #[test]
+    fn crate_name_dependencies_3() {
+        let toml = r#"
+        [package]
+        name = "foo"
+        version = "0.1.0"
+        edition = "2018"
+        license = "Apache-2.0"
+
+        [target.'cfg(windows)'.dependencies]
+        zum = "1.0"
+        super-name = { version = "*", package = "crate-name" }
+
+        [workspace]
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Name("super_name".to_owned()), r);
+    }
+
+    #[test]
+    fn crate_name_dependencies_4() {
+        let toml = r#"
+        [package]
+        name = "foo"
+        version = "0.1.0"
+        edition = "2018"
+        license = "Apache-2.0"
+
+        [dev-dependencies]
+        zum = "1.0"
+        super-name = { version = "*", package = "crate-name" }
+
+        [workspace]
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Name("super_name".to_owned()), r);
+    }
+
+    #[test]
+    fn crate_name_dependency_1() {
+        let toml = r#"
+        [package]
+        name = "foo"
+        version = "0.1.0"
+        edition = "2018"
+        license = "Apache-2.0"
+
+        [dev-dependencies.super-foo]
+        version = "*"
+        package = "crate-name"
+
+        [workspace]
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Name("super_foo".to_owned()), r);
+    }
+
+    #[test]
+    fn crate_name_dependency_2() {
+        let toml = r#"
+        [package]
+        name = "foo"
+        version = "0.1.0"
+        edition = "2018"
+        license = "Apache-2.0"
+
+        [dependencies.super-foo]
+        version = "*"
+        package = "crate-name"
+
+        [workspace]
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Name("super_foo".to_owned()), r);
+    }
+
+    #[test]
+    fn crate_name_dependency_3() {
+        let toml = r#"
+        [package]
+        name = "foo"
+        version = "0.1.0"
+        edition = "2018"
+        license = "Apache-2.0"
+
+        [dependencies.crate-name]
+        version = "*"
+
+        [workspace]
+        "#;
+
+        let r = crate_name_impl("crate-name", toml).unwrap();
+        assert_eq!(FoundCrate::Name("crate_name".to_owned()), r);
+    }
 }
