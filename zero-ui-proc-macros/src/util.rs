@@ -1,4 +1,9 @@
-use std::{env, fmt, fs, path::PathBuf, sync::atomic::{AtomicU64, Ordering}, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    env, fmt, fs,
+    path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use proc_macro2::*;
 use quote::{quote_spanned, ToTokens};
@@ -72,15 +77,15 @@ pub fn crate_core() -> TokenStream {
 #[derive(PartialEq, Debug)]
 enum FoundCrate {
     Name(String),
-    Itself
+    Itself,
 }
 
 /// Gets the module name of a given crate name (same behavior as $crate).
 fn crate_name(orig_name: &str) -> Result<FoundCrate, ()> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").map_err(|_| ())?);
- 
-    let toml = fs::read_to_string(manifest_dir.join("Cargo.toml")).map_err(|_|())?;
-    
+
+    let toml = fs::read_to_string(manifest_dir.join("Cargo.toml")).map_err(|_| ())?;
+
     crate_name_impl(orig_name, &toml)
 }
 fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
@@ -102,13 +107,13 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
             Some(State::Package)
         } else if line.contains("dependencies.") && line.ends_with(']') {
             let name_start = line.rfind('.').unwrap();
-            let name = line[name_start + 1 ..].trim_end_matches(']');
+            let name = line[name_start + 1..].trim_end_matches(']');
             Some(State::Dependency(name))
         } else if line.ends_with("dependencies]") {
             Some(State::Dependencies)
         } else if line.starts_with('[') {
             Some(State::Seeking)
-        }  else {
+        } else {
             None
         };
 
@@ -116,7 +121,7 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
             if let State::Dependency(name) = state {
                 if name == orig_name {
                     // finished `[*dependencies.<name>]` without finding a `package = "other"`
-                    return Ok(FoundCrate::Name(orig_name.replace('-', "_")))
+                    return Ok(FoundCrate::Name(orig_name.replace('-', "_")));
                 }
             }
 
@@ -131,7 +136,7 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
                 if line.starts_with("name ") || line.starts_with("name=") {
                     if let Some(name_start) = line.find('"') {
                         if let Some(name_end) = line.rfind('"') {
-                            let name = &line[name_start + 1 .. name_end];
+                            let name = &line[name_start + 1..name_end];
 
                             if name == orig_name {
                                 return Ok(if env::var_os("CARGO_TARGET_TMPDIR").is_none() {
@@ -143,12 +148,12 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
                         }
                     }
                 }
-            },
+            }
             // Check dependencies, dev-dependencies, target.`..`.dependencies
             State::Dependencies => {
                 if let Some(eq) = line.find('=') {
                     let name = line[..eq].trim();
-                    let value = line[eq+1..].trim();
+                    let value = line[eq + 1..].trim();
 
                     if value.starts_with('"') {
                         if name == orig_name {
@@ -157,7 +162,7 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
                     } else if value.starts_with('{') {
                         let value = value.replace(' ', "");
                         if let Some(pkg) = value.find("package=\"") {
-                            let pkg = &value[pkg + "package=\"".len() ..];
+                            let pkg = &value[pkg + "package=\"".len()..];
                             if let Some(pkg_name_end) = pkg.find('"') {
                                 let pkg_name = &pkg[..pkg_name_end];
                                 if pkg_name == orig_name {
@@ -167,16 +172,16 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
                         }
                     }
                 }
-            },
+            }
             // Check a dependency in the style [dependency.foo]
             State::Dependency(name) => {
                 if line.starts_with("package ") || line.starts_with("package=") {
                     if let Some(pkg_name_start) = line.find('"') {
                         if let Some(pkg_name_end) = line.rfind('"') {
-                            let pkg_name = &line[pkg_name_start + 1 .. pkg_name_end];
+                            let pkg_name = &line[pkg_name_start + 1..pkg_name_end];
 
                             if pkg_name == orig_name {
-                                return Ok(FoundCrate::Name(name.replace('-', "_")))
+                                return Ok(FoundCrate::Name(name.replace('-', "_")));
                             }
                         }
                     }
@@ -188,7 +193,7 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
     if let State::Dependency(name) = state {
         if name == orig_name {
             // finished `[*dependencies.<name>]` without finding a `package = "other"`
-            return Ok(FoundCrate::Name(orig_name.replace('-', "_")))
+            return Ok(FoundCrate::Name(orig_name.replace('-', "_")));
         }
     }
 

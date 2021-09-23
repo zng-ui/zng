@@ -146,10 +146,13 @@ impl_from_and_into_var! {
 pub struct ColorStop {
     /// The color.
     pub color: Rgba,
-    /// Offset point where the [`color`](Self::color) is fully visible.
+    /// Offset point where the [`color`] is fully visible.
     ///
-    /// Relative lengths are calculated on the length of the gradient line. There is also a special
-    /// relative length (`f32::INFINITY`) that indicates this color stop [is positional](Self::is_positional).
+    /// Relative lengths are calculated on the length of the gradient line. The [`Length::Default`] value
+    /// indicates this color stop [is positional].
+    ///
+    /// [`color`]: ColorStop::color
+    /// [is positional]: ColorStop::is_positional
     pub offset: Length,
 }
 impl fmt::Debug for ColorStop {
@@ -178,12 +181,14 @@ impl ColorStop {
 
     /// New color stop with a undefined offset.
     ///
-    /// See [`is_positional`](Self::is_positional) for more details.
+    /// See [`is_positional`] for more details.
+    ///
+    /// [`is_positional`]: Self::is_positional
     #[inline]
     pub fn new_positional(color: impl Into<Rgba>) -> Self {
         ColorStop {
             color: color.into(),
-            offset: Length::Relative(FactorNormal(f32::INFINITY)),
+            offset: Length::Default,
         }
     }
 
@@ -203,16 +208,16 @@ impl ColorStop {
     ///
     /// # Note
     ///
-    /// Use [`ColorStop::is_layout_positional`] is you already have the layout offset, it is faster then calling
-    /// this method and then converting to layout.
+    /// Use [`ColorStop::is_layout_positional`] if you already have the layout offset.
+    #[inline]
     pub fn is_positional(&self) -> bool {
-        !self.offset.is_default()
+        self.offset.is_default()
     }
 
     /// If a calculated layout offset is [positional].
     ///
     /// Positive infinity ([`f32::INFINITY`]) is used to indicate that the color stop is
-    /// positional in layout units.
+    /// positional in webrender units.
     ///
     /// [positional]: Self::is_positional
     #[inline]

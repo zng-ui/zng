@@ -1028,9 +1028,9 @@ fn auto_docs(
             while let Some(i) = expr.find("self.") {
                 let p_start = i + "self.".len();
                 let mut p_end = p_start;
-                for (i, c) in expr[i..].char_indices() {
+                for (i, c) in expr[p_start..].char_indices() {
                     if c == '_' || c.is_alphanumeric() {
-                        p_end = i + p_start - 1;
+                        p_end = i + p_start;
                     } else {
                         break;
                     }
