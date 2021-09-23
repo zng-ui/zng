@@ -237,7 +237,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
                 }
-                guard.touched() && self_.strong_count() > 2
+                guard.touched()
             }));
 
             Ok(())
@@ -298,7 +298,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
 
-                    self_.strong_count() > 2
+                    true
                 }));
             } else {
                 let self_ = self.clone();
@@ -311,7 +311,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
 
-                    self_.strong_count() > 2
+                    true
                 }));
             }
 

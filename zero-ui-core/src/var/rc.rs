@@ -127,7 +127,7 @@ impl<T: VarValue> RcVar<T> {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
                 }
-                guard.touched() && self_.strong_count() > 2
+                guard.touched()
             }));
         })
     }
