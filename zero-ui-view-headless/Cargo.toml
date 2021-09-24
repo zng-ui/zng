@@ -1,0 +1,12 @@
+[package]
+name = "zero-ui-view-headless"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2018"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-view-api = { path = "../zero-ui-view-api" }
+webrender = { path = "../dependencies/webrender/webrender" }
+log = "0.4"
+gleam = { version = "0.13.1", optional = true  }

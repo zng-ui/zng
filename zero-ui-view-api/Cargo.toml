@@ -1,0 +1,24 @@
+[package]
+name = "zero-ui-view-api"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2018"
+license = "Apache-2.0"
+
+[dependencies]
+webrender_api = { path = "../dependencies/webrender/webrender_api" }
+serde = { version = "1.0", features = ["derive"] }
+serde_bytes = "0.11"
+parking_lot = "0.11"
+ipc-channel = "0.15"
+duct = "0.13"
+
+log = "0.4"
+flume = { version = "0.10", default-features  = false }
+bitflags = "1"
+num-traits = "0.2"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "doc_nightly"]
