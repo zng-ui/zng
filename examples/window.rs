@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::{units::{DipPoint, DipSize}, window::WindowStateChangedArgs};
+use zero_ui::core::{
+    units::{DipPoint, DipSize},
+    window::WindowStateChangedArgs,
+};
 use zero_ui::prelude::*;
 
 //fn main() {
@@ -72,6 +75,8 @@ fn main() {
                                 set_state(WindowState::Normal, &state),
                                 set_state(WindowState::Minimized, &state),
                                 set_state(WindowState::Maximized, &state),
+                                set_state(WindowState::Fullscreen, &state),
+                                set_state(WindowState::Exclusive, &state),
                             ]),
                         ]
                     },

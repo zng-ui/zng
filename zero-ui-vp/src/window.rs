@@ -9,7 +9,12 @@ use std::{
 };
 
 use gleam::gl;
-use glutin::{ContextBuilder, CreationError, GlRequest, event_loop::EventLoopProxy, window::{Fullscreen, Window, WindowBuilder, WindowId}};
+use glutin::{
+    event_loop::EventLoopProxy,
+    monitor::VideoMode,
+    window::{Fullscreen, Window, WindowBuilder, WindowId},
+    ContextBuilder, CreationError, GlRequest,
+};
 use webrender::{api::*, RenderApi, Renderer, RendererOptions, Transaction};
 
 use crate::{
@@ -266,14 +271,35 @@ impl ViewWindow {
         }
     }
 
+    pub fn video_mode(&self) -> Option<VideoMode> {
+        // TODO configurable video mode.
+        self.window.current_monitor().and_then(|m| m.video_modes().next())
+    }
+
     /// Apply the new state, returns `true` if the state changed.
     pub fn set_state(&mut self, state: WindowState) -> bool {
-        match state {
-            WindowState::Normal => self.window.set_maximized(false),
-            WindowState::Minimized => self.window.set_minimized(true),
-            WindowState::Maximized => self.window.set_maximized(true),
-            WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
-            WindowState::Exclusive => todo!(),
+        if state.is_fullscreen() {
+            match state {
+                WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                WindowState::Exclusive => {
+                    if let Some(mode) = self.video_mode() {
+                        self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
+                    } else {
+                        todo!()
+                    }
+                }
+                _ => unreachable!(),
+            }
+        } else {
+            if self.window.fullscreen().is_some() {
+                self.window.set_fullscreen(None);
+            }
+            match state {
+                WindowState::Normal => self.window.set_maximized(false),
+                WindowState::Minimized => self.window.set_minimized(true),
+                WindowState::Maximized => self.window.set_maximized(true),
+                _ => unreachable!(),
+            }
         }
 
         if let Some(s) = self.state_change() {
