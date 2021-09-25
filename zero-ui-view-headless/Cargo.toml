@@ -10,3 +10,5 @@ zero-ui-view-api = { path = "../zero-ui-view-api" }
 webrender = { path = "../dependencies/webrender/webrender" }
 log = "0.4"
 gleam = { version = "0.13.1", optional = true  }
+glutin = "0.27"
+flume = "0.10"

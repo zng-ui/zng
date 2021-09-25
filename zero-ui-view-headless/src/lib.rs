@@ -11,7 +11,7 @@
 //! The version of `webrender` used in this crate is re-exported as the `webrender` module.
 //! This is useful for implementing other backends, so you use the same `webrender` version.
 
-use std::time::Duration;
+use std::{cell::Cell, fmt, rc::Rc, sync::Arc, time::Duration};
 
 #[doc(inline)]
 pub use webrender;
@@ -31,9 +31,13 @@ pub fn init() {
 ///
 /// This type is public so it can be used as the "headless-mode" in other backends, to just
 /// start the headless view-process use [`init`].
-#[derive(Debug, Default)]
 pub struct HeadlessBackend {
     started: bool,
+
+    event_loop: glutin::event_loop::EventLoop<()>,
+    gl_manager: GlContextManager,
+    event_sender: flume::Sender<AppEvent>,
+    event_receiver: flume::Receiver<AppEvent>,
 
     gen: ViewProcessGen,
     device_events: bool,
@@ -42,7 +46,38 @@ pub struct HeadlessBackend {
 
     surface_id_gen: WinId,
 }
+impl fmt::Debug for HeadlessBackend {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HeadlessBackend")
+            .field("started", &self.started)
+            .field("gen", &self.gen)
+            .field("device_events", &self.device_events)
+            .field("surfaces", &self.surfaces)
+            .finish_non_exhaustive()
+    }
+}
+impl Default for HeadlessBackend {
+    fn default() -> Self {
+        let (event_sender, event_receiver) = flume::unbounded();
+        HeadlessBackend {
+            started: false,
+            event_loop: glutin::event_loop::EventLoop::new(),
+            gl_manager: GlContextManager::default(),
+            event_sender,
+            event_receiver,
+            gen: 0,
+            device_events: false,
+            surfaces: vec![],
+            surface_id_gen: 0,
+        }
+    }
+}
 impl HeadlessBackend {
+    /// Returns a clone of the event sender.
+    pub fn event_sender(&self) -> flume::Sender<AppEvent> {
+        self.event_sender.clone()
+    }
+
     fn assert_started(&self) {
         if !self.started {
             panic!("not started")
@@ -75,7 +110,8 @@ impl Api for HeadlessBackend {
             panic!("already started");
         }
         self.started = true;
-        self.device_events = true;
+        self.gen = gen;
+        self.device_events = device_events;
         if !headless {
             log::warn!("only headless is supported, headed windows will also be headless in this backend");
         }
@@ -113,7 +149,14 @@ impl Api for HeadlessBackend {
         self.assert_started();
         let id = self.generate_win_id();
 
-        let surf = Surface::open(id, config);
+        let surf = Surface::open(
+            id,
+            self.gen,
+            config,
+            &self.event_loop,
+            &mut self.gl_manager,
+            self.event_sender.clone(),
+        );
         let namespace = surf.namespace_id();
         let pipeline = surf.pipeline_id();
 
@@ -232,7 +275,7 @@ impl Api for HeadlessBackend {
     }
 
     fn pipeline_id(&mut self, id: WinId) -> PipelineId {
-        self.with_surface(id, |w| w.pipeline_id(), || PipelineId::dummy())
+        self.with_surface(id, |w| w.pipeline_id(), PipelineId::dummy)
     }
 
     fn namespace_id(&mut self, id: WinId) -> IdNamespace {
@@ -240,7 +283,7 @@ impl Api for HeadlessBackend {
     }
 
     fn add_image(&mut self, id: WinId, descriptor: ImageDescriptor, data: ByteBuf) -> ImageKey {
-        self.with_surface(id, |w| w.add_image(descriptor, data.to_vec()), || ImageKey::DUMMY)
+        self.with_surface(id, |w| w.add_image(descriptor, Arc::new(data.to_vec())), || ImageKey::DUMMY)
     }
 
     fn update_image(
@@ -249,9 +292,8 @@ impl Api for HeadlessBackend {
         key: ImageKey,
         descriptor: ImageDescriptor,
         data: ByteBuf,
-        dirty_rect: webrender_api::units::ImageDirtyRect,
     ) {
-        self.with_surface(id, |w| w.update_image(key, descriptor, data.to_vec(), dirty_rect), || ())
+        self.with_surface(id, |w| w.update_image(key, descriptor, Arc::new(data.to_vec())), || ())
     }
 
     fn delete_image(&mut self, id: WinId, key: ImageKey) {
@@ -287,7 +329,7 @@ impl Api for HeadlessBackend {
     }
 
     fn size(&mut self, id: WinId) -> DipSize {
-        self.with_surface(id, |w| w.size(), || DipSize::zero())
+        self.with_surface(id, |w| w.size(), DipSize::zero)
     }
 
     fn set_allow_alt_f4(&mut self, id: WinId, allow: bool) {
@@ -295,11 +337,11 @@ impl Api for HeadlessBackend {
     }
 
     fn read_pixels(&mut self, id: WinId) -> FramePixels {
-        self.with_surface(id, |w| w.read_pixels(id), || FramePixels::default())
+        self.with_surface(id, |w| w.read_pixels(), FramePixels::default)
     }
 
     fn read_pixels_rect(&mut self, id: WinId, rect: PxRect) -> FramePixels {
-        self.with_surface(id, |w| w.read_pixels_rect(rect), || FramePixels::default())
+        self.with_surface(id, |w| w.read_pixels_rect(rect), FramePixels::default)
     }
 
     fn hit_test(&mut self, id: WinId, point: PxPoint) -> (Epoch, HitTestResult) {
@@ -321,5 +363,135 @@ impl Api for HeadlessBackend {
     #[cfg(debug_assertions)]
     fn crash(&mut self) {
         panic!("HEADLESS CRASH")
+    }
+}
+
+/// 
+pub enum AppEvent {
+    /// A request from the app-process.
+    Request(Request),
+    /// A frame is ready for redraw.
+    FrameReady(WinId),
+}
+
+/// Manages the "current" `glutin` OpenGL context.
+///
+/// If this manager is in use all OpenGL contexts created in the process must be managed by it. For
+/// this reason a "headed" context is also supported here, even thought this crate does not support
+/// headed apps.
+#[derive(Default)]
+pub struct GlContextManager {
+    current: Rc<Cell<Option<WinId>>>,
+}
+impl GlContextManager {
+    /// Start managing a "headed" glutin context.
+    ///
+    /// See [`GlContext`] for details.
+    pub fn manage_headed(&self, id: WinId, ctx: glutin::RawContext<glutin::NotCurrent>) -> GlContext {
+        GlContext {
+            id,
+            ctx: Some(unsafe { ctx.treat_as_current() }),
+            current: Rc::clone(&self.current),
+        }
+    }
+
+    /// Start managing a headless glutin context.
+    pub fn manage_headless(&self, id: WinId, ctx: glutin::Context<glutin::NotCurrent>) -> GlHeadlessContext {
+        GlHeadlessContext {
+            id,
+            ctx: Some(unsafe { ctx.treat_as_current() }),
+            current: Rc::clone(&self.current),
+        }
+    }
+}
+
+/// Managed headless Open-GL context.
+pub struct GlHeadlessContext {
+    id: WinId,
+    ctx: Option<glutin::Context<glutin::PossiblyCurrent>>,
+    current: Rc<Cell<Option<WinId>>>,
+}
+impl GlHeadlessContext {
+    /// Gets the context as current.
+    ///
+    /// It can already be current or it is made current.
+    pub fn make_current(&mut self) -> &mut glutin::Context<glutin::PossiblyCurrent> {
+        let id = Some(self.id);
+        if self.current.get() != id {
+            self.current.set(id);
+            let c = self.ctx.take().unwrap();
+            // glutin docs says that calling `make_not_current` is not necessary and
+            // that "If you call make_current on some context, you should call treat_as_not_current as soon
+            // as possible on the previously current context."
+            //
+            // As far as the glutin code goes `treat_as_not_current` just changes the state tag, so we can call
+            // `treat_as_not_current` just to get access to the `make_current` when we know it is not current
+            // anymore, and just ignore the whole "current state tag" thing.
+            let c = unsafe { c.treat_as_not_current().make_current() }.expect("failed to make current");
+            self.ctx = Some(c);
+        }
+        self.ctx.as_mut().unwrap()
+    }
+}
+impl Drop for GlHeadlessContext {
+    fn drop(&mut self) {
+        if self.current.get() == Some(self.id) {
+            let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
+            self.current.set(None);
+        } else {
+            let _ = unsafe { self.ctx.take().unwrap().treat_as_not_current() };
+        }
+    }
+}
+
+/// Managed headed Open-GL context.
+///
+/// Note that headed apps are not supported by this crate, we just provide a headed context
+/// because [`GlContextManager`] needs to manage all contexts in a process.
+pub struct GlContext {
+    id: WinId,
+    ctx: Option<glutin::ContextWrapper<glutin::PossiblyCurrent, ()>>,
+    current: Rc<Cell<Option<WinId>>>,
+}
+impl GlContext {
+    /// Gets the context as current.
+    ///
+    /// It can already be current or it is made current.
+    pub fn make_current(&mut self) -> &mut glutin::ContextWrapper<glutin::PossiblyCurrent, ()> {
+        let id = Some(self.id);
+        if self.current.get() != id {
+            self.current.set(id);
+            let c = self.ctx.take().unwrap();
+            // glutin docs says that calling `make_not_current` is not necessary and
+            // that "If you call make_current on some context, you should call treat_as_not_current as soon
+            // as possible on the previously current context."
+            //
+            // As far as the glutin code goes `treat_as_not_current` just changes the state tag, so we can call
+            // `treat_as_not_current` just to get access to the `make_current` when we know it is not current
+            // anymore, and just ignore the whole "current state tag" thing.
+            let c = unsafe { c.treat_as_not_current().make_current() }.expect("failed to make current");
+            self.ctx = Some(c);
+        }
+        self.ctx.as_mut().unwrap()
+    }
+
+    /// Glutin requires that the context is [dropped before the window][1], calling this
+    /// function safely disposes of the context, the winit window should be dropped immediately after.
+    ///
+    /// [1]: https://docs.rs/glutin/0.27.0/glutin/type.WindowedContext.html#method.split
+    pub fn drop_before_winit(&mut self) {
+        if self.current.get() == Some(self.id) {
+            let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
+            self.current.set(None);
+        } else {
+            let _ = unsafe { self.ctx.take().unwrap().treat_as_not_current() };
+        }
+    }
+}
+impl Drop for GlContext {
+    fn drop(&mut self) {
+        if self.ctx.is_some() {
+            panic!("call `drop_before_winit` before dropping")
+        }
     }
 }

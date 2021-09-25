@@ -264,7 +264,6 @@ declare_api! {
         key: ImageKey,
         descriptor: webrender_api::ImageDescriptor,
         data: ByteBuf,
-        dirty_rect: webrender_api::units::ImageDirtyRect
     );
 
     /// Delete the image resource in the window renderer.
