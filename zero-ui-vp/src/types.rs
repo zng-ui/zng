@@ -1108,6 +1108,8 @@ pub struct WindowConfig {
     /// Maximum size allowed.
     pub max_size: DipSize,
 
+    /// Video mode used when the window is in exclusive state.
+    pub video_mode: VideoMode,
     /// Window visibility.
     pub visible: bool,
     /// Window taskbar icon visibility.
@@ -1244,12 +1246,12 @@ impl From<glutin::monitor::MonitorHandle> for MonitorInfo {
 /// Exclusive video mode info.
 ///
 /// You can get this values from [`MonitorInfo::video_modes`]. Note that when setting the
-/// video mode the actual system mode is selected by approximation, closest `size`, then `bit_depth` then `refresh_rate`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// video mode the actual system mode is selected by approximation, closest(<=) `size`, then `bit_depth` then `refresh_rate`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct VideoMode {
     /// Resolution of this video mode.
     pub size: PxSize,
-    /// the bit depth of this video mode, as in how many bits you have available per color.
+    /// The bit depth of this video mode, as in how many bits you have available per color.
     /// This is generally 24 bits or 32 bits on modern systems, depending on whether the alpha channel is counted or not.
     pub bit_depth: u16,
     /// The refresh rate of this video mode.
@@ -1266,6 +1268,12 @@ impl From<glutin::monitor::VideoMode> for VideoMode {
             bit_depth: v.bit_depth(),
             refresh_rate: v.refresh_rate(),
         }
+    }
+}
+impl Default for VideoMode{
+    /// All max values, so that the *best* mode is selected.
+    fn default() -> Self {
+        Self { size: PxSize::new(Px::MAX, Px::MAX), bit_depth: u16::MAX, refresh_rate: u16::MAX }
     }
 }
 

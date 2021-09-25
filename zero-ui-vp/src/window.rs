@@ -42,6 +42,7 @@ pub(crate) struct ViewWindow {
 
     resized: bool,
 
+    video_mode: crate::VideoMode,
     visible: bool,
     waiting_first_frame: bool,
 
@@ -186,6 +187,7 @@ impl ViewWindow {
             pipeline_id,
             resized: true,
             waiting_first_frame: true,
+            video_mode: w.video_mode,
             visible: w.visible,
             allow_alt_f4,
             taskbar_visible: true,
@@ -271,9 +273,44 @@ impl ViewWindow {
         }
     }
 
-    pub fn video_mode(&self) -> Option<VideoMode> {
-        // TODO configurable video mode.
-        self.window.current_monitor().and_then(|m| m.video_modes().next())
+    fn video_mode(&self) -> Option<VideoMode> {
+        let mode = &self.video_mode;
+        self.window.current_monitor().and_then(|m| {
+            let mut candidate: Option<VideoMode> = None;
+            for m in m.video_modes() {
+                // filter out video modes larger than requested
+                if m.size().width <= mode.size.width.0 as u32
+                    && m.size().height <= mode.size.height.0 as u32
+                    && m.bit_depth() <= mode.bit_depth
+                    && m.refresh_rate() <= mode.refresh_rate
+                {
+                    // select closest match to the requested video mode
+                    if let Some(c) = &candidate {
+                        if m.size().width >= c.size().width
+                            && m.size().height >= c.size().height as u32
+                            && m.bit_depth() >= c.bit_depth()
+                            && m.refresh_rate() >= c.refresh_rate()
+                        {
+                            candidate = Some(m);
+                        }
+                    } else {
+                        candidate = Some(m);
+                    }
+                }
+            }
+            candidate
+        })
+    }
+
+    pub fn set_video_mode(&mut self, mode: crate::VideoMode) {
+        self.video_mode = mode;
+        if let WindowState::Exclusive = self.state {
+            if let Some(mode) = self.video_mode() {
+                self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
+            } else {
+                todo!()
+            }
+        }
     }
 
     /// Apply the new state, returns `true` if the state changed.
