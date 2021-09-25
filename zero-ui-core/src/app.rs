@@ -2198,6 +2198,12 @@ pub mod view_process {
             self.0.call(|id, p| p.set_state(id, state))
         }
 
+        /// Set video mode used in exclusive fullscreen.
+        #[inline]
+        pub fn set_video_mode(&self, mode:VideoMode) -> Result<()> {
+            self.0.call(|id, p| p.set_video_mode(id, mode))
+        }
+
         /// Set the window minimum size.
         #[inline]
         pub fn set_min_size(&self, size: DipSize) -> Result<()> {

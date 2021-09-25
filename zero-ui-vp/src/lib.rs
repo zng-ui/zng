@@ -570,6 +570,11 @@ declare_ipc! {
         with_window_or_headless!(self, id, (), |w|w.set_text_aa(aa))
     }
 
+    /// Set the window's exclusive video mode.
+    pub fn set_video_mode(&mut self, _ctx: &Context, id: WinId, mode: VideoMode) -> () {
+        self.with_window(id, ||(), |w| w.set_video_mode(mode))
+    }
+
     /// Render a new frame.
     pub fn render(&mut self, _ctx: &Context, id: WinId, frame: FrameRequest) -> () {
         with_window_or_headless!(self, id, (), |w|w.render(frame))

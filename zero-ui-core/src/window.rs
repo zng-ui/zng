@@ -1930,6 +1930,10 @@ impl AppWindow {
                     todo!("refresh monitor {:?}", monitor_info);
                 }
 
+                if let Some(mode) = self.vars.video_mode().copy_new(ctx.vars) {
+                    let _: Ignore = w.set_video_mode(mode);
+                }
+
                 if let Some(title) = self.vars.title().get_new(ctx) {
                     let _: Ignore = w.set_title(title.to_string());
                 }
@@ -2300,6 +2304,7 @@ impl AppWindow {
                         min_size: self.min_size,
                         max_size: self.max_size,
                         state: self.vars.state().copy(ctx.vars),
+                        video_mode: self.vars.video_mode().copy(ctx.vars),
                         visible: self.vars.visible().copy(ctx.vars),
                         taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
                         chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
@@ -2581,6 +2586,7 @@ struct WindowVarsData {
 
     position: RcVar<Point>,
     monitor: RcVar<MonitorQuery>,
+    video_mode: RcVar<VideoMode>,
 
     size: RcVar<Size>,
     auto_size: RcVar<AutoSize>,
@@ -2632,6 +2638,7 @@ impl WindowVars {
 
             position: var(Point::default()),
             monitor: var(MonitorQuery::Primary),
+            video_mode: var(VideoMode::default()),
             size: var(Size::new(800, 600)),
 
             actual_position: var(DipPoint::zero()),
@@ -2756,6 +2763,12 @@ impl WindowVars {
     #[inline]
     pub fn monitor(&self) -> &RcVar<MonitorQuery> {
         &self.0.monitor
+    }
+
+    /// Video mode for exclusive fullscreen.
+    #[inline]
+    pub fn video_mode(&self) -> &RcVar<VideoMode> {
+        &self.0.video_mode
     }
 
     /// Current monitor hosting the window.
