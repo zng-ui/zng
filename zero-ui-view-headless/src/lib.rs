@@ -23,8 +23,30 @@ use webrender::api::*;
 use zero_ui_view_api::{units::*, *};
 
 /// Starts the headless view-process server if called in the environment of a view-process.
-pub fn init() {
-    todo!()
+///
+/// Returns `false` if no view-process environment is setup, returns `true` if started and ran
+/// a headless app until exit. Returns [`Disconnected`] if an environment was setup but lost connection
+/// with the app client during the lifetime of the view-process.
+///
+/// # Panics
+///
+/// Panics if not called in the main thread, this is a requirement of OpenGL.
+pub fn init() -> Result<bool, Disconnected> {
+    if !is_main_thread::is_main_thread().unwrap_or(true) {
+        panic!("only call `init` in the main thread, this is a requirement of OpenGL");
+    }
+    if let Some(config) = ViewConfig::from_thread().or_else(ViewConfig::from_env) {
+        let mut c = connect_view_process(config.server_name)?;
+        let mut app = HeadlessBackend::default();
+        while !app.exited {
+            let request = c.request_receiver.recv()?;
+            let response = app.respond(request);
+            c.response_sender.send(response)?;
+        }
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 /// The backend implementation.
@@ -45,6 +67,8 @@ pub struct HeadlessBackend {
     surfaces: Vec<Surface>,
 
     surface_id_gen: WinId,
+
+    exited: bool,
 }
 impl fmt::Debug for HeadlessBackend {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -69,6 +93,7 @@ impl Default for HeadlessBackend {
             device_events: false,
             surfaces: vec![],
             surface_id_gen: 0,
+            exited: false,
         }
     }
 }
@@ -109,6 +134,9 @@ impl Api for HeadlessBackend {
         if self.started {
             panic!("already started");
         }
+        if self.exited {
+            panic!("cannot restart exited")
+        }
         self.started = true;
         self.gen = gen;
         self.device_events = device_events;
@@ -120,6 +148,7 @@ impl Api for HeadlessBackend {
     fn exit(&mut self) {
         self.assert_started();
         self.started = false;
+        self.exited = true;
     }
 
     fn primary_monitor(&mut self) -> Option<(MonId, MonitorInfo)> {
@@ -286,13 +315,7 @@ impl Api for HeadlessBackend {
         self.with_surface(id, |w| w.add_image(descriptor, Arc::new(data.to_vec())), || ImageKey::DUMMY)
     }
 
-    fn update_image(
-        &mut self,
-        id: WinId,
-        key: ImageKey,
-        descriptor: ImageDescriptor,
-        data: ByteBuf,
-    ) {
+    fn update_image(&mut self, id: WinId, key: ImageKey, descriptor: ImageDescriptor, data: ByteBuf) {
         self.with_surface(id, |w| w.update_image(key, descriptor, Arc::new(data.to_vec())), || ())
     }
 
@@ -366,7 +389,7 @@ impl Api for HeadlessBackend {
     }
 }
 
-/// 
+///
 pub enum AppEvent {
     /// A request from the app-process.
     Request(Request),

@@ -40,9 +40,13 @@ mod types;
 pub use types::*;
 
 mod ipc;
+pub use ipc::*;
 
 mod app_process;
 pub use app_process::*;
+
+mod view_process;
+pub use view_process::*;
 
 use webrender_api::{ColorF, DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
 
@@ -102,7 +106,7 @@ macro_rules! declare_api {
             $(
                 $(#[$meta])*
                 #[allow(clippy::too_many_arguments)]
-                $vis fn $method(&mut self $(, $input: $RequestType)*) -> Result<TypeOrNil![$($ResponseType)?]> {
+                $vis fn $method(&mut self $(, $input: $RequestType)*) -> VpResult<TypeOrNil![$($ResponseType)?]> {
                     match self.talk(Request(RequestData::$method { $($input),* }))?.0 {
                         ResponseData::$method(r) => Ok(r),
                         _ => panic!("view-process did not respond correctly")

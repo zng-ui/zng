@@ -8,13 +8,13 @@ use std::{
 
 use parking_lot::{Condvar, Mutex};
 
-use crate::{ipc, AnyResult, Ev, Request, Respawned, Response, Result, ViewProcessGen};
+use crate::{ipc, AnyResult, Event, Request, Respawned, Response, ViewProcessGen, VpResult};
 
 /// The listener returns the closure on join for reuse in respawn.
-type EventListenerJoin = JoinHandle<Box<dyn FnMut(Ev) + Send>>;
+type EventListenerJoin = JoinHandle<Box<dyn FnMut(Event) + Send>>;
 
-const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
-const MODE_VAR: &str = "ZERO_UI_WR_MODE";
+pub(crate) const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
+pub(crate) const MODE_VAR: &str = "ZERO_UI_WR_MODE";
 
 /// View Process controller, used in the App Process.
 ///
@@ -61,7 +61,7 @@ impl Controller {
     /// [`VERSION`]: crate::VERSION
     pub fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, mut on_event: F) -> Self
     where
-        F: FnMut(Ev) + Send + 'static,
+        F: FnMut(Event) + Send + 'static,
     {
         let view_process_exe = view_process_exe.unwrap_or_else(|| {
             std::env::current_exe().expect("failed to get the current exetuable, consider using an external view-process exe")
@@ -74,10 +74,10 @@ impl Controller {
             while let Ok(ev) = event_receiver.recv() {
                 on_event(ev);
             }
-            on_event(Ev::Disconnected(1));
+            on_event(Event::Disconnected(1));
 
             // return to reuse in respawn.
-            let t: Box<dyn FnMut(Ev) + Send> = Box::new(on_event);
+            let t: Box<dyn FnMut(Event) + Send> = Box::new(on_event);
             t
         });
 
@@ -101,7 +101,7 @@ impl Controller {
 
         c
     }
-    fn try_startup(&mut self) -> Result<()> {
+    fn try_startup(&mut self) -> VpResult<()> {
         if crate::VERSION != self.api_version()? {
             panic!("app-process and view-process must be build using the same exact version of zero-ui-vp");
         }
@@ -132,12 +132,12 @@ impl Controller {
         self.same_process
     }
 
-    fn try_talk(&mut self, req: Request) -> ipc::Result<Response> {
+    fn try_talk(&mut self, req: Request) -> ipc::IpcResult<Response> {
         self.request_sender.send(req)?;
         self.response_receiver.recv()
     }
 
-    pub(crate) fn talk(&mut self, req: Request) -> Result<Response> {
+    pub(crate) fn talk(&mut self, req: Request) -> VpResult<Response> {
         match self.try_talk(req) {
             Ok(r) => return Ok(r),
             Err(ipc::Disconnected) => {
@@ -150,7 +150,7 @@ impl Controller {
     fn spawn_view_process(
         view_process_exe: &Path,
         headless: bool,
-    ) -> AnyResult<(Option<duct::Handle>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EvReceiver)> {
+    ) -> AnyResult<(Option<duct::Handle>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EventReceiver)> {
         let init = ipc::AppInit::new();
 
         // create process and spawn it, unless is running in same process mode.
@@ -360,11 +360,11 @@ impl Controller {
 
         let ev = thread::spawn(move || {
             // notify a respawn.
-            on_event(Ev::Respawned(next_id));
+            on_event(Event::Respawned(next_id));
             while let Ok(ev) = event.recv() {
                 on_event(ev);
             }
-            on_event(Ev::Disconnected(next_id));
+            on_event(Event::Disconnected(next_id));
 
             on_event
         });

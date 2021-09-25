@@ -189,14 +189,14 @@ impl Surface {
         key
     }
 
-    pub fn update_image(
-        &mut self,
-        key: ImageKey,
-        descriptor: ImageDescriptor,
-        data: Arc<Vec<u8>>,
-    ) {
+    pub fn update_image(&mut self, key: ImageKey, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) {
         let mut txn = webrender::Transaction::new();
-        txn.update_image(key, descriptor, webrender_api::ImageData::Raw(data), &webrender_api::units::ImageDirtyRect::All);
+        txn.update_image(
+            key,
+            descriptor,
+            webrender_api::ImageData::Raw(data),
+            &webrender_api::units::ImageDirtyRect::All,
+        );
         self.api.send_transaction(self.document_id, txn);
     }
 

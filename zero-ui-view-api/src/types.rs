@@ -509,7 +509,7 @@ impl WindowState {
 /// System/User events sent from the View Process.
 #[repr(u32)]
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Ev {
+pub enum Event {
     /// The view-process crashed and respawned, all resources must be rebuild.
     ///
     /// The [`ViewProcessGen`] is the new generation, after the respawn.
@@ -748,7 +748,7 @@ impl fmt::Display for Respawned {
 impl std::error::Error for Respawned {}
 
 /// View Process IPC result.
-pub type Result<T> = std::result::Result<T, Respawned>;
+pub(crate) type VpResult<T> = std::result::Result<T, Respawned>;
 
 /// Data for rendering a new frame.
 #[derive(Clone, Serialize, Deserialize)]

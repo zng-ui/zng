@@ -1,11 +1,12 @@
 use std::{fmt, io};
 
-use crate::{AnyResult, Ev, Request, Response};
+use crate::{AnyResult, Event, Request, Response};
 
 use ipc_channel::ipc::{IpcOneShotServer, IpcReceiver, IpcSender};
 
-pub type Result<T> = std::result::Result<T, Disconnected>;
+pub(crate) type IpcResult<T> = std::result::Result<T, Disconnected>;
 
+/// Channel disconnected error.
 #[derive(Debug)]
 pub struct Disconnected;
 impl fmt::Display for Disconnected {
@@ -23,11 +24,11 @@ pub struct AppInit {
     //    EventReceiver,
     // )
     #[allow(clippy::type_complexity)]
-    server: IpcOneShotServer<(IpcSender<Request>, IpcSender<IpcSender<Response>>, IpcReceiver<Ev>)>,
+    server: IpcOneShotServer<(IpcSender<Request>, IpcSender<IpcSender<Response>>, IpcReceiver<Event>)>,
     name: String,
 }
 impl AppInit {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let (server, name) = IpcOneShotServer::new().expect("failed to create init channel");
         AppInit { server, name }
     }
@@ -38,69 +39,110 @@ impl AppInit {
     }
 
     /// Tries to connect to the view-process and receive the actual channels.
-    pub(crate) fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EvReceiver)> {
+    pub(crate) fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
         let (_, (req_sender, rsp_chan_sender, evt_recv)) = self.server.accept()?;
         let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel()?;
         rsp_chan_sender.send(rsp_sender)?;
-        Ok((RequestSender(req_sender), ResponseReceiver(rsp_recv), EvReceiver(evt_recv)))
+        Ok((RequestSender(req_sender), ResponseReceiver(rsp_recv), EventReceiver(evt_recv)))
     }
 }
 
 /// Start the view-process server and waits for `(request, response, event)`.
-pub(crate) fn connect_view_process(server_name: String) -> (RequestReceiver, ResponseSender, EventSender) {
+pub fn connect_view_process(server_name: String) -> IpcResult<ViewChannels> {
     let app_init_sender = IpcSender::connect(server_name).expect("failed to connect to init channel");
 
-    let (req_sender, req_recv) = ipc_channel::ipc::channel().expect("failed to create request channel");
+    let (req_sender, req_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
     // Large messages can only be received in a receiver created in the same process that is receiving (on Windows)
     // so we create a channel to transfer the response sender, because it is the app process that will receive responses.
     // See issue: https://github.com/servo/ipc-channel/issues/277
-    let (rsp_chan_sender, rsp_chan_recv) = ipc_channel::ipc::channel().expect("failed to create response channel");
-    let (evt_sender, evt_recv) = ipc_channel::ipc::channel().expect("failed to create event channel");
+    let (rsp_chan_sender, rsp_chan_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
+    let (evt_sender, evt_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
 
     app_init_sender
         .send((req_sender, rsp_chan_sender, evt_recv))
-        .expect("failed to send channels");
-    let rsp_sender = rsp_chan_recv.recv().expect("failed to create response channel");
+        .map_err(handle_send_error)?;
+    let rsp_sender = rsp_chan_recv.recv().map_err(handle_recv_error)?;
 
-    (RequestReceiver(req_recv), ResponseSender(rsp_sender), EventSender(evt_sender))
+    Ok(ViewChannels {
+        request_receiver: RequestReceiver(req_recv),
+        response_sender: ResponseSender(rsp_sender),
+        event_sender: EventSender(evt_sender),
+    })
+}
+
+/// Channels that must be used for implementing a view-process.
+pub struct ViewChannels {
+    /// View implementers must receive requests from this channel, call [`Api::respond`] and then
+    /// return the response using the `response_sender`.
+    ///
+    /// [`Api::respond`]: crate::Api::respond
+    pub request_receiver: RequestReceiver,
+
+    /// View implementers must synchronously send one response per request received in `request_receiver`.
+    pub response_sender: ResponseSender,
+
+    /// View implements must send events using this channel. Events can be asynchronous.
+    pub event_sender: EventSender,
 }
 
 pub(crate) struct RequestSender(IpcSender<Request>);
 impl RequestSender {
-    pub fn send(&mut self, req: Request) -> Result<()> {
+    pub fn send(&mut self, req: Request) -> IpcResult<()> {
         self.0.send(req).map_err(handle_send_error)
     }
 }
 
-pub(crate) struct RequestReceiver(IpcReceiver<Request>);
+/// Requests channel end-point.
+///
+/// View-process implementers must receive [`Request`], call [`Api::respond`] and then use a [`ResponseSender`]
+/// to send back the response.
+///
+/// [`Api::respond`]: crate::Api::respond
+pub struct RequestReceiver(IpcReceiver<Request>);
 impl RequestReceiver {
-    pub fn recv(&mut self) -> Result<Request> {
+    /// Receive one [`Request`].
+    pub fn recv(&mut self) -> IpcResult<Request> {
         self.0.recv().map_err(handle_recv_error)
     }
 }
 
-pub(crate) struct ResponseSender(IpcSender<Response>);
+/// Responses channel entry-point.
+///
+/// View-process implementers must send [`Response`] returned by [`Api::respond`] using this sender.
+///
+/// Requests are received using [`RequestReceiver`] a response must be send for each request, synchronously.
+///
+/// [`Api::respond`]: crate::Api::respond
+pub struct ResponseSender(IpcSender<Response>);
 impl ResponseSender {
-    pub fn send(&mut self, rsp: Response) -> Result<()> {
+    /// Send a response.
+    pub fn send(&mut self, rsp: Response) -> IpcResult<()> {
         self.0.send(rsp).map_err(handle_send_error)
     }
 }
 pub(crate) struct ResponseReceiver(IpcReceiver<Response>);
 impl ResponseReceiver {
-    pub fn recv(&mut self) -> Result<Response> {
+    pub fn recv(&mut self) -> IpcResult<Response> {
         self.0.recv().map_err(handle_recv_error)
     }
 }
 
-pub(crate) struct EventSender(IpcSender<Ev>);
+/// Event channel entry-point.
+///
+/// View-process implementers must send [`Event`] messages using this sender. The events
+/// can be asynchronous, not related to the [`Api::respond`] calls.
+///
+/// [`Api::respond`]: crate::Api::respond
+pub struct EventSender(IpcSender<Event>);
 impl EventSender {
-    pub fn send(&mut self, ev: Ev) -> Result<()> {
+    /// Send an event notification.
+    pub fn send(&mut self, ev: Event) -> IpcResult<()> {
         self.0.send(ev).map_err(handle_send_error)
     }
 }
-pub(crate) struct EvReceiver(IpcReceiver<Ev>);
-impl EvReceiver {
-    pub fn recv(&mut self) -> Result<Ev> {
+pub(crate) struct EventReceiver(IpcReceiver<Event>);
+impl EventReceiver {
+    pub fn recv(&mut self) -> IpcResult<Event> {
         self.0.recv().map_err(handle_recv_error)
     }
 }
@@ -121,6 +163,13 @@ fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
     }
 }
 
+fn handle_io_error(e: io::Error) -> Disconnected {
+    match e.kind() {
+        io::ErrorKind::BrokenPipe => Disconnected,
+        e => panic!("unexpected IO error: {:?}", e),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::thread;
@@ -135,7 +184,7 @@ mod tests {
         let name = app.name().to_owned();
 
         let view = thread::spawn(move || {
-            let (_request_recv, _response_sender, _event_sender) = connect_view_process(name);
+            let _channels = connect_view_process(name);
         });
 
         let (_request_sender, mut response_recv, _event_recv) = app.connect().unwrap();
@@ -152,7 +201,7 @@ mod tests {
         let name = app.name().to_owned();
 
         let view = thread::spawn(move || {
-            let (_request_recv, _response_sender, _event_sender) = connect_view_process(name);
+            let _channels = connect_view_process(name);
         });
 
         let (mut request_sender, _response_recv, _event_recv) = app.connect().unwrap();
