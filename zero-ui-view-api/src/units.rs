@@ -599,40 +599,6 @@ pub trait WrToPx {
     fn to_px(self) -> Self::AsPx;
 }
 
-/// Conversion from `winit` logical units to [`Dip`].
-///
-/// All conversions are 1 to 1.
-#[cfg(feature = "full")]
-pub(crate) trait WinitToDip {
-    /// `Self` equivalent in [`Dip`] units.
-    type AsDip;
-
-    /// Returns `self` in [`Dip`] units.
-    fn to_dip(self) -> Self::AsDip;
-}
-
-/// Conversion from `winit` physical units to [`Dip`].
-///
-/// All conversions are 1 to 1.
-#[cfg(feature = "full")]
-pub(crate) trait WinitToPx {
-    /// `Self` equivalent in [`Px`] units.
-    type AsPx;
-
-    /// Returns `self` in [`Px`] units.
-    fn to_px(self) -> Self::AsPx;
-}
-
-/// Conversion from [`Dip`] to `winit` logical units.
-#[cfg(feature = "full")]
-pub(crate) trait DipToWinit {
-    /// `Self` equivalent in `winit` logical units.
-    type AsWinit;
-
-    /// Returns `self` in `winit` logical units.
-    fn to_winit(self) -> Self::AsWinit;
-}
-
 impl PxToDip for Px {
     type AsDip = Dip;
 
@@ -704,38 +670,6 @@ impl DipToPx for DipPoint {
         PxPoint::new(self.x.to_px(scale_factor), self.y.to_px(scale_factor))
     }
 }
-#[cfg(feature = "full")]
-impl DipToWinit for DipPoint {
-    type AsWinit = glutin::dpi::LogicalPosition<f32>;
-
-    fn to_winit(self) -> Self::AsWinit {
-        glutin::dpi::LogicalPosition::new(self.x.to_f32(), self.y.to_f32())
-    }
-}
-#[cfg(feature = "full")]
-impl WinitToDip for glutin::dpi::LogicalPosition<f64> {
-    type AsDip = DipPoint;
-
-    fn to_dip(self) -> Self::AsDip {
-        DipPoint::new(Dip::new_f32(self.x as f32), Dip::new_f32(self.y as f32))
-    }
-}
-#[cfg(feature = "full")]
-impl WinitToPx for glutin::dpi::PhysicalPosition<i32> {
-    type AsPx = PxPoint;
-
-    fn to_px(self) -> Self::AsPx {
-        PxPoint::new(Px(self.x), Px(self.y))
-    }
-}
-#[cfg(feature = "full")]
-impl WinitToPx for glutin::dpi::PhysicalPosition<f64> {
-    type AsPx = PxPoint;
-
-    fn to_px(self) -> Self::AsPx {
-        PxPoint::new(Px(self.x as i32), Px(self.y as i32))
-    }
-}
 
 impl PxToDip for PxSize {
     type AsDip = DipSize;
@@ -773,30 +707,6 @@ impl DipToPx for DipSize {
 
     fn to_px(self, scale_factor: f32) -> Self::AsPx {
         PxSize::new(self.width.to_px(scale_factor), self.height.to_px(scale_factor))
-    }
-}
-#[cfg(feature = "full")]
-impl DipToWinit for DipSize {
-    type AsWinit = glutin::dpi::LogicalSize<f32>;
-
-    fn to_winit(self) -> Self::AsWinit {
-        glutin::dpi::LogicalSize::new(self.width.to_f32(), self.height.to_f32())
-    }
-}
-#[cfg(feature = "full")]
-impl WinitToDip for glutin::dpi::LogicalSize<f64> {
-    type AsDip = DipSize;
-
-    fn to_dip(self) -> Self::AsDip {
-        DipSize::new(Dip::new_f32(self.width as f32), Dip::new_f32(self.height as f32))
-    }
-}
-#[cfg(feature = "full")]
-impl WinitToPx for glutin::dpi::PhysicalSize<u32> {
-    type AsPx = PxSize;
-
-    fn to_px(self) -> Self::AsPx {
-        PxSize::new(Px(self.width as i32), Px(self.height as i32))
     }
 }
 

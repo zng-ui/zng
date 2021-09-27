@@ -1,6 +1,6 @@
 use std::{cell::Cell, rc::Rc};
 
-use zero_ui_view_api::WinId;
+use zero_ui_view_api::{units::*, WinId};
 
 /// Manages the "current" `glutin` OpenGL context.
 ///
@@ -198,5 +198,94 @@ unsafe extern "system" fn subclass_raw_event_proc<
                 winapi::um::commctrl::DefSubclassProc(hwnd, msg, wparam, lparam)
             }
         }
+    }
+}
+
+/// Conversion from `winit` logical units to [`Dip`].
+///
+/// All conversions are 1 to 1.
+pub(crate) trait WinitToDip {
+    /// `Self` equivalent in [`Dip`] units.
+    type AsDip;
+
+    /// Returns `self` in [`Dip`] units.
+    fn to_dip(self) -> Self::AsDip;
+}
+
+/// Conversion from `winit` physical units to [`Dip`].
+///
+/// All conversions are 1 to 1.
+
+pub(crate) trait WinitToPx {
+    /// `Self` equivalent in [`Px`] units.
+    type AsPx;
+
+    /// Returns `self` in [`Px`] units.
+    fn to_px(self) -> Self::AsPx;
+}
+
+/// Conversion from [`Dip`] to `winit` logical units.
+
+pub(crate) trait DipToWinit {
+    /// `Self` equivalent in `winit` logical units.
+    type AsWinit;
+
+    /// Returns `self` in `winit` logical units.
+    fn to_winit(self) -> Self::AsWinit;
+}
+
+impl DipToWinit for DipPoint {
+    type AsWinit = glutin::dpi::LogicalPosition<f32>;
+
+    fn to_winit(self) -> Self::AsWinit {
+        glutin::dpi::LogicalPosition::new(self.x.to_f32(), self.y.to_f32())
+    }
+}
+
+impl WinitToDip for glutin::dpi::LogicalPosition<f64> {
+    type AsDip = DipPoint;
+
+    fn to_dip(self) -> Self::AsDip {
+        DipPoint::new(Dip::new_f32(self.x as f32), Dip::new_f32(self.y as f32))
+    }
+}
+
+impl WinitToPx for glutin::dpi::PhysicalPosition<i32> {
+    type AsPx = PxPoint;
+
+    fn to_px(self) -> Self::AsPx {
+        PxPoint::new(Px(self.x), Px(self.y))
+    }
+}
+
+impl WinitToPx for glutin::dpi::PhysicalPosition<f64> {
+    type AsPx = PxPoint;
+
+    fn to_px(self) -> Self::AsPx {
+        PxPoint::new(Px(self.x as i32), Px(self.y as i32))
+    }
+}
+
+impl DipToWinit for DipSize {
+    type AsWinit = glutin::dpi::LogicalSize<f32>;
+
+    fn to_winit(self) -> Self::AsWinit {
+        glutin::dpi::LogicalSize::new(self.width.to_f32(), self.height.to_f32())
+    }
+}
+
+impl WinitToDip for glutin::dpi::LogicalSize<f64> {
+    type AsDip = DipSize;
+
+    fn to_dip(self) -> Self::AsDip {
+        DipSize::new(Dip::new_f32(self.width as f32), Dip::new_f32(self.height as f32))
+    }
+}
+
+impl WinitToPx for glutin::dpi::PhysicalSize<u32> {
+    type AsPx = PxSize;
+
+    fn to_px(self) -> Self::AsPx {
+        PxSize::new(Px(self.width as i32), Px(self.height as i32))
     }
 }

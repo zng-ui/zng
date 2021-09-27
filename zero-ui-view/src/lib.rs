@@ -42,6 +42,7 @@ pub use webrender;
 mod config;
 mod surface;
 mod util;
+mod window;
 use surface::*;
 
 use webrender::api::*;
