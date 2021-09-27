@@ -12,10 +12,13 @@ use webrender::{
 };
 use zero_ui_view_api::{units::*, ByteBuf, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WinId};
 
-use crate::{AppEvent, GlContextManager, GlHeadlessContext};
+use crate::{
+    util::{GlContextManager, GlHeadlessContext},
+    AppEvent, AppEventSender,
+};
 
 /// A headless "window".
-pub struct Surface {
+pub(crate) struct Surface {
     id: WinId,
     pipeline_id: PipelineId,
     document_id: DocumentId,
@@ -48,9 +51,9 @@ impl Surface {
         id: WinId,
         gen: ViewProcessGen,
         cfg: HeadlessConfig,
-        window_target: &EventLoopWindowTarget<()>,
+        window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
-        event_sender: flume::Sender<AppEvent>,
+        event_sender: impl AppEventSender,
     ) -> Self {
         let context = ContextBuilder::new()
             .with_gl(GlRequest::GlThenGles {
@@ -169,7 +172,7 @@ impl Surface {
     }
 
     pub fn set_transparent(&mut self, transparent: bool) {
-        todo!()
+        todo!("TODO headless set transparent {}", transparent)
     }
 
     pub fn set_size(&mut self, size: DipSize, scale_factor: f32) {
@@ -384,15 +387,15 @@ pub fn read_pixels_rect(gl: &Rc<dyn gl::Gl>, max_size: PxSize, rect: PxRect, sca
     }
 }
 
-struct Notifier {
+struct Notifier<S> {
     id: WinId,
-    sender: flume::Sender<AppEvent>,
+    sender: S,
 }
-impl RenderNotifier for Notifier {
+impl<S: AppEventSender> RenderNotifier for Notifier<S> {
     fn clone(&self) -> Box<dyn RenderNotifier> {
         Box::new(Self {
             id: self.id,
-            sender: self.sender.clone(),
+            sender: self.sender.clone_(),
         })
     }
 

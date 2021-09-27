@@ -1,5 +1,5 @@
 [package]
-name = "zero-ui-view-headless"
+name = "zero-ui-view"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
@@ -9,7 +9,10 @@ license = "Apache-2.0"
 zero-ui-view-api = { path = "../zero-ui-view-api" }
 webrender = { path = "../dependencies/webrender/webrender" }
 log = "0.4"
-gleam = { version = "0.13.1", optional = true  }
+gleam = "0.13.1"
 glutin = "0.27"
 flume = "0.10"
 is_main_thread = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", optional = true, features = ["winuser", "errhandlingapi", "windef", "minwindef", "commctrl", "basetsd", "winerror", "combaseapi", "shobjidl_core", "wtypesbase"] }

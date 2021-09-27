@@ -1,65 +1,105 @@
-//! View-Process implementation that is headless only.
+//! View-Process implementation using [`glutin`].
 //!
-//! Headed windows are also headless in this backend, system configuration is not retrieved
-//! and most events never fire.
+//! This backend supports both headed and headless apps
 //!
-//! This backend is recommended for command line apps that just render images, it can
-//! also be used in other backends to provide headless windows and headless mode.
+//! # Examples
 //!
-//! # `webrender`
+//! Call [`init`] before any other code in `main` to setup a view-process that uses
+//! the same app executable:
 //!
-//! The version of `webrender` used in this crate is re-exported as the `webrender` module.
-//! This is useful for implementing other backends, so you use the same `webrender` version.
+//! ```
+//! # pub mod zero_ui { pub mod prelude {
+//! # pub struct App { } impl App { fn default() -> Self { todo!() }
+//! # fn run_window(self, f: impl FnOnce(bool)) } } }
+//! use zero_ui::prelude::*;
+//!
+//! fn main() {
+//!     zero_ui_view::init();
+//!
+//!     App::default().run_window(|ctx| {
+//!         todo!()
+//!     })
+//! }
+//! ```
+//!
+//! When the app is executed `init` setup its startup and returns, `run_window` gets called and
+//! internally starts the view-process, using the `init` setup. The current executable is started
+//! again, this time configured to be a view-process, `init` detects this and highjacks the process
+//! **never returning**.
+//!
+//! [`glutin`]: https://docs.rs/glutin/
 
-use std::{cell::Cell, fmt, rc::Rc, sync::Arc, time::Duration};
+use std::{cell::Cell, fmt, process, rc::Rc, sync::Arc, thread, time::Duration};
 
+use glutin::{
+    event::{DeviceEvent, WindowEvent},
+    event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
+};
+use util::GlContextManager;
 #[doc(inline)]
 pub use webrender;
 
+mod config;
 mod surface;
+mod util;
 use surface::*;
 
 use webrender::api::*;
 use zero_ui_view_api::{units::*, *};
 
-/// Starts the headless view-process server if called in the environment of a view-process.
+/// Runs the view-process server if called in the environment of a view-process.
 ///
-/// Returns `false` if no view-process environment is setup, returns `true` if started and ran
-/// a headless app until exit. Returns [`Disconnected`] if an environment was setup but lost connection
-/// with the app client during the lifetime of the view-process.
+/// If this function is called in a process not configured to be a view-process it will return
+/// immediately, with the expectation that the app will be started. If called in a view-process
+/// if will highjack the process **never returning**.
+///
+/// # Examples
+///
+/// ```
+/// # pub mod zero_ui { pub mod prelude {
+/// # pub struct App { } impl App { fn default() -> Self { todo!() }
+/// # fn run_window(self, f: impl FnOnce(bool)) } } }
+/// use zero_ui::prelude::*;
+///
+/// fn main() {
+///     zero_ui_view::init();
+///
+///     App::default().run_window(|ctx| {
+///         todo!()
+///     })
+/// }
+/// ```
 ///
 /// # Panics
 ///
 /// Panics if not called in the main thread, this is a requirement of OpenGL.
-pub fn init() -> Result<bool, Disconnected> {
+///
+/// If there was an error connecting with the app-process.
+pub fn init() {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("only call `init` in the main thread, this is a requirement of OpenGL");
     }
+
     if let Some(config) = ViewConfig::from_thread().or_else(ViewConfig::from_env) {
-        let mut c = connect_view_process(config.server_name)?;
-        let mut app = HeadlessBackend::default();
-        while !app.exited {
-            let request = c.request_receiver.recv()?;
-            let response = app.respond(request);
-            c.response_sender.send(response)?;
+        let c = connect_view_process(config.server_name).expect("failed to connect to app-process");
+
+        if config.headless {
+            App::run_headless(c);
+        } else {
+            App::run_headed(c);
         }
-        Ok(true)
-    } else {
-        Ok(false)
     }
 }
 
 /// The backend implementation.
-///
-/// This type is public so it can be used as the "headless-mode" in other backends, to just
-/// start the headless view-process use [`init`].
-pub struct HeadlessBackend {
+pub(crate) struct App<S> {
     started: bool,
 
-    event_loop: glutin::event_loop::EventLoop<()>,
+    headless: bool,
+
     gl_manager: GlContextManager,
-    event_sender: flume::Sender<AppEvent>,
-    event_receiver: flume::Receiver<AppEvent>,
+    window_target: *const EventLoopWindowTarget<AppEvent>,
+    app_sender: S,
 
     gen: ViewProcessGen,
     device_events: bool,
@@ -70,7 +110,7 @@ pub struct HeadlessBackend {
 
     exited: bool,
 }
-impl fmt::Debug for HeadlessBackend {
+impl<S> fmt::Debug for App<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HeadlessBackend")
             .field("started", &self.started)
@@ -80,15 +120,99 @@ impl fmt::Debug for HeadlessBackend {
             .finish_non_exhaustive()
     }
 }
-impl Default for HeadlessBackend {
-    fn default() -> Self {
-        let (event_sender, event_receiver) = flume::unbounded();
-        HeadlessBackend {
+impl App<()> {
+    pub fn run_headless(c: ViewChannels) -> ! {
+        let (app_sender, app_receiver) = flume::unbounded();
+        let mut app = App::new(app_sender);
+        app.headless = true;
+        let event_loop = EventLoop::<AppEvent>::with_user_event();
+        let window_target: &EventLoopWindowTarget<AppEvent> = &event_loop;
+        app.window_target = window_target as *const _;
+        app.start_receiving(c.request_receiver);
+
+        let mut response_sender = c.response_sender;
+        let mut event_sender = c.event_sender;
+        while !app.exited {
+            match app_receiver.recv() {
+                Ok(app_ev) => match app_ev {
+                    AppEvent::Request(request) => {
+                        let response = app.respond(request);
+                        if response_sender.send(response).is_err() {
+                            break;
+                        }
+                    }
+                    AppEvent::FrameReady(id) => {
+                        if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
+                            s.redraw();
+                        }
+                    }
+                    AppEvent::Notify(ev) => {
+                        event_sender.send(ev);
+                    }
+                    AppEvent::RefreshMonitors => {
+                        panic!("no monitor info in headless mode")
+                    }
+                },
+                Err(_) => break,
+            }
+        }
+
+        process::exit(0)
+    }
+
+    pub fn run_headed(c: ViewChannels) -> ! {
+        let event_loop = EventLoop::with_user_event();
+        let app_sender = event_loop.create_proxy();
+        let mut app = App::new(app_sender);
+        app.start_receiving(c.request_receiver);
+
+        #[cfg(windows)]
+        let config_listener = config::config_listener(app.app_sender.clone_(), &event_loop);
+
+        event_loop.run(move |event, target, flow| {
+            app.window_target = target;
+
+            if app.exited {
+                *flow = ControlFlow::Exit;
+            } else {
+                use glutin::event::Event as GEvent;
+                match event {
+                    GEvent::NewEvents(_) => {}
+                    GEvent::WindowEvent { window_id, event } => {
+                        #[cfg(windows)]
+                        if window_id == config_listener.id() {
+                            return; // ignore events for this window.
+                        }
+                        app.on_window_event(window_id, event)
+                    }
+                    GEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
+                    GEvent::UserEvent(ev) => match ev {
+                        AppEvent::Request(_) => todo!(),
+                        AppEvent::Notify(_) => todo!(),
+                        AppEvent::FrameReady(_) => todo!(),
+                        AppEvent::RefreshMonitors => todo!(),
+                    },
+                    GEvent::Suspended => {}
+                    GEvent::Resumed => {}
+                    GEvent::MainEventsCleared => app.on_events_cleared(),
+                    GEvent::RedrawRequested(w_id) => app.on_redraw_requested(w_id),
+                    GEvent::RedrawEventsCleared => {}
+                    GEvent::LoopDestroyed => {}
+                }
+            }
+
+            app.window_target = std::ptr::null();
+        })
+    }
+}
+impl<S: AppEventSender> App<S> {
+    fn new(app_sender: S) -> Self {
+        App {
+            headless: false,
             started: false,
-            event_loop: glutin::event_loop::EventLoop::new(),
             gl_manager: GlContextManager::default(),
-            event_sender,
-            event_receiver,
+            app_sender,
+            window_target: std::ptr::null(),
             gen: 0,
             device_events: false,
             surfaces: vec![],
@@ -96,12 +220,25 @@ impl Default for HeadlessBackend {
             exited: false,
         }
     }
-}
-impl HeadlessBackend {
-    /// Returns a clone of the event sender.
-    pub fn event_sender(&self) -> flume::Sender<AppEvent> {
-        self.event_sender.clone()
+
+    fn start_receiving(&mut self, mut request_recv: RequestReceiver) {
+        let mut app_sender = self.app_sender.clone_();
+        thread::spawn(move || {
+            while let Ok(r) = request_recv.recv() {
+                if app_sender.send(AppEvent::Request(r)).is_err() {
+                    break;
+                }
+            }
+        });
     }
+
+    fn on_window_event(&mut self, window_id: glutin::window::WindowId, event: WindowEvent) {}
+
+    fn on_device_event(&mut self, device_id: glutin::event::DeviceId, event: DeviceEvent) {}
+
+    fn on_events_cleared(&mut self) {}
+
+    fn on_redraw_requested(&mut self, window_id: glutin::window::WindowId) {}
 
     fn assert_started(&self) {
         if !self.started {
@@ -125,7 +262,7 @@ impl HeadlessBackend {
         })
     }
 }
-impl Api for HeadlessBackend {
+impl<S: AppEventSender> Api for App<S> {
     fn api_version(&mut self) -> String {
         VERSION.to_owned()
     }
@@ -182,9 +319,9 @@ impl Api for HeadlessBackend {
             id,
             self.gen,
             config,
-            &self.event_loop,
+            unsafe { &*self.window_target },
             &mut self.gl_manager,
-            self.event_sender.clone(),
+            self.app_sender.clone_(),
         );
         let namespace = surf.namespace_id();
         let pipeline = surf.pipeline_id();
@@ -385,136 +522,66 @@ impl Api for HeadlessBackend {
 
     #[cfg(debug_assertions)]
     fn crash(&mut self) {
-        panic!("HEADLESS CRASH")
+        panic!("CRASH")
     }
 }
 
-///
-pub enum AppEvent {
-    /// A request from the app-process.
+/// Message inserted in the event loop from the view-process.
+pub(crate) enum AppEvent {
+    /// A request.
     Request(Request),
+    /// Notify an event.
+    Notify(Event),
     /// A frame is ready for redraw.
     FrameReady(WinId),
+    /// Re-query available monitors and send update event.
+    RefreshMonitors,
 }
 
-/// Manages the "current" `glutin` OpenGL context.
-///
-/// If this manager is in use all OpenGL contexts created in the process must be managed by it. For
-/// this reason a "headed" context is also supported here, even thought this crate does not support
-/// headed apps.
-#[derive(Default)]
-pub struct GlContextManager {
-    current: Rc<Cell<Option<WinId>>>,
+/// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.
+pub(crate) trait AppEventSender: Send + 'static {
+    /// Send an event.
+    fn send(&self, ev: AppEvent) -> Result<(), Disconnected>;
+
+    /// Clone the sender.
+    fn clone_(&self) -> Self
+    where
+        Self: Sized;
+
+    /// Clone the sender !Sized.
+    fn clone_boxed(&self) -> Box<dyn AppEventSender>;
 }
-impl GlContextManager {
-    /// Start managing a "headed" glutin context.
-    ///
-    /// See [`GlContext`] for details.
-    pub fn manage_headed(&self, id: WinId, ctx: glutin::RawContext<glutin::NotCurrent>) -> GlContext {
-        GlContext {
-            id,
-            ctx: Some(unsafe { ctx.treat_as_current() }),
-            current: Rc::clone(&self.current),
-        }
+/// headless
+impl AppEventSender for flume::Sender<AppEvent> {
+    fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
+        self.send(ev).map_err(|_| Disconnected)
     }
 
-    /// Start managing a headless glutin context.
-    pub fn manage_headless(&self, id: WinId, ctx: glutin::Context<glutin::NotCurrent>) -> GlHeadlessContext {
-        GlHeadlessContext {
-            id,
-            ctx: Some(unsafe { ctx.treat_as_current() }),
-            current: Rc::clone(&self.current),
-        }
-    }
-}
-
-/// Managed headless Open-GL context.
-pub struct GlHeadlessContext {
-    id: WinId,
-    ctx: Option<glutin::Context<glutin::PossiblyCurrent>>,
-    current: Rc<Cell<Option<WinId>>>,
-}
-impl GlHeadlessContext {
-    /// Gets the context as current.
-    ///
-    /// It can already be current or it is made current.
-    pub fn make_current(&mut self) -> &mut glutin::Context<glutin::PossiblyCurrent> {
-        let id = Some(self.id);
-        if self.current.get() != id {
-            self.current.set(id);
-            let c = self.ctx.take().unwrap();
-            // glutin docs says that calling `make_not_current` is not necessary and
-            // that "If you call make_current on some context, you should call treat_as_not_current as soon
-            // as possible on the previously current context."
-            //
-            // As far as the glutin code goes `treat_as_not_current` just changes the state tag, so we can call
-            // `treat_as_not_current` just to get access to the `make_current` when we know it is not current
-            // anymore, and just ignore the whole "current state tag" thing.
-            let c = unsafe { c.treat_as_not_current().make_current() }.expect("failed to make current");
-            self.ctx = Some(c);
-        }
-        self.ctx.as_mut().unwrap()
-    }
-}
-impl Drop for GlHeadlessContext {
-    fn drop(&mut self) {
-        if self.current.get() == Some(self.id) {
-            let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
-            self.current.set(None);
-        } else {
-            let _ = unsafe { self.ctx.take().unwrap().treat_as_not_current() };
-        }
-    }
-}
-
-/// Managed headed Open-GL context.
-///
-/// Note that headed apps are not supported by this crate, we just provide a headed context
-/// because [`GlContextManager`] needs to manage all contexts in a process.
-pub struct GlContext {
-    id: WinId,
-    ctx: Option<glutin::ContextWrapper<glutin::PossiblyCurrent, ()>>,
-    current: Rc<Cell<Option<WinId>>>,
-}
-impl GlContext {
-    /// Gets the context as current.
-    ///
-    /// It can already be current or it is made current.
-    pub fn make_current(&mut self) -> &mut glutin::ContextWrapper<glutin::PossiblyCurrent, ()> {
-        let id = Some(self.id);
-        if self.current.get() != id {
-            self.current.set(id);
-            let c = self.ctx.take().unwrap();
-            // glutin docs says that calling `make_not_current` is not necessary and
-            // that "If you call make_current on some context, you should call treat_as_not_current as soon
-            // as possible on the previously current context."
-            //
-            // As far as the glutin code goes `treat_as_not_current` just changes the state tag, so we can call
-            // `treat_as_not_current` just to get access to the `make_current` when we know it is not current
-            // anymore, and just ignore the whole "current state tag" thing.
-            let c = unsafe { c.treat_as_not_current().make_current() }.expect("failed to make current");
-            self.ctx = Some(c);
-        }
-        self.ctx.as_mut().unwrap()
+    fn clone_(&self) -> Self
+    where
+        Self: Sized,
+    {
+        std::clone::Clone::clone(self)
     }
 
-    /// Glutin requires that the context is [dropped before the window][1], calling this
-    /// function safely disposes of the context, the winit window should be dropped immediately after.
-    ///
-    /// [1]: https://docs.rs/glutin/0.27.0/glutin/type.WindowedContext.html#method.split
-    pub fn drop_before_winit(&mut self) {
-        if self.current.get() == Some(self.id) {
-            let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
-            self.current.set(None);
-        } else {
-            let _ = unsafe { self.ctx.take().unwrap().treat_as_not_current() };
-        }
+    fn clone_boxed(&self) -> Box<dyn AppEventSender> {
+        Box::new(std::clone::Clone::clone(self))
     }
 }
-impl Drop for GlContext {
-    fn drop(&mut self) {
-        if self.ctx.is_some() {
-            panic!("call `drop_before_winit` before dropping")
-        }
+/// headed
+impl AppEventSender for EventLoopProxy<AppEvent> {
+    fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
+        self.send_event(ev).map_err(|_| Disconnected)
+    }
+
+    fn clone_(&self) -> Self
+    where
+        Self: Sized,
+    {
+        std::clone::Clone::clone(self)
+    }
+
+    fn clone_boxed(&self) -> Box<dyn AppEventSender> {
+        Box::new(std::clone::Clone::clone(self))
     }
 }
