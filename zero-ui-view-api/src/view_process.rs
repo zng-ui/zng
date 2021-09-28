@@ -1,4 +1,6 @@
-use std::env;
+use std::{env, sync::Arc, time::Duration};
+
+use parking_lot::{Condvar, Mutex};
 
 use crate::{MODE_VAR, SERVER_NAME_VAR};
 
@@ -27,8 +29,54 @@ impl ViewConfig {
         }
     }
 
-    /// Reads config from same-process thread-local.
-    pub fn from_thread() -> Option<Self> {
-        todo!()
+    /// Returns `true` if the current process is awaiting for the config to start the
+    /// view process in the same process.
+    pub(crate) fn waiting_same_process() -> bool {
+        SAME_PROCESS_CONFIG.lock().is_some()
+    }
+
+    /// Sets and unblocks the same-process config if there is a request.
+    ///
+    /// # Panics
+    ///
+    /// If there is no pending `wait_same_process`.
+    pub(crate) fn set_same_process(cfg: ViewConfig) {
+        if let Some(c) = &mut *SAME_PROCESS_CONFIG.lock() {
+            c.cfg = cfg;
+            c.waiter.notify_one();
+        } else {
+            unreachable!("use `waiting_same_process` to check")
+        }
+    }
+
+    /// Wait for config from same-process.
+    pub fn wait_same_process() -> ViewConfig {
+        let mut config = SAME_PROCESS_CONFIG.lock();
+        let waiter = Arc::new(Condvar::new());
+        *config = Some(SameProcessConfig {
+            waiter: waiter.clone(),
+            // temporary
+            cfg: ViewConfig {
+                server_name: String::new(),
+                headless: false,
+            },
+        });
+
+        if cfg!(debug_assertions) {
+            waiter.wait(&mut config);
+        } else {
+            let r = waiter.wait_for(&mut config, Duration::from_secs(10)).timed_out();
+            if r {
+                panic!("Controller::start was not called in 10 seconds");
+            }
+        };
+
+        config.take().unwrap().cfg
     }
 }
+
+pub(crate) struct SameProcessConfig {
+    pub waiter: Arc<Condvar>,
+    pub cfg: ViewConfig,
+}
+pub(crate) static SAME_PROCESS_CONFIG: Mutex<Option<SameProcessConfig>> = parking_lot::const_mutex(None);

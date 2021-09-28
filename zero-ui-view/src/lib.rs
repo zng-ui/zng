@@ -91,7 +91,7 @@ pub fn init() {
         panic!("only call `init` in the main thread, this is a requirement of OpenGL");
     }
 
-    if let Some(config) = ViewConfig::from_thread().or_else(ViewConfig::from_env) {
+    if let Some(config) = ViewConfig::from_env() {
         let c = connect_view_process(config.server_name).expect("failed to connect to app-process");
 
         if config.headless {
@@ -103,17 +103,17 @@ pub fn init() {
 }
 
 /// Runs the view-process server in the current process and calls `run_app` to also
-/// run the app in the current process. Note that `run_app` will be called in a different thread 
+/// run the app in the current process. Note that `run_app` will be called in a different thread
 /// so it must be [`Send`].
-/// 
+///
 /// In this mode the app only uses a single process, reducing the memory footprint, but it is also not
 /// resilient to video driver crashes, the view server **does not** respawn in this mode.
-/// 
+///
 /// # Examples
-/// 
+///
 /// The example demonstrates a setup that runs the view server in the same process in debug builds and
 /// runs
-/// 
+///
 /// ```
 /// # pub mod zero_ui { pub mod prelude {
 /// # pub struct App { } impl App { fn default() -> Self { todo!() }
@@ -128,23 +128,33 @@ pub fn init() {
 ///         app_main();
 ///     }
 /// }
-/// 
+///
 /// fn app_main() {
 ///     App::default().run_window(|ctx| {
 ///         todo!()
 ///     })
 /// }
 /// ```
-/// 
+///
 /// # Panics
-/// 
+///
 /// Panics if not called in the main thread, this is a requirement o OpenGL.
-pub fn run_same_process(run_app: impl FnOnce() + Send) -> ! {
+pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("only call `run_same_process` in the main thread, this is a requirement of OpenGL");
     }
 
-    todo!()
+    thread::spawn(run_app);
+
+    let config = ViewConfig::wait_same_process();
+
+    let c = connect_view_process(config.server_name).expect("failed to connect to app in same process");
+
+    if config.headless {
+        App::run_headless(c);
+    } else {
+        App::run_headed(c);
+    }
 }
 
 /// The backend implementation.

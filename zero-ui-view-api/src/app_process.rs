@@ -1,14 +1,11 @@
 use std::{
     panic,
     path::{Path, PathBuf},
-    sync::Arc,
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
 
-use parking_lot::{Condvar, Mutex};
-
-use crate::{ipc, AnyResult, Event, Request, Respawned, Response, ViewProcessGen, VpResult};
+use crate::{ipc, AnyResult, Event, Request, Respawned, Response, ViewConfig, ViewProcessGen, VpResult};
 
 /// The listener returns the closure on join for reuse in respawn.
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Event) + Send>>;
@@ -154,10 +151,11 @@ impl Controller {
         let init = ipc::AppInit::new();
 
         // create process and spawn it, unless is running in same process mode.
-        let process = if let Some(config) = &mut *SAME_PROCESS_CONFIG.lock() {
-            config.server_name = init.name().to_owned();
-            config.headless = headless;
-            config.waiter.notify_one();
+        let process = if ViewConfig::waiting_same_process() {
+            ViewConfig::set_same_process(ViewConfig {
+                server_name: init.name().to_owned(),
+                headless,
+            });
             None
         } else {
             let process = duct::cmd!(view_process_exe)
@@ -380,10 +378,3 @@ impl Drop for Controller {
         }
     }
 }
-
-pub(crate) struct SameProcessConfig {
-    pub waiter: Arc<Condvar>,
-    pub server_name: String,
-    pub headless: bool,
-}
-pub(crate) static SAME_PROCESS_CONFIG: Mutex<Option<SameProcessConfig>> = parking_lot::const_mutex(None);
