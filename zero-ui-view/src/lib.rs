@@ -224,8 +224,14 @@ impl App<()> {
                         }
                     }
                     AppEvent::FrameReady(id) => {
-                        if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
+                        let frame_id = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
                             s.redraw();
+                            Some(s.frame_id())
+                        } else {
+                            None
+                        };
+                        if let Some(frame_id) = frame_id {
+                            app.notify(Event::FrameRendered(id, frame_id));
                         }
                     }
                     AppEvent::Notify(ev) => {
@@ -693,6 +699,18 @@ impl<S: AppEventSender> App<S> {
         }
     }
 }
+macro_rules! with_window_or_surface {
+    ($self:ident, $id:ident, |$el:ident|$action:expr, ||$fallback:expr) => {
+        if let Some($el) = $self.windows.iter_mut().find(|w|w.id() == $id) {
+            $action
+        } else if let Some($el) = $self.surfaces.iter_mut().find(|w|w.id() == $id) {
+            $action
+        } else {
+            log::error!("window `{}` not found, will return fallback result", $id);
+            $fallback
+        }
+    };
+}
 impl<S: AppEventSender> Api for App<S> {
     fn api_version(&mut self) -> String {
         VERSION.to_owned()
@@ -820,8 +838,6 @@ impl<S: AppEventSender> Api for App<S> {
         }
         if let Some(i) = self.surfaces.iter().position(|w| w.id() == id) {
             let _ = self.surfaces.swap_remove(i);
-        } else {
-            log::error!("tried to close unkown window `{}`", id)
         }
     }
 
@@ -875,13 +891,7 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn set_transparent(&mut self, id: WinId, transparent: bool) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.set_transparent(transparent);
-        } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == id) {
-            s.set_transparent(transparent)
-        } else {
-            log::error!("window `{}` not found, will return fallback result", id);
-        }
+        with_window_or_surface!(self, id, |w|w.set_transparent(transparent), || ())
     }
 
     fn set_chrome_visible(&mut self, id: WinId, visible: bool) {
@@ -940,53 +950,31 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn pipeline_id(&mut self, id: WinId) -> PipelineId {
-        self.with_window(id, |w| Some(w.pipeline_id()), || None)
-            .unwrap_or_else(|| self.with_surface(id, |w| w.pipeline_id(), PipelineId::dummy))
+        with_window_or_surface!(self, id, |w| w.pipeline_id(), || PipelineId::dummy())
     }
 
     fn namespace_id(&mut self, id: WinId) -> IdNamespace {
-        self.with_window(id, |w| Some(w.namespace_id()), || None)
-            .unwrap_or_else(|| self.with_surface(id, |w| w.namespace_id(), || IdNamespace(0)))
+        with_window_or_surface!(self, id, |w| w.namespace_id(), || IdNamespace(0))
     }
 
     fn add_image(&mut self, id: WinId, descriptor: ImageDescriptor, data: ByteBuf) -> ImageKey {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.add_image(descriptor, Arc::new(data.to_vec()))
-        } else {
-            self.with_surface(id, |w| w.add_image(descriptor, Arc::new(data.to_vec())), || ImageKey::DUMMY)
-        }
+        with_window_or_surface!(self, id, |w| w.add_image(descriptor, Arc::new(data.to_vec())), || ImageKey::DUMMY)
     }
 
     fn update_image(&mut self, id: WinId, key: ImageKey, descriptor: ImageDescriptor, data: ByteBuf) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.update_image(key, descriptor, Arc::new(data.to_vec()));
-        } else {
-            self.with_surface(id, |w| w.update_image(key, descriptor, Arc::new(data.to_vec())), || ())
-        }
+        with_window_or_surface!(self, id, |w| w.update_image(key, descriptor, Arc::new(data.to_vec())), || ())
     }
 
     fn delete_image(&mut self, id: WinId, key: ImageKey) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.delete_image(key)
-        } else {
-            self.with_surface(id, |w| w.delete_image(key), || ())
-        }
+        with_window_or_surface!(self, id, |w|w.delete_image(key), || ())
     }
 
     fn add_font(&mut self, id: WinId, bytes: ByteBuf, index: u32) -> FontKey {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.add_font(bytes.to_vec(), index)
-        } else {
-            self.with_surface(id, |w| w.add_font(bytes.to_vec(), index), || FontKey(IdNamespace(0), 0))
-        }
+        with_window_or_surface!(self, id, |w| w.add_font(bytes.to_vec(), index), || FontKey(IdNamespace(0), 0))
     }
 
     fn delete_font(&mut self, id: WinId, key: FontKey) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.delete_font(key);
-        } else {
-            self.with_surface(id, |w| w.delete_font(key), || ())
-        }
+        with_window_or_surface!(self, id, |w|w.delete_font(key), || ())
     }
 
     fn add_font_instance(
@@ -998,32 +986,19 @@ impl<S: AppEventSender> Api for App<S> {
         plataform_options: Option<FontInstancePlatformOptions>,
         variations: Vec<FontVariation>,
     ) -> FontInstanceKey {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.add_font_instance(font_key, glyph_size, options, plataform_options, variations)
-        } else {
-            self.with_surface(
-                id,
-                |w| w.add_font_instance(font_key, glyph_size, options, plataform_options, variations),
-                || FontInstanceKey(IdNamespace(0), 0),
-            )
-        }
+        with_window_or_surface!(self, id, |w|w.add_font_instance(font_key, glyph_size, options, plataform_options, variations), || FontInstanceKey(IdNamespace(0), 0))
     }
 
     fn delete_font_instance(&mut self, id: WinId, instance_key: FontInstanceKey) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.delete_font_instance(instance_key)
-        } else {
-            self.with_surface(id, |w| w.delete_font_instance(instance_key), || ())
-        }
+        with_window_or_surface!(self, id, |w|w.delete_font_instance(instance_key), || ())
     }
 
     fn size(&mut self, id: WinId) -> DipSize {
-        self.with_surface(id, |w| w.size(), DipSize::zero)
+        with_window_or_surface!(self, id, |w| w.size(), || DipSize::zero())
     }
 
     fn scale_factor(&mut self, id: WinId) -> f32 {
-        self.with_window(id, |w| Some(w.scale_factor()), || None)
-            .unwrap_or_else(|| self.with_surface(id, |w| w.scale_factor(), || 1.0))
+        with_window_or_surface!(self, id, |w| w.scale_factor(), || 1.0)
     }
 
     fn set_allow_alt_f4(&mut self, id: WinId, allow: bool) {
@@ -1031,42 +1006,27 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn read_pixels(&mut self, id: WinId) -> FramePixels {
-        self.with_window(id, |w| Some(w.read_pixels()), || None)
-            .unwrap_or_else(|| self.with_surface(id, |w| w.read_pixels(), FramePixels::default))
+        with_window_or_surface!(self, id, |w|w.read_pixels(), || FramePixels::default())
     }
 
     fn read_pixels_rect(&mut self, id: WinId, rect: PxRect) -> FramePixels {
-        self.with_window(id, |w| Some(w.read_pixels_rect(rect)), || None)
-            .unwrap_or_else(|| self.with_surface(id, |w| w.read_pixels_rect(rect), FramePixels::default))
+        with_window_or_surface!(self, id, |w|w.read_pixels_rect(rect), || FramePixels::default())
     }
 
     fn hit_test(&mut self, id: WinId, point: PxPoint) -> (Epoch, HitTestResult) {
-        self.with_window(id, |w| Some(w.hit_test(point)), || None)
-            .unwrap_or_else(|| self.with_surface(id, |w| w.hit_test(point), || (Epoch(0), HitTestResult::default())))
+        with_window_or_surface!(self, id, |w|w.hit_test(point), || (Epoch(0), HitTestResult::default()))
     }
 
     fn set_text_aa(&mut self, id: WinId, aa: TextAntiAliasing) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.set_text_aa(aa);
-        } else {
-            self.with_surface(id, |w| w.set_text_aa(aa), || ())
-        }
+        with_window_or_surface!(self, id, |w|w.set_text_aa(aa), || ())
     }
 
     fn render(&mut self, id: WinId, frame: FrameRequest) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.render(frame)
-        } else {
-            self.with_surface(id, |w| w.render(frame), || ())
-        }
+        with_window_or_surface!(self, id, |w|w.render(frame), || ())
     }
 
     fn render_update(&mut self, id: WinId, updates: DynamicProperties, clear_color: Option<ColorF>) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            w.render_update(updates, clear_color)
-        } else {
-            self.with_surface(id, |w| w.render_update(updates, clear_color), || ())
-        }
+        with_window_or_surface!(self, id, |w|w.render_update(updates, clear_color), || ())
     }
 
     #[cfg(debug_assertions)]

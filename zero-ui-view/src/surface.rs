@@ -167,6 +167,10 @@ impl Surface {
         self.scale_factor
     }
 
+    pub fn frame_id(&self) -> Epoch {
+        self.frame_id
+    }
+
     pub fn size(&self) -> DipSize {
         self.size
     }

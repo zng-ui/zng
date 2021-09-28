@@ -21,6 +21,7 @@
 #![warn(unused_extern_crates)]
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
 
+use std::fmt;
 use std::time::Duration;
 
 use units::{DipPoint, DipSize, Px, PxPoint, PxRect};
@@ -98,7 +99,7 @@ macro_rules! declare_api {
             ) $(-> $ResponseType:ty)?;
         )*
     ) => {
-        #[derive(Debug, Serialize, Deserialize)]
+        #[derive(Serialize, Deserialize)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::large_enum_variant)]
         #[repr(u32)]
@@ -107,6 +108,23 @@ macro_rules! declare_api {
                 $(#[$meta])*
                 $method { $($input: $RequestType),* },
             )*
+        }
+        impl fmt::Debug for RequestData {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                if f.alternate() {
+                    match self {
+                        $(
+                            RequestData::$method { $($input),* } => write!(f, "{}{:#?}", stringify!($method), ($($input),*)),
+                        )+
+                    }
+                } else {
+                    match self {
+                        $(
+                            RequestData::$method { .. } => write!(f, "{}(..)", stringify!($method)),
+                        )+
+                    }
+                }
+            }
         }
 
         #[derive(Debug, Serialize, Deserialize)]
