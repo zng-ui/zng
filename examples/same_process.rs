@@ -3,9 +3,9 @@ use zero_ui::prelude::*;
 
 fn main() {
     if cfg!(debug_assertions) {
-        zero_ui_core::app::run_same_process(app_main);
+        zero_ui_view::run_same_process(app_main);
     } else {
-        init_view_process();
+        zero_ui_view::init();
         app_main();
     }
 }

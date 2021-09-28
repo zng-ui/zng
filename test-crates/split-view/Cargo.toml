@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-zero-ui-vp = { path = "../../zero-ui-vp" }
+zero-ui-view = { path = "../../zero-ui-view" }
 
 [workspace]

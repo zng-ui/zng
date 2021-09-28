@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-zero-ui = { path = "../../", default-features = false }
+zero-ui = { path = "../../" }
 
 [workspace]

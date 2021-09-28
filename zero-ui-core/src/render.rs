@@ -17,7 +17,7 @@ use derive_more as dm;
 use ego_tree::Tree;
 use std::{fmt, io::Write, marker::PhantomData, mem, sync::Arc, time::Instant};
 
-pub use zero_ui_vp::webrender_api;
+pub use zero_ui_view_api::webrender_api;
 
 use webrender_api::*;
 

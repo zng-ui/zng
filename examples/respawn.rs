@@ -3,6 +3,7 @@ use zero_ui::core::app::view_process::ViewProcessExt;
 use zero_ui::prelude::*;
 
 fn main() {
+    zero_ui_view::init();
     App::default().run_window(|_| {
         window! {
             title = "View-Process Respawn Example";

@@ -102,6 +102,51 @@ pub fn init() {
     }
 }
 
+/// Runs the view-process server in the current process and calls `run_app` to also
+/// run the app in the current process. Note that `run_app` will be called in a different thread 
+/// so it must be [`Send`].
+/// 
+/// In this mode the app only uses a single process, reducing the memory footprint, but it is also not
+/// resilient to video driver crashes, the view server **does not** respawn in this mode.
+/// 
+/// # Examples
+/// 
+/// The example demonstrates a setup that runs the view server in the same process in debug builds and
+/// runs
+/// 
+/// ```
+/// # pub mod zero_ui { pub mod prelude {
+/// # pub struct App { } impl App { fn default() -> Self { todo!() }
+/// # fn run_window(self, f: impl FnOnce(bool)) } } }
+/// use zero_ui::prelude::*;
+///
+/// fn main() {
+///     if cfg!(debug_assertions) {
+///         zero_ui_view::run_same_process(app_main);
+///     } else {
+///         zero_ui_view::init();
+///         app_main();
+///     }
+/// }
+/// 
+/// fn app_main() {
+///     App::default().run_window(|ctx| {
+///         todo!()
+///     })
+/// }
+/// ```
+/// 
+/// # Panics
+/// 
+/// Panics if not called in the main thread, this is a requirement o OpenGL.
+pub fn run_same_process(run_app: impl FnOnce() + Send) -> ! {
+    if !is_main_thread::is_main_thread().unwrap_or(true) {
+        panic!("only call `run_same_process` in the main thread, this is a requirement of OpenGL");
+    }
+
+    todo!()
+}
+
 /// The backend implementation.
 pub(crate) struct App<S> {
     started: bool,
@@ -964,6 +1009,11 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn size(&mut self, id: WinId) -> DipSize {
         self.with_surface(id, |w| w.size(), DipSize::zero)
+    }
+
+    fn scale_factor(&mut self, id: WinId) -> f32 {
+        self.with_window(id, |w| Some(w.scale_factor()), || None)
+            .unwrap_or_else(|| self.with_surface(id, |w| w.scale_factor(), || 1.0))
     }
 
     fn set_allow_alt_f4(&mut self, id: WinId, allow: bool) {

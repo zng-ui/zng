@@ -908,7 +908,7 @@ impl MonitorInfo {
 ///
 /// You can get this values from [`MonitorInfo::video_modes`]. Note that when setting the
 /// video mode the actual system mode is selected by approximation, closest `size`, then `bit_depth` then `refresh_rate`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct VideoMode {
     /// Resolution of this video mode.
     pub size: PxSize,
@@ -919,6 +919,15 @@ pub struct VideoMode {
     ///
     /// Note: the returned refresh rate is an integer approximation, and you shouldn’t rely on this value to be exact.
     pub refresh_rate: u16,
+}
+impl Default for VideoMode {
+    fn default() -> Self {
+        Self {
+            size: PxSize::new(Px::MAX, Px::MAX),
+            bit_depth: u16::MAX,
+            refresh_rate: u16::MAX,
+        }
+    }
 }
 
 /// System settings needed for implementing double/triple clicks.

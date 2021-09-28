@@ -315,8 +315,11 @@ declare_api! {
     /// Delete a font instance.
     pub fn delete_font_instance(&mut self, id: WinId, instance_key: FontInstanceKey);
 
-    /// Gets the window content are size.
+    /// Gets the window content area size.
     pub fn size(&mut self, id: WinId) -> DipSize;
+
+    /// Gets the window scale factor.
+    pub fn scale_factor(&mut self, id: WinId) -> f32;
 
     /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
     pub fn set_allow_alt_f4(&mut self, id: WinId, allow: bool);

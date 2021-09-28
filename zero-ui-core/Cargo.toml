@@ -6,8 +6,6 @@ edition = "2018"
 license = "Apache-2.0"
 
 [features]
-default = ["vp_full"]
-
 # Enable the zero_ui_core::profiler module.
 #
 # USAGE:
@@ -26,18 +24,6 @@ app_profiler = []
 # in the documentation.
 test_util = []
 
-# Full View-Process, includes `glutin` and the full `webrender` crate.
-#
-# This feature is enabled by default, disable it if you are building the view-process as a
-# separate process. See the `./test-crates/split-vp` workspace for a demo of this.
-#
-# USAGE:
-#
-# # To remove in a crate that is the app-process only:
-#
-# zero-ui-core = { version = "0.1", default-features = false }
-vp_full = ["zero-ui-vp/full"]
-
 # # Other Features
 #
 # ## `doc_nightly`
@@ -53,6 +39,7 @@ vp_full = ["zero-ui-vp/full"]
 [dependencies]
 # local
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
 
 # text
 font-kit = "0.10"
@@ -62,7 +49,6 @@ rustybuzz = "0.4"
 xi-unicode = "0.3"
 
 # render
-zero-ui-vp = { path = "../zero-ui-vp", default-features = false }
 image = "0.23"
 
 # task

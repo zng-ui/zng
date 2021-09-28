@@ -886,10 +886,6 @@ pub mod widgets;
 /// [`new_widget`]: crate::prelude::new_widget
 /// [`rayon`]: https://docs.rs/rayon
 pub mod prelude {
-    #[cfg(feature = "vp_full")]
-    #[doc(no_inline)]
-    pub use crate::core::app::init_view_process;
-
     #[doc(no_inline)]
     pub use crate::core::{
         app::App,

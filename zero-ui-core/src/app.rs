@@ -31,92 +31,6 @@ use std::{
 };
 use view_process::ViewProcessExt;
 
-/// Call this function before anything else in the app `main` function.
-///
-/// If the process is started with the right environment configuration this function
-/// high-jacks the process and turns it into a *View Process*, never returning.
-///
-/// This function does nothing if the *View Process* environment is not set, you can safely call it more then once.
-/// The [`App::default`] and [`App::blank`] methods also call this function, so if the first line of the `main` is
-/// `App::default` you don't need to explicitly call the function.
-///
-/// # Examples
-///
-/// Calling the function as early as possible stops the process from doing things that it should only do in the app process:
-///
-/// ```no_run
-/// # use zero_ui_core::app::*;
-/// # fn do_app_process_init_things() { }
-/// fn main() {
-///     init_view_process();
-///
-///     do_app_process_init_things();
-///
-///     App::default().run(|ctx| {
-///         todo!()
-///     });
-/// }
-/// ```
-///
-/// But [`App::default`] also calls this function so you can omit if the app creation is the first line of code:
-///
-/// ```no_run
-/// # use zero_ui_core::app::*;
-/// # fn do_app_process_init_things() { }
-/// fn main() {
-///     App::default().run(|ctx| {
-///         do_app_process_init_things();
-///
-///         todo!()
-///     });
-/// }
-/// ```
-///
-/// Just be careful more code does not get added before `App::default` later.
-#[inline]
-#[cfg(feature = "vp_full")]
-#[cfg_attr(doc_nightly, doc(cfg(feature = "vp_full")))]
-pub fn init_view_process() {
-    zero_ui_vp::init_view_process();
-}
-
-/// Run both View and App in the same process.
-///
-/// This function must be called in the main thread, it initializes the View and calls `run_app`
-/// in a new thread to initialize the App.
-///
-/// The primary use of this function is debugging the view process code, just move your main function code to inside the `run_app` and
-/// start debugging. You can also use this to trade-off memory use for more risk of fatal crashes.
-///
-/// # Examples
-///
-/// A setup that runs the app in a single process in debug builds, and split processes in release builds.
-///
-/// ```no_run
-/// # use zero_ui_core::app::*;
-/// #
-/// fn main() {
-///     if cfg!(debug_assertions) {
-///         run_same_process(app_main);
-///     } else {
-///         init_view_process();
-///         app_main();
-///     }
-/// }
-///
-/// fn app_main() {
-///     App::default().run(|ctx| {
-///         todo!()
-///     });
-/// }
-/// ```
-#[inline]
-#[cfg(feature = "vp_full")]
-#[cfg_attr(doc_nightly, doc(cfg(feature = "vp_full")))]
-pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
-    zero_ui_vp::run_same_process(run_app)
-}
-
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///
 /// Contains the value that could not be send or `()` for receiver errors.
@@ -483,13 +397,8 @@ cancelable_event_args! {
 ///
 /// # View Process
 ///
-/// The [`init_view_process`] function must be called before all other code in the app `main` function when
-/// creating an app with renderer. If the process is started with the right environment configuration this function
-/// high-jacks the process and turns it into a *View Process*, never returning.
-///
-/// Note that [`init_view_process`] does nothing if the *View Process* environment is not set, you can safely call it more then once.
-/// The [`blank`] and [`default`] methods also call this function, so if the first line of the `main` is `App::default` you don't
-/// need to explicitly call the function.
+/// A view-process must be initialized before creating an app. Panics on `run` if there is
+/// not view-process, also panics if the current process is executing as a view-process.
 ///
 /// # Debug Log
 ///
@@ -510,6 +419,12 @@ impl App {
     }
 }
 
+fn assert_not_view_process() {
+    if zero_ui_view_api::ViewConfig::from_env().is_some() {
+        panic!("cannot start App in view-process");
+    }
+}
+
 // In release mode we use generics tricks to compile all app extensions with
 // static dispatch optimized to a direct call to the extension handle.
 #[cfg(not(debug_assertions))]
@@ -517,7 +432,7 @@ impl App {
     /// Application without any extension.
     #[inline]
     pub fn blank() -> AppExtended<()> {
-        init_view_process();
+        assert_not_view_process();
         AppExtended {
             extensions: (),
             view_process_exe: None,
@@ -556,8 +471,7 @@ impl App {
 impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        #[cfg(feature = "vp_full")]
-        init_view_process();
+       assert_not_view_process();
         DebugLogger::init();
         AppExtended {
             extensions: vec![],
@@ -725,7 +639,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Note that the [`init_view_process`] function must be called in the `view_process_exe` and both
     /// executables must be build using the same exact [`VERSION`].
     ///
-    /// [`VERSION`]: zero_ui_vp::VERSION  
+    /// [`VERSION`]: zero_ui_view_api::VERSION  
     pub fn view_process_exe(mut self, view_process_exe: impl Into<PathBuf>) -> Self {
         self.view_process_exe = Some(view_process_exe.into());
         self
@@ -884,7 +798,7 @@ impl<E: AppExtension> RunningApp<E> {
         self.maybe_has_updates = true;
     }
 
-    fn window_id(&mut self, id: zero_ui_vp::WinId) -> WindowId {
+    fn window_id(&mut self, id: zero_ui_view_api::WinId) -> WindowId {
         self.ctx()
             .services
             .req::<view_process::ViewProcess>()
@@ -892,7 +806,7 @@ impl<E: AppExtension> RunningApp<E> {
             .expect("unknown window id")
     }
 
-    fn device_id(&mut self, id: zero_ui_vp::DevId) -> DeviceId {
+    fn device_id(&mut self, id: zero_ui_view_api::DevId) -> DeviceId {
         self.ctx().services.req::<view_process::ViewProcess>().device_id(id)
     }
 
@@ -931,7 +845,7 @@ impl<E: AppExtension> RunningApp<E> {
                 _idle = crate::profiler::ProfileScope::new("<poll-recv>");
             }
 
-            flow = if !matches!(ev, AppEvent::ViewEvent(view_process::Ev::EventsCleared)) || self.receiver.is_empty() {
+            flow = if !matches!(ev, AppEvent::ViewEvent(view_process::Event::EventsCleared)) || self.receiver.is_empty() {
                 // notify event, ignores `EventsCleared` if there is already more events in the channel.
                 self.app_event(ev, observer)
             } else {
@@ -992,189 +906,190 @@ impl<E: AppExtension> RunningApp<E> {
     /// Process a View Process event.
     ///
     /// Does `update` on `EventsCleared`.
-    fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_vp::Ev, observer: &mut O) -> ControlFlow {
+    fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) -> ControlFlow {
         profile_scope!("view_event");
 
         use raw_device_events::*;
         use raw_events::*;
+        use zero_ui_view_api::Event;
 
         match ev {
-            zero_ui_vp::Ev::EventsCleared => {
+            Event::EventsCleared => {
                 return self.update(observer);
             }
-            zero_ui_vp::Ev::FrameRendered(w_id, frame_id) => {
+            Event::FrameRendered(w_id, frame_id) => {
                 let args = RawFrameRenderedArgs::now(self.window_id(w_id), frame_id);
                 self.notify_event(RawFrameRenderedEvent, args, observer);
                 // `FrameRendered` is not followed by a `EventsCleared`.
                 return self.update(observer);
             }
-            zero_ui_vp::Ev::WindowResized(w_id, size, cause) => {
+            Event::WindowResized(w_id, size, cause) => {
                 let args = RawWindowResizedArgs::now(self.window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args, observer);
                 // view-process blocks waiting for a frame on resize, so update as early
                 // as possible to generate this frame
                 return self.update(observer);
             }
-            zero_ui_vp::Ev::WindowMoved(w_id, pos, cause) => {
+            Event::WindowMoved(w_id, pos, cause) => {
                 let args = RawWindowMovedArgs::now(self.window_id(w_id), pos, cause);
                 self.notify_event(RawWindowMovedEvent, args, observer);
             }
-            zero_ui_vp::Ev::WindowStateChanged(w_id, state, cause) => {
+            Event::WindowStateChanged(w_id, state, cause) => {
                 let args = RawWindowStateChangedArgs::now(self.window_id(w_id), state, cause);
                 self.notify_event(RawWindowStateChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::DroppedFile(w_id, file) => {
+            Event::DroppedFile(w_id, file) => {
                 let args = RawDroppedFileArgs::now(self.window_id(w_id), file);
                 self.notify_event(RawDroppedFileEvent, args, observer);
             }
-            zero_ui_vp::Ev::HoveredFile(w_id, file) => {
+            Event::HoveredFile(w_id, file) => {
                 let args = RawHoveredFileArgs::now(self.window_id(w_id), file);
                 self.notify_event(RawHoveredFileEvent, args, observer);
             }
-            zero_ui_vp::Ev::HoveredFileCancelled(w_id) => {
+            Event::HoveredFileCancelled(w_id) => {
                 let args = RawHoveredFileCancelledArgs::now(self.window_id(w_id));
                 self.notify_event(RawHoveredFileCancelledEvent, args, observer);
             }
-            zero_ui_vp::Ev::ReceivedCharacter(w_id, c) => {
+            Event::ReceivedCharacter(w_id, c) => {
                 let args = RawCharInputArgs::now(self.window_id(w_id), c);
                 self.notify_event(RawCharInputEvent, args, observer);
             }
-            zero_ui_vp::Ev::Focused(w_id, focused) => {
+            Event::Focused(w_id, focused) => {
                 let args = RawWindowFocusArgs::now(self.window_id(w_id), focused);
                 self.notify_event(RawWindowFocusEvent, args, observer);
             }
-            zero_ui_vp::Ev::KeyboardInput(w_id, d_id, scan_code, state, key) => {
+            Event::KeyboardInput(w_id, d_id, scan_code, state, key) => {
                 let args = RawKeyInputArgs::now(self.window_id(w_id), self.device_id(d_id), scan_code, state, key);
                 self.notify_event(RawKeyInputEvent, args, observer);
             }
-            zero_ui_vp::Ev::ModifiersChanged(w_id, state) => {
+            Event::ModifiersChanged(w_id, state) => {
                 let args = RawModifiersChangedArgs::now(self.window_id(w_id), state);
                 self.notify_event(RawModifiersChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::CursorMoved(w_id, d_id, pos, hit_test, frame_id) => {
+            Event::CursorMoved(w_id, d_id, pos, hit_test, frame_id) => {
                 let args = RawCursorMovedArgs::now(self.window_id(w_id), self.device_id(d_id), pos, hit_test, frame_id);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
-            zero_ui_vp::Ev::CursorEntered(w_id, d_id) => {
+            Event::CursorEntered(w_id, d_id) => {
                 let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorEnteredEvent, args, observer);
             }
-            zero_ui_vp::Ev::CursorLeft(w_id, d_id) => {
+            Event::CursorLeft(w_id, d_id) => {
                 let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorLeftEvent, args, observer);
             }
-            zero_ui_vp::Ev::MouseWheel(w_id, d_id, delta, phase) => {
+            Event::MouseWheel(w_id, d_id, delta, phase) => {
                 // TODO
                 let _ = (delta, phase);
                 let args = RawMouseWheelArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawMouseWheelEvent, args, observer);
             }
-            zero_ui_vp::Ev::MouseInput(w_id, d_id, state, button) => {
+            Event::MouseInput(w_id, d_id, state, button) => {
                 let args = RawMouseInputArgs::now(self.window_id(w_id), self.device_id(d_id), state, button);
                 self.notify_event(RawMouseInputEvent, args, observer);
             }
-            zero_ui_vp::Ev::TouchpadPressure(w_id, d_id, pressure, stage) => {
+            Event::TouchpadPressure(w_id, d_id, pressure, stage) => {
                 // TODO
                 let _ = (pressure, stage);
                 let args = RawTouchpadPressureArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchpadPressureEvent, args, observer);
             }
-            zero_ui_vp::Ev::AxisMotion(w_id, d_id, axis, value) => {
+            Event::AxisMotion(w_id, d_id, axis, value) => {
                 let args = RawAxisMotionArgs::now(self.window_id(w_id), self.device_id(d_id), axis, value);
                 self.notify_event(RawAxisMotionEvent, args, observer);
             }
-            zero_ui_vp::Ev::Touch(w_id, d_id, phase, pos, force, finger_id) => {
+            Event::Touch(w_id, d_id, phase, pos, force, finger_id) => {
                 // TODO
                 let _ = (phase, pos, force, finger_id);
                 let args = RawTouchArgs::now(self.window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchEvent, args, observer);
             }
-            zero_ui_vp::Ev::ScaleFactorChanged(w_id, scale) => {
+            Event::ScaleFactorChanged(w_id, scale) => {
                 let args = RawWindowScaleFactorChangedArgs::now(self.window_id(w_id), scale);
                 self.notify_event(RawWindowScaleFactorChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::MonitorsChanged(monitors) => {
+            Event::MonitorsChanged(monitors) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 let monitors: Vec<_> = monitors.into_iter().map(|(id, info)| (view.monitor_id(id), info)).collect();
                 let args = RawMonitorsChangedArgs::now(monitors);
                 self.notify_event(RawMonitorsChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::WindowThemeChanged(w_id, theme) => {
+            Event::WindowThemeChanged(w_id, theme) => {
                 let args = RawWindowThemeChangedArgs::now(self.window_id(w_id), theme);
                 self.notify_event(RawWindowThemeChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::WindowCloseRequested(w_id) => {
+            Event::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(self.window_id(w_id));
                 self.notify_event(RawWindowCloseRequestedEvent, args, observer);
             }
-            zero_ui_vp::Ev::WindowClosed(w_id) => {
+            Event::WindowClosed(w_id) => {
                 let args = RawWindowCloseArgs::now(self.window_id(w_id));
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
 
             // config events
-            zero_ui_vp::Ev::FontsChanged => {
+            Event::FontsChanged => {
                 let args = RawFontChangedArgs::now();
                 self.notify_event(RawFontChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::TextAaChanged(aa) => {
+            Event::TextAaChanged(aa) => {
                 let args = RawTextAaChangedArgs::now(aa);
                 self.notify_event(RawTextAaChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::MultiClickConfigChanged(cfg) => {
+            Event::MultiClickConfigChanged(cfg) => {
                 let args = RawMultiClickConfigChangedArgs::now(cfg);
                 self.notify_event(RawMultiClickConfigChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::AnimationEnabledChanged(enabled) => {
+            Event::AnimationEnabledChanged(enabled) => {
                 let args = RawAnimationEnabledChangedArgs::now(enabled);
                 self.notify_event(RawAnimationEnabledChangedEvent, args, observer);
             }
-            zero_ui_vp::Ev::KeyRepeatDelayChanged(delay) => {
+            Event::KeyRepeatDelayChanged(delay) => {
                 let args = RawKeyRepeatDelayChangedArgs::now(delay);
                 self.notify_event(RawKeyRepeatDelayChangedEvent, args, observer);
             }
 
             // `device_events`
-            zero_ui_vp::Ev::DeviceAdded(d_id) => {
+            Event::DeviceAdded(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
                 self.notify_event(DeviceAddedEvent, args, observer);
             }
-            zero_ui_vp::Ev::DeviceRemoved(d_id) => {
+            Event::DeviceRemoved(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
                 self.notify_event(DeviceRemovedEvent, args, observer);
             }
-            zero_ui_vp::Ev::DeviceMouseMotion(d_id, delta) => {
+            Event::DeviceMouseMotion(d_id, delta) => {
                 let args = MouseMotionArgs::now(self.device_id(d_id), delta);
                 self.notify_event(MouseMotionEvent, args, observer);
             }
-            zero_ui_vp::Ev::DeviceMouseWheel(d_id, delta) => {
+            Event::DeviceMouseWheel(d_id, delta) => {
                 let args = MouseWheelArgs::now(self.device_id(d_id), delta);
                 self.notify_event(MouseWheelEvent, args, observer);
             }
-            zero_ui_vp::Ev::DeviceMotion(d_id, axis, value) => {
+            Event::DeviceMotion(d_id, axis, value) => {
                 let args = MotionArgs::now(self.device_id(d_id), axis, value);
                 self.notify_event(MotionEvent, args, observer);
             }
-            zero_ui_vp::Ev::DeviceButton(d_id, button, state) => {
+            Event::DeviceButton(d_id, button, state) => {
                 let args = ButtonArgs::now(self.device_id(d_id), button, state);
                 self.notify_event(ButtonEvent, args, observer);
             }
-            zero_ui_vp::Ev::DeviceKey(d_id, scan_code, state, key) => {
+            Event::DeviceKey(d_id, scan_code, state, key) => {
                 let args = KeyArgs::now(self.device_id(d_id), scan_code, state, key);
                 self.notify_event(KeyEvent, args, observer);
             }
-            zero_ui_vp::Ev::DeviceText(d_id, c) => {
+            Event::DeviceText(d_id, c) => {
                 let args = TextArgs::now(self.device_id(d_id), c);
                 self.notify_event(TextEvent, args, observer);
             }
 
             // Other
-            zero_ui_vp::Ev::Respawned(g) => {
+            Event::Respawned(g) => {
                 let args = view_process::ViewProcessRespawnedArgs::now(g);
                 self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
             }
 
-            zero_ui_vp::Ev::Disconnected(gen) => {
+            Event::Disconnected(gen) => {
                 self.ctx().services.view_process().handle_disconnect(gen);
             }
         }
@@ -1425,7 +1340,7 @@ impl HeadlessApp {
 /// This works like a temporary app extension that runs only for the update call.
 pub trait AppEventObserver {
     /// Called for each raw event received.
-    fn raw_event(&mut self, ctx: &mut AppContext, ev: &zero_ui_vp::Ev) {
+    fn raw_event(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event) {
         let _ = (ctx, ev);
     }
 
@@ -1642,7 +1557,7 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
 #[derive(Debug)]
 pub(crate) enum AppEvent {
     /// Event from the View Process.
-    ViewEvent(zero_ui_vp::Ev),
+    ViewEvent(zero_ui_view_api::Event),
     /// Notify [`Events`](crate::var::Events).
     Event(crate::event::BoxedSendEventUpdate),
     /// Notify [`Vars`](crate::var::Vars).
@@ -1669,7 +1584,7 @@ impl AppEventSender {
     }
 
     #[inline(always)]
-    fn send_view_event(&self, event: zero_ui_vp::Ev) -> Result<(), AppShutdown<AppEvent>> {
+    fn send_view_event(&self, event: zero_ui_view_api::Event) -> Result<(), AppShutdown<AppEvent>> {
         self.0.send(AppEvent::ViewEvent(event))?;
         Ok(())
     }
@@ -1857,14 +1772,13 @@ pub mod view_process {
 
     use linear_map::LinearMap;
 
-    use zero_ui_vp::webrender_api::units::ImageDirtyRect;
-    use zero_ui_vp::webrender_api::{
+    use zero_ui_view_api::webrender_api::{
         DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult,
         IdNamespace, ImageDescriptor, ImageKey, PipelineId,
     };
-    use zero_ui_vp::{ByteBuf, Controller, DevId, WinId};
-    pub use zero_ui_vp::{
-        CursorIcon, Ev, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, Result, TextAntiAliasing,
+    use zero_ui_view_api::{ByteBuf, Controller, DevId, WinId};
+    pub use zero_ui_view_api::{
+        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, TextAntiAliasing,
         VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
     };
 
@@ -1877,6 +1791,8 @@ pub mod view_process {
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
 
+    type Result<T> = std::result::Result<T, Respawned>;
+
     /// Reference to the running View Process.
     ///
     /// This is the lowest level API, used for implementing fundamental services and is a service available
@@ -1886,10 +1802,10 @@ pub mod view_process {
     #[derive(Service, Clone)]
     pub struct ViewProcess(Rc<RefCell<ViewApp>>);
     struct ViewApp {
-        process: zero_ui_vp::Controller,
+        process: zero_ui_view_api::Controller,
         window_ids: LinearMap<WinId, WindowId>,
         device_ids: LinearMap<DevId, DeviceId>,
-        monitor_ids: LinearMap<zero_ui_vp::MonId, MonitorId>,
+        monitor_ids: LinearMap<zero_ui_view_api::MonId, MonitorId>,
 
         data_generation: ViewProcessGen,
     }
@@ -1911,9 +1827,9 @@ pub mod view_process {
         /// Spawn the View Process.
         pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F) -> Self
         where
-            F: FnMut(Ev) + Send + 'static,
+            F: FnMut(Event) + Send + 'static,
         {
-            let process = zero_ui_vp::Controller::start(view_process_exe, device_events, headless, on_event);
+            let process = zero_ui_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
             Self(Rc::new(RefCell::new(ViewApp {
                 data_generation: process.generation(),
                 process,
@@ -2029,12 +1945,12 @@ pub mod view_process {
         }
 
         /// Translate `MonId` to `MonitorId`, generates a monitor id if it was unknown.
-        pub(super) fn monitor_id(&self, id: zero_ui_vp::MonId) -> MonitorId {
+        pub(super) fn monitor_id(&self, id: zero_ui_view_api::MonId) -> MonitorId {
             *self.0.borrow_mut().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
         }
 
         /// Translate `MonitorId` to `MonId`.
-        pub(super) fn monitor_id_back(&self, monitor_id: MonitorId) -> Option<zero_ui_vp::MonId> {
+        pub(super) fn monitor_id_back(&self, monitor_id: MonitorId) -> Option<zero_ui_view_api::MonId> {
             self.0
                 .borrow()
                 .monitor_ids
@@ -2324,14 +2240,8 @@ pub mod view_process {
         }
 
         /// Replace the image resource in the window renderer.
-        pub fn update_image(
-            &mut self,
-            key: ImageKey,
-            descriptor: ImageDescriptor,
-            data: ByteBuf,
-            dirty_rect: ImageDirtyRect,
-        ) -> Result<()> {
-            self.call(|id, p| p.update_image(id, key, descriptor, data, dirty_rect))
+        pub fn update_image(&mut self, key: ImageKey, descriptor: ImageDescriptor, data: ByteBuf) -> Result<()> {
+            self.call(|id, p| p.update_image(id, key, descriptor, data))
         }
 
         /// Delete the image resource in the window renderer.
@@ -3074,7 +2984,7 @@ pub mod raw_device_events {
         mouse::ButtonState,
     };
 
-    pub use zero_ui_vp::{AxisId, ButtonId, MouseScrollDelta};
+    pub use zero_ui_view_api::{AxisId, ButtonId, MouseScrollDelta};
 
     event_args! {
         /// Arguments for [`DeviceAddedEvent`] and [`DeviceRemovedEvent`].

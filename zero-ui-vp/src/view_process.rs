@@ -26,7 +26,7 @@ use crate::{config, ipc, types::*, util, Request, Response, SameProcessConfig, M
 /// # Examples
 ///
 /// ```no_run
-/// # use zero_ui_vp::init_view_process;
+/// # use zero_ui_view_api::init_view_process;
 /// fn main() {
 ///     init_view_process();
 ///

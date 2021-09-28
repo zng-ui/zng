@@ -2,6 +2,7 @@
 use zero_ui::prelude::*;
 
 fn main() {
+    zero_ui_view::init();
     App::default().run_window(|_| {
         window! {
             title = "Gradient Example";

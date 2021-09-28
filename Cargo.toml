@@ -10,26 +10,12 @@ readme = "README.md"
 path = "zero-ui/lib.rs"
 
 [features]
-default = ["vp_full"]
-
 # Enable the zero_ui::core::profiler module.
 #
 # USAGE:
 #
 # `#[cfg(feature = "app_profiler")` or just use the `profile_scope!` macro.
 app_profiler = ["zero-ui-core/app_profiler"]
-
-# Full View-Process, includes `glutin` and the full `webrender` crate.
-#
-# This feature is enabled by default, disable it if you are building the view-process as a
-# separate process. See the `./test-crates/split-vp` workspace for a demo of this.
-#
-# USAGE:
-#
-# # To remove in a crate that is the app-process only:
-#
-# zero-ui = { version = "0.1", default-features = false }
-vp_full = ["zero-ui-core/vp_full"]
 
 # # Other Features
 #
@@ -45,7 +31,7 @@ vp_full = ["zero-ui-core/vp_full"]
 
 [dependencies]
 # local
-zero-ui-core = { path = "zero-ui-core", default-features = false }
+zero-ui-core = { path = "zero-ui-core" }
 
 # util
 paste = "1"
@@ -60,9 +46,10 @@ log = "0.4"
 image = "0.23"
 # enable test util
 zero-ui-core = { path = "zero-ui-core", features = ["test_util"] }
+zero-ui-view = { path = "zero-ui-view" }
 
 [workspace]
-members = ["zero-ui-view-api", "zero-ui-view", "zero-ui-proc-macros", "zero-ui-vp", "zero-ui-core"]
+members = ["zero-ui-view-api", "zero-ui-view", "zero-ui-proc-macros", "zero-ui-core"]
 exclude = ["dependencies/webrender"]
 
 [package.metadata.docs.rs]

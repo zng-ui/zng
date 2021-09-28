@@ -20,7 +20,7 @@ use crate::{
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
-pub use zero_ui_vp::{ButtonState, MouseButton, MultiClickConfig};
+pub use zero_ui_view_api::{ButtonState, MouseButton, MultiClickConfig};
 
 event_args! {
     /// [`MouseMoveEvent`] event args.

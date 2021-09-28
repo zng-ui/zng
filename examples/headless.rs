@@ -1,17 +1,8 @@
 use zero_ui::prelude::*;
 use zero_ui_core::window::HeadlessAppWindowExt;
 
-//fn main() {
-//    if cfg!(debug_assertions) {
-//        zero_ui_core::app::run_same_process(app_main);
-//    } else {
-//        init_view_process();
-//        app_main();
-//    }
-//}
-
 fn main() {
-    init_view_process();
+    zero_ui_view::init();
 
     println!("-=Headless Example=-\n");
     // This example uses a headless window to render an image.

@@ -8,7 +8,7 @@ use crate::{
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
 };
 use linear_map::LinearMap;
-use zero_ui_vp::ByteBuf;
+use zero_ui_view_api::ByteBuf;
 
 use crate::{
     app::{
@@ -663,7 +663,7 @@ impl WindowIcon {
     #[inline]
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Self {
         assert!(rgba.len() == width as usize * height as usize * 4);
-        Self::Icon(Rc::new(zero_ui_vp::Icon {
+        Self::Icon(Rc::new(zero_ui_view_api::Icon {
             rgba: ByteBuf::from(rgba),
             width,
             height,

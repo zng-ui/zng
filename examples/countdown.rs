@@ -2,6 +2,7 @@
 use zero_ui::prelude::*;
 
 fn main() {
+    zero_ui_view::init();
     App::default().run_window(|ctx| {
         let count = ctx.timers.interval(1.secs()).map(move |t| {
             let count = 10 - t.count();

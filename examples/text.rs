@@ -2,6 +2,7 @@
 use zero_ui::prelude::*;
 
 fn main() {
+    zero_ui_view::init();
     App::default().run_window(|_| {
         let fs = var(Length::Pt(11.0));
         window! {

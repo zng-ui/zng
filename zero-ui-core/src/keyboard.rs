@@ -16,7 +16,7 @@ use crate::service::*;
 use crate::var::{var, RcVar, ReadOnlyRcVar, Var, Vars};
 use crate::window::WindowId;
 
-pub use zero_ui_vp::{Key, KeyState, ModifiersState, ScanCode};
+pub use zero_ui_view_api::{Key, KeyState, ModifiersState, ScanCode};
 
 event_args! {
     /// Arguments for [`KeyInputEvent`].
