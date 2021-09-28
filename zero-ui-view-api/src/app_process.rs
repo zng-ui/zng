@@ -17,11 +17,10 @@ pub(crate) const MODE_VAR: &str = "ZERO_UI_WR_MODE";
 ///
 /// # Shutdown
 ///
-/// The View Process is [killed] when the controller is dropped, if the app is running in [same process mode]
+/// The View Process is [killed] when the controller is dropped, if the app is running in same process mode
 /// then the current process [exits] with code 0 on drop.
 ///
 /// [killed]: std::process::Child::kill
-/// [same process mode]: crate::run_same_process
 /// [exits]: std::process::exit
 pub struct Controller {
     process: Option<duct::Handle>,
@@ -39,7 +38,7 @@ pub struct Controller {
 impl Controller {
     /// Start with a custom view process.
     ///
-    /// The `view_process_exe` must be an executable that calls [`init_view_process`], if not set
+    /// The `view_process_exe` must be an executable that starts a view server, if not set
     /// the [`current_exe`] is used. Note that the [`VERSION`] of this crate must match in both executables.
     ///
     /// The `on_event` closure is called in another thread every time the app receives an event.
@@ -50,16 +49,16 @@ impl Controller {
     /// is no way to check if `start` was called in a test so we cannot provide an error message for this.
     /// If the test is hanging in debug builds or has a timeout error in release builds this is probably the reason.
     ///
-    /// Also is unlikely that you can use [`run_same_process`], because it must be run in the main thread.
-    ///
     /// [`current_exe`]: std::env::current_exe
-    /// [`init_view_process`]: crate::init_view_process
-    /// [`run_same_process`]: crate::run_same_process
     /// [`VERSION`]: crate::VERSION
     pub fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, mut on_event: F) -> Self
     where
         F: FnMut(Event) + Send + 'static,
     {
+        if ViewConfig::from_env().is_some() {
+            panic!("cannot start Controller in process configured to be view-process");
+        }
+
         let view_process_exe = view_process_exe.unwrap_or_else(|| {
             std::env::current_exe().expect("failed to get the current exetuable, consider using an external view-process exe")
         });
@@ -188,12 +187,12 @@ impl Controller {
         Ok((process, req, rsp, ev))
     }
 
-    /// Handle an [`Ev::Disconnected`].
+    /// Handle an [`Event::Disconnected`].
     ///
     /// The `gen` parameter is the generation provided by the event. It is used to determinate if the disconnect has
     /// not been handled already.
     ///
-    /// Tries to cleanup the old view-process and start a new one, if all is successful an [`Ev::Respawned`] is send.
+    /// Tries to cleanup the old view-process and start a new one, if all is successful an [`Event::Respawned`] is send.
     ///
     /// The old view-process exit code and std output is logged using the `vp_respawn` target.
     ///
@@ -214,7 +213,7 @@ impl Controller {
         }
     }
 
-    /// Reopen the view-process, causing an [`Ev::Respawned`].
+    /// Reopen the view-process, causing an [`Event::Respawned`].
     ///
     /// This is similar to [`handle_disconnect`] but the current process does not
     /// exit depending on the view-process exit code.

@@ -633,10 +633,10 @@ impl<E: AppExtension> AppExtended<E> {
 
     /// Set the path to the executable for the *View Process*.
     ///
-    /// By the default the current executable is started again as a *View Process*, you use
+    /// By the default the current executable is started again as a *View Process*, you can use
     /// two executables instead, by setting this value.
     ///
-    /// Note that the [`init_view_process`] function must be called in the `view_process_exe` and both
+    /// Note that the `view_process_exe` must start a view server and both
     /// executables must be build using the same exact [`VERSION`].
     ///
     /// [`VERSION`]: zero_ui_view_api::VERSION  
@@ -1959,7 +1959,7 @@ pub mod view_process {
                 .map(|(id, _)| *id)
         }
 
-        /// Reopen the view-process, causing an [`Ev::Respawned`].
+        /// Reopen the view-process, causing an [`Event::Respawned`].
         pub fn respawn(&self) {
             self.0.borrow_mut().process.respawn()
         }
@@ -1970,7 +1970,7 @@ pub mod view_process {
             self.0.borrow_mut().process.crash().expect_err("expected Respawn error");
         }
 
-        /// Handle an [`Ev::Disconnected`].
+        /// Handle an [`Event::Disconnected`].
         ///
         /// The process will exit if the view-process was killed by the user.
         pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {

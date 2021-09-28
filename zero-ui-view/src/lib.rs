@@ -7,10 +7,13 @@
 //! Call [`init`] before any other code in `main` to setup a view-process that uses
 //! the same app executable:
 //!
-//! ```
+//! ```no_run
 //! # pub mod zero_ui { pub mod prelude {
-//! # pub struct App { } impl App { fn default() -> Self { todo!() }
-//! # fn run_window(self, f: impl FnOnce(bool)) } } }
+//! # pub struct App { }
+//! # impl App {
+//! # pub fn default() -> Self { todo!() }
+//! # pub fn run_window(self, f: impl FnOnce(bool)) { }
+//! # } } }
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
@@ -66,10 +69,13 @@ use zero_ui_view_api::{units::*, *};
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// # pub mod zero_ui { pub mod prelude {
-/// # pub struct App { } impl App { fn default() -> Self { todo!() }
-/// # fn run_window(self, f: impl FnOnce(bool)) } } }
+/// # pub struct App { }
+/// # impl App {
+/// # pub fn default() -> Self { todo!() }
+/// # pub fn run_window(self, f: impl FnOnce(bool)) { }
+/// # } } }
 /// use zero_ui::prelude::*;
 ///
 /// fn main() {
@@ -114,10 +120,13 @@ pub fn init() {
 /// The example demonstrates a setup that runs the view server in the same process in debug builds and
 /// runs
 ///
-/// ```
+/// ```no_run
 /// # pub mod zero_ui { pub mod prelude {
-/// # pub struct App { } impl App { fn default() -> Self { todo!() }
-/// # fn run_window(self, f: impl FnOnce(bool)) } } }
+/// # pub struct App { }
+/// # impl App {
+/// # pub fn default() -> Self { todo!() }
+/// # pub fn run_window(self, f: impl FnOnce(bool)) { }
+/// # } } }
 /// use zero_ui::prelude::*;
 ///
 /// fn main() {
@@ -701,9 +710,9 @@ impl<S: AppEventSender> App<S> {
 }
 macro_rules! with_window_or_surface {
     ($self:ident, $id:ident, |$el:ident|$action:expr, ||$fallback:expr) => {
-        if let Some($el) = $self.windows.iter_mut().find(|w|w.id() == $id) {
+        if let Some($el) = $self.windows.iter_mut().find(|w| w.id() == $id) {
             $action
-        } else if let Some($el) = $self.surfaces.iter_mut().find(|w|w.id() == $id) {
+        } else if let Some($el) = $self.surfaces.iter_mut().find(|w| w.id() == $id) {
             $action
         } else {
             log::error!("window `{}` not found, will return fallback result", $id);
@@ -891,7 +900,7 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn set_transparent(&mut self, id: WinId, transparent: bool) {
-        with_window_or_surface!(self, id, |w|w.set_transparent(transparent), || ())
+        with_window_or_surface!(self, id, |w| w.set_transparent(transparent), || ())
     }
 
     fn set_chrome_visible(&mut self, id: WinId, visible: bool) {
@@ -966,7 +975,7 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn delete_image(&mut self, id: WinId, key: ImageKey) {
-        with_window_or_surface!(self, id, |w|w.delete_image(key), || ())
+        with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
     }
 
     fn add_font(&mut self, id: WinId, bytes: ByteBuf, index: u32) -> FontKey {
@@ -974,7 +983,7 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn delete_font(&mut self, id: WinId, key: FontKey) {
-        with_window_or_surface!(self, id, |w|w.delete_font(key), || ())
+        with_window_or_surface!(self, id, |w| w.delete_font(key), || ())
     }
 
     fn add_font_instance(
@@ -986,11 +995,16 @@ impl<S: AppEventSender> Api for App<S> {
         plataform_options: Option<FontInstancePlatformOptions>,
         variations: Vec<FontVariation>,
     ) -> FontInstanceKey {
-        with_window_or_surface!(self, id, |w|w.add_font_instance(font_key, glyph_size, options, plataform_options, variations), || FontInstanceKey(IdNamespace(0), 0))
+        with_window_or_surface!(
+            self,
+            id,
+            |w| w.add_font_instance(font_key, glyph_size, options, plataform_options, variations),
+            || FontInstanceKey(IdNamespace(0), 0)
+        )
     }
 
     fn delete_font_instance(&mut self, id: WinId, instance_key: FontInstanceKey) {
-        with_window_or_surface!(self, id, |w|w.delete_font_instance(instance_key), || ())
+        with_window_or_surface!(self, id, |w| w.delete_font_instance(instance_key), || ())
     }
 
     fn size(&mut self, id: WinId) -> DipSize {
@@ -1006,27 +1020,27 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn read_pixels(&mut self, id: WinId) -> FramePixels {
-        with_window_or_surface!(self, id, |w|w.read_pixels(), || FramePixels::default())
+        with_window_or_surface!(self, id, |w| w.read_pixels(), || FramePixels::default())
     }
 
     fn read_pixels_rect(&mut self, id: WinId, rect: PxRect) -> FramePixels {
-        with_window_or_surface!(self, id, |w|w.read_pixels_rect(rect), || FramePixels::default())
+        with_window_or_surface!(self, id, |w| w.read_pixels_rect(rect), || FramePixels::default())
     }
 
     fn hit_test(&mut self, id: WinId, point: PxPoint) -> (Epoch, HitTestResult) {
-        with_window_or_surface!(self, id, |w|w.hit_test(point), || (Epoch(0), HitTestResult::default()))
+        with_window_or_surface!(self, id, |w| w.hit_test(point), || (Epoch(0), HitTestResult::default()))
     }
 
     fn set_text_aa(&mut self, id: WinId, aa: TextAntiAliasing) {
-        with_window_or_surface!(self, id, |w|w.set_text_aa(aa), || ())
+        with_window_or_surface!(self, id, |w| w.set_text_aa(aa), || ())
     }
 
     fn render(&mut self, id: WinId, frame: FrameRequest) {
-        with_window_or_surface!(self, id, |w|w.render(frame), || ())
+        with_window_or_surface!(self, id, |w| w.render(frame), || ())
     }
 
     fn render_update(&mut self, id: WinId, updates: DynamicProperties, clear_color: Option<ColorF>) {
-        with_window_or_surface!(self, id, |w|w.render_update(updates, clear_color), || ())
+        with_window_or_surface!(self, id, |w| w.render_update(updates, clear_color), || ())
     }
 
     #[cfg(debug_assertions)]

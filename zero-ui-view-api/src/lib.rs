@@ -176,7 +176,7 @@ macro_rules! declare_api {
     };
 }
 declare_api! {
-    /// Returns the [`API_VERSION`].
+    /// Returns the [`VERSION`].
     ///
     /// This method can be called before the [`startup`].
     ///
