@@ -792,6 +792,8 @@ pub struct WindowConfig {
 
     /// Window visibility.
     pub visible: bool,
+    /// Video mode used when the window is in exclusive state.
+    pub video_mode: VideoMode,
     /// Window taskbar icon visibility.
     pub taskbar_visible: bool,
     /// Window chrome visibility (decoration-visibility).

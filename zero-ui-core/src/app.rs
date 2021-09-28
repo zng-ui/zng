@@ -2200,7 +2200,7 @@ pub mod view_process {
 
         /// Set video mode used in exclusive fullscreen.
         #[inline]
-        pub fn set_video_mode(&self, mode:VideoMode) -> Result<()> {
+        pub fn set_video_mode(&self, mode: VideoMode) -> Result<()> {
             self.0.call(|id, p| p.set_video_mode(id, mode))
         }
 

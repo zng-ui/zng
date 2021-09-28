@@ -10,10 +10,10 @@ use webrender::{
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
-use zero_ui_view_api::{units::*, ByteBuf, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WinId};
+use zero_ui_view_api::{units::*, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WinId};
 
 use crate::{
-    util::{GlContextManager, GlHeadlessContext},
+    util::{self, GlContextManager, GlHeadlessContext},
     AppEvent, AppEventSender,
 };
 
@@ -312,13 +312,13 @@ impl Surface {
         let px_size = self.size.to_px(self.scale_factor);
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-        read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor)
+        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor)
     }
 
     pub fn read_pixels_rect(&mut self, rect: PxRect) -> FramePixels {
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-        read_pixels_rect(&self.gl, self.size.to_px(self.scale_factor), rect, self.scale_factor)
+        util::read_pixels_rect(&self.gl, self.size.to_px(self.scale_factor), rect, self.scale_factor)
     }
 
     pub fn hit_test(&mut self, point: PxPoint) -> (Epoch, HitTestResult) {
@@ -353,40 +353,6 @@ fn resize(gl: &Rc<dyn gl::Gl>, rbos: [u32; 2], size: DipSize, scale_factor: f32)
     gl.viewport(0, 0, width, height);
 }
 
-/// Read a selection of pixels of the current frame.
-///
-/// This is a call to `glReadPixels`, the pixel row order is bottom-to-top and the pixel type is BGRA.
-pub fn read_pixels_rect(gl: &Rc<dyn gl::Gl>, max_size: PxSize, rect: PxRect, scale_factor: f32) -> FramePixels {
-    let max = PxRect::from_size(max_size);
-    let rect = rect.intersection(&max).unwrap_or_default();
-
-    if rect.size.width <= Px(0) || rect.size.height <= Px(0) {
-        return FramePixels {
-            width: Px(0),
-            height: Px(0),
-            bgra: ByteBuf::new(),
-            scale_factor,
-            opaque: true,
-        };
-    }
-
-    let x = rect.origin.x.0;
-    let inverted_y = (max.size.height - rect.origin.y - rect.size.height).0;
-    let width = rect.size.width.0 as u32;
-    let height = rect.size.height.0 as u32;
-
-    let bgra = gl.read_pixels(x as _, inverted_y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
-    assert_eq!(gl.get_error(), 0);
-
-    FramePixels {
-        width: rect.size.width,
-        height: rect.size.height,
-        bgra: ByteBuf::from(bgra),
-        scale_factor,
-        opaque: true,
-    }
-}
-
 struct Notifier<S> {
     id: WinId,
     sender: S,
@@ -395,7 +361,7 @@ impl<S: AppEventSender> RenderNotifier for Notifier<S> {
     fn clone(&self) -> Box<dyn RenderNotifier> {
         Box::new(Self {
             id: self.id,
-            sender: self.sender.clone_(),
+            sender: self.sender.clone(),
         })
     }
 

@@ -53,6 +53,24 @@ use webrender_api::{ColorF, DynamicProperties, Epoch, FontInstanceKey, FontKey, 
 /// Packaged API request.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Request(RequestData);
+impl Request {
+    /// Returns `true` if the request represents a new frame or frame update for the window.
+    pub fn is_frame(&self, window_id: WinId) -> bool {
+        matches!(&self.0, RequestData::render { id, .. } | RequestData::render_update { id, .. } if *id == window_id)
+    }
+
+    /// Returns `true` if the request is setting the position or size of the window.
+    pub fn is_move_or_resize(&self, window_id: WinId) -> bool {
+        matches!(
+            &self.0,
+            RequestData::set_position { id, .. }
+            | RequestData::set_size { id, .. }
+            | RequestData::set_max_size { id, .. }
+            | RequestData::set_min_size { id, .. }
+            if *id == window_id
+        )
+    }
+}
 
 /// Packaged API response.
 #[derive(Serialize, Deserialize, Debug)]
@@ -320,6 +338,9 @@ declare_api! {
 
     /// Set the text anti-aliasing used in the window renderer.
     pub fn set_text_aa(&mut self, id: WinId, aa: TextAntiAliasing);
+
+    /// Set the video mode used when the window is in exclusive fullscreen.
+    pub fn set_video_mode(&mut self, id: WinId, mode: VideoMode);
 
     ///  Render a new frame.
     pub fn render(&mut self, id: WinId, frame: FrameRequest);

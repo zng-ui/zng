@@ -1270,10 +1270,14 @@ impl From<glutin::monitor::VideoMode> for VideoMode {
         }
     }
 }
-impl Default for VideoMode{
+impl Default for VideoMode {
     /// All max values, so that the *best* mode is selected.
     fn default() -> Self {
-        Self { size: PxSize::new(Px::MAX, Px::MAX), bit_depth: u16::MAX, refresh_rate: u16::MAX }
+        Self {
+            size: PxSize::new(Px::MAX, Px::MAX),
+            bit_depth: u16::MAX,
+            refresh_rate: u16::MAX,
+        }
     }
 }
 

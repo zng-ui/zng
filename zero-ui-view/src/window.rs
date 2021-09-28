@@ -6,14 +6,15 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    time::Instant,
 };
 
 use gleam::gl;
 use glutin::{
-    dpi::PhysicalSize,
     event_loop::EventLoopWindowTarget,
+    monitor::VideoMode as GVideoMode,
     window::{Fullscreen, Window as GWindow, WindowBuilder},
-    Api as GApi, ContextBuilder, CreationError, GlRequest,
+    ContextBuilder, CreationError, GlRequest,
 };
 use webrender::{
     api::{
@@ -25,12 +26,13 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::{PxToDip, *},
-    ByteBuf, Event, FramePixels, FrameRequest, Key, KeyState, ScanCode, TextAntiAliasing, ViewProcessGen, WinId, WindowConfig, WindowState,
+    Event, FramePixels, FrameRequest, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WinId, WindowConfig,
+    WindowState,
 };
 
 use crate::{
     config,
-    util::{self, DipToWinit, GlContext, GlContextManager, WinitToPx},
+    util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
     AppEvent, AppEventSender,
 };
 
@@ -51,6 +53,8 @@ pub(crate) struct Window {
 
     frame_id: Epoch,
     resized: bool,
+
+    video_mode: VideoMode,
 
     prev_pos: DipPoint,
     prev_size: DipSize,
@@ -128,7 +132,7 @@ impl Window {
         #[cfg(windows)]
         {
             let allow_alt_f4 = allow_alt_f4.clone();
-            let event_sender = event_sender.clone_();
+            let event_sender = event_sender.clone();
 
             util::set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
                 if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && allow_alt_f4.get() {
@@ -179,7 +183,7 @@ impl Window {
             Rc::clone(&gl),
             Box::new(Notifier {
                 window_id: id,
-                sender: event_sender.clone_(),
+                sender: event_sender,
                 redirect: redirect_frame.clone(),
                 redirect_sender: rf_sender,
             }),
@@ -205,6 +209,7 @@ impl Window {
             renderer: Some(renderer),
             redirect_frame,
             redirect_frame_recv,
+            video_mode: cfg.video_mode,
             api,
             document_id,
             pipeline_id,
@@ -221,9 +226,105 @@ impl Window {
         win.state_change(); // update
 
         win.set_taskbar_visible(cfg.taskbar_visible);
-        win.set_state(cfg.state);
+        let _ = win.set_state(cfg.state);
 
         win
+    }
+
+    pub fn id(&self) -> WinId {
+        self.id
+    }
+
+    pub fn window_id(&self) -> glutin::window::WindowId {
+        self.window.id()
+    }
+
+    pub fn namespace_id(&self) -> IdNamespace {
+        self.api.get_namespace_id()
+    }
+
+    pub fn pipeline_id(&self) -> PipelineId {
+        self.pipeline_id
+    }
+
+    /// Latest received frame.
+    pub fn frame_id(&self) -> Epoch {
+        self.frame_id
+    }
+
+    pub fn set_title(&self, title: String) {
+        self.window.set_title(&title);
+    }
+
+    pub fn set_visible(&mut self, visible: bool) {
+        if !self.waiting_first_frame {
+            self.window.set_visible(visible);
+        }
+        self.visible = visible;
+    }
+
+    pub fn set_always_on_top(&mut self, always_on_top: bool) {
+        self.window.set_always_on_top(always_on_top);
+    }
+
+    pub fn set_movable(&mut self, movable: bool) {
+        self.movable = movable;
+    }
+
+    pub fn set_resizable(&mut self, resizable: bool) {
+        self.window.set_resizable(resizable)
+    }
+
+    pub fn set_parent(&mut self, parent: Option<glutin::window::WindowId>, modal: bool) {
+        todo!("implement parent & modal: {:?}", (parent, modal));
+    }
+
+    pub fn set_transparent(&mut self, transparent: bool) {
+        if self.transparent != transparent {
+            self.transparent = transparent;
+            todo!("respawn just the window?")
+        }
+    }
+
+    pub fn set_chrome_visible(&mut self, visible: bool) {
+        self.window.set_decorations(visible);
+    }
+
+    /// Returns `true` if the `new_pos` is actually different then the previous or init position.
+    pub fn moved(&mut self, new_pos: DipPoint) -> bool {
+        let moved = self.prev_pos != new_pos;
+        self.prev_pos = new_pos;
+        moved
+    }
+
+    /// Returns `true` if the `new_size` is actually different then the previous or init size.
+    pub fn resized(&mut self, new_size: DipSize) -> bool {
+        let resized = self.prev_size != new_size;
+        self.prev_size = new_size;
+        resized
+    }
+
+    /// window.inner_size maybe new.
+    pub fn on_resized(&mut self) {
+        let ctx = self.context.make_current();
+        ctx.resize(self.window.inner_size());
+        self.resized = true;
+    }
+
+    /// Move window, returns `true` if actually moved.
+    #[must_use = "must send an event if the return is `true`"]
+    pub fn set_outer_pos(&mut self, pos: DipPoint) -> bool {
+        let moved = self.moved(pos);
+        if moved {
+            let new_pos = pos.to_winit();
+            self.window.set_outer_position(new_pos);
+        }
+        moved
+    }
+
+    pub fn set_icon(&mut self, icon: Option<crate::Icon>) {
+        self.window
+            .set_window_icon(icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba.into_vec(), i.width, i.height).ok()));
     }
 
     /// Probe state, returns `Some(new_state)`
@@ -249,12 +350,48 @@ impl Window {
         }
     }
 
-    pub fn video_mode(&self) -> Option<glutin::monitor::VideoMode> {
-        // TODO configurable video mode.
-        self.window.current_monitor().and_then(|m| m.video_modes().next())
+    fn video_mode(&self) -> Option<GVideoMode> {
+        let mode = &self.video_mode;
+        self.window.current_monitor().and_then(|m| {
+            let mut candidate: Option<GVideoMode> = None;
+            for m in m.video_modes() {
+                // filter out video modes larger than requested
+                if m.size().width <= mode.size.width.0 as u32
+                    && m.size().height <= mode.size.height.0 as u32
+                    && m.bit_depth() <= mode.bit_depth
+                    && m.refresh_rate() <= mode.refresh_rate
+                {
+                    // select closest match to the requested video mode
+                    if let Some(c) = &candidate {
+                        if m.size().width >= c.size().width
+                            && m.size().height >= c.size().height as u32
+                            && m.bit_depth() >= c.bit_depth()
+                            && m.refresh_rate() >= c.refresh_rate()
+                        {
+                            candidate = Some(m);
+                        }
+                    } else {
+                        candidate = Some(m);
+                    }
+                }
+            }
+            candidate
+        })
+    }
+
+    pub fn set_video_mode(&mut self, mode: VideoMode) {
+        self.video_mode = mode;
+        if let WindowState::Exclusive = self.state {
+            if let Some(mode) = self.video_mode() {
+                self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
+            } else {
+                todo!()
+            }
+        }
     }
 
     /// Apply the new state, returns `true` if the state changed.
+    #[must_use = "must send an event if the return is `true`"]
     pub fn set_state(&mut self, state: WindowState) -> bool {
         if state.is_fullscreen() {
             match state {
@@ -345,6 +482,234 @@ impl Window {
             }
         }
     }
+
+    pub fn set_min_inner_size(&mut self, min_size: DipSize) {
+        self.window.set_min_inner_size(Some(min_size.to_winit()))
+    }
+
+    pub fn set_max_inner_size(&mut self, max_size: DipSize) {
+        self.window.set_max_inner_size(Some(max_size.to_winit()))
+    }
+
+    pub fn add_image(&mut self, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) -> ImageKey {
+        let key = self.api.generate_image_key();
+        let mut txn = webrender::Transaction::new();
+        txn.add_image(key, descriptor, webrender_api::ImageData::Raw(data), None);
+        self.api.send_transaction(self.document_id, txn);
+        key
+    }
+
+    pub fn update_image(&mut self, key: ImageKey, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) {
+        let mut txn = webrender::Transaction::new();
+        txn.update_image(
+            key,
+            descriptor,
+            webrender_api::ImageData::Raw(data),
+            &webrender_api::units::ImageDirtyRect::All,
+        );
+        self.api.send_transaction(self.document_id, txn);
+    }
+
+    pub fn delete_image(&mut self, key: ImageKey) {
+        let mut txn = webrender::Transaction::new();
+        txn.delete_image(key);
+        self.api.send_transaction(self.document_id, txn);
+    }
+
+    pub fn add_font(&mut self, font: Vec<u8>, index: u32) -> FontKey {
+        let key = self.api.generate_font_key();
+        let mut txn = webrender::Transaction::new();
+        txn.add_raw_font(key, font, index);
+        self.api.send_transaction(self.document_id, txn);
+        key
+    }
+
+    pub fn delete_font(&mut self, key: FontKey) {
+        let mut txn = webrender::Transaction::new();
+        txn.delete_font(key);
+        self.api.send_transaction(self.document_id, txn);
+    }
+
+    pub fn add_font_instance(
+        &mut self,
+        font_key: FontKey,
+        glyph_size: Px,
+        options: Option<FontInstanceOptions>,
+        plataform_options: Option<FontInstancePlatformOptions>,
+        variations: Vec<FontVariation>,
+    ) -> FontInstanceKey {
+        let key = self.api.generate_font_instance_key();
+        let mut txn = webrender::Transaction::new();
+        txn.add_font_instance(key, font_key, glyph_size.to_wr().get(), options, plataform_options, variations);
+        self.api.send_transaction(self.document_id, txn);
+        key
+    }
+
+    pub fn delete_font_instance(&mut self, instance_key: FontInstanceKey) {
+        let mut txn = webrender::Transaction::new();
+        txn.delete_font_instance(instance_key);
+        self.api.send_transaction(self.document_id, txn);
+    }
+
+    pub fn set_text_aa(&mut self, aa: TextAntiAliasing) {
+        todo!("need to rebuild the renderer? {:?}", aa)
+    }
+
+    pub fn set_allow_alt_f4(&mut self, allow: bool) {
+        self.allow_alt_f4.set(allow);
+    }
+
+    /// Start rendering a new frame.
+    ///
+    /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
+    pub fn render(&mut self, frame: FrameRequest) {
+        self.frame_id = frame.id;
+        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
+
+        let size = self.window.inner_size();
+        let viewport_size = size.to_px().to_wr();
+
+        let mut txn = Transaction::new();
+        let display_list = BuiltDisplayList::from_data(
+            DisplayListPayload {
+                data: frame.display_list.0.into_vec(),
+            },
+            frame.display_list.1,
+        );
+        txn.set_display_list(
+            frame.id,
+            Some(frame.clear_color),
+            viewport_size,
+            (frame.pipeline_id, display_list),
+            true,
+        );
+        txn.set_root_pipeline(self.pipeline_id);
+
+        self.push_resize(&mut txn);
+
+        txn.generate_frame(self.frame_id.0 as u64); // TODO review frame_id != Epoch?
+        self.api.send_transaction(self.document_id, txn);
+    }
+
+    /// Start rendering a new frame based on the data of the last frame.
+    pub fn render_update(&mut self, updates: DynamicProperties, clear_color: Option<ColorF>) {
+        if let Some(color) = clear_color {
+            self.renderer.as_mut().unwrap().set_clear_color(color);
+        }
+
+        let mut txn = Transaction::new();
+        txn.set_root_pipeline(self.pipeline_id);
+        txn.update_dynamic_properties(updates);
+
+        self.push_resize(&mut txn);
+
+        txn.generate_frame(self.frame_id.0 as u64);
+        self.api.send_transaction(self.document_id, txn);
+    }
+
+    /// Returns if it is the first frame.
+    #[must_use = "if `true` must notify the initial Resized event"]
+    pub fn request_redraw(&mut self) -> bool {
+        if self.waiting_first_frame {
+            self.waiting_first_frame = false;
+            self.redraw();
+            if self.visible {
+                self.window.set_visible(true);
+            }
+            true
+        } else {
+            self.window.request_redraw();
+
+            false
+        }
+    }
+
+    pub fn redraw(&mut self) {
+        let ctx = self.context.make_current();
+        let renderer = self.renderer.as_mut().unwrap();
+        renderer.update();
+        let s = self.window.inner_size();
+        renderer.render(s.to_px().to_wr_device(), 0).unwrap();
+        let _ = renderer.flush_pipeline_info();
+        ctx.swap_buffers().unwrap();
+    }
+
+    /// Capture the next frame-ready event.
+    ///
+    /// Returns `true` if received before `deadline`, if `true` already redraw too.
+    pub fn wait_frame_ready(&mut self, deadline: Instant) -> bool {
+        self.redirect_frame.store(true, Ordering::Relaxed);
+        let stop_redirect = util::RunOnDrop::new(|| self.redirect_frame.store(false, Ordering::Relaxed));
+
+        let received = self.redirect_frame_recv.recv_deadline(deadline).is_ok();
+
+        drop(stop_redirect);
+
+        if received {
+            self.redraw();
+        }
+        received
+    }
+
+    fn push_resize(&mut self, txn: &mut Transaction) {
+        if self.resized {
+            self.resized = false;
+            let size = self.window.inner_size();
+            txn.set_document_view(PxRect::from_size(size.to_px()).to_wr_device());
+        }
+    }
+
+    pub fn read_pixels(&mut self) -> FramePixels {
+        let px_size = self.window.inner_size().to_px();
+        // `self.gl` is only valid if we are the current context.
+        let _ctx = self.context.make_current();
+        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor())
+    }
+
+    pub fn read_pixels_rect(&mut self, rect: PxRect) -> FramePixels {
+        // `self.gl` is only valid if we are the current context.
+        let _ctx = self.context.make_current();
+        util::read_pixels_rect(&self.gl, self.window.inner_size().to_px(), rect, self.scale_factor())
+    }
+
+    pub fn outer_position(&self) -> DipPoint {
+        self.window
+            .outer_position()
+            .ok()
+            .unwrap_or_default()
+            .to_logical(self.window.scale_factor())
+            .to_dip()
+    }
+
+    pub fn size(&self) -> DipSize {
+        self.window.inner_size().to_logical(self.window.scale_factor()).to_dip()
+    }
+
+    pub fn scale_factor(&self) -> f32 {
+        self.window.scale_factor() as f32
+    }
+
+    /// Does a hit-test on the current frame.
+    ///
+    /// Returns all hits from front-to-back.
+    pub fn hit_test(&self, point: PxPoint) -> (Epoch, HitTestResult) {
+        (
+            self.frame_id,
+            self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),
+        )
+    }
+}
+impl Drop for Window {
+    fn drop(&mut self) {
+        // webrender deinit panics if the context is not current.
+        let _ctx = self.context.make_current();
+        self.renderer.take().unwrap().deinit();
+
+        // context must be dropped before the winit window (glutin requirement).
+        self.context.drop_before_winit();
+
+        // the winit window will be dropped normally after this.
+    }
 }
 
 struct Notifier<S> {
@@ -357,7 +722,7 @@ impl<S: AppEventSender> RenderNotifier for Notifier<S> {
     fn clone(&self) -> Box<dyn RenderNotifier> {
         Box::new(Notifier {
             window_id: self.window_id,
-            sender: self.sender.clone_(),
+            sender: self.sender.clone(),
             redirect: self.redirect.clone(),
             redirect_sender: self.redirect_sender.clone(),
         })

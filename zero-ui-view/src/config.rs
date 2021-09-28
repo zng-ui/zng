@@ -4,7 +4,7 @@ use std::time::Duration;
 /// Create a hidden window that listen to Windows config change events.
 #[cfg(windows)]
 pub(crate) fn config_listener(
-    event_loop: glutin::event_loop::EventLoopProxy<AppEvent>,
+    event_loop: impl crate::AppEventSender,
     window_target: &glutin::event_loop::EventLoopWindowTarget<AppEvent>,
 ) -> glutin::window::Window {
     use glutin::window::WindowBuilder;
@@ -21,7 +21,7 @@ pub(crate) fn config_listener(
 
     util::set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
         let notify = |ev| {
-            let _ = event_loop.send_event(AppEvent::Notify(ev));
+            let _ = event_loop.send(AppEvent::Notify(ev));
             Some(0)
         };
         match msg {
@@ -36,7 +36,7 @@ pub(crate) fn config_listener(
                 _ => None,
             },
             WM_DISPLAYCHANGE => {
-                let _ = event_loop.send_event(AppEvent::RefreshMonitors);
+                let _ = event_loop.send(AppEvent::RefreshMonitors);
                 Some(0)
             }
             _ => None,
