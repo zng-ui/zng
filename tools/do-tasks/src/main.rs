@@ -347,6 +347,9 @@ fn build(mut args: Vec<&str>) {
     let rust_flags = &[(rust_flags.0, rust_flags.1.as_str())];
 
     if take_flag(&mut args, &["-t", "--timing"]) {
+        if let Some(example) = args.iter_mut().find(|a| **a == "-e") {
+            *example = "--example";
+        }
         cmd_env("cargo", &["+nightly", "build", "-Ztimings"], &args, rust_flags);
     } else if take_flag(&mut args, &["--all"]) {
         for test_crate in top_cargo_toml("test-crates") {
