@@ -798,14 +798,6 @@ impl<E: AppExtension> RunningApp<E> {
         self.maybe_has_updates = true;
     }
 
-    fn window_id(&mut self, id: zero_ui_view_api::WindowId) -> WindowId {
-        self.ctx()
-            .services
-            .req::<view_process::ViewProcess>()
-            .window_id(id)
-            .expect("unknown window id")
-    }
-
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
         self.ctx().services.req::<view_process::ViewProcess>().device_id(id)
     }
@@ -913,99 +905,103 @@ impl<E: AppExtension> RunningApp<E> {
         use raw_events::*;
         use zero_ui_view_api::Event;
 
+        fn window_id(id: zero_ui_view_api::WindowId) -> WindowId {
+            unsafe { WindowId::from_raw(id) }
+        }
+
         match ev {
             Event::EventsCleared => {
                 return self.update(observer);
             }
             Event::FrameRendered(w_id, frame_id) => {
-                let args = RawFrameRenderedArgs::now(self.window_id(w_id), frame_id);
+                let args = RawFrameRenderedArgs::now(window_id(w_id), frame_id);
                 self.notify_event(RawFrameRenderedEvent, args, observer);
                 // `FrameRendered` is not followed by a `EventsCleared`.
                 return self.update(observer);
             }
             Event::WindowResized(w_id, size, cause) => {
-                let args = RawWindowResizedArgs::now(self.window_id(w_id), size, cause);
+                let args = RawWindowResizedArgs::now(window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args, observer);
                 // view-process blocks waiting for a frame on resize, so update as early
                 // as possible to generate this frame
                 return self.update(observer);
             }
             Event::WindowMoved(w_id, pos, cause) => {
-                let args = RawWindowMovedArgs::now(self.window_id(w_id), pos, cause);
+                let args = RawWindowMovedArgs::now(window_id(w_id), pos, cause);
                 self.notify_event(RawWindowMovedEvent, args, observer);
             }
             Event::WindowStateChanged(w_id, state, cause) => {
-                let args = RawWindowStateChangedArgs::now(self.window_id(w_id), state, cause);
+                let args = RawWindowStateChangedArgs::now(window_id(w_id), state, cause);
                 self.notify_event(RawWindowStateChangedEvent, args, observer);
             }
             Event::DroppedFile(w_id, file) => {
-                let args = RawDroppedFileArgs::now(self.window_id(w_id), file);
+                let args = RawDroppedFileArgs::now(window_id(w_id), file);
                 self.notify_event(RawDroppedFileEvent, args, observer);
             }
             Event::HoveredFile(w_id, file) => {
-                let args = RawHoveredFileArgs::now(self.window_id(w_id), file);
+                let args = RawHoveredFileArgs::now(window_id(w_id), file);
                 self.notify_event(RawHoveredFileEvent, args, observer);
             }
             Event::HoveredFileCancelled(w_id) => {
-                let args = RawHoveredFileCancelledArgs::now(self.window_id(w_id));
+                let args = RawHoveredFileCancelledArgs::now(window_id(w_id));
                 self.notify_event(RawHoveredFileCancelledEvent, args, observer);
             }
             Event::ReceivedCharacter(w_id, c) => {
-                let args = RawCharInputArgs::now(self.window_id(w_id), c);
+                let args = RawCharInputArgs::now(window_id(w_id), c);
                 self.notify_event(RawCharInputEvent, args, observer);
             }
             Event::Focused(w_id, focused) => {
-                let args = RawWindowFocusArgs::now(self.window_id(w_id), focused);
+                let args = RawWindowFocusArgs::now(window_id(w_id), focused);
                 self.notify_event(RawWindowFocusEvent, args, observer);
             }
             Event::KeyboardInput(w_id, d_id, scan_code, state, key) => {
-                let args = RawKeyInputArgs::now(self.window_id(w_id), self.device_id(d_id), scan_code, state, key);
+                let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), scan_code, state, key);
                 self.notify_event(RawKeyInputEvent, args, observer);
             }
             Event::ModifiersChanged(w_id, state) => {
-                let args = RawModifiersChangedArgs::now(self.window_id(w_id), state);
+                let args = RawModifiersChangedArgs::now(window_id(w_id), state);
                 self.notify_event(RawModifiersChangedEvent, args, observer);
             }
             Event::CursorMoved(w_id, d_id, pos, hit_test, frame_id) => {
-                let args = RawCursorMovedArgs::now(self.window_id(w_id), self.device_id(d_id), pos, hit_test, frame_id);
+                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), pos, hit_test, frame_id);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
             Event::CursorEntered(w_id, d_id) => {
-                let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
+                let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorEnteredEvent, args, observer);
             }
             Event::CursorLeft(w_id, d_id) => {
-                let args = RawCursorArgs::now(self.window_id(w_id), self.device_id(d_id));
+                let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorLeftEvent, args, observer);
             }
             Event::MouseWheel(w_id, d_id, delta, phase) => {
                 // TODO
                 let _ = (delta, phase);
-                let args = RawMouseWheelArgs::now(self.window_id(w_id), self.device_id(d_id));
+                let args = RawMouseWheelArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawMouseWheelEvent, args, observer);
             }
             Event::MouseInput(w_id, d_id, state, button) => {
-                let args = RawMouseInputArgs::now(self.window_id(w_id), self.device_id(d_id), state, button);
+                let args = RawMouseInputArgs::now(window_id(w_id), self.device_id(d_id), state, button);
                 self.notify_event(RawMouseInputEvent, args, observer);
             }
             Event::TouchpadPressure(w_id, d_id, pressure, stage) => {
                 // TODO
                 let _ = (pressure, stage);
-                let args = RawTouchpadPressureArgs::now(self.window_id(w_id), self.device_id(d_id));
+                let args = RawTouchpadPressureArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchpadPressureEvent, args, observer);
             }
             Event::AxisMotion(w_id, d_id, axis, value) => {
-                let args = RawAxisMotionArgs::now(self.window_id(w_id), self.device_id(d_id), axis, value);
+                let args = RawAxisMotionArgs::now(window_id(w_id), self.device_id(d_id), axis, value);
                 self.notify_event(RawAxisMotionEvent, args, observer);
             }
             Event::Touch(w_id, d_id, phase, pos, force, finger_id) => {
                 // TODO
                 let _ = (phase, pos, force, finger_id);
-                let args = RawTouchArgs::now(self.window_id(w_id), self.device_id(d_id));
+                let args = RawTouchArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchEvent, args, observer);
             }
             Event::ScaleFactorChanged(w_id, scale) => {
-                let args = RawWindowScaleFactorChangedArgs::now(self.window_id(w_id), scale);
+                let args = RawWindowScaleFactorChangedArgs::now(window_id(w_id), scale);
                 self.notify_event(RawWindowScaleFactorChangedEvent, args, observer);
             }
             Event::MonitorsChanged(monitors) => {
@@ -1015,15 +1011,15 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawMonitorsChangedEvent, args, observer);
             }
             Event::WindowThemeChanged(w_id, theme) => {
-                let args = RawWindowThemeChangedArgs::now(self.window_id(w_id), theme);
+                let args = RawWindowThemeChangedArgs::now(window_id(w_id), theme);
                 self.notify_event(RawWindowThemeChangedEvent, args, observer);
             }
             Event::WindowCloseRequested(w_id) => {
-                let args = RawWindowCloseRequestedArgs::now(self.window_id(w_id));
+                let args = RawWindowCloseRequestedArgs::now(window_id(w_id));
                 self.notify_event(RawWindowCloseRequestedEvent, args, observer);
             }
             Event::WindowClosed(w_id) => {
-                let args = RawWindowCloseArgs::now(self.window_id(w_id));
+                let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
 
@@ -1802,7 +1798,6 @@ pub mod view_process {
     pub struct ViewProcess(Rc<RefCell<ViewApp>>);
     struct ViewApp {
         process: zero_ui_view_api::Controller,
-        window_ids: LinearMap<ApiWindowId, WindowId>,
         device_ids: LinearMap<ApiDeviceId, DeviceId>,
         monitor_ids: LinearMap<ApiMonitorId, MonitorId>,
 
@@ -1815,7 +1810,6 @@ pub mod view_process {
             let invalid = gen != self.data_generation;
             if invalid {
                 self.data_generation = gen;
-                self.window_ids.clear();
                 self.device_ids.clear();
                 self.monitor_ids.clear();
             }
@@ -1832,7 +1826,6 @@ pub mod view_process {
             Self(Rc::new(RefCell::new(ViewApp {
                 data_generation: process.generation(),
                 process,
-                window_ids: LinearMap::default(),
                 device_ids: LinearMap::default(),
                 monitor_ids: LinearMap::default(),
             })))
@@ -1851,15 +1844,12 @@ pub mod view_process {
         }
 
         /// Open a window and associate it with the `window_id`.
-        pub fn open_window(&self, window_id: WindowId, config: WindowConfig) -> Result<ViewWindow> {
+        pub fn open_window(&self, config: WindowConfig) -> Result<ViewWindow> {
             let mut app = self.0.borrow_mut();
             let _ = app.check_generation();
 
-            assert!(app.window_ids.values().all(|&v| v != window_id), "{} already open", window_id);
-
-            let (id, namespace_id, pipeline_id) = app.process.open_window(config)?;
-
-            app.window_ids.insert(id, window_id);
+            let id = config.id;
+            let (namespace_id, pipeline_id) = app.process.open_window(config)?;
 
             Ok(ViewWindow(Rc::new(WindowConnection {
                 id,
@@ -1874,13 +1864,11 @@ pub mod view_process {
         ///
         /// Note that no actual window is created, only the renderer, the use of window-ids to identify
         /// this renderer is only for convenience.
-        pub fn open_headless(&self, window_id: WindowId, config: HeadlessConfig) -> Result<ViewHeadless> {
+        pub fn open_headless(&self, config: HeadlessConfig) -> Result<ViewHeadless> {
             let mut app = self.0.borrow_mut();
-            assert!(app.window_ids.values().all(|&v| v != window_id));
 
-            let (id, namespace_id, pipeline_id) = app.process.open_headless(config)?;
-
-            app.window_ids.insert(id, window_id);
+            let id = config.id;
+            let (namespace_id, pipeline_id) = app.process.open_headless(config)?;
 
             Ok(ViewHeadless(Rc::new(WindowConnection {
                 id,
@@ -1931,11 +1919,6 @@ pub mod view_process {
             } else {
                 Ok(None)
             }
-        }
-
-        /// Translate `WinId` to `WindowId`.
-        pub(super) fn window_id(&self, id: ApiWindowId) -> Option<WindowId> {
-            self.0.borrow().window_ids.get(&id).copied()
         }
 
         /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
@@ -2078,15 +2061,7 @@ pub mod view_process {
         /// The `parent` window must be already open or this returns `WindowNotFound(0)`.
         #[inline]
         pub fn set_parent(&self, parent: Option<WindowId>, modal: bool) -> Result<()> {
-            if let Some(parent) = parent {
-                if let Some((parent_id, _)) = self.0.app.borrow().window_ids.iter().find(|(_, window_id)| **window_id == parent) {
-                    self.0.call(|id, p| p.set_parent(id, Some(*parent_id), modal))
-                } else {
-                    self.0.call(|id, p| p.set_parent(id, None, modal))
-                }
-            } else {
-                self.0.call(|id, p| p.set_parent(id, None, modal))
-            }
+            self.0.call(|id, p| p.set_parent(id, parent.map(WindowId::get), modal))
         }
 
         /// Set if the window is see-through.

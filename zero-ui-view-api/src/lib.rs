@@ -202,16 +202,16 @@ declare_api! {
 
     /// Open a window.
     ///
-    /// Returns the window id, and renderer ids.
-    pub fn open_window(&mut self, config: WindowConfig) -> (WindowId, IdNamespace, PipelineId);
+    /// Returns the renderer ids.
+    pub fn open_window(&mut self, config: WindowConfig) -> (IdNamespace, PipelineId);
 
     /// Open a headless surface.
     ///
     /// This is a real renderer but not connected to any window, you can requests pixels to get the
     /// rendered frames.
     ///
-    /// The surface is identified with a "window" id, but no window is created, also returns the renderer ids.
-    pub fn open_headless(&mut self, config: HeadlessConfig) -> (WindowId, IdNamespace, PipelineId);
+    /// Returns the renderer ids.
+    pub fn open_headless(&mut self, config: HeadlessConfig) -> (IdNamespace, PipelineId);
 
     /// Close the window or headless surface.
     pub fn close_window(&mut self, id: WindowId);

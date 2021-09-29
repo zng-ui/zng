@@ -48,13 +48,13 @@ impl fmt::Debug for Surface {
 }
 impl Surface {
     pub fn open(
-        id: WindowId,
         gen: ViewProcessGen,
         cfg: HeadlessConfig,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
         event_sender: impl AppEventSender,
     ) -> Self {
+        let id = cfg.id;
         let context = ContextBuilder::new()
             .with_gl(GlRequest::GlThenGles {
                 opengl_version: (3, 2),

@@ -80,13 +80,14 @@ impl fmt::Debug for Window {
 }
 impl Window {
     pub fn open(
-        id: WindowId,
         gen: ViewProcessGen,
         cfg: WindowConfig,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
         event_sender: impl AppEventSender,
     ) -> Self {
+        let id = cfg.id;
+
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
             .with_title(cfg.title)

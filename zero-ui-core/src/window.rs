@@ -2298,6 +2298,7 @@ impl AppWindow {
                     // still not visible, when the renderer has a frame ready to draw then the window becomes
                     // visible. All layout values are ready here too.
                     let config = view_process::WindowConfig {
+                        id: self.id.get(),
                         title: self.vars.title().get(ctx.vars).to_string(),
                         pos: self.position,
                         size: self.size,
@@ -2322,7 +2323,7 @@ impl AppWindow {
                     };
 
                     // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
-                    let headed = match vp.unwrap().open_window(self.id, config) {
+                    let headed = match vp.unwrap().open_window(config) {
                         Ok(h) => h,
                         // we re-render and re-open the window on respawn event.
                         Err(Respawned) => return,
@@ -2334,12 +2335,13 @@ impl AppWindow {
                 }
                 WindowMode::HeadlessWithRenderer => {
                     let config = view_process::HeadlessConfig {
+                        id: self.id.get(),
                         size: self.size,
                         scale_factor: self.headless_monitor.as_ref().unwrap().scale_factor,
                         text_aa: self.vars.text_aa().copy(ctx.vars),
                     };
 
-                    let surface = match vp.unwrap().open_headless(self.id, config) {
+                    let surface = match vp.unwrap().open_headless(config) {
                         Ok(h) => h,
                         // we re-render and re-open the window on respawn event.
                         Err(Respawned) => return,

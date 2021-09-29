@@ -10,7 +10,7 @@ use webrender_api::{BuiltDisplayListDescriptor, ColorF, Epoch, HitTestResult, Pi
 ///
 /// In the View Process this is mapped to a system id.
 ///
-/// In the App Process this is mapped to a unique id that survives View crashes.
+/// In the App Process this is an unique id that survives View crashes.
 ///
 /// Zero is never an ID.
 pub type WindowId = u32;
@@ -19,7 +19,7 @@ pub type WindowId = u32;
 ///
 /// In the View Process this is mapped to a system id.
 ///
-/// In the App Process this is mapped to a unique id, but does not survived View crashes.
+/// In the App Process this is mapped to an unique id, but does not survived View crashes.
 ///
 /// Zero is never an ID.
 pub type DeviceId = u32;
@@ -28,7 +28,7 @@ pub type DeviceId = u32;
 ///
 /// In the View Process this is mapped to a system id.
 ///
-/// In the App Process this is mapped to a unique id, but does not survived View crashes.
+/// In the App Process this is mapped to an unique id, but does not survived View crashes.
 ///
 /// Zero is never an ID.
 pub type MonitorId = u32;
@@ -773,9 +773,11 @@ impl fmt::Debug for FrameRequest {
     }
 }
 
-/// Configuration of a window.
+/// Configuration of a new window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowConfig {
+    /// ID that will identify the new window.
+    pub id: WindowId,
     /// Title text.
     pub title: String,
     /// Top-left offset, including the chrome (outer-position).
@@ -818,6 +820,12 @@ pub struct WindowConfig {
 /// Configuration of a headless surface.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeadlessConfig {
+    /// ID that will identify the new headless surface.
+    /// 
+    /// The surface is identified by a [`WindowId`] so that some API methods
+    /// can apply to both windows or surfaces, no actual window is created.
+    pub id: WindowId,
+
     /// Scale for the layout units in this config.
     pub scale_factor: f32,
 

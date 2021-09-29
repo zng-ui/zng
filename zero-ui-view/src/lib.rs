@@ -190,8 +190,6 @@ pub(crate) struct App<S> {
     windows: Vec<Window>,
     surfaces: Vec<Surface>,
 
-    surface_id_gen: WindowId,
-
     monitor_id_gen: MonitorId,
     pub monitors: Vec<(MonitorId, MonitorHandle)>,
 
@@ -350,7 +348,6 @@ impl<S: AppEventSender> App<S> {
             device_events: false,
             windows: vec![],
             surfaces: vec![],
-            surface_id_gen: 0,
             monitors: vec![],
             monitor_id_gen: 0,
             devices: vec![],
@@ -660,14 +657,6 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
-    fn generate_win_id(&mut self) -> WindowId {
-        self.surface_id_gen = self.surface_id_gen.wrapping_add(1);
-        if self.surface_id_gen == 0 {
-            self.surface_id_gen = 1;
-        }
-        self.surface_id_gen
-    }
-
     fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
         self.assert_started();
         self.windows.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
@@ -795,19 +784,17 @@ impl<S: AppEventSender> Api for App<S> {
             .collect()
     }
 
-    fn open_window(&mut self, config: WindowConfig) -> (WindowId, webrender_api::IdNamespace, webrender_api::PipelineId) {
+    fn open_window(&mut self, config: WindowConfig) -> (webrender_api::IdNamespace, webrender_api::PipelineId) {
         if self.headless {
             self.open_headless(HeadlessConfig {
+                id: config.id,
                 scale_factor: 1.0,
                 size: config.size,
                 text_aa: config.text_aa,
             })
         } else {
             self.assert_started();
-            let id = self.generate_win_id();
-
             let win = Window::open(
-                id,
                 self.gen,
                 config,
                 unsafe { &*self.window_target },
@@ -820,16 +807,13 @@ impl<S: AppEventSender> Api for App<S> {
 
             self.windows.push(win);
 
-            (id, namespace, pipeline)
+            (namespace, pipeline)
         }
     }
 
-    fn open_headless(&mut self, config: HeadlessConfig) -> (WindowId, webrender_api::IdNamespace, webrender_api::PipelineId) {
+    fn open_headless(&mut self, config: HeadlessConfig) -> (webrender_api::IdNamespace, webrender_api::PipelineId) {
         self.assert_started();
-        let id = self.generate_win_id();
-
         let surf = Surface::open(
-            id,
             self.gen,
             config,
             unsafe { &*self.window_target },
@@ -841,7 +825,7 @@ impl<S: AppEventSender> Api for App<S> {
 
         self.surfaces.push(surf);
 
-        (id, namespace, pipeline)
+        (namespace, pipeline)
     }
 
     fn close_window(&mut self, id: WindowId) {
