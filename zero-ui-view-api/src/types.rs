@@ -13,7 +13,7 @@ use webrender_api::{BuiltDisplayListDescriptor, ColorF, Epoch, HitTestResult, Pi
 /// In the App Process this is mapped to a unique id that survives View crashes.
 ///
 /// Zero is never an ID.
-pub type WinId = u32;
+pub type WindowId = u32;
 
 /// Device ID in channel.
 ///
@@ -22,7 +22,7 @@ pub type WinId = u32;
 /// In the App Process this is mapped to a unique id, but does not survived View crashes.
 ///
 /// Zero is never an ID.
-pub type DevId = u32;
+pub type DeviceId = u32;
 
 /// Monitor screen ID in channel.
 ///
@@ -31,7 +31,7 @@ pub type DevId = u32;
 /// In the App Process this is mapped to a unique id, but does not survived View crashes.
 ///
 /// Zero is never an ID.
-pub type MonId = u32;
+pub type MonitorId = u32;
 
 /// View-process generation, starts at one and changes every respawn, it is never zero.
 pub type ViewProcessGen = u32;
@@ -530,74 +530,74 @@ pub enum Event {
     /// A frame finished rendering.
     ///
     /// `EventsCleared` is not send after this event.
-    FrameRendered(WinId, Epoch),
+    FrameRendered(WindowId, Epoch),
 
     /// Window maximized/minimized/restored.
     ///
     /// The [`EventCause`] can be used to identify a state change initiated by the app.
-    WindowStateChanged(WinId, WindowState, EventCause),
+    WindowStateChanged(WindowId, WindowState, EventCause),
 
     /// The size of the window has changed. Contains the client area’s new dimensions and the window state.
     ///
     /// The [`EventCause`] can be used to identify a resize initiated by the app.
-    WindowResized(WinId, DipSize, EventCause),
+    WindowResized(WindowId, DipSize, EventCause),
     /// The position of the window has changed. Contains the window’s new position.
     ///
     /// The [`EventCause`] can be used to identify a move initiated by the app.
-    WindowMoved(WinId, DipPoint, EventCause),
+    WindowMoved(WindowId, DipPoint, EventCause),
     /// A file has been dropped into the window.
     ///
     /// When the user drops multiple files at once, this event will be emitted for each file separately.
-    DroppedFile(WinId, PathBuf),
+    DroppedFile(WindowId, PathBuf),
     /// A file is being hovered over the window.
     ///
     /// When the user hovers multiple files at once, this event will be emitted for each file separately.
-    HoveredFile(WinId, PathBuf),
+    HoveredFile(WindowId, PathBuf),
     /// A file was hovered, but has exited the window.
     ///
     /// There will be a single event triggered even if multiple files were hovered.
-    HoveredFileCancelled(WinId),
+    HoveredFileCancelled(WindowId),
     /// The window received a Unicode character.
-    ReceivedCharacter(WinId, char),
+    ReceivedCharacter(WindowId, char),
     /// The window gained or lost focus.
     ///
     /// The parameter is true if the window has gained focus, and false if it has lost focus.
-    Focused(WinId, bool),
+    Focused(WindowId, bool),
     /// An event from the keyboard has been received.
-    KeyboardInput(WinId, DevId, ScanCode, KeyState, Option<Key>),
+    KeyboardInput(WindowId, DeviceId, ScanCode, KeyState, Option<Key>),
     /// The keyboard modifiers have changed.
-    ModifiersChanged(WinId, ModifiersState),
+    ModifiersChanged(WindowId, ModifiersState),
     /// The cursor has moved on the window.
     ///
     /// Contains a hit-test of the point and the frame epoch that was hit.
-    CursorMoved(WinId, DevId, DipPoint, HitTestResult, Epoch),
+    CursorMoved(WindowId, DeviceId, DipPoint, HitTestResult, Epoch),
 
     /// The cursor has entered the window.
-    CursorEntered(WinId, DevId),
+    CursorEntered(WindowId, DeviceId),
     /// The cursor has left the window.
-    CursorLeft(WinId, DevId),
+    CursorLeft(WindowId, DeviceId),
     /// A mouse wheel movement or touchpad scroll occurred.
-    MouseWheel(WinId, DevId, MouseScrollDelta, TouchPhase),
+    MouseWheel(WindowId, DeviceId, MouseScrollDelta, TouchPhase),
     /// An mouse button press has been received.
-    MouseInput(WinId, DevId, ButtonState, MouseButton),
+    MouseInput(WindowId, DeviceId, ButtonState, MouseButton),
     /// Touchpad pressure event.
-    TouchpadPressure(WinId, DevId, f32, i64),
+    TouchpadPressure(WindowId, DeviceId, f32, i64),
     /// Motion on some analog axis. May report data redundant to other, more specific events.
-    AxisMotion(WinId, DevId, AxisId, f64),
+    AxisMotion(WindowId, DeviceId, AxisId, f64),
     /// Touch event has been received.
-    Touch(WinId, DevId, TouchPhase, DipPoint, Option<Force>, u64),
+    Touch(WindowId, DeviceId, TouchPhase, DipPoint, Option<Force>, u64),
     /// The window’s scale factor has changed.
-    ScaleFactorChanged(WinId, f32),
+    ScaleFactorChanged(WindowId, f32),
 
     /// The available monitors have changed.
-    MonitorsChanged(Vec<(MonId, MonitorInfo)>),
+    MonitorsChanged(Vec<(WindowId, MonitorInfo)>),
 
     /// The system window theme has changed.
-    WindowThemeChanged(WinId, WindowTheme),
+    WindowThemeChanged(WindowId, WindowTheme),
     /// The window has been requested to close.
-    WindowCloseRequested(WinId),
+    WindowCloseRequested(WindowId),
     /// The window has closed.
-    WindowClosed(WinId),
+    WindowClosed(WindowId),
 
     // Config events
     /// System fonts have changed.
@@ -613,25 +613,25 @@ pub enum Event {
 
     // Raw device events
     /// Device added or installed.
-    DeviceAdded(DevId),
+    DeviceAdded(DeviceId),
     /// Device removed.
-    DeviceRemoved(DevId),
+    DeviceRemoved(DeviceId),
     /// Mouse pointer motion.
     ///
     /// The values if the delta of movement (x, y), not position.
-    DeviceMouseMotion(DevId, (f64, f64)),
+    DeviceMouseMotion(DeviceId, (f64, f64)),
     /// Mouse scroll wheel turn.
-    DeviceMouseWheel(DevId, MouseScrollDelta),
+    DeviceMouseWheel(DeviceId, MouseScrollDelta),
     /// Motion on some analog axis.
     ///
     /// This includes the mouse device and any other that fits.
-    DeviceMotion(DevId, AxisId, f64),
+    DeviceMotion(DeviceId, AxisId, f64),
     /// Device button press or release.
-    DeviceButton(DevId, ButtonId, ButtonState),
+    DeviceButton(DeviceId, ButtonId, ButtonState),
     /// Device key press or release.
-    DeviceKey(DevId, ScanCode, KeyState, Option<Key>),
+    DeviceKey(DeviceId, ScanCode, KeyState, Option<Key>),
     /// Device Unicode character input.
-    DeviceText(DevId, char),
+    DeviceText(DeviceId, char),
 }
 
 /// Cause of a window state change.

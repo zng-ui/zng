@@ -10,7 +10,7 @@ use webrender::{
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
-use zero_ui_view_api::{units::*, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WinId};
+use zero_ui_view_api::{units::*, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WindowId};
 
 use crate::{
     util::{self, GlContextManager, GlHeadlessContext},
@@ -19,7 +19,7 @@ use crate::{
 
 /// A headless "window".
 pub(crate) struct Surface {
-    id: WinId,
+    id: WindowId,
     pipeline_id: PipelineId,
     document_id: DocumentId,
     api: RenderApi,
@@ -48,7 +48,7 @@ impl fmt::Debug for Surface {
 }
 impl Surface {
     pub fn open(
-        id: WinId,
+        id: WindowId,
         gen: ViewProcessGen,
         cfg: HeadlessConfig,
         window_target: &EventLoopWindowTarget<AppEvent>,
@@ -151,7 +151,7 @@ impl Surface {
         }
     }
 
-    pub fn id(&self) -> WinId {
+    pub fn id(&self) -> WindowId {
         self.id
     }
 
@@ -358,7 +358,7 @@ fn resize(gl: &Rc<dyn gl::Gl>, rbos: [u32; 2], size: DipSize, scale_factor: f32)
 }
 
 struct Notifier<S> {
-    id: WinId,
+    id: WindowId,
     sender: S,
 }
 impl<S: AppEventSender> RenderNotifier for Notifier<S> {

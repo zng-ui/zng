@@ -186,13 +186,13 @@ pub(crate) struct App<S> {
     windows: Vec<Window>,
     surfaces: Vec<Surface>,
 
-    surface_id_gen: WinId,
+    surface_id_gen: WindowId,
 
-    monitor_id_gen: MonId,
-    pub monitors: Vec<(MonId, MonitorHandle)>,
+    monitor_id_gen: MonitorId,
+    pub monitors: Vec<(MonitorId, MonitorHandle)>,
 
-    device_id_gen: DevId,
-    devices: Vec<(DevId, glutin::event::DeviceId)>,
+    device_id_gen: DeviceId,
+    devices: Vec<(DeviceId, glutin::event::DeviceId)>,
 
     // if one or more events where send after the last on_events_cleared.
     pending_clear: bool,
@@ -585,7 +585,7 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
-    fn on_frame_ready(&mut self, window_id: WinId) {
+    fn on_frame_ready(&mut self, window_id: WindowId) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
             let id = w.id();
             let frame_id = w.frame_id();
@@ -656,7 +656,7 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
-    fn generate_win_id(&mut self) -> WinId {
+    fn generate_win_id(&mut self) -> WindowId {
         self.surface_id_gen = self.surface_id_gen.wrapping_add(1);
         if self.surface_id_gen == 0 {
             self.surface_id_gen = 1;
@@ -664,7 +664,7 @@ impl<S: AppEventSender> App<S> {
         self.surface_id_gen
     }
 
-    fn with_window<R>(&mut self, id: WinId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
+    fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
         self.assert_started();
         self.windows.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
             log::error!("headed window `{}` not found, will return fallback result", id);
@@ -672,7 +672,7 @@ impl<S: AppEventSender> App<S> {
         })
     }
 
-    fn with_surface<R>(&mut self, id: WinId, action: impl FnOnce(&mut Surface) -> R, not_found: impl FnOnce() -> R) -> R {
+    fn with_surface<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Surface) -> R, not_found: impl FnOnce() -> R) -> R {
         self.assert_started();
         self.surfaces.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
             log::error!("headless window `{}` not found, will return fallback result", id);
@@ -680,7 +680,7 @@ impl<S: AppEventSender> App<S> {
         })
     }
 
-    fn monitor_id(&mut self, handle: &MonitorHandle) -> MonId {
+    fn monitor_id(&mut self, handle: &MonitorHandle) -> MonitorId {
         if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
             *id
         } else {
@@ -694,7 +694,7 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
-    fn device_id(&mut self, device_id: glutin::event::DeviceId) -> DevId {
+    fn device_id(&mut self, device_id: glutin::event::DeviceId) -> DeviceId {
         if let Some((id, _)) = self.devices.iter().find(|(_, id)| *id == device_id) {
             *id
         } else {
@@ -744,7 +744,7 @@ impl<S: AppEventSender> Api for App<S> {
         self.exited = true;
     }
 
-    fn primary_monitor(&mut self) -> Option<(MonId, MonitorInfo)> {
+    fn primary_monitor(&mut self) -> Option<(MonitorId, MonitorInfo)> {
         self.assert_started();
 
         let window_target = unsafe { &*self.window_target };
@@ -760,7 +760,7 @@ impl<S: AppEventSender> Api for App<S> {
             })
     }
 
-    fn monitor_info(&mut self, id: MonId) -> Option<MonitorInfo> {
+    fn monitor_info(&mut self, id: MonitorId) -> Option<MonitorInfo> {
         self.assert_started();
 
         let window_target = unsafe { &*self.window_target };
@@ -772,7 +772,7 @@ impl<S: AppEventSender> Api for App<S> {
         })
     }
 
-    fn available_monitors(&mut self) -> Vec<(MonId, MonitorInfo)> {
+    fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)> {
         self.assert_started();
 
         let window_target = unsafe { &*self.window_target };
@@ -791,7 +791,7 @@ impl<S: AppEventSender> Api for App<S> {
             .collect()
     }
 
-    fn open_window(&mut self, config: WindowConfig) -> (WinId, webrender_api::IdNamespace, webrender_api::PipelineId) {
+    fn open_window(&mut self, config: WindowConfig) -> (WindowId, webrender_api::IdNamespace, webrender_api::PipelineId) {
         if self.headless {
             self.open_headless(HeadlessConfig {
                 scale_factor: 1.0,
@@ -820,7 +820,7 @@ impl<S: AppEventSender> Api for App<S> {
         }
     }
 
-    fn open_headless(&mut self, config: HeadlessConfig) -> (WinId, webrender_api::IdNamespace, webrender_api::PipelineId) {
+    fn open_headless(&mut self, config: HeadlessConfig) -> (WindowId, webrender_api::IdNamespace, webrender_api::PipelineId) {
         self.assert_started();
         let id = self.generate_win_id();
 
@@ -840,7 +840,7 @@ impl<S: AppEventSender> Api for App<S> {
         (id, namespace, pipeline)
     }
 
-    fn close_window(&mut self, id: WinId) {
+    fn close_window(&mut self, id: WindowId) {
         self.assert_started();
         if let Some(i) = self.windows.iter().position(|w| w.id() == id) {
             let _ = self.windows.swap_remove(i);
@@ -870,50 +870,50 @@ impl<S: AppEventSender> Api for App<S> {
         config::key_repeat_delay()
     }
 
-    fn set_title(&mut self, id: WinId, title: String) {
+    fn set_title(&mut self, id: WindowId, title: String) {
         self.with_window(id, |w| w.set_title(title), || ())
     }
 
-    fn set_visible(&mut self, id: WinId, visible: bool) {
+    fn set_visible(&mut self, id: WindowId, visible: bool) {
         self.with_window(id, |w| w.set_visible(visible), || ())
     }
 
-    fn set_always_on_top(&mut self, id: WinId, always_on_top: bool) {
+    fn set_always_on_top(&mut self, id: WindowId, always_on_top: bool) {
         self.with_window(id, |w| w.set_always_on_top(always_on_top), || ())
     }
 
-    fn set_movable(&mut self, id: WinId, movable: bool) {
+    fn set_movable(&mut self, id: WindowId, movable: bool) {
         self.with_window(id, |w| w.set_movable(movable), || ())
     }
 
-    fn set_resizable(&mut self, id: WinId, resizable: bool) {
+    fn set_resizable(&mut self, id: WindowId, resizable: bool) {
         self.with_window(id, |w| w.set_resizable(resizable), || ())
     }
 
-    fn set_taskbar_visible(&mut self, id: WinId, visible: bool) {
+    fn set_taskbar_visible(&mut self, id: WindowId, visible: bool) {
         self.with_window(id, |w| w.set_taskbar_visible(visible), || ())
     }
 
-    fn set_parent(&mut self, id: WinId, parent: Option<WinId>, modal: bool) {
+    fn set_parent(&mut self, id: WindowId, parent: Option<WindowId>, modal: bool) {
         let parent = parent.and_then(|id| self.windows.iter().find(|w| w.id() == id).map(|w| w.window_id()));
         self.with_window(id, |w| w.set_parent(parent, modal), || ())
     }
 
-    fn set_transparent(&mut self, id: WinId, transparent: bool) {
+    fn set_transparent(&mut self, id: WindowId, transparent: bool) {
         with_window_or_surface!(self, id, |w| w.set_transparent(transparent), || ())
     }
 
-    fn set_chrome_visible(&mut self, id: WinId, visible: bool) {
+    fn set_chrome_visible(&mut self, id: WindowId, visible: bool) {
         self.with_window(id, |w| w.set_chrome_visible(visible), || ())
     }
 
-    fn set_position(&mut self, id: WinId, pos: DipPoint) {
+    fn set_position(&mut self, id: WindowId, pos: DipPoint) {
         if self.with_window(id, |w| w.set_outer_pos(pos), || false) {
             let _ = self.app_sender.send(AppEvent::Notify(Event::WindowMoved(id, pos, EventCause::App)));
         }
     }
 
-    fn set_size(&mut self, id: WinId, size: DipSize, frame: FrameRequest) {
+    fn set_size(&mut self, id: WindowId, size: DipSize, frame: FrameRequest) {
         self.with_surface(
             id,
             |w| {
@@ -924,7 +924,7 @@ impl<S: AppEventSender> Api for App<S> {
         );
     }
 
-    fn set_state(&mut self, id: WinId, state: WindowState) {
+    fn set_state(&mut self, id: WindowId, state: WindowState) {
         if self.with_window(id, |w| w.set_state(state), || false) {
             let _ = self
                 .app_sender
@@ -932,7 +932,7 @@ impl<S: AppEventSender> Api for App<S> {
         }
     }
 
-    fn set_headless_size(&mut self, id: WinId, size: DipSize, scale_factor: f32) {
+    fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: f32) {
         self.with_surface(
             id,
             |w| {
@@ -942,53 +942,53 @@ impl<S: AppEventSender> Api for App<S> {
         )
     }
 
-    fn set_video_mode(&mut self, id: WinId, mode: VideoMode) {
+    fn set_video_mode(&mut self, id: WindowId, mode: VideoMode) {
         self.with_window(id, |w| w.set_video_mode(mode), || ())
     }
 
-    fn set_min_size(&mut self, id: WinId, size: DipSize) {
+    fn set_min_size(&mut self, id: WindowId, size: DipSize) {
         self.with_window(id, |w| w.set_min_inner_size(size), || ())
     }
 
-    fn set_max_size(&mut self, id: WinId, size: DipSize) {
+    fn set_max_size(&mut self, id: WindowId, size: DipSize) {
         self.with_window(id, |w| w.set_max_inner_size(size), || ())
     }
 
-    fn set_icon(&mut self, id: WinId, icon: Option<Icon>) {
+    fn set_icon(&mut self, id: WindowId, icon: Option<Icon>) {
         self.with_window(id, |w| w.set_icon(icon), || ())
     }
 
-    fn pipeline_id(&mut self, id: WinId) -> PipelineId {
+    fn pipeline_id(&mut self, id: WindowId) -> PipelineId {
         with_window_or_surface!(self, id, |w| w.pipeline_id(), || PipelineId::dummy())
     }
 
-    fn namespace_id(&mut self, id: WinId) -> IdNamespace {
+    fn namespace_id(&mut self, id: WindowId) -> IdNamespace {
         with_window_or_surface!(self, id, |w| w.namespace_id(), || IdNamespace(0))
     }
 
-    fn add_image(&mut self, id: WinId, descriptor: ImageDescriptor, data: ByteBuf) -> ImageKey {
+    fn add_image(&mut self, id: WindowId, descriptor: ImageDescriptor, data: ByteBuf) -> ImageKey {
         with_window_or_surface!(self, id, |w| w.add_image(descriptor, Arc::new(data.to_vec())), || ImageKey::DUMMY)
     }
 
-    fn update_image(&mut self, id: WinId, key: ImageKey, descriptor: ImageDescriptor, data: ByteBuf) {
+    fn update_image(&mut self, id: WindowId, key: ImageKey, descriptor: ImageDescriptor, data: ByteBuf) {
         with_window_or_surface!(self, id, |w| w.update_image(key, descriptor, Arc::new(data.to_vec())), || ())
     }
 
-    fn delete_image(&mut self, id: WinId, key: ImageKey) {
+    fn delete_image(&mut self, id: WindowId, key: ImageKey) {
         with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
     }
 
-    fn add_font(&mut self, id: WinId, bytes: ByteBuf, index: u32) -> FontKey {
+    fn add_font(&mut self, id: WindowId, bytes: ByteBuf, index: u32) -> FontKey {
         with_window_or_surface!(self, id, |w| w.add_font(bytes.to_vec(), index), || FontKey(IdNamespace(0), 0))
     }
 
-    fn delete_font(&mut self, id: WinId, key: FontKey) {
+    fn delete_font(&mut self, id: WindowId, key: FontKey) {
         with_window_or_surface!(self, id, |w| w.delete_font(key), || ())
     }
 
     fn add_font_instance(
         &mut self,
-        id: WinId,
+        id: WindowId,
         font_key: FontKey,
         glyph_size: Px,
         options: Option<FontInstanceOptions>,
@@ -1003,43 +1003,43 @@ impl<S: AppEventSender> Api for App<S> {
         )
     }
 
-    fn delete_font_instance(&mut self, id: WinId, instance_key: FontInstanceKey) {
+    fn delete_font_instance(&mut self, id: WindowId, instance_key: FontInstanceKey) {
         with_window_or_surface!(self, id, |w| w.delete_font_instance(instance_key), || ())
     }
 
-    fn size(&mut self, id: WinId) -> DipSize {
+    fn size(&mut self, id: WindowId) -> DipSize {
         with_window_or_surface!(self, id, |w| w.size(), || DipSize::zero())
     }
 
-    fn scale_factor(&mut self, id: WinId) -> f32 {
+    fn scale_factor(&mut self, id: WindowId) -> f32 {
         with_window_or_surface!(self, id, |w| w.scale_factor(), || 1.0)
     }
 
-    fn set_allow_alt_f4(&mut self, id: WinId, allow: bool) {
+    fn set_allow_alt_f4(&mut self, id: WindowId, allow: bool) {
         self.with_window(id, |w| w.set_allow_alt_f4(allow), || ())
     }
 
-    fn read_pixels(&mut self, id: WinId) -> FramePixels {
+    fn read_pixels(&mut self, id: WindowId) -> FramePixels {
         with_window_or_surface!(self, id, |w| w.read_pixels(), || FramePixels::default())
     }
 
-    fn read_pixels_rect(&mut self, id: WinId, rect: PxRect) -> FramePixels {
+    fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect) -> FramePixels {
         with_window_or_surface!(self, id, |w| w.read_pixels_rect(rect), || FramePixels::default())
     }
 
-    fn hit_test(&mut self, id: WinId, point: PxPoint) -> (Epoch, HitTestResult) {
+    fn hit_test(&mut self, id: WindowId, point: PxPoint) -> (Epoch, HitTestResult) {
         with_window_or_surface!(self, id, |w| w.hit_test(point), || (Epoch(0), HitTestResult::default()))
     }
 
-    fn set_text_aa(&mut self, id: WinId, aa: TextAntiAliasing) {
+    fn set_text_aa(&mut self, id: WindowId, aa: TextAntiAliasing) {
         with_window_or_surface!(self, id, |w| w.set_text_aa(aa), || ())
     }
 
-    fn render(&mut self, id: WinId, frame: FrameRequest) {
+    fn render(&mut self, id: WindowId, frame: FrameRequest) {
         with_window_or_surface!(self, id, |w| w.render(frame), || ())
     }
 
-    fn render_update(&mut self, id: WinId, updates: DynamicProperties, clear_color: Option<ColorF>) {
+    fn render_update(&mut self, id: WindowId, updates: DynamicProperties, clear_color: Option<ColorF>) {
         with_window_or_surface!(self, id, |w| w.render_update(updates, clear_color), || ())
     }
 
@@ -1056,7 +1056,7 @@ pub(crate) enum AppEvent {
     /// Notify an event.
     Notify(Event),
     /// A frame is ready for redraw.
-    FrameReady(WinId),
+    FrameReady(WindowId),
     /// Re-query available monitors and send update event.
     RefreshMonitors,
     /// Lost connection with app-process.

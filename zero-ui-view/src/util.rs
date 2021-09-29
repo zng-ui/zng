@@ -4,7 +4,7 @@ use gleam::gl;
 use glutin::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
     units::*, ButtonState, ByteBuf, Force, FramePixels, Key, KeyState, ModifiersState, MonitorInfo, MouseButton, MouseScrollDelta,
-    TouchPhase, VideoMode, WinId, WindowTheme,
+    TouchPhase, VideoMode, WindowId, WindowTheme,
 };
 
 /// Manages the "current" `glutin` OpenGL context.
@@ -12,11 +12,11 @@ use zero_ui_view_api::{
 /// If this manager is in use all OpenGL contexts created in the process must be managed by it.
 #[derive(Default)]
 pub(crate) struct GlContextManager {
-    current: Rc<Cell<Option<WinId>>>,
+    current: Rc<Cell<Option<WindowId>>>,
 }
 impl GlContextManager {
     /// Start managing a "headed" glutin context.
-    pub fn manage_headed(&self, id: WinId, ctx: glutin::RawContext<glutin::NotCurrent>) -> GlContext {
+    pub fn manage_headed(&self, id: WindowId, ctx: glutin::RawContext<glutin::NotCurrent>) -> GlContext {
         GlContext {
             id,
             ctx: Some(unsafe { ctx.treat_as_current() }),
@@ -25,7 +25,7 @@ impl GlContextManager {
     }
 
     /// Start managing a headless glutin context.
-    pub fn manage_headless(&self, id: WinId, ctx: glutin::Context<glutin::NotCurrent>) -> GlHeadlessContext {
+    pub fn manage_headless(&self, id: WindowId, ctx: glutin::Context<glutin::NotCurrent>) -> GlHeadlessContext {
         GlHeadlessContext {
             id,
             ctx: Some(unsafe { ctx.treat_as_current() }),
@@ -36,9 +36,9 @@ impl GlContextManager {
 
 /// Managed headless Open-GL context.
 pub(crate) struct GlHeadlessContext {
-    id: WinId,
+    id: WindowId,
     ctx: Option<glutin::Context<glutin::PossiblyCurrent>>,
-    current: Rc<Cell<Option<WinId>>>,
+    current: Rc<Cell<Option<WindowId>>>,
 }
 impl GlHeadlessContext {
     /// Gets the context as current.
@@ -75,9 +75,9 @@ impl Drop for GlHeadlessContext {
 
 /// Managed headed Open-GL context.
 pub(crate) struct GlContext {
-    id: WinId,
+    id: WindowId,
     ctx: Option<glutin::ContextWrapper<glutin::PossiblyCurrent, ()>>,
-    current: Rc<Cell<Option<WinId>>>,
+    current: Rc<Cell<Option<WindowId>>>,
 }
 impl GlContext {
     /// Gets the context as current.

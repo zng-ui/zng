@@ -798,7 +798,7 @@ impl<E: AppExtension> RunningApp<E> {
         self.maybe_has_updates = true;
     }
 
-    fn window_id(&mut self, id: zero_ui_view_api::WinId) -> WindowId {
+    fn window_id(&mut self, id: zero_ui_view_api::WindowId) -> WindowId {
         self.ctx()
             .services
             .req::<view_process::ViewProcess>()
@@ -806,7 +806,7 @@ impl<E: AppExtension> RunningApp<E> {
             .expect("unknown window id")
     }
 
-    fn device_id(&mut self, id: zero_ui_view_api::DevId) -> DeviceId {
+    fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
         self.ctx().services.req::<view_process::ViewProcess>().device_id(id)
     }
 
@@ -1772,16 +1772,6 @@ pub mod view_process {
 
     use linear_map::LinearMap;
 
-    use zero_ui_view_api::webrender_api::{
-        DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult,
-        IdNamespace, ImageDescriptor, ImageKey, PipelineId,
-    };
-    use zero_ui_view_api::{ByteBuf, Controller, DevId, WinId};
-    pub use zero_ui_view_api::{
-        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, TextAntiAliasing,
-        VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
-    };
-
     use super::DeviceId;
     use crate::color::RenderColor;
     use crate::mouse::MultiClickConfig;
@@ -1790,6 +1780,15 @@ pub mod view_process {
     use crate::units::{DipPoint, DipSize, Px, PxPoint, PxRect};
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
+    use zero_ui_view_api::webrender_api::{
+        DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult,
+        IdNamespace, ImageDescriptor, ImageKey, PipelineId,
+    };
+    use zero_ui_view_api::{ByteBuf, Controller, DeviceId as ApiDeviceId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
+    pub use zero_ui_view_api::{
+        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, TextAntiAliasing,
+        VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
+    };
 
     type Result<T> = std::result::Result<T, Respawned>;
 
@@ -1803,9 +1802,9 @@ pub mod view_process {
     pub struct ViewProcess(Rc<RefCell<ViewApp>>);
     struct ViewApp {
         process: zero_ui_view_api::Controller,
-        window_ids: LinearMap<WinId, WindowId>,
-        device_ids: LinearMap<DevId, DeviceId>,
-        monitor_ids: LinearMap<zero_ui_view_api::MonId, MonitorId>,
+        window_ids: LinearMap<ApiWindowId, WindowId>,
+        device_ids: LinearMap<ApiDeviceId, DeviceId>,
+        monitor_ids: LinearMap<ApiMonitorId, MonitorId>,
 
         data_generation: ViewProcessGen,
     }
@@ -1935,22 +1934,22 @@ pub mod view_process {
         }
 
         /// Translate `WinId` to `WindowId`.
-        pub(super) fn window_id(&self, id: WinId) -> Option<WindowId> {
+        pub(super) fn window_id(&self, id: ApiWindowId) -> Option<WindowId> {
             self.0.borrow().window_ids.get(&id).copied()
         }
 
         /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
-        pub(super) fn device_id(&self, id: DevId) -> DeviceId {
+        pub(super) fn device_id(&self, id: ApiDeviceId) -> DeviceId {
             *self.0.borrow_mut().device_ids.entry(id).or_insert_with(DeviceId::new_unique)
         }
 
         /// Translate `MonId` to `MonitorId`, generates a monitor id if it was unknown.
-        pub(super) fn monitor_id(&self, id: zero_ui_view_api::MonId) -> MonitorId {
+        pub(super) fn monitor_id(&self, id: ApiMonitorId) -> MonitorId {
             *self.0.borrow_mut().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
         }
 
         /// Translate `MonitorId` to `MonId`.
-        pub(super) fn monitor_id_back(&self, monitor_id: MonitorId) -> Option<zero_ui_view_api::MonId> {
+        pub(super) fn monitor_id_back(&self, monitor_id: MonitorId) -> Option<ApiMonitorId> {
             self.0
                 .borrow()
                 .monitor_ids
@@ -1984,7 +1983,7 @@ pub mod view_process {
     }
 
     struct WindowConnection {
-        id: WinId,
+        id: ApiWindowId,
         namespace_id: IdNamespace,
         pipeline_id: PipelineId,
         generation: ViewProcessGen,
@@ -1995,7 +1994,7 @@ pub mod view_process {
             self.generation == self.app.borrow().process.generation()
         }
 
-        fn call<R>(&self, f: impl FnOnce(WinId, &mut Controller) -> Result<R>) -> Result<R> {
+        fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
             let mut app = self.app.borrow_mut();
             if app.check_generation() {
                 Err(Respawned)
@@ -2185,7 +2184,7 @@ pub mod view_process {
     #[derive(Clone)]
     pub struct ViewRenderer(rc::Weak<WindowConnection>);
     impl ViewRenderer {
-        fn call<R>(&self, f: impl FnOnce(WinId, &mut Controller) -> Result<R>) -> Result<R> {
+        fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
             if let Some(c) = self.0.upgrade() {
                 c.call(f)
             } else {

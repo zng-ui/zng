@@ -26,7 +26,7 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::{PxToDip, *},
-    Event, FramePixels, FrameRequest, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WinId, WindowConfig,
+    Event, FramePixels, FrameRequest, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowId,
     WindowState,
 };
 
@@ -38,7 +38,7 @@ use crate::{
 
 /// A headed window.
 pub(crate) struct Window {
-    id: WinId,
+    id: WindowId,
     pipeline_id: PipelineId,
     document_id: DocumentId,
     api: RenderApi,
@@ -80,7 +80,7 @@ impl fmt::Debug for Window {
 }
 impl Window {
     pub fn open(
-        id: WinId,
+        id: WindowId,
         gen: ViewProcessGen,
         cfg: WindowConfig,
         window_target: &EventLoopWindowTarget<AppEvent>,
@@ -231,7 +231,7 @@ impl Window {
         win
     }
 
-    pub fn id(&self) -> WinId {
+    pub fn id(&self) -> WindowId {
         self.id
     }
 
@@ -713,7 +713,7 @@ impl Drop for Window {
 }
 
 struct Notifier<S> {
-    window_id: WinId,
+    window_id: WindowId,
     sender: S,
     redirect: Arc<AtomicBool>,
     redirect_sender: flume::Sender<()>,

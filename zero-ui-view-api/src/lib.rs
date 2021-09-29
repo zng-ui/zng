@@ -56,12 +56,12 @@ use webrender_api::{ColorF, DynamicProperties, Epoch, FontInstanceKey, FontKey, 
 pub struct Request(RequestData);
 impl Request {
     /// Returns `true` if the request represents a new frame or frame update for the window.
-    pub fn is_frame(&self, window_id: WinId) -> bool {
+    pub fn is_frame(&self, window_id: WindowId) -> bool {
         matches!(&self.0, RequestData::render { id, .. } | RequestData::render_update { id, .. } if *id == window_id)
     }
 
     /// Returns `true` if the request is setting the position or size of the window.
-    pub fn is_move_or_resize(&self, window_id: WinId) -> bool {
+    pub fn is_move_or_resize(&self, window_id: WindowId) -> bool {
         matches!(
             &self.0,
             RequestData::set_position { id, .. }
@@ -192,18 +192,18 @@ declare_api! {
     fn exit(&mut self);
 
     /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
-    pub fn primary_monitor(&mut self) -> Option<(MonId, MonitorInfo)>;
+    pub fn primary_monitor(&mut self) -> Option<(MonitorId, MonitorInfo)>;
 
     /// Returns information about the specific monitor, if it exists.
-    pub fn monitor_info(&mut self, id: MonId) -> Option<MonitorInfo>;
+    pub fn monitor_info(&mut self, id: MonitorId) -> Option<MonitorInfo>;
 
     /// Returns all available monitors.
-    pub fn available_monitors(&mut self) -> Vec<(MonId, MonitorInfo)>;
+    pub fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)>;
 
     /// Open a window.
     ///
     /// Returns the window id, and renderer ids.
-    pub fn open_window(&mut self, config: WindowConfig) -> (WinId, IdNamespace, PipelineId);
+    pub fn open_window(&mut self, config: WindowConfig) -> (WindowId, IdNamespace, PipelineId);
 
     /// Open a headless surface.
     ///
@@ -211,10 +211,10 @@ declare_api! {
     /// rendered frames.
     ///
     /// The surface is identified with a "window" id, but no window is created, also returns the renderer ids.
-    pub fn open_headless(&mut self, config: HeadlessConfig) -> (WinId, IdNamespace, PipelineId);
+    pub fn open_headless(&mut self, config: HeadlessConfig) -> (WindowId, IdNamespace, PipelineId);
 
     /// Close the window or headless surface.
-    pub fn close_window(&mut self, id: WinId);
+    pub fn close_window(&mut self, id: WindowId);
 
     /// Reads the system default text anti-aliasing config.
     pub fn text_aa(&mut self) -> TextAntiAliasing;
@@ -239,90 +239,90 @@ declare_api! {
     pub fn key_repeat_delay(&mut self) -> Duration;
 
     /// Set window title.
-    pub fn set_title(&mut self, id: WinId, title: String);
+    pub fn set_title(&mut self, id: WindowId, title: String);
 
     /// Set window visible.
-    pub fn set_visible(&mut self, id: WinId, visible: bool);
+    pub fn set_visible(&mut self, id: WindowId, visible: bool);
 
     /// Set if the window is "top-most".
-    pub fn set_always_on_top(&mut self, id: WinId, always_on_top: bool);
+    pub fn set_always_on_top(&mut self, id: WindowId, always_on_top: bool);
 
     /// Set if the user can drag-move the window.
-    pub fn set_movable(&mut self, id: WinId, movable: bool);
+    pub fn set_movable(&mut self, id: WindowId, movable: bool);
 
     /// Set if the user can resize the window.
-    pub fn set_resizable(&mut self, id: WinId, resizable: bool);
+    pub fn set_resizable(&mut self, id: WindowId, resizable: bool);
 
     /// Set the window taskbar icon visibility.
-    pub fn set_taskbar_visible(&mut self, id: WinId, visible: bool);
+    pub fn set_taskbar_visible(&mut self, id: WindowId, visible: bool);
 
     /// Set the window parent and if `self` blocks the parent events while open (`modal`).
-    pub fn set_parent(&mut self, id: WinId, parent: Option<WinId>, modal: bool);
+    pub fn set_parent(&mut self, id: WindowId, parent: Option<WindowId>, modal: bool);
 
     /// Set if the window is see-through.
-    pub fn set_transparent(&mut self, id: WinId, transparent: bool);
+    pub fn set_transparent(&mut self, id: WindowId, transparent: bool);
 
     /// Set the window system border and title visibility.
-    pub fn set_chrome_visible(&mut self, id: WinId, visible: bool);
+    pub fn set_chrome_visible(&mut self, id: WindowId, visible: bool);
 
     /// Set the window top-left offset, includes the window chrome (outer-position).
-    pub fn set_position(&mut self, id: WinId, pos: DipPoint);
+    pub fn set_position(&mut self, id: WindowId, pos: DipPoint);
 
     /// Set the window content area size (inner-size).
-    pub fn set_size(&mut self, id: WinId, size: DipSize, frame: FrameRequest);
+    pub fn set_size(&mut self, id: WindowId, size: DipSize, frame: FrameRequest);
 
     /// Set the window state.
-    pub fn set_state(&mut self, id: WinId, state: WindowState);
+    pub fn set_state(&mut self, id: WindowId, state: WindowState);
 
     /// Set the headless surface are size (viewport size).
-    pub fn set_headless_size(&mut self, id: WinId, size: DipSize, scale_factor: f32);
+    pub fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: f32);
 
     /// Set the window minimum content area size.
-    pub fn set_min_size(&mut self, id: WinId, size: DipSize);
+    pub fn set_min_size(&mut self, id: WindowId, size: DipSize);
 
     /// Set the window maximum content area size.
-    pub fn set_max_size(&mut self, id: WinId, size: DipSize);
+    pub fn set_max_size(&mut self, id: WindowId, size: DipSize);
 
     /// Set the window icon.
-    pub fn set_icon(&mut self, id: WinId, icon: Option<Icon>);
+    pub fn set_icon(&mut self, id: WindowId, icon: Option<Icon>);
 
     /// Gets the root pipeline ID.
-    pub fn pipeline_id(&mut self, id: WinId) -> PipelineId;
+    pub fn pipeline_id(&mut self, id: WindowId) -> PipelineId;
 
     /// Gets the resources namespace.
-    pub fn namespace_id(&mut self, id: WinId) -> IdNamespace;
+    pub fn namespace_id(&mut self, id: WindowId) -> IdNamespace;
 
     /// Add an image resource to the window renderer.
     ///
     /// Returns the new image key.
-    pub fn add_image(&mut self, id: WinId, descriptor: webrender_api::ImageDescriptor, data: ByteBuf) -> ImageKey;
+    pub fn add_image(&mut self, id: WindowId, descriptor: webrender_api::ImageDescriptor, data: ByteBuf) -> ImageKey;
 
     /// Replace the image resource in the window renderer.
     pub fn update_image(
         &mut self,
-        id: WinId,
+        id: WindowId,
         key: ImageKey,
         descriptor: webrender_api::ImageDescriptor,
         data: ByteBuf,
     );
 
     /// Delete the image resource in the window renderer.
-    pub fn delete_image(&mut self, id: WinId, key: ImageKey);
+    pub fn delete_image(&mut self, id: WindowId, key: ImageKey);
 
     /// Add a raw font resource to the window renderer.
     ///
     /// Returns the new font key.
-    pub fn add_font(&mut self, id: WinId, bytes: ByteBuf, index: u32) -> FontKey;
+    pub fn add_font(&mut self, id: WindowId, bytes: ByteBuf, index: u32) -> FontKey;
 
     /// Delete the font resource in the window renderer.
-    pub fn delete_font(&mut self, id: WinId, key: FontKey);
+    pub fn delete_font(&mut self, id: WindowId, key: FontKey);
 
     /// Add a font instance to the window renderer.
     ///
     /// Returns the new instance key.
     pub fn add_font_instance(
         &mut self,
-        id: WinId,
+        id: WindowId,
         font_key: FontKey,
         glyph_size: Px,
         options: Option<webrender_api::FontInstanceOptions>,
@@ -331,43 +331,43 @@ declare_api! {
     ) -> FontInstanceKey;
 
     /// Delete a font instance.
-    pub fn delete_font_instance(&mut self, id: WinId, instance_key: FontInstanceKey);
+    pub fn delete_font_instance(&mut self, id: WindowId, instance_key: FontInstanceKey);
 
     /// Gets the window content area size.
-    pub fn size(&mut self, id: WinId) -> DipSize;
+    pub fn size(&mut self, id: WindowId) -> DipSize;
 
     /// Gets the window scale factor.
-    pub fn scale_factor(&mut self, id: WinId) -> f32;
+    pub fn scale_factor(&mut self, id: WindowId) -> f32;
 
     /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
-    pub fn set_allow_alt_f4(&mut self, id: WinId, allow: bool);
+    pub fn set_allow_alt_f4(&mut self, id: WindowId, allow: bool);
 
     /// Read all pixels of the current frame.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels(&mut self, id: WinId) -> FramePixels;
+    pub fn read_pixels(&mut self, id: WindowId) -> FramePixels;
 
     /// `glReadPixels` a new buffer.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels_rect(&mut self, id: WinId, rect: PxRect) -> FramePixels;
+    pub fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect) -> FramePixels;
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
     /// Returns the frame ID and all hits from front-to-back.
-    pub fn hit_test(&mut self, id: WinId, point: PxPoint) -> (Epoch, HitTestResult);
+    pub fn hit_test(&mut self, id: WindowId, point: PxPoint) -> (Epoch, HitTestResult);
 
     /// Set the text anti-aliasing used in the window renderer.
-    pub fn set_text_aa(&mut self, id: WinId, aa: TextAntiAliasing);
+    pub fn set_text_aa(&mut self, id: WindowId, aa: TextAntiAliasing);
 
     /// Set the video mode used when the window is in exclusive fullscreen.
-    pub fn set_video_mode(&mut self, id: WinId, mode: VideoMode);
+    pub fn set_video_mode(&mut self, id: WindowId, mode: VideoMode);
 
     ///  Render a new frame.
-    pub fn render(&mut self, id: WinId, frame: FrameRequest);
+    pub fn render(&mut self, id: WindowId, frame: FrameRequest);
 
     /// Update the current frame and re-render it.
-    pub fn render_update(&mut self, id: WinId, updates: DynamicProperties, clear_color: Option<ColorF>);
+    pub fn render_update(&mut self, id: WindowId, updates: DynamicProperties, clear_color: Option<ColorF>);
 
     /// Used for testing respawn.
     #[cfg(debug_assertions)]
