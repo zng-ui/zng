@@ -19,7 +19,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
 };
 
-unique_id! {
+unique_id_64! {
     /// Unique id of a widget.
     ///
     /// # Name

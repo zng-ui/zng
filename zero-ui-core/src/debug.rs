@@ -344,7 +344,7 @@ state_key! {
     struct WidgetInstanceInfoKey: WidgetInstance;
 }
 
-unique_id! {
+unique_id_64! {
     /// Unique ID of a widget instance.
     ///
     /// This is different from the `WidgetId` in that it cannot be manipulated by the user

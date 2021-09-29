@@ -31,7 +31,7 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-unique_id! {
+unique_id_32! {
     /// Unique identifier of an open window.
     ///
     /// Can be obtained from [`WindowContext::window_id`] or [`WidgetContext::path`].
@@ -55,7 +55,7 @@ impl fmt::Display for WindowId {
     }
 }
 
-unique_id! {
+unique_id_32! {
     /// Unique identifier of a monitor screen.
     pub struct MonitorId;
 }

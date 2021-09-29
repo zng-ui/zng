@@ -1722,7 +1722,7 @@ impl log::Log for DebugLogger {
     fn flush(&self) {}
 }
 
-unique_id! {
+unique_id_64! {
     /// Unique identifier of a device event source.
     pub struct DeviceId;
 }
