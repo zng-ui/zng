@@ -28,7 +28,7 @@ macro_rules! unique_id_32 {
         /// although it is not cryptographically safe, as it is simply a sequential counter scrambled using a modified
         /// `splitmix64`.
         ///
-        /// [`NonZeroU64`]: std::num::NonZeroU64
+        /// [`NonZeroU32`]: std::num::NonZeroU32
         #[derive(Clone, Copy, PartialEq, Eq, Hash)]
         $vis struct $Type(std::num::NonZeroU32);
 

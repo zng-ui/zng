@@ -48,6 +48,10 @@ use glutin::{
     monitor::MonitorHandle,
 };
 use util::{GlContextManager, WinitToPx};
+
+/// Doc-only `webrender` re-export.
+/// 
+#[cfg(doc)]
 #[doc(inline)]
 pub use webrender;
 
