@@ -790,10 +790,10 @@ pub struct WindowConfig {
     /// Maximum size allowed.
     pub max_size: DipSize,
 
-    /// Window visibility.
-    pub visible: bool,
     /// Video mode used when the window is in exclusive state.
     pub video_mode: VideoMode,
+    /// Window visibility.
+    pub visible: bool,
     /// Window taskbar icon visibility.
     pub taskbar_visible: bool,
     /// Window chrome visibility (decoration-visibility).
@@ -912,7 +912,7 @@ impl MonitorInfo {
 pub struct VideoMode {
     /// Resolution of this video mode.
     pub size: PxSize,
-    /// the bit depth of this video mode, as in how many bits you have available per color.
+    /// The bit depth of this video mode, as in how many bits you have available per color.
     /// This is generally 24 bits or 32 bits on modern systems, depending on whether the alpha channel is counted or not.
     pub bit_depth: u16,
     /// The refresh rate of this video mode.
