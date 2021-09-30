@@ -13,6 +13,8 @@ gleam = "0.13.1"
 glutin = "0.27"
 flume = "0.10"
 is_main_thread = "0.1"
+image = "0.23"
+rustc-hash = "1"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "errhandlingapi", "windef", "minwindef", "commctrl", "basetsd", "winerror", "combaseapi", "shobjidl_core", "wtypesbase"] }

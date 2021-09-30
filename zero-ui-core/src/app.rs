@@ -1022,6 +1022,20 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
+            Event::ImageLoaded(id, size, dpi, opaque) => {
+                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                if let Some(img) = view.on_image_loaded(id, size, dpi, opaque) {
+                    let args = RawImageArgs::now(img);
+                    self.notify_event(RawImageLoadedEvent, args, observer);
+                }
+            }
+            Event::ImageLoadError(id, error) => {
+                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                if let Some(img) = view.on_image_error(id, error) {
+                    let args = RawImageArgs::now(img);
+                    self.notify_event(RawImageLoadErrorEvent, args, observer);
+                }
+            }
 
             // config events
             Event::FontsChanged => {
@@ -1761,10 +1775,11 @@ impl fmt::Display for DeviceId {
 
 /// View process controller types.
 pub mod view_process {
+    use std::cell::Cell;
     use std::path::PathBuf;
-    use std::rc;
     use std::time::Duration;
     use std::{cell::RefCell, rc::Rc};
+    use std::{fmt, rc};
 
     use linear_map::LinearMap;
 
@@ -1773,17 +1788,17 @@ pub mod view_process {
     use crate::mouse::MultiClickConfig;
     use crate::render::FrameId;
     use crate::service::Service;
-    use crate::units::{DipPoint, DipSize, Px, PxPoint, PxRect};
+    use crate::units::{DipPoint, DipSize, Px, PxPoint, PxRect, PxSize};
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
     use zero_ui_view_api::webrender_api::{
         DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult,
-        IdNamespace, ImageDescriptor, ImageKey, PipelineId,
+        IdNamespace, ImageKey, PipelineId,
     };
-    use zero_ui_view_api::{ByteBuf, Controller, DeviceId as ApiDeviceId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
+    use zero_ui_view_api::{ByteBuf, Controller, DeviceId as ApiDeviceId, ImageId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
     pub use zero_ui_view_api::{
-        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, MonitorInfo, Respawned, TextAntiAliasing,
-        VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
+        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, ImageDataFormat, MonitorInfo, Respawned,
+        TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
     };
 
     type Result<T> = std::result::Result<T, Respawned>;
@@ -1802,6 +1817,8 @@ pub mod view_process {
         monitor_ids: LinearMap<ApiMonitorId, MonitorId>,
 
         data_generation: ViewProcessGen,
+
+        loading_images: Vec<rc::Weak<ImageConnection>>,
     }
     impl ViewApp {
         #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
@@ -1828,6 +1845,7 @@ pub mod view_process {
                 process,
                 device_ids: LinearMap::default(),
                 monitor_ids: LinearMap::default(),
+                loading_images: vec![],
             })))
         }
 
@@ -1963,6 +1981,158 @@ pub mod view_process {
         pub fn generation(&self) -> ViewProcessGen {
             self.0.borrow().process.generation()
         }
+
+        pub fn cache_image(&self, data: Vec<u8>, format: ImageDataFormat) -> Result<ViewImage> {
+            let mut app = self.0.borrow_mut();
+            let id = app.process.cache_image(ByteBuf::from(data), format)?;
+            let img = ViewImage(Rc::new(ImageConnection {
+                id,
+                generation: app.process.generation(),
+                app: self.0.clone(),
+                loaded: Cell::new(false),
+                size: Cell::new(PxSize::zero()),
+                dpi: Cell::new((f32::NAN, f32::NAN)),
+                opaque: Cell::new(false),
+                error: RefCell::new(None),
+            }));
+            app.loading_images.push(Rc::downgrade(&img.0));
+            Ok(img)
+        }
+
+        pub(super) fn on_image_loaded(&self, id: ImageId, size: PxSize, dpi: (f32, f32), opaque: bool) -> Option<ViewImage> {
+            let mut r = None;
+            let mut app = self.0.borrow_mut();
+            let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
+            for img in app.loading_images {
+                if let Some(img) = img.upgrade() {
+                    if img.id == id {
+                        img.size.set(size);
+                        img.dpi.set(dpi);
+                        img.opaque.set(opaque);
+                        img.loaded.set(true);
+                        r = Some(ViewImage(img));
+                    } else {
+                        loading.push(Rc::downgrade(&img));
+                    }                   
+                }
+            }
+            app.loading_images = loading;
+            r
+        }
+
+        pub(super) fn on_image_error(&self, id: ImageId, error: String) -> Option<ViewImage> {
+            let mut r = None;
+            let mut app = self.0.borrow_mut();
+            let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
+            for img in app.loading_images {
+                if let Some(img) = img.upgrade() {
+                    if img.id == id {
+                        *img.error.borrow_mut() = Some(error);
+                        r = Some(ViewImage(img));
+                    } else {
+                        loading.push(Rc::downgrade(&img));
+                    }                   
+                }
+            }
+            app.loading_images = loading;
+            r
+        }
+    }
+
+    struct ImageConnection {
+        id: ImageId,
+        generation: ViewProcessGen,
+        app: Rc<RefCell<ViewApp>>,
+
+        loaded: Cell<bool>,
+        size: Cell<PxSize>,
+        dpi: Cell<(f32, f32)>,
+        opaque: Cell<bool>,
+
+        error: RefCell<Option<String>>,
+    }
+    impl ImageConnection {
+        fn alive(&self) -> bool {
+            self.generation == self.app.borrow().process.generation()
+        }
+    }
+    impl Drop for ImageConnection {
+        fn drop(&mut self) {
+            self.app.borrow_mut().process.uncache_image(self.id);
+        }
+    }
+
+    /// Connection to an image loading or loaded in the View Process.
+    ///
+    /// This is a strong reference to the image connection. The image is removed from the View Process cache
+    /// when all clones of this struct drops.
+    #[derive(Clone)]
+    pub struct ViewImage(Rc<ImageConnection>);
+    impl PartialEq for ViewImage {
+        fn eq(&self, other: &Self) -> bool {
+            self.0.id == other.0.id && self.0.generation == other.0.generation
+        }
+    }
+    impl Eq for ViewImage {}
+    impl fmt::Debug for ViewImage {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("ViewImage")
+                .field("loaded", &self.loaded())
+                .field("error", &self.error())
+                .field("size", &self.size())
+                .field("dpi", &self.dpi())
+                .field("opaque", &self.opaque())
+                .field("generation", &self.generation())
+                .field("alive", &self.alive())
+                .finish_non_exhaustive()
+        }
+    }
+    impl ViewImage {
+        /// Returns `true` if the image has successfully decoded.
+        #[inline]
+        pub fn loaded(&self) -> bool {
+            self.0.loaded.get()
+        }
+
+        /// Returns the load error if one happened.
+        #[inline]
+        pub fn error(&self) -> Option<String> {
+            self.0.error.borrow().clone()
+        }
+
+        /// Returns the pixel size, or zero if is not loaded or error.
+        #[inline]
+        pub fn size(&self) -> PxSize {
+            self.0.size.get()
+        }
+
+        /// Returns the "dots-per-inch" metadata associated with the image, or `NaN` if not loaded or error.
+        #[inline]
+        pub fn dpi(&self) -> (f32, f32) {
+            self.0.dpi.get()
+        }
+
+        /// Returns if the image is fully opaque.
+        #[inline]
+        pub fn opaque(&self) -> bool {
+            self.0.opaque.get()
+        }
+
+        /// Returns the view-process generation on which the image is loaded.
+        #[inline]
+        pub fn generation(&self) -> ViewProcessGen {
+            self.0.generation
+        }
+
+        /// Returns `true` if this window connection is still valid.
+        ///
+        /// The connection can be permanently lost in case the "view-process" respawns, in this
+        /// case all methods will return [`Respawned`], and you must discard this connection and
+        /// create a new one.
+        #[inline]
+        pub fn alive(&self) -> bool {
+            self.0.alive()
+        }
     }
 
     struct WindowConnection {
@@ -1997,6 +2167,12 @@ pub mod view_process {
     /// This is a strong reference to the window connection. The window closes when all clones of this struct drops.
     #[derive(Clone)]
     pub struct ViewWindow(Rc<WindowConnection>);
+    impl PartialEq for ViewWindow {
+        fn eq(&self, other: &Self) -> bool {
+            self.0.id == other.0.id && self.0.generation == other.0.generation
+        }
+    }
+    impl Eq for ViewWindow {}
     impl ViewWindow {
         /// Returns `true` if this window connection is still valid.
         ///
@@ -2136,6 +2312,12 @@ pub mod view_process {
     /// This is a strong reference to the window connection. The view is disposed when every reference drops.
     #[derive(Clone)]
     pub struct ViewHeadless(Rc<WindowConnection>);
+    impl PartialEq for ViewHeadless {
+        fn eq(&self, other: &Self) -> bool {
+            self.0.id == other.0.id && self.0.generation == other.0.generation
+        }
+    }
+    impl Eq for ViewHeadless {}
     impl ViewHeadless {
         /// Resize the headless surface.
         #[inline]
@@ -2158,6 +2340,15 @@ pub mod view_process {
     /// [`Respawned`]: Respawned
     #[derive(Clone)]
     pub struct ViewRenderer(rc::Weak<WindowConnection>);
+    impl PartialEq for ViewRenderer {
+        fn eq(&self, other: &Self) -> bool {
+            if let (Some(s), Some(o)) = (self.0.upgrade(), other.0.upgrade()) {
+                s.id == o.id && s.generation == o.generation
+            } else {
+                false
+            }
+        }
+    }
     impl ViewRenderer {
         fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
             if let Some(c) = self.0.upgrade() {
@@ -2209,13 +2400,25 @@ pub mod view_process {
         /// Add an image resource to the window renderer.
         ///
         /// Returns the image key.
-        pub fn add_image(&self, descriptor: ImageDescriptor, data: Vec<u8>) -> Result<ImageKey> {
-            self.call(|id, p| p.add_image(id, descriptor, ByteBuf::from(data)))
+        pub fn add_image(&self, image: &ViewImage) -> Result<ImageKey> {
+            self.call(|id, p| {
+                if p.generation() == image.0.generation {
+                    p.add_image(id, image.0.id)
+                } else {
+                    Err(Respawned)
+                }
+            })
         }
 
         /// Replace the image resource in the window renderer.
-        pub fn update_image(&mut self, key: ImageKey, descriptor: ImageDescriptor, data: ByteBuf) -> Result<()> {
-            self.call(|id, p| p.update_image(id, key, descriptor, data))
+        pub fn update_image(&mut self, key: ImageKey, image: &ViewImage) -> Result<()> {
+            self.call(|id, p| {
+                if p.generation() == image.0.generation {
+                    p.update_image(id, key, image.0.id)
+                } else {
+                    Err(Respawned)
+                }
+            })
         }
 
         /// Delete the image resource in the window renderer.
@@ -2347,7 +2550,7 @@ pub mod raw_events {
 
     use super::{
         raw_device_events::AxisId,
-        view_process::{MonitorInfo, TextAntiAliasing, WindowState},
+        view_process::{MonitorInfo, TextAntiAliasing, ViewImage, WindowState},
         DeviceId,
     };
     use crate::{
@@ -2765,6 +2968,19 @@ pub mod raw_events {
             }
         }
 
+        /// Arguments for the [`RawImageLoadedEvent`] or [`RawImageLoadErrorEvent`].
+        pub struct RawImageArgs {
+            /// Image that finished decoding or got an error.
+            pub image: ViewImage,
+
+            ..
+
+            /// Concerns all widgets.
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
         /// [`RawFontChangedEvent`] arguments.
         pub struct RawFontChangedArgs {
             ..
@@ -2941,6 +3157,12 @@ pub mod raw_events {
 
         /// Change in system key repeat interval config.
         pub RawKeyRepeatDelayChangedEvent: RawKeyRepeatDelayChangedArgs;
+
+        /// Image finished loaded without errors.
+        pub RawImageLoadedEvent: RawImageArgs;
+
+        /// Image failed to load.
+        pub RawImageLoadErrorEvent: RawImageArgs;
     }
 }
 

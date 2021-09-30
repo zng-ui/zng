@@ -292,22 +292,50 @@ declare_api! {
     /// Gets the resources namespace.
     pub fn namespace_id(&mut self, id: WindowId) -> IdNamespace;
 
+    /// Cache an image resource.
+    ///
+    /// If the image is encoded if will be decoded asynchronously, the event [`Event::ImageLoaded`]
+    /// or [`Event::ImageLoadError`] will be send when the image is ready for use or failed.
+    ///
+    /// Images are shared between renderers, to use an image in a window you must first call [`add_image`]
+    /// this will register the image data with the renderer.
+    ///
+    /// [`add_image`]: Api::add_image
+    pub fn cache_image(&mut self, data: ByteBuf, format: ImageDataFormat) -> ImageId;
+
+    /// Remove an image from cache.
+    ///
+    /// Note that if the image is is use in a renderer it will remain in memory until [`delete_image`] is
+    /// called or the renderer is deinited by closing the window.
+    ///
+    /// [`delete_image`]:
+    pub fn uncache_image(&mut self, id: ImageId);
+
     /// Add an image resource to the window renderer.
     ///
-    /// Returns the new image key.
-    pub fn add_image(&mut self, id: WindowId, descriptor: webrender_api::ImageDescriptor, data: ByteBuf) -> ImageKey;
+    /// Returns the new image key. If the `image_id` is not loaded returns the [`DUMMY`] image key.
+    ///
+    /// [`DUMMY`]: ImageKey::DUMMY
+    pub fn add_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey;
 
     /// Replace the image resource in the window renderer.
+    ///
+    /// The [`ImageKey`] will be associated with the new [`ImageId`].
     pub fn update_image(
         &mut self,
         id: WindowId,
         key: ImageKey,
-        descriptor: webrender_api::ImageDescriptor,
-        data: ByteBuf,
+        image_id: ImageId,
     );
 
     /// Delete the image resource in the window renderer.
     pub fn delete_image(&mut self, id: WindowId, key: ImageKey);
+
+    /// Read all the decoded pixels of an image.
+    pub fn read_img_pixels(&mut self, id: ImageId) -> Option<ImagePixels>;
+
+    /// Read a selection of the decoded pixels of an image.
+    pub fn read_img_pixels_rect(&mut self, id: ImageId, rect: PxRect) -> Option<ImagePixels>;
 
     /// Add a raw font resource to the window renderer.
     ///
@@ -347,7 +375,7 @@ declare_api! {
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels(&mut self, id: WindowId) -> FramePixels;
 
-    /// `glReadPixels` a new buffer.
+    /// Read a selection of the current frame.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
     pub fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect) -> FramePixels;

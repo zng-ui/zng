@@ -47,15 +47,17 @@ use glutin::{
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
 };
+use image_cache::ImageCache;
 use util::{GlContextManager, WinitToPx};
 
 /// Doc-only `webrender` re-export.
-/// 
+///
 #[cfg(doc)]
 #[doc(inline)]
 pub use webrender;
 
 mod config;
+mod image_cache;
 mod surface;
 mod util;
 mod window;
@@ -183,6 +185,7 @@ pub(crate) struct App<S> {
     redirect_recv: flume::Receiver<Request>,
     response_sender: ResponseSender,
     event_sender: EventSender,
+    image_cache: ImageCache<S>,
 
     gen: ViewProcessGen,
     device_events: bool,
@@ -258,6 +261,12 @@ impl App<()> {
                         app.exited = true;
                         break;
                     }
+                    AppEvent::ImageLoaded(id, bgra8, size, dpi, opaque) => {
+                        app.image_cache.loaded(id, bgra8, size, dpi, opaque);
+                    }
+                    AppEvent::ImageLoadError(id, error) => {
+                        todo!()
+                    }
                 },
                 Err(_) => {
                     app.exited = true;
@@ -318,6 +327,12 @@ impl App<()> {
                             app.exited = true;
                             *flow = ControlFlow::Exit;
                         }
+                        AppEvent::ImageLoaded(id, bgra8, size, dpi, opaque) => {
+                            app.image_cache.loaded(id, bgra8, size, dpi, opaque);
+                        }
+                        AppEvent::ImageLoadError(id, error) => {
+                            
+                        }
                     },
                     GEvent::Suspended => {}
                     GEvent::Resumed => {}
@@ -338,6 +353,7 @@ impl<S: AppEventSender> App<S> {
             headless: false,
             started: false,
             gl_manager: GlContextManager::default(),
+            image_cache: ImageCache::new(app_sender.clone()),
             app_sender,
             redirect_enabled: Arc::default(),
             redirect_recv,
@@ -954,16 +970,50 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.namespace_id(), || IdNamespace(0))
     }
 
-    fn add_image(&mut self, id: WindowId, descriptor: ImageDescriptor, data: ByteBuf) -> ImageKey {
-        with_window_or_surface!(self, id, |w| w.add_image(descriptor, Arc::new(data.to_vec())), || ImageKey::DUMMY)
+    fn cache_image(&mut self, data: ByteBuf, format: ImageDataFormat) -> ImageId {
+        self.image_cache.cache(data.into_vec(), format)
     }
 
-    fn update_image(&mut self, id: WindowId, key: ImageKey, descriptor: ImageDescriptor, data: ByteBuf) {
-        with_window_or_surface!(self, id, |w| w.update_image(key, descriptor, Arc::new(data.to_vec())), || ())
+    fn uncache_image(&mut self, id: ImageId) {
+        self.image_cache.uncache(id)
+    }
+
+    fn add_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey {
+        if let Some(img) = self.image_cache.get(image_id) {
+            let descriptor = img.descriptor;
+            let data = Arc::clone(&img.bgra8);
+            with_window_or_surface!(self, id, |w| w.add_image(descriptor, data), || ImageKey::DUMMY)
+        } else {
+            ImageKey::DUMMY
+        }
+    }
+
+    fn update_image(&mut self, id: WindowId, key: ImageKey, image_id: ImageId) {
+        if let Some(img) = self.image_cache.get(image_id) {
+            let descriptor = img.descriptor;
+            let data = Arc::clone(&img.bgra8);
+            with_window_or_surface!(self, id, |w| w.update_image(key, descriptor, data), || ())
+        }
     }
 
     fn delete_image(&mut self, id: WindowId, key: ImageKey) {
         with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
+    }
+
+    fn read_img_pixels(&mut self, id: ImageId) -> Option<ImagePixels> {
+        self.image_cache.get(id).map(|img| ImagePixels {
+            width: img.size.width,
+            height: img.size.height,
+            bgra: ByteBuf::from((*img.bgra8).clone()),
+            dpi: img.dpi,
+            opaque: img.opaque(),
+        })
+    }
+
+    fn read_img_pixels_rect(&mut self, id: ImageId, rect: PxRect) -> Option<ImagePixels> {
+        self.image_cache.get(id).map(|img| {
+            todo!();
+        })
     }
 
     fn add_font(&mut self, id: WindowId, bytes: ByteBuf, index: u32) -> FontKey {
@@ -1049,6 +1099,11 @@ pub(crate) enum AppEvent {
     RefreshMonitors,
     /// Lost connection with app-process.
     ParentProcessExited,
+
+    /// Image finished decoding, must call [`ImageCache::loaded`].
+    ImageLoaded(ImageId, Vec<u8>, PxSize, (f32, f32), Option<bool>),
+    /// Image failed to decode.
+    ImageLoadError(ImageId, String),
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.

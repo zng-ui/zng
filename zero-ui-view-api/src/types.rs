@@ -33,6 +33,9 @@ pub type DeviceId = u32;
 /// Zero is never an ID.
 pub type MonitorId = u32;
 
+/// Id of a decoded image in the cache.
+pub type ImageId = u32;
+
 /// View-process generation, starts at one and changes every respawn, it is never zero.
 pub type ViewProcessGen = u32;
 
@@ -599,6 +602,11 @@ pub enum Event {
     /// The window has closed.
     WindowClosed(WindowId),
 
+    /// An image resource finished decoding.
+    ImageLoaded(ImageId, PxSize, (f32, f32), bool),
+    /// An image resource failed to decode, the image ID is not valid.
+    ImageLoadError(ImageId, String),
+
     // Config events
     /// System fonts have changed.
     FontsChanged,
@@ -821,7 +829,7 @@ pub struct WindowConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeadlessConfig {
     /// ID that will identify the new headless surface.
-    /// 
+    ///
     /// The surface is identified by a [`WindowId`] so that some API methods
     /// can apply to both windows or surfaces, no actual window is created.
     pub id: WindowId,
@@ -834,6 +842,43 @@ pub struct HeadlessConfig {
 
     /// Text anti-aliasing.
     pub text_aa: TextAntiAliasing,
+}
+
+/// BGRA8 pixel data copied from a cached decoded image.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ImagePixels {
+    /// Width in pixels.
+    pub width: Px,
+    /// Height in pixels.
+    pub height: Px,
+    /// BGRA8 data, top-to-bottom.
+    pub bgra: ByteBuf,
+    /// "Dots-per-inch" or (96.0, 96.0) is this metadata was not recovered.
+    pub dpi: (f32, f32),
+    /// If all alpha values in `bgra` are `255`.
+    pub opaque: bool,
+}
+impl Default for ImagePixels {
+    fn default() -> Self {
+        Self {
+            width: Px(0),
+            height: Px(0),
+            bgra: ByteBuf::default(),
+            dpi: (96.0, 96.0),
+            opaque: true,
+        }
+    }
+}
+impl fmt::Debug for ImagePixels {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ImagePixels")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
+            .field("dpi", &self.dpi)
+            .field("opaque", &self.opaque)
+            .finish()
+    }
 }
 
 /// BGRA8 pixel data copied from a rendered frame.
@@ -959,4 +1004,30 @@ impl Default for MultiClickConfig {
             area: PxSize::new(Px(4), Px(4)),
         }
     }
+}
+
+/// Format of the image bytes.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ImageDataFormat {
+    /// Decoded BGRA8.
+    ///
+    /// This is the internal image format, it indicates the image data
+    /// is already decoded and must only be entered into the cache.
+    Bgra8 {
+        /// Size in pixels.
+        size: PxSize,
+        /// Dots-per-inch of the image.
+        dpi: (f32, f32),
+    },
+
+    /// The image is encoded, a file extension that maybe identifies
+    /// the format is known.
+    FileExt(String),
+
+    /// The image is encoded, MIME type that maybe identifies the format is known.
+    Mime(String),
+
+    /// The image is encoded, a decoder will be selected using the "magic number"
+    /// on the beginning of the bytes buffer.
+    Unknown,
 }
