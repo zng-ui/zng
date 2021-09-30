@@ -1982,9 +1982,14 @@ pub mod view_process {
             self.0.borrow().process.generation()
         }
 
+        /// Starts sending an image for decoding.
+        ///
+        /// This function returns immediately, the [`ViewImage`] will update once the
+        /// image finishes loading.
         pub fn cache_image(&self, data: Vec<u8>, format: ImageDataFormat) -> Result<ViewImage> {
             let mut app = self.0.borrow_mut();
-            let id = app.process.cache_image(ByteBuf::from(data), format)?;
+            let (sender, receiver) = zero_ui_view_api::bytes_channel().unwrap();
+            let id = app.process.cache_image(receiver, format)?;
             let img = ViewImage(Rc::new(ImageConnection {
                 id,
                 generation: app.process.generation(),
@@ -1996,6 +2001,10 @@ pub mod view_process {
                 error: RefCell::new(None),
             }));
             app.loading_images.push(Rc::downgrade(&img.0));
+            rayon::spawn(move || {
+                let _ = sender.send(&data);
+            });
+
             Ok(img)
         }
 
@@ -2013,7 +2022,7 @@ pub mod view_process {
                         r = Some(ViewImage(img));
                     } else {
                         loading.push(Rc::downgrade(&img));
-                    }                   
+                    }
                 }
             }
             app.loading_images = loading;
@@ -2031,7 +2040,7 @@ pub mod view_process {
                         r = Some(ViewImage(img));
                     } else {
                         loading.push(Rc::downgrade(&img));
-                    }                   
+                    }
                 }
             }
             app.loading_images = loading;
@@ -2472,14 +2481,28 @@ pub mod view_process {
         /// This is a call to `glReadPixels`, each pixel row is stacked from
         /// bottom-to-top with the pixel type BGRA8.
         pub fn read_pixels_rect(&self, rect: PxRect) -> Result<FramePixels> {
-            self.call(|id, p| p.read_pixels_rect(id, rect))
+            self.call(|id, p| {
+                let (sender, recv) = zero_ui_view_api::channel().unwrap();
+                if p.read_pixels_rect(id, rect, sender)? {
+                    recv.recv().map_err(|_| Respawned)
+                } else {
+                    Ok(FramePixels::default())
+                }
+            })
         }
 
         /// Read all pixels of the current frame.
         ///
         /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
         pub fn read_pixels(&self) -> Result<FramePixels> {
-            self.call(|id, p| p.read_pixels(id))
+            self.call(|id, p| {
+                let (sender, recv) = zero_ui_view_api::channel().unwrap();
+                if p.read_pixels(id, sender)? {
+                    recv.recv().map_err(|_| Respawned)
+                } else {
+                    Ok(FramePixels::default())
+                }
+            })
         }
 
         /// Get display items of the last rendered frame that intercept the `point`.

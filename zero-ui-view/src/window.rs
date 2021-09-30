@@ -10,12 +10,7 @@ use std::{
 };
 
 use gleam::gl;
-use glutin::{
-    event_loop::EventLoopWindowTarget,
-    monitor::VideoMode as GVideoMode,
-    window::{Fullscreen, Window as GWindow, WindowBuilder},
-    ContextBuilder, CreationError, GlRequest,
-};
+use glutin::{ContextBuilder, CreationError, GlRequest, event_loop::EventLoopWindowTarget, monitor::VideoMode as GVideoMode, window::{Fullscreen, Icon, Window as GWindow, WindowBuilder}};
 use webrender::{
     api::{
         self as webrender_api, BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, Epoch, FontInstanceKey,
@@ -26,15 +21,11 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::{PxToDip, *},
-    Event, FramePixels, FrameRequest, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowId,
-    WindowState,
+    Event, FramePixels, FrameRequest, IpcSender, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig,
+    WindowId, WindowState,
 };
 
-use crate::{
-    config,
-    util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
-    AppEvent, AppEventSender,
-};
+use crate::{AppEvent, AppEventSender, config, util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx}};
 
 /// A headed window.
 pub(crate) struct Window {
@@ -81,6 +72,7 @@ impl fmt::Debug for Window {
 impl Window {
     pub fn open(
         gen: ViewProcessGen,
+        icon: Option<Icon>,
         cfg: WindowConfig,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
@@ -98,10 +90,7 @@ impl Window {
             .with_min_inner_size(cfg.min_size.to_winit())
             .with_max_inner_size(cfg.max_size.to_winit())
             .with_always_on_top(cfg.always_on_top)
-            .with_window_icon(
-                cfg.icon
-                    .and_then(|i| glutin::window::Icon::from_rgba(i.rgba.into_vec(), i.width, i.height).ok()),
-            )
+            .with_window_icon(icon)
             .with_visible(false); // we wait for the first frame to show the window.
 
         if let Some(pos) = cfg.pos {
@@ -323,9 +312,8 @@ impl Window {
         moved
     }
 
-    pub fn set_icon(&mut self, icon: Option<crate::Icon>) {
-        self.window
-            .set_window_icon(icon.and_then(|i| glutin::window::Icon::from_rgba(i.rgba.into_vec(), i.width, i.height).ok()));
+    pub fn set_icon(&mut self, icon: Option<Icon>) {
+        self.window.set_window_icon(icon);
     }
 
     /// Probe state, returns `Some(new_state)`
@@ -660,17 +648,17 @@ impl Window {
         }
     }
 
-    pub fn read_pixels(&mut self) -> FramePixels {
+    pub fn read_pixels(&mut self, response: IpcSender<FramePixels>) {
         let px_size = self.window.inner_size().to_px();
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor())
+        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor(), response);
     }
 
-    pub fn read_pixels_rect(&mut self, rect: PxRect) -> FramePixels {
+    pub fn read_pixels_rect(&mut self, rect: PxRect, response: IpcSender<FramePixels>) {
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-        util::read_pixels_rect(&self.gl, self.window.inner_size().to_px(), rect, self.scale_factor())
+        util::read_pixels_rect(&self.gl, self.window.inner_size().to_px(), rect, self.scale_factor(), response);
     }
 
     pub fn outer_position(&self) -> DipPoint {

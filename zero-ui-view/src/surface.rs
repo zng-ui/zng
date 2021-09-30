@@ -10,7 +10,7 @@ use webrender::{
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
-use zero_ui_view_api::{units::*, FramePixels, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WindowId};
+use zero_ui_view_api::{units::*, FramePixels, FrameRequest, HeadlessConfig, IpcSender, TextAntiAliasing, ViewProcessGen, WindowId};
 
 use crate::{
     util::{self, GlContextManager, GlHeadlessContext},
@@ -312,17 +312,17 @@ impl Surface {
         let _ = renderer.flush_pipeline_info();
     }
 
-    pub fn read_pixels(&mut self) -> FramePixels {
+    pub fn read_pixels(&mut self, response: IpcSender<FramePixels>) {
         let px_size = self.size.to_px(self.scale_factor);
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor)
+        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor, response);
     }
 
-    pub fn read_pixels_rect(&mut self, rect: PxRect) -> FramePixels {
+    pub fn read_pixels_rect(&mut self, rect: PxRect, response: IpcSender<FramePixels>) {
         // `self.gl` is only valid if we are the current context.
         let _ctx = self.context.make_current();
-        util::read_pixels_rect(&self.gl, self.size.to_px(self.scale_factor), rect, self.scale_factor)
+        util::read_pixels_rect(&self.gl, self.size.to_px(self.scale_factor), rect, self.scale_factor, response);
     }
 
     pub fn hit_test(&mut self, point: PxPoint) -> (Epoch, HitTestResult) {

@@ -264,9 +264,6 @@ impl App<()> {
                     AppEvent::ImageLoaded(id, bgra8, size, dpi, opaque) => {
                         app.image_cache.loaded(id, bgra8, size, dpi, opaque);
                     }
-                    AppEvent::ImageLoadError(id, error) => {
-                        todo!()
-                    }
                 },
                 Err(_) => {
                     app.exited = true;
@@ -329,9 +326,6 @@ impl App<()> {
                         }
                         AppEvent::ImageLoaded(id, bgra8, size, dpi, opaque) => {
                             app.image_cache.loaded(id, bgra8, size, dpi, opaque);
-                        }
-                        AppEvent::ImageLoadError(id, error) => {
-                            
                         }
                     },
                     GEvent::Suspended => {}
@@ -812,6 +806,7 @@ impl<S: AppEventSender> Api for App<S> {
             self.assert_started();
             let win = Window::open(
                 self.gen,
+                config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i|i.icon()),
                 config,
                 unsafe { &*self.window_target },
                 &mut self.gl_manager,
@@ -958,7 +953,8 @@ impl<S: AppEventSender> Api for App<S> {
         self.with_window(id, |w| w.set_max_inner_size(size), || ())
     }
 
-    fn set_icon(&mut self, id: WindowId, icon: Option<Icon>) {
+    fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>) {
+        let icon = icon.and_then(|i| self.image_cache.get(i)).and_then(|i|i.icon());
         self.with_window(id, |w| w.set_icon(icon), || ())
     }
 
@@ -970,8 +966,8 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.namespace_id(), || IdNamespace(0))
     }
 
-    fn cache_image(&mut self, data: ByteBuf, format: ImageDataFormat) -> ImageId {
-        self.image_cache.cache(data.into_vec(), format)
+    fn cache_image(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId {
+        self.image_cache.cache(data, format)
     }
 
     fn uncache_image(&mut self, id: ImageId) {
@@ -1000,20 +996,24 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
     }
 
-    fn read_img_pixels(&mut self, id: ImageId) -> Option<ImagePixels> {
-        self.image_cache.get(id).map(|img| ImagePixels {
-            width: img.size.width,
-            height: img.size.height,
-            bgra: ByteBuf::from((*img.bgra8).clone()),
-            dpi: img.dpi,
-            opaque: img.opaque(),
-        })
+    fn read_img_pixels(&mut self, id: ImageId, response: IpcSender<ImagePixels>) -> bool {
+        self.image_cache
+            .get(id)
+            .map(|img| {
+                img.read_pixels(response);
+                true
+            })
+            .unwrap_or(false)
     }
 
-    fn read_img_pixels_rect(&mut self, id: ImageId, rect: PxRect) -> Option<ImagePixels> {
-        self.image_cache.get(id).map(|img| {
-            todo!();
-        })
+    fn read_img_pixels_rect(&mut self, id: ImageId, rect: PxRect, response: IpcSender<ImagePixels>) -> bool {
+        self.image_cache
+            .get(id)
+            .map(|img| {
+                img.read_pixels_rect(rect, response);
+                true
+            })
+            .unwrap_or(false)
     }
 
     fn add_font(&mut self, id: WindowId, bytes: ByteBuf, index: u32) -> FontKey {
@@ -1057,12 +1057,28 @@ impl<S: AppEventSender> Api for App<S> {
         self.with_window(id, |w| w.set_allow_alt_f4(allow), || ())
     }
 
-    fn read_pixels(&mut self, id: WindowId) -> FramePixels {
-        with_window_or_surface!(self, id, |w| w.read_pixels(), || FramePixels::default())
+    fn read_pixels(&mut self, id: WindowId, response: IpcSender<FramePixels>) -> bool {
+        with_window_or_surface!(
+            self,
+            id,
+            |w| {
+                w.read_pixels(response);
+                true
+            },
+            || false
+        )
     }
 
-    fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect) -> FramePixels {
-        with_window_or_surface!(self, id, |w| w.read_pixels_rect(rect), || FramePixels::default())
+    fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect, response: IpcSender<FramePixels>) -> bool {
+        with_window_or_surface!(
+            self,
+            id,
+            |w| {
+                w.read_pixels_rect(rect, response);
+                true
+            },
+            || false
+        )
     }
 
     fn hit_test(&mut self, id: WindowId, point: PxPoint) -> (Epoch, HitTestResult) {
@@ -1101,9 +1117,7 @@ pub(crate) enum AppEvent {
     ParentProcessExited,
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
-    ImageLoaded(ImageId, Vec<u8>, PxSize, (f32, f32), Option<bool>),
-    /// Image failed to decode.
-    ImageLoadError(ImageId, String),
+    ImageLoaded(ImageId, Vec<u8>, PxSize, (f32, f32), bool),
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.

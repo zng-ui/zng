@@ -284,7 +284,7 @@ declare_api! {
     pub fn set_max_size(&mut self, id: WindowId, size: DipSize);
 
     /// Set the window icon.
-    pub fn set_icon(&mut self, id: WindowId, icon: Option<Icon>);
+    pub fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>);
 
     /// Gets the root pipeline ID.
     pub fn pipeline_id(&mut self, id: WindowId) -> PipelineId;
@@ -294,14 +294,14 @@ declare_api! {
 
     /// Cache an image resource.
     ///
-    /// If the image is encoded if will be decoded asynchronously, the event [`Event::ImageLoaded`]
+    /// The image is received and decoded asynchronously, the event [`Event::ImageLoaded`]
     /// or [`Event::ImageLoadError`] will be send when the image is ready for use or failed.
     ///
     /// Images are shared between renderers, to use an image in a window you must first call [`add_image`]
     /// this will register the image data with the renderer.
     ///
     /// [`add_image`]: Api::add_image
-    pub fn cache_image(&mut self, data: ByteBuf, format: ImageDataFormat) -> ImageId;
+    pub fn cache_image(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId;
 
     /// Remove an image from cache.
     ///
@@ -332,10 +332,16 @@ declare_api! {
     pub fn delete_image(&mut self, id: WindowId, key: ImageKey);
 
     /// Read all the decoded pixels of an image.
-    pub fn read_img_pixels(&mut self, id: ImageId) -> Option<ImagePixels>;
+    ///
+    /// Returns `true` immediately if the image is found. If returns `true`
+    /// the result is send asynchronously using the `response` sender.
+    pub fn read_img_pixels(&mut self, id: ImageId, response: IpcSender<ImagePixels>) -> bool;
 
     /// Read a selection of the decoded pixels of an image.
-    pub fn read_img_pixels_rect(&mut self, id: ImageId, rect: PxRect) -> Option<ImagePixels>;
+    ///
+    /// Returns `true` immediately if the image is found. If returns `true`
+    /// the result is send asynchronously using the `response` sender.
+    pub fn read_img_pixels_rect(&mut self, id: ImageId, rect: PxRect, response: IpcSender<ImagePixels>) -> bool;
 
     /// Add a raw font resource to the window renderer.
     ///
@@ -373,12 +379,18 @@ declare_api! {
     /// Read all pixels of the current frame.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels(&mut self, id: WindowId) -> FramePixels;
+    ///
+    /// Returns `true` immediately if the window or surface was found. If returns `true` the
+    /// frame pixels will be send asynchronously using the `response` sender.
+    pub fn read_pixels(&mut self, id: WindowId, response: IpcSender<FramePixels>) -> bool;
 
     /// Read a selection of the current frame.
     ///
     /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    pub fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect) -> FramePixels;
+    ///
+    /// Returns `true` immediately if the window or surface was found. If returns `true` the
+    /// frame pixels will be send asynchronously using the `response` sender.
+    pub fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect, response: IpcSender<FramePixels>) -> bool;
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///

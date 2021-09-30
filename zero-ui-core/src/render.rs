@@ -2122,8 +2122,7 @@ impl_from_and_into_var! {
 #[derive(Clone)]
 pub struct FramePixels {
     bgra: Arc<Vec<u8>>,
-    width: Px,
-    height: Px,
+    area: PxRect,
     opaque: bool,
 
     /// Scale factor used when rendering the frame.
@@ -2136,8 +2135,7 @@ impl Default for FramePixels {
     fn default() -> Self {
         Self {
             bgra: Arc::default(),
-            width: Px(0),
-            height: Px(0),
+            area: PxRect::zero(),
             opaque: true,
             scale_factor: 96.0,
         }
@@ -2147,8 +2145,7 @@ impl fmt::Debug for FramePixels {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FramePixels")
             .field("bgra", &format_args!("<{} heap bytes>", self.bgra.len()))
-            .field("width", &self.width)
-            .field("height", &self.height)
+            .field("area", &self.area)
             .field("opaque", &self.opaque)
             .field("scale_factor", &self.scale_factor)
             .finish()
@@ -2156,47 +2153,32 @@ impl fmt::Debug for FramePixels {
 }
 impl FramePixels {
     /// **BGRA8** frame pixels, bottom-to-top.
-    ///
-    ///
     #[inline]
     pub fn bgra(&self) -> &Arc<Vec<u8>> {
         &self.bgra
     }
 
-    /// Pixels width.
-    #[inline]
-    pub fn width(&self) -> Px {
-        self.width
+    /// Pixel selection copied from the frame.
+    ///
+    /// The size is the pixels size, the origin is relative to the top-left corner
+    /// of the full frame.
+    pub fn area(&self) -> PxRect {
+        self.area
     }
 
-    /// Pixels height.
-    #[inline]
-    pub fn height(&self) -> Px {
-        self.height
+    /// Calculate the area in device independent pixels, using the [`scale_factor`].
+    ///
+    /// [`scale_factor`]: FramePixels::scale_factor
+    pub fn area_dip(&self) -> DipRect {
+        self.area.to_dip(self.scale_factor)
     }
 
-    /// Width in [`Dip`] units.
-    pub fn width_dip(&self) -> Dip {
-        Dip::from_px(self.width, self.scale_factor)
-    }
-
-    /// Height in [`Dip`] units.
-    pub fn height_dip(&self) -> Dip {
-        Dip::from_px(self.height, self.scale_factor)
-    }
-
-    /// Returns `true` if all pixels in [`bgra`] are fully opaque.
+    /// Returns `true` if all pixels in [`bgra`] are fully opaque (all alpha values 255).
     ///
     /// [`bgra`]: Self::bgra
     #[inline]
     pub fn opaque(&self) -> bool {
         self.opaque
-    }
-
-    /// Get the underlying data `(bgra, width, height)`.
-    #[inline]
-    pub fn raw(self) -> (Arc<Vec<u8>>, u32, u32) {
-        (self.bgra, self.width.0 as u32, self.height.0 as u32)
     }
 
     /// Encode and save the pixels as an image.
@@ -2362,7 +2344,11 @@ impl FramePixels {
     /// [`Image`]: crate::image::Image
     #[inline]
     pub fn image(&self) -> crate::image::Image {
-        crate::image::Image::from_raw(self.bgra.clone(), (self.width.0 as u32, self.height.0 as u32), self.opaque)
+        crate::image::Image::from_raw(
+            self.bgra.clone(),
+            (self.area.size.width.0 as u32, self.area.size.height.0 as u32),
+            self.opaque,
+        )
     }
 }
 impl From<FramePixels> for crate::image::Image {
@@ -2374,8 +2360,7 @@ impl From<crate::app::view_process::FramePixels> for FramePixels {
     fn from(f: crate::app::view_process::FramePixels) -> Self {
         Self {
             bgra: Arc::new(f.bgra.into_vec()),
-            width: f.width,
-            height: f.height,
+            area: f.area,
             opaque: f.opaque,
             scale_factor: f.scale_factor,
         }

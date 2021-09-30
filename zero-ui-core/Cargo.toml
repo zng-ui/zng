@@ -48,9 +48,6 @@ unicase = "2"
 rustybuzz = "0.4"
 xi-unicode = "0.3"
 
-# render
-image = "0.23"
-
 # task
 flume = { version = "0.10", default-features  = false, features = ["async"] }
 rayon = "1"

@@ -693,27 +693,6 @@ pub enum WindowTheme {
     /// Light text on dark background.
     Dark,
 }
-
-/// Window icon.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Icon {
-    /// RGBA8 data.
-    pub rgba: ByteBuf,
-    /// Pixel width.
-    pub width: u32,
-    /// Pixel height.
-    pub height: u32,
-}
-impl fmt::Debug for Icon {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Icon")
-            .field("rgba", &format_args!("<{} bytes>", self.rgba.len()))
-            .field("width", &self.width)
-            .field("height", &self.height)
-            .finish()
-    }
-}
-
 /// Text anti-aliasing.
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TextAntiAliasing {
@@ -817,7 +796,7 @@ pub struct WindowConfig {
     /// If the user can resize the window.
     pub resizable: bool,
     /// Window icon.
-    pub icon: Option<Icon>,
+    pub icon: Option<ImageId>,
     /// If the window is see-through.
     pub transparent: bool,
 
@@ -847,10 +826,8 @@ pub struct HeadlessConfig {
 /// BGRA8 pixel data copied from a cached decoded image.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ImagePixels {
-    /// Width in pixels.
-    pub width: Px,
-    /// Height in pixels.
-    pub height: Px,
+    /// Selection of the image that is copied here.
+    pub area: PxRect,
     /// BGRA8 data, top-to-bottom.
     pub bgra: ByteBuf,
     /// "Dots-per-inch" or (96.0, 96.0) is this metadata was not recovered.
@@ -861,8 +838,7 @@ pub struct ImagePixels {
 impl Default for ImagePixels {
     fn default() -> Self {
         Self {
-            width: Px(0),
-            height: Px(0),
+            area: PxRect::zero(),
             bgra: ByteBuf::default(),
             dpi: (96.0, 96.0),
             opaque: true,
@@ -872,8 +848,7 @@ impl Default for ImagePixels {
 impl fmt::Debug for ImagePixels {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ImagePixels")
-            .field("width", &self.width)
-            .field("height", &self.height)
+            .field("area", &self.area)
             .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
             .field("dpi", &self.dpi)
             .field("opaque", &self.opaque)
@@ -884,10 +859,8 @@ impl fmt::Debug for ImagePixels {
 /// BGRA8 pixel data copied from a rendered frame.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FramePixels {
-    /// Width in pixels.
-    pub width: Px,
-    /// Height in pixels.
-    pub height: Px,
+    /// Selection of the frame that is copied here.
+    pub area: PxRect,
 
     /// BGRA8 data, bottom-to-top.
     pub bgra: ByteBuf,
@@ -901,8 +874,7 @@ pub struct FramePixels {
 impl Default for FramePixels {
     fn default() -> Self {
         Self {
-            width: Px(0),
-            height: Px(0),
+            area: PxRect::zero(),
             bgra: ByteBuf::default(),
             scale_factor: 1.0,
             opaque: true,
@@ -912,8 +884,7 @@ impl Default for FramePixels {
 impl fmt::Debug for FramePixels {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FramePixels")
-            .field("width", &self.width)
-            .field("height", &self.height)
+            .field("area", &self.area)
             .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
             .field("scale_factor", &self.scale_factor)
             .field("opaque", &self.opaque)
@@ -921,14 +892,11 @@ impl fmt::Debug for FramePixels {
     }
 }
 impl FramePixels {
-    /// Width in [`Dip`] units.
-    pub fn width(&self) -> Dip {
-        Dip::from_px(self.width, self.scale_factor)
-    }
-
-    /// Height in [`Dip`] units.
-    pub fn height(&self) -> Dip {
-        Dip::from_px(self.height, self.scale_factor)
+    /// Calculate the area in device independent pixels, using the associated [`scale_factor`].
+    ///
+    /// [`scale_factor`]: FramePixels::scale_factor
+    pub fn area(&self) -> DipRect {
+        self.area.to_dip(self.scale_factor)
     }
 }
 
@@ -1007,7 +975,7 @@ impl Default for MultiClickConfig {
 }
 
 /// Format of the image bytes.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ImageDataFormat {
     /// Decoded BGRA8.
     ///

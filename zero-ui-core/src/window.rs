@@ -616,9 +616,7 @@ pub enum WindowIcon {
     /// In Windows this is the icon associated with the executable.
     Default,
     /// A bitmap icon.
-    ///
-    /// Use the [`from_rgba`](Self::from_rgba), [`from_bytes`](Self::from_bytes) or [`from_file`](Self::from_file) functions to initialize.
-    Icon(Rc<view_process::Icon>),
+    Icon(ViewImage),
     /// An [`UiNode`] that draws the icon.
     ///
     /// Use the [`render`](Self::render) function to initialize.

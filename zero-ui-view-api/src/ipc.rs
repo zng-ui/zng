@@ -2,7 +2,7 @@ use std::{fmt, io};
 
 use crate::{AnyResult, Event, Request, Response};
 
-use ipc_channel::ipc::{IpcOneShotServer, IpcReceiver, IpcSender};
+use ipc_channel::ipc::IpcOneShotServer;
 
 pub(crate) type IpcResult<T> = std::result::Result<T, Disconnected>;
 
@@ -15,6 +15,8 @@ impl fmt::Display for Disconnected {
     }
 }
 impl std::error::Error for Disconnected {}
+
+pub use ipc_channel::ipc::{bytes_channel, channel, IpcBytesReceiver, IpcBytesSender, IpcReceiver, IpcSender};
 
 /// Call `new`, then spawn the view-process using the `name` then call `connect`.
 pub struct AppInit {
