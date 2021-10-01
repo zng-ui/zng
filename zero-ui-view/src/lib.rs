@@ -806,7 +806,7 @@ impl<S: AppEventSender> Api for App<S> {
             self.assert_started();
             let win = Window::open(
                 self.gen,
-                config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i|i.icon()),
+                config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
                 config,
                 unsafe { &*self.window_target },
                 &mut self.gl_manager,
@@ -954,7 +954,7 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>) {
-        let icon = icon.and_then(|i| self.image_cache.get(i)).and_then(|i|i.icon());
+        let icon = icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon());
         self.with_window(id, |w| w.set_icon(icon), || ())
     }
 
@@ -1117,7 +1117,7 @@ pub(crate) enum AppEvent {
     ParentProcessExited,
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
-    ImageLoaded(ImageId, Vec<u8>, PxSize, (f32, f32), bool),
+    ImageLoaded(ImageId, Vec<u8>, PxSize, ImagePpi, bool),
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.

@@ -1797,8 +1797,8 @@ pub mod view_process {
     };
     use zero_ui_view_api::{ByteBuf, Controller, DeviceId as ApiDeviceId, ImageId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
     pub use zero_ui_view_api::{
-        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, Icon, ImageDataFormat, MonitorInfo, Respawned,
-        TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
+        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, ImageDataFormat, MonitorInfo, Respawned,
+        TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme, ImagePpi,
     };
 
     type Result<T> = std::result::Result<T, Respawned>;
@@ -1996,7 +1996,7 @@ pub mod view_process {
                 app: self.0.clone(),
                 loaded: Cell::new(false),
                 size: Cell::new(PxSize::zero()),
-                dpi: Cell::new((f32::NAN, f32::NAN)),
+                ppi: Cell::new(None),
                 opaque: Cell::new(false),
                 error: RefCell::new(None),
             }));
@@ -2008,7 +2008,7 @@ pub mod view_process {
             Ok(img)
         }
 
-        pub(super) fn on_image_loaded(&self, id: ImageId, size: PxSize, dpi: (f32, f32), opaque: bool) -> Option<ViewImage> {
+        pub(super) fn on_image_loaded(&self, id: ImageId, size: PxSize, dpi: ImagePpi, opaque: bool) -> Option<ViewImage> {
             let mut r = None;
             let mut app = self.0.borrow_mut();
             let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
@@ -2016,7 +2016,7 @@ pub mod view_process {
                 if let Some(img) = img.upgrade() {
                     if img.id == id {
                         img.size.set(size);
-                        img.dpi.set(dpi);
+                        img.ppi.set(dpi);
                         img.opaque.set(opaque);
                         img.loaded.set(true);
                         r = Some(ViewImage(img));
@@ -2055,7 +2055,7 @@ pub mod view_process {
 
         loaded: Cell<bool>,
         size: Cell<PxSize>,
-        dpi: Cell<(f32, f32)>,
+        ppi: Cell<ImagePpi>,
         opaque: Cell<bool>,
 
         error: RefCell<Option<String>>,
@@ -2089,7 +2089,7 @@ pub mod view_process {
                 .field("loaded", &self.loaded())
                 .field("error", &self.error())
                 .field("size", &self.size())
-                .field("dpi", &self.dpi())
+                .field("dpi", &self.ppi())
                 .field("opaque", &self.opaque())
                 .field("generation", &self.generation())
                 .field("alive", &self.alive())
@@ -2115,10 +2115,11 @@ pub mod view_process {
             self.0.size.get()
         }
 
-        /// Returns the "dots-per-inch" metadata associated with the image, or `NaN` if not loaded or error.
+        /// Returns the "pixels-per-inch" metadata associated with the image, or `None` if not loaded or error or no
+        /// metadata provided by decoder.
         #[inline]
-        pub fn dpi(&self) -> (f32, f32) {
-            self.0.dpi.get()
+        pub fn ppi(&self) -> ImagePpi {
+            self.0.ppi.get()
         }
 
         /// Returns if the image is fully opaque.
@@ -2141,6 +2142,29 @@ pub mod view_process {
         #[inline]
         pub fn alive(&self) -> bool {
             self.0.alive()
+        }
+
+        /// Creates a [`WeakViewImage`].
+        #[inline]
+        pub fn downgrade(&self) -> WeakViewImage {
+            WeakViewImage(Rc::downgrade(&self.0))
+        }
+    }
+
+    /// Connection to an image loading or loaded in the View Process.
+    ///
+    /// The image is removed from the View Process cache when all clones of [`ViewImage`] drops, but
+    /// if there is another image pointer holding the image, this weak pointer can be upgraded back
+    /// to a strong connection to the image.
+    #[derive(Clone)]
+    pub struct WeakViewImage(rc::Weak<ImageConnection>);
+    impl WeakViewImage {
+        /// Attempt to upgrade the weak pointer to the image to a full image.
+        ///
+        /// Returns `Some` if the is at least another [`ViewImage`] holding the image alive.
+        #[inline]
+        pub fn upgrade(&self) -> Option<ViewImage> {
+            self.0.upgrade().map(ViewImage)
         }
     }
 
@@ -2231,8 +2255,18 @@ pub mod view_process {
 
         /// Set the window icon.
         #[inline]
-        pub fn set_icon(&self, icon: Option<Icon>) -> Result<()> {
-            self.0.call(|id, p| p.set_icon(id, icon))
+        pub fn set_icon(&self, icon: Option<&ViewImage>) -> Result<()> {
+            self.0.call(|id, p| {
+                if let Some(icon) = icon {
+                    if p.generation() == icon.0.generation {
+                        p.set_icon(id, Some(icon.0.id))
+                    } else {
+                        Err(Respawned)
+                    }
+                } else {
+                    p.set_icon(id, None)
+                }
+            })
         }
 
         /// Set the window icon visibility in the taskbar.

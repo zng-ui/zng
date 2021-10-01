@@ -48,6 +48,11 @@ pub type AxisId = u32;
 /// Identifier for a specific button on some device.
 pub type ButtonId = u32;
 
+/// Pixels-per-inch of each dimension of an image.
+/// 
+/// Is `None` when not loaded or not provided by the decoder.
+pub type ImagePpi = Option<(f32, f32)>;
+
 /// State a [`Key`] has entered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum KeyState {
@@ -603,7 +608,7 @@ pub enum Event {
     WindowClosed(WindowId),
 
     /// An image resource finished decoding.
-    ImageLoaded(ImageId, PxSize, (f32, f32), bool),
+    ImageLoaded(ImageId, PxSize, ImagePpi, bool),
     /// An image resource failed to decode, the image ID is not valid.
     ImageLoadError(ImageId, String),
 
@@ -828,10 +833,10 @@ pub struct HeadlessConfig {
 pub struct ImagePixels {
     /// Selection of the image that is copied here.
     pub area: PxRect,
-    /// BGRA8 data, top-to-bottom.
+    /// BGRA8 data, top-to-bottom and pre-multiplied.
     pub bgra: ByteBuf,
-    /// "Dots-per-inch" or (96.0, 96.0) is this metadata was not recovered.
-    pub dpi: (f32, f32),
+    /// "Dots-per-inch" metadata of the image.
+    pub ppi: ImagePpi,
     /// If all alpha values in `bgra` are `255`.
     pub opaque: bool,
 }
@@ -840,7 +845,7 @@ impl Default for ImagePixels {
         Self {
             area: PxRect::zero(),
             bgra: ByteBuf::default(),
-            dpi: (96.0, 96.0),
+            ppi: None,
             opaque: true,
         }
     }
@@ -850,7 +855,7 @@ impl fmt::Debug for ImagePixels {
         f.debug_struct("ImagePixels")
             .field("area", &self.area)
             .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
-            .field("dpi", &self.dpi)
+            .field("ppi", &self.ppi)
             .field("opaque", &self.opaque)
             .finish()
     }
@@ -984,8 +989,8 @@ pub enum ImageDataFormat {
     Bgra8 {
         /// Size in pixels.
         size: PxSize,
-        /// Dots-per-inch of the image.
-        dpi: (f32, f32),
+        /// Pixels-per-inch of the image.
+        ppi: ImagePpi,
     },
 
     /// The image is encoded, a file extension that maybe identifies

@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
-use zero_ui_view_api::{
-    units::{Px, PxRect, PxSize},
-    ByteBuf, Event, ImageDataFormat, ImageId, ImagePixels, IpcBytesReceiver, IpcSender,
-};
+use zero_ui_view_api::{ByteBuf, Event, ImageDataFormat, ImageId, ImagePixels, ImagePpi, IpcBytesReceiver, IpcSender, units::{Px, PxRect, PxSize}};
 
 use crate::{AppEvent, AppEventSender};
 use rustc_hash::FxHashMap;
@@ -37,7 +34,7 @@ impl<S: AppEventSender> ImageCache<S> {
         rayon::spawn(move || match data.recv() {
             Ok(data) => {
                 let r = match format {
-                    ImageDataFormat::Bgra8 { size, dpi } => {
+                    ImageDataFormat::Bgra8 { size, ppi } => {
                         let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
                         if data.len() != expected_len {
                             Err(format!(
@@ -47,7 +44,7 @@ impl<S: AppEventSender> ImageCache<S> {
                             ))
                         } else {
                             let opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                            Ok((data, size, dpi, opaque))
+                            Ok((data, size, ppi, opaque))
                         }
                     }
                     ImageDataFormat::FileExt(ext) => Self::load_file(data, ext),
@@ -56,8 +53,8 @@ impl<S: AppEventSender> ImageCache<S> {
                 };
 
                 match r {
-                    Ok((bgra8, size, dpi, opaque)) => {
-                        let _ = app_sender.send(AppEvent::ImageLoaded(id, bgra8, size, dpi, opaque));
+                    Ok((bgra8, size, ppi, opaque)) => {
+                        let _ = app_sender.send(AppEvent::ImageLoaded(id, bgra8, size, ppi, opaque));
                     }
                     Err(e) => {
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, e)));
@@ -81,7 +78,7 @@ impl<S: AppEventSender> ImageCache<S> {
     }
 
     /// Called after receive and decode completes correctly.
-    pub fn loaded(&mut self, id: ImageId, bgra8: Vec<u8>, size: PxSize, dpi: (f32, f32), opaque: bool) {
+    pub fn loaded(&mut self, id: ImageId, bgra8: Vec<u8>, size: PxSize, ppi: ImagePpi, opaque: bool) {
         let flags = if opaque {
             ImageDescriptorFlags::IS_OPAQUE
         } else {
@@ -93,11 +90,11 @@ impl<S: AppEventSender> ImageCache<S> {
                 size,
                 bgra8: Arc::new(bgra8),
                 descriptor: ImageDescriptor::new(size.width.0, size.height.0, ImageFormat::BGRA8, flags),
-                dpi,
+                ppi,
             },
         );
 
-        let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(id, size, dpi, opaque)));
+        let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(id, size, ppi, opaque)));
     }
 
     fn load_file(data: Vec<u8>, ext: String) -> Result<RawLoadedImg, String> {
@@ -257,17 +254,17 @@ impl<S: AppEventSender> ImageCache<S> {
             ),
         };
 
-        (bgra, PxSize::new(Px(size.0 as i32), Px(size.1 as i32)), (96.0, 96.0), opaque)
+        (bgra, PxSize::new(Px(size.0 as i32), Px(size.1 as i32)), None, opaque)
     }
 }
 
-type RawLoadedImg = (Vec<u8>, PxSize, (f32, f32), bool);
+type RawLoadedImg = (Vec<u8>, PxSize, ImagePpi, bool);
 
 pub(crate) struct Image {
     pub size: PxSize,
     pub bgra8: Arc<Vec<u8>>,
     pub descriptor: ImageDescriptor,
-    pub dpi: (f32, f32),
+    pub ppi: ImagePpi,
 }
 impl Image {
     pub fn opaque(&self) -> bool {
@@ -277,14 +274,14 @@ impl Image {
     pub fn read_pixels(&self, response: IpcSender<ImagePixels>) {
         let bgra8 = Arc::clone(&self.bgra8);
         let size = self.size;
-        let dpi = self.dpi;
+        let ppi = self.ppi;
         let opaque = self.opaque();
 
         rayon::spawn(move || {
             let _ = response.send(ImagePixels {
                 area: PxRect::from_size(size),
                 bgra: ByteBuf::from((*bgra8).clone()),
-                dpi,
+                ppi,
                 opaque,
             });
         });
@@ -293,7 +290,7 @@ impl Image {
     pub fn read_pixels_rect(&self, rect: PxRect, response: IpcSender<ImagePixels>) {
         let bgra8 = Arc::clone(&self.bgra8);
         let size = self.size;
-        let dpi = self.dpi;
+        let ppi = self.ppi;
         let opaque = self.opaque();
 
         rayon::spawn(move || {
@@ -302,7 +299,7 @@ impl Image {
                 let _ = response.send(ImagePixels {
                     area,
                     bgra: ByteBuf::new(),
-                    dpi,
+                    ppi,
                     opaque,
                 });
             } else {
@@ -324,7 +321,7 @@ impl Image {
                 let _ = response.send(ImagePixels {
                     area,
                     bgra: ByteBuf::from(bytes),
-                    dpi,
+                    ppi,
                     opaque,
                 });
             }
@@ -336,22 +333,22 @@ impl Image {
         let width = self.size.width.0 as u32;
         let height = self.size.height.0 as u32;
         if width == 0 || height == 0 {
-             None
+            None
         } else if width > 255 || height > 255 {
             // resize to max 255
             let img = image::ImageBuffer::from_raw(width, height, (*self.bgra8).clone()).unwrap();
             let img = image::DynamicImage::ImageBgra8(img);
             img.resize(255, 255, image::imageops::FilterType::Triangle);
-            
+
             use image::GenericImageView;
             let (width, height) = img.dimensions();
             let buf = img.to_rgba8().into_raw();
-            glutin::window::Icon::from_rgba(buf, width, height).ok()   
+            glutin::window::Icon::from_rgba(buf, width, height).ok()
         } else {
-            let mut buf = (*self.bgra8).clone();        
+            let mut buf = (*self.bgra8).clone();
             // BGRA to RGBA
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
-            glutin::window::Icon::from_rgba(buf, width, height).ok()   
-        }        
+            glutin::window::Icon::from_rgba(buf, width, height).ok()
+        }
     }
 }

@@ -1,6 +1,5 @@
 //! Image cache API.
 
-use crate::render::webrender_api::ImageKey;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -16,9 +15,10 @@ use std::{
 //mod formats;
 //pub use formats::*;
 
+use crate::render::webrender_api::ImageKey;
 use crate::{
     app::{
-        view_process::{Respawned, ViewProcessRespawnedEvent, ViewRenderer},
+        view_process::{Respawned, ViewImage, WeakViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
         AppExtension,
     },
     context::{AppContext, LayoutMetrics},
@@ -35,19 +35,15 @@ use crate::{
 /// Represents a loaded image.
 #[derive(Clone)]
 pub struct Image {
-    bgra: Arc<Vec<u8>>,
-    size: PxSize,
-    opaque: bool,
+    view: ViewImage,
     render_keys: Rc<RefCell<Vec<RenderImage>>>,
 }
 impl fmt::Debug for Image {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Image")
-            .field("size", &self.size)
-            .field("opaque", &self.opaque)
-            .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
+            .field("size", &self.size())
             .field("render_keys", &format_args!("<{} keys>", self.render_keys.borrow().len()))
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 impl Image {
@@ -117,79 +113,26 @@ impl Image {
         Ok(Self::convert_decoded(img))
     }
 
-    /// Convert a decoded image from the [`image`] crate to the internal format.
-    ///
-    /// The internal format if BGRA with pre-multiplied alpha.
-    ///
-    /// [`image`]: https://docs.rs/image/
-    pub async fn from_decoded(image: image::DynamicImage) -> Image {
-        let (bgra, size, opaque) = task::run(async move { Self::convert_decoded(image) }).await;
-        Image::from_raw(bgra, size, opaque)
-    }
-
-    /// Like [`from_decoded`] by sets a response variable.
-    ///
-    /// [`from_decoded`]: Self::from_decoded
-    pub fn from_decoded_rsp(vars: &impl WithVars, image: image::DynamicImage) -> ResponseVar<Image> {
-        task::respond_ctor(vars, async move {
-            let (b, s, o) = Self::convert_decoded(image);
-            move || Image::from_raw(b, s, o)
-        })
-    }
-
-    /// Create a loaded image from an image buffer that is already BGRA8 with pre-multiplied alpha.
-    ///
-    /// The `opaque` argument indicates if the `image` is fully opaque, with all alpha values equal to `255`.
-    pub fn from_premultiplied(image: image::ImageBuffer<image::Bgra<u8>, Vec<u8>>, opaque: bool) -> Self {
-        let (w, h) = image.dimensions();
+    /// Create an [`Image`] from the [`ViewImage`].
+    pub fn from_view(view_img: ViewImage) -> Self {
         Image {
-            size: PxSize::new(Px(w as i32), Px(h as i32)),
-            opaque,
-            bgra: Arc::new(image.into_raw()),
+            view: view_img,
             render_keys: Rc::default(),
         }
-    }
-
-    /// Create an image from raw parts.
-    pub fn from_raw(bgra: Arc<Vec<u8>>, size: (u32, u32), opaque: bool) -> Self {
-        assert_eq!(bgra.len(), size.0 as usize * size.1 as usize * 4);
-
-        Image {
-            bgra,
-            size: PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
-            opaque,
-            render_keys: Rc::default(),
-        }
-    }
-
-    /// Reference the pre-multiplied BGRA buffer.
-    #[inline]
-    pub fn bgra(&self) -> &Arc<Vec<u8>> {
-        &self.bgra
     }
 
     /// Reference the pixel size.
     #[inline]
     pub fn size(&self) -> PxSize {
-        self.size
+        self.view.size()
     }
 
     /// Gets the image resolution in "pixel-per-inch" or "dot-per-inch" units.
     ///
     /// If the image format uses a different unit it is converted. Returns `(x, y)` resolutions
     /// most of the time both values are the same.
-    ///
-    /// # Metadata
-    ///
-    /// Currently the metadata supported are:
-    ///
-    /// * EXIF resolution. TODO
-    /// * Jpeg built-in. TODO
-    /// * PNG built-in. TODO
-    /// * TODO check other `image` formats.
-    pub fn ppi(&self) -> Option<(f32, f32)> {
-        // TODO
-        None
+    pub fn ppi(&self) -> ImagePpi {
+        self.view.ppi()
     }
 
     /// Calculate an *ideal* layout size for the image.
@@ -267,10 +210,9 @@ impl Image {
     /// Weak references do not hold the image in memory but can be used to reacquire the [`Image`].
     pub fn downgrade(&self) -> WeakImage {
         WeakImage {
-            bgra: Arc::downgrade(&self.bgra),
-            size: self.size,
-            opaque: self.opaque,
+            view: self.0.view.downgrade(),
             render_keys: Rc::downgrade(&self.render_keys),
+            size: self.size,
         }
     }
 
@@ -296,19 +238,8 @@ impl crate::render::Image for Image {
             return rm.key;
         }
 
-        let descriptor = ImageDescriptor::new(
-            self.size.width.0,
-            self.size.height.0,
-            ImageFormat::BGRA8,
-            if self.opaque {
-                ImageDescriptorFlags::IS_OPAQUE
-            } else {
-                ImageDescriptorFlags::empty()
-            },
-        );
-
         // TODO can we send the image without cloning?
-        let key = match renderer.add_image(descriptor, (*self.bgra).clone()) {
+        let key = match renderer.add_image(&self.0.view) {
             Ok(k) => k,
             Err(Respawned) => {
                 log::debug!("respawned `add_image`, will return DUMMY");
@@ -333,10 +264,9 @@ impl crate::render::Image for Image {
 ///
 /// [`upgrade`]: WeakImage::upgrade
 pub struct WeakImage {
-    bgra: Weak<Vec<u8>>,
-    size: PxSize,
-    opaque: bool,
+    view: WeakViewImage,
     render_keys: rc::Weak<RefCell<Vec<RenderImage>>>,
+    size: PxSize,
 }
 impl WeakImage {
     /// Attempts to upgrade to a strong reference.
@@ -344,10 +274,8 @@ impl WeakImage {
     /// Returns `None` if the image no longer exists.
     pub fn upgrade(&self) -> Option<Image> {
         Some(Image {
+            view: self.view.upgrade()?,
             render_keys: self.render_keys.upgrade()?,
-            bgra: self.bgra.upgrade()?,
-            size: self.size,
-            opaque: self.opaque,
         })
     }
 
@@ -384,10 +312,8 @@ impl fmt::Debug for RenderImage {
 /// An error loading an [`Image`].
 #[derive(Debug, Clone)]
 pub enum ImageError {
-    /// Error from the [`image`] crate.
-    ///
-    /// [`image`]: https://docs.rs/image/
-    Image(Arc<image::error::ImageError>),
+    /// Error from the view API implementation.
+    View(String),
 
     /// Error from the [`task::http`] tasks.
     Http(task::http::Error),
@@ -400,7 +326,7 @@ pub enum ImageError {
 impl fmt::Display for ImageError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ImageError::Image(e) => fmt::Display::fmt(e, f),
+            ImageError::View(e) => fmt::Display::fmt(e, f),
             ImageError::Http(e) => fmt::Display::fmt(e, f),
             ImageError::Io(e) => fmt::Display::fmt(e, f),
         }
@@ -409,15 +335,15 @@ impl fmt::Display for ImageError {
 impl error::Error for ImageError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            ImageError::Image(e) => e.source(),
+            ImageError::View(e) => None,
             ImageError::Http(e) => e.source(),
             ImageError::Io(e) => e.source(),
         }
     }
 }
-impl From<image::error::ImageError> for ImageError {
-    fn from(e: image::error::ImageError) -> Self {
-        ImageError::Image(Arc::new(e))
+impl From<String> for ImageError {
+    fn from(e: String) -> Self {
+        ImageError::View(e)
     }
 }
 impl From<task::http::Error> for ImageError {
@@ -437,7 +363,7 @@ impl From<std::io::Error> for ImageError {
 ///
 /// Services this extension provides.
 ///
-/// * [Images]
+/// * [Images], only if the app is headed or headless with renderer.
 ///
 /// # Default
 ///
@@ -449,7 +375,9 @@ impl From<std::io::Error> for ImageError {
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Images::new());
+        if let Some(view) = ctx.services.get::<ViewProcess>() {
+            ctx.services.register(Images::new(view.clone()));
+        }
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -471,12 +399,14 @@ impl AppExtension for ImageManager {
 /// The cache holds images in memory, configured TODO.
 #[derive(Service)]
 pub struct Images {
+    app: ViewProcess,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
     cache: HashMap<ImageCacheKey, ImageRequestVar>,
 }
 impl Images {
-    fn new() -> Self {
+    fn new(vp: ViewProcess) -> Self {
         Self {
+            app: vp.clone(),
             proxies: vec![],
             cache: HashMap::default(),
         }

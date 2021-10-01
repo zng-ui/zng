@@ -10,7 +10,12 @@ use std::{
 };
 
 use gleam::gl;
-use glutin::{ContextBuilder, CreationError, GlRequest, event_loop::EventLoopWindowTarget, monitor::VideoMode as GVideoMode, window::{Fullscreen, Icon, Window as GWindow, WindowBuilder}};
+use glutin::{
+    event_loop::EventLoopWindowTarget,
+    monitor::VideoMode as GVideoMode,
+    window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
+    ContextBuilder, CreationError, GlRequest,
+};
 use webrender::{
     api::{
         self as webrender_api, BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, Epoch, FontInstanceKey,
@@ -25,7 +30,11 @@ use zero_ui_view_api::{
     WindowId, WindowState,
 };
 
-use crate::{AppEvent, AppEventSender, config, util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx}};
+use crate::{
+    config,
+    util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
+    AppEvent, AppEventSender,
+};
 
 /// A headed window.
 pub(crate) struct Window {

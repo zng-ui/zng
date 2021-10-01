@@ -651,49 +651,6 @@ impl Default for WindowIcon {
     }
 }
 impl WindowIcon {
-    /// New window icon from 32bpp RGBA data.
-    ///
-    /// The `rgba` must be a sequence of RGBA pixels in top-to-bottom rows.
-    ///
-    /// # Panics
-    ///
-    /// If `rgba.len()` is not `width * height * 4`.
-    #[inline]
-    pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Self {
-        assert!(rgba.len() == width as usize * height as usize * 4);
-        Self::Icon(Rc::new(zero_ui_view_api::Icon {
-            rgba: ByteBuf::from(rgba),
-            width,
-            height,
-        }))
-    }
-
-    /// New window icon from the bytes of an encoded image.
-    ///
-    /// The image format is guessed, PNG is recommended. Loading is done using the [`image::load_from_memory`]
-    /// function from the [`image`] crate.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, image::error::ImageError> {
-        use image::GenericImageView;
-
-        let image = image::load_from_memory(bytes)?;
-        let (width, height) = image.dimensions();
-        let icon = Self::from_rgba(image.into_bytes(), width, height);
-        Ok(icon)
-    }
-
-    /// New window icon from image file.
-    ///
-    /// The image format is guessed from the path extension. Loading is done using the [`image::open`]
-    /// function from the [`image`] crate.
-    pub fn from_file<P: AsRef<std::path::Path>>(file: P) -> Result<Self, image::error::ImageError> {
-        use image::GenericImageView;
-
-        let image = image::open(file)?;
-        let (width, height) = image.dimensions();
-        let icon = Self::from_rgba(image.into_bytes(), width, height);
-        Ok(icon)
-    }
-
     /// New window icon from a function that generates a new icon [`UiNode`] for the window.
     ///
     /// The function is called once on init and every time the window icon property changes,
