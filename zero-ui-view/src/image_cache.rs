@@ -354,4 +354,149 @@ impl Image {
             glutin::window::Icon::from_rgba(buf, width, height).ok()
         }
     }
+
+    pub fn encode(&self, format: image::ImageFormat, buffer: &mut Vec<u8>) -> image::ImageResult<()> {
+        if self.size.width <= Px(0) || self.size.height <= Px(0) {
+            return Err(image::ImageError::IoError(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "cannot encode zero sized image",
+            )));
+        }
+
+        use image::*;
+
+        // invert rows, `image` only supports top-to-bottom buffers.
+        let bgra: Vec<_> = self
+            .bgra8
+            .rchunks_exact(self.size.width.0 as usize * 4)
+            .flatten()
+            .copied()
+            .collect();
+
+        let width = self.size.width.0 as u32;
+        let height = self.size.height.0 as u32;
+        let opaque = self.opaque();
+
+        match format {
+            ImageFormat::Jpeg => {
+                let mut jpg = codecs::jpeg::JpegEncoder::new(buffer);
+                if let Some((ppi_x, ppi_y)) = self.ppi {
+                    jpg.set_pixel_density(codecs::jpeg::PixelDensity {
+                        density: (ppi_x as u16, ppi_y as u16),
+                        unit: codecs::jpeg::PixelDensityUnit::Inches,
+                    });
+                }
+                jpg.encode(&bgra, width, height, ColorType::Bgra8)?;
+            }
+            ImageFormat::Farbfeld => {
+                let mut pixels = Vec::with_capacity(bgra.len() * 2);
+                for bgra in bgra.chunks(4) {
+                    fn c(c: u8) -> [u8; 2] {
+                        let c = (c as f32 / 255.0) * u16::MAX as f32;
+                        (c as u16).to_ne_bytes()
+                    }
+                    pixels.extend(c(bgra[2]));
+                    pixels.extend(c(bgra[1]));
+                    pixels.extend(c(bgra[0]));
+                    pixels.extend(c(bgra[3]));
+                }
+
+                let ff = codecs::farbfeld::FarbfeldEncoder::new(buffer);
+                ff.encode(&pixels, width, height)?;
+            }
+            ImageFormat::Tga => {
+                let tga = codecs::tga::TgaEncoder::new(buffer);
+                tga.encode(&bgra, width, height, ColorType::Bgra8)?;
+            }
+            rgb_only => {
+                let mut pixels;
+                let color_type;
+                if opaque {
+                    color_type = ColorType::Rgb8;
+                    pixels = Vec::with_capacity(width as usize * height as usize * 3);
+                    for bgra in bgra.chunks(4) {
+                        pixels.push(bgra[2]);
+                        pixels.push(bgra[1]);
+                        pixels.push(bgra[0]);
+                    }
+                } else {
+                    color_type = ColorType::Rgba8;
+                    pixels = bgra;
+                    for pixel in pixels.chunks_mut(4) {
+                        pixel.swap(0, 2);
+                    }
+                }
+
+                match rgb_only {
+                    ImageFormat::Png => {
+                        if let Some((ppi_x, ppi_y)) = self.ppi {
+                            let mut png_bytes = vec![];
+                            let png = codecs::png::PngEncoder::new(&mut png_bytes);
+                            png.encode(&pixels, width, height, color_type)?;
+
+                            let mut png = img_parts::png::Png::from_bytes(png_bytes.into()).unwrap();
+
+                            let chunk_kind = *b"pHYs";
+                            debug_assert!(png.chunk_by_type(chunk_kind).is_none());
+
+                            use byteorder::*;
+                            let mut chunk = Vec::with_capacity(4 * 2 + 1);
+
+                            // ppi / inch_to_metric
+                            let ppm_x = (ppi_x / 0.0254) as u32;
+                            let ppm_y = (ppi_y / 0.0254) as u32;
+
+                            chunk.write_u32::<BigEndian>(ppm_x).unwrap();
+                            chunk.write_u32::<BigEndian>(ppm_y).unwrap();
+                            chunk.write_u8(1).unwrap(); // metric
+
+                            let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
+                            png.chunks_mut().insert(1, chunk);
+
+                            png.encoder().write_to(buffer)?;
+                        } else {
+                            let png = codecs::png::PngEncoder::new(buffer);
+                            png.encode(&pixels, width, height, color_type)?;
+                        }
+                    }
+                    ImageFormat::Tiff => {
+                        // TODO set ResolutionUnit to 2 (inch) and set both XResolution and YResolution
+                        let mut seek_buf = std::io::Cursor::new(vec![]);
+                        let tiff = codecs::tiff::TiffEncoder::new(&mut seek_buf);
+
+                        tiff.encode(&pixels, width, height, color_type)?;
+
+                        *buffer = seek_buf.into_inner();
+                    }
+                    ImageFormat::Gif => {
+                        let mut gif = codecs::gif::GifEncoder::new(buffer);
+
+                        gif.encode(&pixels, width, height, color_type)?;
+                    }
+                    ImageFormat::Bmp => {
+                        // TODO set biXPelsPerMeter and biYPelsPerMeter
+                        let mut bmp = codecs::bmp::BmpEncoder::new(buffer);
+
+                        bmp.encode(&pixels, width, height, color_type)?;
+                    }
+                    ImageFormat::Ico => {
+                        // TODO set density in the inner PNG?
+                        let ico = codecs::ico::IcoEncoder::new(buffer);
+
+                        ico.encode(&pixels, width, height, color_type)?;
+                    }
+                    unsuported => {
+                        use image::error::*;
+                        let hint = ImageFormatHint::Exact(unsuported);
+                        return Err(ImageError::Unsupported(UnsupportedError::from_format_and_kind(
+                            hint.clone(),
+                            UnsupportedErrorKind::Format(hint),
+                        )));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }

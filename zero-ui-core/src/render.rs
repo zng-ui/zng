@@ -7,7 +7,6 @@ use crate::{
     context::{OwnedStateMap, RenderContext, StateMap},
     crate_util::IdMap,
     gradient::{RenderExtendMode, RenderGradientStop},
-    task,
     units::*,
     var::impl_from_and_into_var,
     window::{CursorIcon, WindowId},
@@ -15,7 +14,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{fmt, io::Write, marker::PhantomData, mem, sync::Arc, time::Instant};
+use std::{fmt, marker::PhantomData, mem, sync::Arc, time::Instant};
 
 pub use zero_ui_view_api::webrender_api;
 
@@ -2179,181 +2178,6 @@ impl FramePixels {
     #[inline]
     pub fn opaque(&self) -> bool {
         self.opaque
-    }
-
-    /// Encode and save the pixels as an image.
-    ///
-    /// The image format is defined by the file extension.
-    ///
-    /// # Scale Factor
-    ///
-    /// The scale factor is used only if the formats are `PNG` or `JPEG`, for both
-    /// it sets the pixel density to `96dpi * scale_factor`.
-    ///
-    /// # ICO
-    ///
-    /// The `.ico` format only works if the image buffer width and height are in the `1..=256` range.
-    ///
-    /// # Panics
-    ///
-    /// If [`width`] or [`height`] are zero.
-    ///
-    /// [`width`]: FramePixels::width
-    /// [`height`]: FramePixels::height
-    pub async fn save(&self, path: impl Into<std::path::PathBuf>) -> image::ImageResult<()> {
-        assert!(self.width > Px(0) && self.height > Px(0), "cannot save empty frame pixels");
-
-        use image::*;
-        use std::fs;
-
-        let path = path.into();
-        let format = ImageFormat::from_path(&path)?;
-        let mut file = task::wait(move || fs::File::create(path)).await?;
-
-        // invert rows, `image` only supports top-to-bottom buffers.
-        let bgra: Vec<_> = self.bgra.rchunks_exact(self.width.0 as usize * 4).flatten().copied().collect();
-
-        let width = self.width.0 as u32;
-        let height = self.height.0 as u32;
-        let scale_factor = self.scale_factor;
-        let opaque = self.opaque;
-
-        let encoded = task::run(async move {
-            let mut buffer = vec![];
-
-            match format {
-                ImageFormat::Jpeg => {
-                    let mut jpg = codecs::jpeg::JpegEncoder::new(&mut buffer);
-                    let dpi = (96.0 * scale_factor) as u16;
-                    jpg.set_pixel_density(codecs::jpeg::PixelDensity::dpi(dpi));
-                    jpg.encode(&bgra, width, height, ColorType::Bgra8)?;
-                }
-                ImageFormat::Farbfeld => {
-                    let mut pixels = Vec::with_capacity(bgra.len() * 2);
-                    for bgra in bgra.chunks(4) {
-                        fn c(c: u8) -> [u8; 2] {
-                            let c = (c as f32 / 255.0) * u16::MAX as f32;
-                            (c as u16).to_ne_bytes()
-                        }
-                        pixels.extend(c(bgra[2]));
-                        pixels.extend(c(bgra[1]));
-                        pixels.extend(c(bgra[0]));
-                        pixels.extend(c(bgra[3]));
-                    }
-
-                    let ff = codecs::farbfeld::FarbfeldEncoder::new(&mut buffer);
-                    ff.encode(&pixels, width, height)?;
-                }
-                ImageFormat::Tga => {
-                    let tga = codecs::tga::TgaEncoder::new(&mut buffer);
-                    tga.encode(&bgra, width, height, ColorType::Bgra8)?;
-                }
-                rgb_only => {
-                    let mut pixels;
-                    let color_type;
-                    if opaque {
-                        color_type = ColorType::Rgb8;
-                        pixels = Vec::with_capacity(width as usize * height as usize * 3);
-                        for bgra in bgra.chunks(4) {
-                            pixels.push(bgra[2]);
-                            pixels.push(bgra[1]);
-                            pixels.push(bgra[0]);
-                        }
-                    } else {
-                        color_type = ColorType::Rgba8;
-                        pixels = bgra;
-                        for pixel in pixels.chunks_mut(4) {
-                            pixel.swap(0, 2);
-                        }
-                    }
-
-                    match rgb_only {
-                        ImageFormat::Png => {
-                            let mut png_bytes = vec![];
-                            let png = codecs::png::PngEncoder::new(&mut png_bytes);
-
-                            png.encode(&pixels, width, height, color_type)?;
-
-                            let mut png = img_parts::png::Png::from_bytes(png_bytes.into()).unwrap();
-
-                            let chunk_kind = *b"pHYs";
-                            debug_assert!(png.chunk_by_type(chunk_kind).is_none());
-
-                            use byteorder::*;
-                            let mut chunk = Vec::with_capacity(4 * 2 + 1);
-
-                            // 96dpi * scale / inch_to_metric
-                            let ppm = (96.0 * scale_factor / 0.0254) as u32;
-
-                            chunk.write_u32::<BigEndian>(ppm).unwrap(); // x
-                            chunk.write_u32::<BigEndian>(ppm).unwrap(); // y
-                            chunk.write_u8(1).unwrap(); // metric
-
-                            let chunk = img_parts::png::PngChunk::new(chunk_kind, chunk.into());
-                            png.chunks_mut().insert(1, chunk);
-
-                            png.encoder().write_to(&mut buffer)?;
-                        }
-                        ImageFormat::Tiff => {
-                            // TODO set ResolutionUnit to 2 (inch) and set both XResolution and YResolution
-                            let mut seek_buf = std::io::Cursor::new(vec![]);
-                            let tiff = codecs::tiff::TiffEncoder::new(&mut seek_buf);
-
-                            tiff.encode(&pixels, width, height, color_type)?;
-
-                            buffer = seek_buf.into_inner();
-                        }
-                        ImageFormat::Gif => {
-                            let mut gif = codecs::gif::GifEncoder::new(&mut buffer);
-
-                            gif.encode(&pixels, width, height, color_type)?;
-                        }
-                        ImageFormat::Bmp => {
-                            // TODO set biXPelsPerMeter and biYPelsPerMeter
-                            let mut bmp = codecs::bmp::BmpEncoder::new(&mut buffer);
-
-                            bmp.encode(&pixels, width, height, color_type)?;
-                        }
-                        ImageFormat::Ico => {
-                            // TODO set density in the inner PNG?
-                            let ico = codecs::ico::IcoEncoder::new(&mut buffer);
-
-                            ico.encode(&pixels, width, height, color_type)?;
-                        }
-                        unsuported => {
-                            use image::error::*;
-                            let hint = ImageFormatHint::Exact(unsuported);
-                            return Err(ImageError::Unsupported(UnsupportedError::from_format_and_kind(
-                                hint.clone(),
-                                UnsupportedErrorKind::Format(hint),
-                            )));
-                        }
-                    }
-                }
-            }
-            Ok(buffer)
-        })
-        .await?;
-
-        task::wait(move || file.write_all(&encoded)).await?;
-        Ok(())
-    }
-
-    /// Create an [`Image`] from the pixel data.
-    ///
-    /// [`Image`]: crate::image::Image
-    #[inline]
-    pub fn image(&self) -> crate::image::Image {
-        crate::image::Image::from_raw(
-            self.bgra.clone(),
-            (self.area.size.width.0 as u32, self.area.size.height.0 as u32),
-            self.opaque,
-        )
-    }
-}
-impl From<FramePixels> for crate::image::Image {
-    fn from(pixels: FramePixels) -> Self {
-        pixels.image()
     }
 }
 impl From<crate::app::view_process::FramePixels> for FramePixels {

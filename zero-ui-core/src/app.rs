@@ -1779,7 +1779,7 @@ pub mod view_process {
     use std::path::PathBuf;
     use std::time::Duration;
     use std::{cell::RefCell, rc::Rc};
-    use std::{fmt, rc};
+    use std::{fmt, mem, rc};
 
     use linear_map::LinearMap;
 
@@ -1993,7 +1993,7 @@ pub mod view_process {
             let img = ViewImage(Rc::new(ImageConnection {
                 id,
                 generation: app.process.generation(),
-                app: self.0.clone(),
+                app: Some(self.0.clone()),
                 loaded: Cell::new(false),
                 size: Cell::new(PxSize::zero()),
                 ppi: Cell::new(None),
@@ -2012,7 +2012,7 @@ pub mod view_process {
             let mut r = None;
             let mut app = self.0.borrow_mut();
             let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
-            for img in app.loading_images {
+            for img in mem::take(&mut app.loading_images) {
                 if let Some(img) = img.upgrade() {
                     if img.id == id {
                         img.size.set(size);
@@ -2033,11 +2033,12 @@ pub mod view_process {
             let mut r = None;
             let mut app = self.0.borrow_mut();
             let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
-            for img in app.loading_images {
+            for img in mem::take(&mut app.loading_images) {
                 if let Some(img) = img.upgrade() {
                     if img.id == id {
                         *img.error.borrow_mut() = Some(error);
                         r = Some(ViewImage(img));
+                        break;
                     } else {
                         loading.push(Rc::downgrade(&img));
                     }
@@ -2051,7 +2052,7 @@ pub mod view_process {
     struct ImageConnection {
         id: ImageId,
         generation: ViewProcessGen,
-        app: Rc<RefCell<ViewApp>>,
+        app: Option<Rc<RefCell<ViewApp>>>,
 
         loaded: Cell<bool>,
         size: Cell<PxSize>,
@@ -2062,12 +2063,18 @@ pub mod view_process {
     }
     impl ImageConnection {
         fn alive(&self) -> bool {
-            self.generation == self.app.borrow().process.generation()
+            if let Some(app) = &self.app {
+                self.generation == app.borrow().process.generation()
+            } else {
+                true
+            }
         }
     }
     impl Drop for ImageConnection {
         fn drop(&mut self) {
-            self.app.borrow_mut().process.uncache_image(self.id);
+            if let Some(app) = self.app.take() {
+                app.borrow_mut().process.uncache_image(self.id);
+            }
         }
     }
 
@@ -2102,10 +2109,23 @@ pub mod view_process {
             self.0.id
         }
 
+        /// If the image does not actually exists in the view-process.
+        pub fn is_dummy(&self) -> bool {
+            self.0.app.is_none()
+        }
+
         /// Returns `true` if the image has successfully decoded.
         #[inline]
         pub fn loaded(&self) -> bool {
             self.0.loaded.get()
+        }
+
+        /// if [`error`] is `Some`.
+        ///
+        /// [`error`]: Self::error
+        #[inline]
+        pub fn is_error(&self) -> bool {
+            self.0.error.borrow().is_some()
         }
 
         /// Returns the load error if one happened.
@@ -2153,6 +2173,20 @@ pub mod view_process {
         #[inline]
         pub fn downgrade(&self) -> WeakViewImage {
             WeakViewImage(Rc::downgrade(&self.0))
+        }
+
+        /// Create a dummy image in the loaded or error state.
+        pub fn dummy(error: Option<String>) -> Self {
+            ViewImage(Rc::new(ImageConnection {
+                id: 0,
+                generation: 0,
+                app: None,
+                loaded: Cell::new(error.is_none()),
+                size: Cell::new(PxSize::zero()),
+                ppi: Cell::new(None),
+                opaque: Cell::new(true),
+                error: RefCell::new(error),
+            }))
         }
     }
 

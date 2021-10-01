@@ -3,7 +3,11 @@
 use std::{fmt, mem, rc::Rc, thread, time::Instant};
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
-use crate::{color::RenderColor, image::Image, render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId}};
+use crate::{
+    color::RenderColor,
+    image::Image,
+    render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
+};
 use linear_map::LinearMap;
 use zero_ui_view_api::ByteBuf;
 
@@ -612,7 +616,7 @@ pub enum WindowIcon {
     ///
     /// In Windows this is the icon associated with the executable.
     Default,
-    /// A bitmap icon.
+    /// A loaded image.
     Icon(Image),
     /// An [`UiNode`] that draws the icon.
     ///
@@ -635,7 +639,7 @@ impl PartialEq for WindowIcon {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (WindowIcon::Default, WindowIcon::Default) => true,
-            (WindowIcon::Icon(a), WindowIcon::Icon(b)) => Rc::ptr_eq(a, b),
+            (WindowIcon::Icon(a), WindowIcon::Icon(b)) => a == b,
             (WindowIcon::Render(a), WindowIcon::Render(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
@@ -657,58 +661,6 @@ impl WindowIcon {
     /// limit the interval for new frames,
     pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_icon: F) -> Self {
         Self::Render(Rc::new(Box::new(move |ctx| new_icon(ctx).boxed())))
-    }
-}
-impl_from_and_into_var! {
-    /// [`WindowIcon::from_bytes`] but just logs errors.
-    fn from(bytes: &'static [u8]) -> WindowIcon {
-        WindowIcon::from_bytes(bytes).unwrap_or_else(|e| {
-            log::error!(target: "window", "failed to load icon from encoded bytes: {:?}", e);
-            WindowIcon::Default
-        })
-    }
-
-    /// [`WindowIcon::from_rgba`] but validates the dimensions and length.
-    fn from(rgba: (Vec<u8>, u32, u32)) -> WindowIcon {
-        if rgba.1 as usize * rgba.2 as usize * 4 == rgba.0.len() {
-            WindowIcon::from_rgba(rgba.0, rgba.1, rgba.2)
-        } else {
-            log::error!("invalid rgba data, length is not width * height * 4");
-            WindowIcon::Default
-        }
-    }
-
-    /// [`WindowIcon::from_file`] but just logs errors.
-    fn from(file: &'static str) -> WindowIcon {
-        WindowIcon::from_file(file).unwrap_or_else(|e| {
-            log::error!(target: "window", "failed to load icon from file: {:?}", e);
-            WindowIcon::Default
-        })
-    }
-
-    /// [`WindowIcon::from_file`] but just logs errors.
-    fn from(file: std::path::PathBuf) -> WindowIcon {
-        WindowIcon::from_file(file).unwrap_or_else(|e| {
-            log::error!(target: "window", "failed to load icon from file: {:?}", e);
-            WindowIcon::Default
-        })
-    }
-}
-impl<const N: usize> From<&'static [u8; N]> for WindowIcon {
-    /// [`WindowIcon::from_file`]
-    fn from(bytes: &'static [u8; N]) -> Self {
-        Self::from_bytes(bytes).unwrap_or_else(|e| {
-            log::error!(target: "window", "failed to load icon from encoded bytes: {:?}", e);
-            WindowIcon::Default
-        })
-    }
-}
-impl<const N: usize> crate::var::IntoVar<WindowIcon> for &'static [u8; N] {
-    type Var = crate::var::OwnedVar<WindowIcon>;
-
-    /// [`WindowIcon::from_file`]
-    fn into_var(self) -> Self::Var {
-        crate::var::OwnedVar(self.into())
     }
 }
 
@@ -1909,7 +1861,7 @@ impl AppWindow {
                             let _: Ignore = w.set_icon(None);
                         }
                         WindowIcon::Icon(ico) => {
-                            let _: Ignore = w.set_icon(Some(ico.view()));
+                            let _: Ignore = w.set_icon(ico.img());
                         }
                         WindowIcon::Render(_) => todo!(),
                     }
@@ -2268,7 +2220,7 @@ impl AppWindow {
                         resizable: self.vars.resizable().copy(ctx.vars),
                         icon: match self.vars.icon().get(ctx.vars) {
                             WindowIcon::Default => None,
-                            WindowIcon::Icon(ico) => Some(ico.view().id()),
+                            WindowIcon::Icon(ico) => ico.img().map(|i|i.id()),
                             WindowIcon::Render(_) => todo!(),
                         },
                         transparent: self.vars.transparent().copy(ctx.vars),

@@ -6,7 +6,7 @@ use std::{
     task::{Poll, Waker},
 };
 
-use crate::context::*;
+use crate::{app::AppEventSender, context::*};
 
 impl<'a> AppContext<'a> {
     /// Create an app thread bound future executor that executes in the app context.
@@ -59,10 +59,10 @@ impl<R> UiTask<R> {
     ///
     /// The `task` is inert and must be polled using [`update`](UiTask::update) to start, and it must be polled every
     /// [`UiNode::update`](crate::UiNode::update) after that.
-    pub fn new<F: Future<Output = R> + 'static>(updates: &Updates, task: F) -> Self {
+    pub fn new<F: Future<Output = R> + 'static>(updates: &AppEventSender, task: F) -> Self {
         UiTask(UiTaskState::Pending {
             future: Box::pin(task),
-            event_loop_waker: updates.sender().waker(),
+            event_loop_waker: updates.waker(),
         })
     }
 
@@ -132,7 +132,7 @@ impl<R> WidgetTask<R> {
         let task = scope.with(ctx, move || task(mut_));
 
         WidgetTask {
-            task: UiTask::new(ctx.updates, task),
+            task: UiTask::new(&ctx.updates.sender(), task),
             scope,
         }
     }
@@ -192,7 +192,7 @@ impl<R> AppTask<R> {
         let task = scope.with(ctx, move || task(mut_));
 
         AppTask {
-            task: UiTask::new(ctx.updates, task),
+            task: UiTask::new(&ctx.updates.sender(), task),
             scope,
         }
     }

@@ -14,6 +14,8 @@ glutin = "0.27"
 flume = "0.10"
 is_main_thread = "0.1"
 image = "0.23"
+img-parts = "0.2"
+byteorder = "1"
 rustc-hash = "1"
 rayon = "1"
 
