@@ -1797,8 +1797,8 @@ pub mod view_process {
     };
     use zero_ui_view_api::{ByteBuf, Controller, DeviceId as ApiDeviceId, ImageId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
     pub use zero_ui_view_api::{
-        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, ImageDataFormat, MonitorInfo, Respawned,
-        TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme, ImagePpi,
+        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, ImageDataFormat, ImagePpi, MonitorInfo, Respawned,
+        TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
     };
 
     type Result<T> = std::result::Result<T, Respawned>;
@@ -2097,6 +2097,11 @@ pub mod view_process {
         }
     }
     impl ViewImage {
+        /// Image id.
+        pub fn id(&self) -> ImageId {
+            self.0.id
+        }
+
         /// Returns `true` if the image has successfully decoded.
         #[inline]
         pub fn loaded(&self) -> bool {

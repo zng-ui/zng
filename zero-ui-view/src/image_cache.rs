@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
-use zero_ui_view_api::{ByteBuf, Event, ImageDataFormat, ImageId, ImagePixels, ImagePpi, IpcBytesReceiver, IpcSender, units::{Px, PxRect, PxSize}};
+use zero_ui_view_api::{
+    units::{Px, PxRect, PxSize},
+    ByteBuf, Event, ImageDataFormat, ImageId, ImagePixels, ImagePpi, IpcBytesReceiver, IpcSender,
+};
 
 use crate::{AppEvent, AppEventSender};
 use rustc_hash::FxHashMap;

@@ -49,7 +49,7 @@ pub type AxisId = u32;
 pub type ButtonId = u32;
 
 /// Pixels-per-inch of each dimension of an image.
-/// 
+///
 /// Is `None` when not loaded or not provided by the decoder.
 pub type ImagePpi = Option<(f32, f32)>;
 

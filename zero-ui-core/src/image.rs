@@ -6,7 +6,7 @@ use std::{
     error, fmt,
     path::PathBuf,
     rc::{self, Rc},
-    sync::{Arc, Weak},
+    sync::Arc,
     time::Duration,
 };
 
@@ -15,10 +15,12 @@ use std::{
 //mod formats;
 //pub use formats::*;
 
+use zero_ui_view_api::ImageDataFormat;
+
 use crate::render::webrender_api::ImageKey;
 use crate::{
     app::{
-        view_process::{Respawned, ViewImage, WeakViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
+        view_process::{Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer, WeakViewImage},
         AppExtension,
     },
     context::{AppContext, LayoutMetrics},
@@ -31,6 +33,8 @@ use crate::{
     units::*,
     var::{response_done_var, ResponseVar, Vars, WithVars},
 };
+
+pub use crate::app::view_process::ImagePpi;
 
 /// Represents a loaded image.
 #[derive(Clone)]
@@ -47,70 +51,39 @@ impl fmt::Debug for Image {
     }
 }
 impl Image {
-    /// Open and decode `path` from the file system.
-    ///
-    /// This is not cached, use [`Images::read`] to cache the request.
-    pub async fn read(path: impl Into<PathBuf>) -> Result<Image, ImageError> {
+    fn read(vars: &impl WithVars, view: &ViewProcess, path: impl Into<PathBuf>) -> ImageRequestVar {
         let path = path.into();
-        let (bgra, size, opaque) = task::run(async move { Self::read_raw(path).await }).await?;
-        Ok(Image::from_raw(bgra, size, opaque))
-    }
+        let view = view.clone();
 
-    /// Like [`read`] but sets a response variable.
-    ///
-    /// [`read`]: Self::read
-    pub fn read_rsp(vars: &impl WithVars, path: impl Into<PathBuf>) -> ImageRequestVar {
-        let path = path.into();
-        task::respond_ctor(vars, async move {
-            let r = Self::read_raw(path).await;
-            move || r.map(|(b, s, o)| Image::from_raw(b, s, o))
+        let format = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|s| ImageDataFormat::FileExt(s.to_owned()))
+            .unwrap_or(ImageDataFormat::Unknown);
+
+        task::respond_ctor(vars, async {
+            let r = task::wait(move || std::fs::read(path)).await;
+            move || todo!()
         })
     }
-
-    async fn read_raw(path: PathBuf) -> Result<(Arc<Vec<u8>>, (u32, u32), bool), ImageError> {
-        let img = task::wait(move || image::open(&path)).await?;
-        Ok(Self::convert_decoded(img))
-    }
-
-    /// Download and decode `uri` using an HTTP GET request.
-    ///
-    /// This is not cached, use [`Images::download`] to cache the request.
-    pub async fn download(uri: impl TryUri) -> Result<Image, ImageError> {
-        let uri = uri.try_into()?;
-        let (bgra, size, opaque) = task::run(async move { Self::download_raw(uri).await }).await?;
-        Ok(Image::from_raw(bgra, size, opaque))
-    }
-
-    /// Like [`download`] but sets a response variable.
-    ///
-    /// [`download`]: Self::download
-    pub fn download_rsp<Vw, U>(vars: &Vw, uri: U) -> ImageRequestVar
+    fn download<Vw, U>(vars: &Vw, view: &ViewProcess, uri: U) -> ImageRequestVar
     where
         Vw: WithVars,
         U: TryUri + Send + 'static,
     {
-        task::respond_ctor(vars, async move {
-            let r = Self::download_raw(uri).await;
-            move || r.map(|(b, s, o)| Image::from_raw(b, s, o))
-        })
-    }
+        task::respond_ctor(vars, async {
+            use task::http::*;
 
-    async fn download_raw(uri: impl TryUri) -> Result<(Arc<Vec<u8>>, (u32, u32), bool), ImageError> {
-        use task::http::*;
-
-        let img = send(
-            Request::get(uri)?
+            let request = Request::get(uri)?
                 // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
                 // image/avif decoder does not build in Windows
                 .header(header::ACCEPT, "image/apng,image/*")?
-                .build(),
-        )
-        .await?
-        .bytes()
-        .await?;
+                .build();
 
-        let img = image::load_from_memory(&img)?;
-        Ok(Self::convert_decoded(img))
+            let r = send(request).await;
+
+            move || todo!()
+        })
     }
 
     /// Create an [`Image`] from the [`ViewImage`].
@@ -185,17 +158,10 @@ impl Image {
         Transform::identity()
     }
 
-    /// Time from image request to loaded.
-    #[inline]
-    pub fn load_time(&self) -> Duration {
-        // TODO
-        Duration::ZERO
-    }
-
     /// Returns `true` if all pixels in the image are fully opaque.
     #[inline]
     pub fn opaque(&self) -> bool {
-        self.opaque
+        self.view.opaque()
     }
 
     /// Returns the number of strong references to this image.
@@ -210,9 +176,8 @@ impl Image {
     /// Weak references do not hold the image in memory but can be used to reacquire the [`Image`].
     pub fn downgrade(&self) -> WeakImage {
         WeakImage {
-            view: self.0.view.downgrade(),
+            view: self.view.downgrade(),
             render_keys: Rc::downgrade(&self.render_keys),
-            size: self.size,
         }
     }
 
@@ -220,6 +185,12 @@ impl Image {
     #[inline]
     pub fn ptr_eq(&self, other: &Image) -> bool {
         Rc::ptr_eq(&self.render_keys, &other.render_keys)
+    }
+
+    /// Reference the underlying view image.
+    #[inline]
+    pub fn view(&self) -> &ViewImage {
+        &self.view
     }
 }
 impl crate::render::Image for Image {
@@ -266,7 +237,6 @@ impl crate::render::Image for Image {
 pub struct WeakImage {
     view: WeakViewImage,
     render_keys: rc::Weak<RefCell<Vec<RenderImage>>>,
-    size: PxSize,
 }
 impl WeakImage {
     /// Attempts to upgrade to a strong reference.
@@ -277,14 +247,6 @@ impl WeakImage {
             view: self.view.upgrade()?,
             render_keys: self.render_keys.upgrade()?,
         })
-    }
-
-    /// Gets the size of the image that may no longer exist.
-    ///
-    /// This value is local.
-    #[inline]
-    pub fn size(&self) -> PxSize {
-        self.size
     }
 
     /// Gets the number of [`Image`] references that are holding this image in memory.
@@ -399,14 +361,14 @@ impl AppExtension for ImageManager {
 /// The cache holds images in memory, configured TODO.
 #[derive(Service)]
 pub struct Images {
-    app: ViewProcess,
+    view: ViewProcess,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
     cache: HashMap<ImageCacheKey, ImageRequestVar>,
 }
 impl Images {
     fn new(vp: ViewProcess) -> Self {
         Self {
-            app: vp.clone(),
+            view: vp.clone(),
             proxies: vec![],
             cache: HashMap::default(),
         }
@@ -506,8 +468,8 @@ impl Images {
         self.cache
             .entry(key)
             .or_insert_with_key(|key| match key {
-                ImageCacheKey::Read(path) => Image::read_rsp(vars, path.clone()),
-                ImageCacheKey::Download(uri) => Image::download_rsp(vars, uri.clone()),
+                ImageCacheKey::Read(path) => Image::read(vars, &self.view, path.clone()),
+                ImageCacheKey::Download(uri) => Image::download(vars, &self.view, uri.clone()),
             })
             .clone()
     }

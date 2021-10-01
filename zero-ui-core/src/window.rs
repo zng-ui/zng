@@ -3,10 +3,7 @@
 use std::{fmt, mem, rc::Rc, thread, time::Instant};
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
-use crate::{
-    color::RenderColor,
-    render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
-};
+use crate::{color::RenderColor, image::Image, render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId}};
 use linear_map::LinearMap;
 use zero_ui_view_api::ByteBuf;
 
@@ -616,7 +613,7 @@ pub enum WindowIcon {
     /// In Windows this is the icon associated with the executable.
     Default,
     /// A bitmap icon.
-    Icon(ViewImage),
+    Icon(Image),
     /// An [`UiNode`] that draws the icon.
     ///
     /// Use the [`render`](Self::render) function to initialize.
@@ -1912,7 +1909,7 @@ impl AppWindow {
                             let _: Ignore = w.set_icon(None);
                         }
                         WindowIcon::Icon(ico) => {
-                            let _: Ignore = w.set_icon(Some(view_process::Icon::clone(ico)));
+                            let _: Ignore = w.set_icon(Some(ico.view()));
                         }
                         WindowIcon::Render(_) => todo!(),
                     }
@@ -2271,7 +2268,7 @@ impl AppWindow {
                         resizable: self.vars.resizable().copy(ctx.vars),
                         icon: match self.vars.icon().get(ctx.vars) {
                             WindowIcon::Default => None,
-                            WindowIcon::Icon(ico) => Some(view_process::Icon::clone(ico)),
+                            WindowIcon::Icon(ico) => Some(ico.view().id()),
                             WindowIcon::Render(_) => todo!(),
                         },
                         transparent: self.vars.transparent().copy(ctx.vars),
