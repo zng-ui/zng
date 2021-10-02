@@ -188,7 +188,7 @@ impl Surface {
         }
     }
 
-    pub fn add_image(&mut self, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) -> ImageKey {
+    pub fn use_image(&mut self, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) -> ImageKey {
         let key = self.api.generate_image_key();
         let mut txn = webrender::Transaction::new();
         txn.add_image(key, descriptor, webrender_api::ImageData::Raw(data), None);

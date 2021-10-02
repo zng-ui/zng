@@ -297,26 +297,26 @@ declare_api! {
     /// The image is received and decoded asynchronously, the event [`Event::ImageLoaded`]
     /// or [`Event::ImageLoadError`] will be send when the image is ready for use or failed.
     ///
-    /// Images are shared between renderers, to use an image in a window you must first call [`add_image`]
+    /// Images are shared between renderers, to use an image in a window you must first call [`use_image`]
     /// this will register the image data with the renderer.
     ///
-    /// [`add_image`]: Api::add_image
-    pub fn cache_image(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId;
+    /// [`use_image`]: Api::use_image
+    pub fn add_image(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId;
 
     /// Remove an image from cache.
     ///
     /// Note that if the image is is use in a renderer it will remain in memory until [`delete_image`] is
     /// called or the renderer is deinited by closing the window.
     ///
-    /// [`delete_image`]:
-    pub fn uncache_image(&mut self, id: ImageId);
+    /// [`delete_image`]: Api::delete_image
+    pub fn forget_image(&mut self, id: ImageId);
 
     /// Add an image resource to the window renderer.
     ///
     /// Returns the new image key. If the `image_id` is not loaded returns the [`DUMMY`] image key.
     ///
     /// [`DUMMY`]: ImageKey::DUMMY
-    pub fn add_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey;
+    pub fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey;
 
     /// Replace the image resource in the window renderer.
     ///

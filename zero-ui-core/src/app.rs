@@ -1986,10 +1986,10 @@ pub mod view_process {
         ///
         /// This function returns immediately, the [`ViewImage`] will update once the
         /// image finishes loading.
-        pub fn cache_image(&self, data: Vec<u8>, format: ImageDataFormat) -> Result<ViewImage> {
+        pub fn add_image(&self, data: Vec<u8>, format: ImageDataFormat) -> Result<ViewImage> {
             let mut app = self.0.borrow_mut();
             let (sender, receiver) = zero_ui_view_api::bytes_channel().unwrap();
-            let id = app.process.cache_image(receiver, format)?;
+            let id = app.process.add_image(receiver, format)?;
             let img = ViewImage(Rc::new(ImageConnection {
                 id,
                 generation: app.process.generation(),
@@ -2073,7 +2073,7 @@ pub mod view_process {
     impl Drop for ImageConnection {
         fn drop(&mut self) {
             if let Some(app) = self.app.take() {
-                let _ = app.borrow_mut().process.uncache_image(self.id);
+                let _ = app.borrow_mut().process.forget_image(self.id);
             }
         }
     }
@@ -2479,13 +2479,13 @@ pub mod view_process {
             Err(Respawned)
         }
 
-        /// Add an image resource to the window renderer.
+        /// Use an image resource in the window renderer.
         ///
         /// Returns the image key.
-        pub fn add_image(&self, image: &ViewImage) -> Result<ImageKey> {
+        pub fn use_image(&self, image: &ViewImage) -> Result<ImageKey> {
             self.call(|id, p| {
                 if p.generation() == image.0.generation {
-                    p.add_image(id, image.0.id)
+                    p.use_image(id, image.0.id)
                 } else {
                     Err(Respawned)
                 }

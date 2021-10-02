@@ -13,13 +13,17 @@ Image loading and rendering.
 
 * Progressive decoding.
 
+## View-image TODO
+* Reload functionality.
+* Optional pre-multiply. (can we undo pre-multiplication?)
+* Encoding API
+    - Can we request frame and image pixels encoded?
+* API for querying what encoders and decoders are available.
+* Support creating resized image from existing image.
+* Image data uploading API should support progressive upload.
+
 ## Questions
 
-### How to avoid duplicating memory between app-process and view-process?
-
-We can't decode images in the view-process only because if can crash, re-downloading images seems excessive,
-keeping decoded images in the app-process memory also seems excessive, we should review how Firefox does image
-caching and replicate.
 
 ### Image Support
 

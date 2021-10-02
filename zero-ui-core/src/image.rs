@@ -61,7 +61,6 @@ impl AppExtension for ImageManager {
                 let var = images.decoding.swap_remove(i);
                 var.touch(ctx.vars);
             }
-            todo!()
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
             let images = ctx.services.images();
             for v in images.cache.values() {
@@ -79,7 +78,8 @@ impl AppExtension for ImageManager {
         let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
 
-        for (task, var) in mem::take(&mut images.loading) {
+        for (mut task, var) in mem::take(&mut images.loading) {
+            task.update();
             match task.into_result() {
                 Ok(d) => {
                     if d.data.is_empty() {
@@ -87,7 +87,7 @@ impl AppExtension for ImageManager {
                         var.set(vars, Image::from_view(ViewImage::dummy(Some(d.error))));
                     } else if let Some(vp) = view {
                         // success and we have a view-process.
-                        match vp.cache_image(d.data, d.format) {
+                        match vp.add_image(d.data, d.format) {
                             Ok(img) => {
                                 // request send, add to `decoding` will receive
                                 // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
@@ -559,7 +559,7 @@ impl crate::render::Image for Image {
                 return rm.key;
             }
 
-            let key = match renderer.add_image(self.view.as_ref().unwrap()) {
+            let key = match renderer.use_image(self.view.as_ref().unwrap()) {
                 Ok(k) => k,
                 Err(Respawned) => {
                     log::debug!("respawned `add_image`, will return DUMMY");

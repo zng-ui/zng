@@ -25,7 +25,7 @@ impl<S: AppEventSender> ImageCache<S> {
         }
     }
 
-    pub fn cache(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId {
+    pub fn add(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId {
         let mut id = self.image_id_gen.wrapping_add(1);
         if id == 0 {
             id = 1;
@@ -72,7 +72,7 @@ impl<S: AppEventSender> ImageCache<S> {
         id
     }
 
-    pub fn uncache(&mut self, id: ImageId) {
+    pub fn forget(&mut self, id: ImageId) {
         self.images.remove(&id);
     }
 
@@ -312,7 +312,9 @@ impl Image {
                 let height = area.size.height.0 as usize;
                 let mut bytes = Vec::with_capacity(width * height * 4);
                 for l in y..y + height {
-                    let line = &bgra8[l + x..l + x + width];
+                    let line_start = (l + x) * 4;
+                    let line_end = (l + x + width) * 4;
+                    let line = &bgra8[line_start..line_end];
                     bytes.extend(line);
                 }
 

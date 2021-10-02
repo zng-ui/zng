@@ -966,19 +966,19 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.namespace_id(), || IdNamespace(0))
     }
 
-    fn cache_image(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId {
-        self.image_cache.cache(data, format)
+    fn add_image(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId {
+        self.image_cache.add(data, format)
     }
 
-    fn uncache_image(&mut self, id: ImageId) {
-        self.image_cache.uncache(id)
+    fn forget_image(&mut self, id: ImageId) {
+        self.image_cache.forget(id)
     }
 
-    fn add_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey {
+    fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey {
         if let Some(img) = self.image_cache.get(image_id) {
             let descriptor = img.descriptor;
             let data = Arc::clone(&img.bgra8);
-            with_window_or_surface!(self, id, |w| w.add_image(descriptor, data), || ImageKey::DUMMY)
+            with_window_or_surface!(self, id, |w| w.use_image(descriptor, data), || ImageKey::DUMMY)
         } else {
             ImageKey::DUMMY
         }
