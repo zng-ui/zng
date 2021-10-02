@@ -6,7 +6,7 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::image)]
 pub mod image {
     use zero_ui::core::{
-        image::{ImageCacheKey, ImageRequestVar},
+        image::{ImageCacheKey, ImageVar},
         profiler::profile_scope,
     };
 
@@ -24,10 +24,8 @@ pub mod image {
         Read(PathBuf),
         /// Downloads the image using an HTTP GET request.
         Download(Uri),
-        /// Uses the already created image.
-        Image(Image),
-        /// Uses a response var that is loaded or will update when it is loaded.
-        ImageRequest(ImageRequestVar),
+        /// Uses an image var.
+        Image(ImageVar),
     }
     impl fmt::Debug for ImageSource {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -36,14 +34,13 @@ pub mod image {
             }
             match self {
                 ImageSource::Read(p) => f.debug_tuple("Read").field(p).finish(),
-                ImageSource::Download(u) => f.debug_tuple("Read").field(u).finish(),
-                ImageSource::Image(i) => f.debug_tuple("Read").field(i).finish(),
-                ImageSource::ImageRequest(_) => write!(f, "ImageRequest(_)"),
+                ImageSource::Download(u) => f.debug_tuple("Download").field(u).finish(),
+                ImageSource::Image(i) => f.debug_tuple("Image").finish(),
             }
         }
     }
     impl_from_and_into_var! {
-        fn from(image: Image) -> ImageSource {
+        fn from(image: ImageVar) -> ImageSource {
             ImageSource::Image(image)
         }
         fn from(path: PathBuf) -> ImageSource {
@@ -100,17 +97,16 @@ pub mod image {
     fn new_child(source: impl IntoVar<ImageSource>) -> impl UiNode {
         struct ImageNode<T> {
             source: T,
-            image: Option<ImageRequestVar>,
+            image: Option<ImageVar>,
             final_size: PxSize,
         }
         #[impl_ui_node(none)]
         impl<T: Var<ImageSource>> UiNode for ImageNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let img = match self.source.get_clone(ctx) {
-                    ImageSource::Read(path) => ctx.services.images().read(ctx.vars, path),
-                    ImageSource::Download(uri) => ctx.services.images().download(ctx.vars, uri),
-                    ImageSource::Image(img) => response_done_var(Ok(img)),
-                    ImageSource::ImageRequest(img) => img,
+                    ImageSource::Read(path) => ctx.services.images().read(path),
+                    ImageSource::Download(uri) => ctx.services.images().download(uri),
+                    ImageSource::Image(img) => img,
                 };
                 self.image = Some(img);
             }
@@ -121,28 +117,29 @@ pub mod image {
             fn update(&mut self, ctx: &mut WidgetContext) {
                 if self.source.is_new(ctx) {
                     self.init(ctx);
-                } else if let Some(r) = self.image.as_ref().unwrap().rsp_new(ctx.vars) {
-                    if let Err(e) = r {
-                        log::error!("{}", e)
+                } else if let Some(r) = self.image.as_ref().unwrap().get_new(ctx.vars) {
+                    if let Some(e) = r.error() {
+                        log::error!("{}", e);
+                        if self.final_size != PxSize::zero() {
+                            ctx.updates.layout();
+                        }
+                    } else {
+                        ctx.updates.layout();
                     }
-                    ctx.updates.layout();
                 }
             }
 
             fn measure(&mut self, ctx: &mut LayoutContext, _: AvailableSize) -> PxSize {
-                if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx) {
-                    img.layout_size(ctx)
-                } else {
-                    PxSize::zero()
-                }
+                let img = self.image.as_ref().unwrap().get(ctx.vars);
+                img.layout_size(ctx)
             }
 
             fn arrange(&mut self, _: &mut LayoutContext, final_size: PxSize) {
                 self.final_size = final_size;
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                profile_scope!("image::render");
-                if let Some(Ok(img)) = self.image.as_ref().unwrap().rsp(ctx.vars) {
+                let img = self.image.as_ref().unwrap().get(ctx.vars);
+                if img.is_loaded() {
                     frame.push_image(PxRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
                 }
             }

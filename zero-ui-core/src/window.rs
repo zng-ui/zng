@@ -1861,7 +1861,7 @@ impl AppWindow {
                             let _: Ignore = w.set_icon(None);
                         }
                         WindowIcon::Icon(ico) => {
-                            let _: Ignore = w.set_icon(ico.img());
+                            let _: Ignore = w.set_icon(ico.view());
                         }
                         WindowIcon::Render(_) => todo!(),
                     }
@@ -2220,7 +2220,7 @@ impl AppWindow {
                         resizable: self.vars.resizable().copy(ctx.vars),
                         icon: match self.vars.icon().get(ctx.vars) {
                             WindowIcon::Default => None,
-                            WindowIcon::Icon(ico) => ico.img().map(|i|i.id()),
+                            WindowIcon::Icon(ico) => ico.view().map(|i| i.id()),
                             WindowIcon::Render(_) => todo!(),
                         },
                         transparent: self.vars.transparent().copy(ctx.vars),

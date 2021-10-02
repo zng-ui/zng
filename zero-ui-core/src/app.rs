@@ -2073,7 +2073,7 @@ pub mod view_process {
     impl Drop for ImageConnection {
         fn drop(&mut self) {
             if let Some(app) = self.app.take() {
-                app.borrow_mut().process.uncache_image(self.id);
+                let _ = app.borrow_mut().process.uncache_image(self.id);
             }
         }
     }
@@ -2097,7 +2097,7 @@ pub mod view_process {
                 .field("error", &self.error())
                 .field("size", &self.size())
                 .field("dpi", &self.ppi())
-                .field("opaque", &self.opaque())
+                .field("opaque", &self.is_opaque())
                 .field("generation", &self.generation())
                 .field("alive", &self.alive())
                 .finish_non_exhaustive()
@@ -2149,7 +2149,7 @@ pub mod view_process {
 
         /// Returns if the image is fully opaque.
         #[inline]
-        pub fn opaque(&self) -> bool {
+        pub fn is_opaque(&self) -> bool {
             self.0.opaque.get()
         }
 
@@ -3072,7 +3072,7 @@ pub mod raw_events {
             ..
 
             /// Concerns all widgets.
-            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
                 true
             }
         }
