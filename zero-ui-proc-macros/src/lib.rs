@@ -128,3 +128,10 @@ pub fn when_var(input: TokenStream) -> TokenStream {
 pub fn task_any_all(input: TokenStream) -> TokenStream {
     any_all::expand(input)
 }
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn trace(input: TokenStream) -> TokenStream {
+    eprintln!("{}", input.to_string());
+    input
+}

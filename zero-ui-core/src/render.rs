@@ -14,7 +14,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{fmt, marker::PhantomData, mem, sync::Arc, time::Instant};
+use std::{fmt, marker::PhantomData, mem, path::PathBuf, sync::Arc, time::Instant};
 
 pub use zero_ui_view_api::webrender_api;
 
@@ -2178,6 +2178,11 @@ impl FramePixels {
     #[inline]
     pub fn opaque(&self) -> bool {
         self.opaque
+    }
+
+    /// Encode and write to `file`.
+    pub async fn save(&self, file: impl Into<PathBuf>) -> std::io::Result<()> {
+        todo!("save to {}", file.into().display())
     }
 }
 impl From<crate::app::view_process::FramePixels> for FramePixels {

@@ -50,8 +50,8 @@ impl<S: AppEventSender> ImageCache<S> {
                             Ok((data, size, ppi, opaque))
                         }
                     }
-                    ImageDataFormat::FileExt(ext) => Self::load_file(data, ext),
-                    ImageDataFormat::Mime(mime) => Self::load_web(data, mime),
+                    ImageDataFormat::FileExtension(ext) => Self::load_file(data, ext),
+                    ImageDataFormat::MimeType(mime) => Self::load_web(data, mime),
                     ImageDataFormat::Unknown => Self::load_unknown(data),
                 };
 

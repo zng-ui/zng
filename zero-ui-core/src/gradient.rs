@@ -135,7 +135,6 @@ impl_from_and_into_var! {
     fn from(angle: AngleGradian) -> LinearGradientAxis {
         LinearGradientAxis::Angle(angle.into())
     }
-
     fn from(line: Line) -> LinearGradientAxis {
         LinearGradientAxis::Line(line)
     }
@@ -244,7 +243,7 @@ impl ColorStop {
     }
 }
 impl_from_and_into_var! {
-    fn from<C: Into<Rgba>, O: Into<Length>>(color_offset: (C, O)) -> ColorStop {
+    fn from<C: IntoValue<Rgba>, O: IntoValue<Length>>(color_offset: (C, O)) -> ColorStop {
         ColorStop::new(color_offset.0, color_offset.1)
     }
 
@@ -275,7 +274,7 @@ pub enum GradientStop {
     ColorHint(Length),
 }
 impl_from_and_into_var! {
-    fn from<C: Into<Rgba>, O: Into<Length>>(color_offset: (C, O)) -> GradientStop {
+    fn from<C: IntoValue<Rgba>, O: IntoValue<Length>>(color_offset: (C, O)) -> GradientStop {
         GradientStop::Color(color_offset.into())
     }
 
@@ -826,53 +825,35 @@ impl GradientStops {
         self.middle.len() + 2
     }
 }
-impl<C: Into<Rgba> + Copy + 'static> From<&[C]> for GradientStops {
-    fn from(a: &[C]) -> Self {
-        GradientStops::from_colors(a)
+impl_from_and_into_var! {
+    /// [`GradientStops::from_colors`]
+    fn from<C: IntoValue<Rgba> + Copy>(colors: &[C]) -> GradientStops {
+        GradientStops::from_colors(colors)
     }
-}
-impl<C: Into<Rgba> + Copy + 'static> IntoVar<GradientStops> for &[C] {
-    type Var = OwnedVar<GradientStops>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+    /// [`GradientStops::from_stops`]
+    fn from<C: IntoValue<Rgba> + Copy, L: IntoValue<Length> + Copy>(stops: &[(C, L)]) -> GradientStops {
+        GradientStops::from_stops(stops)
     }
-}
-impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> From<&[(C, L)]> for GradientStops {
-    fn from(a: &[(C, L)]) -> Self {
-        GradientStops::from_stops(a)
-    }
-}
-impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> IntoVar<GradientStops> for &[(C, L)] {
-    type Var = OwnedVar<GradientStops>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+    /// [`GradientStops::from_colors`]
+    fn from<C: IntoValue<Rgba> + Copy, const N: usize>(colors: &[C; N]) -> GradientStops {
+        GradientStops::from_colors(colors)
     }
-}
-impl<C: Into<Rgba> + Copy + 'static, const N: usize> From<[C; N]> for GradientStops {
-    fn from(a: [C; N]) -> Self {
-        GradientStops::from_colors(&a)
-    }
-}
-impl<C: Into<Rgba> + Copy + 'static, const N: usize> IntoVar<GradientStops> for [C; N] {
-    type Var = OwnedVar<GradientStops>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+    /// [`GradientStops::from_stops`]
+    fn from<C: IntoValue<Rgba> + Copy, L: IntoValue<Length> + Copy, const N: usize>(stops: &[(C, L); N]) -> GradientStops {
+        GradientStops::from_stops(stops)
     }
-}
 
-impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static, const N: usize> From<[(C, L); N]> for GradientStops {
-    fn from(a: [(C, L); N]) -> Self {
-        GradientStops::from_stops(&a)
+    /// [`GradientStops::from_colors`]
+    fn from<C: IntoValue<Rgba> + Copy, const N: usize>(colors: [C; N]) -> GradientStops {
+        GradientStops::from_colors(&colors)
     }
-}
-impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static, const N: usize> IntoVar<GradientStops> for [(C, L); N] {
-    type Var = OwnedVar<GradientStops>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+    /// [`GradientStops::from_stops`]
+    fn from<C: IntoValue<Rgba> + Copy, L: IntoValue<Length> + Copy, const N: usize>(stops: [(C, L); N]) -> GradientStops {
+        GradientStops::from_stops(&stops)
     }
 }
 

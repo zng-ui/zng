@@ -5,25 +5,20 @@ use crate::prelude::new_widget::*;
 /// This widget loads a still image from a variety of sources and presents it.
 #[widget($crate::widgets::image)]
 pub mod image {
-    use zero_ui::core::{
-        image::{ImageCacheKey, ImageVar},
-        profiler::profile_scope,
-    };
+    use zero_ui::core::image::{ImageCacheKey, ImageVar, ImageDataFormat};
 
     use super::*;
     use crate::core::task::http::Uri;
     use properties::ImageRenderingVar;
-    use std::{convert::TryFrom, fmt, path::PathBuf};
+    use std::{fmt, path::{Path, PathBuf}, sync::Arc};
 
     /// The different inputs accepted by the [`source`] property.
     ///
     /// [`source`]: #wp-source
     #[derive(Clone)]
     pub enum ImageSource {
-        /// Reads the image from file.
-        Read(PathBuf),
-        /// Downloads the image using an HTTP GET request.
-        Download(Uri),
+        /// Gets the image from [`Images`].
+        Request(ImageCacheKey),
         /// Uses an image var.
         Image(ImageVar),
     }
@@ -33,9 +28,8 @@ pub mod image {
                 write!(f, "ImageSource::")?;
             }
             match self {
-                ImageSource::Read(p) => f.debug_tuple("Read").field(p).finish(),
-                ImageSource::Download(u) => f.debug_tuple("Download").field(u).finish(),
-                ImageSource::Image(i) => f.debug_tuple("Image").finish(),
+                ImageSource::Request(p) => f.debug_tuple("Request").field(p).finish(),
+                ImageSource::Image(_) => f.debug_tuple("Image").finish(),
             }
         }
     }
@@ -43,30 +37,69 @@ pub mod image {
         fn from(image: ImageVar) -> ImageSource {
             ImageSource::Image(image)
         }
+        fn from(key: ImageCacheKey) -> ImageSource {
+            ImageSource::Request(key)
+        }
         fn from(path: PathBuf) -> ImageSource {
-            ImageSource::Read(path)
+            ImageCacheKey::from(path).into()
+        }
+        fn from(path: &Path) -> ImageSource {
+            ImageCacheKey::from(path).into()
         }
         fn from(uri: Uri) -> ImageSource {
-            ImageSource::Download(uri)
+            ImageCacheKey::from(uri).into()
         }
-        fn from(key: ImageCacheKey) -> ImageSource {
-            match key {
-                ImageCacheKey::Read(path) => ImageSource::Read(path),
-                ImageCacheKey::Download(uri)  => ImageSource::Download(uri)
-            }
-        }
+        /// See [`ImageCacheKey`] conversion from `&str`
         fn from(s: &str) -> ImageSource {
-            use crate::core::task::http::uri::*;
-            if let Ok(uri) = Uri::try_from(s) {
-                if let Some(scheme) = uri.scheme() {
-                    if scheme == &Scheme::HTTPS || scheme == &Scheme::HTTP {
-                        return ImageSource::Download(uri);
-                    } else if scheme.as_str() == "file" {
-                        return PathBuf::from(uri.path()).into();
-                    }
-                }
-            }
-            PathBuf::from(s).into()
+            ImageCacheKey::from(s).into()
+        }
+        /// Same as conversion from `&str`.
+        fn from(s: String) -> ImageSource {
+            ImageCacheKey::from(s).into()
+        }
+        /// Same as conversion from `&str`.
+        fn from(s: Text) -> ImageSource {
+            ImageCacheKey::from(s).into()
+        }
+        /// From encoded data of [`Unknown`] format.
+        /// 
+        /// [`Unknown`]: ImageDataFormat::Unknown
+        fn from(data: &'static [u8]) -> ImageSource {
+            ImageCacheKey::from(data).into()
+        }
+        /// From encoded data of [`Unknown`] format.
+        /// 
+        /// [`Unknown`]: ImageDataFormat::Unknown
+        fn from<const N: usize>(data: &'static [u8; N]) -> ImageSource {
+            ImageCacheKey::from(data).into()
+        }
+        /// From encoded data of [`Unknown`] format.
+        /// 
+        /// [`Unknown`]: ImageDataFormat::Unknown
+        fn from(data: Arc<Vec<u8>>) -> ImageSource {
+            ImageCacheKey::from(data).into()
+        }
+        /// From encoded data of [`Unknown`] format.
+        /// 
+        /// [`Unknown`]: ImageDataFormat::Unknown
+        fn from(data: Vec<u8>) -> ImageSource {
+            ImageCacheKey::from(data).into()
+        }
+        /// From encoded data of known format.
+        fn from<F: IntoValue<ImageDataFormat>>((data, format): (&'static [u8], F)) -> ImageSource {
+            ImageCacheKey::from((data, format)).into()
+        }
+        /// From encoded data of known format.
+        fn from<F: IntoValue<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageSource {
+            ImageCacheKey::from((data, format)).into()
+        }
+        /// From encoded data of known format.
+        fn from<F: IntoValue<ImageDataFormat>>((data, format): (Vec<u8>, F)) -> ImageSource {
+            ImageCacheKey::from((data, format)).into()
+        }
+        /// From encoded data of known format.
+        fn from<F: IntoValue<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> ImageSource {
+            ImageCacheKey::from((data, format)).into()
         }
     }
 
@@ -104,8 +137,7 @@ pub mod image {
         impl<T: Var<ImageSource>> UiNode for ImageNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let img = match self.source.get_clone(ctx) {
-                    ImageSource::Read(path) => ctx.services.images().read(path),
-                    ImageSource::Download(uri) => ctx.services.images().download(uri),
+                    ImageSource::Request(r) => ctx.services.images().get(r),
                     ImageSource::Image(img) => img,
                 };
                 self.image = Some(img);

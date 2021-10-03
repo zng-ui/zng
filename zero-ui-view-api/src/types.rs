@@ -995,12 +995,59 @@ pub enum ImageDataFormat {
 
     /// The image is encoded, a file extension that maybe identifies
     /// the format is known.
-    FileExt(String),
+    FileExtension(String),
 
     /// The image is encoded, MIME type that maybe identifies the format is known.
-    Mime(String),
+    MimeType(String),
 
     /// The image is encoded, a decoder will be selected using the "magic number"
     /// on the beginning of the bytes buffer.
     Unknown,
+}
+impl From<String> for ImageDataFormat {
+    fn from(ext_or_mime: String) -> Self {
+        if ext_or_mime.contains('/') {
+            ImageDataFormat::MimeType(ext_or_mime)
+        } else {
+            ImageDataFormat::FileExtension(ext_or_mime)
+        }
+    }
+}
+impl From<&str> for ImageDataFormat {
+    fn from(ext_or_mime: &str) -> Self {
+        ext_or_mime.to_owned().into()
+    }
+}
+impl PartialEq for ImageDataFormat {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::FileExtension(l0), Self::FileExtension(r0)) => l0 == r0,
+            (Self::MimeType(l0), Self::MimeType(r0)) => l0 == r0,
+            (Self::Bgra8 { size: s0, ppi: p0 }, Self::Bgra8 { size: s1, ppi: p1 }) => s0 == s1 && ppi_key(*p0) == ppi_key(*p1),
+            (Self::Unknown, Self::Unknown) => true,
+            _ => false,
+        }
+    }
+}
+impl Eq for ImageDataFormat { }
+impl std::hash::Hash for ImageDataFormat {
+    fn hash<H: _core::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            ImageDataFormat::Bgra8 { size, ppi } => {
+                size.hash(state);
+                ppi_key(*ppi).hash(state);
+            },
+            ImageDataFormat::FileExtension(ext) => ext.hash(state),
+            ImageDataFormat::MimeType(mt) => mt.hash(state),
+            ImageDataFormat::Unknown => {},
+        }
+    }
+}
+
+fn ppi_key(ppi: ImagePpi) -> Option<(u16, u16)> {
+    ppi.map(|(x, y)| (
+        (x * 3.0) as u16, 
+        (y * 3.0) as u16,
+    ))
 }

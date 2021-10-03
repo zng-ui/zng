@@ -554,5 +554,5 @@ impl<T: VarValue> ResponderVar<T> {
     }
 }
 
-#[doc(hidden)]
+/// A [`ReadOnlyVar`] wrapping an [`RcVar`].
 pub type ReadOnlyRcVar<T> = ReadOnlyVar<T, RcVar<T>>;

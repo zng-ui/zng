@@ -1,29 +1,21 @@
 //! Image loading and cache.
 
-use std::{cell::RefCell, collections::HashMap, fmt, future::Future, mem, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, convert::TryFrom, fmt, future::Future, mem, path::{Path, PathBuf}, rc::Rc, sync::Arc};
 
 use zero_ui_view_api::webrender_api::ImageKey;
 
-use crate::{
-    app::{
+use crate::{app::{
         raw_events::{RawImageLoadErrorEvent, RawImageLoadedEvent},
-        view_process::{ImageDataFormat, Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
+        view_process::{Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
         AppEventSender, AppExtension,
-    },
-    context::{AppContext, LayoutMetrics},
-    event::EventUpdateArgs,
-    service::Service,
-    task::{
+    }, context::{AppContext, LayoutMetrics}, event::EventUpdateArgs, impl_from_and_into_var, service::Service, task::{
         fs,
         http::{self, header, Request, TryUri, Uri},
         io::*,
         ui::UiTask,
-    },
-    units::*,
-    var::{var, RcVar, ReadOnlyRcVar, Var},
-};
+    }, text::Text, units::*, var::{IntoValue, RcVar, ReadOnlyRcVar, Var, var}};
 
-pub use crate::app::view_process::ImagePpi;
+pub use crate::app::view_process::{ImagePpi, ImageDataFormat};
 
 /// Application extension that provides an image cache.
 ///
@@ -175,6 +167,31 @@ impl Images {
         }
     }
 
+    /// Get a cached image from `&'static [u8]` data.
+    /// 
+    /// The data can be any of the formats described in [`ImageDataFormat`].
+    /// 
+    /// # Examples
+    /// 
+    /// Get an image from a PNG file embedded in the app executable using [`include_bytes!`].
+    /// 
+    /// ```
+    /// # use zero_ui_core::{image::*, context::AppContext};
+    /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
+    /// # fn demo(ctx: &mut AppContext) {
+    /// let image_var = ctx.services.images().from_static(include_bytes!("ico.png"), "png");
+    /// # }
+    pub fn from_static(&mut self, data: &'static [u8], format: impl Into<ImageDataFormat>) -> ImageVar {
+        self.get(ImageCacheKey::Static(data, format.into()))
+    }
+
+    /// Get a cached image from shared data.
+    /// 
+    /// The data can be any of the formats described in [`ImageDataFormat`].
+    pub fn from_data(&mut self, data: Arc<Vec<u8>>, format: impl Into<ImageDataFormat>) -> ImageVar {
+        self.get(ImageCacheKey::Data(data, format.into()))
+    }
+
     /// Get a cached image or add it to the cache.
     pub fn get(&mut self, key: ImageCacheKey) -> ImageVar {
         self.proxy_then_get(key)
@@ -269,7 +286,7 @@ impl Images {
                     format: path
                         .extension()
                         .and_then(|e| e.to_str())
-                        .map(|s| ImageDataFormat::FileExt(s.to_owned()))
+                        .map(|s| ImageDataFormat::FileExtension(s.to_owned()))
                         .unwrap_or(ImageDataFormat::Unknown),
                     data: vec![],
                     error: String::new(),
@@ -313,7 +330,7 @@ impl Images {
                         if let Some(m) = rsp.headers().get(&header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
                             let m = m.to_lowercase();
                             if m.starts_with("image/") {
-                                r.format = ImageDataFormat::Mime(m);
+                                r.format = ImageDataFormat::MimeType(m);
                             }
                         }
 
@@ -335,6 +352,22 @@ impl Images {
 
                 r
             }),
+            ImageCacheKey::Static(bytes, fmt) => {
+                let r = ImageData {
+                    format: fmt,
+                    data: bytes.to_vec(),
+                    error: String::new(),
+                };
+                self.load_task(key, async { r })
+            }
+            ImageCacheKey::Data(bytes, fmt) => {
+                let r = ImageData {
+                    format: fmt,
+                    data: bytes.to_vec(),
+                    error: String::new(),
+                };
+                self.load_task(key, async { r })
+            }
         }
     }
 
@@ -362,6 +395,87 @@ pub enum ImageCacheKey {
     Read(PathBuf),
     /// A uri to an image resource downloaded using HTTP GET.
     Download(Uri),
+    /// Static bytes for an encoded or decoded image.
+    Static(&'static [u8], ImageDataFormat),
+    /// Shared reference to bytes.
+    Data(Arc<Vec<u8>>, ImageDataFormat)
+}
+impl_from_and_into_var! {
+    fn from(path: PathBuf) -> ImageCacheKey {
+        ImageCacheKey::Read(path)
+    }
+    fn from(path: &Path) -> ImageCacheKey {
+        ImageCacheKey::Read(path.to_owned())
+    }
+    fn from(uri: Uri) -> ImageCacheKey {
+        ImageCacheKey::Download(uri)
+    }
+    /// Converts `http://` and `https://` to [`Download`], `file://` to
+    /// [`Read`] the path component, and the rest to [`Read`] the string as a path.
+    ///
+    /// [`Download`]: ImageCacheKey::Download
+    /// [`Read`]: ImageCacheKey::Read
+    fn from(s: &str) -> ImageCacheKey {
+        use crate::task::http::uri::*;
+        if let Ok(uri) = Uri::try_from(s) {
+            if let Some(scheme) = uri.scheme() {
+                if scheme == &Scheme::HTTPS || scheme == &Scheme::HTTP {
+                    return ImageCacheKey::Download(uri);
+                } else if scheme.as_str() == "file" {
+                    return PathBuf::from(uri.path()).into();
+                }
+            }
+        }
+        PathBuf::from(s).into()
+    }
+    /// Same as conversion from `&str`.
+    fn from(s: String) -> ImageCacheKey {
+        s.as_str().into()
+    }
+    /// Same as conversion from `&str`.
+    fn from(s: Text) -> ImageCacheKey {
+        s.as_str().into()
+    }
+    /// From encoded data of [`Unknown`] format.
+    /// 
+    /// [`Unknown`]: ImageDataFormat::Unknown
+    fn from(data: &'static [u8]) -> ImageCacheKey {
+        ImageCacheKey::Static(data, ImageDataFormat::Unknown)
+    }
+    /// From encoded data of [`Unknown`] format.
+    /// 
+    /// [`Unknown`]: ImageDataFormat::Unknown
+    fn from<const N: usize>(data: &'static [u8; N]) -> ImageCacheKey {
+        ImageCacheKey::Static(&data[..], ImageDataFormat::Unknown)
+    }
+    /// From encoded data of [`Unknown`] format.
+    /// 
+    /// [`Unknown`]: ImageDataFormat::Unknown
+    fn from(data: Arc<Vec<u8>>) -> ImageCacheKey {
+        ImageCacheKey::Data(data, ImageDataFormat::Unknown)
+    }
+    /// From encoded data of [`Unknown`] format.
+    /// 
+    /// [`Unknown`]: ImageDataFormat::Unknown
+    fn from(data: Vec<u8>) -> ImageCacheKey {
+        ImageCacheKey::Data(Arc::new(data), ImageDataFormat::Unknown)
+    }
+    /// From encoded data of known format.
+    fn from<F: IntoValue<ImageDataFormat>>((data, format): (&'static [u8], F)) -> ImageCacheKey {
+        ImageCacheKey::Static(data, format.into())
+    }
+    /// From encoded data of known format.
+    fn from<F: IntoValue<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageCacheKey {
+        ImageCacheKey::Static(data, format.into())
+    }
+    /// From encoded data of known format.
+    fn from<F: IntoValue<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> ImageCacheKey {
+        ImageCacheKey::Data(data, format.into())
+    }
+    /// From encoded data of known format.
+    fn from<F: IntoValue<ImageDataFormat>>((data, format): (Vec<u8>, F)) -> ImageCacheKey {
+        ImageCacheKey::Data(Arc::new(data), format.into())
+    }
 }
 
 /// A custom proxy in [`Images`].

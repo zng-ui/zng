@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
 #![cfg_attr(doc_nightly, feature(doc_notable_trait))]
+#![recursion_limit="256"]
 
 //! Core infrastructure required for creating components and running an app.
 

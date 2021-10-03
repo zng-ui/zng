@@ -117,7 +117,6 @@ where
         self
     }
 }
-
 impl<T, V> IntoVar<T> for ReadOnlyVar<T, V>
 where
     T: VarValue,
@@ -128,5 +127,14 @@ where
     #[inline]
     fn into_var(self) -> Self::Var {
         self
+    }
+}
+impl<T> crate::var::rc::ReadOnlyRcVar<T>
+where
+    T: VarValue,
+{
+    /// If both [`ReadOnlyRcVar`] are wrapping the same [`RcVar`].
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
     }
 }

@@ -79,7 +79,7 @@ fn main() {
                         set_icon("Raw Rgba", {
                             let translucent_red = [255, 0, 0, 255 / 2];
                             let rgba = translucent_red.iter().copied().cycle().take(32 * 32 * 4).collect::<Vec<u8>>();
-                            (rgba, 32, 32)
+                            (rbga, 32, 32)
                         }, &icon),
                         set_icon("Render", WindowIcon::render(|_| {
                             container! {

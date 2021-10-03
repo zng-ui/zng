@@ -854,6 +854,11 @@ impl Text {
             Cow::Owned(s) => Text::owned(s.split_off(at)),
         }
     }
+
+    /// Borrow the text as a string slice.
+    pub fn as_str(&self) -> &str {
+        self.0.deref()
+    }
 }
 impl fmt::Debug for Text {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
