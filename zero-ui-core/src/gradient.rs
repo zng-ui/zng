@@ -243,8 +243,8 @@ impl ColorStop {
     }
 }
 impl_from_and_into_var! {
-    fn from<C: IntoValue<Rgba>, O: IntoValue<Length>>(color_offset: (C, O)) -> ColorStop {
-        ColorStop::new(color_offset.0, color_offset.1)
+    fn from<C: Into<Rgba> + Clone, O: Into<Length> + Clone>((color, offset): (C, O)) -> ColorStop {
+        ColorStop::new(color, offset)
     }
 
     fn from(positional_color: Rgba) -> ColorStop {
@@ -274,7 +274,7 @@ pub enum GradientStop {
     ColorHint(Length),
 }
 impl_from_and_into_var! {
-    fn from<C: IntoValue<Rgba>, O: IntoValue<Length>>(color_offset: (C, O)) -> GradientStop {
+    fn from<C: Into<Rgba> + Clone, O: Into<Length> + Clone>(color_offset: (C, O)) -> GradientStop {
         GradientStop::Color(color_offset.into())
     }
 
@@ -827,32 +827,32 @@ impl GradientStops {
 }
 impl_from_and_into_var! {
     /// [`GradientStops::from_colors`]
-    fn from<C: IntoValue<Rgba> + Copy>(colors: &[C]) -> GradientStops {
+    fn from<C: Into<Rgba> + Copy>(colors: &[C]) -> GradientStops {
         GradientStops::from_colors(colors)
     }
 
     /// [`GradientStops::from_stops`]
-    fn from<C: IntoValue<Rgba> + Copy, L: IntoValue<Length> + Copy>(stops: &[(C, L)]) -> GradientStops {
+    fn from<C: Into<Rgba> + Copy, L: Into<Length> + Copy>(stops: &[(C, L)]) -> GradientStops {
         GradientStops::from_stops(stops)
     }
 
     /// [`GradientStops::from_colors`]
-    fn from<C: IntoValue<Rgba> + Copy, const N: usize>(colors: &[C; N]) -> GradientStops {
+    fn from<C: Into<Rgba> + Copy, const N: usize>(colors: &[C; N]) -> GradientStops {
         GradientStops::from_colors(colors)
     }
 
     /// [`GradientStops::from_stops`]
-    fn from<C: IntoValue<Rgba> + Copy, L: IntoValue<Length> + Copy, const N: usize>(stops: &[(C, L); N]) -> GradientStops {
+    fn from<C: Into<Rgba> + Copy, L: Into<Length> + Copy, const N: usize>(stops: &[(C, L); N]) -> GradientStops {
         GradientStops::from_stops(stops)
     }
 
     /// [`GradientStops::from_colors`]
-    fn from<C: IntoValue<Rgba> + Copy, const N: usize>(colors: [C; N]) -> GradientStops {
+    fn from<C: Into<Rgba> + Copy, const N: usize>(colors: [C; N]) -> GradientStops {
         GradientStops::from_colors(&colors)
     }
 
     /// [`GradientStops::from_stops`]
-    fn from<C: IntoValue<Rgba> + Copy, L: IntoValue<Length> + Copy, const N: usize>(stops: [(C, L); N]) -> GradientStops {
+    fn from<C: Into<Rgba> + Copy, L: Into<Length> + Copy, const N: usize>(stops: [(C, L); N]) -> GradientStops {
         GradientStops::from_stops(&stops)
     }
 }

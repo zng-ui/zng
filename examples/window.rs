@@ -76,10 +76,10 @@ fn main() {
                         set_icon("Default", WindowIcon::Default, &icon),
                         set_icon("Png File", "examples/res/window/icon-file.png", &icon),
                         set_icon("Png Bytes", include_bytes!("res/window/icon-bytes.png"), &icon),
-                        set_icon("Raw Rgba", {
-                            let translucent_red = [255, 0, 0, 255 / 2];
-                            let rgba = translucent_red.iter().copied().cycle().take(32 * 32 * 4).collect::<Vec<u8>>();
-                            (rbga, 32, 32)
+                        set_icon("Raw BGRA", {
+                            let translucent_red = [0, 0, 255, 255 / 2];
+                            let bgra = translucent_red.iter().copied().cycle().take(32 * 32 * 4).collect::<Vec<u8>>();
+                            (bgra, zero_ui::core::image::ImageDataFormat::from(PxSize::new(Px(32), Px(32))))
                         }, &icon),
                         set_icon("Render", WindowIcon::render(|_| {
                             container! {

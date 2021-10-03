@@ -20,10 +20,7 @@ use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
-    use crate::{
-        context::{OwnedStateMap, RenderContext},
-        var::IntoValue,
-    };
+    use crate::context::{OwnedStateMap, RenderContext};
 
     use super::*;
 
@@ -32,7 +29,7 @@ pub mod implicit_base {
         ///
         /// Can also be set to an `&'static str` unique name.
         #[allowed_in_when = false]
-        id(impl IntoValue<WidgetId>) = WidgetId::new_unique();
+        id(impl Into<WidgetId> + Clone) = WidgetId::new_unique();
     }
 
     properties! {
@@ -113,7 +110,7 @@ pub mod implicit_base {
     /// [`WidgetContext::widget_context`]: crate::context::WidgetContext::widget_context
     /// [`LayoutContext::widget_context`]: crate::context::LayoutContext::widget_context
     /// [`FrameBuilder::push_widget`]: crate::render::FrameBuilder::push_widget
-    pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
+    pub fn new(child: impl UiNode, id: impl Into<WidgetId>) -> impl Widget {
         struct WidgetNode<T> {
             id: WidgetId,
             transform_key: WidgetTransformKey,

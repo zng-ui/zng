@@ -1,21 +1,41 @@
 //! Image loading and cache.
 
-use std::{cell::RefCell, collections::HashMap, convert::TryFrom, fmt, future::Future, mem, path::{Path, PathBuf}, rc::Rc, sync::Arc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    convert::TryFrom,
+    fmt,
+    future::Future,
+    mem,
+    path::{Path, PathBuf},
+    rc::Rc,
+    sync::Arc,
+};
 
 use zero_ui_view_api::webrender_api::ImageKey;
 
-use crate::{app::{
+use crate::{
+    app::{
         raw_events::{RawImageLoadErrorEvent, RawImageLoadedEvent},
         view_process::{Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
         AppEventSender, AppExtension,
-    }, context::{AppContext, LayoutMetrics}, event::EventUpdateArgs, impl_from_and_into_var, service::Service, task::{
+    },
+    context::{AppContext, LayoutMetrics},
+    event::EventUpdateArgs,
+    impl_from_and_into_var,
+    service::Service,
+    task::{
         fs,
         http::{self, header, Request, TryUri, Uri},
         io::*,
         ui::UiTask,
-    }, text::Text, units::*, var::{IntoValue, RcVar, ReadOnlyRcVar, Var, var}};
+    },
+    text::Text,
+    units::*,
+    var::{var, RcVar, ReadOnlyRcVar, Var},
+};
 
-pub use crate::app::view_process::{ImagePpi, ImageDataFormat};
+pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
 
 /// Application extension that provides an image cache.
 ///
@@ -168,13 +188,13 @@ impl Images {
     }
 
     /// Get a cached image from `&'static [u8]` data.
-    /// 
+    ///
     /// The data can be any of the formats described in [`ImageDataFormat`].
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// Get an image from a PNG file embedded in the app executable using [`include_bytes!`].
-    /// 
+    ///
     /// ```
     /// # use zero_ui_core::{image::*, context::AppContext};
     /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
@@ -186,7 +206,7 @@ impl Images {
     }
 
     /// Get a cached image from shared data.
-    /// 
+    ///
     /// The data can be any of the formats described in [`ImageDataFormat`].
     pub fn from_data(&mut self, data: Arc<Vec<u8>>, format: impl Into<ImageDataFormat>) -> ImageVar {
         self.get(ImageCacheKey::Data(data, format.into()))
@@ -398,7 +418,7 @@ pub enum ImageCacheKey {
     /// Static bytes for an encoded or decoded image.
     Static(&'static [u8], ImageDataFormat),
     /// Shared reference to bytes.
-    Data(Arc<Vec<u8>>, ImageDataFormat)
+    Data(Arc<Vec<u8>>, ImageDataFormat),
 }
 impl_from_and_into_var! {
     fn from(path: PathBuf) -> ImageCacheKey {
@@ -437,43 +457,43 @@ impl_from_and_into_var! {
         s.as_str().into()
     }
     /// From encoded data of [`Unknown`] format.
-    /// 
+    ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: &'static [u8]) -> ImageCacheKey {
         ImageCacheKey::Static(data, ImageDataFormat::Unknown)
     }
     /// From encoded data of [`Unknown`] format.
-    /// 
+    ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from<const N: usize>(data: &'static [u8; N]) -> ImageCacheKey {
         ImageCacheKey::Static(&data[..], ImageDataFormat::Unknown)
     }
     /// From encoded data of [`Unknown`] format.
-    /// 
+    ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: Arc<Vec<u8>>) -> ImageCacheKey {
         ImageCacheKey::Data(data, ImageDataFormat::Unknown)
     }
     /// From encoded data of [`Unknown`] format.
-    /// 
+    ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: Vec<u8>) -> ImageCacheKey {
         ImageCacheKey::Data(Arc::new(data), ImageDataFormat::Unknown)
     }
     /// From encoded data of known format.
-    fn from<F: IntoValue<ImageDataFormat>>((data, format): (&'static [u8], F)) -> ImageCacheKey {
+    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (&'static [u8], F)) -> ImageCacheKey {
         ImageCacheKey::Static(data, format.into())
     }
     /// From encoded data of known format.
-    fn from<F: IntoValue<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageCacheKey {
+    fn from<F: Into<ImageDataFormat> + Clone, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageCacheKey {
         ImageCacheKey::Static(data, format.into())
     }
     /// From encoded data of known format.
-    fn from<F: IntoValue<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> ImageCacheKey {
+    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> ImageCacheKey {
         ImageCacheKey::Data(data, format.into())
     }
     /// From encoded data of known format.
-    fn from<F: IntoValue<ImageDataFormat>>((data, format): (Vec<u8>, F)) -> ImageCacheKey {
+    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Vec<u8>, F)) -> ImageCacheKey {
         ImageCacheKey::Data(Arc::new(data), format.into())
     }
 }

@@ -781,7 +781,7 @@ impl PartialEq for ValueInfo {
 pub mod debug_var_util {
     use std::fmt::Debug;
 
-    use crate::var::{BoxedVar, IntoValue, IntoVar, OwnedVar, Var, VarValue};
+    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarValue};
 
     use super::ValueInfo;
 
@@ -797,6 +797,9 @@ pub mod debug_var_util {
             OwnedVar(ValueInfo::new_type_name_only(self.0)).boxed()
         }
     }
+
+    pub trait IntoValue<T: VarValue>: Into<T> + Clone {}
+    impl<T: VarValue> IntoValue<T> for T {}
 
     //
     // `&Wrap` - IntoValue<Debug>

@@ -1,11 +1,18 @@
 //! App window manager.
 
-use std::{fmt, mem, path::{Path, PathBuf}, rc::Rc, sync::Arc, thread, time::Instant};
+use std::{
+    fmt, mem,
+    path::{Path, PathBuf},
+    rc::Rc,
+    sync::Arc,
+    thread,
+    time::Instant,
+};
 
-pub use crate::app::view_process::{CursorIcon, ByteBuf, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
+pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
 use crate::{
     color::RenderColor,
-    image::{ImageCacheKey, ImageVar, ImagesExt, ImageDataFormat},
+    image::{ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt},
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
 };
 use linear_map::LinearMap;
@@ -28,7 +35,7 @@ use crate::{
     task::http::Uri,
     text::{Text, TextAntiAliasing, ToText},
     units::*,
-    var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
+    var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -330,32 +337,12 @@ impl Default for HeadlessMonitor {
         (1920, 1080).into()
     }
 }
-impl IntoValue<HeadlessMonitor> for (f32, f32) {}
-impl From<(f32, f32)> for HeadlessMonitor {
-    /// Calls [`HeadlessMonitor::new_scaled`]
-    fn from((width, height): (f32, f32)) -> Self {
-        Self::new(DipSize::new(Dip::new_f32(width), Dip::new_f32(height)))
+impl_from_and_into_var! {
+    fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone>((width, height): (W, H)) -> HeadlessMonitor {
+        HeadlessMonitor::new(DipSize::new(width.into(), height.into()))
     }
-}
-impl IntoValue<HeadlessMonitor> for (u32, u32) {}
-impl From<(u32, u32)> for HeadlessMonitor {
-    /// Calls [`HeadlessMonitor::new`]
-    fn from((width, height): (u32, u32)) -> Self {
-        Self::new(DipSize::new(Dip::new(width as i32), Dip::new(height as i32)))
-    }
-}
-impl IntoValue<HeadlessMonitor> for FactorNormal {}
-impl From<FactorNormal> for HeadlessMonitor {
-    /// Calls [`HeadlessMonitor::new_scale`]
-    fn from(f: FactorNormal) -> Self {
-        Self::new_scale(f.0)
-    }
-}
-impl IntoValue<HeadlessMonitor> for FactorPercent {}
-impl From<FactorPercent> for HeadlessMonitor {
-    /// Calls [`HeadlessMonitor::new_scale`]
-    fn from(f: FactorPercent) -> Self {
-        Self::new_scale(f.0 / 100.0)
+    fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone>((width, height, scale): (W, H, f32)) -> HeadlessMonitor {
+        HeadlessMonitor::new_scaled(DipSize::new(width.into(), height.into()), scale)
     }
 }
 
@@ -686,43 +673,43 @@ impl_from_and_into_var! {
         ImageCacheKey::from(s).into()
     }
     /// From encoded data of [`Unknown`] format.
-    /// 
+    ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: &'static [u8]) -> WindowIcon {
         ImageCacheKey::from(data).into()
     }
     /// From encoded data of [`Unknown`] format.
-    /// 
+    ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from<const N: usize>(data: &'static [u8; N]) -> WindowIcon {
         ImageCacheKey::from(data).into()
     }
     /// From encoded data of [`Unknown`] format.
-    /// 
+    ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: Arc<Vec<u8>>) -> WindowIcon {
         ImageCacheKey::from(data).into()
     }
     /// From encoded data of [`Unknown`] format.
-    /// 
+    ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: Vec<u8>) -> WindowIcon {
         ImageCacheKey::from(data).into()
     }
     /// From encoded data of known format.
-    fn from<F: IntoValue<ImageDataFormat>>((data, format): (&'static [u8], F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (&'static [u8], F)) -> WindowIcon {
         ImageCacheKey::from((data, format)).into()
     }
     /// From encoded data of known format.
-    fn from<F: IntoValue<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat> + Clone, const N: usize>((data, format): (&'static [u8; N], F)) -> WindowIcon {
         ImageCacheKey::from((data, format)).into()
     }
     /// From encoded data of known format.
-    fn from<F: IntoValue<ImageDataFormat>>((data, format): (Vec<u8>, F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Vec<u8>, F)) -> WindowIcon {
         ImageCacheKey::from((data, format)).into()
     }
     /// From encoded data of known format.
-    fn from<F: IntoValue<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> WindowIcon {
         ImageCacheKey::from((data, format)).into()
     }
 }

@@ -1795,11 +1795,11 @@ pub mod view_process {
         DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult,
         IdNamespace, ImageKey, PipelineId,
     };
-    use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
     pub use zero_ui_view_api::{
-        CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, ImageDataFormat, ImagePpi, MonitorInfo, Respawned,
-        TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme, ByteBuf
+        ByteBuf, CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, ImageDataFormat, ImagePpi, MonitorInfo,
+        Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
     };
+    use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
     type Result<T> = std::result::Result<T, Respawned>;
 

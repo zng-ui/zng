@@ -5,12 +5,16 @@ use crate::prelude::new_widget::*;
 /// This widget loads a still image from a variety of sources and presents it.
 #[widget($crate::widgets::image)]
 pub mod image {
-    use zero_ui::core::image::{ImageCacheKey, ImageVar, ImageDataFormat};
+    use zero_ui::core::image::{ImageCacheKey, ImageDataFormat, ImageVar};
 
     use super::*;
     use crate::core::task::http::Uri;
     use properties::ImageRenderingVar;
-    use std::{fmt, path::{Path, PathBuf}, sync::Arc};
+    use std::{
+        fmt,
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
 
     /// The different inputs accepted by the [`source`] property.
     ///
@@ -62,43 +66,43 @@ pub mod image {
             ImageCacheKey::from(s).into()
         }
         /// From encoded data of [`Unknown`] format.
-        /// 
+        ///
         /// [`Unknown`]: ImageDataFormat::Unknown
         fn from(data: &'static [u8]) -> ImageSource {
             ImageCacheKey::from(data).into()
         }
         /// From encoded data of [`Unknown`] format.
-        /// 
+        ///
         /// [`Unknown`]: ImageDataFormat::Unknown
         fn from<const N: usize>(data: &'static [u8; N]) -> ImageSource {
             ImageCacheKey::from(data).into()
         }
         /// From encoded data of [`Unknown`] format.
-        /// 
+        ///
         /// [`Unknown`]: ImageDataFormat::Unknown
         fn from(data: Arc<Vec<u8>>) -> ImageSource {
             ImageCacheKey::from(data).into()
         }
         /// From encoded data of [`Unknown`] format.
-        /// 
+        ///
         /// [`Unknown`]: ImageDataFormat::Unknown
         fn from(data: Vec<u8>) -> ImageSource {
             ImageCacheKey::from(data).into()
         }
         /// From encoded data of known format.
-        fn from<F: IntoValue<ImageDataFormat>>((data, format): (&'static [u8], F)) -> ImageSource {
+        fn from<F: Into<ImageDataFormat> + Clone>((data, format): (&'static [u8], F)) -> ImageSource {
             ImageCacheKey::from((data, format)).into()
         }
         /// From encoded data of known format.
-        fn from<F: IntoValue<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageSource {
+        fn from<F: Into<ImageDataFormat> + Clone, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageSource {
             ImageCacheKey::from((data, format)).into()
         }
         /// From encoded data of known format.
-        fn from<F: IntoValue<ImageDataFormat>>((data, format): (Vec<u8>, F)) -> ImageSource {
+        fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Vec<u8>, F)) -> ImageSource {
             ImageCacheKey::from((data, format)).into()
         }
         /// From encoded data of known format.
-        fn from<F: IntoValue<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> ImageSource {
+        fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> ImageSource {
             ImageCacheKey::from((data, format)).into()
         }
     }

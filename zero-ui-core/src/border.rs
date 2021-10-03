@@ -4,7 +4,6 @@ use std::fmt;
 
 use crate::render::webrender_api as w_api;
 
-use crate::var::IntoValue;
 use crate::{color::*, context::LayoutMetrics, units::*, var::impl_from_and_into_var};
 
 /// Orientation of a straight line.
@@ -349,7 +348,7 @@ impl_from_and_into_var! {
     }
 
     /// (top-left, top-right, bottom-left, bottom-right) corners.
-    fn from<TL: IntoValue<Ellipse>, TR: IntoValue<Ellipse>, BR: IntoValue<Ellipse>, BL: IntoValue<Ellipse>>(
+    fn from<TL: Into<Ellipse> + Clone, TR: Into<Ellipse> + Clone, BR: Into<Ellipse> + Clone, BL: Into<Ellipse> + Clone>(
         (top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL)
     ) -> BorderRadius {
         BorderRadius::new(top_left, top_right, bottom_right, bottom_left)
@@ -526,30 +525,30 @@ impl_from_and_into_var! {
     }
 
     /// (color, style) side.
-    fn from<C: IntoValue<Rgba>, S: IntoValue<BorderStyle>>((color, style): (C, S)) -> BorderSide {
+    fn from<C: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>((color, style): (C, S)) -> BorderSide {
         BorderSide::new(color, style)
     }
 
     /// (color, style) sides.
-    fn from<C: IntoValue<Rgba>, S: IntoValue<BorderStyle>>((color, style): (C, S)) -> BorderSides {
+    fn from<C: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>((color, style): (C, S)) -> BorderSides {
         BorderSides::new_all(BorderSide::new(color, style))
     }
 
     /// (top, right, bottom, left) sides.
-    fn from<T: IntoValue<BorderSide>, R: IntoValue<BorderSide>, B: IntoValue<BorderSide>, L: IntoValue<BorderSide>>(
+    fn from<T: Into<BorderSide> + Clone, R: Into<BorderSide> + Clone, B: Into<BorderSide> + Clone, L: Into<BorderSide> + Clone>(
         (top, right, bottom, left): (T, R, B, L)
     ) -> BorderSides {
         BorderSides::new(top, right, bottom, left)
     }
 
     /// (top-bottom-color, left-right-color, style) sides.
-    fn from<TB: IntoValue<Rgba>, LR: IntoValue<Rgba>, S: IntoValue<BorderStyle>>((top_bottom, left_right, style): (TB, LR, S)) -> BorderSides {
+    fn from<TB: Into<Rgba> + Clone, LR: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>((top_bottom, left_right, style): (TB, LR, S)) -> BorderSides {
         let style = style.into();
         BorderSides::new_dimension((top_bottom, style), (left_right, style))
     }
 
     /// (top-color, right-color, bottom-color, left-color, style) sides.
-    fn from<T: IntoValue<Rgba>, R: IntoValue<Rgba>, B: IntoValue<Rgba>, L: IntoValue<Rgba>, S: IntoValue<BorderStyle>>(
+    fn from<T: Into<Rgba> + Clone, R: Into<Rgba> + Clone, B: Into<Rgba> + Clone, L: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>(
         (top, right, bottom, left, style): (T, R, B, L, S)
     ) -> BorderSides {
         let style = style.into();

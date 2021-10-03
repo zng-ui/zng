@@ -9,7 +9,6 @@ use parking_lot::Mutex;
 use crate::{
     context::*,
     event::{AnyEventUpdate, Event},
-    var::IntoValue,
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -125,7 +124,6 @@ impl From<&'static str> for WidgetId {
         WidgetId::named(name)
     }
 }
-impl IntoValue<WidgetId> for &'static str {}
 
 /// An Ui tree node.
 #[cfg_attr(doc_nightly, doc(notable_trait))]

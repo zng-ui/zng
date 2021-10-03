@@ -237,10 +237,6 @@ pub trait IntoVar<T: VarValue>: Clone {
     }
 }
 
-/// Like [`IntoVar`], but for values that don't change.
-pub trait IntoValue<T: VarValue>: Into<T> + Clone {}
-impl<T: VarValue> IntoValue<T> for T {}
-
 /// Represents an observable value.
 ///
 /// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
@@ -1367,10 +1363,10 @@ pub use zero_ui_proc_macros::expr_var as __expr_var;
 /// You can use this macro to implement both `U: From<T>` and `T: IntoVar<U>` at the same time.
 /// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`OwnedVar<U>`]
 /// type is selected for variables.
-/// 
-/// Optionally you can declare generics using the pattern `fn from<const N: usize>(t: &'static [T; N]) -> U` 
+///
+/// Optionally you can declare generics using the pattern `fn from<const N: usize>(t: &'static [T; N]) -> U`
 /// with multiple generic types and constrains, but not `where` constrains. You can also destruct the input
-/// if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern matching in 
+/// if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern matching in
 /// the input is supported.
 ///
 /// # Examples
@@ -1573,9 +1569,9 @@ macro_rules! __impl_from_and_into_var {
             generics { $($generics:tt)* }
             docs { $($docs:tt)* }
         ]
-        -> $Output:ty 
-        $convert:block 
-        
+        -> $Output:ty
+        $convert:block
+
         $($rest:tt)*
     ) => {
         impl $($generics)* From<$Input> for $Output {

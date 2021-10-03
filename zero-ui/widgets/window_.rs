@@ -44,7 +44,7 @@ pub mod window {
 
         /// Window position when it opens.
         #[allowed_in_when = false]
-        start_position(impl IntoValue<StartPosition>) = StartPosition::Default;
+        start_position(impl Into<StartPosition> + Clone) = StartPosition::Default;
 
         /// Window state.
         ///
@@ -210,7 +210,7 @@ pub mod window {
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
         /// is taken from the monitor. In headless mode these values can be configured manually.
         #[allowed_in_when = false]
-        headless_monitor(impl IntoValue<HeadlessMonitor>) = HeadlessMonitor::default();
+        headless_monitor(impl Into<HeadlessMonitor> + Clone) = HeadlessMonitor::default();
 
         /// Lock-in kiosk mode.
         ///

@@ -1018,6 +1018,11 @@ impl From<&str> for ImageDataFormat {
         ext_or_mime.to_owned().into()
     }
 }
+impl From<PxSize> for ImageDataFormat {
+    fn from(bgra8_size: PxSize) -> Self {
+        ImageDataFormat::Bgra8 { size: bgra8_size, ppi: None }
+    }
+}
 impl PartialEq for ImageDataFormat {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -1029,7 +1034,7 @@ impl PartialEq for ImageDataFormat {
         }
     }
 }
-impl Eq for ImageDataFormat { }
+impl Eq for ImageDataFormat {}
 impl std::hash::Hash for ImageDataFormat {
     fn hash<H: _core::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
@@ -1037,17 +1042,14 @@ impl std::hash::Hash for ImageDataFormat {
             ImageDataFormat::Bgra8 { size, ppi } => {
                 size.hash(state);
                 ppi_key(*ppi).hash(state);
-            },
+            }
             ImageDataFormat::FileExtension(ext) => ext.hash(state),
             ImageDataFormat::MimeType(mt) => mt.hash(state),
-            ImageDataFormat::Unknown => {},
+            ImageDataFormat::Unknown => {}
         }
     }
 }
 
 fn ppi_key(ppi: ImagePpi) -> Option<(u16, u16)> {
-    ppi.map(|(x, y)| (
-        (x * 3.0) as u16, 
-        (y * 3.0) as u16,
-    ))
+    ppi.map(|(x, y)| ((x * 3.0) as u16, (y * 3.0) as u16))
 }
