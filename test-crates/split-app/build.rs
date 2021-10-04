@@ -15,5 +15,9 @@ fn main() {
         "../split-view/target/debug/split-view"
     };
 
-    fs::copy(source, "./target/debug/split-view").unwrap();
+    if cfg!(debug_assertions) {
+        fs::copy(source, "./target/debug/split-view").unwrap();
+    } else {
+        fs::copy(source, "./target/release/split-view").unwrap();
+    }
 }

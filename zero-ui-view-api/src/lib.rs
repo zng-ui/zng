@@ -111,15 +111,18 @@ macro_rules! declare_api {
         }
         impl fmt::Debug for RequestData {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                #[allow(unused_doc_comments)]
                 if f.alternate() {
                     match self {
                         $(
+                            $(#[$meta])*
                             RequestData::$method { $($input),* } => write!(f, "{}{:#?}", stringify!($method), ($($input),*)),
                         )+
                     }
                 } else {
                     match self {
                         $(
+                            $(#[$meta])*
                             RequestData::$method { .. } => write!(f, "{}(..)", stringify!($method)),
                         )+
                     }
