@@ -727,3 +727,48 @@ impl fmt::Debug for RenderImage {
         fmt::Debug::fmt(&self.key, f)
     }
 }
+
+/// Spooky Hash V2.
+///
+/// This hash is used to identify image files in the [`Images`] cache.
+#[derive(Clone, Copy)]
+pub struct Hash128([u8; 16]);
+impl Hash128 {
+    /// Compute the hash for `data`.
+    pub fn compute(data: &[u8]) -> Self {
+        use std::hash::Hasher;
+        let mut hasher =
+            hashers::jenkins::spooky_hash::SpookyHasher::new(u64::from_le_bytes(*b"-Images-"), u64::from_le_bytes(*b"-Hash---"));
+        hasher.write(data);
+        let (s0, s1) = hasher.finish128();
+        let mut hash = [0; 16];
+        hash[..8].copy_from_slice(&s0.to_le_bytes());
+        hash[8..].copy_from_slice(&s1.to_le_bytes());
+        Hash128(hash)
+    }
+}
+impl fmt::Debug for Hash128 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("Hash128").field(&self.0).finish()
+        } else {
+            write!(f, "{}", base64::encode(&self.0))
+        }
+    }
+}
+impl fmt::Display for Hash128 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+impl std::hash::Hash for Hash128 {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write(&self.0)
+    }
+}
+impl PartialEq for Hash128 {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl Eq for Hash128 {}

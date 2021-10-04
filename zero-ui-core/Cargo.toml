@@ -73,6 +73,8 @@ log = "0.4"
 unsafe-any = "0.4"
 linear-map = "1"
 rand = "0.8"
+hashers = "1"
+base64 = "0.13"
 
 # serde
 serde = "1"
