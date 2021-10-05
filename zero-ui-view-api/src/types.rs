@@ -1,4 +1,5 @@
 use crate::units::*;
+use crate::IpcSharedMemory;
 use bitflags::*;
 use serde::{Deserialize, Serialize};
 pub use serde_bytes::ByteBuf;
@@ -608,7 +609,7 @@ pub enum Event {
     WindowClosed(WindowId),
 
     /// An image resource finished decoding.
-    ImageLoaded(ImageId, PxSize, ImagePpi, bool),
+    ImageLoaded(ImageId, PxSize, ImagePpi, bool, IpcSharedMemory),
     /// An image resource failed to decode, the image ID is not valid.
     ImageLoadError(ImageId, String),
 
@@ -1020,7 +1021,10 @@ impl From<&str> for ImageDataFormat {
 }
 impl From<PxSize> for ImageDataFormat {
     fn from(bgra8_size: PxSize) -> Self {
-        ImageDataFormat::Bgra8 { size: bgra8_size, ppi: None }
+        ImageDataFormat::Bgra8 {
+            size: bgra8_size,
+            ppi: None,
+        }
     }
 }
 impl PartialEq for ImageDataFormat {

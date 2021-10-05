@@ -4,7 +4,7 @@ use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use zero_ui_view_api::{
     units::{Px, PxRect, PxSize},
-    ByteBuf, Event, ImageDataFormat, ImageId, ImagePixels, ImagePpi, IpcBytesReceiver, IpcSender,
+    ByteBuf, Event, ImageDataFormat, ImageId, ImagePixels, ImagePpi, IpcSender, IpcSharedMemory,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -25,7 +25,7 @@ impl<S: AppEventSender> ImageCache<S> {
         }
     }
 
-    pub fn add(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId {
+    pub fn add(&mut self, data: IpcSharedMemory, format: ImageDataFormat) -> ImageId {
         let mut id = self.image_id_gen.wrapping_add(1);
         if id == 0 {
             id = 1;
@@ -34,38 +34,33 @@ impl<S: AppEventSender> ImageCache<S> {
 
         let app_sender = self.app_sender.clone();
 
-        rayon::spawn(move || match data.recv() {
-            Ok(data) => {
-                let r = match format {
-                    ImageDataFormat::Bgra8 { size, ppi } => {
-                        let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
-                        if data.len() != expected_len {
-                            Err(format!(
-                                "bgra8.len() is not width * height * 4, expected {}, found {}",
-                                expected_len,
-                                data.len()
-                            ))
-                        } else {
-                            let opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                            Ok((data, size, ppi, opaque))
-                        }
-                    }
-                    ImageDataFormat::FileExtension(ext) => Self::load_file(data, ext),
-                    ImageDataFormat::MimeType(mime) => Self::load_web(data, mime),
-                    ImageDataFormat::Unknown => Self::load_unknown(data),
-                };
-
-                match r {
-                    Ok((bgra8, size, ppi, opaque)) => {
-                        let _ = app_sender.send(AppEvent::ImageLoaded(id, bgra8, size, ppi, opaque));
-                    }
-                    Err(e) => {
-                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, e)));
+        rayon::spawn(move || {
+            let r = match format {
+                ImageDataFormat::Bgra8 { size, ppi } => {
+                    let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
+                    if data.len() != expected_len {
+                        Err(format!(
+                            "bgra8.len() is not width * height * 4, expected {}, found {}",
+                            expected_len,
+                            data.len()
+                        ))
+                    } else {
+                        let opaque = data.chunks_exact(4).all(|c| c[3] == 255);
+                        Ok((data, size, ppi, opaque))
                     }
                 }
-            }
-            Err(e) => {
-                let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, format!("{:?}", e))));
+                ImageDataFormat::FileExtension(ext) => Self::load_file(data, ext),
+                ImageDataFormat::MimeType(mime) => Self::load_web(data, mime),
+                ImageDataFormat::Unknown => Self::load_unknown(data),
+            };
+
+            match r {
+                Ok((bgra8, size, ppi, opaque)) => {
+                    let _ = app_sender.send(AppEvent::ImageLoaded(id, bgra8, size, ppi, opaque));
+                }
+                Err(e) => {
+                    let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, e)));
+                }
             }
         });
 
@@ -81,26 +76,29 @@ impl<S: AppEventSender> ImageCache<S> {
     }
 
     /// Called after receive and decode completes correctly.
-    pub fn loaded(&mut self, id: ImageId, bgra8: Vec<u8>, size: PxSize, ppi: ImagePpi, opaque: bool) {
+    pub fn loaded(&mut self, id: ImageId, bgra8: IpcSharedMemory, size: PxSize, ppi: ImagePpi, opaque: bool) {
         let flags = if opaque {
             ImageDescriptorFlags::IS_OPAQUE
         } else {
             ImageDescriptorFlags::empty()
         };
+        let bgra8 = IpcSharedMemory::from_bytes(&bgra8);
         self.images.insert(
             id,
-            Image {
+            Image(Arc::new(ImageData {
                 size,
-                bgra8: Arc::new(bgra8),
+                bgra8: bgra8.clone(),
                 descriptor: ImageDescriptor::new(size.width.0, size.height.0, ImageFormat::BGRA8, flags),
                 ppi,
-            },
+            })),
         );
 
-        let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(id, size, ppi, opaque)));
+        let _ = self
+            .app_sender
+            .send(AppEvent::Notify(Event::ImageLoaded(id, size, ppi, opaque, bgra8)));
     }
 
-    fn load_file(data: Vec<u8>, ext: String) -> Result<RawLoadedImg, String> {
+    fn load_file(data: IpcSharedMemory, ext: String) -> Result<RawLoadedImg, String> {
         if let Some(f) = image::ImageFormat::from_extension(ext) {
             if !f.can_read() {
                 return Err(format!("not supported, cannot decode `{:?}` images", f.extensions_str()));
@@ -114,7 +112,7 @@ impl<S: AppEventSender> ImageCache<S> {
         }
     }
 
-    fn load_web(data: Vec<u8>, mime: String) -> Result<RawLoadedImg, String> {
+    fn load_web(data: IpcSharedMemory, mime: String) -> Result<RawLoadedImg, String> {
         if let Some(format) = mime.strip_prefix("image/") {
             Self::load_file(data, format.to_owned())
         } else {
@@ -122,7 +120,7 @@ impl<S: AppEventSender> ImageCache<S> {
         }
     }
 
-    fn load_unknown(data: Vec<u8>) -> Result<RawLoadedImg, String> {
+    fn load_unknown(data: IpcSharedMemory) -> Result<RawLoadedImg, String> {
         match image::load_from_memory(&data) {
             Ok(img) => Ok(Self::convert_decoded(img)),
             Err(e) => Err(format!("{:?}", e)),
@@ -257,53 +255,68 @@ impl<S: AppEventSender> ImageCache<S> {
             ),
         };
 
-        (bgra, PxSize::new(Px(size.0 as i32), Px(size.1 as i32)), None, opaque)
+        (
+            IpcSharedMemory::from_bytes(&bgra),
+            PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
+            None,
+            opaque,
+        )
     }
 }
 
-type RawLoadedImg = (Vec<u8>, PxSize, ImagePpi, bool);
-
-pub(crate) struct Image {
-    pub size: PxSize,
-    pub bgra8: Arc<Vec<u8>>,
-    pub descriptor: ImageDescriptor,
-    pub ppi: ImagePpi,
+type RawLoadedImg = (IpcSharedMemory, PxSize, ImagePpi, bool);
+struct ImageData {
+    size: PxSize,
+    bgra8: IpcSharedMemory,
+    descriptor: ImageDescriptor,
+    ppi: ImagePpi,
 }
-impl Image {
+impl ImageData {
     pub fn opaque(&self) -> bool {
         self.descriptor.flags.contains(ImageDescriptorFlags::IS_OPAQUE)
     }
+}
+#[derive(Clone)]
+pub(crate) struct Image(Arc<ImageData>);
+impl Image {
+    pub fn opaque(&self) -> bool {
+        self.0.opaque()
+    }
+
+    pub fn size(&self) -> PxSize {
+        self.0.size
+    }
+
+    pub fn descriptor(&self) -> ImageDescriptor {
+        self.0.descriptor
+    }
+
+    pub fn ppi(&self) -> ImagePpi {
+        self.0.ppi
+    }
 
     pub fn read_pixels(&self, response: IpcSender<ImagePixels>) {
-        let bgra8 = Arc::clone(&self.bgra8);
-        let size = self.size;
-        let ppi = self.ppi;
-        let opaque = self.opaque();
-
+        let img = Arc::clone(&self.0);
         rayon::spawn(move || {
             let _ = response.send(ImagePixels {
-                area: PxRect::from_size(size),
-                bgra: ByteBuf::from((*bgra8).clone()),
-                ppi,
-                opaque,
+                area: PxRect::from_size(img.size),
+                bgra: ByteBuf::from(img.bgra8.to_vec()),
+                ppi: img.ppi,
+                opaque: img.opaque(),
             });
         });
     }
 
     pub fn read_pixels_rect(&self, rect: PxRect, response: IpcSender<ImagePixels>) {
-        let bgra8 = Arc::clone(&self.bgra8);
-        let size = self.size;
-        let ppi = self.ppi;
-        let opaque = self.opaque();
-
+        let img = Arc::clone(&self.0);
         rayon::spawn(move || {
-            let area = PxRect::from_size(size).intersection(&rect).unwrap_or_default();
+            let area = PxRect::from_size(img.size).intersection(&rect).unwrap_or_default();
             if area.size.width.0 == 0 || area.size.height.0 == 0 {
                 let _ = response.send(ImagePixels {
                     area,
                     bgra: ByteBuf::new(),
-                    ppi,
-                    opaque,
+                    ppi: img.ppi,
+                    opaque: img.opaque(),
                 });
             } else {
                 let x = area.origin.x.0 as usize;
@@ -314,19 +327,19 @@ impl Image {
                 for l in y..y + height {
                     let line_start = (l + x) * 4;
                     let line_end = (l + x + width) * 4;
-                    let line = &bgra8[line_start..line_end];
+                    let line = &img.bgra8[line_start..line_end];
                     bytes.extend(line);
                 }
 
-                let mut opaque = opaque;
-                if !opaque && area.size != size {
+                let mut opaque = img.opaque();
+                if !opaque && area.size != img.size {
                     opaque = bytes.chunks_exact(4).all(|c| c[3] == 255);
                 }
 
                 let _ = response.send(ImagePixels {
                     area,
                     bgra: ByteBuf::from(bytes),
-                    ppi,
+                    ppi: img.ppi,
                     opaque,
                 });
             }
@@ -335,13 +348,13 @@ impl Image {
 
     /// Generate a window icon from the image.
     pub fn icon(&self) -> Option<Icon> {
-        let width = self.size.width.0 as u32;
-        let height = self.size.height.0 as u32;
+        let width = self.0.size.width.0 as u32;
+        let height = self.0.size.height.0 as u32;
         if width == 0 || height == 0 {
             None
         } else if width > 255 || height > 255 {
             // resize to max 255
-            let img = image::ImageBuffer::from_raw(width, height, (*self.bgra8).clone()).unwrap();
+            let img = image::ImageBuffer::from_raw(width, height, self.0.bgra8.to_vec()).unwrap();
             let img = image::DynamicImage::ImageBgra8(img);
             img.resize(255, 255, image::imageops::FilterType::Triangle);
 
@@ -350,7 +363,7 @@ impl Image {
             let buf = img.to_rgba8().into_raw();
             glutin::window::Icon::from_rgba(buf, width, height).ok()
         } else {
-            let mut buf = (*self.bgra8).clone();
+            let mut buf = self.0.bgra8.to_vec();
             // BGRA to RGBA
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
             glutin::window::Icon::from_rgba(buf, width, height).ok()
@@ -358,7 +371,7 @@ impl Image {
     }
 
     pub fn encode(&self, format: image::ImageFormat, buffer: &mut Vec<u8>) -> image::ImageResult<()> {
-        if self.size.width <= Px(0) || self.size.height <= Px(0) {
+        if self.0.size.width <= Px(0) || self.0.size.height <= Px(0) {
             return Err(image::ImageError::IoError(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "cannot encode zero sized image",
@@ -369,20 +382,21 @@ impl Image {
 
         // invert rows, `image` only supports top-to-bottom buffers.
         let bgra: Vec<_> = self
+            .0
             .bgra8
-            .rchunks_exact(self.size.width.0 as usize * 4)
+            .rchunks_exact(self.0.size.width.0 as usize * 4)
             .flatten()
             .copied()
             .collect();
 
-        let width = self.size.width.0 as u32;
-        let height = self.size.height.0 as u32;
+        let width = self.0.size.width.0 as u32;
+        let height = self.0.size.height.0 as u32;
         let opaque = self.opaque();
 
         match format {
             ImageFormat::Jpeg => {
                 let mut jpg = codecs::jpeg::JpegEncoder::new(buffer);
-                if let Some((ppi_x, ppi_y)) = self.ppi {
+                if let Some((ppi_x, ppi_y)) = self.0.ppi {
                     jpg.set_pixel_density(codecs::jpeg::PixelDensity {
                         density: (ppi_x as u16, ppi_y as u16),
                         unit: codecs::jpeg::PixelDensityUnit::Inches,
@@ -431,7 +445,7 @@ impl Image {
 
                 match rgb_only {
                     ImageFormat::Png => {
-                        if let Some((ppi_x, ppi_y)) = self.ppi {
+                        if let Some((ppi_x, ppi_y)) = self.0.ppi {
                             let mut png_bytes = vec![];
                             let png = codecs::png::PngEncoder::new(&mut png_bytes);
                             png.encode(&pixels, width, height, color_type)?;
@@ -500,5 +514,45 @@ impl Image {
         }
 
         Ok(())
+    }
+}
+
+// Image data is provided to webrender directly from the BGRA8 shared memory.
+// The [`ExternalImageId`] is the Arc pointer to ImageData.
+mod external {
+    use std::sync::Arc;
+
+    use webrender::api::{
+        units::TexelRect, ExternalImage, ExternalImageData, ExternalImageHandler, ExternalImageId, ExternalImageSource, ExternalImageType,
+        ImageRendering,
+    };
+
+    use super::{Image, ImageData};
+
+    pub(crate) struct WrImageCache;
+    impl ExternalImageHandler for WrImageCache {
+        fn lock(&mut self, key: ExternalImageId, channel_index: u8, rendering: ImageRendering) -> ExternalImage {
+            let img = unsafe { Arc::<ImageData>::from_raw(key.0 as *const _) };
+            ExternalImage {
+                uv: TexelRect::invalid(),
+                source: ExternalImageSource::RawData(&img.bgra8[..]),
+            }
+        }
+
+        fn unlock(&mut self, _key: ExternalImageId, _channel_index: u8) {}
+    }
+
+    impl Image {
+        pub fn external_id(&self) -> ExternalImageId {
+            ExternalImageId(Arc::into_raw(self.0.clone()) as u64)
+        }
+
+        pub fn data(&self) -> webrender::api::ImageData {
+            webrender::api::ImageData::External(ExternalImageData {
+                id: self.external_id(),
+                channel_index: 0,
+                image_type: ExternalImageType::Buffer,
+            })
+        }
     }
 }

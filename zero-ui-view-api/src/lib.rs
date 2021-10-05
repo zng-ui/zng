@@ -304,7 +304,7 @@ declare_api! {
     /// this will register the image data with the renderer.
     ///
     /// [`use_image`]: Api::use_image
-    pub fn add_image(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId;
+    pub fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory) -> ImageId;
 
     /// Remove an image from cache.
     ///

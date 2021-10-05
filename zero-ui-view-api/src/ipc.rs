@@ -16,7 +16,7 @@ impl fmt::Display for Disconnected {
 }
 impl std::error::Error for Disconnected {}
 
-pub use ipc_channel::ipc::{bytes_channel, channel, IpcBytesReceiver, IpcBytesSender, IpcReceiver, IpcSender};
+pub use ipc_channel::ipc::{bytes_channel, channel, IpcBytesReceiver, IpcBytesSender, IpcReceiver, IpcSender, IpcSharedMemory};
 
 /// Call `new`, then spawn the view-process using the `name` then call `connect`.
 pub struct AppInit {

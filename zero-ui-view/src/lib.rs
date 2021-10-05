@@ -966,7 +966,7 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.namespace_id(), || IdNamespace(0))
     }
 
-    fn add_image(&mut self, data: IpcBytesReceiver, format: ImageDataFormat) -> ImageId {
+    fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory) -> ImageId {
         self.image_cache.add(data, format)
     }
 
@@ -976,9 +976,7 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey {
         if let Some(img) = self.image_cache.get(image_id) {
-            let descriptor = img.descriptor;
-            let data = Arc::clone(&img.bgra8);
-            with_window_or_surface!(self, id, |w| w.use_image(descriptor, data), || ImageKey::DUMMY)
+            with_window_or_surface!(self, id, |w| w.use_image(img), || ImageKey::DUMMY)
         } else {
             ImageKey::DUMMY
         }
@@ -986,9 +984,7 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn update_image(&mut self, id: WindowId, key: ImageKey, image_id: ImageId) {
         if let Some(img) = self.image_cache.get(image_id) {
-            let descriptor = img.descriptor;
-            let data = Arc::clone(&img.bgra8);
-            with_window_or_surface!(self, id, |w| w.update_image(key, descriptor, data), || ())
+            with_window_or_surface!(self, id, |w| w.update_image(key, img), || ())
         }
     }
 
@@ -1117,7 +1113,7 @@ pub(crate) enum AppEvent {
     ParentProcessExited,
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
-    ImageLoaded(ImageId, Vec<u8>, PxSize, ImagePpi, bool),
+    ImageLoaded(ImageId, IpcSharedMemory, PxSize, ImagePpi, bool),
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.

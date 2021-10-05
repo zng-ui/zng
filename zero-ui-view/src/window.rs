@@ -32,6 +32,7 @@ use zero_ui_view_api::{
 
 use crate::{
     config,
+    image_cache::Image,
     util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
     AppEvent, AppEventSender,
 };
@@ -489,7 +490,8 @@ impl Window {
         self.window.set_max_inner_size(Some(max_size.to_winit()))
     }
 
-    pub fn use_image(&mut self, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) -> ImageKey {
+    pub fn use_image(&mut self, image: Image) -> ImageKey {
+        let external_key = image.external_id();
         let key = self.api.generate_image_key();
         let mut txn = webrender::Transaction::new();
         txn.add_image(key, descriptor, webrender_api::ImageData::Raw(data), None);
@@ -497,7 +499,7 @@ impl Window {
         key
     }
 
-    pub fn update_image(&mut self, key: ImageKey, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) {
+    pub fn update_image(&mut self, key: ImageKey, image: Image) {
         let mut txn = webrender::Transaction::new();
         txn.update_image(
             key,

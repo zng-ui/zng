@@ -13,6 +13,7 @@ use webrender::{
 use zero_ui_view_api::{units::*, FramePixels, FrameRequest, HeadlessConfig, IpcSender, TextAntiAliasing, ViewProcessGen, WindowId};
 
 use crate::{
+    image_cache::Image,
     util::{self, GlContextManager, GlHeadlessContext},
     AppEvent, AppEventSender,
 };
@@ -188,15 +189,18 @@ impl Surface {
         }
     }
 
-    pub fn use_image(&mut self, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) -> ImageKey {
+    pub fn use_image(&mut self, image: &Image) -> ImageKey {
+        let descriptor = image.descriptor();
+        let data = image.data();
+
         let key = self.api.generate_image_key();
         let mut txn = webrender::Transaction::new();
-        txn.add_image(key, descriptor, webrender_api::ImageData::Raw(data), None);
+        txn.add_image(key, descriptor, data, None);
         self.api.send_transaction(self.document_id, txn);
         key
     }
 
-    pub fn update_image(&mut self, key: ImageKey, descriptor: ImageDescriptor, data: Arc<Vec<u8>>) {
+    pub fn update_image(&mut self, key: ImageKey, image: &Image) {
         let mut txn = webrender::Transaction::new();
         txn.update_image(
             key,
