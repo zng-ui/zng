@@ -992,26 +992,6 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
     }
 
-    fn read_img_pixels(&mut self, id: ImageId, response: IpcSender<ImagePixels>) -> bool {
-        self.image_cache
-            .get(id)
-            .map(|img| {
-                img.read_pixels(response);
-                true
-            })
-            .unwrap_or(false)
-    }
-
-    fn read_img_pixels_rect(&mut self, id: ImageId, rect: PxRect, response: IpcSender<ImagePixels>) -> bool {
-        self.image_cache
-            .get(id)
-            .map(|img| {
-                img.read_pixels_rect(rect, response);
-                true
-            })
-            .unwrap_or(false)
-    }
-
     fn add_font(&mut self, id: WindowId, bytes: ByteBuf, index: u32) -> FontKey {
         with_window_or_surface!(self, id, |w| w.add_font(bytes.to_vec(), index), || FontKey(IdNamespace(0), 0))
     }

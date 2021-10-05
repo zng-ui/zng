@@ -21,6 +21,7 @@ Image loading and rendering.
 * API for querying what encoders and decoders are available.
 * Support creating resized image from existing image.
 * Image data uploading API should support progressive upload.
+* Implement limits in Images
 
 ## Questions
 

@@ -12,7 +12,7 @@ use std::{
     sync::Arc,
 };
 
-use zero_ui_view_api::webrender_api::ImageKey;
+use zero_ui_view_api::{webrender_api::ImageKey, IpcSharedMemory};
 
 use crate::{
     app::{
@@ -94,30 +94,35 @@ impl AppExtension for ImageManager {
             task.update();
             match task.into_result() {
                 Ok(d) => {
-                    if d.data.is_empty() {
-                        // load error.
-                        var.set(vars, Image::from_view(ViewImage::dummy(Some(d.error))));
-                    } else if let Some(vp) = view {
-                        // success and we have a view-process.
-                        match vp.add_image(d.data, d.format) {
-                            Ok(img) => {
-                                // request send, add to `decoding` will receive
-                                // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
-                                // when done.
-                                var.set(vars, Image::from_view(img));
-                                decoding.push(var);
-                                break;
-                            }
-                            Err(Respawned) => {
-                                var.set(
-                                    vars,
-                                    Image::from_view(ViewImage::dummy(Some("view-process respawned during image load".to_owned()))),
-                                );
+                    match d.r {
+                        Ok(data) => {
+                            if let Some(vp) = view {
+                                // success and we have a view-process.
+                                match vp.add_image(d.format, data) {
+                                    Ok(img) => {
+                                        // request send, add to `decoding` will receive
+                                        // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
+                                        // when done.
+                                        var.set(vars, Image::from_view(img));
+                                        decoding.push(var);
+                                        break;
+                                    }
+                                    Err(Respawned) => {
+                                        var.set(
+                                            vars,
+                                            Image::from_view(ViewImage::dummy(Some("view-process respawned during image load".to_owned()))),
+                                        );
+                                    }
+                                }
+                            } else {
+                                // success, but we are only doing `load_in_headless` validation.
+                                var.set(vars, Image::from_view(ViewImage::dummy(None)));
                             }
                         }
-                    } else {
-                        // success, but we are only doing `load_in_headless` validation.
-                        var.set(vars, Image::from_view(ViewImage::dummy(None)));
+                        Err(e) => {
+                            // load error.
+                            var.set(vars, Image::from_view(ViewImage::dummy(Some(e))));
+                        }
                     }
                 }
                 Err(task) => {
@@ -148,6 +153,19 @@ pub struct Images {
     /// [`dummy`]: Images::dummy
     pub load_in_headless: bool,
 
+    /// Maximum encoded file size allowed.
+    ///
+    /// An error is returned if the file size surpasses this value. If the size can read before
+    /// read/download it is, otherwise the error happens when this limit is reached and all already
+    /// loaded bytes are dropped.
+    ///
+    /// The default is `100mb`.
+    pub max_encoded_size: ByteLength,
+    /// Maximum decoded file size allowed.
+    ///
+    /// An error is returned if the decoded image memory would surpass the `width * height * 4`
+    pub max_decoded_size: ByteLength,
+
     view: Option<ViewProcess>,
     updates: AppEventSender,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
@@ -160,6 +178,8 @@ impl Images {
     fn new(view: Option<ViewProcess>, updates: AppEventSender) -> Self {
         Images {
             load_in_headless: false,
+            max_encoded_size: 100.mebi_bytes(), // TODO
+            max_decoded_size: 100.mebi_bytes(),
             view,
             updates,
             proxies: vec![],
@@ -308,30 +328,29 @@ impl Images {
                         .and_then(|e| e.to_str())
                         .map(|s| ImageDataFormat::FileExtension(s.to_owned()))
                         .unwrap_or(ImageDataFormat::Unknown),
-                    data: vec![],
-                    error: String::new(),
+                    r: Err(String::new()),
                 };
 
                 let mut file = match fs::File::open(path).await {
                     Ok(f) => f,
                     Err(e) => {
-                        r.error = e.to_string();
+                        r.r = Err(e.to_string());
                         return r;
                     }
                 };
 
-                if let Err(e) = file.read_to_end(&mut r.data).await {
-                    r.data = vec![];
-                    r.error = e.to_string();
-                }
+                let mut data = vec![];
+                r.r = match file.read_to_end(&mut data).await {
+                    Ok(_) => Ok(IpcSharedMemory::from_bytes(&data)),
+                    Err(e) => Err(e.to_string()),
+                };
 
                 r
             }),
             ImageCacheKey::Download(uri) => self.load_task(key, async {
                 let mut r = ImageData {
                     format: ImageDataFormat::Unknown,
-                    data: vec![],
-                    error: String::new(),
+                    r: Err(String::new()),
                 };
 
                 // TODO get supported decoders from view-process?
@@ -355,18 +374,16 @@ impl Images {
                         }
 
                         match rsp.bytes().await {
-                            Ok(d) => {
-                                r.data = d;
-                            }
+                            Ok(d) => r.r = Ok(IpcSharedMemory::from_bytes(&d)),
                             Err(e) => {
-                                r.error = format!("download error: {}", e);
+                                r.r = Err(format!("download error: {}", e));
                             }
                         }
 
                         let _ = rsp.consume();
                     }
                     Err(e) => {
-                        r.error = format!("request error: {}", e);
+                        r.r = Err(format!("request error: {}", e));
                     }
                 }
 
@@ -375,16 +392,14 @@ impl Images {
             ImageCacheKey::Static(bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
-                    data: bytes.to_vec(),
-                    error: String::new(),
+                    r: Ok(IpcSharedMemory::from_bytes(bytes)),
                 };
                 self.load_task(key, async { r })
             }
             ImageCacheKey::Data(bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
-                    data: bytes.to_vec(),
-                    error: String::new(),
+                    r: Ok(IpcSharedMemory::from_bytes(&bytes)),
                 };
                 self.load_task(key, async { r })
             }
@@ -404,8 +419,7 @@ impl Images {
 
 struct ImageData {
     format: ImageDataFormat,
-    data: Vec<u8>,
-    error: String,
+    r: std::result::Result<IpcSharedMemory, String>,
 }
 
 /// Key for a cached image in [`Images`].
@@ -580,7 +594,7 @@ impl Image {
     /// Returns `true` if the is still acquiring or decoding the image bytes.
     pub fn is_loading(&self) -> bool {
         match &self.view {
-            Some(v) => !v.loaded() && !v.is_error(),
+            Some(v) => !v.is_loaded() && !v.is_error(),
             None => true,
         }
     }
@@ -588,7 +602,7 @@ impl Image {
     /// If the image is successfully loaded in the view-process.
     pub fn is_loaded(&self) -> bool {
         match &self.view {
-            Some(v) => v.loaded(),
+            Some(v) => v.is_loaded(),
             None => false,
         }
     }
@@ -602,7 +616,7 @@ impl Image {
     }
 
     /// Returns an error message if the image failed to load.
-    pub fn error(&self) -> Option<String> {
+    pub fn error(&self) -> Option<&str> {
         match &self.view {
             Some(v) => v.error(),
             None => None,
@@ -629,7 +643,7 @@ impl Image {
     pub fn view(&self) -> Option<&ViewImage> {
         match &self.view {
             Some(v) => {
-                if v.loaded() {
+                if v.is_loaded() {
                     Some(v)
                 } else {
                     None
@@ -674,6 +688,41 @@ impl Image {
         s.height *= (dpi_y / screen_res) * ctx.scale_factor;
 
         s
+    }
+
+    /// Reference the decoded pre-multiplied BGRA8 pixel buffer.
+    #[inline]
+    pub fn bgra8(&self) -> Option<&[u8]> {
+        self.view.as_ref().and_then(|v| v.bgra8())
+    }
+
+    /// Copy the `rect` selection from `bgra8`.
+    ///
+    /// The `rect` is in pixels, with the origin (0, 0) at the top-left of the image.
+    ///
+    /// Returns the copied selection and the BGRA8 pre-multiplied pixel buffer.
+    ///
+    /// Note that the selection can change if `rect` is not fully contained by the image area.
+    pub fn copy_pixels(&self, rect: PxRect) -> Option<(PxRect, Vec<u8>)> {
+        self.bgra8().map(|bgra8| {
+            let area = PxRect::from_size(self.size()).intersection(&rect).unwrap_or_default();
+            if area.size.width.0 == 0 || area.size.height.0 == 0 {
+                (area, vec![])
+            } else {
+                let x = area.origin.x.0 as usize;
+                let y = area.origin.y.0 as usize;
+                let width = area.size.width.0 as usize;
+                let height = area.size.height.0 as usize;
+                let mut bytes = Vec::with_capacity(width * height * 4);
+                for l in y..y + height {
+                    let line_start = (l + x) * 4;
+                    let line_end = (l + x + width) * 4;
+                    let line = &bgra8[line_start..line_end];
+                    bytes.extend(line);
+                }
+                (area, bytes)
+            }
+        })
     }
 }
 impl crate::render::Image for Image {

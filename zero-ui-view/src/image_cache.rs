@@ -3,8 +3,8 @@ use std::sync::Arc;
 use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use zero_ui_view_api::{
-    units::{Px, PxRect, PxSize},
-    ByteBuf, Event, ImageDataFormat, ImageId, ImagePixels, ImagePpi, IpcSender, IpcSharedMemory,
+    units::{Px, PxSize},
+    Event, ImageDataFormat, ImageId, ImagePpi, IpcSharedMemory,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -279,71 +279,8 @@ impl ImageData {
 #[derive(Clone)]
 pub(crate) struct Image(Arc<ImageData>);
 impl Image {
-    pub fn opaque(&self) -> bool {
-        self.0.opaque()
-    }
-
-    pub fn size(&self) -> PxSize {
-        self.0.size
-    }
-
     pub fn descriptor(&self) -> ImageDescriptor {
         self.0.descriptor
-    }
-
-    pub fn ppi(&self) -> ImagePpi {
-        self.0.ppi
-    }
-
-    pub fn read_pixels(&self, response: IpcSender<ImagePixels>) {
-        let img = Arc::clone(&self.0);
-        rayon::spawn(move || {
-            let _ = response.send(ImagePixels {
-                area: PxRect::from_size(img.size),
-                bgra: ByteBuf::from(img.bgra8.to_vec()),
-                ppi: img.ppi,
-                opaque: img.opaque(),
-            });
-        });
-    }
-
-    pub fn read_pixels_rect(&self, rect: PxRect, response: IpcSender<ImagePixels>) {
-        let img = Arc::clone(&self.0);
-        rayon::spawn(move || {
-            let area = PxRect::from_size(img.size).intersection(&rect).unwrap_or_default();
-            if area.size.width.0 == 0 || area.size.height.0 == 0 {
-                let _ = response.send(ImagePixels {
-                    area,
-                    bgra: ByteBuf::new(),
-                    ppi: img.ppi,
-                    opaque: img.opaque(),
-                });
-            } else {
-                let x = area.origin.x.0 as usize;
-                let y = area.origin.y.0 as usize;
-                let width = area.size.width.0 as usize;
-                let height = area.size.height.0 as usize;
-                let mut bytes = Vec::with_capacity(width * height * 4);
-                for l in y..y + height {
-                    let line_start = (l + x) * 4;
-                    let line_end = (l + x + width) * 4;
-                    let line = &img.bgra8[line_start..line_end];
-                    bytes.extend(line);
-                }
-
-                let mut opaque = img.opaque();
-                if !opaque && area.size != img.size {
-                    opaque = bytes.chunks_exact(4).all(|c| c[3] == 255);
-                }
-
-                let _ = response.send(ImagePixels {
-                    area,
-                    bgra: ByteBuf::from(bytes),
-                    ppi: img.ppi,
-                    opaque,
-                });
-            }
-        })
     }
 
     /// Generate a window icon from the image.
@@ -391,7 +328,7 @@ impl Image {
 
         let width = self.0.size.width.0 as u32;
         let height = self.0.size.height.0 as u32;
-        let opaque = self.opaque();
+        let opaque = self.0.opaque();
 
         match format {
             ImageFormat::Jpeg => {

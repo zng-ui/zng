@@ -1022,9 +1022,9 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
-            Event::ImageLoaded(id, size, dpi, opaque) => {
+            Event::ImageLoaded(id, size, dpi, opaque, bgra8) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
-                if let Some(img) = view.on_image_loaded(id, size, dpi, opaque) {
+                if let Some(img) = view.on_image_loaded(id, size, dpi, opaque, bgra8) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadedEvent, args, observer);
                 }
@@ -1782,6 +1782,7 @@ pub mod view_process {
     use std::{fmt, mem, rc};
 
     use linear_map::LinearMap;
+    use once_cell::unsync::OnceCell;
 
     use super::DeviceId;
     use crate::color::RenderColor;
@@ -1796,8 +1797,8 @@ pub mod view_process {
         IdNamespace, ImageKey, PipelineId,
     };
     pub use zero_ui_view_api::{
-        ByteBuf, CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, ImageDataFormat, ImagePpi, MonitorInfo,
-        Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
+        ByteBuf, CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, ImageDataFormat, ImagePpi, IpcSharedMemory,
+        MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
     };
     use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
@@ -1986,29 +1987,30 @@ pub mod view_process {
         ///
         /// This function returns immediately, the [`ViewImage`] will update once the
         /// image finishes loading.
-        pub fn add_image(&self, data: Vec<u8>, format: ImageDataFormat) -> Result<ViewImage> {
+        pub fn add_image(&self, format: ImageDataFormat, data: IpcSharedMemory) -> Result<ViewImage> {
             let mut app = self.0.borrow_mut();
-            let (sender, receiver) = zero_ui_view_api::bytes_channel().unwrap();
-            let id = app.process.add_image(receiver, format)?;
+            let id = app.process.add_image(format, data)?;
             let img = ViewImage(Rc::new(ImageConnection {
                 id,
                 generation: app.process.generation(),
                 app: Some(self.0.clone()),
-                loaded: Cell::new(false),
                 size: Cell::new(PxSize::zero()),
                 ppi: Cell::new(None),
                 opaque: Cell::new(false),
-                error: RefCell::new(None),
+                bgra8: OnceCell::new(),
             }));
             app.loading_images.push(Rc::downgrade(&img.0));
-            rayon::spawn(move || {
-                let _ = sender.send(&data);
-            });
-
             Ok(img)
         }
 
-        pub(super) fn on_image_loaded(&self, id: ImageId, size: PxSize, dpi: ImagePpi, opaque: bool) -> Option<ViewImage> {
+        pub(super) fn on_image_loaded(
+            &self,
+            id: ImageId,
+            size: PxSize,
+            dpi: ImagePpi,
+            opaque: bool,
+            bgra8: IpcSharedMemory,
+        ) -> Option<ViewImage> {
             let mut r = None;
             let mut app = self.0.borrow_mut();
             let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
@@ -2018,8 +2020,9 @@ pub mod view_process {
                         img.size.set(size);
                         img.ppi.set(dpi);
                         img.opaque.set(opaque);
-                        img.loaded.set(true);
+                        img.bgra8.set(Ok(bgra8)).unwrap();
                         r = Some(ViewImage(img));
+                        break;
                     } else {
                         loading.push(Rc::downgrade(&img));
                     }
@@ -2036,7 +2039,7 @@ pub mod view_process {
             for img in mem::take(&mut app.loading_images) {
                 if let Some(img) = img.upgrade() {
                     if img.id == id {
-                        *img.error.borrow_mut() = Some(error);
+                        img.bgra8.set(Err(error)).unwrap();
                         r = Some(ViewImage(img));
                         break;
                     } else {
@@ -2054,12 +2057,11 @@ pub mod view_process {
         generation: ViewProcessGen,
         app: Option<Rc<RefCell<ViewApp>>>,
 
-        loaded: Cell<bool>,
         size: Cell<PxSize>,
         ppi: Cell<ImagePpi>,
         opaque: Cell<bool>,
 
-        error: RefCell<Option<String>>,
+        bgra8: OnceCell<std::result::Result<IpcSharedMemory, String>>,
     }
     impl ImageConnection {
         fn alive(&self) -> bool {
@@ -2093,7 +2095,7 @@ pub mod view_process {
     impl fmt::Debug for ViewImage {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("ViewImage")
-                .field("loaded", &self.loaded())
+                .field("loaded", &self.is_loaded())
                 .field("error", &self.error())
                 .field("size", &self.size())
                 .field("dpi", &self.ppi())
@@ -2116,8 +2118,8 @@ pub mod view_process {
 
         /// Returns `true` if the image has successfully decoded.
         #[inline]
-        pub fn loaded(&self) -> bool {
-            self.0.loaded.get()
+        pub fn is_loaded(&self) -> bool {
+            self.0.bgra8.get().map(|r| r.is_ok()).unwrap_or(false)
         }
 
         /// if [`error`] is `Some`.
@@ -2125,13 +2127,13 @@ pub mod view_process {
         /// [`error`]: Self::error
         #[inline]
         pub fn is_error(&self) -> bool {
-            self.0.error.borrow().is_some()
+            self.0.bgra8.get().map(|r| r.is_err()).unwrap_or(false)
         }
 
         /// Returns the load error if one happened.
         #[inline]
-        pub fn error(&self) -> Option<String> {
-            self.0.error.borrow().clone()
+        pub fn error(&self) -> Option<&str> {
+            self.0.bgra8.get().and_then(|s| s.as_ref().err().map(|s| s.as_str()))
         }
 
         /// Returns the pixel size, or zero if is not loaded or error.
@@ -2151,6 +2153,12 @@ pub mod view_process {
         #[inline]
         pub fn is_opaque(&self) -> bool {
             self.0.opaque.get()
+        }
+
+        /// Returns the decoded and pre-multiplied BGRA8 bytes of the image.
+        #[inline]
+        pub fn bgra8(&self) -> Option<&[u8]> {
+            self.0.bgra8.get().and_then(|r| r.as_ref().ok()).map(|m| &m[..])
         }
 
         /// Returns the view-process generation on which the image is loaded.
@@ -2177,15 +2185,23 @@ pub mod view_process {
 
         /// Create a dummy image in the loaded or error state.
         pub fn dummy(error: Option<String>) -> Self {
+            let bgra8 = OnceCell::new();
+
+            if let Some(e) = error {
+                bgra8.set(Err(e)).unwrap();
+            } else {
+                // not zero-sized due to issue: TODO
+                bgra8.set(Ok(IpcSharedMemory::from_byte(0, 1))).unwrap();
+            }
+
             ViewImage(Rc::new(ImageConnection {
                 id: 0,
                 generation: 0,
                 app: None,
-                loaded: Cell::new(error.is_none()),
                 size: Cell::new(PxSize::zero()),
                 ppi: Cell::new(None),
                 opaque: Cell::new(true),
-                error: RefCell::new(error),
+                bgra8,
             }))
         }
     }

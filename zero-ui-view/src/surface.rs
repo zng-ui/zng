@@ -1,12 +1,11 @@
-use std::{fmt, rc::Rc, sync::Arc};
+use std::{fmt, rc::Rc};
 
 use gleam::gl;
 use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, Api as GApi, ContextBuilder, GlRequest};
 use webrender::{
     api::{
-        self as webrender_api, BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, Epoch, FontInstanceKey,
-        FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageDescriptor, ImageKey,
-        PipelineId, RenderNotifier,
+        BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, Epoch, FontInstanceKey, FontInstanceOptions,
+        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };

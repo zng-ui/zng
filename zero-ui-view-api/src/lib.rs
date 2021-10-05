@@ -334,18 +334,6 @@ declare_api! {
     /// Delete the image resource in the window renderer.
     pub fn delete_image(&mut self, id: WindowId, key: ImageKey);
 
-    /// Read all the decoded pixels of an image.
-    ///
-    /// Returns `true` immediately if the image is found. If returns `true`
-    /// the result is send asynchronously using the `response` sender.
-    pub fn read_img_pixels(&mut self, id: ImageId, response: IpcSender<ImagePixels>) -> bool;
-
-    /// Read a selection of the decoded pixels of an image.
-    ///
-    /// Returns `true` immediately if the image is found. If returns `true`
-    /// the result is send asynchronously using the `response` sender.
-    pub fn read_img_pixels_rect(&mut self, id: ImageId, rect: PxRect, response: IpcSender<ImagePixels>) -> bool;
-
     /// Add a raw font resource to the window renderer.
     ///
     /// Returns the new font key.
