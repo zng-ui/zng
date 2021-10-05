@@ -32,7 +32,7 @@ use zero_ui_view_api::{
 
 use crate::{
     config,
-    image_cache::Image,
+    image_cache::{Image, ImageUseMap, WrImageCache},
     util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
     AppEvent, AppEventSender,
 };
@@ -43,6 +43,7 @@ pub(crate) struct Window {
     pipeline_id: PipelineId,
     document_id: DocumentId,
     api: RenderApi,
+    image_use: ImageUseMap,
 
     window: GWindow,
     context: GlContext,
@@ -179,7 +180,7 @@ impl Window {
         let redirect_frame = Arc::new(AtomicBool::new(false));
         let (rf_sender, redirect_frame_recv) = flume::unbounded();
 
-        let (renderer, sender) = webrender::Renderer::new(
+        let (mut renderer, sender) = webrender::Renderer::new(
             Rc::clone(&gl),
             Box::new(Notifier {
                 window_id: id,
@@ -191,6 +192,7 @@ impl Window {
             None,
         )
         .unwrap();
+        renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
@@ -201,6 +203,7 @@ impl Window {
 
         let mut win = Self {
             id,
+            image_use: ImageUseMap::default(),
             prev_pos: winit_window.outer_position().unwrap_or_default().to_px().to_dip(scale_factor),
             prev_size: winit_window.inner_size().to_px().to_dip(scale_factor),
             window: winit_window,
@@ -490,30 +493,16 @@ impl Window {
         self.window.set_max_inner_size(Some(max_size.to_winit()))
     }
 
-    pub fn use_image(&mut self, image: Image) -> ImageKey {
-        let external_key = image.external_id();
-        let key = self.api.generate_image_key();
-        let mut txn = webrender::Transaction::new();
-        txn.add_image(key, descriptor, webrender_api::ImageData::Raw(data), None);
-        self.api.send_transaction(self.document_id, txn);
-        key
+    pub fn use_image(&mut self, image: &Image) -> ImageKey {
+        self.image_use.new_use(image, self.document_id, &mut self.api)
     }
 
-    pub fn update_image(&mut self, key: ImageKey, image: Image) {
-        let mut txn = webrender::Transaction::new();
-        txn.update_image(
-            key,
-            descriptor,
-            webrender_api::ImageData::Raw(data),
-            &webrender_api::units::ImageDirtyRect::All,
-        );
-        self.api.send_transaction(self.document_id, txn);
+    pub fn update_image(&mut self, key: ImageKey, image: &Image) {
+        self.image_use.update_use(key, image, self.document_id, &mut self.api);
     }
 
     pub fn delete_image(&mut self, key: ImageKey) {
-        let mut txn = webrender::Transaction::new();
-        txn.delete_image(key);
-        self.api.send_transaction(self.document_id, txn);
+        self.image_use.delete(key, self.document_id, &mut self.api);
     }
 
     pub fn add_font(&mut self, font: Vec<u8>, index: u32) -> FontKey {

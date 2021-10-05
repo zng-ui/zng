@@ -13,7 +13,7 @@ use webrender::{
 use zero_ui_view_api::{units::*, FramePixels, FrameRequest, HeadlessConfig, IpcSender, TextAntiAliasing, ViewProcessGen, WindowId};
 
 use crate::{
-    image_cache::Image,
+    image_cache::{Image, ImageUseMap, WrImageCache},
     util::{self, GlContextManager, GlHeadlessContext},
     AppEvent, AppEventSender,
 };
@@ -30,6 +30,7 @@ pub(crate) struct Surface {
     context: GlHeadlessContext,
     gl: Rc<dyn gl::Gl>,
     renderer: Option<Renderer>,
+    image_use: ImageUseMap,
     rbos: [u32; 2],
     fbo: u32,
 
@@ -125,8 +126,9 @@ impl Surface {
 
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 
-        let (renderer, sender) =
+        let (mut renderer, sender) =
             webrender::Renderer::new(Rc::clone(&gl), Box::new(Notifier { id, sender: event_sender }), opts, None).unwrap();
+        renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
@@ -144,6 +146,7 @@ impl Surface {
             context,
             gl,
             renderer: Some(renderer),
+            image_use: ImageUseMap::default(),
             rbos,
             fbo,
 
@@ -190,31 +193,15 @@ impl Surface {
     }
 
     pub fn use_image(&mut self, image: &Image) -> ImageKey {
-        let descriptor = image.descriptor();
-        let data = image.data();
-
-        let key = self.api.generate_image_key();
-        let mut txn = webrender::Transaction::new();
-        txn.add_image(key, descriptor, data, None);
-        self.api.send_transaction(self.document_id, txn);
-        key
+        self.image_use.new_use(image, self.document_id, &mut self.api)
     }
 
     pub fn update_image(&mut self, key: ImageKey, image: &Image) {
-        let mut txn = webrender::Transaction::new();
-        txn.update_image(
-            key,
-            descriptor,
-            webrender_api::ImageData::Raw(data),
-            &webrender_api::units::ImageDirtyRect::All,
-        );
-        self.api.send_transaction(self.document_id, txn);
+        self.image_use.update_use(key, image, self.document_id, &mut self.api);
     }
 
     pub fn delete_image(&mut self, key: ImageKey) {
-        let mut txn = webrender::Transaction::new();
-        txn.delete_image(key);
-        self.api.send_transaction(self.document_id, txn);
+        self.image_use.delete(key, self.document_id, &mut self.api);
     }
 
     pub fn add_font(&mut self, font: Vec<u8>, index: u32) -> FontKey {

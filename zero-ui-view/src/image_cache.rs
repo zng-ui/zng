@@ -520,34 +520,55 @@ impl Image {
 // Image data is provided to webrender directly from the BGRA8 shared memory.
 // The [`ExternalImageId`] is the Arc pointer to ImageData.
 mod external {
-    use std::sync::Arc;
+    use std::{collections::hash_map::Entry, sync::Arc};
 
-    use webrender::api::{
-        units::TexelRect, ExternalImage, ExternalImageData, ExternalImageHandler, ExternalImageId, ExternalImageSource, ExternalImageType,
-        ImageRendering,
+    use rustc_hash::FxHashMap;
+    use webrender::{
+        api::{
+            units::{ImageDirtyRect, TexelRect},
+            DocumentId, ExternalImage, ExternalImageData, ExternalImageHandler, ExternalImageId, ExternalImageSource, ExternalImageType,
+            ImageKey, ImageRendering,
+        },
+        RenderApi,
     };
 
     use super::{Image, ImageData};
 
-    pub(crate) struct WrImageCache;
+    /// Implements [`ExternalImageHandler`].
+    ///
+    /// # Safety
+    ///
+    /// This is only safe if use with [`ImageUseMap`].
+    pub(crate) struct WrImageCache {
+        locked: Option<Arc<ImageData>>,
+    }
+    impl WrImageCache {
+        pub fn new_boxed() -> Box<dyn ExternalImageHandler> {
+            Box::new(WrImageCache { locked: None })
+        }
+    }
     impl ExternalImageHandler for WrImageCache {
-        fn lock(&mut self, key: ExternalImageId, channel_index: u8, rendering: ImageRendering) -> ExternalImage {
+        fn lock(&mut self, key: ExternalImageId, _channel_index: u8, _rendering: ImageRendering) -> ExternalImage {
+            // SAFETY: this is safe the Arc is kept alive in `ImageUseMap`.
             let img = unsafe { Arc::<ImageData>::from_raw(key.0 as *const _) };
+            self.locked = Some(img); // keep alive just in case the image is removed mid-use?
             ExternalImage {
-                uv: TexelRect::invalid(),
-                source: ExternalImageSource::RawData(&img.bgra8[..]),
+                uv: TexelRect::new(0.0, 0.0, 1.0, 1.0),
+                source: ExternalImageSource::RawData(&self.locked.as_ref().unwrap().bgra8[..]),
             }
         }
 
-        fn unlock(&mut self, _key: ExternalImageId, _channel_index: u8) {}
+        fn unlock(&mut self, _key: ExternalImageId, _channel_index: u8) {
+            self.locked = None;
+        }
     }
 
     impl Image {
-        pub fn external_id(&self) -> ExternalImageId {
-            ExternalImageId(Arc::into_raw(self.0.clone()) as u64)
+        fn external_id(&self) -> ExternalImageId {
+            ExternalImageId(Arc::as_ptr(&self.0) as u64)
         }
 
-        pub fn data(&self) -> webrender::api::ImageData {
+        fn data(&self) -> webrender::api::ImageData {
             webrender::api::ImageData::External(ExternalImageData {
                 id: self.external_id(),
                 channel_index: 0,
@@ -555,4 +576,58 @@ mod external {
             })
         }
     }
+
+    /// Track and manage images used in a renderer.
+    ///
+    /// The renderer must use [`WrImageCache`] as the external image source.
+    #[derive(Default)]
+    pub(crate) struct ImageUseMap {
+        id_key: FxHashMap<ExternalImageId, (ImageKey, Image)>,
+        key_id: FxHashMap<ImageKey, ExternalImageId>,
+    }
+    impl ImageUseMap {
+        pub fn new_use(&mut self, image: &Image, document_id: DocumentId, api: &mut RenderApi) -> ImageKey {
+            let id = image.external_id();
+            match self.id_key.entry(id) {
+                Entry::Occupied(e) => e.get().0,
+                Entry::Vacant(e) => {
+                    let key = api.generate_image_key();
+                    e.insert((key, image.clone())); // keep the image Arc alive, we expect this in `WrImageCache`.
+                    self.key_id.insert(key, id);
+
+                    let mut txn = webrender::Transaction::new();
+                    txn.add_image(key, image.descriptor(), image.data(), None);
+                    api.send_transaction(document_id, txn);
+
+                    key
+                }
+            }
+        }
+
+        /// Returns if needs to update.
+        pub fn update_use(&mut self, key: ImageKey, image: &Image, document_id: DocumentId, api: &mut RenderApi) {
+            if let Entry::Occupied(mut e) = self.key_id.entry(key) {
+                let id = image.external_id();
+                if *e.get() != id {
+                    let prev_id = e.insert(id);
+                    self.id_key.remove(&prev_id).unwrap();
+                    self.id_key.insert(id, (key, image.clone()));
+
+                    let mut txn = webrender::Transaction::new();
+                    txn.update_image(key, image.descriptor(), image.data(), &ImageDirtyRect::All);
+                    api.send_transaction(document_id, txn);
+                }
+            }
+        }
+
+        pub fn delete(&mut self, key: ImageKey, document_id: DocumentId, api: &mut RenderApi) {
+            if let Some(id) = self.key_id.remove(&key) {
+                let _img = self.id_key.remove(&id); // remove but keep alive until the transaction is done.
+                let mut txn = webrender::Transaction::new();
+                txn.delete_image(key);
+                api.send_transaction(document_id, txn);
+            }
+        }
+    }
 }
+pub(crate) use external::{ImageUseMap, WrImageCache};
