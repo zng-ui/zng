@@ -3034,6 +3034,7 @@ impl ByteUnits for usize {
     dm::MulAssign,
     dm::Div,
     dm::DivAssign,
+    dm::FromStr,
 )]
 pub struct ByteLength(pub usize);
 impl_from_and_into_var! {

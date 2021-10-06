@@ -323,8 +323,10 @@ impl Images {
             return dummy.into_read_only();
         }
 
+        let max_encoded_size = self.max_encoded_size;
+
         match key.clone() {
-            ImageCacheKey::Read(path) => self.load_task(key, async {
+            ImageCacheKey::Read(path) => self.load_task(key, async move {
                 let mut r = ImageData {
                     format: path
                         .extension()
@@ -342,8 +344,21 @@ impl Images {
                     }
                 };
 
-                let mut data = vec![];
-                r.r = match file.read_to_end(&mut data).await {
+                let len = match file.metadata().await {
+                    Ok(m) => m.len() as usize,
+                    Err(e) => {
+                        r.r = Err(e.to_string());
+                        return r;
+                    }
+                };
+
+                if len > max_encoded_size.0 {
+                    r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len.bytes(), max_encoded_size));
+                    return r;
+                }
+
+                let mut data = vec![0; len]; // TODO can we trust the metadata length?
+                r.r = match file.read_exact(&mut data).await {
                     Ok(_) => Ok(IpcSharedMemory::from_bytes(&data)),
                     Err(e) => Err(e.to_string()),
                 };
@@ -352,7 +367,7 @@ impl Images {
             }),
             ImageCacheKey::Download(uri) => {
                 let accept = self.download_accept();
-                self.load_task(key, async {
+                self.load_task(key, async move {
                     let mut r = ImageData {
                         format: ImageDataFormat::Unknown,
                         r: Err(String::new()),
@@ -372,8 +387,21 @@ impl Images {
                                 }
                             }
 
-                            match rsp.bytes().await {
-                                Ok(d) => r.r = Ok(IpcSharedMemory::from_bytes(&d)),
+                            if let Some(len) = rsp.content_len() {
+                                if len > max_encoded_size {
+                                    r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len.bytes(), max_encoded_size));
+                                    return r;
+                                }
+                            }
+
+                            match rsp.bytes_limited(max_encoded_size + 1.bytes()).await {
+                                Ok(d) => {
+                                    if d.len().bytes() > max_encoded_size {
+                                        r.r = Err(format!("download exceeded the limit of `{}`", max_encoded_size));
+                                    } else {
+                                        r.r = Ok(IpcSharedMemory::from_bytes(&d))
+                                    }
+                                }
                                 Err(e) => {
                                     r.r = Err(format!("download error: {}", e));
                                 }

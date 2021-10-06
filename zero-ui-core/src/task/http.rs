@@ -381,6 +381,11 @@ impl Response {
         self.0.headers()
     }
 
+    /// Decode content-length value if it is present in the headers.
+    pub fn content_len(&self) -> Option<ByteLength> {
+        self.0.body().len().map(|l| ByteLength(l as usize))
+    }
+
     /// Get the configured cookie jar used for persisting cookies from this response, if any.
     ///
     /// Only returns `None` if the [`default_client`] was replaced by one with cookies disabled.
@@ -405,6 +410,15 @@ impl Response {
         let cap = self.0.body_mut().len().unwrap_or(1024);
         let mut bytes = Vec::with_capacity(cap as usize);
         self.0.copy_to(&mut bytes).await?;
+        Ok(bytes)
+    }
+
+    /// Read at most `limit` bytes from the response body.
+    pub async fn bytes_limited(&mut self, limit: ByteLength) -> std::io::Result<Vec<u8>> {
+        use futures_lite::io::AsyncReadExt;
+        let cap = self.0.body_mut().len().unwrap_or(1024);
+        let mut bytes = Vec::with_capacity(cap as usize);
+        self.0.body_mut().take(limit.0 as u64).read_to_end(&mut bytes).await?;
         Ok(bytes)
     }
 
