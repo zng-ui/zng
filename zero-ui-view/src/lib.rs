@@ -975,8 +975,12 @@ impl<S: AppEventSender> Api for App<S> {
         image_cache::ENCODERS.iter().map(|&s| s.to_owned()).collect()
     }
 
-    fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory) -> ImageId {
-        self.image_cache.add(data, format)
+    fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory, max_decoded_size: u64) -> ImageId {
+        self.image_cache.add(format, data, max_decoded_size)
+    }
+
+    fn add_image_pro(&mut self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> ImageId {
+        self.image_cache.add_pro(format, data, max_decoded_size)
     }
 
     fn forget_image(&mut self, id: ImageId) {
@@ -995,13 +999,13 @@ impl<S: AppEventSender> Api for App<S> {
         }
     }
 
-    fn update_image(&mut self, id: WindowId, key: ImageKey, image_id: ImageId) {
+    fn update_image_use(&mut self, id: WindowId, key: ImageKey, image_id: ImageId) {
         if let Some(img) = self.image_cache.get(image_id) {
             with_window_or_surface!(self, id, |w| w.update_image(key, img), || ())
         }
     }
 
-    fn delete_image(&mut self, id: WindowId, key: ImageKey) {
+    fn delete_image_use(&mut self, id: WindowId, key: ImageKey) {
         with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
     }
 
@@ -1046,24 +1050,24 @@ impl<S: AppEventSender> Api for App<S> {
         self.with_window(id, |w| w.set_allow_alt_f4(allow), || ())
     }
 
-    fn read_pixels(&mut self, id: WindowId, response: IpcSender<FramePixels>) -> bool {
+    fn frame_image(&mut self, id: WindowId) -> bool {
         with_window_or_surface!(
             self,
             id,
             |w| {
-                w.read_pixels(response);
+                w.frame_image(&mut self.image_cache);
                 true
             },
             || false
         )
     }
 
-    fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect, response: IpcSender<FramePixels>) -> bool {
+    fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> bool {
         with_window_or_surface!(
             self,
             id,
             |w| {
-                w.read_pixels_rect(rect, response);
+                w.frame_image_rect(&mut self.image_cache, rect);
                 true
             },
             || false

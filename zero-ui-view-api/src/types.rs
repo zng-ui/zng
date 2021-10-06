@@ -608,14 +608,21 @@ pub enum Event {
     /// The window has closed.
     WindowClosed(WindowId),
 
+    /// An image resource already decoded size and PPI.
+    ImageMetadataLoaded(ImageId, PxSize, ImagePpi),
     /// An image resource finished decoding.
     ImageLoaded(ImageId, PxSize, ImagePpi, bool, IpcSharedMemory),
+    /// An image resource, progressively decoded has decoded more bytes.
+    ImagePartiallyLoaded(ImageId, PxSize, ImagePpi, bool, IpcSharedMemory),
     /// An image resource failed to decode, the image ID is not valid.
     ImageLoadError(ImageId, String),
     /// An image finished encoding.
     ImageEncoded(ImageId, String, Vec<u8>),
     /// An image failed to encode.
     ImageEncodeError(ImageId, String, String),
+
+    /// An image generated from a rendered frame is ready.
+    FrameImageReady(WindowId, Epoch, ImageId, PxRect, ImagePpi, bool, IpcSharedMemory),
 
     // Config events
     /// System fonts have changed.
@@ -760,6 +767,13 @@ pub struct FrameRequest {
 
     /// Display list, split in serializable parts.
     pub display_list: (ByteBuf, BuiltDisplayListDescriptor),
+
+    /// Automatically create an image from this rendered frame.
+    ///
+    /// The [`Event::FrameImageReady`] is send with the image.
+    pub screenshot: bool,
+    /// Optionally only captures a selection of the screenshot.
+    pub screenshot_rect: Option<PxRect>,
 }
 impl fmt::Debug for FrameRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -812,9 +826,19 @@ pub struct WindowConfig {
 
     /// Text anti-aliasing.
     pub text_aa: TextAntiAliasing,
+
+    /// If all or most frames will be *screenshotted*.
+    ///
+    /// If `false` all resources for capturing frame images
+    /// are discarded after each screenshot request.
+    pub capture_mode: bool,
 }
 
 /// Configuration of a headless surface.
+///
+/// Headless surfaces are always [`capture_mode`] enabled.
+///
+/// [`capture_mode`]: WindowConfig::capture_mode
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeadlessConfig {
     /// ID that will identify the new headless surface.
@@ -863,50 +887,6 @@ impl fmt::Debug for ImagePixels {
             .field("ppi", &self.ppi)
             .field("opaque", &self.opaque)
             .finish()
-    }
-}
-
-/// BGRA8 pixel data copied from a rendered frame.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct FramePixels {
-    /// Selection of the frame that is copied here.
-    pub area: PxRect,
-
-    /// BGRA8 data, bottom-to-top.
-    pub bgra: ByteBuf,
-
-    /// Scale factor when the frame was rendered.
-    pub scale_factor: f32,
-
-    /// If all alpha values are `255`.
-    pub opaque: bool,
-}
-impl Default for FramePixels {
-    fn default() -> Self {
-        Self {
-            area: PxRect::zero(),
-            bgra: ByteBuf::default(),
-            scale_factor: 1.0,
-            opaque: true,
-        }
-    }
-}
-impl fmt::Debug for FramePixels {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FramePixels")
-            .field("area", &self.area)
-            .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
-            .field("scale_factor", &self.scale_factor)
-            .field("opaque", &self.opaque)
-            .finish()
-    }
-}
-impl FramePixels {
-    /// Calculate the area in device independent pixels, using the associated [`scale_factor`].
-    ///
-    /// [`scale_factor`]: FramePixels::scale_factor
-    pub fn area(&self) -> DipRect {
-        self.area.to_dip(self.scale_factor)
     }
 }
 

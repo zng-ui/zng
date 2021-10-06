@@ -16,7 +16,8 @@ impl fmt::Display for Disconnected {
 }
 impl std::error::Error for Disconnected {}
 
-pub use ipc_channel::ipc::{bytes_channel, channel, IpcBytesReceiver, IpcBytesSender, IpcReceiver, IpcSender, IpcSharedMemory};
+pub use ipc_channel::ipc::{bytes_channel, IpcBytesReceiver, IpcBytesSender, IpcSharedMemory};
+use ipc_channel::ipc::{channel, IpcReceiver, IpcSender};
 
 /// Call `new`, then spawn the view-process using the `name` then call `connect`.
 pub struct AppInit {
@@ -43,8 +44,8 @@ impl AppInit {
     /// Tries to connect to the view-process and receive the actual channels.
     pub(crate) fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
         let (_, (req_sender, chan_sender)) = self.server.accept()?;
-        let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel()?;
-        let (evt_sender, evt_recv) = ipc_channel::ipc::channel()?;
+        let (rsp_sender, rsp_recv) = channel()?;
+        let (evt_sender, evt_recv) = channel()?;
         chan_sender.send((rsp_sender, evt_sender))?;
         Ok((RequestSender(req_sender), ResponseReceiver(rsp_recv), EventReceiver(evt_recv)))
     }
@@ -54,11 +55,11 @@ impl AppInit {
 pub fn connect_view_process(server_name: String) -> IpcResult<ViewChannels> {
     let app_init_sender = IpcSender::connect(server_name).expect("failed to connect to init channel");
 
-    let (req_sender, req_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
+    let (req_sender, req_recv) = channel().map_err(handle_io_error)?;
     // Large messages can only be received in a receiver created in the same process that is receiving (on Windows)
     // so we create a channel to transfer the response and event senders.
     // See issue: https://github.com/servo/ipc-channel/issues/277
-    let (chan_sender, chan_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
+    let (chan_sender, chan_recv) = channel().map_err(handle_io_error)?;
 
     app_init_sender.send((req_sender, chan_sender)).map_err(handle_send_error)?;
     let (rsp_sender, evt_sender) = chan_recv.recv().map_err(handle_recv_error)?;

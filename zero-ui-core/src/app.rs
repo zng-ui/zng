@@ -1022,6 +1022,12 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
+            Event::ImageMetadataLoaded(id, size, dpi) => {
+                todo!()
+            }
+            Event::ImagePartiallyLoaded(id, partial_size, dpi, opaque, partial_bgra8) => {
+                todo!()
+            }
             Event::ImageLoaded(id, size, dpi, opaque, bgra8) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_image_loaded(id, size, dpi, opaque, bgra8) {
@@ -1043,6 +1049,9 @@ impl<E: AppExtension> RunningApp<E> {
             Event::ImageEncodeError(id, format, error) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 view.on_image_encode_error(id, format, error);
+            }
+            Event::FrameImageReady(window_id, frame_id, image_id, selection, ppi, opaque, bgra8) => {
+                todo!()
             }
 
             // config events
@@ -1806,8 +1815,9 @@ pub mod view_process {
         IdNamespace, ImageKey, PipelineId,
     };
     pub use zero_ui_view_api::{
-        ByteBuf, CursorIcon, Event, EventCause, FramePixels, FrameRequest, HeadlessConfig, ImageDataFormat, ImagePpi, IpcSharedMemory,
-        MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState, WindowTheme,
+        bytes_channel, ByteBuf, CursorIcon, Event, EventCause, FrameRequest, HeadlessConfig, ImageDataFormat, ImagePpi, IpcBytesReceiver,
+        IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState,
+        WindowTheme,
     };
     use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
@@ -2000,13 +2010,13 @@ pub mod view_process {
             self.0.borrow().process.generation()
         }
 
-        /// Starts sending an image for decoding.
+        /// Send an image for decoding.
         ///
-        /// This function returns immediately, the [`ViewImage`] will update once the
-        /// image finishes loading.
-        pub fn add_image(&self, format: ImageDataFormat, data: IpcSharedMemory) -> Result<ViewImage> {
+        /// This function returns immediately, the [`ViewImage`] will update when
+        /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+        pub fn add_image(&self, format: ImageDataFormat, data: IpcSharedMemory, max_decoded_size: u64) -> Result<ViewImage> {
             let mut app = self.0.borrow_mut();
-            let id = app.process.add_image(format, data)?;
+            let id = app.process.add_image(format, data, max_decoded_size)?;
             let img = ViewImage(Rc::new(ImageConnection {
                 id,
                 generation: app.process.generation(),
@@ -2018,6 +2028,15 @@ pub mod view_process {
             }));
             app.loading_images.push(Rc::downgrade(&img.0));
             Ok(img)
+        }
+
+        /// Starts sending an image for *progressive* decoding.
+        ///
+        /// This function returns immediately, the [`ViewImage`] will update when
+        /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
+        /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+        pub fn add_image_pro(&self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> Result<ViewImage> {
+            todo!()
         }
 
         /// Returns a list of image decoders supported by the view-process backend.
@@ -2628,10 +2647,10 @@ pub mod view_process {
         }
 
         /// Replace the image resource in the window renderer.
-        pub fn update_image(&mut self, key: ImageKey, image: &ViewImage) -> Result<()> {
+        pub fn update_image_use(&mut self, key: ImageKey, image: &ViewImage) -> Result<()> {
             self.call(|id, p| {
                 if p.generation() == image.0.generation {
-                    p.update_image(id, key, image.0.id)
+                    p.update_image_use(id, key, image.0.id)
                 } else {
                     Err(Respawned)
                 }
@@ -2639,8 +2658,8 @@ pub mod view_process {
         }
 
         /// Delete the image resource in the window renderer.
-        pub fn delete_image(&mut self, key: ImageKey) -> Result<()> {
-            self.call(|id, p| p.delete_image(id, key))
+        pub fn delete_image_use(&mut self, key: ImageKey) -> Result<()> {
+            self.call(|id, p| p.delete_image_use(id, key))
         }
 
         /// Add a raw font resource to the window renderer.
@@ -2684,31 +2703,26 @@ pub mod view_process {
             self.call(|id, p| p.scale_factor(id))
         }
 
-        /// Read a `rect` of pixels from the current frame.
-        ///
-        /// This is a call to `glReadPixels`, each pixel row is stacked from
-        /// bottom-to-top with the pixel type BGRA8.
-        pub fn read_pixels_rect(&self, rect: PxRect) -> Result<FramePixels> {
+        /// Create a new image resource from the current rendered frame.
+        pub fn frame_image(&self) -> Result<ViewImage> {
             self.call(|id, p| {
-                let (sender, recv) = zero_ui_view_api::channel().unwrap();
-                if p.read_pixels_rect(id, rect, sender)? {
-                    recv.recv().map_err(|_| Respawned)
+                if p.frame_image(id)? {
+                    todo!()
                 } else {
-                    Ok(FramePixels::default())
+                    // window not found
+                    todo!()
                 }
             })
         }
 
-        /// Read all pixels of the current frame.
-        ///
-        /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-        pub fn read_pixels(&self) -> Result<FramePixels> {
+        /// Create a new image resource from a selection of the current rendered frame.
+        pub fn frame_image_rect(&self, rect: PxRect) -> Result<ViewImage> {
             self.call(|id, p| {
-                let (sender, recv) = zero_ui_view_api::channel().unwrap();
-                if p.read_pixels(id, sender)? {
-                    recv.recv().map_err(|_| Respawned)
+                if p.frame_image_rect(id, rect)? {
+                    todo!()
                 } else {
-                    Ok(FramePixels::default())
+                    // window not found
+                    todo!()
                 }
             })
         }

@@ -1,10 +1,9 @@
 use std::{cell::Cell, rc::Rc};
 
-use gleam::gl;
 use glutin::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
-    units::*, ButtonState, ByteBuf, Force, FramePixels, IpcSender, Key, KeyState, ModifiersState, MonitorInfo, MouseButton,
-    MouseScrollDelta, TouchPhase, VideoMode, WindowId, WindowTheme,
+    units::*, ButtonState, Force, Key, KeyState, ModifiersState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase, VideoMode,
+    WindowId, WindowTheme,
 };
 
 /// Manages the "current" `glutin` OpenGL context.
@@ -329,40 +328,6 @@ pub(crate) fn element_state_to_button_state(s: ElementState) -> ButtonState {
         ElementState::Pressed => ButtonState::Pressed,
         ElementState::Released => ButtonState::Released,
     }
-}
-
-/// Read a selection of pixels of the current frame.
-///
-/// This is a call to `glReadPixels`, the pixel row order is bottom-to-top and the pixel type is BGRA.
-pub(crate) fn read_pixels_rect(gl: &Rc<dyn gl::Gl>, max_size: PxSize, rect: PxRect, scale_factor: f32, response: IpcSender<FramePixels>) {
-    let max = PxRect::from_size(max_size);
-    let rect = rect.intersection(&max).unwrap_or_default();
-
-    if rect.size.width <= Px(0) || rect.size.height <= Px(0) {
-        let _ = response.send(FramePixels {
-            area: PxRect::zero(),
-            bgra: ByteBuf::new(),
-            scale_factor,
-            opaque: true,
-        });
-    }
-
-    let x = rect.origin.x.0;
-    let inverted_y = (max.size.height - rect.origin.y - rect.size.height).0;
-    let width = rect.size.width.0 as u32;
-    let height = rect.size.height.0 as u32;
-
-    let bgra = gl.read_pixels(x as _, inverted_y as _, width as _, height as _, gl::BGRA, gl::UNSIGNED_BYTE);
-    assert_eq!(gl.get_error(), 0);
-
-    rayon::spawn(move || {
-        let _ = response.send(FramePixels {
-            area: rect,
-            bgra: ByteBuf::from(bgra),
-            scale_factor,
-            opaque: true,
-        });
-    })
 }
 
 pub(crate) fn winit_modifiers_state_to_zui(s: glutin::event::ModifiersState) -> ModifiersState {

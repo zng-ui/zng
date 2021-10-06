@@ -99,7 +99,7 @@ impl AppExtension for ImageManager {
                         Ok(data) => {
                             if let Some(vp) = view {
                                 // success and we have a view-process.
-                                match vp.add_image(d.format, data) {
+                                match vp.add_image(d.format, data, images.max_decoded_size.0 as u64) {
                                     Ok(img) => {
                                         // request send, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
@@ -818,7 +818,7 @@ struct RenderImage {
 impl Drop for RenderImage {
     fn drop(&mut self) {
         // error here means the entire renderer was dropped.
-        let _ = self.renderer.delete_image(self.key);
+        let _ = self.renderer.delete_image_use(self.key);
     }
 }
 impl fmt::Debug for RenderImage {

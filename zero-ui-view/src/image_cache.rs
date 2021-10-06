@@ -4,7 +4,7 @@ use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use zero_ui_view_api::{
     units::{Px, PxSize},
-    Event, ImageDataFormat, ImageId, ImagePpi, IpcSharedMemory,
+    Event, ImageDataFormat, ImageId, ImagePpi, IpcBytesReceiver, IpcSharedMemory,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -28,15 +28,10 @@ impl<S: AppEventSender> ImageCache<S> {
         }
     }
 
-    pub fn add(&mut self, data: IpcSharedMemory, format: ImageDataFormat) -> ImageId {
-        let mut id = self.image_id_gen.wrapping_add(1);
-        if id == 0 {
-            id = 1;
-        }
-        self.image_id_gen = id;
+    pub fn add(&mut self, format: ImageDataFormat, data: IpcSharedMemory, max_decoded_size: u64) -> ImageId {
+        let id = self.generate_image_id();
 
         let app_sender = self.app_sender.clone();
-
         rayon::spawn(move || {
             let r = match format {
                 ImageDataFormat::Bgra8 { size, ppi } => {
@@ -52,9 +47,24 @@ impl<S: AppEventSender> ImageCache<S> {
                         Ok((data, size, ppi, opaque))
                     }
                 }
-                ImageDataFormat::FileExtension(ext) => Self::load_file(data, ext),
-                ImageDataFormat::MimeType(mime) => Self::load_web(data, mime),
-                ImageDataFormat::Unknown => Self::load_unknown(data),
+                fmt => match Self::get_format_and_size(&fmt, &data[..]) {
+                    Ok((fmt, size)) => {
+                        let decoded_size = size.width.0 as u64 * size.height.0 as u64 * 4;
+                        if decoded_size > max_decoded_size {
+                            Err(format!(
+                                "image {:?} needs to allocate {} bytes, but max allowed size is {} bytes",
+                                size, decoded_size, max_decoded_size
+                            ))
+                        } else {
+                            let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded(id, size, None)));
+                            match image::load_from_memory_with_format(&data[..], fmt) {
+                                Ok(img) => Ok(Self::convert_decoded(img)),
+                                Err(e) => Err(e.to_string()),
+                            }
+                        }
+                    }
+                    Err(e) => Err(e),
+                },
             };
 
             match r {
@@ -70,6 +80,95 @@ impl<S: AppEventSender> ImageCache<S> {
         id
     }
 
+    pub fn add_pro(&mut self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> ImageId {
+        let id = self.generate_image_id();
+        let app_sender = self.app_sender.clone();
+        rayon::spawn(move || {
+            // crate `images` does not do progressive decode.
+            let mut full = vec![];
+            let mut size = None;
+            let mut ppi = None;
+            let mut is_encoded = true;
+
+            let mut format = match format {
+                ImageDataFormat::Bgra8 { size: s, ppi: p } => {
+                    is_encoded = false;
+                    size = Some(s);
+                    ppi = p;
+                    None
+                }
+                ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext),
+                ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
+                ImageDataFormat::Unknown => None,
+            };
+
+            let mut pending = true;
+            while pending {
+                match data.recv() {
+                    Ok(d) => {
+                        pending = !d.is_empty();
+
+                        full.extend(d);
+
+                        if let Some(fmt) = format {
+                            if size.is_none() {
+                                size = image::io::Reader::with_format(std::io::Cursor::new(&full), fmt)
+                                    .into_dimensions()
+                                    .ok()
+                                    .map(|(w, h)| PxSize::new(Px(w as i32), Px(h as i32)));
+                                if let Some(s) = size {
+                                    let decoded_size = s.width.0 as u64 * s.height.0 as u64 * 4;
+                                    if decoded_size > max_decoded_size {
+                                        let error = format!(
+                                            "image {:?} needs to allocate {} bytes, but max allowed size is {} bytes",
+                                            size, decoded_size, max_decoded_size
+                                        );
+                                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, error)));
+                                        return;
+                                    }
+                                }
+                            }
+                        } else if is_encoded {
+                            format = image::guess_format(&full).ok();
+                        }
+                    }
+                    Err(_) => {
+                        // cancelled?
+                        return;
+                    }
+                }
+            }
+
+            if let Some(fmt) = format {
+                match image::load_from_memory_with_format(&full[..], fmt) {
+                    Ok(img) => {
+                        let (bgra8, size, ppi, opaque) = Self::convert_decoded(img);
+                        let _ = app_sender.send(AppEvent::ImageLoaded(id, bgra8, size, ppi, opaque));
+                    }
+                    Err(e) => {
+                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, e.to_string())));
+                    }
+                }
+            } else if !is_encoded {
+                let data = IpcSharedMemory::from_bytes(&full);
+                let opaque = data.chunks_exact(4).all(|c| c[3] == 255);
+                let _ = app_sender.send(AppEvent::ImageLoaded(id, data, size.unwrap(), ppi, opaque));
+            } else {
+                let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, "unknown format".to_string())));
+            }
+        });
+        id
+    }
+
+    fn generate_image_id(&mut self) -> ImageId {
+        let mut id = self.image_id_gen.wrapping_add(1);
+        if id == 0 {
+            id = 1;
+        }
+        self.image_id_gen = id;
+        id
+    }
+
     pub fn forget(&mut self, id: ImageId) {
         self.images.remove(&id);
     }
@@ -79,7 +178,7 @@ impl<S: AppEventSender> ImageCache<S> {
     }
 
     /// Called after receive and decode completes correctly.
-    pub fn loaded(&mut self, id: ImageId, bgra8: IpcSharedMemory, size: PxSize, ppi: ImagePpi, opaque: bool) {
+    pub(crate) fn loaded(&mut self, id: ImageId, bgra8: IpcSharedMemory, size: PxSize, ppi: ImagePpi, opaque: bool) {
         let flags = if opaque {
             ImageDescriptorFlags::IS_OPAQUE
         } else {
@@ -101,32 +200,27 @@ impl<S: AppEventSender> ImageCache<S> {
             .send(AppEvent::Notify(Event::ImageLoaded(id, size, ppi, opaque, bgra8)));
     }
 
-    fn load_file(data: IpcSharedMemory, ext: String) -> Result<RawLoadedImg, String> {
-        if let Some(f) = image::ImageFormat::from_extension(ext) {
-            if !f.can_read() {
-                return Err(format!("not supported, cannot decode `{:?}` images", f.extensions_str()));
-            }
-            match image::load_from_memory_with_format(&data, f) {
-                Ok(img) => Ok(Self::convert_decoded(img)),
-                Err(e) => Err(format!("{:?}", e)),
-            }
-        } else {
-            Self::load_unknown(data)
-        }
-    }
+    fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize), String> {
+        let fmt = match fmt {
+            ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext),
+            ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
+            ImageDataFormat::Unknown => None,
+            ImageDataFormat::Bgra8 { .. } => unreachable!(),
+        };
 
-    fn load_web(data: IpcSharedMemory, mime: String) -> Result<RawLoadedImg, String> {
-        if let Some(format) = mime.strip_prefix("image/") {
-            Self::load_file(data, format.to_owned())
-        } else {
-            Self::load_unknown(data)
-        }
-    }
+        let reader = match fmt {
+            Some(fmt) => image::io::Reader::with_format(std::io::Cursor::new(data), fmt),
+            None => image::io::Reader::new(std::io::Cursor::new(data))
+                .with_guessed_format()
+                .map_err(|e| e.to_string())?,
+        };
 
-    fn load_unknown(data: IpcSharedMemory) -> Result<RawLoadedImg, String> {
-        match image::load_from_memory(&data) {
-            Ok(img) => Ok(Self::convert_decoded(img)),
-            Err(e) => Err(format!("{:?}", e)),
+        match reader.format() {
+            Some(fmt) => {
+                let (w, h) = reader.into_dimensions().map_err(|e| e.to_string())?;
+                Ok((fmt, PxSize::new(Px(w as i32), Px(h as i32))))
+            }
+            None => Err("unknown format".to_string()),
         }
     }
 
@@ -602,3 +696,55 @@ mod external {
     }
 }
 pub(crate) use external::{ImageUseMap, WrImageCache};
+
+mod capture {
+    use webrender::{
+        api::{Epoch, ImageFormat},
+        Renderer,
+    };
+    use zero_ui_view_api::{
+        units::{Px, PxRect, PxSize, PxToWr},
+        Event, ImageDataFormat, IpcSharedMemory, WindowId,
+    };
+
+    use crate::{AppEvent, AppEventSender};
+
+    use super::ImageCache;
+
+    impl<S: AppEventSender> ImageCache<S> {
+        pub fn frame_image(
+            &mut self,
+            renderer: &mut Renderer,
+            rect: PxRect,
+            capture_mode: bool,
+            window_id: WindowId,
+            frame_id: Epoch,
+            scale_factor: f32,
+        ) {
+            let (handle, s) = renderer.get_screenshot_async(rect.to_wr_device(), rect.size.to_wr_device(), ImageFormat::BGRA8);
+            let mut buf = vec![0; s.width as usize * s.height as usize * 4];
+            if renderer.map_and_recycle_screenshot(handle, &mut buf, 0) {
+                let data = IpcSharedMemory::from_bytes(&buf);
+                let ppi = 96.0 * scale_factor;
+                let ppi = Some((ppi, ppi));
+                let id = self.add(
+                    ImageDataFormat::Bgra8 {
+                        size: PxSize::new(Px(s.width), Px(s.height)),
+                        ppi,
+                    },
+                    data.clone(),
+                    u64::MAX,
+                );
+                let opaque = true;
+                let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady(
+                    window_id, frame_id, id, rect, ppi, opaque, data,
+                )));
+            } else {
+                todo!()
+            }
+            if !capture_mode {
+                renderer.release_profiler_structures();
+            }
+        }
+    }
+}

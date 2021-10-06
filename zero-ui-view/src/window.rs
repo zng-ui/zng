@@ -25,13 +25,12 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::{PxToDip, *},
-    Event, FramePixels, FrameRequest, IpcSender, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig,
-    WindowId, WindowState,
+    Event, FrameRequest, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowId, WindowState,
 };
 
 use crate::{
     config,
-    image_cache::{Image, ImageUseMap, WrImageCache},
+    image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
     AppEvent, AppEventSender,
 };
@@ -46,8 +45,8 @@ pub(crate) struct Window {
 
     window: GWindow,
     context: GlContext,
-    gl: Rc<dyn gl::Gl>,
     renderer: Option<Renderer>,
+    capture_mode: bool,
 
     redirect_frame: Arc<AtomicBool>,
     redirect_frame_recv: flume::Receiver<()>,
@@ -180,7 +179,7 @@ impl Window {
         let (rf_sender, redirect_frame_recv) = flume::unbounded();
 
         let (mut renderer, sender) = webrender::Renderer::new(
-            Rc::clone(&gl),
+            gl,
             Box::new(Notifier {
                 window_id: id,
                 sender: event_sender,
@@ -207,7 +206,7 @@ impl Window {
             prev_size: winit_window.inner_size().to_px().to_dip(scale_factor),
             window: winit_window,
             context,
-            gl,
+            capture_mode: cfg.capture_mode,
             renderer: Some(renderer),
             redirect_frame,
             redirect_frame_recv,
@@ -647,17 +646,31 @@ impl Window {
         }
     }
 
-    pub fn read_pixels(&mut self, response: IpcSender<FramePixels>) {
-        let px_size = self.window.inner_size().to_px();
-        // `self.gl` is only valid if we are the current context.
-        let _ctx = self.context.make_current();
-        util::read_pixels_rect(&self.gl, px_size, PxRect::from_size(px_size), self.scale_factor(), response);
+    pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) {
+        let scale_factor = self.scale_factor();
+        images.frame_image(
+            self.renderer.as_mut().unwrap(),
+            PxRect::from_size(self.window.inner_size().to_px()),
+            self.capture_mode,
+            self.id,
+            self.frame_id,
+            scale_factor,
+        );
     }
 
-    pub fn read_pixels_rect(&mut self, rect: PxRect, response: IpcSender<FramePixels>) {
-        // `self.gl` is only valid if we are the current context.
-        let _ctx = self.context.make_current();
-        util::read_pixels_rect(&self.gl, self.window.inner_size().to_px(), rect, self.scale_factor(), response);
+    pub fn frame_image_rect<S: AppEventSender>(&mut self, images: &mut ImageCache<S>, rect: PxRect) {
+        let scale_factor = self.scale_factor();
+        let rect = PxRect::from_size(self.window.inner_size().to_px())
+            .intersection(&rect)
+            .unwrap_or_default();
+        images.frame_image(
+            self.renderer.as_mut().unwrap(),
+            rect,
+            self.capture_mode,
+            self.id,
+            self.frame_id,
+            scale_factor,
+        );
     }
 
     pub fn outer_position(&self) -> DipPoint {

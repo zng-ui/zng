@@ -297,14 +297,28 @@ declare_api! {
 
     /// Cache an image resource.
     ///
-    /// The image is received and decoded asynchronously, the event [`Event::ImageLoaded`]
+    /// The image is decoded asynchronously, the events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`]
     /// or [`Event::ImageLoadError`] will be send when the image is ready for use or failed.
+    ///
+    /// The `data` handle must contain the full image data already, it will be dropped after the image finishes decoding.
     ///
     /// Images are shared between renderers, to use an image in a window you must first call [`use_image`]
     /// this will register the image data with the renderer.
     ///
     /// [`use_image`]: Api::use_image
-    pub fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory) -> ImageId;
+    pub fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory, max_decoded_size: u64) -> ImageId;
+
+    /// Cache an image from data that has not fully loaded.
+    ///
+    /// If the view-process implementation supports **progressive decoding** it will start decoding the image
+    /// as more data is received, otherwise it will collect all data first and then [`add_image`]. Each
+    /// `data` package is the continuation of the previous call, send an empty package to indicate finish.
+    ///
+    /// The events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] or [`Event::ImageLoadError`] will
+    /// be send while decoding.
+    ///
+    /// [`add_image`]: Api::add_image
+    pub fn add_image_pro(&mut self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> ImageId;
 
     /// Remove an image from cache.
     ///
@@ -324,7 +338,7 @@ declare_api! {
     /// Replace the image resource in the window renderer.
     ///
     /// The [`ImageKey`] will be associated with the new [`ImageId`].
-    pub fn update_image(
+    pub fn update_image_use(
         &mut self,
         id: WindowId,
         key: ImageKey,
@@ -332,7 +346,7 @@ declare_api! {
     );
 
     /// Delete the image resource in the window renderer.
-    pub fn delete_image(&mut self, id: WindowId, key: ImageKey);
+    pub fn delete_image_use(&mut self, id: WindowId, key: ImageKey);
 
     /// Returns a list of image decoders supported by this implementation.
     ///
@@ -387,21 +401,17 @@ declare_api! {
     /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
     pub fn set_allow_alt_f4(&mut self, id: WindowId, allow: bool);
 
-    /// Read all pixels of the current frame.
+    /// Create a new image resource from the current rendered frame.
     ///
-    /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    ///
-    /// Returns `true` immediately if the window or surface was found. If returns `true` the
-    /// frame pixels will be send asynchronously using the `response` sender.
-    pub fn read_pixels(&mut self, id: WindowId, response: IpcSender<FramePixels>) -> bool;
+    /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
+    /// Returns `false` if the window is not found.
+    pub fn frame_image(&mut self, id: WindowId) -> bool;
 
-    /// Read a selection of the current frame.
+    /// Create a new image from a selection of the current rendered frame.
     ///
-    /// This is a call to `glReadPixels`, the first pixel row order is bottom-to-top and the pixel type is BGRA.
-    ///
-    /// Returns `true` immediately if the window or surface was found. If returns `true` the
-    /// frame pixels will be send asynchronously using the `response` sender.
-    pub fn read_pixels_rect(&mut self, id: WindowId, rect: PxRect, response: IpcSender<FramePixels>) -> bool;
+    /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
+    /// Returns `false` if the window is not found.
+    pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> bool;
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
