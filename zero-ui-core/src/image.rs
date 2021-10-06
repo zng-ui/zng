@@ -75,6 +75,7 @@ impl AppExtension for ImageManager {
             }
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
             let images = ctx.services.images();
+            images.download_accept.clear();
             for v in images.cache.values() {
                 todo!("reload images")
             }
@@ -167,6 +168,7 @@ pub struct Images {
     pub max_decoded_size: ByteLength,
 
     view: Option<ViewProcess>,
+    download_accept: String,
     updates: AppEventSender,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
@@ -185,6 +187,7 @@ impl Images {
             proxies: vec![],
             loading: vec![],
             decoding: vec![],
+            download_accept: String::new(),
             cache: HashMap::default(),
         }
     }
@@ -347,48 +350,45 @@ impl Images {
 
                 r
             }),
-            ImageCacheKey::Download(uri) => self.load_task(key, async {
-                let mut r = ImageData {
-                    format: ImageDataFormat::Unknown,
-                    r: Err(String::new()),
-                };
+            ImageCacheKey::Download(uri) => {
+                let accept = self.download_accept();
+                self.load_task(key, async {
+                    let mut r = ImageData {
+                        format: ImageDataFormat::Unknown,
+                        r: Err(String::new()),
+                    };
 
-                // TODO get supported decoders from view-process?
-                //
-                // for image crate:
-                // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
-                // image/avif decoder does not build in Windows
-                let request = Request::get(uri)
-                    .unwrap()
-                    .header(header::ACCEPT, "image/apng,image/*")
-                    .unwrap()
-                    .build();
+                    // for image crate:
+                    // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
+                    // image/avif decoder does not build in Windows
+                    let request = Request::get(uri).unwrap().header(header::ACCEPT, accept).unwrap().build();
 
-                match http::send(request).await {
-                    Ok(mut rsp) => {
-                        if let Some(m) = rsp.headers().get(&header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
-                            let m = m.to_lowercase();
-                            if m.starts_with("image/") {
-                                r.format = ImageDataFormat::MimeType(m);
+                    match http::send(request).await {
+                        Ok(mut rsp) => {
+                            if let Some(m) = rsp.headers().get(&header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
+                                let m = m.to_lowercase();
+                                if m.starts_with("image/") {
+                                    r.format = ImageDataFormat::MimeType(m);
+                                }
                             }
-                        }
 
-                        match rsp.bytes().await {
-                            Ok(d) => r.r = Ok(IpcSharedMemory::from_bytes(&d)),
-                            Err(e) => {
-                                r.r = Err(format!("download error: {}", e));
+                            match rsp.bytes().await {
+                                Ok(d) => r.r = Ok(IpcSharedMemory::from_bytes(&d)),
+                                Err(e) => {
+                                    r.r = Err(format!("download error: {}", e));
+                                }
                             }
+
+                            let _ = rsp.consume();
                         }
-
-                        let _ = rsp.consume();
+                        Err(e) => {
+                            r.r = Err(format!("request error: {}", e));
+                        }
                     }
-                    Err(e) => {
-                        r.r = Err(format!("request error: {}", e));
-                    }
-                }
 
-                r
-            }),
+                    r
+                })
+            }
             ImageCacheKey::Static(bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
@@ -404,6 +404,28 @@ impl Images {
                 self.load_task(key, async { r })
             }
         }
+    }
+
+    fn download_accept(&mut self) -> String {
+        if self.download_accept.is_empty() {
+            if let Some(view) = &self.view {
+                let mut r = String::new();
+                let mut fmts = view.image_decoders().unwrap_or_default().into_iter();
+                if let Some(fmt) = fmts.next() {
+                    r.push_str("image/");
+                    r.push_str(&fmt);
+                    for fmt in fmts {
+                        r.push_str(",image/");
+                        r.push_str(&fmt);
+                    }
+                    self.download_accept = r;
+                }
+            }
+            if self.download_accept.is_empty() {
+                self.download_accept = "image/*".to_owned();
+            }
+        }
+        self.download_accept.clone()
     }
 
     fn load_task(&mut self, key: ImageCacheKey, fetch_bytes: impl Future<Output = ImageData> + 'static) -> ImageVar {

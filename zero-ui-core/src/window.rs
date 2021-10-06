@@ -604,7 +604,7 @@ pub enum WindowIcon {
     /// In Windows this is the icon associated with the executable.
     Default,
     /// Image is requested from [`Images`].
-    /// 
+    ///
     /// [`Images`]: crate::image::Images
     ImageRequest(ImageCacheKey),
     /// An image resource.

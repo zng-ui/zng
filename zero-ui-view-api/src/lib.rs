@@ -339,7 +339,9 @@ declare_api! {
     /// Each string is the lower-case file extension.
     pub fn image_decoders(&mut self) -> Vec<String>;
 
-    /// Returns a list of
+    /// Returns a list of image encoders supported by this implementation.
+    ///
+    /// Each string is the lower-case file extension.
     pub fn image_encoders(&mut self) -> Vec<String>;
 
     /// Encode the image into the `format`.

@@ -22,7 +22,7 @@ pub mod image {
     #[derive(Clone)]
     pub enum ImageSource {
         /// Gets the image from [`Images`].
-        /// 
+        ///
         /// [`Images`]: crate::core::image::Images
         Request(ImageCacheKey),
         /// Uses an image var.
