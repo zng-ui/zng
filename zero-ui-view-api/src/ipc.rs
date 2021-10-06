@@ -26,7 +26,7 @@ pub struct AppInit {
     //    EventReceiver,
     // )
     #[allow(clippy::type_complexity)]
-    server: IpcOneShotServer<(IpcSender<Request>, IpcSender<IpcSender<Response>>, IpcReceiver<Event>)>,
+    server: IpcOneShotServer<(IpcSender<Request>, IpcSender<(IpcSender<Response>, IpcSender<Event>)>)>,
     name: String,
 }
 impl AppInit {
@@ -42,9 +42,10 @@ impl AppInit {
 
     /// Tries to connect to the view-process and receive the actual channels.
     pub(crate) fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
-        let (_, (req_sender, rsp_chan_sender, evt_recv)) = self.server.accept()?;
+        let (_, (req_sender, chan_sender)) = self.server.accept()?;
         let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel()?;
-        rsp_chan_sender.send(rsp_sender)?;
+        let (evt_sender, evt_recv) = ipc_channel::ipc::channel()?;
+        chan_sender.send((rsp_sender, evt_sender))?;
         Ok((RequestSender(req_sender), ResponseReceiver(rsp_recv), EventReceiver(evt_recv)))
     }
 }
@@ -55,15 +56,12 @@ pub fn connect_view_process(server_name: String) -> IpcResult<ViewChannels> {
 
     let (req_sender, req_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
     // Large messages can only be received in a receiver created in the same process that is receiving (on Windows)
-    // so we create a channel to transfer the response sender, because it is the app process that will receive responses.
+    // so we create a channel to transfer the response and event senders.
     // See issue: https://github.com/servo/ipc-channel/issues/277
-    let (rsp_chan_sender, rsp_chan_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
-    let (evt_sender, evt_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
+    let (chan_sender, chan_recv) = ipc_channel::ipc::channel().map_err(handle_io_error)?;
 
-    app_init_sender
-        .send((req_sender, rsp_chan_sender, evt_recv))
-        .map_err(handle_send_error)?;
-    let rsp_sender = rsp_chan_recv.recv().map_err(handle_recv_error)?;
+    app_init_sender.send((req_sender, chan_sender)).map_err(handle_send_error)?;
+    let (rsp_sender, evt_sender) = chan_recv.recv().map_err(handle_recv_error)?;
 
     Ok(ViewChannels {
         request_receiver: RequestReceiver(req_recv),
