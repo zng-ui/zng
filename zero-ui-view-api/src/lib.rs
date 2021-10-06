@@ -334,6 +334,24 @@ declare_api! {
     /// Delete the image resource in the window renderer.
     pub fn delete_image(&mut self, id: WindowId, key: ImageKey);
 
+    /// Returns a list of image decoders supported by this implementation.
+    ///
+    /// Each string is the lower-case file extension.
+    pub fn image_decoders(&mut self) -> Vec<String>;
+
+    /// Returns a list of
+    pub fn image_encoders(&mut self) -> Vec<String>;
+
+    /// Encode the image into the `format`.
+    ///
+    /// The format must be one of the values returned by [`image_encoders`].
+    ///
+    /// Returns immediately. The encoded data will be send as the event
+    /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`].
+    ///
+    /// [`image_encoders`]: Api::image_encoders
+    pub fn encode_image(&mut self, id: ImageId, format: String);
+
     /// Add a raw font resource to the window renderer.
     ///
     /// Returns the new font key.

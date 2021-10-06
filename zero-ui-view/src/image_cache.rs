@@ -10,6 +10,9 @@ use zero_ui_view_api::{
 use crate::{AppEvent, AppEventSender};
 use rustc_hash::FxHashMap;
 
+pub(crate) const ENCODERS: &[&str] = &["jpg", "jpeg", "png", "gif", "ico", "bmp", "ff", "farbfeld"];
+pub(crate) const DECODERS: &[&str] = ENCODERS;
+
 /// Decode and cache image resources.
 pub(crate) struct ImageCache<S> {
     app_sender: S,
@@ -261,6 +264,37 @@ impl<S: AppEventSender> ImageCache<S> {
             None,
             opaque,
         )
+    }
+
+    pub fn encode(&self, id: ImageId, format: String) {
+        if !ENCODERS.contains(&format.as_str()) {
+            let error = format!("cannot encode `{}` to `{}`, unknown format", id, format);
+            let _ = self.app_sender.send(AppEvent::Notify(Event::ImageEncodeError(id, format, error)));
+            return;
+        }
+
+        if let Some(img) = self.get(id) {
+            let fmt = image::ImageFormat::from_extension(&format).unwrap();
+            debug_assert!(fmt.can_write());
+
+            let img = img.clone();
+            let sender = self.app_sender.clone();
+            rayon::spawn(move || {
+                let mut data = vec![];
+                match img.encode(fmt, &mut data) {
+                    Ok(_) => {
+                        let _ = sender.send(AppEvent::Notify(Event::ImageEncoded(id, format, data)));
+                    }
+                    Err(e) => {
+                        let error = format!("failed to encode `{}` to `{}`, {}", id, format, e);
+                        let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError(id, format, error)));
+                    }
+                }
+            })
+        } else {
+            let error = format!("cannot encode `{}` to `{}`, image not found", id, format);
+            let _ = self.app_sender.send(AppEvent::Notify(Event::ImageEncodeError(id, format, error)));
+        }
     }
 }
 

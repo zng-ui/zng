@@ -1025,16 +1025,24 @@ impl<E: AppExtension> RunningApp<E> {
             Event::ImageLoaded(id, size, dpi, opaque, bgra8) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_image_loaded(id, size, dpi, opaque, bgra8) {
-                    let args = RawImageArgs::now(img);
+                    let args = RawImageLoadArgs::now(img);
                     self.notify_event(RawImageLoadedEvent, args, observer);
                 }
             }
             Event::ImageLoadError(id, error) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_image_error(id, error) {
-                    let args = RawImageArgs::now(img);
+                    let args = RawImageLoadArgs::now(img);
                     self.notify_event(RawImageLoadErrorEvent, args, observer);
                 }
+            }
+            Event::ImageEncoded(id, format, data) => {
+                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                view.on_image_encoded(id, format, data)
+            }
+            Event::ImageEncodeError(id, format, error) => {
+                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                view.on_image_encode_error(id, format, error);
             }
 
             // config events
@@ -1777,6 +1785,7 @@ impl fmt::Display for DeviceId {
 pub mod view_process {
     use std::cell::Cell;
     use std::path::PathBuf;
+    use std::sync::Arc;
     use std::time::Duration;
     use std::{cell::RefCell, rc::Rc};
     use std::{fmt, mem, rc};
@@ -1804,6 +1813,12 @@ pub mod view_process {
 
     type Result<T> = std::result::Result<T, Respawned>;
 
+    struct EncodeRequest {
+        image_id: ImageId,
+        format: String,
+        listeners: Vec<flume::Sender<std::result::Result<Arc<Vec<u8>>, EncodeError>>>,
+    }
+
     /// Reference to the running View Process.
     ///
     /// This is the lowest level API, used for implementing fundamental services and is a service available
@@ -1820,6 +1835,7 @@ pub mod view_process {
         data_generation: ViewProcessGen,
 
         loading_images: Vec<rc::Weak<ImageConnection>>,
+        encoding_images: Vec<EncodeRequest>,
     }
     impl ViewApp {
         #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
@@ -1847,6 +1863,7 @@ pub mod view_process {
                 device_ids: LinearMap::default(),
                 monitor_ids: LinearMap::default(),
                 loading_images: vec![],
+                encoding_images: vec![],
             })))
         }
 
@@ -2003,6 +2020,20 @@ pub mod view_process {
             Ok(img)
         }
 
+        /// Returns a list of image decoders supported by the view-process backend.
+        ///
+        /// Each string is the lower-case file extension.
+        pub fn image_decoders(&self) -> Result<Vec<String>> {
+            self.0.borrow_mut().process.image_decoders()
+        }
+
+        /// Returns a list of image encoders supported by the view-process backend.
+        ///
+        /// Each string is the lower-case file extension.
+        pub fn image_encoders(&self) -> Result<Vec<String>> {
+            self.0.borrow_mut().process.image_encoders()
+        }
+
         pub(super) fn on_image_loaded(
             &self,
             id: ImageId,
@@ -2031,7 +2062,6 @@ pub mod view_process {
             app.loading_images = loading;
             r
         }
-
         pub(super) fn on_image_error(&self, id: ImageId, error: String) -> Option<ViewImage> {
             let mut r = None;
             let mut app = self.0.borrow_mut();
@@ -2049,6 +2079,25 @@ pub mod view_process {
             }
             app.loading_images = loading;
             r
+        }
+
+        pub(super) fn on_image_encoded(&self, id: ImageId, format: String, data: Vec<u8>) {
+            self.on_image_encode_result(id, format, Ok(Arc::new(data)));
+        }
+        pub(super) fn on_image_encode_error(&self, id: ImageId, format: String, error: String) {
+            self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
+        }
+        fn on_image_encode_result(&self, id: ImageId, format: String, result: std::result::Result<Arc<Vec<u8>>, EncodeError>) {
+            let mut app = self.0.borrow_mut();
+            app.encoding_images.retain(move |r| {
+                let done = r.image_id == id && r.format == format;
+                if done {
+                    for sender in &r.listeners {
+                        let _ = sender.send(result.clone());
+                    }
+                }
+                !done
+            })
         }
     }
 
@@ -2204,7 +2253,77 @@ pub mod view_process {
                 bgra8,
             }))
         }
+
+        /// Tries to encode the image to the format.
+        ///
+        /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
+        ///
+        /// [`image_encoders`]: View::image_encoders.
+        pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
+            if let Some(app) = &self.0.app {
+                let mut app = app.borrow_mut();
+                app.process.encode_image(self.0.id, format.clone())?;
+
+                let (sender, receiver) = flume::bounded(1);
+                if let Some(entry) = app
+                    .encoding_images
+                    .iter_mut()
+                    .find(|r| r.image_id == self.0.id && r.format == format)
+                {
+                    entry.listeners.push(sender);
+                } else {
+                    app.encoding_images.push(EncodeRequest {
+                        image_id: self.0.id,
+                        format,
+                        listeners: vec![sender],
+                    });
+                }
+
+                receiver.recv_async().await?
+            } else {
+                Err(EncodeError::Dummy)
+            }
+        }
     }
+
+    /// Error returned by [`ViewImage::encode`].
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum EncodeError {
+        /// Encode error.
+        Encode(String),
+        /// Attempted to encode dummy image.
+        ///
+        /// In a headless-app without renderer all images are dummy because there is no
+        /// view-process backend running.
+        Dummy,
+        /// View-process respawned while waiting for encoded data.
+        Respawned,
+    }
+    impl From<String> for EncodeError {
+        fn from(e: String) -> Self {
+            EncodeError::Encode(e)
+        }
+    }
+    impl From<Respawned> for EncodeError {
+        fn from(_: Respawned) -> Self {
+            EncodeError::Respawned
+        }
+    }
+    impl From<flume::RecvError> for EncodeError {
+        fn from(_: flume::RecvError) -> Self {
+            EncodeError::Respawned
+        }
+    }
+    impl fmt::Display for EncodeError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                EncodeError::Encode(e) => write!(f, "{}", e),
+                EncodeError::Dummy => write!(f, "cannot encode dummy image"),
+                EncodeError::Respawned => write!(f, "{}", Respawned),
+            }
+        }
+    }
+    impl std::error::Error for EncodeError {}
 
     /// Connection to an image loading or loaded in the View Process.
     ///
@@ -3081,7 +3200,7 @@ pub mod raw_events {
         }
 
         /// Arguments for the [`RawImageLoadedEvent`] or [`RawImageLoadErrorEvent`].
-        pub struct RawImageArgs {
+        pub struct RawImageLoadArgs {
             /// Image that finished decoding or got an error.
             pub image: ViewImage,
 
@@ -3271,10 +3390,10 @@ pub mod raw_events {
         pub RawKeyRepeatDelayChangedEvent: RawKeyRepeatDelayChangedArgs;
 
         /// Image finished loaded without errors.
-        pub RawImageLoadedEvent: RawImageArgs;
+        pub RawImageLoadedEvent: RawImageLoadArgs;
 
         /// Image failed to load.
-        pub RawImageLoadErrorEvent: RawImageArgs;
+        pub RawImageLoadErrorEvent: RawImageLoadArgs;
     }
 }
 

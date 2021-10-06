@@ -19,6 +19,7 @@ fn app_main() {
                 items = widgets![
                     click_counter(),
                     click_counter(),
+                    image(),
                 ];
             };
         }
@@ -39,5 +40,15 @@ fn click_counter() -> impl Widget {
             t.set(ctx, new_txt);
         });
         content = text(t);
+    }
+}
+
+fn image() -> impl Widget {
+    v_stack! {
+        spacing = 3;
+        items = widgets![
+            strong("Image:"),
+            image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
+        ];
     }
 }

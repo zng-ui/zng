@@ -723,6 +723,7 @@ macro_rules! with_window_or_surface {
         }
     };
 }
+
 impl<S: AppEventSender> Api for App<S> {
     fn api_version(&mut self) -> String {
         VERSION.to_owned()
@@ -966,12 +967,24 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.namespace_id(), || IdNamespace(0))
     }
 
+    fn image_decoders(&mut self) -> Vec<String> {
+        image_cache::DECODERS.iter().map(|&s| s.to_owned()).collect()
+    }
+
+    fn image_encoders(&mut self) -> Vec<String> {
+        image_cache::ENCODERS.iter().map(|&s| s.to_owned()).collect()
+    }
+
     fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory) -> ImageId {
         self.image_cache.add(data, format)
     }
 
     fn forget_image(&mut self, id: ImageId) {
         self.image_cache.forget(id)
+    }
+
+    fn encode_image(&mut self, id: ImageId, format: String) {
+        self.image_cache.encode(id, format)
     }
 
     fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey {

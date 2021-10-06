@@ -612,6 +612,10 @@ pub enum Event {
     ImageLoaded(ImageId, PxSize, ImagePpi, bool, IpcSharedMemory),
     /// An image resource failed to decode, the image ID is not valid.
     ImageLoadError(ImageId, String),
+    /// An image finished encoding.
+    ImageEncoded(ImageId, String, Vec<u8>),
+    /// An image failed to encode.
+    ImageEncodeError(ImageId, String, String),
 
     // Config events
     /// System fonts have changed.

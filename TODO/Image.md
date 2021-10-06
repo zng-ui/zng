@@ -16,12 +16,15 @@ Image loading and rendering.
 ## View-image TODO
 * Reload functionality.
 * Optional pre-multiply. (can we undo pre-multiplication?)
+    Or can we use pre-multiplied images for the window icon.
 * Encoding API
     - Can we request frame and image pixels encoded?
 * API for querying what encoders and decoders are available.
 * Support creating resized image from existing image.
 * Image data uploading API should support progressive upload.
-* Implement limits in Images
+* Implement limits in Images.
+* Merge frame_pixels request with image API.
+    FrameRequest includes flag to capture pixels and encode?
 
 ## Questions
 
