@@ -14,7 +14,7 @@ use crate::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{fmt, marker::PhantomData, mem, path::PathBuf, sync::Arc, time::Instant};
+use std::{fmt, marker::PhantomData, mem, time::Instant};
 
 pub use zero_ui_view_api::webrender_api;
 
@@ -2114,84 +2114,5 @@ impl_from_and_into_var! {
     /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
     fn from(enabled: bool) -> FontSynthesis {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
-    }
-}
-
-/// Pixels copied from a rendered frame.
-#[derive(Clone)]
-pub struct FramePixels {
-    bgra: Arc<Vec<u8>>,
-    area: PxRect,
-    opaque: bool,
-
-    /// Scale factor used when rendering the frame.
-    ///
-    /// This value is used only as the *DPI* metadata of
-    /// image files encoded from these pixels.
-    pub scale_factor: f32,
-}
-impl Default for FramePixels {
-    fn default() -> Self {
-        Self {
-            bgra: Arc::default(),
-            area: PxRect::zero(),
-            opaque: true,
-            scale_factor: 96.0,
-        }
-    }
-}
-impl fmt::Debug for FramePixels {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FramePixels")
-            .field("bgra", &format_args!("<{} heap bytes>", self.bgra.len()))
-            .field("area", &self.area)
-            .field("opaque", &self.opaque)
-            .field("scale_factor", &self.scale_factor)
-            .finish()
-    }
-}
-impl FramePixels {
-    /// **BGRA8** frame pixels, bottom-to-top.
-    #[inline]
-    pub fn bgra(&self) -> &Arc<Vec<u8>> {
-        &self.bgra
-    }
-
-    /// Pixel selection copied from the frame.
-    ///
-    /// The size is the pixels size, the origin is relative to the top-left corner
-    /// of the full frame.
-    pub fn area(&self) -> PxRect {
-        self.area
-    }
-
-    /// Calculate the area in device independent pixels, using the [`scale_factor`].
-    ///
-    /// [`scale_factor`]: FramePixels::scale_factor
-    pub fn area_dip(&self) -> DipRect {
-        self.area.to_dip(self.scale_factor)
-    }
-
-    /// Returns `true` if all pixels in [`bgra`] are fully opaque (all alpha values 255).
-    ///
-    /// [`bgra`]: Self::bgra
-    #[inline]
-    pub fn opaque(&self) -> bool {
-        self.opaque
-    }
-
-    /// Encode and write to `file`.
-    pub async fn save(&self, file: impl Into<PathBuf>) -> std::io::Result<()> {
-        todo!("save to {}", file.into().display())
-    }
-}
-impl From<crate::app::view_process::FramePixels> for FramePixels {
-    fn from(f: crate::app::view_process::FramePixels) -> Self {
-        Self {
-            bgra: Arc::new(f.bgra.into_vec()),
-            area: f.area,
-            opaque: f.opaque,
-            scale_factor: f.scale_factor,
-        }
     }
 }

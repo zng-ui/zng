@@ -10,11 +10,7 @@ use std::{
 };
 
 pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
-use crate::{
-    color::RenderColor,
-    image::{ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt},
-    render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
-};
+use crate::{color::RenderColor, image::{Image, ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt}, render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId}};
 use linear_map::LinearMap;
 
 use crate::{
@@ -28,7 +24,7 @@ use crate::{
     context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
     event::{event, EventUpdateArgs},
     event_args, impl_from_and_into_var, profile_scope,
-    render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FramePixels, FrameUpdate, WidgetTransformKey},
+    render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, WidgetTransformKey},
     service::Service,
     state::OwnedStateMap,
     state_key,
@@ -148,10 +144,12 @@ pub trait HeadlessAppWindowExt {
     fn blur_window(&mut self, window_id: WindowId);
 
     /// Copy the current frame pixels of the window.
-    fn frame_pixels(&mut self, window_id: WindowId) -> FramePixels;
+    /// 
+    /// The var will update when the image is ready (usually very quick).
+    fn frame_image(&mut self, window_id: WindowId) -> Result<ImageVar, WindowNotFound>;
 
-    /// Sleeps until the current frame info is rendered then returns the frame pixels.
-    fn wait_frame(&mut self, window_id: WindowId) -> FramePixels;
+    /// Sleeps until the current frame info is rendered and a frame image is ready.
+    fn wait_frame(&mut self, window_id: WindowId) -> Result<Image, WindowNotFound>;
 
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
@@ -184,25 +182,12 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let _ = self.update(false);
     }
 
-    fn wait_frame(&mut self, window_id: WindowId) -> FramePixels {
-        let (mut frame_id, mut pixels_id) = self.ctx().services.windows().latest_frame_ids(window_id).unwrap();
-        loop {
-            if frame_id == pixels_id {
-                return self.ctx().services.windows().frame_pixels(window_id).unwrap();
-            }
-
-            if let ControlFlow::Exit = self.update(true) {
-                return FramePixels::default();
-            }
-
-            let (f_id, p_id) = self.ctx().services.windows().latest_frame_ids(window_id).unwrap();
-            frame_id = f_id;
-            pixels_id = p_id;
-        }
+    fn frame_image(&mut self, window_id: WindowId) -> Result<ImageVar, WindowNotFound> {
+        todo!()
     }
 
-    fn frame_pixels(&mut self, window_id: WindowId) -> FramePixels {
-        self.ctx().services.windows().frame_pixels(window_id).expect("window not found")
+    fn wait_frame(&mut self, window_id: WindowId) -> Result<Image, WindowNotFound> {
+        todo!()
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
@@ -1577,33 +1562,24 @@ impl Windows {
             .ok_or(WindowNotFound(window_id))
     }
 
-    /// Copy the pixels of the window's latest frame.
-    ///
-    /// Returns an empty zero-by-zero frame if the window is headless without renderer.
-    pub fn frame_pixels(&self, window_id: WindowId) -> Result<FramePixels, WindowNotFound> {
-        self.windows_info
-            .get(&window_id)
-            .ok_or(WindowNotFound(window_id))? // not found here
-            .renderer
-            .as_ref()
-            .map(|r| r.read_pixels().map(Into::into))
-            .unwrap_or_else(|| Ok(FramePixels::default())) // no renderer
-            .map_err(|_| WindowNotFound(window_id)) // not found in view
+    /// Generate an image from the current rendered frame of the window.
+    /// 
+    /// The image is not loaded at the moment of return, it will update when it is loaded.
+    pub fn frame_image(&self, window_id: WindowId) -> Result<ImageVar, WindowNotFound> {
+        if let Some(w) = self.windows_info.get(&window_id) {
+            todo!()
+        }
+        Err(WindowNotFound(window_id))
     }
 
-    /// Copy a rectangle of pixels of the window's latest frame.
-    ///
-    /// The `rect` is converted to pixels coordinates using the current window's scale factor.
-    pub fn frame_pixels_rect(&self, window_id: WindowId, rect: impl Into<DipRect>) -> Result<FramePixels, WindowNotFound> {
-        let info = self.windows_info.get(&window_id).ok_or(WindowNotFound(window_id))?; // not found here
-
-        let rect = rect.into().to_px(info.scale_factor);
-
-        info.renderer
-            .as_ref()
-            .map(|r| r.read_pixels_rect(rect).map(Into::into))
-            .unwrap_or_else(|| Ok(FramePixels::default())) // no renderer
-            .map_err(|_| WindowNotFound(window_id)) // not found in view
+    /// Generate an image from a selection of the current rendered frame of the window.
+    /// 
+    /// The image is not loaded at the moment of return, it will update when it is loaded.
+    pub fn frame_image_rect(&self, window_id: WindowId, rect: PxRect) -> Result<ImageVar, WindowNotFound> {
+        if let Some(w) = self.windows_info.get(&window_id) {
+            todo!()
+        }
+        Err(WindowNotFound(window_id))
     }
 
     /// Reference the [`WindowVars`] for the window.
@@ -2251,6 +2227,8 @@ impl AppWindow {
                 pipeline_id,
                 clear_color,
                 display_list: (ByteBuf::from(payload.data), descriptor),
+                screenshot: false, // TODO
+                screenshot_rect: None,
             })
         } else {
             None
@@ -2305,6 +2283,7 @@ impl AppWindow {
                             WindowIcon::Render(_) => todo!(),
                         },
                         transparent: self.vars.transparent().copy(ctx.vars),
+                        capture_mode: false, // TODO
                     };
 
                     // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
