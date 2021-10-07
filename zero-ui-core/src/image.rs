@@ -12,12 +12,13 @@ use std::{
     sync::Arc,
 };
 
+use once_cell::unsync::OnceCell;
 use zero_ui_view_api::{webrender_api::ImageKey, IpcSharedMemory};
 
 use crate::{
     app::{
         raw_events::{RawImageLoadErrorEvent, RawImageLoadedEvent, RawImageMetadataLoadedEvent},
-        view_process::{Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
+        view_process::{EncodeError, Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
         AppEventSender, AppExtension,
     },
     context::{AppContext, LayoutMetrics},
@@ -25,10 +26,11 @@ use crate::{
     impl_from_and_into_var,
     service::Service,
     task::{
-        fs,
+        self, fs,
         http::{self, header, Request, TryUri, Uri},
         io::*,
         ui::UiTask,
+        SignalOnce,
     },
     text::Text,
     units::*,
@@ -63,7 +65,7 @@ impl AppExtension for ImageManager {
         if let Some(args) = RawImageMetadataLoadedEvent.update(args) {
             let images = ctx.services.images();
             let vars = ctx.vars;
-            if let Some(var) = images.decoding.iter().find(|v| v.get(vars).view.as_ref().unwrap() == &args.image) {
+            if let Some(var) = images.decoding.iter().find(|v| v.get(vars).view.get().unwrap() == &args.image) {
                 var.touch(ctx.vars);
             }
         } else if let Some(image) = RawImageLoadedEvent
@@ -75,9 +77,10 @@ impl AppExtension for ImageManager {
             // and notify the ViewImage inner state update.
             let images = ctx.services.images();
             let vars = ctx.vars;
-            if let Some(i) = images.decoding.iter().position(|v| v.get(vars).view.as_ref().unwrap() == image) {
+            if let Some(i) = images.decoding.iter().position(|v| v.get(vars).view.get().unwrap() == image) {
                 let var = images.decoding.swap_remove(i);
                 var.touch(ctx.vars);
+                var.get(ctx.vars).done_signal.set();
             }
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
             let images = ctx.services.images();
@@ -101,7 +104,7 @@ impl AppExtension for ImageManager {
             task.update();
             match task.into_result() {
                 Ok(d) => {
-                    match d.r {
+                    let img = match d.r {
                         Ok(data) => {
                             if let Some(vp) = view {
                                 // success and we have a view-process.
@@ -110,27 +113,42 @@ impl AppExtension for ImageManager {
                                         // request send, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
-                                        var.set(vars, Image::from_view(img));
+                                        var.modify(vars, move |v| {
+                                            v.view.set(img).unwrap();
+                                            v.touch();
+                                        });
                                         decoding.push(var);
                                         break;
                                     }
                                     Err(Respawned) => {
-                                        var.set(
-                                            vars,
-                                            Image::from_view(ViewImage::dummy(Some("view-process respawned during image load".to_owned()))),
-                                        );
+                                        let img = ViewImage::dummy(Some("view-process respawned during image load".to_owned()));
+                                        var.modify(vars, move |v| {
+                                            v.view.set(img).unwrap();
+                                            v.touch();
+                                            v.done_signal.set();
+                                        });
                                     }
                                 }
                             } else {
                                 // success, but we are only doing `load_in_headless` validation.
-                                var.set(vars, Image::from_view(ViewImage::dummy(None)));
+                                let img = ViewImage::dummy(None);
+                                var.modify(vars, move |v| {
+                                    v.view.set(img).unwrap();
+                                    v.touch();
+                                    v.done_signal.set();
+                                });
                             }
                         }
                         Err(e) => {
                             // load error.
-                            var.set(vars, Image::from_view(ViewImage::dummy(Some(e))));
+                            let img = ViewImage::dummy(Some(e));
+                            var.modify(vars, move |v| {
+                                v.view.set(img).unwrap();
+                                v.touch();
+                                v.done_signal.set();
+                            });
                         }
-                    }
+                    };
                 }
                 Err(task) => {
                     loading.push((task, var));
@@ -200,7 +218,7 @@ impl Images {
 
     /// Returns a dummy image that reports it is loaded with optional error.
     pub fn dummy(&self, error: Option<String>) -> ImageVar {
-        var(Image::from_view(ViewImage::dummy(error))).into_read_only()
+        var(Image::dummy(error)).into_read_only()
     }
 
     /// Get or load an image file from a file system `path`.
@@ -251,7 +269,7 @@ impl Images {
     /// Returns `Some(previous)` if the `key` was already associated with an image.
     #[inline]
     pub fn register(&mut self, key: ImageCacheKey, image: ViewImage) -> Option<ImageVar> {
-        self.cache.insert(key, var(Image::from_view(image))).map(|v| v.into_read_only())
+        self.cache.insert(key, var(Image::new(image))).map(|v| v.into_read_only())
     }
 
     /// Remove the image from the cache, if it is only held by the cache.
@@ -324,7 +342,7 @@ impl Images {
         }
 
         if self.view.is_none() && !self.load_in_headless {
-            let dummy = var(Image::from_view(ViewImage::dummy(None)));
+            let dummy = var(Image::new(ViewImage::dummy(None)));
             self.cache.insert(key, dummy.clone());
             return dummy.into_read_only();
         }
@@ -463,7 +481,7 @@ impl Images {
     }
 
     fn load_task(&mut self, key: ImageCacheKey, fetch_bytes: impl Future<Output = ImageData> + 'static) -> ImageVar {
-        let img = var(Image::new());
+        let img = var(Image::new_none());
         let task = UiTask::new(&self.updates, fetch_bytes);
 
         self.cache.insert(key, img.clone());
@@ -624,8 +642,9 @@ pub type ImageVar = ReadOnlyRcVar<Image>;
 /// Each instance of this struct represent a single state,
 #[derive(Debug, Clone)]
 pub struct Image {
-    view: Option<ViewImage>,
+    view: OnceCell<ViewImage>,
     render_keys: Rc<RefCell<Vec<RenderImage>>>,
+    done_signal: SignalOnce,
 }
 impl PartialEq for Image {
     fn eq(&self, other: &Self) -> bool {
@@ -633,23 +652,34 @@ impl PartialEq for Image {
     }
 }
 impl Image {
-    fn new() -> Self {
+    fn new_none() -> Self {
         Image {
-            view: None,
+            view: OnceCell::new(),
             render_keys: Rc::default(),
+            done_signal: SignalOnce::new(),
         }
     }
 
-    fn from_view(view: ViewImage) -> Self {
+    /// New from existing `ViewImage`.
+    pub fn new(view: ViewImage) -> Self {
+        let sig = view.done_signal();
+        let v = OnceCell::new();
+        v.set(view);
         Image {
-            view: Some(view),
+            view: v,
             render_keys: Rc::default(),
+            done_signal: sig,
         }
+    }
+
+    /// Create a dummy image in the loaded or error state.
+    pub fn dummy(error: Option<String>) -> Self {
+        Self::new(ViewImage::dummy(error))
     }
 
     /// Returns `true` if the is still acquiring or decoding the image bytes.
     pub fn is_loading(&self) -> bool {
-        match &self.view {
+        match self.view.get() {
             Some(v) => !v.is_loaded() && !v.is_error(),
             None => true,
         }
@@ -657,7 +687,7 @@ impl Image {
 
     /// If the image is successfully loaded in the view-process.
     pub fn is_loaded(&self) -> bool {
-        match &self.view {
+        match self.view.get() {
             Some(v) => v.is_loaded(),
             None => false,
         }
@@ -665,7 +695,7 @@ impl Image {
 
     /// If the image failed to load.
     pub fn is_error(&self) -> bool {
-        match &self.view {
+        match self.view.get() {
             Some(v) => v.is_error(),
             None => false,
         }
@@ -673,31 +703,36 @@ impl Image {
 
     /// Returns an error message if the image failed to load.
     pub fn error(&self) -> Option<&str> {
-        match &self.view {
+        match self.view.get() {
             Some(v) => v.error(),
             None => None,
         }
     }
 
+    /// Returns a future that awaits until this image is loaded or encountered an error.
+    pub fn awaiter(&self) -> impl std::future::Future<Output = ()> + Send + Sync + 'static {
+        self.done_signal.clone()
+    }
+
     /// Returns the image size in pixels, or zero if it is not loaded.
     pub fn size(&self) -> PxSize {
-        self.view.as_ref().map(|v| v.size()).unwrap_or_else(PxSize::zero)
+        self.view.get().map(|v| v.size()).unwrap_or_else(PxSize::zero)
     }
 
     /// Returns the image pixel-per-inch metadata if the image is loaded and the
     /// metadata was retrieved.
     pub fn ppi(&self) -> ImagePpi {
-        self.view.as_ref().and_then(|v| v.ppi())
+        self.view.get().and_then(|v| v.ppi())
     }
 
     /// Returns `true` if the image is fully opaque or it is not loaded.
     pub fn is_opaque(&self) -> bool {
-        self.view.as_ref().map(|v| v.is_opaque()).unwrap_or(true)
+        self.view.get().map(|v| v.is_opaque()).unwrap_or(true)
     }
 
     /// Connection to the image resource, if it is loaded.
     pub fn view(&self) -> Option<&ViewImage> {
-        match &self.view {
+        match self.view.get() {
             Some(v) => {
                 if v.is_loaded() {
                     Some(v)
@@ -749,7 +784,7 @@ impl Image {
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer.
     #[inline]
     pub fn bgra8(&self) -> Option<&[u8]> {
-        self.view.as_ref().and_then(|v| v.bgra8())
+        self.view.get().and_then(|v| v.bgra8())
     }
 
     /// Copy the `rect` selection from `bgra8`.
@@ -780,6 +815,51 @@ impl Image {
             }
         })
     }
+
+    /// Encode the image to the format.
+    pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
+        self.done_signal.clone().await;
+        if let Some(e) = self.error() {
+            Err(EncodeError::Encode(e.to_owned()))
+        } else {
+            self.view.get().unwrap().encode(format).await
+        }
+    }
+
+    /// Encode and write the image to `path`.
+    ///
+    /// The image format is guessed from the file extension.
+    pub async fn save(&self, path: impl Into<PathBuf>) -> std::io::Result<()> {
+        let path = path.into();
+        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+            self.save_impl(ext.to_owned(), path).await
+        } else {
+            Err(Error::new(
+                ErrorKind::InvalidInput,
+                "could not determinate image format from path extension",
+            ))
+        }
+    }
+
+    /// Encode and write the image to `path`.
+    ///
+    /// The image is encoded to the `format`, the file extension can be anything.
+    pub async fn save_with_format(&self, format: String, path: impl Into<PathBuf>) -> std::io::Result<()> {
+        self.save_impl(format, path.into()).await
+    }
+
+    async fn save_impl(&self, format: String, path: PathBuf) -> std::io::Result<()> {
+        if let Some(e) = self.error() {
+            return Err(Error::new(ErrorKind::InvalidData, e));
+        }
+        if !self.is_loaded() {
+            return Err(Error::new(ErrorKind::InvalidData, "image is not loaded"));
+        }
+
+        let view = self.view.get().unwrap();
+        let data = view.encode(format).await.map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+        task::wait(move || std::fs::write(path, &data[..])).await
+    }
 }
 impl crate::render::Image for Image {
     fn image_key(&self, renderer: &ViewRenderer) -> ImageKey {
@@ -798,7 +878,7 @@ impl crate::render::Image for Image {
                 return rm.key;
             }
 
-            let key = match renderer.use_image(self.view.as_ref().unwrap()) {
+            let key = match renderer.use_image(self.view.get().unwrap()) {
                 Ok(k) => k,
                 Err(Respawned) => {
                     log::debug!("respawned `add_image`, will return DUMMY");

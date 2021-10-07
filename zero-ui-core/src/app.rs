@@ -1026,7 +1026,7 @@ impl<E: AppExtension> RunningApp<E> {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_image_metadata_loaded(id, size, dpi) {
                     let args = RawImageArgs::now(img);
-                    self.notify_event(RawImageMetadataLoadedEvent, args, observer);                    
+                    self.notify_event(RawImageMetadataLoadedEvent, args, observer);
                 }
             }
             Event::ImagePartiallyLoaded(id, partial_size, dpi, opaque, partial_bgra8) => {
@@ -1282,7 +1282,7 @@ impl HeadlessApp {
     /// query the latest frame from [`Windows::frame_info`]. The only thing that
     /// is disabled is WebRender and the generation of frame textures.
     ///
-    /// [frame pixels]: crate::window::Windows::frame_pixels
+    /// [frame pixels]: crate::window::Windows::frame_image
     /// [`UiNode::render`]: crate::UiNode::render
     /// [`Windows::frame_info`]: crate::window::Windows::frame_info
     pub fn renderer_enabled(&mut self) -> bool {
@@ -1805,7 +1805,7 @@ pub mod view_process {
     use std::sync::Arc;
     use std::time::Duration;
     use std::{cell::RefCell, rc::Rc};
-    use std::{fmt, mem, rc};
+    use std::{fmt, rc};
 
     use linear_map::LinearMap;
     use once_cell::unsync::OnceCell;
@@ -1815,6 +1815,7 @@ pub mod view_process {
     use crate::mouse::MultiClickConfig;
     use crate::render::FrameId;
     use crate::service::Service;
+    use crate::task::SignalOnce;
     use crate::units::{DipPoint, DipSize, Px, PxPoint, PxRect, PxSize};
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
@@ -2035,6 +2036,7 @@ pub mod view_process {
                 ppi: Cell::new(None),
                 opaque: Cell::new(false),
                 bgra8: OnceCell::new(),
+                done_signal: SignalOnce::new(),
             }));
             app.loading_images.push(Rc::downgrade(&img.0));
             Ok(img)
@@ -2063,19 +2065,17 @@ pub mod view_process {
             self.0.borrow_mut().process.image_encoders()
         }
 
-        fn loading_image_index(&self,  id: ImageId) -> Option<usize> {
+        fn loading_image_index(&self, id: ImageId) -> Option<usize> {
             let mut app = self.0.borrow_mut();
 
             // cleanup
             app.loading_images.retain(|i| i.strong_count() > 0);
 
-            app.loading_images.iter().position(|i| 
-                i.upgrade().unwrap().id == id
-            )
+            app.loading_images.iter().position(|i| i.upgrade().unwrap().id == id)
         }
 
-        pub(super) fn on_image_metadata_loaded(&self,  id: ImageId, size: PxSize, ppi: ImagePpi) -> Option<ViewImage> {
-            if let Some(i) = self.loading_image_index(id) {                
+        pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: ImagePpi) -> Option<ViewImage> {
+            if let Some(i) = self.loading_image_index(id) {
                 let app = self.0.borrow();
                 let img = app.loading_images[i].upgrade().unwrap();
                 img.size.set(size);
@@ -2094,24 +2094,26 @@ pub mod view_process {
             opaque: bool,
             bgra8: IpcSharedMemory,
         ) -> Option<ViewImage> {
-            if let Some(i) = self.loading_image_index(id) {                
+            if let Some(i) = self.loading_image_index(id) {
                 let mut app = self.0.borrow_mut();
                 let img = app.loading_images.swap_remove(i).upgrade().unwrap();
                 img.size.set(size);
                 img.ppi.set(ppi);
                 img.opaque.set(opaque);
                 img.bgra8.set(Ok(bgra8)).unwrap();
+                img.done_signal.set();
                 Some(ViewImage(img))
             } else {
                 None
             }
         }
-        
+
         pub(super) fn on_image_error(&self, id: ImageId, error: String) -> Option<ViewImage> {
-            if let Some(i) = self.loading_image_index(id) {                
+            if let Some(i) = self.loading_image_index(id) {
                 let mut app = self.0.borrow_mut();
                 let img = app.loading_images.swap_remove(i).upgrade().unwrap();
                 img.bgra8.set(Err(error)).unwrap();
+                img.done_signal.set();
                 Some(ViewImage(img))
             } else {
                 None
@@ -2124,11 +2126,9 @@ pub mod view_process {
             // cleanup
             app.frame_images.retain(|i| i.strong_count() > 0);
 
-            let i = app.frame_images.iter().position(|i| 
-                i.upgrade().unwrap().id == id
-            );
+            let i = app.frame_images.iter().position(|i| i.upgrade().unwrap().id == id);
 
-            if let Some(i)  = i {
+            if let Some(i) = i {
                 Some(ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
             } else {
                 None
@@ -2165,6 +2165,8 @@ pub mod view_process {
         opaque: Cell<bool>,
 
         bgra8: OnceCell<std::result::Result<IpcSharedMemory, String>>,
+
+        done_signal: SignalOnce,
     }
     impl ImageConnection {
         fn alive(&self) -> bool {
@@ -2305,7 +2307,13 @@ pub mod view_process {
                 ppi: Cell::new(None),
                 opaque: Cell::new(true),
                 bgra8,
+                done_signal: SignalOnce::new_set(),
             }))
+        }
+
+        /// Returns a future that awaits until this image is loaded or encountered an error.
+        pub fn awaiter(&self) -> impl std::future::Future<Output = ()> + Send + Sync + 'static {
+            self.0.done_signal.clone()
         }
 
         /// Tries to encode the image to the format.
@@ -2314,6 +2322,12 @@ pub mod view_process {
         ///
         /// [`image_encoders`]: View::image_encoders.
         pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
+            self.awaiter().await;
+
+            if let Some(e) = self.error() {
+                return Err(EncodeError::Encode(e.to_owned()));
+            }
+
             if let Some(app) = &self.0.app {
                 let mut app = app.borrow_mut();
                 app.process.encode_image(self.0.id, format.clone())?;
@@ -2337,6 +2351,10 @@ pub mod view_process {
             } else {
                 Err(EncodeError::Dummy)
             }
+        }
+
+        pub(crate) fn done_signal(&self) -> SignalOnce {
+            self.0.done_signal.clone()
         }
     }
 
@@ -2740,20 +2758,45 @@ pub mod view_process {
 
         /// Create a new image resource from the current rendered frame.
         pub fn frame_image(&self) -> Result<ViewImage> {
-            self.call(|id, p| {
-                let id = p.frame_image(id)?;
-
-                todo!()
-            })
+            if let Some(c) = self.0.upgrade() {
+                let id = c.call(|id, p| p.frame_image(id))?;
+                Ok(Self::add_frame_image(&c.app, id))
+            } else {
+                Err(Respawned)
+            }
         }
 
         /// Create a new image resource from a selection of the current rendered frame.
         pub fn frame_image_rect(&self, rect: PxRect) -> Result<ViewImage> {
-            self.call(|id, p| {
-                let id = p.frame_image_rect(id, rect)?;
+            if let Some(c) = self.0.upgrade() {
+                let id = c.call(|id, p| p.frame_image_rect(id, rect))?;
+                Ok(Self::add_frame_image(&c.app, id))
+            } else {
+                Err(Respawned)
+            }
+        }
 
-                todo!()
-            })
+        fn add_frame_image(app: &Rc<RefCell<ViewApp>>, id: ImageId) -> ViewImage {
+            if id == 0 {
+                ViewImage::dummy(None)
+            } else {
+                let mut app_mut = app.borrow_mut();
+                let img = ViewImage(Rc::new(ImageConnection {
+                    id,
+                    generation: app_mut.process.generation(),
+                    app: Some(app.clone()),
+                    size: Cell::new(PxSize::zero()),
+                    ppi: Cell::new(None),
+                    opaque: Cell::new(false),
+                    bgra8: OnceCell::new(),
+                    done_signal: SignalOnce::new(),
+                }));
+
+                app_mut.loading_images.push(Rc::downgrade(&img.0));
+                app_mut.frame_images.push(Rc::downgrade(&img.0));
+
+                img
+            }
         }
 
         /// Get display items of the last rendered frame that intercept the `point`.

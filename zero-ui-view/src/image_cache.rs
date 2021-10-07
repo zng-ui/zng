@@ -702,7 +702,10 @@ mod capture {
         api::{Epoch, ImageFormat},
         Renderer,
     };
-    use zero_ui_view_api::{Event, ImageDataFormat, ImageId, IpcSharedMemory, WindowId, units::{Px, PxRect, PxSize, PxToWr}};
+    use zero_ui_view_api::{
+        units::{Px, PxRect, PxSize, PxToWr},
+        Event, ImageDataFormat, ImageId, IpcSharedMemory, WindowId,
+    };
 
     use crate::{AppEvent, AppEventSender};
 
@@ -744,7 +747,7 @@ mod capture {
                 id
             } else {
                 todo!()
-            }            
+            }
         }
     }
 }

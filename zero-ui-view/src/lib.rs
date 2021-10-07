@@ -1051,21 +1051,11 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn frame_image(&mut self, id: WindowId) -> ImageId {
-        with_window_or_surface!(
-            self,
-            id,
-            |w| w.frame_image(&mut self.image_cache),
-            || 0
-        )
+        with_window_or_surface!(self, id, |w| w.frame_image(&mut self.image_cache), || 0)
     }
 
     fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> ImageId {
-        with_window_or_surface!(
-            self,
-            id,
-            |w| w.frame_image_rect(&mut self.image_cache, rect),
-            || 0
-        )
+        with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect), || 0)
     }
 
     fn hit_test(&mut self, id: WindowId, point: PxPoint) -> (Epoch, HitTestResult) {

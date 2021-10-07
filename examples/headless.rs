@@ -22,7 +22,7 @@ fn app_main() {
     let window_id = app.open_window(|_| image());
 
     // copy the first frame.
-    let frame = app.wait_frame(window_id);
+    let frame = app.wait_window_frame(window_id);
 
     // save the frame.
     print!("saving ./screenshot.png ... ");

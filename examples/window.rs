@@ -164,7 +164,7 @@ fn screenshot() -> impl Widget {
 
             let t = Instant::now();
             let img = ctx.with(|ctx|{
-                ctx.services.windows().frame_pixels(ctx.path.window_id()).unwrap()
+                ctx.services.windows().frame_image(ctx.path.window_id()).get_clone(ctx.vars)
             });
             println!("taken in {:?}, saving..", t.elapsed());
 
@@ -221,19 +221,22 @@ fn headless() -> impl Widget {
                     font_size = 72;
                     content = text("No Head!");
 
-                    on_pixels_ready = hn_once!(|ctx, args: &FramePixelsReadyArgs| {
-                        let img = ctx.services.windows().frame_pixels(args.window_id).unwrap();
-                        let enabled = enabled.sender(ctx.vars);
+                    on_pixels_ready = async_hn_once!(|ctx, args: FramePixelsReadyArgs| {
+                        enabled.set(&ctx, false);
 
-                        task::spawn(async move {
-                            println!("saving screenshot..");
-                            match img.save("screenshot.png").await {
-                                Ok(_) => println!("saved"),
-                                Err(e) => eprintln!("{}", e)
-                            }
-                            enabled.send(true).unwrap();
+                        let img = ctx.with(|ctx| {
+                            ctx.services.windows().frame_image(args.window_id).get_clone(ctx.vars)
                         });
-                        ctx.services.windows().close(args.window_id).unwrap();
+
+                        println!("saving screenshot..");
+                        match img.save("screenshot.png").await {
+                            Ok(_) => println!("saved"),
+                            Err(e) => eprintln!("{}", e)
+                        }
+
+                        ctx.with(|ctx| ctx.services.windows().close(args.window_id).unwrap());
+
+                        enabled.set(&ctx, true);
                     });
                 }),
                 true

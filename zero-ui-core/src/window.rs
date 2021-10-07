@@ -10,7 +10,13 @@ use std::{
 };
 
 pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
-use crate::{color::RenderColor, image::{Image, ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt}, render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId}};
+use crate::{
+    app::ControlFlow,
+    color::RenderColor,
+    image::{Image, ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt},
+    render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
+    var::WeakVar,
+};
 use linear_map::LinearMap;
 
 use crate::{
@@ -18,7 +24,7 @@ use crate::{
         self,
         raw_events::*,
         view_process::{self, Respawned, ViewHeadless, ViewProcess, ViewProcessGen, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
-        AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
+        AppEventSender, AppExtended, AppExtension, AppProcessExt,
     },
     cancelable_event_args,
     context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
@@ -144,12 +150,12 @@ pub trait HeadlessAppWindowExt {
     fn blur_window(&mut self, window_id: WindowId);
 
     /// Copy the current frame pixels of the window.
-    /// 
-    /// The var will update when the image is ready (usually very quick).
-    fn frame_image(&mut self, window_id: WindowId) -> Result<ImageVar, WindowNotFound>;
+    ///
+    /// The var will update until it is loaded or error.
+    fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar;
 
-    /// Sleeps until the current frame info is rendered and a frame image is ready.
-    fn wait_frame(&mut self, window_id: WindowId) -> Result<Image, WindowNotFound>;
+    /// Sleeps until the current frame info is rendered and a frame image is ready or an error was encountered.
+    fn wait_window_frame(&mut self, window_id: WindowId) -> Image;
 
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
@@ -182,12 +188,18 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         let _ = self.update(false);
     }
 
-    fn frame_image(&mut self, window_id: WindowId) -> Result<ImageVar, WindowNotFound> {
-        todo!()
+    fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar {
+        self.ctx().services.windows().frame_image(window_id)
     }
 
-    fn wait_frame(&mut self, window_id: WindowId) -> Result<Image, WindowNotFound> {
-        todo!()
+    fn wait_window_frame(&mut self, window_id: WindowId) -> Image {
+        let img = self.ctx().services.windows().frame_image(window_id).get_clone(self.ctx().vars);
+        while !img.is_loaded() || !img.is_error() {
+            if let ControlFlow::Exit = self.update(true) {
+                return Image::dummy(Some("application exited".to_owned()));
+            }
+        }
+        img
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
@@ -1411,6 +1423,8 @@ pub struct Windows {
 
     close_group_id: CloseGroupId,
     close_requests: LinearMap<WindowId, CloseWindowRequest>,
+
+    frame_images: Vec<WeakVar<Image>>,
 }
 impl Windows {
     fn new(update_sender: AppEventSender) -> Self {
@@ -1423,6 +1437,8 @@ impl Windows {
 
             close_group_id: 1,
             close_requests: LinearMap::new(),
+
+            frame_images: vec![],
         }
     }
 
@@ -1563,23 +1579,45 @@ impl Windows {
     }
 
     /// Generate an image from the current rendered frame of the window.
-    /// 
+    ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
-    pub fn frame_image(&self, window_id: WindowId) -> Result<ImageVar, WindowNotFound> {
-        if let Some(w) = self.windows_info.get(&window_id) {
-            todo!()
-        }
-        Err(WindowNotFound(window_id))
+    ///
+    /// If the window is not found the error is reported in the image error.
+    pub fn frame_image(&mut self, window_id: WindowId) -> ImageVar {
+        self.frame_image_impl(window_id, |vr| vr.frame_image())
     }
 
     /// Generate an image from a selection of the current rendered frame of the window.
-    /// 
+    ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
-    pub fn frame_image_rect(&self, window_id: WindowId, rect: PxRect) -> Result<ImageVar, WindowNotFound> {
+    ///
+    /// If the window is not found the error is reported in the image error.
+    pub fn frame_image_rect(&mut self, window_id: WindowId, rect: PxRect) -> ImageVar {
+        self.frame_image_impl(window_id, |vr| vr.frame_image_rect(rect))
+    }
+
+    fn frame_image_impl(
+        &mut self,
+        window_id: WindowId,
+        action: impl FnOnce(&ViewRenderer) -> std::result::Result<view_process::ViewImage, view_process::Respawned>,
+    ) -> ImageVar {
         if let Some(w) = self.windows_info.get(&window_id) {
-            todo!()
+            if let Some(r) = &w.renderer {
+                match action(r) {
+                    Ok(img) => {
+                        let img = Image::new(img);
+                        let img = var(img);
+                        self.frame_images.push(img.downgrade());
+                        img.into_read_only()
+                    }
+                    Err(_) => var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only(),
+                }
+            } else {
+                var(Image::dummy(Some(format!("window `{}` is headless without renderer", window_id)))).into_read_only()
+            }
+        } else {
+            var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only()
         }
-        Err(WindowNotFound(window_id))
     }
 
     /// Reference the [`WindowVars`] for the window.

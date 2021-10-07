@@ -139,9 +139,12 @@
 use std::{
     fmt,
     future::Future,
-    panic,
+    mem, panic,
     pin::Pin,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     task::Poll,
     time::{Duration, Instant},
 };
@@ -158,6 +161,8 @@ pub use rayon;
 
 #[doc(no_inline)]
 pub use async_fs as fs;
+
+pub use crate::handler::async_clone_move;
 
 pub mod channel;
 pub mod io;
@@ -1778,6 +1783,84 @@ macro_rules! __all_some {
             })
         }
     }
+}
+
+/// A future that will await until [`set`] is called.
+///
+/// # Examples
+///
+/// Spawns a parallel task that only writes to stdout after the main thread sets the signal:
+///
+/// ```
+/// use zero_ui_core::task::*;
+///
+/// let signal = SignalOnce::default();
+///
+/// task::spawn(async_clone_move!(signal, async {
+///     signal.await;
+///     println!("After Signal!");
+/// }));
+///
+/// signal.set();
+/// ```
+///
+/// [`set`]: SignalOnce::set
+#[derive(Default, Clone)]
+pub struct SignalOnce(Arc<SignalInner>);
+impl fmt::Debug for SignalOnce {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SignalOnce({})", self.is_set())
+    }
+}
+impl SignalOnce {
+    /// New unsigned.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// New signaled.
+    pub fn new_set() -> Self {
+        let s = Self::new();
+        s.set();
+        s
+    }
+
+    /// If the signal was set.
+    pub fn is_set(&self) -> bool {
+        self.0.signaled.load(Ordering::Relaxed)
+    }
+
+    /// Sets the signal and awakes listeners.
+    pub fn set(&self) {
+        if !self.0.signaled.swap(true, Ordering::Relaxed) {
+            let listeners = mem::take(&mut *self.0.listeners.lock());
+            for listener in listeners {
+                listener.wake();
+            }
+        }
+    }
+}
+impl Future for SignalOnce {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
+        if self.as_ref().is_set() {
+            Poll::Ready(())
+        } else {
+            let mut listeners = self.0.listeners.lock();
+            let waker = cx.waker();
+            if !listeners.iter().any(|w| w.will_wake(waker)) {
+                listeners.push(waker.clone());
+            }
+            Poll::Pending
+        }
+    }
+}
+
+#[derive(Default)]
+struct SignalInner {
+    signaled: AtomicBool,
+    listeners: Mutex<Vec<std::task::Waker>>,
 }
 
 #[cfg(test)]
