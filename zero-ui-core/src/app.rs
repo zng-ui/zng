@@ -1023,7 +1023,11 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
             Event::ImageMetadataLoaded(id, size, dpi) => {
-                todo!()
+                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                if let Some(img) = view.on_image_metadata_loaded(id, size, dpi) {
+                    let args = RawImageArgs::now(img);
+                    self.notify_event(RawImageMetadataLoadedEvent, args, observer);                    
+                }
             }
             Event::ImagePartiallyLoaded(id, partial_size, dpi, opaque, partial_bgra8) => {
                 todo!()
@@ -2059,67 +2063,76 @@ pub mod view_process {
             self.0.borrow_mut().process.image_encoders()
         }
 
+        fn loading_image_index(&self,  id: ImageId) -> Option<usize> {
+            let mut app = self.0.borrow_mut();
+
+            // cleanup
+            app.loading_images.retain(|i| i.strong_count() > 0);
+
+            app.loading_images.iter().position(|i| 
+                i.upgrade().unwrap().id == id
+            )
+        }
+
+        pub(super) fn on_image_metadata_loaded(&self,  id: ImageId, size: PxSize, ppi: ImagePpi) -> Option<ViewImage> {
+            if let Some(i) = self.loading_image_index(id) {                
+                let app = self.0.borrow();
+                let img = app.loading_images[i].upgrade().unwrap();
+                img.size.set(size);
+                img.ppi.set(ppi);
+                Some(ViewImage(img))
+            } else {
+                None
+            }
+        }
+
         pub(super) fn on_image_loaded(
             &self,
             id: ImageId,
             size: PxSize,
-            dpi: ImagePpi,
+            ppi: ImagePpi,
             opaque: bool,
             bgra8: IpcSharedMemory,
         ) -> Option<ViewImage> {
-            let mut r = None;
-            let mut app = self.0.borrow_mut();
-            let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
-            for img in mem::take(&mut app.loading_images) {
-                if let Some(img) = img.upgrade() {
-                    if img.id == id {
-                        img.size.set(size);
-                        img.ppi.set(dpi);
-                        img.opaque.set(opaque);
-                        img.bgra8.set(Ok(bgra8)).unwrap();
-                        r = Some(ViewImage(img));
-                        break;
-                    } else {
-                        loading.push(Rc::downgrade(&img));
-                    }
-                }
+            if let Some(i) = self.loading_image_index(id) {                
+                let mut app = self.0.borrow_mut();
+                let img = app.loading_images.swap_remove(i).upgrade().unwrap();
+                img.size.set(size);
+                img.ppi.set(ppi);
+                img.opaque.set(opaque);
+                img.bgra8.set(Ok(bgra8)).unwrap();
+                Some(ViewImage(img))
+            } else {
+                None
             }
-            app.loading_images = loading;
-            r
         }
-        pub(super) fn on_image_error(&self, id: ImageId, mut error: String) -> Option<ViewImage> {
-            let mut r = None;
-            let mut app = self.0.borrow_mut();
-            let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
-            for img in mem::take(&mut app.loading_images) {
-                if let Some(img) = img.upgrade() {
-                    if img.id == id {
-                        img.bgra8.set(Err(mem::take(&mut error))).unwrap();
-                        r = Some(ViewImage(img));
-                    } else {
-                        loading.push(Rc::downgrade(&img));
-                    }
-                }
+        
+        pub(super) fn on_image_error(&self, id: ImageId, error: String) -> Option<ViewImage> {
+            if let Some(i) = self.loading_image_index(id) {                
+                let mut app = self.0.borrow_mut();
+                let img = app.loading_images.swap_remove(i).upgrade().unwrap();
+                img.bgra8.set(Err(error)).unwrap();
+                Some(ViewImage(img))
+            } else {
+                None
             }
-            app.loading_images = loading;
-            r
         }
 
         pub(super) fn on_frame_image_ready(&self, id: ImageId) -> Option<ViewImage> {
-            let mut r = None;
             let mut app = self.0.borrow_mut();
-            let mut frame_images = Vec::with_capacity(app.frame_images.len() - 1);
-            for img in mem::take(&mut app.frame_images) {
-                if let Some(img) = img.upgrade() {
-                    if img.id == id {
-                        r = Some(ViewImage(img));
-                    } else {
-                        frame_images.push(Rc::downgrade(&img));
-                    }
-                }
+
+            // cleanup
+            app.frame_images.retain(|i| i.strong_count() > 0);
+
+            let i = app.frame_images.iter().position(|i| 
+                i.upgrade().unwrap().id == id
+            );
+
+            if let Some(i)  = i {
+                Some(ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
+            } else {
+                None
             }
-            app.frame_images = frame_images;
-            r
         }
 
         pub(super) fn on_image_encoded(&self, id: ImageId, format: String, data: Vec<u8>) {
@@ -3441,7 +3454,10 @@ pub mod raw_events {
         /// Change in system key repeat interval config.
         pub RawKeyRepeatDelayChangedEvent: RawKeyRepeatDelayChangedArgs;
 
-        /// Image finished loaded without errors.
+        /// Image metadata loaded without errors.
+        pub RawImageMetadataLoadedEvent: RawImageArgs;
+
+        /// Image loaded without errors.
         pub RawImageLoadedEvent: RawImageArgs;
 
         /// Image failed to load.

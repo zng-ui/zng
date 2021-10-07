@@ -16,7 +16,7 @@ use zero_ui_view_api::{webrender_api::ImageKey, IpcSharedMemory};
 
 use crate::{
     app::{
-        raw_events::{RawImageLoadErrorEvent, RawImageLoadedEvent},
+        raw_events::{RawImageLoadErrorEvent, RawImageLoadedEvent, RawImageMetadataLoadedEvent},
         view_process::{Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
         AppEventSender, AppExtension,
     },
@@ -60,7 +60,13 @@ impl AppExtension for ImageManager {
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(image) = RawImageLoadedEvent
+        if let Some(args) = RawImageMetadataLoadedEvent.update(args) {
+            let images = ctx.services.images();
+            let vars = ctx.vars;
+            if let Some(var) = images.decoding.iter().find(|v| v.get(vars).view.as_ref().unwrap() == &args.image) {
+                var.touch(ctx.vars);
+            }
+        } else if let Some(image) = RawImageLoadedEvent
             .update(args)
             .map(|a| &a.image)
             .or_else(|| RawImageLoadErrorEvent.update(args).map(|a| &a.image))

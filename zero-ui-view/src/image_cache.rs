@@ -10,7 +10,7 @@ use zero_ui_view_api::{
 use crate::{AppEvent, AppEventSender};
 use rustc_hash::FxHashMap;
 
-pub(crate) const ENCODERS: &[&str] = &["jpg", "jpeg", "png", "gif", "ico", "bmp", "ff", "farbfeld"];
+pub(crate) const ENCODERS: &[&str] = &["png", "jpg", "jpeg", "gif", "ico", "bmp", "ff", "farbfeld"];
 pub(crate) const DECODERS: &[&str] = ENCODERS;
 
 /// Decode and cache image resources.

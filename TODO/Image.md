@@ -25,6 +25,7 @@ Image loading and rendering.
 * Implement limits in Images.
 * Merge frame_pixels request with image API.
     FrameRequest includes flag to capture pixels and encode?
+* API for chosing the format in the request for image download.
 
 ## Questions
 
