@@ -702,10 +702,7 @@ mod capture {
         api::{Epoch, ImageFormat},
         Renderer,
     };
-    use zero_ui_view_api::{
-        units::{Px, PxRect, PxSize, PxToWr},
-        Event, ImageDataFormat, IpcSharedMemory, WindowId,
-    };
+    use zero_ui_view_api::{Event, ImageDataFormat, ImageId, IpcSharedMemory, WindowId, units::{Px, PxRect, PxSize, PxToWr}};
 
     use crate::{AppEvent, AppEventSender};
 
@@ -720,7 +717,8 @@ mod capture {
             window_id: WindowId,
             frame_id: Epoch,
             scale_factor: f32,
-        ) {
+        ) -> ImageId {
+            // TODO how is this async?
             let (handle, s) = renderer.get_screenshot_async(rect.to_wr_device(), rect.size.to_wr_device(), ImageFormat::BGRA8);
             let mut buf = vec![0; s.width as usize * s.height as usize * 4];
             if renderer.map_and_recycle_screenshot(handle, &mut buf, 0) {
@@ -739,12 +737,14 @@ mod capture {
                 let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady(
                     window_id, frame_id, id, rect, ppi, opaque, data,
                 )));
+                if !capture_mode {
+                    renderer.release_profiler_structures();
+                }
+
+                id
             } else {
                 todo!()
-            }
-            if !capture_mode {
-                renderer.release_profiler_structures();
-            }
+            }            
         }
     }
 }

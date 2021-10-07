@@ -23,10 +23,7 @@ use webrender::{
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
-use zero_ui_view_api::{
-    units::{PxToDip, *},
-    Event, FrameRequest, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowId, WindowState,
-};
+use zero_ui_view_api::{Event, FrameRequest, ImageId, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowId, WindowState, units::{PxToDip, *}};
 
 use crate::{
     config,
@@ -646,7 +643,7 @@ impl Window {
         }
     }
 
-    pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) {
+    pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> ImageId {
         let scale_factor = self.scale_factor();
         images.frame_image(
             self.renderer.as_mut().unwrap(),
@@ -655,10 +652,10 @@ impl Window {
             self.id,
             self.frame_id,
             scale_factor,
-        );
+        )
     }
 
-    pub fn frame_image_rect<S: AppEventSender>(&mut self, images: &mut ImageCache<S>, rect: PxRect) {
+    pub fn frame_image_rect<S: AppEventSender>(&mut self, images: &mut ImageCache<S>, rect: PxRect) -> ImageId {
         let scale_factor = self.scale_factor();
         let rect = PxRect::from_size(self.window.inner_size().to_px())
             .intersection(&rect)
@@ -670,7 +667,7 @@ impl Window {
             self.id,
             self.frame_id,
             scale_factor,
-        );
+        )
     }
 
     pub fn outer_position(&self) -> DipPoint {

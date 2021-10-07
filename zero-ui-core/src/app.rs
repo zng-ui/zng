@@ -1031,14 +1031,14 @@ impl<E: AppExtension> RunningApp<E> {
             Event::ImageLoaded(id, size, dpi, opaque, bgra8) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_image_loaded(id, size, dpi, opaque, bgra8) {
-                    let args = RawImageLoadArgs::now(img);
+                    let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadedEvent, args, observer);
                 }
             }
             Event::ImageLoadError(id, error) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_image_error(id, error) {
-                    let args = RawImageLoadArgs::now(img);
+                    let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadErrorEvent, args, observer);
                 }
             }
@@ -1050,8 +1050,12 @@ impl<E: AppExtension> RunningApp<E> {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 view.on_image_encode_error(id, format, error);
             }
-            Event::FrameImageReady(window_id, frame_id, image_id, selection, ppi, opaque, bgra8) => {
-                todo!()
+            Event::FrameImageReady(w_id, frame_id, image_id, selection, ppi, opaque, bgra8) => {
+                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                if let Some(img) = view.on_frame_image_ready(image_id) {
+                    let args = RawFrameImageReadyArgs::now(img, window_id(w_id), frame_id, selection);
+                    self.notify_event(RawFrameImageReadyEvent, args, observer);
+                }
             }
 
             // config events
@@ -1845,6 +1849,7 @@ pub mod view_process {
         data_generation: ViewProcessGen,
 
         loading_images: Vec<rc::Weak<ImageConnection>>,
+        frame_images: Vec<rc::Weak<ImageConnection>>,
         encoding_images: Vec<EncodeRequest>,
     }
     impl ViewApp {
@@ -1874,6 +1879,7 @@ pub mod view_process {
                 monitor_ids: LinearMap::default(),
                 loading_images: vec![],
                 encoding_images: vec![],
+                frame_images: vec![],
             })))
         }
 
@@ -2081,22 +2087,38 @@ pub mod view_process {
             app.loading_images = loading;
             r
         }
-        pub(super) fn on_image_error(&self, id: ImageId, error: String) -> Option<ViewImage> {
+        pub(super) fn on_image_error(&self, id: ImageId, mut error: String) -> Option<ViewImage> {
             let mut r = None;
             let mut app = self.0.borrow_mut();
             let mut loading = Vec::with_capacity(app.loading_images.len() - 1);
             for img in mem::take(&mut app.loading_images) {
                 if let Some(img) = img.upgrade() {
                     if img.id == id {
-                        img.bgra8.set(Err(error)).unwrap();
+                        img.bgra8.set(Err(mem::take(&mut error))).unwrap();
                         r = Some(ViewImage(img));
-                        break;
                     } else {
                         loading.push(Rc::downgrade(&img));
                     }
                 }
             }
             app.loading_images = loading;
+            r
+        }
+
+        pub(super) fn on_frame_image_ready(&self, id: ImageId) -> Option<ViewImage> {
+            let mut r = None;
+            let mut app = self.0.borrow_mut();
+            let mut frame_images = Vec::with_capacity(app.frame_images.len() - 1);
+            for img in mem::take(&mut app.frame_images) {
+                if let Some(img) = img.upgrade() {
+                    if img.id == id {
+                        r = Some(ViewImage(img));
+                    } else {
+                        frame_images.push(Rc::downgrade(&img));
+                    }
+                }
+            }
+            app.frame_images = frame_images;
             r
         }
 
@@ -2706,24 +2728,18 @@ pub mod view_process {
         /// Create a new image resource from the current rendered frame.
         pub fn frame_image(&self) -> Result<ViewImage> {
             self.call(|id, p| {
-                if p.frame_image(id)? {
-                    todo!()
-                } else {
-                    // window not found
-                    todo!()
-                }
+                let id = p.frame_image(id)?;
+
+                todo!()
             })
         }
 
         /// Create a new image resource from a selection of the current rendered frame.
         pub fn frame_image_rect(&self, rect: PxRect) -> Result<ViewImage> {
             self.call(|id, p| {
-                if p.frame_image_rect(id, rect)? {
-                    todo!()
-                } else {
-                    // window not found
-                    todo!()
-                }
+                let id = p.frame_image_rect(id, rect)?;
+
+                todo!()
             })
         }
 
@@ -2803,7 +2819,7 @@ pub mod raw_events {
         keyboard::{Key, KeyState, ModifiersState, ScanCode},
         mouse::{ButtonState, MouseButton, MultiClickConfig},
         render::FrameId,
-        units::{DipPoint, DipSize},
+        units::{DipPoint, DipSize, PxRect},
         window::{EventCause, MonitorId, WindowId, WindowTheme},
     };
 
@@ -3213,10 +3229,32 @@ pub mod raw_events {
             }
         }
 
-        /// Arguments for the [`RawImageLoadedEvent`] or [`RawImageLoadErrorEvent`].
-        pub struct RawImageLoadArgs {
-            /// Image that finished decoding or got an error.
+        /// Arguments for the image events.
+        pub struct RawImageArgs {
+            /// Image that changed.
             pub image: ViewImage,
+
+            ..
+
+            /// Concerns all widgets.
+            fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+
+        /// Arguments for the [`RawFrameImageReadyEvent`].
+        pub struct RawFrameImageReadyArgs {
+            /// Frame image that is ready.
+            pub image: ViewImage,
+
+            /// Window that was captured.
+            pub window_id: WindowId,
+
+            /// Frame that was captured.
+            pub frame_id: FrameId,
+
+            /// Area of the frame that was captured.
+            pub area: PxRect,
 
             ..
 
@@ -3404,10 +3442,13 @@ pub mod raw_events {
         pub RawKeyRepeatDelayChangedEvent: RawKeyRepeatDelayChangedArgs;
 
         /// Image finished loaded without errors.
-        pub RawImageLoadedEvent: RawImageLoadArgs;
+        pub RawImageLoadedEvent: RawImageArgs;
 
         /// Image failed to load.
-        pub RawImageLoadErrorEvent: RawImageLoadArgs;
+        pub RawImageLoadErrorEvent: RawImageArgs;
+
+        /// Image generated from a frame is ready for reading.
+        pub RawFrameImageReadyEvent: RawFrameImageReadyArgs;
     }
 }
 

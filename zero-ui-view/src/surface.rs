@@ -9,7 +9,7 @@ use webrender::{
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
-use zero_ui_view_api::{units::*, FrameRequest, HeadlessConfig, TextAntiAliasing, ViewProcessGen, WindowId};
+use zero_ui_view_api::{FrameRequest, HeadlessConfig, ImageId, TextAntiAliasing, ViewProcessGen, WindowId, units::*};
 
 use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -302,7 +302,7 @@ impl Surface {
         let _ = renderer.flush_pipeline_info();
     }
 
-    pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) {
+    pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> ImageId {
         images.frame_image(
             self.renderer.as_mut().unwrap(),
             PxRect::from_size(self.size.to_px(self.scale_factor)),
@@ -310,10 +310,10 @@ impl Surface {
             self.id,
             self.frame_id,
             self.scale_factor,
-        );
+        )
     }
 
-    pub fn frame_image_rect<S: AppEventSender>(&mut self, images: &mut ImageCache<S>, rect: PxRect) {
+    pub fn frame_image_rect<S: AppEventSender>(&mut self, images: &mut ImageCache<S>, rect: PxRect) -> ImageId {
         let rect = PxRect::from_size(self.size.to_px(self.scale_factor)).intersection(&rect).unwrap();
         images.frame_image(
             self.renderer.as_mut().unwrap(),
@@ -322,7 +322,7 @@ impl Surface {
             self.id,
             self.frame_id,
             self.scale_factor,
-        );
+        )
     }
 
     pub fn hit_test(&mut self, point: PxPoint) -> (Epoch, HitTestResult) {

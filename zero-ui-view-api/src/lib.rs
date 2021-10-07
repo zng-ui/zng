@@ -404,14 +404,14 @@ declare_api! {
     /// Create a new image resource from the current rendered frame.
     ///
     /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
-    /// Returns `false` if the window is not found.
-    pub fn frame_image(&mut self, id: WindowId) -> bool;
+    /// Returns `0` if the window is not found.
+    pub fn frame_image(&mut self, id: WindowId) -> ImageId;
 
     /// Create a new image from a selection of the current rendered frame.
     ///
     /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
-    /// Returns `false` if the window is not found.
-    pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> bool;
+    /// Returns `0` if the window is not found.
+    pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> ImageId;
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///

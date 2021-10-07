@@ -1050,27 +1050,21 @@ impl<S: AppEventSender> Api for App<S> {
         self.with_window(id, |w| w.set_allow_alt_f4(allow), || ())
     }
 
-    fn frame_image(&mut self, id: WindowId) -> bool {
+    fn frame_image(&mut self, id: WindowId) -> ImageId {
         with_window_or_surface!(
             self,
             id,
-            |w| {
-                w.frame_image(&mut self.image_cache);
-                true
-            },
-            || false
+            |w| w.frame_image(&mut self.image_cache),
+            || 0
         )
     }
 
-    fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> bool {
+    fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> ImageId {
         with_window_or_surface!(
             self,
             id,
-            |w| {
-                w.frame_image_rect(&mut self.image_cache, rect);
-                true
-            },
-            || false
+            |w| w.frame_image_rect(&mut self.image_cache, rect),
+            || 0
         )
     }
 
