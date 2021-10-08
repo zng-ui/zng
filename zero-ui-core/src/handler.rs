@@ -1643,6 +1643,34 @@ impl HeadlessApp {
         Ok(())
     }
 
+    /// Polls a `future` and updates the app repeatedly until it completes or the `timeout` is reached.
+    pub fn block_on_fut<F: Future>(&mut self, future: F, timeout: Duration) -> Result<F::Output, String> {
+        let waker = self.ctx().updates.sender().waker();
+        let mut cx = std::task::Context::from_waker(&waker);
+        let start_time = Instant::now();
+        crate::task::pin!(future);
+        loop {
+            if start_time.elapsed() >= timeout {
+                return Err(format!("reached timeout `{:?}`", timeout));
+            }
+            match future.as_mut().poll(&mut cx) {
+                std::task::Poll::Ready(r) => {
+                    return Ok(r);
+                },
+                std::task::Poll::Pending => {
+                    match self.update(false) {
+                        crate::app::ControlFlow::Poll => continue,
+                        crate::app::ControlFlow::Wait => {
+                            thread::yield_now();
+                            continue;
+                        },
+                        crate::app::ControlFlow::Exit => return Err("app exited".to_owned()),
+                    }
+                },
+            }
+        }
+    }
+
     /// Calls the `handler` once and [`block_on`] it with a 1 second timeout using the default headless app.
     ///
     /// [`block_on`]: Self::block_on.

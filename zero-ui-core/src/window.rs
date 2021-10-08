@@ -194,7 +194,7 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
 
     fn wait_window_frame(&mut self, window_id: WindowId) -> Image {
         let img = self.ctx().services.windows().frame_image(window_id).get_clone(self.ctx().vars);
-        while !img.is_loaded() || !img.is_error() {
+        while !img.is_loaded() && !img.is_error() {
             if let ControlFlow::Exit = self.update(true) {
                 return Image::dummy(Some("application exited".to_owned()));
             }

@@ -722,9 +722,11 @@ mod capture {
             scale_factor: f32,
         ) -> ImageId {
             // TODO how is this async?
+            // Firefox uses this API here:
+            // https://searchfox.org/mozilla-central/source/gfx/webrender_bindings/RendererScreenshotGrabber.cpp#87
             let (handle, s) = renderer.get_screenshot_async(rect.to_wr_device(), rect.size.to_wr_device(), ImageFormat::BGRA8);
             let mut buf = vec![0; s.width as usize * s.height as usize * 4];
-            if renderer.map_and_recycle_screenshot(handle, &mut buf, 0) {
+            if renderer.map_and_recycle_screenshot(handle, &mut buf, s.width as usize * 4) {
                 let data = IpcSharedMemory::from_bytes(&buf);
                 let ppi = 96.0 * scale_factor;
                 let ppi = Some((ppi, ppi));
@@ -737,9 +739,12 @@ mod capture {
                     u64::MAX,
                 );
                 let opaque = true;
-                let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady(
-                    window_id, frame_id, id, rect, ppi, opaque, data,
-                )));
+                let _ = self
+                    .app_sender
+                    .send(AppEvent::Notify(Event::ImageLoaded(id, rect.size, ppi, opaque, data)));
+                let _ = self
+                    .app_sender
+                    .send(AppEvent::Notify(Event::FrameImageReady(window_id, frame_id, id, rect)));
                 if !capture_mode {
                     renderer.release_profiler_structures();
                 }

@@ -1054,7 +1054,7 @@ impl<E: AppExtension> RunningApp<E> {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 view.on_image_encode_error(id, format, error);
             }
-            Event::FrameImageReady(w_id, frame_id, image_id, selection, ppi, opaque, bgra8) => {
+            Event::FrameImageReady(w_id, frame_id, image_id, selection) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_frame_image_ready(image_id) {
                     let args = RawFrameImageReadyArgs::now(img, window_id(w_id), frame_id, selection);
@@ -2142,6 +2142,7 @@ pub mod view_process {
             self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
         }
         fn on_image_encode_result(&self, id: ImageId, format: String, result: std::result::Result<Arc<Vec<u8>>, EncodeError>) {
+            std::thread::sleep(std::time::Duration::from_secs(1));
             let mut app = self.0.borrow_mut();
             app.encoding_images.retain(move |r| {
                 let done = r.image_id == id && r.format == format;

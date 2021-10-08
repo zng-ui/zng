@@ -622,7 +622,7 @@ pub enum Event {
     ImageEncodeError(ImageId, String, String),
 
     /// An image generated from a rendered frame is ready.
-    FrameImageReady(WindowId, Epoch, ImageId, PxRect, ImagePpi, bool, IpcSharedMemory),
+    FrameImageReady(WindowId, Epoch, ImageId, PxRect),
 
     // Config events
     /// System fonts have changed.
