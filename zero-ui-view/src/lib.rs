@@ -239,7 +239,7 @@ impl App<()> {
                     }
                     AppEvent::FrameReady(id) => {
                         let frame_id = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
-                            s.redraw();
+                            s.on_frame_ready();
                             Some(s.frame_id())
                         } else {
                             None
@@ -600,7 +600,7 @@ impl<S: AppEventSender> App<S> {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
             let id = w.id();
             let frame_id = w.frame_id();
-            let first_frame = w.request_redraw();
+            let first_frame = w.on_frame_ready();
 
             if first_frame {
                 let pos = w.outer_position();

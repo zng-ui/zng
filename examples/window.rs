@@ -95,9 +95,9 @@ fn main() {
                     ]),
                     property_stack("background_color", widgets![
                         set_background(rgb(0.1, 0.1, 0.1), "default", &background_color),
-                        set_background(rgb(0.5, 0.0, 0.0), "red", &background_color),
-                        set_background(rgb(0.0, 0.5, 0.0), "green", &background_color),
-                        set_background(rgb(0.0, 0.0, 0.5), "blue", &background_color),
+                        set_background(rgb(0.3, 0.0, 0.0), "red", &background_color),
+                        set_background(rgb(0.0, 0.3, 0.0), "green", &background_color),
+                        set_background(rgb(0.0, 0.0, 0.3), "blue", &background_color),
                     ])
                 ];
             };

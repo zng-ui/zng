@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc};
+use std::{collections::VecDeque, fmt, rc::Rc};
 
 use gleam::gl;
 use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, Api as GApi, ContextBuilder, GlRequest};
@@ -33,7 +33,8 @@ pub(crate) struct Surface {
     rbos: [u32; 2],
     fbo: u32,
 
-    frame_id: Epoch,
+    pending_frames: VecDeque<Epoch>,
+    rendered_frame_id: Epoch,
     resized: bool,
 }
 impl fmt::Debug for Surface {
@@ -149,7 +150,8 @@ impl Surface {
             rbos,
             fbo,
 
-            frame_id: Epoch::invalid(),
+            pending_frames: VecDeque::new(),
+            rendered_frame_id: Epoch::invalid(),
             resized: true,
         }
     }
@@ -171,7 +173,7 @@ impl Surface {
     }
 
     pub fn frame_id(&self) -> Epoch {
-        self.frame_id
+        self.pending_frames.front().copied().unwrap_or(self.rendered_frame_id)
     }
 
     pub fn size(&self) -> DipSize {
@@ -251,7 +253,7 @@ impl Surface {
     }
 
     pub fn render(&mut self, frame: FrameRequest) {
-        self.frame_id = frame.id;
+        self.pending_frames.push_back(frame.id);
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let mut txn = Transaction::new();
@@ -273,7 +275,7 @@ impl Surface {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(self.frame_id.0 as u64);
+        txn.generate_frame(frame.id.0 as u64);
         self.api.send_transaction(self.document_id, txn);
     }
 
@@ -288,11 +290,13 @@ impl Surface {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(self.frame_id.0 as u64);
+        txn.generate_frame(self.frame_id().0 as u64);
         self.api.send_transaction(self.document_id, txn);
     }
 
-    pub fn redraw(&mut self) {
+    pub fn on_frame_ready(&mut self) {
+        self.rendered_frame_id = self.pending_frames.pop_front().unwrap();
+
         let _ctx = self.context.make_current();
 
         let renderer = self.renderer.as_mut().unwrap();
@@ -308,7 +312,7 @@ impl Surface {
             PxRect::from_size(self.size.to_px(self.scale_factor)),
             true,
             self.id,
-            self.frame_id,
+            self.rendered_frame_id,
             self.scale_factor,
         )
     }
@@ -320,14 +324,14 @@ impl Surface {
             rect,
             true,
             self.id,
-            self.frame_id,
+            self.rendered_frame_id,
             self.scale_factor,
         )
     }
 
     pub fn hit_test(&mut self, point: PxPoint) -> (Epoch, HitTestResult) {
         (
-            self.frame_id,
+            self.rendered_frame_id,
             self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),
         )
     }

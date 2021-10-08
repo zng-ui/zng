@@ -446,13 +446,7 @@ impl Image {
         use image::*;
 
         // invert rows, `image` only supports top-to-bottom buffers.
-        let bgra: Vec<_> = self
-            .0
-            .bgra8
-            .rchunks_exact(self.0.size.width.0 as usize * 4)
-            .flatten()
-            .copied()
-            .collect();
+        let bgra = &self.0.bgra8[..];
 
         let width = self.0.size.width.0 as u32;
         let height = self.0.size.height.0 as u32;
@@ -467,7 +461,7 @@ impl Image {
                         unit: codecs::jpeg::PixelDensityUnit::Inches,
                     });
                 }
-                jpg.encode(&bgra, width, height, ColorType::Bgra8)?;
+                jpg.encode(bgra, width, height, ColorType::Bgra8)?;
             }
             ImageFormat::Farbfeld => {
                 let mut pixels = Vec::with_capacity(bgra.len() * 2);
@@ -487,7 +481,7 @@ impl Image {
             }
             ImageFormat::Tga => {
                 let tga = codecs::tga::TgaEncoder::new(buffer);
-                tga.encode(&bgra, width, height, ColorType::Bgra8)?;
+                tga.encode(bgra, width, height, ColorType::Bgra8)?;
             }
             rgb_only => {
                 let mut pixels;
@@ -502,7 +496,7 @@ impl Image {
                     }
                 } else {
                     color_type = ColorType::Rgba8;
-                    pixels = bgra;
+                    pixels = bgra.to_vec();
                     for pixel in pixels.chunks_mut(4) {
                         pixel.swap(0, 2);
                     }
@@ -721,7 +715,18 @@ mod capture {
             frame_id: Epoch,
             scale_factor: f32,
         ) -> ImageId {
-            // TODO how is this async?
+            if frame_id == Epoch::invalid() {
+                let id = self.generate_image_id();
+                let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError(
+                    id,
+                    format!("no frame rendered in window `{}`", window_id),
+                )));
+                let _ = self
+                    .app_sender
+                    .send(AppEvent::Notify(Event::FrameImageReady(window_id, frame_id, id, rect)));
+                return id;
+            }
+
             // Firefox uses this API here:
             // https://searchfox.org/mozilla-central/source/gfx/webrender_bindings/RendererScreenshotGrabber.cpp#87
             let (handle, s) = renderer.get_screenshot_async(rect.to_wr_device(), rect.size.to_wr_device(), ImageFormat::BGRA8);
@@ -739,9 +744,7 @@ mod capture {
                     u64::MAX,
                 );
                 let opaque = true;
-                let _ = self
-                    .app_sender
-                    .send(AppEvent::Notify(Event::ImageLoaded(id, rect.size, ppi, opaque, data)));
+                let _ = self.app_sender.send(AppEvent::ImageLoaded(id, data, rect.size, ppi, opaque));
                 let _ = self
                     .app_sender
                     .send(AppEvent::Notify(Event::FrameImageReady(window_id, frame_id, id, rect)));

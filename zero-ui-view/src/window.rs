@@ -1,5 +1,6 @@
 use std::{
     cell::Cell,
+    collections::VecDeque,
     fmt,
     rc::Rc,
     sync::{
@@ -52,7 +53,9 @@ pub(crate) struct Window {
     redirect_frame: Arc<AtomicBool>,
     redirect_frame_recv: flume::Receiver<()>,
 
-    frame_id: Epoch,
+    pending_frames: VecDeque<Epoch>,
+    rendered_frame_id: Epoch,
+
     resized: bool,
 
     video_mode: VideoMode,
@@ -222,7 +225,8 @@ impl Window {
             taskbar_visible: true,
             movable: cfg.movable,
             transparent: cfg.transparent,
-            frame_id: Epoch::invalid(),
+            pending_frames: VecDeque::new(),
+            rendered_frame_id: Epoch::invalid(),
             state: WindowState::Normal,
         };
         win.state_change(); // update
@@ -251,7 +255,7 @@ impl Window {
 
     /// Latest received frame.
     pub fn frame_id(&self) -> Epoch {
-        self.frame_id
+        self.pending_frames.front().copied().unwrap_or(self.rendered_frame_id)
     }
 
     pub fn set_title(&self, title: String) {
@@ -551,7 +555,7 @@ impl Window {
     ///
     /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
     pub fn render(&mut self, frame: FrameRequest) {
-        self.frame_id = frame.id;
+        self.pending_frames.push_back(frame.id);
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let size = self.window.inner_size();
@@ -575,7 +579,7 @@ impl Window {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(self.frame_id.0 as u64); // TODO review frame_id != Epoch?
+        txn.generate_frame(frame.id.0 as u64); // TODO review frame_id != Epoch?
         self.api.send_transaction(self.document_id, txn);
     }
 
@@ -591,13 +595,15 @@ impl Window {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(self.frame_id.0 as u64);
+        txn.generate_frame(self.frame_id().0 as u64);
         self.api.send_transaction(self.document_id, txn);
     }
 
     /// Returns if it is the first frame.
     #[must_use = "if `true` must notify the initial Resized event"]
-    pub fn request_redraw(&mut self) -> bool {
+    pub fn on_frame_ready(&mut self) -> bool {
+        self.rendered_frame_id = self.pending_frames.pop_front().unwrap();
+
         if self.waiting_first_frame {
             self.waiting_first_frame = false;
             self.redraw();
@@ -654,12 +660,13 @@ impl Window {
             PxRect::from_size(self.window.inner_size().to_px()),
             self.capture_mode,
             self.id,
-            self.frame_id,
+            self.rendered_frame_id,
             scale_factor,
         )
     }
 
     pub fn frame_image_rect<S: AppEventSender>(&mut self, images: &mut ImageCache<S>, rect: PxRect) -> ImageId {
+        // TODO check any frame rendered
         let scale_factor = self.scale_factor();
         let rect = PxRect::from_size(self.window.inner_size().to_px())
             .intersection(&rect)
@@ -669,7 +676,7 @@ impl Window {
             rect,
             self.capture_mode,
             self.id,
-            self.frame_id,
+            self.rendered_frame_id,
             scale_factor,
         )
     }
@@ -696,7 +703,7 @@ impl Window {
     /// Returns all hits from front-to-back.
     pub fn hit_test(&self, point: PxPoint) -> (Epoch, HitTestResult) {
         (
-            self.frame_id,
+            self.rendered_frame_id,
             self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),
         )
     }

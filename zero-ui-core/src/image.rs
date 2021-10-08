@@ -849,13 +849,6 @@ impl Image {
     }
 
     async fn save_impl(&self, format: String, path: PathBuf) -> std::io::Result<()> {
-        if let Some(e) = self.error() {
-            return Err(Error::new(ErrorKind::InvalidData, e));
-        }
-        if !self.is_loaded() {
-            return Err(Error::new(ErrorKind::InvalidData, "image is not loaded"));
-        }
-
         let view = self.view.get().unwrap();
         let data = view.encode(format).await.map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
         task::wait(move || std::fs::write(path, &data[..])).await

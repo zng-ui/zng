@@ -15,7 +15,6 @@ use crate::{
     color::RenderColor,
     image::{Image, ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt},
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
-    var::WeakVar,
 };
 use linear_map::LinearMap;
 
@@ -1424,7 +1423,7 @@ pub struct Windows {
     close_group_id: CloseGroupId,
     close_requests: LinearMap<WindowId, CloseWindowRequest>,
 
-    frame_images: Vec<WeakVar<Image>>,
+    frame_images: Vec<RcVar<Image>>,
 }
 impl Windows {
     fn new(update_sender: AppEventSender) -> Self {
@@ -1607,7 +1606,7 @@ impl Windows {
                     Ok(img) => {
                         let img = Image::new(img);
                         let img = var(img);
-                        self.frame_images.push(img.downgrade());
+                        self.frame_images.push(img.clone());
                         img.into_read_only()
                     }
                     Err(_) => var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only(),
