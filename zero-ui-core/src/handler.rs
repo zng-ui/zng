@@ -1656,16 +1656,14 @@ impl HeadlessApp {
             match future.as_mut().poll(&mut cx) {
                 std::task::Poll::Ready(r) => {
                     return Ok(r);
-                },
-                std::task::Poll::Pending => {
-                    match self.update(false) {
-                        crate::app::ControlFlow::Poll => continue,
-                        crate::app::ControlFlow::Wait => {
-                            thread::yield_now();
-                            continue;
-                        },
-                        crate::app::ControlFlow::Exit => return Err("app exited".to_owned()),
+                }
+                std::task::Poll::Pending => match self.update(false) {
+                    crate::app::ControlFlow::Poll => continue,
+                    crate::app::ControlFlow::Wait => {
+                        thread::yield_now();
+                        continue;
                     }
+                    crate::app::ControlFlow::Exit => return Err("app exited".to_owned()),
                 },
             }
         }

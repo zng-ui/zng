@@ -1030,7 +1030,11 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             }
             Event::ImagePartiallyLoaded(id, partial_size, dpi, opaque, partial_bgra8) => {
-                todo!()
+                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                if let Some(img) = view.on_image_partially_loaded(id, partial_size, dpi, opaque, partial_bgra8) {
+                    let args = RawImageArgs::now(img);
+                    self.notify_event(RawImagePartiallyLoadedEvent, args, observer);
+                }
             }
             Event::ImageLoaded(id, size, dpi, opaque, bgra8) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
@@ -2033,8 +2037,10 @@ pub mod view_process {
                 generation: app.process.generation(),
                 app: Some(self.0.clone()),
                 size: Cell::new(PxSize::zero()),
+                partial_size: Cell::new(PxSize::zero()),
                 ppi: Cell::new(None),
                 opaque: Cell::new(false),
+                partial_bgra8: RefCell::new(None),
                 bgra8: OnceCell::new(),
                 done_signal: SignalOnce::new(),
             }));
@@ -2048,7 +2054,22 @@ pub mod view_process {
         /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
         /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
         pub fn add_image_pro(&self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> Result<ViewImage> {
-            todo!()
+            let mut app = self.0.borrow_mut();
+            let id = app.process.add_image_pro(format, data, max_decoded_size)?;
+            let img = ViewImage(Rc::new(ImageConnection {
+                id,
+                generation: app.process.generation(),
+                app: Some(self.0.clone()),
+                size: Cell::new(PxSize::zero()),
+                partial_size: Cell::new(PxSize::zero()),
+                ppi: Cell::new(None),
+                opaque: Cell::new(false),
+                partial_bgra8: RefCell::new(None),
+                bgra8: OnceCell::new(),
+                done_signal: SignalOnce::new(),
+            }));
+            app.loading_images.push(Rc::downgrade(&img.0));
+            Ok(img)
         }
 
         /// Returns a list of image decoders supported by the view-process backend.
@@ -2086,6 +2107,27 @@ pub mod view_process {
             }
         }
 
+        pub(super) fn on_image_partially_loaded(
+            &self,
+            id: ImageId,
+            partial_size: PxSize,
+            ppi: ImagePpi,
+            opaque: bool,
+            partial_bgra8: IpcSharedMemory,
+        ) -> Option<ViewImage> {
+            if let Some(i) = self.loading_image_index(id) {
+                let app = self.0.borrow();
+                let img = app.loading_images[i].upgrade().unwrap();
+                img.partial_size.set(partial_size);
+                img.ppi.set(ppi);
+                img.opaque.set(opaque);
+                *img.partial_bgra8.borrow_mut() = Some(partial_bgra8);
+                Some(ViewImage(img))
+            } else {
+                None
+            }
+        }
+
         pub(super) fn on_image_loaded(
             &self,
             id: ImageId,
@@ -2098,9 +2140,11 @@ pub mod view_process {
                 let mut app = self.0.borrow_mut();
                 let img = app.loading_images.swap_remove(i).upgrade().unwrap();
                 img.size.set(size);
+                img.partial_size.set(size);
                 img.ppi.set(ppi);
                 img.opaque.set(opaque);
                 img.bgra8.set(Ok(bgra8)).unwrap();
+                *img.partial_bgra8.borrow_mut() = None;
                 img.done_signal.set();
                 Some(ViewImage(img))
             } else {
@@ -2142,7 +2186,6 @@ pub mod view_process {
             self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
         }
         fn on_image_encode_result(&self, id: ImageId, format: String, result: std::result::Result<Arc<Vec<u8>>, EncodeError>) {
-            std::thread::sleep(std::time::Duration::from_secs(1));
             let mut app = self.0.borrow_mut();
             app.encoding_images.retain(move |r| {
                 let done = r.image_id == id && r.format == format;
@@ -2162,9 +2205,11 @@ pub mod view_process {
         app: Option<Rc<RefCell<ViewApp>>>,
 
         size: Cell<PxSize>,
+        partial_size: Cell<PxSize>,
         ppi: Cell<ImagePpi>,
         opaque: Cell<bool>,
 
+        partial_bgra8: RefCell<Option<IpcSharedMemory>>,
         bgra8: OnceCell<std::result::Result<IpcSharedMemory, String>>,
 
         done_signal: SignalOnce,
@@ -2228,6 +2273,11 @@ pub mod view_process {
             self.0.bgra8.get().map(|r| r.is_ok()).unwrap_or(false)
         }
 
+        /// Returns `true` if the image is progressively decoding and has partially decoded.
+        pub fn is_partially_loaded(&self) -> bool {
+            self.0.partial_bgra8.borrow().is_some()
+        }
+
         /// if [`error`] is `Some`.
         ///
         /// [`error`]: Self::error
@@ -2248,6 +2298,14 @@ pub mod view_process {
             self.0.size.get()
         }
 
+        /// Actual size of the current pixels.
+        ///
+        /// Can be different from [`size`] if the image is progressively decoding.
+        #[inline]
+        pub fn partial_size(&self) -> PxSize {
+            self.0.partial_size.get()
+        }
+
         /// Returns the "pixels-per-inch" metadata associated with the image, or `None` if not loaded or error or no
         /// metadata provided by decoder.
         #[inline]
@@ -2261,7 +2319,16 @@ pub mod view_process {
             self.0.opaque.get()
         }
 
-        /// Returns the decoded and pre-multiplied BGRA8 bytes of the image.
+        /// Copy the partially decoded pixels if the image is progressively decoding
+        /// and has not finished decoding.
+        pub fn partial_bgra8(&self) -> Option<Vec<u8>> {
+            (*self.0.partial_bgra8.borrow()).as_ref().map(|r| r[..].to_vec())
+        }
+
+        /// Reference the decoded and pre-multiplied BGRA8 bytes of the image.
+        ///
+        /// Returns `None` until the image is fully loaded. Use [`partial_bgra8`] to copy
+        /// partially decoded bytes.
         #[inline]
         pub fn bgra8(&self) -> Option<&[u8]> {
             self.0.bgra8.get().and_then(|r| r.as_ref().ok()).map(|m| &m[..])
@@ -2305,8 +2372,10 @@ pub mod view_process {
                 generation: 0,
                 app: None,
                 size: Cell::new(PxSize::zero()),
+                partial_size: Cell::new(PxSize::zero()),
                 ppi: Cell::new(None),
                 opaque: Cell::new(true),
+                partial_bgra8: RefCell::new(None),
                 bgra8,
                 done_signal: SignalOnce::new_set(),
             }))
@@ -2347,7 +2416,7 @@ pub mod view_process {
                         listeners: vec![sender],
                     });
                 }
-
+                drop(app);
                 receiver.recv_async().await?
             } else {
                 Err(EncodeError::Dummy)
@@ -2787,8 +2856,10 @@ pub mod view_process {
                     generation: app_mut.process.generation(),
                     app: Some(app.clone()),
                     size: Cell::new(PxSize::zero()),
+                    partial_size: Cell::new(PxSize::zero()),
                     ppi: Cell::new(None),
                     opaque: Cell::new(false),
+                    partial_bgra8: RefCell::new(None),
                     bgra8: OnceCell::new(),
                     done_signal: SignalOnce::new(),
                 }));
@@ -3501,6 +3572,8 @@ pub mod raw_events {
         /// Image metadata loaded without errors.
         pub RawImageMetadataLoadedEvent: RawImageArgs;
 
+        /// Progressively decoded image has decoded more pixels.
+        pub RawImagePartiallyLoadedEvent: RawImageArgs;
         /// Image loaded without errors.
         pub RawImageLoadedEvent: RawImageArgs;
 

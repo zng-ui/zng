@@ -104,7 +104,7 @@ impl AppExtension for ImageManager {
             task.update();
             match task.into_result() {
                 Ok(d) => {
-                    let img = match d.r {
+                    match d.r {
                         Ok(data) => {
                             if let Some(vp) = view {
                                 // success and we have a view-process.
@@ -148,7 +148,7 @@ impl AppExtension for ImageManager {
                                 v.done_signal.set();
                             });
                         }
-                    };
+                    }
                 }
                 Err(task) => {
                     loading.push((task, var));
@@ -664,7 +664,7 @@ impl Image {
     pub fn new(view: ViewImage) -> Self {
         let sig = view.done_signal();
         let v = OnceCell::new();
-        v.set(view);
+        let _ = v.set(view);
         Image {
             view: v,
             render_keys: Rc::default(),

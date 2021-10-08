@@ -28,7 +28,9 @@ fn app_main() {
     print!("saving ./screenshot.png ... ");
     flush_stdout();
 
-    app.block_on_fut(frame.save("screenshot.png"), 10.secs()).expect("error saving screenshot").unwrap();
+    app.block_on_fut(frame.save("screenshot.png"), 10.secs())
+        .expect("error saving screenshot")
+        .unwrap();
     println!("done");
 
     // you need to close all windows before dropping the `app`.
