@@ -709,6 +709,13 @@ impl DipToPx for DipSize {
         PxSize::new(self.width.to_px(scale_factor), self.height.to_px(scale_factor))
     }
 }
+impl WrToPx for wr::DeviceIntSize {
+    type AsPx = PxSize;
+
+    fn to_px(self) -> Self::AsPx {
+        PxSize::new(Px(self.width), Px(self.height))
+    }
+}
 
 impl PxToDip for PxRect {
     type AsDip = DipRect;

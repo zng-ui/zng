@@ -858,8 +858,8 @@ event_args! {
         }
     }
 
-    /// [`FramePixelsReadyEvent`] args.
-    pub struct FramePixelsReadyArgs {
+    /// [`FrameImageReadyEvent`] args.
+    pub struct FrameImageReadyArgs {
         /// Window ID.
         pub window_id: WindowId,
 
@@ -871,9 +871,12 @@ event_args! {
         /// Latest window frame metadata.
         ///
         /// The window can have newer frames while a previous frame is rendering, the
-        /// frame metadata is available immediately and is also send to the view-process
+        /// frame metadata is available immediately and is also sent to the view-process
         /// for rendering.
         pub latest_frame_id: FrameId,
+
+        /// The frame pixels if it was requested when the frame request was sent to the view process.
+        pub frame_image: Option<Image>,
 
         ..
 
@@ -883,17 +886,17 @@ event_args! {
         }
     }
 }
-impl FramePixelsReadyArgs {
+impl FrameImageReadyArgs {
     /// If [`frame_id`] and [`latest_frame_id`] are equal.
     ///
     /// Returns `true` if there where no newer frames rendering at the [`timestamp`] moment.
-    /// This means that if [`Windows::frame_pixels`] are requested they will probably be the same frame.
+    /// This means that if [`Windows::frame_image`] are requested they will probably be the same frame.
     ///
-    /// You can request a copy of the pixels using [`Windows::frame_pixels`].
+    /// You can request a copy of the pixels using [`Windows::frame_image`].
     ///
-    /// [`frame_id`]: FramePixelsReadyArgs::frame_id
-    /// [`latest_frame_id`]: FramePixelsReadyArgs::latest_frame_id
-    /// [`timestamp`]: FramePixelsReadyArgs::timestamp
+    /// [`frame_id`]: FrameImageReadyArgs::frame_id
+    /// [`latest_frame_id`]: FrameImageReadyArgs::latest_frame_id
+    /// [`timestamp`]: FrameImageReadyArgs::timestamp
     pub fn is_latest(&self) -> bool {
         self.frame_id == self.latest_frame_id
     }
@@ -978,8 +981,8 @@ event! {
 
     /// A window frame has finished rendering.
     ///
-    /// You can request a copy of the pixels using [`Windows::frame_pixels`].
-    pub FramePixelsReadyEvent: FramePixelsReadyArgs;
+    /// You can request a copy of the pixels using [`Windows::frame_image`].
+    pub FrameImageReadyEvent: FrameImageReadyArgs;
 }
 
 /// Application extension that manages windows.
@@ -1030,8 +1033,9 @@ impl AppExtension for WindowManager {
             let wns = ctx.services.windows();
             if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
                 window.frame_pixels_id = args.frame_id;
-                let args = FramePixelsReadyArgs::new(args.timestamp, args.window_id, args.frame_id, window.frame_info.frame_id());
-                FramePixelsReadyEvent.notify(ctx.events, args);
+                let image = args.frame_image.as_ref().cloned().map(Image::new);
+                let args = FrameImageReadyArgs::new(args.timestamp, args.window_id, args.frame_id, window.frame_info.frame_id(), image);
+                FrameImageReadyEvent.notify(ctx.events, args);
             }
         }
         if let Some(args) = RawWindowFocusEvent.update(args) {

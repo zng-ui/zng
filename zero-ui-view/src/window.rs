@@ -26,8 +26,8 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::{PxToDip, *},
-    Event, FrameRequest, ImageId, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowId,
-    WindowState,
+    Event, FrameRequest, ImageId, ImageLoadedData, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig,
+    WindowId, WindowState,
 };
 
 use crate::{
@@ -53,7 +53,7 @@ pub(crate) struct Window {
     redirect_frame: Arc<AtomicBool>,
     redirect_frame_recv: flume::Receiver<()>,
 
-    pending_frames: VecDeque<Epoch>,
+    pending_frames: VecDeque<(Epoch, bool)>,
     rendered_frame_id: Epoch,
 
     resized: bool,
@@ -253,9 +253,9 @@ impl Window {
         self.pipeline_id
     }
 
-    /// Latest received frame.
+    /// Latest rendered frame.
     pub fn frame_id(&self) -> Epoch {
-        self.pending_frames.front().copied().unwrap_or(self.rendered_frame_id)
+        self.rendered_frame_id
     }
 
     pub fn set_title(&self, title: String) {
@@ -601,8 +601,11 @@ impl Window {
 
     /// Returns if it is the first frame.
     #[must_use = "if `true` must notify the initial Resized event"]
-    pub fn on_frame_ready(&mut self) -> bool {
-        self.rendered_frame_id = self.pending_frames.pop_front().unwrap();
+    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: ImageCache<S> ) -> (bool, Epoch, Option<ImageLoadedData>) {
+        let (frame_id, capture) = self.pending_frames.pop_front().unwrap();
+        self.rendered_frame_id = frame_id;
+
+        let first_frame = self.waiting_first_frame;
 
         if self.waiting_first_frame {
             self.waiting_first_frame = false;
@@ -610,12 +613,24 @@ impl Window {
             if self.visible {
                 self.window.set_visible(true);
             }
-            true
         } else {
             self.window.request_redraw();
-
-            false
         }
+
+        let data = if capture {
+            self.redraw();
+            let renderer = self.renderer.as_mut().unwrap();
+            Some(images.frame_image_data(
+                renderer,
+                PxRect::from_size(self.window.inner_size().to_px()),
+                true,
+                self.scale_factor(),
+            ))
+        } else {
+            None
+        };
+
+        (first_frame, frame_id, data)
     }
 
     pub fn redraw(&mut self) {
@@ -630,8 +645,12 @@ impl Window {
 
     /// Capture the next frame-ready event.
     ///
-    /// Returns `true` if received before `deadline`, if `true` already redraw too.
-    pub fn wait_frame_ready(&mut self, deadline: Instant) -> bool {
+    /// Returns `Some` if received before `deadline`, if `Some` already redraw too.
+    pub fn wait_frame_ready<S: AppEventSender>(
+        &mut self,
+        deadline: Instant,
+        images: ImageCache<S>,
+    ) -> Option<(Epoch, Option<ImageLoadedData>)> {
         self.redirect_frame.store(true, Ordering::Relaxed);
         let stop_redirect = util::RunOnDrop::new(|| self.redirect_frame.store(false, Ordering::Relaxed));
 
@@ -640,9 +659,10 @@ impl Window {
         drop(stop_redirect);
 
         if received {
-            self.redraw();
+            Some(self.on_frame_ready(images))
+        } else {
+            None
         }
-        received
     }
 
     fn push_resize(&mut self, txn: &mut Transaction) {

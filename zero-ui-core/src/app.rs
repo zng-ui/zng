@@ -913,8 +913,12 @@ impl<E: AppExtension> RunningApp<E> {
             Event::EventsCleared => {
                 return self.update(observer);
             }
-            Event::FrameRendered(w_id, frame_id) => {
-                let args = RawFrameRenderedArgs::now(window_id(w_id), frame_id);
+            Event::FrameRendered(w_id, frame_id, image) => {
+                let image = image.map(|img| {
+                    let view = self.ctx().services.view_process();
+                    view.on_frame_image(img)
+                });
+                let args = RawFrameRenderedArgs::now(window_id(w_id), frame_id, image);
                 self.notify_event(RawFrameRenderedEvent, args, observer);
                 // `FrameRendered` is not followed by a `EventsCleared`.
                 return self.update(observer);
@@ -1036,9 +1040,9 @@ impl<E: AppExtension> RunningApp<E> {
                     self.notify_event(RawImagePartiallyLoadedEvent, args, observer);
                 }
             }
-            Event::ImageLoaded(id, size, dpi, opaque, bgra8) => {
+            Event::ImageLoaded(image) => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
-                if let Some(img) = view.on_image_loaded(id, size, dpi, opaque, bgra8) {
+                if let Some(img) = view.on_image_loaded(image) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadedEvent, args, observer);
                 }
@@ -1832,7 +1836,9 @@ pub mod view_process {
         IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState,
         WindowTheme,
     };
-    use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
+    use zero_ui_view_api::{
+        Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
+    };
 
     type Result<T> = std::result::Result<T, Respawned>;
 
@@ -2128,22 +2134,15 @@ pub mod view_process {
             }
         }
 
-        pub(super) fn on_image_loaded(
-            &self,
-            id: ImageId,
-            size: PxSize,
-            ppi: ImagePpi,
-            opaque: bool,
-            bgra8: IpcSharedMemory,
-        ) -> Option<ViewImage> {
-            if let Some(i) = self.loading_image_index(id) {
+        pub(super) fn on_image_loaded(&self, data: ImageLoadedData) -> Option<ViewImage> {
+            if let Some(i) = self.loading_image_index(data.id) {
                 let mut app = self.0.borrow_mut();
                 let img = app.loading_images.swap_remove(i).upgrade().unwrap();
-                img.size.set(size);
-                img.partial_size.set(size);
-                img.ppi.set(ppi);
-                img.opaque.set(opaque);
-                img.bgra8.set(Ok(bgra8)).unwrap();
+                img.size.set(data.size);
+                img.partial_size.set(data.size);
+                img.ppi.set(data.ppi);
+                img.opaque.set(data.opaque);
+                img.bgra8.set(Ok(data.bgra8)).unwrap();
                 *img.partial_bgra8.borrow_mut() = None;
                 img.done_signal.set();
                 Some(ViewImage(img))
@@ -2162,6 +2161,23 @@ pub mod view_process {
             } else {
                 None
             }
+        }
+
+        pub(crate) fn on_frame_image(&self, data: ImageLoadedData) -> ViewImage {
+            let bgra8 = OnceCell::new();
+            let _ = bgra8.set(Ok(data.bgra8));
+            ViewImage(Rc::new(ImageConnection {
+                id: data.id,
+                generation: self.generation(),
+                app: Some(self.0.clone()),
+                size: Cell::new(data.size),
+                partial_size: Cell::new(data.size),
+                ppi: Cell::new(data.ppi),
+                opaque: Cell::new(data.opaque),
+                partial_bgra8: RefCell::new(None),
+                bgra8,
+                done_signal: SignalOnce::new_set(),
+            }))
         }
 
         pub(super) fn on_frame_image_ready(&self, id: ImageId) -> Option<ViewImage> {
@@ -3070,6 +3086,9 @@ pub mod raw_events {
 
             /// Frame tag.
             pub frame_id: FrameId,
+
+            /// The frame pixels if it was requested when the frame request was sent to the view process.
+            pub frame_image: Option<ViewImage>,
 
             ..
 

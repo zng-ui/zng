@@ -199,7 +199,7 @@ fn inspect(scope: WindowId) -> impl Widget {
 }
 
 fn headless() -> impl Widget {
-    use zero_ui::core::window::FramePixelsReadyArgs;
+    use zero_ui::core::window::FrameImageReadyArgs;
 
     let enabled = var(true);
     button! {
@@ -221,7 +221,7 @@ fn headless() -> impl Widget {
                     font_size = 72;
                     content = text("No Head!");
 
-                    on_pixels_ready = async_hn_once!(|ctx, args: FramePixelsReadyArgs| {
+                    on_pixels_ready = async_hn_once!(|ctx, args: FrameImageReadyArgs| {
                         enabled.set(&ctx, false);
 
                         let img = ctx.with(|ctx| {

@@ -238,14 +238,13 @@ impl App<()> {
                         }
                     }
                     AppEvent::FrameReady(id) => {
-                        let frame_id = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
-                            s.on_frame_ready();
-                            Some(s.frame_id())
+                        let r = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
+                            Some(s.on_frame_ready(&mut app.image_cache))
                         } else {
                             None
                         };
-                        if let Some(frame_id) = frame_id {
-                            app.notify(Event::FrameRendered(id, frame_id));
+                        if let Some((frame_id, image)) = r {
+                            app.notify(Event::FrameRendered(id, frame_id, image));
                         }
                     }
                     AppEvent::Notify(ev) => {
@@ -451,10 +450,12 @@ impl<S: AppEventSender> App<S> {
                 }
 
                 // if we are still within 1 second, wait webrender, and if a frame was rendered here, notify.
-                if received_frame && deadline > Instant::now() && self.windows[i].wait_frame_ready(deadline) {
-                    let id = self.windows[i].id();
-                    let frame_id = self.windows[i].frame_id();
-                    self.notify(Event::FrameRendered(id, frame_id));
+                if received_frame && deadline > Instant::now() {
+                    if let Some((frame_id, image)) = self.windows[i].wait_frame_ready(deadline) {
+                        let id = self.windows[i].id();
+
+                        self.notify(Event::FrameRendered(id, frame_id, image));
+                    }
                 }
             }
             WindowEvent::Moved(p) => {

@@ -49,8 +49,8 @@ event_property! {
     /// This event notifies every time a frame rendering task has completed, you can use [`Windows::frame_pixels`]
     /// to request a copy of the frame pixels.
     pub fn frame_pixels_ready {
-        event: FramePixelsReadyEvent,
-        args: FramePixelsReadyArgs
+        event: FrameImageReadyEvent,
+        args: FrameImageReadyArgs
     }
 
     /// On window state changed.

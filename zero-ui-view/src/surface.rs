@@ -9,7 +9,7 @@ use webrender::{
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
-use zero_ui_view_api::{units::*, FrameRequest, HeadlessConfig, ImageId, TextAntiAliasing, ViewProcessGen, WindowId};
+use zero_ui_view_api::{units::*, FrameRequest, HeadlessConfig, ImageId, ImageLoadedData, TextAntiAliasing, ViewProcessGen, WindowId};
 
 use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -33,7 +33,7 @@ pub(crate) struct Surface {
     rbos: [u32; 2],
     fbo: u32,
 
-    pending_frames: VecDeque<Epoch>,
+    pending_frames: VecDeque<(Epoch, bool)>,
     rendered_frame_id: Epoch,
     resized: bool,
 }
@@ -173,7 +173,7 @@ impl Surface {
     }
 
     pub fn frame_id(&self) -> Epoch {
-        self.pending_frames.front().copied().unwrap_or(self.rendered_frame_id)
+        self.rendered_frame_id
     }
 
     pub fn size(&self) -> DipSize {
@@ -253,7 +253,7 @@ impl Surface {
     }
 
     pub fn render(&mut self, frame: FrameRequest) {
-        self.pending_frames.push_back(frame.id);
+        self.pending_frames.push_back((frame.id, frame.screenshot));
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let mut txn = Transaction::new();
@@ -294,8 +294,9 @@ impl Surface {
         self.api.send_transaction(self.document_id, txn);
     }
 
-    pub fn on_frame_ready(&mut self) {
-        self.rendered_frame_id = self.pending_frames.pop_front().unwrap();
+    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> (Epoch, Option<ImageLoadedData>) {
+        let (frame_id, capture) = self.pending_frames.pop_front().unwrap();
+        self.rendered_frame_id = frame_id;
 
         let _ctx = self.context.make_current();
 
@@ -304,6 +305,18 @@ impl Surface {
         renderer.update();
         renderer.render((self.size.to_px(self.scale_factor)).to_wr_device(), 0).unwrap();
         let _ = renderer.flush_pipeline_info();
+
+        let data = if capture {
+            Some(images.frame_image_data(
+                renderer,
+                PxRect::from_size(self.size.to_px(self.scale_factor)),
+                true,
+                self.scale_factor,
+            ))
+        } else {
+            None
+        };
+        (frame_id, data)
     }
 
     pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> ImageId {

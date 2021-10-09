@@ -4,7 +4,7 @@ use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use zero_ui_view_api::{
     units::{Px, PxSize},
-    Event, ImageDataFormat, ImageId, ImagePpi, IpcBytesReceiver, IpcSharedMemory,
+    Event, ImageDataFormat, ImageId, ImageLoadedData, ImagePpi, IpcBytesReceiver, IpcSharedMemory,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -195,9 +195,13 @@ impl<S: AppEventSender> ImageCache<S> {
             })),
         );
 
-        let _ = self
-            .app_sender
-            .send(AppEvent::Notify(Event::ImageLoaded(id, size, ppi, opaque, bgra8)));
+        let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(ImageLoadedData {
+            id,
+            size,
+            ppi,
+            opaque,
+            bgra8,
+        })));
     }
 
     fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize), String> {
@@ -697,8 +701,8 @@ mod capture {
         Renderer,
     };
     use zero_ui_view_api::{
-        units::{Px, PxRect, PxSize, PxToWr},
-        Event, ImageDataFormat, ImageId, IpcSharedMemory, WindowId,
+        units::{Px, PxRect, PxSize, PxToWr, WrToPx},
+        Event, ImageDataFormat, ImageId, ImageLoadedData, IpcSharedMemory, WindowId,
     };
 
     use crate::{AppEvent, AppEventSender};
@@ -753,6 +757,43 @@ mod capture {
                 }
 
                 id
+            } else {
+                todo!()
+            }
+        }
+
+        pub fn frame_image_data(
+            &mut self,
+            renderer: &mut Renderer,
+            rect: PxRect,
+            capture_mode: bool,
+            scale_factor: f32,
+        ) -> ImageLoadedData {
+            // Firefox uses this API here:
+            // https://searchfox.org/mozilla-central/source/gfx/webrender_bindings/RendererScreenshotGrabber.cpp#87
+            let (handle, s) = renderer.get_screenshot_async(rect.to_wr_device(), rect.size.to_wr_device(), ImageFormat::BGRA8);
+            let mut buf = vec![0; s.width as usize * s.height as usize * 4];
+            if renderer.map_and_recycle_screenshot(handle, &mut buf, s.width as usize * 4) {
+                let data = IpcSharedMemory::from_bytes(&buf);
+                let ppi = 96.0 * scale_factor;
+                let ppi = Some((ppi, ppi));
+                let id = self.add(
+                    ImageDataFormat::Bgra8 {
+                        size: PxSize::new(Px(s.width), Px(s.height)),
+                        ppi,
+                    },
+                    data.clone(),
+                    u64::MAX,
+                );
+                let opaque = true;
+
+                ImageLoadedData {
+                    id,
+                    size: s.to_px(),
+                    ppi,
+                    opaque,
+                    bgra8: data,
+                }
             } else {
                 todo!()
             }

@@ -539,7 +539,7 @@ pub enum Event {
     /// A frame finished rendering.
     ///
     /// `EventsCleared` is not send after this event.
-    FrameRendered(WindowId, Epoch),
+    FrameRendered(WindowId, Epoch, Option<ImageLoadedData>),
 
     /// Window maximized/minimized/restored.
     ///
@@ -611,7 +611,7 @@ pub enum Event {
     /// An image resource already decoded size and PPI.
     ImageMetadataLoaded(ImageId, PxSize, ImagePpi),
     /// An image resource finished decoding.
-    ImageLoaded(ImageId, PxSize, ImagePpi, bool, IpcSharedMemory),
+    ImageLoaded(ImageLoadedData),
     /// An image resource, progressively decoded has decoded more bytes.
     ImagePartiallyLoaded(ImageId, PxSize, ImagePpi, bool, IpcSharedMemory),
     /// An image resource failed to decode, the image ID is not valid.
@@ -770,7 +770,7 @@ pub struct FrameRequest {
 
     /// Automatically create an image from this rendered frame.
     ///
-    /// The [`Event::FrameImageReady`] is send with the image.
+    /// The [`Event::FrameImageReady`] is sent with the image.
     pub screenshot: bool,
     /// Optionally only captures a selection of the screenshot.
     pub screenshot_rect: Option<PxRect>,
@@ -1040,4 +1040,13 @@ impl std::hash::Hash for ImageDataFormat {
 
 fn ppi_key(ppi: ImagePpi) -> Option<(u16, u16)> {
     ppi.map(|(x, y)| ((x * 3.0) as u16, (y * 3.0) as u16))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageLoadedData {
+    pub id: ImageId,
+    pub size: PxSize,
+    pub ppi: ImagePpi,
+    pub opaque: bool,
+    pub bgra8: IpcSharedMemory,
 }
