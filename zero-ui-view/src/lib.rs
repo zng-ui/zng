@@ -260,8 +260,8 @@ impl App<()> {
                         app.exited = true;
                         break;
                     }
-                    AppEvent::ImageLoaded(id, bgra8, size, dpi, opaque) => {
-                        app.image_cache.loaded(id, bgra8, size, dpi, opaque);
+                    AppEvent::ImageLoaded(data) => {
+                        app.image_cache.loaded(data);
                     }
                 },
                 Err(_) => {
@@ -323,8 +323,8 @@ impl App<()> {
                             app.exited = true;
                             *flow = ControlFlow::Exit;
                         }
-                        AppEvent::ImageLoaded(id, bgra8, size, dpi, opaque) => {
-                            app.image_cache.loaded(id, bgra8, size, dpi, opaque);
+                        AppEvent::ImageLoaded(data) => {
+                            app.image_cache.loaded(data);
                         }
                     },
                     GEvent::Suspended => {}
@@ -451,7 +451,7 @@ impl<S: AppEventSender> App<S> {
 
                 // if we are still within 1 second, wait webrender, and if a frame was rendered here, notify.
                 if received_frame && deadline > Instant::now() {
-                    if let Some((frame_id, image)) = self.windows[i].wait_frame_ready(deadline) {
+                    if let Some((frame_id, image)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
                         let id = self.windows[i].id();
 
                         self.notify(Event::FrameRendered(id, frame_id, image));
@@ -600,8 +600,7 @@ impl<S: AppEventSender> App<S> {
     fn on_frame_ready(&mut self, window_id: WindowId) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
             let id = w.id();
-            let frame_id = w.frame_id();
-            let first_frame = w.on_frame_ready();
+            let (first_frame, frame_id, image) = w.on_frame_ready(&mut self.image_cache);
 
             if first_frame {
                 let pos = w.outer_position();
@@ -613,7 +612,7 @@ impl<S: AppEventSender> App<S> {
                 self.notify(Event::ScaleFactorChanged(id, scale_factor));
             }
 
-            self.notify(Event::FrameRendered(id, frame_id));
+            self.notify(Event::FrameRendered(id, frame_id, image));
         }
     }
 
@@ -1051,6 +1050,10 @@ impl<S: AppEventSender> Api for App<S> {
         self.with_window(id, |w| w.set_allow_alt_f4(allow), || ())
     }
 
+    fn set_capture_mode(&mut self, id: WindowId, enabled: bool) {
+        self.with_window(id, |w| w.set_capture_mode(enabled), || ())
+    }
+
     fn frame_image(&mut self, id: WindowId) -> ImageId {
         with_window_or_surface!(self, id, |w| w.frame_image(&mut self.image_cache), || 0)
     }
@@ -1095,7 +1098,7 @@ pub(crate) enum AppEvent {
     ParentProcessExited,
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
-    ImageLoaded(ImageId, IpcSharedMemory, PxSize, ImagePpi, bool),
+    ImageLoaded(ImageLoadedData),
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.

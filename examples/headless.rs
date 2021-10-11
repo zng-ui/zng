@@ -1,5 +1,5 @@
+use zero_ui::core::window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt};
 use zero_ui::prelude::*;
-use zero_ui_core::window::HeadlessAppWindowExt;
 
 fn main() {
     if cfg!(debug_assertions) {
@@ -14,32 +14,43 @@ fn app_main() {
     println!("-=Headless Example=-\n");
     // This example uses a headless window to render an image.
 
-    // open headless with renderer flag, this causes the view process
-    // to still start.
+    // open headless with renderer flag, this causes the view-process to start.
     let mut app = App::default().run_headless(true);
 
-    // open the window that is our image.
-    let window_id = app.open_window(|_| image());
+    app.open_window(|_| {
+        window! {
+            // the window content is the image.
+            content = image();
+            auto_size = true;
 
-    // copy the first frame.
-    let frame = app.wait_window_frame(window_id);
+            // capture the first frame.
+            frame_capture_mode = FrameCaptureMode::Next;
 
-    // save the frame.
-    print!("saving ./screenshot.png ... ");
-    flush_stdout();
+            // this event will fire every time a frame is rendered (just once in this case).
+            on_frame_image_ready = async_hn!(|ctx, args: FrameImageReadyArgs| {
+                // in this case a `frame_image` was already captured.
+                let img = args.frame_image.unwrap();
 
-    app.block_on_fut(frame.save("screenshot.png"), 10.secs())
-        .expect("error saving screenshot")
-        .unwrap();
-    println!("done");
+                // we save it...
+                print!("saving ./screenshot.png ... ");
+                flush_stdout();
 
-    // you need to close all windows before dropping the `app`.
-    app.close_window(window_id);
+                img.save("screenshot.png").await.unwrap();
+
+                println!("done");
+
+                // and close the window, causing the app to shutdown.
+                ctx.with(|ctx|ctx.services.windows().close(ctx.path.window_id())).unwrap();
+            });
+        }
+    });
+
+    app.run_to_exit();
 }
 
 // A 800x600 "Hello World!" with a fancy background.
-fn image() -> Window {
-    window! {
+fn image() -> impl Widget {
+    container! {
         size = (800, 600);
 
         background = z_stack({

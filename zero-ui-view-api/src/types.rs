@@ -771,9 +771,7 @@ pub struct FrameRequest {
     /// Automatically create an image from this rendered frame.
     ///
     /// The [`Event::FrameImageReady`] is sent with the image.
-    pub screenshot: bool,
-    /// Optionally only captures a selection of the screenshot.
-    pub screenshot_rect: Option<PxRect>,
+    pub capture_image: bool,
 }
 impl fmt::Debug for FrameRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1042,11 +1040,30 @@ fn ppi_key(ppi: ImagePpi) -> Option<(u16, u16)> {
     ppi.map(|(x, y)| ((x * 3.0) as u16, (y * 3.0) as u16))
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// Represents a successfully decoded image.
+///
+/// See [`Event::ImageLoaded`].
+#[derive(Serialize, Deserialize)]
 pub struct ImageLoadedData {
+    /// Image ID.
     pub id: ImageId,
+    /// Pixel size.
     pub size: PxSize,
+    /// Pixel-per-inch metadata.
     pub ppi: ImagePpi,
+    /// If all pixels have an alpha value of 255.
     pub opaque: bool,
+    /// Reference to the BGRA8 pre-multiplied image pixels.
     pub bgra8: IpcSharedMemory,
+}
+impl fmt::Debug for ImageLoadedData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ImageLoadedData")
+            .field("id", &self.id)
+            .field("size", &self.size)
+            .field("ppi", &self.ppi)
+            .field("opaque", &self.opaque)
+            .field("bgra8", &format_args!("<{} bytes shared memory>", self.bgra8.len()))
+            .finish()
+    }
 }

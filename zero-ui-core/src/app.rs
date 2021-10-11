@@ -1376,6 +1376,20 @@ impl HeadlessApp {
     pub fn wake_time(&mut self) -> Option<Instant> {
         self.app.wake_time()
     }
+
+    /// Update until the state changes to [`ControlFlow::Exit`].
+    pub fn run_to_exit(self) {
+        self.run_to_exit_observed(&mut ());
+    }
+
+    /// Update until the state changes to [`ControlFlow::Exit`], with an attached observer.
+    pub fn run_to_exit_observed<O: AppEventObserver>(mut self, observer: &mut O) {
+        loop {
+            if let ControlFlow::Exit = self.update_observed(observer, true) {
+                break;
+            }
+        }
+    }
 }
 
 /// Observer for [`HeadlessApp::update_observed`].
@@ -2674,6 +2688,13 @@ pub mod view_process {
         #[inline]
         pub fn set_allow_alt_f4(&self, allow: bool) -> Result<()> {
             self.0.call(|id, p| p.set_allow_alt_f4(id, allow))
+        }
+
+        /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
+        /// a screenshot are kept in memory to be reused in the next screenshot capture.
+        #[inline]
+        pub fn set_capture_mode(&self, enabled: bool) -> Result<()> {
+            self.0.call(|id, p| p.set_capture_mode(id, enabled))
         }
 
         /// Drop `self`.

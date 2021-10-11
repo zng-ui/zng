@@ -44,15 +44,6 @@ event_property! {
         args: WindowCloseRequestedArgs
     }
 
-    /// On window frame finished rendering.
-    ///
-    /// This event notifies every time a frame rendering task has completed, you can use [`Windows::frame_pixels`]
-    /// to request a copy of the frame pixels.
-    pub fn frame_pixels_ready {
-        event: FrameImageReadyEvent,
-        args: FrameImageReadyArgs
-    }
-
     /// On window state changed.
     ///
     /// This event notifies every time the user or the app changes the [`WindowState`].
@@ -110,5 +101,12 @@ event_property! {
         event: WindowStateChangedEvent,
         args: WindowStateChangedArgs,
         filter: |ctx, args|  args.concerns_widget(ctx) && args.exited_fullscreen(),
+    }
+
+    /// On window frame rendered. The window can also be configured so that the frame pixels are
+    /// captured in a *screenshot* that is available in the arguments.
+    pub fn frame_image_ready {
+        event: FrameImageReadyEvent,
+        args: FrameImageReadyArgs,
     }
 }

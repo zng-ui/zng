@@ -199,7 +199,7 @@ fn inspect(scope: WindowId) -> impl Widget {
 }
 
 fn headless() -> impl Widget {
-    use zero_ui::core::window::FrameImageReadyArgs;
+    use zero_ui::core::window::{FrameCaptureMode, FrameImageReadyArgs};
 
     let enabled = var(true);
     button! {
@@ -221,20 +221,18 @@ fn headless() -> impl Widget {
                     font_size = 72;
                     content = text("No Head!");
 
-                    on_pixels_ready = async_hn_once!(|ctx, args: FrameImageReadyArgs| {
+                    frame_capture_mode = FrameCaptureMode::Next;
+                    on_frame_image_ready = async_hn_once!(|ctx, args: FrameImageReadyArgs| {
                         enabled.set(&ctx, false);
 
-                        let img = ctx.with(|ctx| {
-                            ctx.services.windows().frame_image(args.window_id).get_clone(ctx.vars)
-                        });
-
                         println!("saving screenshot..");
-                        match img.save("screenshot.png").await {
+                        match args.frame_image.unwrap().save("screenshot.png").await {
                             Ok(_) => println!("saved"),
                             Err(e) => eprintln!("{}", e)
                         }
 
-                        ctx.with(|ctx| ctx.services.windows().close(args.window_id).unwrap());
+                        let window_id = args.window_id;
+                        ctx.with(|ctx| ctx.services.windows().close(window_id).unwrap());
 
                         enabled.set(&ctx, true);
                     });

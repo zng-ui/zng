@@ -401,6 +401,12 @@ declare_api! {
     /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
     pub fn set_allow_alt_f4(&mut self, id: WindowId, allow: bool);
 
+    /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
+    /// a screenshot are kept in memory to be reused in the next screenshot capture.
+    ///
+    /// Headless surfaces are always capture-mode enabled.
+    pub fn set_capture_mode(&mut self, id: WindowId, enable: bool);
+
     /// Create a new image resource from the current rendered frame.
     ///
     /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.

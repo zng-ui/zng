@@ -551,11 +551,15 @@ impl Window {
         self.allow_alt_f4.set(allow);
     }
 
+    pub fn set_capture_mode(&mut self, enabled: bool) {
+        self.capture_mode = enabled;
+    }
+
     /// Start rendering a new frame.
     ///
     /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
     pub fn render(&mut self, frame: FrameRequest) {
-        self.pending_frames.push_back(frame.id);
+        self.pending_frames.push_back((frame.id, frame.capture_image));
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let size = self.window.inner_size();
@@ -601,7 +605,7 @@ impl Window {
 
     /// Returns if it is the first frame.
     #[must_use = "if `true` must notify the initial Resized event"]
-    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: ImageCache<S> ) -> (bool, Epoch, Option<ImageLoadedData>) {
+    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> (bool, Epoch, Option<ImageLoadedData>) {
         let (frame_id, capture) = self.pending_frames.pop_front().unwrap();
         self.rendered_frame_id = frame_id;
 
@@ -619,13 +623,9 @@ impl Window {
 
         let data = if capture {
             self.redraw();
+            let scale_factor = self.scale_factor();
             let renderer = self.renderer.as_mut().unwrap();
-            Some(images.frame_image_data(
-                renderer,
-                PxRect::from_size(self.window.inner_size().to_px()),
-                true,
-                self.scale_factor(),
-            ))
+            Some(images.frame_image_data(renderer, PxRect::from_size(self.window.inner_size().to_px()), true, scale_factor))
         } else {
             None
         };
@@ -649,7 +649,7 @@ impl Window {
     pub fn wait_frame_ready<S: AppEventSender>(
         &mut self,
         deadline: Instant,
-        images: ImageCache<S>,
+        images: &mut ImageCache<S>,
     ) -> Option<(Epoch, Option<ImageLoadedData>)> {
         self.redirect_frame.store(true, Ordering::Relaxed);
         let stop_redirect = util::RunOnDrop::new(|| self.redirect_frame.store(false, Ordering::Relaxed));
@@ -659,7 +659,8 @@ impl Window {
         drop(stop_redirect);
 
         if received {
-            Some(self.on_frame_ready(images))
+            let (_, frame_id, image) = self.on_frame_ready(images);
+            Some((frame_id, image))
         } else {
             None
         }

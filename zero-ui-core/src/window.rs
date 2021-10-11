@@ -11,7 +11,6 @@ use std::{
 
 pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
 use crate::{
-    app::ControlFlow,
     color::RenderColor,
     image::{Image, ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt},
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
@@ -153,9 +152,6 @@ pub trait HeadlessAppWindowExt {
     /// The var will update until it is loaded or error.
     fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar;
 
-    /// Sleeps until the current frame info is rendered and a frame image is ready or an error was encountered.
-    fn wait_window_frame(&mut self, window_id: WindowId) -> Image;
-
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
 }
@@ -189,16 +185,6 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
 
     fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar {
         self.ctx().services.windows().frame_image(window_id)
-    }
-
-    fn wait_window_frame(&mut self, window_id: WindowId) -> Image {
-        let img = self.ctx().services.windows().frame_image(window_id).get_clone(self.ctx().vars);
-        while !img.is_loaded() && !img.is_error() {
-            if let ControlFlow::Exit = self.update(true) {
-                return Image::dummy(Some("application exited".to_owned()));
-            }
-        }
-        img
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
@@ -723,6 +709,28 @@ impl PartialEq for WindowIcon {
     }
 }
 
+/// Frame image capture mode in a window.
+///
+/// You can set the capture mode using [`WindowsVars::frame_capture_mode`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrameCaptureMode {
+    /// Frames are not automatically captured, but you can
+    /// use [`Windows::frame_image`] to capture frames.
+    Sporadic,
+    /// The next rendered frame will be captured and available in [`FrameImageReadyArgs::frame_image`].
+    ///
+    /// After the frame is captured the mode changes to [`Sporadic`].
+    Next,
+    /// All subsequent frames rendered will be captured and available in [`FrameImageReadyArgs::frame_image`].
+    All,
+}
+impl Default for FrameCaptureMode {
+    /// [`Sporadic`]: FrameCaptureMode::Sporadic
+    fn default() -> Self {
+        Self::Sporadic
+    }
+}
+
 event_args! {
     /// [`WindowOpenEvent`] args.
     pub struct WindowOpenArgs {
@@ -981,7 +989,7 @@ event! {
 
     /// A window frame has finished rendering.
     ///
-    /// You can request a copy of the pixels using [`Windows::frame_image`].
+    /// You can request a copy of the pixels using [`Windows::frame_image`] or by setting the [`Windows::frame_capture`].
     pub FrameImageReadyEvent: FrameImageReadyArgs;
 }
 
@@ -1987,6 +1995,9 @@ impl AppWindow {
                 if let Some(allow) = self.vars.allow_alt_f4().copy_new(ctx) {
                     let _: Ignore = w.set_allow_alt_f4(allow);
                 }
+                if let Some(mode) = self.vars.frame_capture_mode().copy_new(ctx) {
+                    let _: Ignore = w.set_capture_mode(matches!(mode, FrameCaptureMode::All));
+                }
             }
 
             if let Some(r) = &self.renderer {
@@ -2261,6 +2272,15 @@ impl AppWindow {
 
         let (payload, descriptor) = display_list.into_data();
 
+        let capture_image = match self.vars.frame_capture_mode().copy(ctx.vars) {
+            FrameCaptureMode::Sporadic => false,
+            FrameCaptureMode::Next => {
+                self.vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::Sporadic);
+                true
+            }
+            FrameCaptureMode::All => true,
+        };
+
         // will need to send frame if there is a renderer
         if self.renderer.is_some() {
             Some(view_process::FrameRequest {
@@ -2268,8 +2288,7 @@ impl AppWindow {
                 pipeline_id,
                 clear_color,
                 display_list: (ByteBuf::from(payload.data), descriptor),
-                screenshot: false, // TODO
-                screenshot_rect: None,
+                capture_image,
             })
         } else {
             None
@@ -2324,7 +2343,7 @@ impl AppWindow {
                             WindowIcon::Render(_) => todo!(),
                         },
                         transparent: self.vars.transparent().copy(ctx.vars),
-                        capture_mode: false, // TODO
+                        capture_mode: matches!(self.vars.frame_capture_mode().copy(ctx.vars), FrameCaptureMode::All),
                     };
 
                     // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
@@ -2622,6 +2641,8 @@ struct WindowVarsData {
     allow_alt_f4: RcVar<bool>,
 
     is_open: RcVar<bool>,
+
+    frame_capture_mode: RcVar<FrameCaptureMode>,
 }
 
 /// Controls properties of an open window using variables.
@@ -2674,6 +2695,8 @@ impl WindowVars {
             allow_alt_f4: var(!cfg!(windows)),
 
             is_open: var(true),
+
+            frame_capture_mode: var(FrameCaptureMode::Sporadic),
         });
         Self(vars)
     }
@@ -2960,6 +2983,19 @@ impl WindowVars {
     #[inline]
     pub fn is_open(&self) -> ReadOnlyRcVar<bool> {
         self.0.is_open.clone().into_read_only()
+    }
+
+    /// The window [`FrameCaptureMode`].
+    ///
+    /// If set to [`Next`] the value will change to [`Sporadic`] after the frame is rendered.
+    ///
+    /// Note that setting this to [`Next`] does not cause a frame request. Use [`Updates::render`] for that.
+    ///
+    /// [`Next`]: FrameCaptureMode::Next
+    /// [`Sporadic`]: FrameCaptureMode::Sporadic
+    #[inline]
+    pub fn frame_capture_mode(&self) -> &RcVar<FrameCaptureMode> {
+        &self.0.frame_capture_mode
     }
 }
 state_key! {

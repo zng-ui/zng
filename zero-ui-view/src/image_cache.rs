@@ -69,7 +69,13 @@ impl<S: AppEventSender> ImageCache<S> {
 
             match r {
                 Ok((bgra8, size, ppi, opaque)) => {
-                    let _ = app_sender.send(AppEvent::ImageLoaded(id, bgra8, size, ppi, opaque));
+                    let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
+                        id,
+                        bgra8,
+                        size,
+                        ppi,
+                        opaque,
+                    }));
                 }
                 Err(e) => {
                     let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, e)));
@@ -143,16 +149,28 @@ impl<S: AppEventSender> ImageCache<S> {
                 match image::load_from_memory_with_format(&full[..], fmt) {
                     Ok(img) => {
                         let (bgra8, size, ppi, opaque) = Self::convert_decoded(img);
-                        let _ = app_sender.send(AppEvent::ImageLoaded(id, bgra8, size, ppi, opaque));
+                        let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
+                            id,
+                            bgra8,
+                            size,
+                            ppi,
+                            opaque,
+                        }));
                     }
                     Err(e) => {
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, e.to_string())));
                     }
                 }
             } else if !is_encoded {
-                let data = IpcSharedMemory::from_bytes(&full);
-                let opaque = data.chunks_exact(4).all(|c| c[3] == 255);
-                let _ = app_sender.send(AppEvent::ImageLoaded(id, data, size.unwrap(), ppi, opaque));
+                let bgra8 = IpcSharedMemory::from_bytes(&full);
+                let opaque = bgra8.chunks_exact(4).all(|c| c[3] == 255);
+                let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
+                    id,
+                    bgra8,
+                    size: size.unwrap(),
+                    ppi,
+                    opaque,
+                }));
             } else {
                 let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, "unknown format".to_string())));
             }
@@ -178,30 +196,24 @@ impl<S: AppEventSender> ImageCache<S> {
     }
 
     /// Called after receive and decode completes correctly.
-    pub(crate) fn loaded(&mut self, id: ImageId, bgra8: IpcSharedMemory, size: PxSize, ppi: ImagePpi, opaque: bool) {
-        let flags = if opaque {
+    pub(crate) fn loaded(&mut self, data: ImageLoadedData) {
+        let flags = if data.opaque {
             ImageDescriptorFlags::IS_OPAQUE
         } else {
             ImageDescriptorFlags::empty()
         };
-        let bgra8 = IpcSharedMemory::from_bytes(&bgra8);
+
         self.images.insert(
-            id,
+            data.id,
             Image(Arc::new(ImageData {
-                size,
-                bgra8: bgra8.clone(),
-                descriptor: ImageDescriptor::new(size.width.0, size.height.0, ImageFormat::BGRA8, flags),
-                ppi,
+                size: data.size,
+                bgra8: data.bgra8.clone(),
+                descriptor: ImageDescriptor::new(data.size.width.0, data.size.height.0, ImageFormat::BGRA8, flags),
+                ppi: data.ppi,
             })),
         );
 
-        let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(ImageLoadedData {
-            id,
-            size,
-            ppi,
-            opaque,
-            bgra8,
-        })));
+        let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(data)));
     }
 
     fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize), String> {
@@ -696,8 +708,10 @@ mod external {
 pub(crate) use external::{ImageUseMap, WrImageCache};
 
 mod capture {
+    use std::sync::Arc;
+
     use webrender::{
-        api::{Epoch, ImageFormat},
+        api::{Epoch, ImageDescriptor, ImageDescriptorFlags, ImageFormat},
         Renderer,
     };
     use zero_ui_view_api::{
@@ -705,11 +719,15 @@ mod capture {
         Event, ImageDataFormat, ImageId, ImageLoadedData, IpcSharedMemory, WindowId,
     };
 
-    use crate::{AppEvent, AppEventSender};
+    use crate::{
+        image_cache::{Image, ImageData},
+        AppEvent, AppEventSender,
+    };
 
     use super::ImageCache;
 
     impl<S: AppEventSender> ImageCache<S> {
+        /// Create frame_image for a `Api::frame_image` request.
         pub fn frame_image(
             &mut self,
             renderer: &mut Renderer,
@@ -731,38 +749,48 @@ mod capture {
                 return id;
             }
 
-            // Firefox uses this API here:
-            // https://searchfox.org/mozilla-central/source/gfx/webrender_bindings/RendererScreenshotGrabber.cpp#87
-            let (handle, s) = renderer.get_screenshot_async(rect.to_wr_device(), rect.size.to_wr_device(), ImageFormat::BGRA8);
-            let mut buf = vec![0; s.width as usize * s.height as usize * 4];
-            if renderer.map_and_recycle_screenshot(handle, &mut buf, s.width as usize * 4) {
-                let data = IpcSharedMemory::from_bytes(&buf);
-                let ppi = 96.0 * scale_factor;
-                let ppi = Some((ppi, ppi));
-                let id = self.add(
-                    ImageDataFormat::Bgra8 {
-                        size: PxSize::new(Px(s.width), Px(s.height)),
-                        ppi,
-                    },
-                    data.clone(),
-                    u64::MAX,
-                );
-                let opaque = true;
-                let _ = self.app_sender.send(AppEvent::ImageLoaded(id, data, rect.size, ppi, opaque));
-                let _ = self
-                    .app_sender
-                    .send(AppEvent::Notify(Event::FrameImageReady(window_id, frame_id, id, rect)));
-                if !capture_mode {
-                    renderer.release_profiler_structures();
-                }
+            let data = self.frame_image_data(renderer, rect, capture_mode, scale_factor);
 
-                id
-            } else {
-                todo!()
-            }
+            let id = data.id;
+
+            let _ = self.app_sender.send(AppEvent::ImageLoaded(data));
+            let _ = self
+                .app_sender
+                .send(AppEvent::Notify(Event::FrameImageReady(window_id, frame_id, id, rect)));
+
+            id
         }
 
+        /// Create frame_image for a capture request in the FrameRequest.
         pub fn frame_image_data(
+            &mut self,
+            renderer: &mut Renderer,
+            rect: PxRect,
+            capture_mode: bool,
+            scale_factor: f32,
+        ) -> ImageLoadedData {
+            let data = self.frame_image_data_impl(renderer, rect, capture_mode, scale_factor);
+
+            let flags = if data.opaque {
+                ImageDescriptorFlags::IS_OPAQUE
+            } else {
+                ImageDescriptorFlags::empty()
+            };
+
+            self.images.insert(
+                data.id,
+                Image(Arc::new(ImageData {
+                    size: data.size,
+                    bgra8: data.bgra8.clone(),
+                    descriptor: ImageDescriptor::new(data.size.width.0, data.size.height.0, ImageFormat::BGRA8, flags),
+                    ppi: data.ppi,
+                })),
+            );
+
+            data
+        }
+
+        pub fn frame_image_data_impl(
             &mut self,
             renderer: &mut Renderer,
             rect: PxRect,
@@ -774,6 +802,10 @@ mod capture {
             let (handle, s) = renderer.get_screenshot_async(rect.to_wr_device(), rect.size.to_wr_device(), ImageFormat::BGRA8);
             let mut buf = vec![0; s.width as usize * s.height as usize * 4];
             if renderer.map_and_recycle_screenshot(handle, &mut buf, s.width as usize * 4) {
+                if !capture_mode {
+                    renderer.release_profiler_structures();
+                }
+
                 let data = IpcSharedMemory::from_bytes(&buf);
                 let ppi = 96.0 * scale_factor;
                 let ppi = Some((ppi, ppi));
@@ -786,16 +818,17 @@ mod capture {
                     u64::MAX,
                 );
                 let opaque = true;
+                let size = s.to_px();
 
                 ImageLoadedData {
                     id,
-                    size: s.to_px(),
+                    size,
                     ppi,
                     opaque,
                     bgra8: data,
                 }
             } else {
-                todo!()
+                panic!("map_and_recycle_screenshot failed");
             }
         }
     }

@@ -253,7 +253,7 @@ impl Surface {
     }
 
     pub fn render(&mut self, frame: FrameRequest) {
-        self.pending_frames.push_back((frame.id, frame.screenshot));
+        self.pending_frames.push_back((frame.id, frame.capture_image));
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let mut txn = Transaction::new();

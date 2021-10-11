@@ -205,6 +205,11 @@ pub mod window {
         /// [`WindowVars::monitor`]: crate::core::window::WindowVars::monitor
         properties::monitor;
 
+        /// Frame image capture mode.
+        ///
+        /// This property is specially useful headless windows that are used to render.
+        properties::frame_capture_mode;
+
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
@@ -236,13 +241,6 @@ pub mod window {
         /// This event notifies every time the user or the app tries to close the window, you can call
         /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
         on_window_close_requested as on_close_requested;
-
-        /// Event just after a frame finishes rendering.
-        ///
-        /// You can call [`Windows::frame_pixels`] to get a copy of the pixels.
-        ///
-        /// This property is the [`on_pre_frame_pixels_ready`](fn@on_pre_frame_pixels_ready) so window handlers see it first.
-        on_pre_frame_pixels_ready as on_pixels_ready;
 
         /// On window position changed.
         ///
@@ -343,6 +341,11 @@ pub mod window {
         /// [`on_pre_window_exited_fullscreen`]: fn@on_pre_window_exited_fullscreen
         on_pre_window_exited_fullscreen as on_exited_fullscreen;
 
+        /// On window frame rendered.
+        ///
+        /// If [`frame_image_capture`](#wp-frame_image_capture) is set
+        on_pre_frame_image_ready as on_frame_image_ready;
+
         remove {
             // replaced with `root_id` to more clearly indicate that it is not the window ID.
             id;
@@ -377,7 +380,9 @@ pub mod window {
     pub mod properties {
         use std::marker::PhantomData;
 
-        use crate::core::window::{AutoSize, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowState, WindowVars, WindowVarsKey};
+        use crate::core::window::{
+            AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowState, WindowVars, WindowVarsKey,
+        };
         use crate::prelude::new_property::*;
 
         fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + 'static) -> impl UiNode
@@ -469,6 +474,8 @@ pub mod window {
             modal: bool,
 
             transparent: bool,
+
+            frame_capture_mode: FrameCaptureMode,
         }
 
         macro_rules! map_properties {
