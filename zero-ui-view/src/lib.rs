@@ -312,13 +312,7 @@ impl App<()> {
                                 *flow = ControlFlow::Exit;
                             }
                         }
-                        AppEvent::Notify(ev) => {
-                            if app.event_sender.send(ev).is_err() {
-                                // lost connection to app-process
-                                app.exited = true;
-                                *flow = ControlFlow::Exit;
-                            }
-                        }
+                        AppEvent::Notify(ev) => app.notify(ev),
                         AppEvent::FrameReady(wid) => app.on_frame_ready(wid),
                         AppEvent::RefreshMonitors => app.refresh_monitors(),
                         AppEvent::ParentProcessExited => {

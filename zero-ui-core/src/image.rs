@@ -77,16 +77,48 @@ impl AppExtension for ImageManager {
             // and notify the ViewImage inner state update.
             let images = ctx.services.images();
             let vars = ctx.vars;
+
             if let Some(i) = images.decoding.iter().position(|v| v.get(vars).view.get().unwrap() == image) {
                 let var = images.decoding.swap_remove(i);
                 var.touch(ctx.vars);
                 var.get(ctx.vars).done_signal.set();
             }
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
-            let images = ctx.services.images();
+            let (vp, images) = ctx.services.req_multi::<(ViewProcess, Images)>();
+            images.view = Some(vp.clone());
             images.download_accept.clear();
+            images.decoding.clear();
             for v in images.cache.values() {
-                todo!("reload images")
+                let img = v.get(ctx.vars);
+
+                if let Some(view) = img.view.get() {
+                    if let Some(e) = view.error() {
+                        // respawned, but image was an error.
+                        v.set(ctx.vars, Image::dummy(Some(e.to_owned())));
+                    } else {
+                        // respawned and image was loaded.
+                        let img = vp
+                            .add_image(
+                                ImageDataFormat::Bgra8 {
+                                    size: view.size(),
+                                    ppi: view.ppi(),
+                                },
+                                view.shared_bgra8().unwrap(),
+                                images.max_decoded_size.0 as u64,
+                            )
+                            .expect("TODO");
+
+                        v.set(ctx.vars, Image::new(img));
+
+                        images.decoding.push(v.clone());
+                    }
+                } else {
+                    // respawned while loading image.
+                    let _ = img.view.set(ViewImage::dummy(Some("reloading".to_owned())));
+                    img.done_signal.set();
+
+                    todo!("")
+                }
             }
         }
     }

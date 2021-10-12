@@ -1130,6 +1130,8 @@ impl<E: AppExtension> RunningApp<E> {
             Event::Respawned(g) => {
                 let args = view_process::ViewProcessRespawnedArgs::now(g);
                 self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
+                // `FrameRendered` is not followed by a `EventsCleared`.
+                return self.update(observer);
             }
 
             Event::Disconnected(gen) => {
@@ -2348,6 +2350,12 @@ pub mod view_process {
         #[inline]
         pub fn bgra8(&self) -> Option<&[u8]> {
             self.0.bgra8.get().and_then(|r| r.as_ref().ok()).map(|m| &m[..])
+        }
+
+        /// Clone the reference to the inter-process shared memory that contains
+        /// the image BGRA8 pixel buffer.
+        pub fn shared_bgra8(&self) -> Option<IpcSharedMemory> {
+            self.0.bgra8.get().and_then(|r| r.as_ref().ok()).cloned()
         }
 
         /// Returns the view-process generation on which the image is loaded.

@@ -15,17 +15,14 @@ Image loading and rendering.
 
 ## View-image TODO
 * Reload functionality.
+* ImageKey for bytes, use `Hash128`.
 * Optional pre-multiply. (can we undo pre-multiplication?)
     Or can we use pre-multiplied images for the window icon.
-* Encoding API
-    - Can we request frame and image pixels encoded?
-* API for querying what encoders and decoders are available.
 * Support creating resized image from existing image.
-* Image data uploading API should support progressive upload.
-* Implement limits in Images.
-* Merge frame_pixels request with image API.
-    FrameRequest includes flag to capture pixels and encode?
-* API for chosing the format in the request for image download.
+* Partial image API implemented, need to implement use in Images and try implement partial decoding using the `images` crate.
+   - Also test if `ImageMetadataLoaded` event is happening before the full image is received.
+* API for choosing the format in the request for image download.
+* Image reload?
 
 ## Questions
 
