@@ -11,6 +11,7 @@ use std::{
 
 pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
 use crate::{
+    app::ControlFlow,
     color::RenderColor,
     image::{Image, ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt},
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
@@ -154,6 +155,9 @@ pub trait HeadlessAppWindowExt {
 
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
+
+    /// Open a new headless window and update the app until the window closes.
+    fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static);
 }
 impl HeadlessAppWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
@@ -210,6 +214,15 @@ impl HeadlessAppWindowExt for app::HeadlessApp {
         assert_eq!(requested, closed);
 
         closed
+    }
+
+    fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) {
+        let window_id = self.open_window(new_window);
+        while self.ctx().services.windows().windows.contains_key(&window_id) {
+            if let ControlFlow::Exit = self.update(true) {
+                return;
+            }
+        }
     }
 }
 

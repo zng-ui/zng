@@ -2,7 +2,13 @@
 use zero_ui::{prelude::*, properties::text_theme::TextColorVar};
 
 fn main() {
+    // zero_ui_view::run_same_process(app_main);
+
     zero_ui_view::init();
+    app_main();
+}
+
+fn app_main() {
     App::default().run_window(|_| {
         let shortcut_text = var(Text::empty());
         let keypress_text = var(Text::empty());

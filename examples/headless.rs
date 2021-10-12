@@ -2,12 +2,10 @@ use zero_ui::core::window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWi
 use zero_ui::prelude::*;
 
 fn main() {
-    if cfg!(debug_assertions) {
-        zero_ui_view::run_same_process(app_main);
-    } else {
-        zero_ui_view::init();
-        app_main();
-    }
+    // zero_ui_view::run_same_process(app_main);
+
+    zero_ui_view::init();
+    app_main();
 }
 
 fn app_main() {
@@ -17,7 +15,7 @@ fn app_main() {
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = App::default().run_headless(true);
 
-    app.open_window(|_| {
+    app.run_window(|_| {
         window! {
             // the window content is the image.
             content = image();
@@ -44,8 +42,6 @@ fn app_main() {
             });
         }
     });
-
-    app.run_to_exit();
 }
 
 // A 800x600 "Hello World!" with a fancy background.

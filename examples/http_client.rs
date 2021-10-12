@@ -1,7 +1,13 @@
 use zero_ui::prelude::*;
 
 fn main() {
+    // zero_ui_view::run_same_process(app_main);
+
     zero_ui_view::init();
+    app_main();
+}
+
+fn app_main() {
     App::default().run_window(|_| {
         let txt = var("loading…".to_text());
         window! {

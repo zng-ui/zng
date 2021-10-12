@@ -6,7 +6,13 @@ use zero_ui::core::{
 use zero_ui::prelude::*;
 
 fn main() {
+    // zero_ui_view::run_same_process(app_main);
+
     zero_ui_view::init();
+    app_main();
+}
+
+fn app_main() {
     App::default().run_window(|ctx| {
         let vars = ctx.window_state.req(WindowVarsKey);
         //ctx.services.windows().shutdown_on_last_close = false;

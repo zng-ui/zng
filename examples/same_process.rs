@@ -2,12 +2,7 @@
 use zero_ui::prelude::*;
 
 fn main() {
-    if cfg!(debug_assertions) {
-        zero_ui_view::run_same_process(app_main);
-    } else {
-        zero_ui_view::init();
-        app_main();
-    }
+    zero_ui_view::run_same_process(app_main);
 }
 
 fn app_main() {
