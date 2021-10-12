@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
@@ -422,6 +422,16 @@ impl ImageData {
 }
 #[derive(Clone)]
 pub(crate) struct Image(Arc<ImageData>);
+impl fmt::Debug for Image {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Image")
+            .field("size", &self.0.size)
+            .field("descriptor", &self.0.descriptor)
+            .field("ppi", &self.0.ppi)
+            .field("bgra8", &format_args!("<{} shared bytes>", self.0.bgra8.len()))
+            .finish()
+    }
+}
 impl Image {
     pub fn descriptor(&self) -> ImageDescriptor {
         self.0.descriptor

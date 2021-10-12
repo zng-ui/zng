@@ -2244,7 +2244,10 @@ pub mod view_process {
     impl Drop for ImageConnection {
         fn drop(&mut self) {
             if let Some(app) = self.app.take() {
-                let _ = app.borrow_mut().process.forget_image(self.id);
+                let mut app = app.borrow_mut();
+                if app.process.generation() == self.generation {
+                    let _ = app.process.forget_image(self.id);
+                }
             }
         }
     }
@@ -2531,7 +2534,10 @@ pub mod view_process {
     }
     impl Drop for WindowConnection {
         fn drop(&mut self) {
-            let _ = self.app.borrow_mut().process.close_window(self.id);
+            let mut app = self.app.borrow_mut();
+            if self.generation == app.process.generation() {
+                let _ = app.process.close_window(self.id);
+            }
         }
     }
 

@@ -137,6 +137,7 @@ pub mod image {
         struct ImageNode<T> {
             source: T,
             image: Option<ImageVar>,
+            measured_image_size: PxSize,
             final_size: PxSize,
         }
         #[impl_ui_node(none)]
@@ -155,20 +156,23 @@ pub mod image {
             fn update(&mut self, ctx: &mut WidgetContext) {
                 if self.source.is_new(ctx) {
                     self.init(ctx);
-                } else if let Some(r) = self.image.as_ref().unwrap().get_new(ctx.vars) {
-                    if let Some(e) = r.error() {
+                } else if let Some(img) = self.image.as_ref().unwrap().get_new(ctx.vars) {
+                    if let Some(e) = img.error() {
                         log::error!("{}", e);
                         if self.final_size != PxSize::zero() {
                             ctx.updates.layout();
                         }
-                    } else {
+                    } else if self.measured_image_size != img.size() {
                         ctx.updates.layout();
+                    } else {
+                        ctx.updates.render();
                     }
                 }
             }
 
             fn measure(&mut self, ctx: &mut LayoutContext, _: AvailableSize) -> PxSize {
                 let img = self.image.as_ref().unwrap().get(ctx.vars);
+                self.measured_image_size = img.size();
                 img.layout_size(ctx)
             }
 
@@ -179,12 +183,16 @@ pub mod image {
                 let img = self.image.as_ref().unwrap().get(ctx.vars);
                 if img.is_loaded() {
                     frame.push_image(PxRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
+                } else if let Some(e) = img.error() {
+                    todo!("{}", e);
+                    //frame.push_text();
                 }
             }
         }
         ImageNode {
             source: source.into_var(),
             image: None,
+            measured_image_size: PxSize::zero(),
             final_size: PxSize::zero(),
         }
     }

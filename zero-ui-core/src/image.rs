@@ -84,10 +84,10 @@ impl AppExtension for ImageManager {
                 var.get(ctx.vars).done_signal.set();
             }
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
-            let (vp, images) = ctx.services.req_multi::<(ViewProcess, Images)>();
-            images.view = Some(vp.clone());
+            let images = ctx.services.images();
             images.download_accept.clear();
             images.decoding.clear();
+            let vp = images.view.as_mut().unwrap();
             for v in images.cache.values() {
                 let img = v.get(ctx.vars);
 
@@ -97,16 +97,17 @@ impl AppExtension for ImageManager {
                         v.set(ctx.vars, Image::dummy(Some(e.to_owned())));
                     } else {
                         // respawned and image was loaded.
-                        let img = vp
-                            .add_image(
-                                ImageDataFormat::Bgra8 {
-                                    size: view.size(),
-                                    ppi: view.ppi(),
-                                },
-                                view.shared_bgra8().unwrap(),
-                                images.max_decoded_size.0 as u64,
-                            )
-                            .expect("TODO");
+                        let img = match vp.add_image(
+                            ImageDataFormat::Bgra8 {
+                                size: view.size(),
+                                ppi: view.ppi(),
+                            },
+                            view.shared_bgra8().unwrap(),
+                            images.max_decoded_size.0 as u64,
+                        ) {
+                            Ok(img) => img,
+                            Err(Respawned) => return, // we will receive another event.
+                        };
 
                         v.set(ctx.vars, Image::new(img));
 
@@ -116,8 +117,7 @@ impl AppExtension for ImageManager {
                     // respawned while loading image.
                     let _ = img.view.set(ViewImage::dummy(Some("reloading".to_owned())));
                     img.done_signal.set();
-
-                    todo!("")
+                    v.touch(ctx.vars);
                 }
             }
         }
@@ -904,7 +904,13 @@ impl crate::render::Image for Image {
             }
 
             let key = match renderer.use_image(self.view.get().unwrap()) {
-                Ok(k) => k,
+                Ok(k) => {
+                    if k == ImageKey::DUMMY {
+                        log::error!("received DUMMY from `use_image`");
+                        return k;
+                    }
+                    k
+                }
                 Err(Respawned) => {
                     log::debug!("respawned `add_image`, will return DUMMY");
                     return ImageKey::DUMMY;
