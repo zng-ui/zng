@@ -287,6 +287,8 @@ impl App<()> {
         event_loop.run(move |event, target, flow| {
             app.window_target = target;
 
+            *flow = ControlFlow::Wait;
+
             if app.exited {
                 *flow = ControlFlow::Exit;
             } else {
@@ -599,7 +601,6 @@ impl<S: AppEventSender> App<S> {
 
     fn on_frame_ready(&mut self, window_id: WindowId) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
-            let id = w.id();
             let (first_frame, frame_id, image) = w.on_frame_ready(&mut self.image_cache);
 
             if first_frame {
@@ -607,12 +608,16 @@ impl<S: AppEventSender> App<S> {
                 let size = w.size();
                 let scale_factor = w.scale_factor();
 
-                self.notify(Event::WindowMoved(id, pos, EventCause::App));
-                self.notify(Event::WindowResized(id, size, EventCause::App));
-                self.notify(Event::ScaleFactorChanged(id, scale_factor));
+                self.notify(Event::WindowMoved(window_id, pos, EventCause::App));
+                self.notify(Event::WindowResized(window_id, size, EventCause::App));
+                self.notify(Event::ScaleFactorChanged(window_id, scale_factor));
             }
 
-            self.notify(Event::FrameRendered(id, frame_id, image));
+            self.notify(Event::FrameRendered(window_id, frame_id, image));
+        } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
+            let (frame_id, image) = s.on_frame_ready(&mut self.image_cache);
+
+            self.notify(Event::FrameRendered(window_id, frame_id, image))
         }
     }
 

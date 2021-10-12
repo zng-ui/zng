@@ -172,6 +172,7 @@ fn screenshot() -> impl Widget {
             let img = ctx.with(|ctx|{
                 ctx.services.windows().frame_image(ctx.path.window_id()).get_clone(ctx.vars)
             });
+            img.awaiter().await;
             println!("taken in {:?}, saving..", t.elapsed());
 
             let t = Instant::now();
@@ -229,8 +230,6 @@ fn headless() -> impl Widget {
 
                     frame_capture_mode = FrameCaptureMode::Next;
                     on_frame_image_ready = async_hn_once!(|ctx, args: FrameImageReadyArgs| {
-                        enabled.set(&ctx, false);
-
                         println!("saving screenshot..");
                         match args.frame_image.unwrap().save("screenshot.png").await {
                             Ok(_) => println!("saved"),
