@@ -248,8 +248,13 @@ impl<T: VarValue> Clone for WeakVar<T> {
 
 impl<T: VarValue> WeakVar<T> {
     /// Attempts to upgrade to an [`RcVar`], returns `None` if the variable no longer exists.
-    pub fn updgrade(&self) -> Option<RcVar<T>> {
+    pub fn upgrade(&self) -> Option<RcVar<T>> {
         self.0.upgrade().map(RcVar)
+    }
+
+    /// Gets the number of strong references to the variable.
+    pub fn strong_count(&self) -> usize {
+        self.0.strong_count()
     }
 }
 

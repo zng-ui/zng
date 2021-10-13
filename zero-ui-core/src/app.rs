@@ -2322,7 +2322,7 @@ pub mod view_process {
         /// Actual size of the current pixels.
         ///
         /// Can be different from [`size`] if the image is progressively decoding.
-        /// 
+        ///
         /// [`size`]: Self::size
         #[inline]
         pub fn partial_size(&self) -> PxSize {
@@ -2352,7 +2352,7 @@ pub mod view_process {
         ///
         /// Returns `None` until the image is fully loaded. Use [`partial_bgra8`] to copy
         /// partially decoded bytes.
-        /// 
+        ///
         /// [`partial_bgra8`]: Self::partial_bgra8
         #[inline]
         pub fn bgra8(&self) -> Option<&[u8]> {

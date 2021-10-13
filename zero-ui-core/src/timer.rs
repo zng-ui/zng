@@ -243,7 +243,7 @@ impl Timers {
 
         // update `deadline` vars
         self.deadlines.retain(|wk| {
-            if let Some(var) = wk.updgrade() {
+            if let Some(var) = wk.upgrade() {
                 let deadline = var.get(vars).deadline;
                 if deadline > now {
                     return true; // retain
@@ -255,7 +255,7 @@ impl Timers {
 
         // update `interval` vars
         self.timers.retain(|t| {
-            if let Some(var) = t.weak_var.updgrade() {
+            if let Some(var) = t.weak_var.upgrade() {
                 if !t.handle.is_dropped() {
                     let timer = var.get(vars);
                     let mut deadline = timer.0 .0.data().deadline.lock();

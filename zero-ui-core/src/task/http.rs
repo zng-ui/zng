@@ -33,6 +33,7 @@ pub use isahc::http::{header, uri, Method, StatusCode, Uri};
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
+use crate::text::Text;
 use crate::units::*;
 
 /// Marker trait for types that try-to-convert to [`Uri`].
@@ -107,6 +108,11 @@ where
         header::HeaderName::try_from(self).map_err(|e| e.into().into())
     }
 }
+impl TryHeaderName for Text {
+    fn try_into(self) -> Result<header::HeaderName, Error> {
+        <header::HeaderName as TryFrom<&str>>::try_from(self.as_str()).map_err(|e| isahc::http::Error::from(e).into())
+    }
+}
 
 /// Marker trait for types that try-to-convert to [`header::HeaderValue`].
 ///
@@ -123,6 +129,11 @@ where
 {
     fn try_into(self) -> Result<header::HeaderValue, Error> {
         header::HeaderValue::try_from(self).map_err(|e| e.into().into())
+    }
+}
+impl TryHeaderValue for Text {
+    fn try_into(self) -> Result<header::HeaderValue, Error> {
+        header::HeaderValue::from_str(self.as_str()).map_err(|e| isahc::http::Error::from(e).into())
     }
 }
 

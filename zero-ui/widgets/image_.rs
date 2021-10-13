@@ -1,3 +1,5 @@
+use zero_ui_core::image::ImageSource;
+
 use crate::prelude::new_widget::*;
 
 /// Image presenter.
@@ -5,109 +7,10 @@ use crate::prelude::new_widget::*;
 /// This widget loads a still image from a variety of sources and presents it.
 #[widget($crate::widgets::image)]
 pub mod image {
-    use zero_ui::core::image::{ImageCacheKey, ImageDataFormat, ImageVar};
+    use zero_ui::core::image::{ImageCacheMode, ImageSource, ImageVar};
 
     use super::*;
-    use crate::core::task::http::Uri;
-    use properties::ImageRenderingVar;
-    use std::{
-        fmt,
-        path::{Path, PathBuf},
-        sync::Arc,
-    };
-
-    /// The different inputs accepted by the [`source`] property.
-    ///
-    /// [`source`]: #wp-source
-    #[derive(Clone)]
-    pub enum ImageSource {
-        /// Gets the image from [`Images`].
-        ///
-        /// [`Images`]: crate::core::image::Images
-        Request(ImageCacheKey),
-        /// Uses an image var.
-        Image(ImageVar),
-    }
-    impl fmt::Debug for ImageSource {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            if f.alternate() {
-                write!(f, "ImageSource::")?;
-            }
-            match self {
-                ImageSource::Request(p) => f.debug_tuple("Request").field(p).finish(),
-                ImageSource::Image(_) => f.debug_tuple("Image").finish(),
-            }
-        }
-    }
-    impl_from_and_into_var! {
-        fn from(image: ImageVar) -> ImageSource {
-            ImageSource::Image(image)
-        }
-        fn from(key: ImageCacheKey) -> ImageSource {
-            ImageSource::Request(key)
-        }
-        fn from(path: PathBuf) -> ImageSource {
-            ImageCacheKey::from(path).into()
-        }
-        fn from(path: &Path) -> ImageSource {
-            ImageCacheKey::from(path).into()
-        }
-        fn from(uri: Uri) -> ImageSource {
-            ImageCacheKey::from(uri).into()
-        }
-        /// See [`ImageCacheKey`] conversion from `&str`
-        fn from(s: &str) -> ImageSource {
-            ImageCacheKey::from(s).into()
-        }
-        /// Same as conversion from `&str`.
-        fn from(s: String) -> ImageSource {
-            ImageCacheKey::from(s).into()
-        }
-        /// Same as conversion from `&str`.
-        fn from(s: Text) -> ImageSource {
-            ImageCacheKey::from(s).into()
-        }
-        /// From encoded data of [`Unknown`] format.
-        ///
-        /// [`Unknown`]: ImageDataFormat::Unknown
-        fn from(data: &'static [u8]) -> ImageSource {
-            ImageCacheKey::from(data).into()
-        }
-        /// From encoded data of [`Unknown`] format.
-        ///
-        /// [`Unknown`]: ImageDataFormat::Unknown
-        fn from<const N: usize>(data: &'static [u8; N]) -> ImageSource {
-            ImageCacheKey::from(data).into()
-        }
-        /// From encoded data of [`Unknown`] format.
-        ///
-        /// [`Unknown`]: ImageDataFormat::Unknown
-        fn from(data: Arc<Vec<u8>>) -> ImageSource {
-            ImageCacheKey::from(data).into()
-        }
-        /// From encoded data of [`Unknown`] format.
-        ///
-        /// [`Unknown`]: ImageDataFormat::Unknown
-        fn from(data: Vec<u8>) -> ImageSource {
-            ImageCacheKey::from(data).into()
-        }
-        /// From encoded data of known format.
-        fn from<F: Into<ImageDataFormat> + Clone>((data, format): (&'static [u8], F)) -> ImageSource {
-            ImageCacheKey::from((data, format)).into()
-        }
-        /// From encoded data of known format.
-        fn from<F: Into<ImageDataFormat> + Clone, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageSource {
-            ImageCacheKey::from((data, format)).into()
-        }
-        /// From encoded data of known format.
-        fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Vec<u8>, F)) -> ImageSource {
-            ImageCacheKey::from((data, format)).into()
-        }
-        /// From encoded data of known format.
-        fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> ImageSource {
-            ImageCacheKey::from((data, format)).into()
-        }
-    }
+    use properties::{ImageCacheVar, ImageRenderingVar};
 
     properties! {
         child {
@@ -131,6 +34,18 @@ pub mod image {
         ///
         /// This is [`ImageRendering::Auto`] by default.
         properties::image_rendering as rendering;
+
+        /// Sets if the [`source`] is cached.
+        ///
+        /// By default this is `true`, meaning the image is loaded from cache and if not present it is inserted into
+        /// the cache, the cache lives for the app in the [`Images`] app, the image can be manually removed from cache.
+        ///
+        /// If set to `false` the image is always loaded and decoded on init or when [`source`] updates and is dropped when
+        /// the widget is deinited or dropped.
+        ///
+        /// [`source`]: #wp-source
+        /// [`Images`]: zero_ui::core::image::Images
+        properties::image_cache as cache;
     }
 
     fn new_child(source: impl IntoVar<ImageSource>) -> impl UiNode {
@@ -143,10 +58,12 @@ pub mod image {
         #[impl_ui_node(none)]
         impl<T: Var<ImageSource>> UiNode for ImageNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                let img = match self.source.get_clone(ctx) {
-                    ImageSource::Request(r) => ctx.services.images().get(r),
-                    ImageSource::Image(img) => img,
+                let cache_mode = if *ImageCacheVar::get(ctx) {
+                    ImageCacheMode::Cache
+                } else {
+                    ImageCacheMode::Ignore
                 };
+                let img = ctx.services.images().get(self.source.get_clone(ctx.vars), cache_mode);
                 self.image = Some(img);
             }
             fn deinit(&mut self, _: &mut WidgetContext) {
@@ -212,18 +129,31 @@ pub mod image {
             ///
             /// Is [`ImageRendering::Auto`] by default.
             pub struct ImageRenderingVar: ImageRendering = const ImageRendering::Auto;
+
+            /// If the image is cached.
+            ///
+            /// Is `true` by default.
+            pub struct ImageCacheVar: bool = const true;
         }
 
         /// Sets the [`ImageRendering`] of all inner images.
         ///
         /// See the [`rendering`] property in the widget for more details.
         ///
-        /// This property binds `rendering` to the [`ImageRenderingVar`] in the widget context.
-        ///
         /// [`rendering`]: crate::widgets::image#wp-rendering
-        #[property(context)]
+        #[property(context, default(ImageRendering::Auto))]
         pub fn image_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
             with_context_var(child, ImageRenderingVar, rendering)
+        }
+
+        /// Sets the cache mode of all inner images.
+        ///
+        /// See the [`cache`] property in the widget for more details.
+        ///
+        /// [`cache`]: crate::widgets::image#wp-cache
+        #[property(context, default(true))]
+        pub fn image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+            with_context_var(child, ImageCacheVar, enabled)
         }
     }
 }
@@ -253,6 +183,6 @@ pub mod image {
 ///
 /// [`image!`]: mod@image
 /// [`source`]: mod@image#wp-source
-pub fn image(source: impl IntoVar<image::ImageSource>) -> impl Widget {
+pub fn image(source: impl IntoVar<ImageSource>) -> impl Widget {
     image! { source }
 }

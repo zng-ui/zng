@@ -13,7 +13,7 @@ pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo,
 use crate::{
     app::ControlFlow,
     color::RenderColor,
-    image::{Image, ImageCacheKey, ImageDataFormat, ImageVar, ImagesExt},
+    image::{Image, ImageCacheMode, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
 };
 use linear_map::LinearMap;
@@ -601,9 +601,7 @@ pub enum WindowIcon {
     /// Image is requested from [`Images`].
     ///
     /// [`Images`]: crate::image::Images
-    ImageRequest(ImageCacheKey),
-    /// An image resource.
-    Image(ImageVar),
+    Image(ImageSource),
     /// An [`UiNode`] that draws the icon.
     ///
     /// Use the [`render`](Self::render) function to initialize.
@@ -616,8 +614,7 @@ impl fmt::Debug for WindowIcon {
         }
         match self {
             WindowIcon::Default => write!(f, "Default"),
-            WindowIcon::ImageRequest(r) => write!(f, "ImageRequest({:?})", r),
-            WindowIcon::Image(_) => write!(f, "Image(_)"),
+            WindowIcon::Image(r) => write!(f, "Image({:?})", r),
             WindowIcon::Render(_) => write!(f, "Render(_)"),
         }
     }
@@ -641,80 +638,78 @@ impl WindowIcon {
     }
 }
 impl_from_and_into_var! {
-    fn from(image: ImageVar) -> WindowIcon {
-        WindowIcon::Image(image)
+    fn from(source: ImageSource) -> WindowIcon {
+        WindowIcon::Image(source)
     }
-
-    fn from(key: ImageCacheKey) -> WindowIcon {
-        WindowIcon::ImageRequest(key)
+    fn from(image: ImageVar) -> WindowIcon {
+        ImageSource::Image(image).into()
     }
     fn from(path: PathBuf) -> WindowIcon {
-        ImageCacheKey::from(path).into()
+        ImageSource::from(path).into()
     }
     fn from(path: &Path) -> WindowIcon {
-        ImageCacheKey::from(path).into()
+        ImageSource::from(path).into()
     }
     fn from(uri: Uri) -> WindowIcon {
-        ImageCacheKey::from(uri).into()
+        ImageSource::from(uri).into()
     }
-    /// See [`ImageCacheKey`] conversion from `&str`
+    /// See [`ImageSource`] conversion from `&str`
     fn from(s: &str) -> WindowIcon {
-        ImageCacheKey::from(s).into()
+        ImageSource::from(s).into()
     }
     /// Same as conversion from `&str`.
     fn from(s: String) -> WindowIcon {
-        ImageCacheKey::from(s).into()
+        ImageSource::from(s).into()
     }
     /// Same as conversion from `&str`.
     fn from(s: Text) -> WindowIcon {
-        ImageCacheKey::from(s).into()
+        ImageSource::from(s).into()
     }
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: &'static [u8]) -> WindowIcon {
-        ImageCacheKey::from(data).into()
+        ImageSource::from(data).into()
     }
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from<const N: usize>(data: &'static [u8; N]) -> WindowIcon {
-        ImageCacheKey::from(data).into()
+        ImageSource::from(data).into()
     }
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: Arc<Vec<u8>>) -> WindowIcon {
-        ImageCacheKey::from(data).into()
+        ImageSource::from(data).into()
     }
     /// From encoded data of [`Unknown`] format.
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: Vec<u8>) -> WindowIcon {
-        ImageCacheKey::from(data).into()
+        ImageSource::from(data).into()
     }
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat> + Clone>((data, format): (&'static [u8], F)) -> WindowIcon {
-        ImageCacheKey::from((data, format)).into()
+        ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat> + Clone, const N: usize>((data, format): (&'static [u8; N], F)) -> WindowIcon {
-        ImageCacheKey::from((data, format)).into()
+        ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Vec<u8>, F)) -> WindowIcon {
-        ImageCacheKey::from((data, format)).into()
+        ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> WindowIcon {
-        ImageCacheKey::from((data, format)).into()
+        ImageSource::from((data, format)).into()
     }
 }
 impl PartialEq for WindowIcon {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::ImageRequest(l0), Self::ImageRequest(r0)) => l0 == r0,
-            (Self::Image(l0), Self::Image(r0)) => ImageVar::ptr_eq(l0, r0),
+            (Self::Image(l0), Self::Image(r0)) => l0 == r0,
             (Self::Render(l0), Self::Render(r0)) => Rc::ptr_eq(l0, r0),
             (Self::Default, Self::Default) => true,
             _ => false,
@@ -1964,14 +1959,10 @@ impl AppWindow {
                             let _: Ignore = w.set_icon(None);
                             self.icon_img = None;
                         }
-                        WindowIcon::ImageRequest(r) => {
-                            let ico = ctx.services.images().get(r.clone());
+                        WindowIcon::Image(r) => {
+                            let ico = ctx.services.images().get(r.clone(), ImageCacheMode::Cache);
                             let _: Ignore = w.set_icon(ico.get(ctx).view());
                             self.icon_img = Some(ico);
-                        }
-                        WindowIcon::Image(ico) => {
-                            let _: Ignore = w.set_icon(ico.get(ctx).view());
-                            self.icon_img = Some(ico.clone());
                         }
                         WindowIcon::Render(_) => {
                             self.icon_img = None;
@@ -2348,11 +2339,10 @@ impl AppWindow {
                         resizable: self.vars.resizable().copy(ctx.vars),
                         icon: match self.vars.icon().get(ctx.vars) {
                             WindowIcon::Default => None,
-                            WindowIcon::ImageRequest(_) => {
+                            WindowIcon::Image(_) => {
                                 let vars = ctx.vars;
                                 self.icon_img.as_ref().and_then(|i| i.get(vars).view()).map(|i| i.id())
                             }
-                            WindowIcon::Image(ico) => ico.get(ctx.vars).view().map(|i| i.id()),
                             WindowIcon::Render(_) => todo!(),
                         },
                         transparent: self.vars.transparent().copy(ctx.vars),
