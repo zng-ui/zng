@@ -14,14 +14,12 @@ Image loading and rendering.
 * Progressive decoding.
 
 ## View-image TODO
-* ImageKey for bytes, use `Hash128`.
 * Optional pre-multiply. (can we undo pre-multiplication?)
     Or can we use pre-multiplied images for the window icon.
 * Support creating resized image from existing image.
 * Partial image API implemented, need to implement use in Images and try implement partial decoding using the `images` crate.
    - Also test if `ImageMetadataLoaded` event is happening before the full image is received.
 * API for choosing the format in the request for image download.
-* Image reload?
 * Error View.
 * Capture in frame update (review frame-id).
 

@@ -347,7 +347,7 @@ impl Images {
 
     /// Remove the image from the cache, if it is only held by the cache.
     ///
-    /// You can use [`ImageSource::hash128_load`] and [`ImageSource::hash128_download`] to get the `key`
+    /// You can use [`ImageSource::hash128_read`] and [`ImageSource::hash128_download`] to get the `key`
     /// for files or downloads.
     ///
     /// Returns `Some(img)` if the image was removed.
@@ -358,7 +358,7 @@ impl Images {
     /// Remove the image from the cache, even if it is still referenced outside of the cache.
     ///
     ///
-    /// You can use [`ImageSource::hash128_load`] and [`ImageSource::hash128_download`] to get the `key`
+    /// You can use [`ImageSource::hash128_read`] and [`ImageSource::hash128_download`] to get the `key`
     /// for files or downloads.
     ///
     /// Returns `Some(img)` if the image was cached.
