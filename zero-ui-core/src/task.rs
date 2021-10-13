@@ -1792,11 +1792,11 @@ macro_rules! __all_some {
 /// Spawns a parallel task that only writes to stdout after the main thread sets the signal:
 ///
 /// ```
-/// use zero_ui_core::task::*;
+/// use zero_ui_core::task::{self, *};
 ///
 /// let signal = SignalOnce::default();
 ///
-/// task::spawn(async_clone_move!(signal, async {
+/// task::spawn(async_clone_move!(signal, {
 ///     signal.await;
 ///     println!("After Signal!");
 /// }));

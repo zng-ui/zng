@@ -724,7 +724,7 @@ impl PartialEq for WindowIcon {
 
 /// Frame image capture mode in a window.
 ///
-/// You can set the capture mode using [`WindowsVars::frame_capture_mode`].
+/// You can set the capture mode using [`WindowVars::frame_capture_mode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameCaptureMode {
     /// Frames are not automatically captured, but you can
@@ -732,7 +732,7 @@ pub enum FrameCaptureMode {
     Sporadic,
     /// The next rendered frame will be captured and available in [`FrameImageReadyArgs::frame_image`].
     ///
-    /// After the frame is captured the mode changes to [`Sporadic`].
+    /// After the frame is captured the mode changes to `Sporadic`.
     Next,
     /// All subsequent frames rendered will be captured and available in [`FrameImageReadyArgs::frame_image`].
     All,
@@ -1002,7 +1002,7 @@ event! {
 
     /// A window frame has finished rendering.
     ///
-    /// You can request a copy of the pixels using [`Windows::frame_image`] or by setting the [`Windows::frame_capture`].
+    /// You can request a copy of the pixels using [`Windows::frame_image`] or by setting the [`WindowVars::frame_capture_mode`].
     pub FrameImageReadyEvent: FrameImageReadyArgs;
 }
 
@@ -3006,6 +3006,7 @@ impl WindowVars {
     ///
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
+    /// [`Updates::render`]: crate::context::Updates::render
     #[inline]
     pub fn frame_capture_mode(&self) -> &RcVar<FrameCaptureMode> {
         &self.0.frame_capture_mode

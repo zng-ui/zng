@@ -322,10 +322,10 @@ declare_api! {
 
     /// Remove an image from cache.
     ///
-    /// Note that if the image is is use in a renderer it will remain in memory until [`delete_image`] is
+    /// Note that if the image is is use in a renderer it will remain in memory until [`delete_image_use`] is
     /// called or the renderer is deinited by closing the window.
     ///
-    /// [`delete_image`]: Api::delete_image
+    /// [`delete_image_use`]: Api::delete_image_use
     pub fn forget_image(&mut self, id: ImageId);
 
     /// Add an image resource to the window renderer.
