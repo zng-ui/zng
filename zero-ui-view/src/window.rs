@@ -139,15 +139,15 @@ impl Window {
 
             util::set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
                 if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && allow_alt_f4.get() {
-                    let device_id = 0; // TODO recover actual ID
+                    let device = 0; // TODO recover actual ID
 
-                    let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput(
-                        id,
-                        device_id,
-                        wparam as ScanCode,
-                        KeyState::Pressed,
-                        Some(Key::F4),
-                    )));
+                    let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
+                        window: id,
+                        device,
+                        scan_code: wparam as ScanCode,
+                        state: KeyState::Pressed,
+                        key: Some(Key::F4),
+                    }));
                     return Some(0);
                 }
                 None

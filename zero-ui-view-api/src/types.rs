@@ -539,29 +539,67 @@ pub enum Event {
     /// A frame finished rendering.
     ///
     /// `EventsCleared` is not send after this event.
-    FrameRendered(WindowId, Epoch, Option<ImageLoadedData>),
+    FrameRendered {
+        /// Window that was rendered.
+        window: WindowId,
+        /// ID of the new frame.
+        frame: Epoch,
+        /// Frame image, if one was requested with the frame request.
+        frame_image: Option<ImageLoadedData>,
+    },
 
     /// Window maximized/minimized/restored.
     ///
     /// The [`EventCause`] can be used to identify a state change initiated by the app.
-    WindowStateChanged(WindowId, WindowState, EventCause),
+    WindowStateChanged {
+        /// Window that has changed state.
+        window: WindowId,
+        /// The new state.
+        state: WindowState,
+        /// What caused the change, end-user/OS or the app.
+        cause: EventCause,
+    },
 
     /// The size of the window has changed. Contains the client area’s new dimensions and the window state.
     ///
     /// The [`EventCause`] can be used to identify a resize initiated by the app.
-    WindowResized(WindowId, DipSize, EventCause),
+    WindowResized {
+        /// Window that has resized.
+        window: WindowId,
+        /// New size in device independent pixels.
+        size: DipSize,
+        /// What cause the resize, end-user/OS or the app.
+        cause: EventCause,
+    },
     /// The position of the window has changed. Contains the window’s new position.
     ///
     /// The [`EventCause`] can be used to identify a move initiated by the app.
-    WindowMoved(WindowId, DipPoint, EventCause),
+    WindowMoved {
+        /// Window that has moved.
+        window: WindowId,
+        /// New position in device independent pixels.
+        position: DipPoint,
+        /// What cause the move, end-user/OS or the app.
+        cause: EventCause,
+    },
     /// A file has been dropped into the window.
     ///
     /// When the user drops multiple files at once, this event will be emitted for each file separately.
-    DroppedFile(WindowId, PathBuf),
+    DroppedFile {
+        /// Window that received the file drop.
+        window: WindowId,
+        /// Path to the file that was dropped.
+        file: PathBuf,
+    },
     /// A file is being hovered over the window.
     ///
     /// When the user hovers multiple files at once, this event will be emitted for each file separately.
-    HoveredFile(WindowId, PathBuf),
+    HoveredFile {
+        /// Window that was hovered by drag-drop.
+        window: WindowId,
+        /// Path to the file being dragged.
+        file: PathBuf,
+    },
     /// A file was hovered, but has exited the window.
     ///
     /// There will be a single event triggered even if multiple files were hovered.
@@ -571,32 +609,106 @@ pub enum Event {
     /// The window gained or lost focus.
     ///
     /// The parameter is true if the window has gained focus, and false if it has lost focus.
-    Focused(WindowId, bool),
+    Focused {
+        /// Window that gained or lost focus.
+        window: WindowId,
+        /// If the window is now focused.
+        focused: bool,
+    },
     /// An event from the keyboard has been received.
-    KeyboardInput(WindowId, DeviceId, ScanCode, KeyState, Option<Key>),
+    KeyboardInput {
+        /// Window that received the key event.
+        window: WindowId,
+        /// Device that generated the key event.
+        device: DeviceId,
+        /// Device-dependent raw key code.
+        scan_code: ScanCode,
+        /// If the key was pressed or released.
+        state: KeyState,
+        /// Device independent key code, if the code was identified.
+        key: Option<Key>,
+    },
     /// The keyboard modifiers have changed.
-    ModifiersChanged(WindowId, ModifiersState),
+    ModifiersChanged {
+        /// Window that received press or release of a modifier key.
+        window: WindowId,
+        /// New modifier keys state.
+        state: ModifiersState,
+    },
     /// The cursor has moved on the window.
     ///
     /// Contains a hit-test of the point and the frame epoch that was hit.
-    CursorMoved(WindowId, DeviceId, DipPoint, HitTestResult, Epoch),
+    CursorMoved {
+        /// Window that received the cursor move.
+        window: WindowId,
+        /// Device that generated the cursor move.
+        device: DeviceId,
+        /// Cursor position, relative to the window top-left in device independent pixels.
+        position: DipPoint,
+        /// Hit-test result at the new position of the cursor.
+        hit_test: HitTestResult,
+        /// Frame that was hit-tested.
+        frame: Epoch,
+    },
 
     /// The cursor has entered the window.
-    CursorEntered(WindowId, DeviceId),
+    CursorEntered {
+        /// Window that now is hovered by the cursor.
+        window: WindowId,
+        /// Device that generated the cursor move event.
+        device: DeviceId,
+    },
     /// The cursor has left the window.
-    CursorLeft(WindowId, DeviceId),
+    CursorLeft {
+        /// Window that is no longer hovered by the cursor.
+        window: WindowId,
+        /// Device that generated the cursor move event.
+        device: DeviceId,
+    },
     /// A mouse wheel movement or touchpad scroll occurred.
-    MouseWheel(WindowId, DeviceId, MouseScrollDelta, TouchPhase),
+    MouseWheel {
+        /// Window that was hovered by the cursor when the mouse wheel was used.
+        window: WindowId,
+        /// Device that generated the mouse wheel event.
+        device: DeviceId,
+        /// Delta of change in the mouse scroll wheel state.
+        delta: MouseScrollDelta,
+        /// Touch state if the device that generated the event is a touchpad.
+        phase: TouchPhase,
+    },
     /// An mouse button press has been received.
-    MouseInput(WindowId, DeviceId, ButtonState, MouseButton),
+    MouseInput {
+        /// Window that was hovered by the cursor when the mouse button was used.
+        window: WindowId,
+        /// Mouse device that generated the event.
+        device: DeviceId,
+        /// If the button was pressed or released.
+        state: ButtonState,
+        /// The mouse button.
+        button: MouseButton,
+    },
     /// Touchpad pressure event.
-    TouchpadPressure(WindowId, DeviceId, f32, i64),
+    TouchpadPressure {
+        /// Window that was hovered when the touchpad was touched.
+        window: WindowId,
+        /// Touchpad device.
+        device: DeviceId,
+        /// Pressure level between 0 and 1.
+        pressure: f32,
+        /// Click level.
+        stage: i64,
+    },
     /// Motion on some analog axis. May report data redundant to other, more specific events.
     AxisMotion(WindowId, DeviceId, AxisId, f64),
     /// Touch event has been received.
     Touch(WindowId, DeviceId, TouchPhase, DipPoint, Option<Force>, u64),
     /// The window’s scale factor has changed.
-    ScaleFactorChanged(WindowId, f32),
+    ScaleFactorChanged {
+        /// Window that has changed.
+        window: WindowId,
+        /// The new scale factor.
+        scale_factor: f32,
+    },
 
     /// The available monitors have changed.
     MonitorsChanged(Vec<(WindowId, MonitorInfo)>),
@@ -609,20 +721,68 @@ pub enum Event {
     WindowClosed(WindowId),
 
     /// An image resource already decoded size and PPI.
-    ImageMetadataLoaded(ImageId, PxSize, ImagePpi),
+    ImageMetadataLoaded {
+        /// The image that started loading.
+        image: ImageId,
+        /// The image pixel size.
+        size: PxSize,
+        /// The image pixels-per-inch metadata.
+        ppi: ImagePpi,
+    },
     /// An image resource finished decoding.
     ImageLoaded(ImageLoadedData),
     /// An image resource, progressively decoded has decoded more bytes.
-    ImagePartiallyLoaded(ImageId, PxSize, ImagePpi, bool, IpcSharedMemory),
+    ImagePartiallyLoaded {
+        /// The image that has decoded more pixels.
+        image: ImageId,
+        /// The size of the decoded pixels, can be different then the image size if the
+        /// image is not *interlaced*.
+        partial_size: PxSize,
+        /// The image pixels-per-inch metadata.
+        ppi: ImagePpi,
+        /// If the decoded pixels so-far are all opaque (255 alpha).
+        opaque: bool,
+        /// Updated BGRA8 pre-multiplied pixel buffer. This includes all the pixels
+        /// decoded so-far.
+        partial_bgra8: IpcSharedMemory,
+    },
     /// An image resource failed to decode, the image ID is not valid.
-    ImageLoadError(ImageId, String),
+    ImageLoadError {
+        /// The image that failed to decode.
+        image: ImageId,
+        /// The error message.
+        error: String,
+    },
     /// An image finished encoding.
-    ImageEncoded(ImageId, String, Vec<u8>),
+    ImageEncoded {
+        /// The image that finished encoding.
+        image: ImageId,
+        /// The format of the encoded data.
+        format: String,
+        /// The encoded image data.
+        data: Vec<u8>,
+    },
     /// An image failed to encode.
-    ImageEncodeError(ImageId, String, String),
+    ImageEncodeError {
+        /// The image that failed to encode.
+        image: ImageId,
+        /// The encoded format that was requested.
+        format: String,
+        /// The error message.
+        error: String,
+    },
 
     /// An image generated from a rendered frame is ready.
-    FrameImageReady(WindowId, Epoch, ImageId, PxRect),
+    FrameImageReady {
+        /// Window that had pixels copied.
+        window: WindowId,
+        /// The frame that was rendered when the pixels where copied.
+        frame: Epoch,
+        /// The frame image.
+        image: ImageId,
+        /// The pixel selection relative to the top-left.
+        selection: PxRect,
+    },
 
     // Config events
     /// System fonts have changed.
@@ -644,17 +804,50 @@ pub enum Event {
     /// Mouse pointer motion.
     ///
     /// The values if the delta of movement (x, y), not position.
-    DeviceMouseMotion(DeviceId, (f64, f64)),
+    DeviceMouseMotion {
+        /// Device that generated the event.
+        device: DeviceId,
+        /// Delta of change in the cursor position.
+        delta: (f64, f64),
+    },
     /// Mouse scroll wheel turn.
-    DeviceMouseWheel(DeviceId, MouseScrollDelta),
+    DeviceMouseWheel {
+        /// Mouse device that generated the event.
+        device: DeviceId,
+        /// Delta of change in the mouse scroll wheel state.
+        delta: MouseScrollDelta,
+    },
     /// Motion on some analog axis.
     ///
     /// This includes the mouse device and any other that fits.
-    DeviceMotion(DeviceId, AxisId, f64),
+    DeviceMotion {
+        /// Device that generated the event.
+        device: DeviceId,
+        /// Device dependent axis of the motion.
+        axis: AxisId,
+        /// Device dependent value.
+        value: f64,
+    },
     /// Device button press or release.
-    DeviceButton(DeviceId, ButtonId, ButtonState),
+    DeviceButton {
+        /// Device that generated the event.
+        device: DeviceId,
+        /// Device dependent button that was used.
+        button: ButtonId,
+        /// If the button was pressed or released.
+        state: ButtonState,
+    },
     /// Device key press or release.
-    DeviceKey(DeviceId, ScanCode, KeyState, Option<Key>),
+    DeviceKey {
+        /// Device that generated the key event.
+        device: DeviceId,
+        /// Device-dependent raw key code.
+        scan_code: ScanCode,
+        /// If the key was pressed or released.
+        state: KeyState,
+        /// Device independent key code, if the code was identified.
+        key: Option<Key>,
+    },
     /// Device Unicode character input.
     DeviceText(DeviceId, char),
 }

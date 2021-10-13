@@ -913,8 +913,12 @@ impl<E: AppExtension> RunningApp<E> {
             Event::EventsCleared => {
                 return self.update(observer);
             }
-            Event::FrameRendered(w_id, frame_id, image) => {
-                let image = image.map(|img| {
+            Event::FrameRendered {
+                window: w_id,
+                frame: frame_id,
+                frame_image,
+            } => {
+                let image = frame_image.map(|img| {
                     let view = self.ctx().services.view_process();
                     view.on_frame_image(img)
                 });
@@ -923,26 +927,34 @@ impl<E: AppExtension> RunningApp<E> {
                 // `FrameRendered` is not followed by a `EventsCleared`.
                 return self.update(observer);
             }
-            Event::WindowResized(w_id, size, cause) => {
+            Event::WindowResized { window: w_id, size, cause } => {
                 let args = RawWindowResizedArgs::now(window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args, observer);
                 // view-process blocks waiting for a frame on resize, so update as early
                 // as possible to generate this frame
                 return self.update(observer);
             }
-            Event::WindowMoved(w_id, pos, cause) => {
-                let args = RawWindowMovedArgs::now(window_id(w_id), pos, cause);
+            Event::WindowMoved {
+                window: w_id,
+                position,
+                cause,
+            } => {
+                let args = RawWindowMovedArgs::now(window_id(w_id), position, cause);
                 self.notify_event(RawWindowMovedEvent, args, observer);
             }
-            Event::WindowStateChanged(w_id, state, cause) => {
+            Event::WindowStateChanged {
+                window: w_id,
+                state,
+                cause,
+            } => {
                 let args = RawWindowStateChangedArgs::now(window_id(w_id), state, cause);
                 self.notify_event(RawWindowStateChangedEvent, args, observer);
             }
-            Event::DroppedFile(w_id, file) => {
+            Event::DroppedFile { window: w_id, file } => {
                 let args = RawDroppedFileArgs::now(window_id(w_id), file);
                 self.notify_event(RawDroppedFileEvent, args, observer);
             }
-            Event::HoveredFile(w_id, file) => {
+            Event::HoveredFile { window: w_id, file } => {
                 let args = RawHoveredFileArgs::now(window_id(w_id), file);
                 self.notify_event(RawHoveredFileEvent, args, observer);
             }
@@ -954,41 +966,74 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawCharInputArgs::now(window_id(w_id), c);
                 self.notify_event(RawCharInputEvent, args, observer);
             }
-            Event::Focused(w_id, focused) => {
+            Event::Focused { window: w_id, focused } => {
                 let args = RawWindowFocusArgs::now(window_id(w_id), focused);
                 self.notify_event(RawWindowFocusEvent, args, observer);
             }
-            Event::KeyboardInput(w_id, d_id, scan_code, state, key) => {
+            Event::KeyboardInput {
+                window: w_id,
+                device: d_id,
+                scan_code,
+                state,
+                key,
+            } => {
                 let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), scan_code, state, key);
                 self.notify_event(RawKeyInputEvent, args, observer);
             }
-            Event::ModifiersChanged(w_id, state) => {
+            Event::ModifiersChanged { window: w_id, state } => {
                 let args = RawModifiersChangedArgs::now(window_id(w_id), state);
                 self.notify_event(RawModifiersChangedEvent, args, observer);
             }
-            Event::CursorMoved(w_id, d_id, pos, hit_test, frame_id) => {
-                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), pos, hit_test, frame_id);
+            Event::CursorMoved {
+                window: w_id,
+                device: d_id,
+                position,
+                hit_test,
+                frame,
+            } => {
+                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), position, hit_test, frame);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
-            Event::CursorEntered(w_id, d_id) => {
+            Event::CursorEntered {
+                window: w_id,
+                device: d_id,
+            } => {
                 let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorEnteredEvent, args, observer);
             }
-            Event::CursorLeft(w_id, d_id) => {
+            Event::CursorLeft {
+                window: w_id,
+                device: d_id,
+            } => {
                 let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorLeftEvent, args, observer);
             }
-            Event::MouseWheel(w_id, d_id, delta, phase) => {
+            Event::MouseWheel {
+                window: w_id,
+                device: d_id,
+                delta,
+                phase,
+            } => {
                 // TODO
                 let _ = (delta, phase);
                 let args = RawMouseWheelArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawMouseWheelEvent, args, observer);
             }
-            Event::MouseInput(w_id, d_id, state, button) => {
+            Event::MouseInput {
+                window: w_id,
+                device: d_id,
+                state,
+                button,
+            } => {
                 let args = RawMouseInputArgs::now(window_id(w_id), self.device_id(d_id), state, button);
                 self.notify_event(RawMouseInputEvent, args, observer);
             }
-            Event::TouchpadPressure(w_id, d_id, pressure, stage) => {
+            Event::TouchpadPressure {
+                window: w_id,
+                device: d_id,
+                pressure,
+                stage,
+            } => {
                 // TODO
                 let _ = (pressure, stage);
                 let args = RawTouchpadPressureArgs::now(window_id(w_id), self.device_id(d_id));
@@ -1004,8 +1049,11 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawTouchArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawTouchEvent, args, observer);
             }
-            Event::ScaleFactorChanged(w_id, scale) => {
-                let args = RawWindowScaleFactorChangedArgs::now(window_id(w_id), scale);
+            Event::ScaleFactorChanged {
+                window: w_id,
+                scale_factor,
+            } => {
+                let args = RawWindowScaleFactorChangedArgs::now(window_id(w_id), scale_factor);
                 self.notify_event(RawWindowScaleFactorChangedEvent, args, observer);
             }
             Event::MonitorsChanged(monitors) => {
@@ -1026,16 +1074,22 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
-            Event::ImageMetadataLoaded(id, size, dpi) => {
+            Event::ImageMetadataLoaded { image: id, size, ppi } => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
-                if let Some(img) = view.on_image_metadata_loaded(id, size, dpi) {
+                if let Some(img) = view.on_image_metadata_loaded(id, size, ppi) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageMetadataLoadedEvent, args, observer);
                 }
             }
-            Event::ImagePartiallyLoaded(id, partial_size, dpi, opaque, partial_bgra8) => {
+            Event::ImagePartiallyLoaded {
+                image: id,
+                partial_size,
+                ppi,
+                opaque,
+                partial_bgra8,
+            } => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
-                if let Some(img) = view.on_image_partially_loaded(id, partial_size, dpi, opaque, partial_bgra8) {
+                if let Some(img) = view.on_image_partially_loaded(id, partial_size, ppi, opaque, partial_bgra8) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImagePartiallyLoadedEvent, args, observer);
                 }
@@ -1047,22 +1101,27 @@ impl<E: AppExtension> RunningApp<E> {
                     self.notify_event(RawImageLoadedEvent, args, observer);
                 }
             }
-            Event::ImageLoadError(id, error) => {
+            Event::ImageLoadError { image: id, error } => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_image_error(id, error) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadErrorEvent, args, observer);
                 }
             }
-            Event::ImageEncoded(id, format, data) => {
+            Event::ImageEncoded { image: id, format, data } => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 view.on_image_encoded(id, format, data)
             }
-            Event::ImageEncodeError(id, format, error) => {
+            Event::ImageEncodeError { image: id, format, error } => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 view.on_image_encode_error(id, format, error);
             }
-            Event::FrameImageReady(w_id, frame_id, image_id, selection) => {
+            Event::FrameImageReady {
+                window: w_id,
+                frame: frame_id,
+                image: image_id,
+                selection,
+            } => {
                 let view = self.ctx().services.req::<view_process::ViewProcess>();
                 if let Some(img) = view.on_frame_image_ready(image_id) {
                     let args = RawFrameImageReadyArgs::now(img, window_id(w_id), frame_id, selection);
@@ -1101,23 +1160,32 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = DeviceArgs::now(self.device_id(d_id));
                 self.notify_event(DeviceRemovedEvent, args, observer);
             }
-            Event::DeviceMouseMotion(d_id, delta) => {
+            Event::DeviceMouseMotion { device: d_id, delta } => {
                 let args = MouseMotionArgs::now(self.device_id(d_id), delta);
                 self.notify_event(MouseMotionEvent, args, observer);
             }
-            Event::DeviceMouseWheel(d_id, delta) => {
+            Event::DeviceMouseWheel { device: d_id, delta } => {
                 let args = MouseWheelArgs::now(self.device_id(d_id), delta);
                 self.notify_event(MouseWheelEvent, args, observer);
             }
-            Event::DeviceMotion(d_id, axis, value) => {
+            Event::DeviceMotion { device: d_id, axis, value } => {
                 let args = MotionArgs::now(self.device_id(d_id), axis, value);
                 self.notify_event(MotionEvent, args, observer);
             }
-            Event::DeviceButton(d_id, button, state) => {
+            Event::DeviceButton {
+                device: d_id,
+                button,
+                state,
+            } => {
                 let args = ButtonArgs::now(self.device_id(d_id), button, state);
                 self.notify_event(ButtonEvent, args, observer);
             }
-            Event::DeviceKey(d_id, scan_code, state, key) => {
+            Event::DeviceKey {
+                device: d_id,
+                scan_code,
+                state,
+                key,
+            } => {
                 let args = KeyArgs::now(self.device_id(d_id), scan_code, state, key);
                 self.notify_event(KeyEvent, args, observer);
             }

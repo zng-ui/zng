@@ -244,7 +244,11 @@ impl App<()> {
                             None
                         };
                         if let Some((frame_id, image)) = r {
-                            app.notify(Event::FrameRendered(id, frame_id, image));
+                            app.notify(Event::FrameRendered {
+                                window: id,
+                                frame: frame_id,
+                                frame_image: image,
+                            });
                         }
                     }
                     AppEvent::Notify(ev) => {
@@ -394,7 +398,11 @@ impl<S: AppEventSender> App<S> {
                 let size = size.to_px().to_dip(scale_factor);
 
                 if let Some(state) = self.windows[i].state_change() {
-                    self.notify(Event::WindowStateChanged(id, state, EventCause::System));
+                    self.notify(Event::WindowStateChanged {
+                        window: id,
+                        state,
+                        cause: EventCause::System,
+                    });
                 }
 
                 if !self.windows[i].resized(size) {
@@ -407,7 +415,11 @@ impl<S: AppEventSender> App<S> {
                 redirect_enabled.store(true, Ordering::Relaxed);
                 let stop_redirect = util::RunOnDrop::new(|| redirect_enabled.store(false, Ordering::Relaxed));
 
-                self.notify(Event::WindowResized(id, size, EventCause::System));
+                self.notify(Event::WindowResized {
+                    window: id,
+                    size,
+                    cause: EventCause::System,
+                });
 
                 let deadline = Instant::now() + Duration::from_millis(300);
 
@@ -450,7 +462,11 @@ impl<S: AppEventSender> App<S> {
                     if let Some((frame_id, image)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
                         let id = self.windows[i].id();
 
-                        self.notify(Event::FrameRendered(id, frame_id, image));
+                        self.notify(Event::FrameRendered {
+                            window: id,
+                            frame: frame_id,
+                            frame_image: image,
+                        });
                     }
                 }
             }
@@ -461,68 +477,81 @@ impl<S: AppEventSender> App<S> {
                     return;
                 }
 
-                self.notify(Event::WindowMoved(id, p, EventCause::System));
+                self.notify(Event::WindowMoved {
+                    window: id,
+                    position: p,
+                    cause: EventCause::System,
+                });
             }
             WindowEvent::CloseRequested => self.notify(Event::WindowCloseRequested(id)),
             WindowEvent::Destroyed => {
                 self.windows.remove(i);
                 self.notify(Event::WindowClosed(id));
             }
-            WindowEvent::DroppedFile(file) => self.notify(Event::DroppedFile(id, file)),
-            WindowEvent::HoveredFile(file) => self.notify(Event::HoveredFile(id, file)),
+            WindowEvent::DroppedFile(file) => self.notify(Event::DroppedFile { window: id, file }),
+            WindowEvent::HoveredFile(file) => self.notify(Event::HoveredFile { window: id, file }),
             WindowEvent::HoveredFileCancelled => self.notify(Event::HoveredFileCancelled(id)),
             WindowEvent::ReceivedCharacter(c) => self.notify(Event::ReceivedCharacter(id, c)),
-            WindowEvent::Focused(focused) => self.notify(Event::Focused(id, focused)),
+            WindowEvent::Focused(focused) => self.notify(Event::Focused { window: id, focused }),
             WindowEvent::KeyboardInput { device_id, input, .. } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Event::KeyboardInput(
-                    id,
-                    d_id,
-                    input.scancode,
-                    util::element_state_to_key_state(input.state),
-                    input.virtual_keycode.map(util::v_key_to_key),
-                ));
+                self.notify(Event::KeyboardInput {
+                    window: id,
+                    device: d_id,
+                    scan_code: input.scancode,
+                    state: util::element_state_to_key_state(input.state),
+                    key: input.virtual_keycode.map(util::v_key_to_key),
+                });
             }
             WindowEvent::ModifiersChanged(m) => {
                 self.refresh_monitors();
-                self.notify(Event::ModifiersChanged(id, util::winit_modifiers_state_to_zui(m)));
+                self.notify(Event::ModifiersChanged {
+                    window: id,
+                    state: util::winit_modifiers_state_to_zui(m),
+                });
             }
             WindowEvent::CursorMoved { device_id, position, .. } => {
                 let px_p = position.to_px();
                 let p = px_p.to_dip(scale_factor);
                 let d_id = self.device_id(device_id);
                 let (f_id, ht) = self.windows[i].hit_test(px_p);
-                self.notify(Event::CursorMoved(id, d_id, p, ht, f_id));
+                self.notify(Event::CursorMoved {
+                    window: id,
+                    device: d_id,
+                    position: p,
+                    hit_test: ht,
+                    frame: f_id,
+                });
             }
             WindowEvent::CursorEntered { device_id } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Event::CursorEntered(id, d_id));
+                self.notify(Event::CursorEntered { window: id, device: d_id });
             }
             WindowEvent::CursorLeft { device_id } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Event::CursorLeft(id, d_id));
+                self.notify(Event::CursorLeft { window: id, device: d_id });
             }
             WindowEvent::MouseWheel {
                 device_id, delta, phase, ..
             } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Event::MouseWheel(
-                    id,
-                    d_id,
-                    util::winit_mouse_wheel_delta_to_zui(delta),
-                    util::winit_touch_phase_to_zui(phase),
-                ));
+                self.notify(Event::MouseWheel {
+                    window: id,
+                    device: d_id,
+                    delta: util::winit_mouse_wheel_delta_to_zui(delta),
+                    phase: util::winit_touch_phase_to_zui(phase),
+                });
             }
             WindowEvent::MouseInput {
                 device_id, state, button, ..
             } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Event::MouseInput(
-                    id,
-                    d_id,
-                    util::element_state_to_button_state(state),
-                    util::winit_mouse_button_to_zui(button),
-                ));
+                self.notify(Event::MouseInput {
+                    window: id,
+                    device: d_id,
+                    state: util::element_state_to_button_state(state),
+                    button: util::winit_mouse_button_to_zui(button),
+                });
             }
             WindowEvent::TouchpadPressure {
                 device_id,
@@ -530,7 +559,12 @@ impl<S: AppEventSender> App<S> {
                 stage,
             } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Event::TouchpadPressure(id, d_id, pressure, stage));
+                self.notify(Event::TouchpadPressure {
+                    window: id,
+                    device: d_id,
+                    pressure,
+                    stage,
+                });
             }
             WindowEvent::AxisMotion { device_id, axis, value } => {
                 let d_id = self.device_id(device_id);
@@ -548,7 +582,10 @@ impl<S: AppEventSender> App<S> {
                     t.id,
                 ));
             }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => self.notify(Event::ScaleFactorChanged(id, scale_factor as f32)),
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => self.notify(Event::ScaleFactorChanged {
+                window: id,
+                scale_factor: scale_factor as f32,
+            }),
             WindowEvent::ThemeChanged(t) => self.notify(Event::WindowThemeChanged(id, util::winit_theme_to_zui(t))),
         }
     }
@@ -602,16 +639,35 @@ impl<S: AppEventSender> App<S> {
                 let size = w.size();
                 let scale_factor = w.scale_factor();
 
-                self.notify(Event::WindowMoved(window_id, pos, EventCause::App));
-                self.notify(Event::WindowResized(window_id, size, EventCause::App));
-                self.notify(Event::ScaleFactorChanged(window_id, scale_factor));
+                self.notify(Event::WindowMoved {
+                    window: window_id,
+                    position: pos,
+                    cause: EventCause::App,
+                });
+                self.notify(Event::WindowResized {
+                    window: window_id,
+                    size,
+                    cause: EventCause::App,
+                });
+                self.notify(Event::ScaleFactorChanged {
+                    window: window_id,
+                    scale_factor,
+                });
             }
 
-            self.notify(Event::FrameRendered(window_id, frame_id, image));
+            self.notify(Event::FrameRendered {
+                window: window_id,
+                frame: frame_id,
+                frame_image: image,
+            });
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(&mut self.image_cache);
 
-            self.notify(Event::FrameRendered(window_id, frame_id, image))
+            self.notify(Event::FrameRendered {
+                window: window_id,
+                frame: frame_id,
+                frame_image: image,
+            })
         }
     }
 
@@ -628,20 +684,23 @@ impl<S: AppEventSender> App<S> {
             match event {
                 DeviceEvent::Added => self.notify(Event::DeviceAdded(d_id)),
                 DeviceEvent::Removed => self.notify(Event::DeviceRemoved(d_id)),
-                DeviceEvent::MouseMotion { delta } => self.notify(Event::DeviceMouseMotion(d_id, delta)),
-                DeviceEvent::MouseWheel { delta } => {
-                    self.notify(Event::DeviceMouseWheel(d_id, util::winit_mouse_wheel_delta_to_zui(delta)))
-                }
-                DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion(d_id, axis, value)),
-                DeviceEvent::Button { button, state } => {
-                    self.notify(Event::DeviceButton(d_id, button, util::element_state_to_button_state(state)))
-                }
-                DeviceEvent::Key(k) => self.notify(Event::DeviceKey(
-                    d_id,
-                    k.scancode,
-                    util::element_state_to_key_state(k.state),
-                    k.virtual_keycode.map(util::v_key_to_key),
-                )),
+                DeviceEvent::MouseMotion { delta } => self.notify(Event::DeviceMouseMotion { device: d_id, delta }),
+                DeviceEvent::MouseWheel { delta } => self.notify(Event::DeviceMouseWheel {
+                    device: d_id,
+                    delta: util::winit_mouse_wheel_delta_to_zui(delta),
+                }),
+                DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion { device: d_id, axis, value }),
+                DeviceEvent::Button { button, state } => self.notify(Event::DeviceButton {
+                    device: d_id,
+                    button,
+                    state: util::element_state_to_button_state(state),
+                }),
+                DeviceEvent::Key(k) => self.notify(Event::DeviceKey {
+                    device: d_id,
+                    scan_code: k.scancode,
+                    state: util::element_state_to_key_state(k.state),
+                    key: k.virtual_keycode.map(util::v_key_to_key),
+                }),
                 DeviceEvent::Text { codepoint } => self.notify(Event::DeviceText(d_id, codepoint)),
             }
         }
@@ -908,7 +967,11 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn set_position(&mut self, id: WindowId, pos: DipPoint) {
         if self.with_window(id, |w| w.set_outer_pos(pos), || false) {
-            let _ = self.app_sender.send(AppEvent::Notify(Event::WindowMoved(id, pos, EventCause::App)));
+            let _ = self.app_sender.send(AppEvent::Notify(Event::WindowMoved {
+                window: id,
+                position: pos,
+                cause: EventCause::App,
+            }));
         }
     }
 
@@ -925,9 +988,11 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn set_state(&mut self, id: WindowId, state: WindowState) {
         if self.with_window(id, |w| w.set_state(state), || false) {
-            let _ = self
-                .app_sender
-                .send(AppEvent::Notify(Event::WindowStateChanged(id, state, EventCause::App)));
+            let _ = self.app_sender.send(AppEvent::Notify(Event::WindowStateChanged {
+                window: id,
+                state,
+                cause: EventCause::App,
+            }));
         }
     }
 

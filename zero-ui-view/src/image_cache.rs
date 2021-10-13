@@ -56,7 +56,11 @@ impl<S: AppEventSender> ImageCache<S> {
                                 size, decoded_size, max_decoded_size
                             ))
                         } else {
-                            let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded(id, size, None)));
+                            let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
+                                image: id,
+                                size,
+                                ppi: None,
+                            }));
                             match image::load_from_memory_with_format(&data[..], fmt) {
                                 Ok(img) => Ok(Self::convert_decoded(img)),
                                 Err(e) => Err(e.to_string()),
@@ -78,7 +82,7 @@ impl<S: AppEventSender> ImageCache<S> {
                     }));
                 }
                 Err(e) => {
-                    let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, e)));
+                    let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error: e }));
                 }
             }
         });
@@ -129,7 +133,7 @@ impl<S: AppEventSender> ImageCache<S> {
                                             "image {:?} needs to allocate {} bytes, but max allowed size is {} bytes",
                                             size, decoded_size, max_decoded_size
                                         );
-                                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, error)));
+                                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error }));
                                         return;
                                     }
                                 }
@@ -158,7 +162,10 @@ impl<S: AppEventSender> ImageCache<S> {
                         }));
                     }
                     Err(e) => {
-                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, e.to_string())));
+                        let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                            image: id,
+                            error: e.to_string(),
+                        }));
                     }
                 }
             } else if !is_encoded {
@@ -172,7 +179,10 @@ impl<S: AppEventSender> ImageCache<S> {
                     opaque,
                 }));
             } else {
-                let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError(id, "unknown format".to_string())));
+                let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                    image: id,
+                    error: "unknown format".to_string(),
+                }));
             }
         });
         id
@@ -379,7 +389,9 @@ impl<S: AppEventSender> ImageCache<S> {
     pub fn encode(&self, id: ImageId, format: String) {
         if !ENCODERS.contains(&format.as_str()) {
             let error = format!("cannot encode `{}` to `{}`, unknown format", id, format);
-            let _ = self.app_sender.send(AppEvent::Notify(Event::ImageEncodeError(id, format, error)));
+            let _ = self
+                .app_sender
+                .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
             return;
         }
 
@@ -393,17 +405,19 @@ impl<S: AppEventSender> ImageCache<S> {
                 let mut data = vec![];
                 match img.encode(fmt, &mut data) {
                     Ok(_) => {
-                        let _ = sender.send(AppEvent::Notify(Event::ImageEncoded(id, format, data)));
+                        let _ = sender.send(AppEvent::Notify(Event::ImageEncoded { image: id, format, data }));
                     }
                     Err(e) => {
                         let error = format!("failed to encode `{}` to `{}`, {}", id, format, e);
-                        let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError(id, format, error)));
+                        let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
                     }
                 }
             })
         } else {
             let error = format!("cannot encode `{}` to `{}`, image not found", id, format);
-            let _ = self.app_sender.send(AppEvent::Notify(Event::ImageEncodeError(id, format, error)));
+            let _ = self
+                .app_sender
+                .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
         }
     }
 }
@@ -749,13 +763,16 @@ mod capture {
         ) -> ImageId {
             if frame_id == Epoch::invalid() {
                 let id = self.generate_image_id();
-                let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError(
-                    id,
-                    format!("no frame rendered in window `{}`", window_id),
-                )));
-                let _ = self
-                    .app_sender
-                    .send(AppEvent::Notify(Event::FrameImageReady(window_id, frame_id, id, rect)));
+                let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError {
+                    image: id,
+                    error: format!("no frame rendered in window `{}`", window_id),
+                }));
+                let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
+                    window: window_id,
+                    frame: frame_id,
+                    image: id,
+                    selection: rect,
+                }));
                 return id;
             }
 
@@ -764,9 +781,12 @@ mod capture {
             let id = data.id;
 
             let _ = self.app_sender.send(AppEvent::ImageLoaded(data));
-            let _ = self
-                .app_sender
-                .send(AppEvent::Notify(Event::FrameImageReady(window_id, frame_id, id, rect)));
+            let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
+                window: window_id,
+                frame: frame_id,
+                image: id,
+                selection: rect,
+            }));
 
             id
         }
