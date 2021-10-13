@@ -1,7 +1,7 @@
 error: `new` does not support `const` generics
  --> $DIR/new_fns_cannot_const_generics.rs:7:12
   |
-7 |     fn new<const N: usize>(child: impl UiNode, id: impl IntoValue<WidgetId>) -> [bool; N] {
+7 |     fn new<const N: usize>(child: impl UiNode, id: impl Into<WidgetId>) -> [bool; N] {
   |            ^^^^^
 
 error: `new_child` does not support `const` generics
@@ -11,10 +11,10 @@ error: `new_child` does not support `const` generics
    |                  ^^^^^
 
 error[E0425]: cannot find value `N` in this scope
- --> $DIR/new_fns_cannot_const_generics.rs:7:88
+ --> $DIR/new_fns_cannot_const_generics.rs:7:83
   |
-7 |     fn new<const N: usize>(child: impl UiNode, id: impl IntoValue<WidgetId>) -> [bool; N] {
-  |                                                                                        ^ not found in this scope
+7 |     fn new<const N: usize>(child: impl UiNode, id: impl Into<WidgetId>) -> [bool; N] {
+  |                                                                                   ^ not found in this scope
   |
 help: consider importing one of these items
   |

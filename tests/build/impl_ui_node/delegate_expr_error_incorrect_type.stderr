@@ -16,9 +16,9 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `zero_ui::prelude::UiNode::init`
-   --> $DIR/ui_node.rs:134:5
+   --> $DIR/ui_node.rs:132:5
     |
-134 |     fn init(&mut self, ctx: &mut WidgetContext);
+132 |     fn init(&mut self, ctx: &mut WidgetContext);
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
@@ -28,9 +28,9 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `zero_ui::prelude::UiNode::deinit`
-   --> $DIR/ui_node.rs:137:5
+   --> $DIR/ui_node.rs:135:5
     |
-137 |     fn deinit(&mut self, ctx: &mut WidgetContext);
+135 |     fn deinit(&mut self, ctx: &mut WidgetContext);
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
@@ -40,9 +40,9 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `zero_ui::prelude::UiNode::update`
-   --> $DIR/ui_node.rs:191:5
+   --> $DIR/ui_node.rs:189:5
     |
-191 |     fn update(&mut self, ctx: &mut WidgetContext);
+189 |     fn update(&mut self, ctx: &mut WidgetContext);
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
@@ -74,9 +74,9 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `render`
-   --> $DIR/ui_node.rs:216:5
+   --> $DIR/ui_node.rs:214:5
     |
-216 |     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+214 |     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
@@ -86,9 +86,9 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `render_update`
-   --> $DIR/ui_node.rs:222:5
+   --> $DIR/ui_node.rs:220:5
     |
-222 |     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+220 |     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
@@ -98,9 +98,9 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `arrange`
-   --> $DIR/ui_node.rs:210:5
+   --> $DIR/ui_node.rs:208:5
     |
-210 |     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize);
+208 |     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize);
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
@@ -110,7 +110,7 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                                       ^ the trait `UiNode` is not implemented for `NotANode`
     |
 note: required by `measure`
-   --> $DIR/ui_node.rs:202:5
+   --> $DIR/ui_node.rs:200:5
     |
-202 |     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
+200 |     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

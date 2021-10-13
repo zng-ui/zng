@@ -2,9 +2,9 @@ use zero_ui::core::widget;
 
 #[widget($crate::test_widget)]
 pub mod test_widget {
-    use zero_ui::core::{var::IntoValue, NilUiNode, UiNode, WidgetId};
+    use zero_ui::core::{NilUiNode, UiNode, WidgetId};
 
-    async fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
+    async fn new(child: impl UiNode, id: impl Into<WidgetId>) -> impl UiNode {
         child
     }
     async fn new_child() -> NilUiNode {
