@@ -12,6 +12,7 @@ use std::{
     sync::Arc,
 };
 
+use hashers::jenkins::spooky_hash::SpookyHasher;
 use once_cell::unsync::OnceCell;
 use zero_ui_view_api::{webrender_api::ImageKey, IpcSharedMemory};
 
@@ -66,7 +67,12 @@ impl AppExtension for ImageManager {
         if let Some(args) = RawImageMetadataLoadedEvent.update(args) {
             let images = ctx.services.images();
             let vars = ctx.vars;
-            if let Some(var) = images.decoding.iter().find(|v| v.get(vars).view.get().unwrap() == &args.image) {
+            if let Some(var) = images
+                .decoding
+                .iter()
+                .map(|(_, _, v)| v)
+                .find(|v| v.get(vars).view.get().unwrap() == &args.image)
+            {
                 var.touch(ctx.vars);
             }
         } else if let Some(image) = RawImageLoadedEvent
@@ -79,16 +85,25 @@ impl AppExtension for ImageManager {
             let images = ctx.services.images();
             let vars = ctx.vars;
 
-            if let Some(i) = images.decoding.iter().position(|v| v.get(vars).view.get().unwrap() == image) {
-                let var = images.decoding.swap_remove(i);
+            if let Some(i) = images
+                .decoding
+                .iter()
+                .position(|(_, _, v)| v.get(vars).view.get().unwrap() == image)
+            {
+                let (_, _, var) = images.decoding.swap_remove(i);
                 var.touch(ctx.vars);
-                var.get(ctx.vars).done_signal.set();
+                let img = var.get(ctx.vars);
+                img.done_signal.set();
+                if let Some(k) = img.cache_key() {
+                    if let Some(e) = images.cache.get(k) {
+                        e.error.set(img.is_error())
+                    }
+                }
             }
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
             let images = ctx.services.images();
             images.cleanup_not_cached(true);
             images.download_accept.clear();
-            images.decoding.clear();
             let vp = images.view.as_mut().unwrap();
             for v in images
                 .cache
@@ -104,30 +119,22 @@ impl AppExtension for ImageManager {
                         // respawned, but image was an error.
                         v.set(ctx.vars, Image::dummy(Some(e.to_owned())));
                     } else {
+                        let img_format = ImageDataFormat::Bgra8 {
+                            size: view.size(),
+                            ppi: view.ppi(),
+                        };
+                        let data = view.shared_bgra8().expect("TODO: use images.decoding");
                         // respawned and image was loaded.
-                        let img = match vp.add_image(
-                            ImageDataFormat::Bgra8 {
-                                size: view.size(),
-                                ppi: view.ppi(),
-                            },
-                            view.shared_bgra8().unwrap(),
-                            images.max_decoded_size.0 as u64,
-                        ) {
+                        let img = match vp.add_image(img_format.clone(), data.clone(), images.max_decoded_size.0 as u64) {
                             Ok(img) => img,
                             Err(Respawned) => return, // we will receive another event.
                         };
 
                         v.set(ctx.vars, Image::new(img));
 
-                        images.decoding.push(v);
+                        images.decoding.push((img_format, data, v));
                     }
-                } else {
-                    // respawned while loading image.
-                    let _ = img.view.set(ViewImage::dummy(Some("reloading".to_owned())));
-                    img.done_signal.set();
-                    v.touch(ctx.vars);
-                    todo!("review this")
-                }
+                } // else { *is loading, will continue normally in self.update_preview()* }
             }
         }
     }
@@ -149,27 +156,21 @@ impl AppExtension for ImageManager {
                         Ok(data) => {
                             if let Some(vp) = view {
                                 // success and we have a view-process.
-                                match vp.add_image(d.format, data, images.max_decoded_size.0 as u64) {
+                                match vp.add_image(d.format.clone(), data.clone(), images.max_decoded_size.0 as u64) {
                                     Ok(img) => {
-                                        // request send, add to `decoding` will receive
+                                        // request sent, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
                                         var.modify(vars, move |v| {
                                             v.view.set(img).unwrap();
                                             v.touch();
                                         });
-                                        decoding.push(var);
-                                        break;
                                     }
                                     Err(Respawned) => {
-                                        let img = ViewImage::dummy(Some("view-process respawned during image load".to_owned()));
-                                        var.modify(vars, move |v| {
-                                            v.view.set(img).unwrap();
-                                            v.touch();
-                                            v.done_signal.set();
-                                        });
+                                        // will recover in ViewProcessRespawnedEvent
                                     }
                                 }
+                                decoding.push((d.format, data, var));
                             } else {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
@@ -188,6 +189,13 @@ impl AppExtension for ImageManager {
                                 v.touch();
                                 v.done_signal.set();
                             });
+
+                            // flag error for user retry
+                            if let Some(k) = var.get(ctx.vars).cache_key() {
+                                if let Some(e) = images.cache.get(k) {
+                                    e.error.set(true)
+                                }
+                            }
                         }
                     }
                 }
@@ -238,7 +246,7 @@ pub struct Images {
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
     loading: Vec<(UiTask<ImageData>, RcVar<Image>)>,
-    decoding: Vec<RcVar<Image>>,
+    decoding: Vec<(ImageDataFormat, IpcSharedMemory, RcVar<Image>)>,
     cache: IdMap<Hash128, CacheEntry>,
     not_cached: Vec<WeakVar<Image>>,
 }
@@ -1018,10 +1026,10 @@ impl PartialEq for Hash128 {
 impl Eq for Hash128 {}
 
 /// Hasher that computes a [`Hash128`].
-pub struct Hasher128(hashers::jenkins::spooky_hash::SpookyHasher);
+pub struct Hasher128(SpookyHasher);
 impl Default for Hasher128 {
     fn default() -> Self {
-        let hasher = hashers::jenkins::spooky_hash::SpookyHasher::new(u64::from_le_bytes(*b"-Images-"), u64::from_le_bytes(*b"-Hash---"));
+        let hasher = SpookyHasher::new(u64::from_le_bytes(*b"-Images-"), u64::from_le_bytes(*b"-Hash---"));
         Self(hasher)
     }
 }
@@ -1051,7 +1059,7 @@ pub enum ImageSource {
     Read(PathBuf),
     /// A uri to an image resource downloaded using HTTP GET with an optional HTTP ACCEPT string.
     ///
-    /// If the ACCEPT line is not given all image formats supported by the view-process backend are accepted.
+    /// If the ACCEPT line is not given, all image formats supported by the view-process backend are accepted.
     ///
     /// Image equality is defined by the URI and ACCEPT string.
     Download(Uri, Option<Text>),
@@ -1110,9 +1118,9 @@ impl ImageSource {
 impl PartialEq for ImageSource {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Read(l0), Self::Read(r0)) => l0 == r0,
-            (Self::Download(l0, l1), Self::Download(r0, r1)) => l0 == r0 && l1 == r1,
-            (Self::Image(l0), Self::Image(r0)) => l0.ptr_eq(r0),
+            (Self::Read(l), Self::Read(r)) => l == r,
+            (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
+            (Self::Image(l), Self::Image(r)) => l.ptr_eq(r),
             (l, r) => {
                 let l_hash = match l {
                     ImageSource::Static(h, _, _) => h,
