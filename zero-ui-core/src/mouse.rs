@@ -408,24 +408,6 @@ impl Default for MouseManager {
         }
     }
 }
-enum ClickState {
-    /// Before start.
-    None,
-    /// Mouse pressed on a widget, if the next event
-    /// is a release over the same widget a click event is generated.
-    Pressed { btn: MouseButton, press_tgt: WidgetPath },
-    /// At least one click completed, as long as subsequent presses happen
-    /// within the window of time, widget and distance from the initial press
-    /// multi-click events are generated.
-    Clicked {
-        start_time: Instant,
-        btn: MouseButton,
-        pos: DipPoint,
-        start_tgt: WidgetPath,
-
-        count: u8,
-    },
-}
 impl MouseManager {
     fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ButtonState, button: MouseButton, ctx: &mut AppContext) {
         let position = if self.pos_window == Some(window_id) {
@@ -834,10 +816,29 @@ impl AppExtension for MouseManager {
 
             self.multi_click_config.set_ne(ctx.vars, multi_click_cfg);
 
-            let m = ctx.services.mouse();
-            m.current_capture = None;
-            m.capture_request = None;
-            m.release_requested = false;
+            let mouse = ctx.services.mouse();
+
+            if let Some(window_id) = self.pos_window.take() {
+                if let Some(args) = self.hover_enter_args.take() {
+                    let capture = mouse.current_capture.take().map(|(target, mode)| CaptureInfo {
+                        target,
+                        mode,
+                        position: self.pos,
+                    });
+                    let args = MouseHoverArgs::now(
+                        window_id,
+                        args.device_id,
+                        DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                        FrameHitInfo::no_hits(window_id),
+                        args.target,
+                        capture,
+                    );
+                    MouseLeaveEvent.notify(ctx.events, args);
+                }
+            }
+            mouse.capture_request = None;
+            mouse.release_requested = false;
+            mouse.buttons.set_ne(ctx.vars, vec![]);
         }
     }
 
@@ -887,6 +888,25 @@ impl AppExtension for MouseManager {
             }
         }
     }
+}
+
+enum ClickState {
+    /// Before start.
+    None,
+    /// Mouse pressed on a widget, if the next event
+    /// is a release over the same widget a click event is generated.
+    Pressed { btn: MouseButton, press_tgt: WidgetPath },
+    /// At least one click completed, as long as subsequent presses happen
+    /// within the window of time, widget and distance from the initial press
+    /// multi-click events are generated.
+    Clicked {
+        start_time: Instant,
+        btn: MouseButton,
+        pos: DipPoint,
+        start_tgt: WidgetPath,
+
+        count: u8,
+    },
 }
 
 /// Mouse service.
