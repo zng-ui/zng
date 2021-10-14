@@ -21,6 +21,7 @@ fn main() {
                         it automatically respawns in case of a graphics driver crash or other similar fatal error.\n"
                     ),
                     respawn(),
+                    #[cfg(debug_assertions)]
                     crash_respawn(),
                     click_counter(),
                     click_counter(),

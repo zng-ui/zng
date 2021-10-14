@@ -757,34 +757,25 @@ macro_rules! __widgets {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __nodes {
-    ($n0:expr $(,)?) => {
-        $crate::opaque_nodes($crate::UiNodeList1($n0))
-    };
-    ($n0:expr, $n1:expr $(,)?) => {
-        $crate::opaque_nodes($crate::UiNodeList2($n0, $n1))
-    };
-    ($n0:expr, $n1:expr, $n2:expr $(,)?) => {
-        $crate::opaque_nodes($crate::UiNodeList3($n0, $n1, $n2))
-    };
-    ($n0:expr, $n1:expr, $n2:expr, $n3:expr $(,)?) => {
-        $crate::opaque_nodes($crate::UiNodeList4($n0, $n1, $n2, $n3))
-    };
-    ($n0:expr, $n1:expr, $n2:expr, $n3:expr, $n4:expr $(,)?) => {
-        $crate::opaque_nodes($crate::UiNodeList5($n0, $n1, $n2, $n3, $n4))
-    };
-    ($n0:expr, $n1:expr, $n2:expr, $n3:expr, $n4:expr, $n5:expr $(,)?) => {
-        $crate::opaque_nodes($crate::UiNodeList6($n0, $n1, $n2, $n3, $n4, $n5))
-    };
-    ($n0:expr, $n1:expr, $n2:expr, $n3:expr, $n4:expr, $n5:expr, $n6:expr $(,)?) => {
-        $crate::opaque_nodes($crate::UiNodeList7($n0, $n1, $n2, $n3, $n4, $n5, $n6))
-    };
-    ($n0:expr, $n1:expr, $n2:expr, $n3:expr, $n4:expr, $n5:expr, $n6:expr, $n7:expr $(,)?) => {
-        $crate::opaque_nodes($crate::UiNodeList8($n0, $n1, $n2, $n3, $n4, $n5, $n6, $n7))
-    };
-    ($n0:expr, $n1:expr, $n2:expr, $n3:expr, $n4:expr, $n5:expr, $n6:expr, $n7:expr, $($n_rest:expr),+ $(,)?) => {
+    ($w0:expr, $w1:expr, $w2:expr, $w3:expr, $w4:expr, $w5:expr, $w6:expr, $w7:expr, $($w_rest:expr),+ $(,)?) => {
         $crate::opaque_nodes({
-            let n8 = $crate::UiNodeList8($n0, $n1, $n2, $n3, $n4, $n5, $n6, $n7);
-            $crate::UiNodeList::chain_nodes(n8, $crate::__nodes!($($n_rest),+))
+            let w8 = $crate::__nodes!($w0, $w1, $w2, $w3, $w4, $w5, $w6, $w7);
+            $crate::UiNodeList::chain_nodes(w8, $crate::__nodes!($($w_rest),+))
+        })
+    };
+    (
+        $(
+        $(#[$meta:meta])* $node:expr
+        ),*
+        $(,)?
+    ) => {
+        $crate::opaque_nodes({
+            let nodes = $crate::UiNodeList0;
+            $(
+                $(#[$meta])*
+                let nodes = nodes.push($node);
+            )*
+            nodes
         })
     };
 }
@@ -793,34 +784,25 @@ macro_rules! __nodes {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __widgets {
-    ($w0:expr $(,)?) => {
-        $crate::opaque_widgets($crate::WidgetList1($w0))
-    };
-    ($w0:expr, $w1:expr $(,)?) => {
-        $crate::opaque_widgets($crate::WidgetList2($w0, $w1))
-    };
-    ($w0:expr, $w1:expr, $w2:expr $(,)?) => {
-        $crate::opaque_widgets($crate::WidgetList3($w0, $w1, $w2))
-    };
-    ($w0:expr, $w1:expr, $w2:expr, $w3:expr $(,)?) => {
-        $crate::opaque_widgets($crate::WidgetList4($w0, $w1, $w2, $w3))
-    };
-    ($w0:expr, $w1:expr, $w2:expr, $w3:expr, $w4:expr $(,)?) => {
-        $crate::opaque_widgets($crate::WidgetList5($w0, $w1, $w2, $w3, $w4))
-    };
-    ($w0:expr, $w1:expr, $w2:expr, $w3:expr, $w4:expr, $w5:expr $(,)?) => {
-        $crate::opaque_widgets($crate::WidgetList6($w0, $w1, $w2, $w3, $w4, $w5))
-    };
-    ($w0:expr, $w1:expr, $w2:expr, $w3:expr, $w4:expr, $w5:expr, $w6:expr $(,)?) => {
-        $crate::opaque_widgets($crate::WidgetList7($w0, $w1, $w2, $w3, $w4, $w5, $w6))
-    };
-    ($w0:expr, $w1:expr, $w2:expr, $w3:expr, $w4:expr, $w5:expr, $w6:expr, $w7:expr $(,)?) => {
-        $crate::opaque_widgets($crate::WidgetList8($w0, $w1, $w2, $w3, $w4, $w5, $w6, $w7))
-    };
     ($w0:expr, $w1:expr, $w2:expr, $w3:expr, $w4:expr, $w5:expr, $w6:expr, $w7:expr, $($w_rest:expr),+ $(,)?) => {
         $crate::opaque_widgets({
-            let w8 = $crate::WidgetList8($w0, $w1, $w2, $w3, $w4, $w5, $w6, $w7);
+            let w8 = $crate::__widgets!($w0, $w1, $w2, $w3, $w4, $w5, $w6, $w7);
             $crate::WidgetList::chain(w8, $crate::__widgets!($($w_rest),+))
+        })
+    };
+    (
+        $(
+        $(#[$meta:meta])* $wgt:expr
+        ),*
+        $(,)?
+    ) => {
+        $crate::opaque_widgets({
+            let widgets = $crate::WidgetList0;
+            $(
+                $(#[$meta])*
+                let widgets = widgets.push($wgt);
+            )*
+            widgets
         })
     };
 }
@@ -1149,14 +1131,14 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
 }
 
 macro_rules! impl_tuples {
-    ($($L:tt => $($n:tt),+;)+) => {$($crate::paste! {
+    ($($L:tt -> $LP:tt => $($n:tt),+;)+) => {$($crate::paste! {
 
-        impl_tuples! { [<UiNodeList $L>], [<WidgetList $L>] => $L => $($n = [<W $n>]),+ }
+        impl_tuples! { [<UiNodeList $L>] -> [<UiNodeList $LP>], [<WidgetList $L>] -> [<WidgetList $LP>] => $L => $($n = [<W $n>]),+ }
 
     })+};
-    ($NodeList:ident, $WidgetList:ident => $L:tt => $($n:tt = $W:ident),+) => {
-        impl_tuples! { impl_node => $NodeList<UiNode> => $L => $($n = $W),+ }
-        impl_tuples! { impl_node => $WidgetList<Widget> => $L => $($n = $W),+ }
+    ($NodeList:ident -> $NodeListNext:ident, $WidgetList:ident -> $WidgetListNext:ident => $L:tt => $($n:tt = $W:ident),+) => {
+        impl_tuples! { impl_node => $NodeList<UiNode> -> $NodeListNext => $L => $($n = $W),+ }
+        impl_tuples! { impl_node => $WidgetList<Widget> -> $WidgetListNext => $L => $($n = $W),+ }
 
         impl<$($W: Widget),+> WidgetList for $WidgetList<$($W,)+> {
             #[inline]
@@ -1210,9 +1192,19 @@ macro_rules! impl_tuples {
         }
     };
 
-    (impl_node => $NodeList:ident <$Bound:ident> => $L:tt => $($n:tt = $W:ident),+) => {
+    (impl_node => $NodeList:ident <$Bound:ident> -> $NodeListNext:ident => $L:tt => $($n:tt = $W:ident),+) => {
         #[doc(hidden)]
         pub struct $NodeList<$($W: $Bound),+>($(pub $W),+);
+
+        impl<$($W: $Bound),+> $NodeList<$($W,)+> {
+            #[doc(hidden)]
+            pub fn push<I: $Bound>(self, item: I) -> $NodeListNext<$($W),+ , I> {
+                $NodeListNext(
+                    $(self.$n,)+
+                    item
+                )
+            }
+        }
 
         impl<$($W: $Bound),+> UiNodeList for $NodeList<$($W,)+> {
             #[inline]
@@ -1335,20 +1327,33 @@ macro_rules! impl_tuples {
     };
 }
 impl_tuples! {
-    1 => 0;
-    2 => 0, 1;
-    3 => 0, 1, 2;
-    4 => 0, 1, 2, 3;
-    5 => 0, 1, 2, 3, 4;
-    6 => 0, 1, 2, 3, 4, 5;
-    7 => 0, 1, 2, 3, 4, 5, 6;
-    8 => 0, 1, 2, 3, 4, 5, 6, 7;
+    1 -> 2 => 0;
+    2 -> 3 => 0, 1;
+    3 -> 4 => 0, 1, 2;
+    4 -> 5 => 0, 1, 2, 3;
+    5 -> 6 => 0, 1, 2, 3, 4;
+    6 -> 7 => 0, 1, 2, 3, 4, 5;
+    7 -> 8 => 0, 1, 2, 3, 4, 5, 6;
+    8 -> 9 => 0, 1, 2, 3, 4, 5, 6, 7;
 }
 
+// we need this types due to limitation in macro_rules.
+#[doc(hidden)]
+pub struct UiNodeList9<T0, T1, T2, T3, T4, T5, T6, T7, T8>(pub T0, pub T1, pub T2, pub T3, pub T4, pub T5, T6, pub T7, pub T8);
+#[doc(hidden)]
+pub struct WidgetList9<T0, T1, T2, T3, T4, T5, T6, T7, T8>(pub T0, pub T1, pub T2, pub T3, pub T4, pub T5, T6, pub T7, pub T8);
+
 macro_rules! empty_node_list {
-    ($($ident:ident),+) => {$(
+    ($($ident:ident -> $ident_one:ident<$bounds:ident>),+) => {$(
         #[doc(hidden)]
         pub struct $ident;
+
+        impl $ident {
+            #[doc(hidden)]
+            pub fn push<N: $bounds>(self, node: N) -> $ident_one<N> {
+                $ident_one(node)
+            }
+        }
 
         impl UiNodeList for $ident {
             #[inline]
@@ -1424,8 +1429,8 @@ macro_rules! empty_node_list {
     )+}
 }
 empty_node_list! {
-    UiNodeList0,
-    WidgetList0
+    UiNodeList0 -> UiNodeList1<UiNode>,
+    WidgetList0 -> WidgetList1<Widget>
 }
 impl WidgetList for WidgetList0 {
     #[inline]
