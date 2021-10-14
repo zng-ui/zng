@@ -15,8 +15,10 @@ use crate::{
     color::RenderColor,
     image::{Image, ImageCacheMode, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
+    var::Vars,
 };
 use linear_map::LinearMap;
+use zero_ui_view_api::FrameUpdateRequest;
 
 use crate::{
     app::{
@@ -2250,11 +2252,7 @@ impl AppWindow {
     #[must_use = "must send the frame"]
     fn render_frame(&mut self, ctx: &mut AppContext) -> Option<view_process::FrameRequest> {
         let scale_factor = self.monitor_metrics(ctx).1;
-        let mut next_frame_id = self.frame_id.0.wrapping_add(1);
-        if next_frame_id == FrameId::invalid().0 {
-            next_frame_id = self.frame_id.0.wrapping_add(1);
-        }
-        let next_frame_id = crate::render::webrender_api::Epoch(next_frame_id);
+        let next_frame_id = self.frame_id.next();
 
         // `UiNode::render`
         let ((pipeline_id, display_list), clear_color, frame_info) =
@@ -2265,10 +2263,6 @@ impl AppWindow {
         self.frame_id = frame_info.frame_id();
         let w_info = ctx.services.windows().windows_info.get_mut(&self.id).unwrap();
 
-        //let fps = 1.secs().as_nanos() / (frame_info.timestamp() - w_info.frame_info.timestamp()).as_nanos();
-        //println!("fps: {}", fps);
-        //std::thread::sleep(std::time::Duration::from_millis(500));
-
         w_info.frame_info = frame_info;
 
         // already notify, extensions are interested only in the frame metadata.
@@ -2276,14 +2270,7 @@ impl AppWindow {
 
         let (payload, descriptor) = display_list.into_data();
 
-        let capture_image = match self.vars.frame_capture_mode().copy(ctx.vars) {
-            FrameCaptureMode::Sporadic => false,
-            FrameCaptureMode::Next => {
-                self.vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::Sporadic);
-                true
-            }
-            FrameCaptureMode::All => true,
-        };
+        let capture_image = self.take_capture_image(ctx.vars);
 
         // will need to send frame if there is a renderer
         if self.renderer.is_some() {
@@ -2296,6 +2283,17 @@ impl AppWindow {
             })
         } else {
             None
+        }
+    }
+
+    fn take_capture_image(&self, vars: &Vars) -> bool {
+        match self.vars.frame_capture_mode().copy(vars) {
+            FrameCaptureMode::Sporadic => false,
+            FrameCaptureMode::Next => {
+                self.vars.frame_capture_mode().set(vars, FrameCaptureMode::Sporadic);
+                true
+            }
+            FrameCaptureMode::All => true,
         }
     }
 
@@ -2320,7 +2318,7 @@ impl AppWindow {
                     // send window request to the view-process, in the view-process the window will start but
                     // still not visible, when the renderer has a frame ready to draw then the window becomes
                     // visible. All layout values are ready here too.
-                    let config = view_process::WindowConfig {
+                    let config = view_process::WindowRequest {
                         id: self.id.get(),
                         title: self.vars.title().get(ctx.vars).to_string(),
                         pos: self.position,
@@ -2361,7 +2359,7 @@ impl AppWindow {
                     ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
                 }
                 WindowMode::HeadlessWithRenderer => {
-                    let config = view_process::HeadlessConfig {
+                    let config = view_process::HeadlessRequest {
                         id: self.id.get(),
                         size: self.size,
                         scale_factor: self.headless_monitor.as_ref().unwrap().scale_factor,
@@ -2425,16 +2423,27 @@ impl AppWindow {
 
         debug_assert!(!self.first_render);
 
-        let (updates, clear_color) = self.context.render_update(ctx, self.frame_id);
-        if clear_color.is_none() && updates.transforms.is_empty() && updates.floats.is_empty() {
+        let capture_image = self.take_capture_image(ctx.vars);
+
+        let next_frame_id = self.frame_id.next_update();
+
+        let (updates, clear_color) = self.context.render_update(ctx, next_frame_id);
+        if clear_color.is_none() && updates.transforms.is_empty() && updates.floats.is_empty() && !capture_image {
             return;
         }
+
+        self.frame_id = next_frame_id;
 
         // TODO notify, after we implement metadata modification in render_update.
 
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
-            let _: Result<(), Respawned> = renderer.render_update(updates, clear_color);
+            let _: Result<(), Respawned> = renderer.render_update(FrameUpdateRequest {
+                id: next_frame_id,
+                updates,
+                clear_color,
+                capture_image,
+            });
         }
     }
 
@@ -2445,14 +2454,7 @@ impl AppWindow {
     fn render_empty_update(&mut self) {
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
-            let _: Result<(), Respawned> = renderer.render_update(
-                DynamicProperties {
-                    transforms: vec![],
-                    floats: vec![],
-                    colors: vec![],
-                },
-                None,
-            );
+            let _: Result<(), Respawned> = renderer.render_update(FrameUpdateRequest::empty(self.frame_id));
         }
     }
 
@@ -2992,7 +2994,7 @@ impl WindowVars {
     ///
     /// If set to [`Next`] the value will change to [`Sporadic`] after the frame is rendered.
     ///
-    /// Note that setting this to [`Next`] does not cause a frame request. Use [`Updates::render`] for that.
+    /// Note that setting this to [`Next`] does not cause a frame request. Use [`Updates::render_update`] for that.
     ///
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic

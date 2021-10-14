@@ -735,12 +735,12 @@ mod capture {
     use std::sync::Arc;
 
     use webrender::{
-        api::{Epoch, ImageDescriptor, ImageDescriptorFlags, ImageFormat},
+        api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat},
         Renderer,
     };
     use zero_ui_view_api::{
         units::{Px, PxRect, PxSize, PxToWr, WrToPx},
-        Event, ImageDataFormat, ImageId, ImageLoadedData, IpcSharedMemory, WindowId,
+        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, IpcSharedMemory, WindowId,
     };
 
     use crate::{
@@ -758,10 +758,10 @@ mod capture {
             rect: PxRect,
             capture_mode: bool,
             window_id: WindowId,
-            frame_id: Epoch,
+            frame_id: FrameId,
             scale_factor: f32,
         ) -> ImageId {
-            if frame_id == Epoch::invalid() {
+            if frame_id == FrameId::INVALID {
                 let id = self.generate_image_id();
                 let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                     image: id,

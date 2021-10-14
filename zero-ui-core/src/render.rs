@@ -20,8 +20,7 @@ pub use zero_ui_view_api::webrender_api;
 
 use webrender_api::*;
 
-/// Id of a rendered or rendering window frame. Not unique across windows.
-pub type FrameId = webrender_api::Epoch;
+pub use zero_ui_view_api::FrameId;
 
 /// A text font.
 ///
@@ -1240,12 +1239,7 @@ impl FrameHitInfo {
     /// No hits info
     #[inline]
     pub fn no_hits(window_id: WindowId) -> Self {
-        FrameHitInfo::new(
-            window_id,
-            FrameId::invalid(),
-            PxPoint::new(Px(-1), Px(-1)),
-            &HitTestResult::default(),
-        )
+        FrameHitInfo::new(window_id, FrameId::INVALID, PxPoint::new(Px(-1), Px(-1)), &HitTestResult::default())
     }
 
     /// The window that was hit-tested.
@@ -1419,7 +1413,7 @@ impl FrameInfoBuilder {
         #[cfg(debug_assertions)]
         for (widget_id, repeats) in repeats {
             log::error!(target: "render", "widget id `{:?}` appears more then once in {:?}:FrameId({}){}",
-            widget_id, self.window_id, self.frame_id.0, {
+            widget_id, self.window_id, self.frame_id.get(), {
                 let mut places = String::new();
                 use std::fmt::Write;
                 for node in repeats {
@@ -1452,7 +1446,7 @@ impl FrameInfo {
     /// Blank window frame that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        FrameInfoBuilder::new(window_id, Epoch(0), root_id, PxSize::zero()).build()
+        FrameInfoBuilder::new(window_id, FrameId::INVALID, root_id, PxSize::zero()).build()
     }
 
     /// Moment the frame info was finalized.
@@ -1543,7 +1537,7 @@ impl fmt::Debug for WidgetPath {
             f.debug_struct("WidgetPath")
                 .field("window_id", &self.window_id)
                 .field("path", &self.path)
-                .field("frame_id", &format_args!("FrameId({})", self.frame_id.0))
+                .field("frame_id", &format_args!("FrameId({})", self.frame_id.get()))
                 .field("node_id", &self.node_id)
                 .finish()
         } else {
@@ -1568,7 +1562,7 @@ impl WidgetPath {
         WidgetPath {
             node_id: None,
             window_id,
-            frame_id: FrameId::invalid(),
+            frame_id: FrameId::INVALID,
             path: path.into(),
         }
     }
@@ -1685,7 +1679,7 @@ impl<'a> std::hash::Hash for WidgetInfo<'a> {
 impl<'a> std::fmt::Debug for WidgetInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WidgetInfo")
-            .field("[frame_id]", &self.frame.frame_id.0)
+            .field("[frame_id]", &self.frame.frame_id.get())
             .field("[path]", &self.path().to_string())
             .field("[meta]", self.meta())
             .finish()

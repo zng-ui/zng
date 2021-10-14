@@ -853,9 +853,9 @@ impl<S: AppEventSender> Api for App<S> {
             .collect()
     }
 
-    fn open_window(&mut self, config: WindowConfig) -> (webrender_api::IdNamespace, webrender_api::PipelineId) {
+    fn open_window(&mut self, config: WindowRequest) -> (webrender_api::IdNamespace, webrender_api::PipelineId) {
         if self.headless {
-            self.open_headless(HeadlessConfig {
+            self.open_headless(HeadlessRequest {
                 id: config.id,
                 scale_factor: 1.0,
                 size: config.size,
@@ -881,7 +881,7 @@ impl<S: AppEventSender> Api for App<S> {
         }
     }
 
-    fn open_headless(&mut self, config: HeadlessConfig) -> (webrender_api::IdNamespace, webrender_api::PipelineId) {
+    fn open_headless(&mut self, config: HeadlessRequest) -> (webrender_api::IdNamespace, webrender_api::PipelineId) {
         self.assert_started();
         let surf = Surface::open(
             self.gen,
@@ -1126,8 +1126,8 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect), || 0)
     }
 
-    fn hit_test(&mut self, id: WindowId, point: PxPoint) -> (Epoch, HitTestResult) {
-        with_window_or_surface!(self, id, |w| w.hit_test(point), || (Epoch(0), HitTestResult::default()))
+    fn hit_test(&mut self, id: WindowId, point: PxPoint) -> (FrameId, HitTestResult) {
+        with_window_or_surface!(self, id, |w| w.hit_test(point), || (FrameId::INVALID, HitTestResult::default()))
     }
 
     fn set_text_aa(&mut self, id: WindowId, aa: TextAntiAliasing) {
@@ -1138,8 +1138,8 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.render(frame), || ())
     }
 
-    fn render_update(&mut self, id: WindowId, updates: DynamicProperties, clear_color: Option<ColorF>) {
-        with_window_or_surface!(self, id, |w| w.render_update(updates, clear_color), || ())
+    fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest) {
+        with_window_or_surface!(self, id, |w| w.render_update(frame), || ())
     }
 
     #[cfg(debug_assertions)]

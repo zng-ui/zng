@@ -1889,7 +1889,6 @@ pub mod view_process {
     use once_cell::unsync::OnceCell;
 
     use super::DeviceId;
-    use crate::color::RenderColor;
     use crate::mouse::MultiClickConfig;
     use crate::render::FrameId;
     use crate::service::Service;
@@ -1898,13 +1897,13 @@ pub mod view_process {
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
     use zero_ui_view_api::webrender_api::{
-        DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult,
-        IdNamespace, ImageKey, PipelineId,
+        FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey,
+        PipelineId,
     };
     pub use zero_ui_view_api::{
-        bytes_channel, ByteBuf, CursorIcon, Event, EventCause, FrameRequest, HeadlessConfig, ImageDataFormat, ImagePpi, IpcBytesReceiver,
-        IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig, WindowState,
-        WindowTheme,
+        bytes_channel, ByteBuf, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat,
+        ImagePpi, IpcBytesReceiver, IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen,
+        WindowRequest, WindowState, WindowTheme,
     };
     use zero_ui_view_api::{
         Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
@@ -1981,7 +1980,7 @@ pub mod view_process {
         }
 
         /// Open a window and associate it with the `window_id`.
-        pub fn open_window(&self, config: WindowConfig) -> Result<ViewWindow> {
+        pub fn open_window(&self, config: WindowRequest) -> Result<ViewWindow> {
             let mut app = self.0.borrow_mut();
             let _ = app.check_generation();
 
@@ -2001,7 +2000,7 @@ pub mod view_process {
         ///
         /// Note that no actual window is created, only the renderer, the use of window-ids to identify
         /// this renderer is only for convenience.
-        pub fn open_headless(&self, config: HeadlessConfig) -> Result<ViewHeadless> {
+        pub fn open_headless(&self, config: HeadlessRequest) -> Result<ViewHeadless> {
             let mut app = self.0.borrow_mut();
 
             let id = config.id;
@@ -2998,8 +2997,8 @@ pub mod view_process {
         }
 
         /// Update the current frame and re-render it.
-        pub fn render_update(&self, updates: DynamicProperties, clear_color: Option<RenderColor>) -> Result<()> {
-            self.call(|id, p| p.render_update(id, updates, clear_color))
+        pub fn render_update(&self, frame: FrameUpdateRequest) -> Result<()> {
+            self.call(|id, p| p.render_update(id, frame))
         }
     }
 

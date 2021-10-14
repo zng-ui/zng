@@ -49,7 +49,7 @@ pub use app_process::*;
 mod view_process;
 pub use view_process::*;
 
-use webrender_api::{ColorF, DynamicProperties, Epoch, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
+use webrender_api::{FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
 
 /// Packaged API request.
 #[derive(Serialize, Deserialize, Debug)]
@@ -206,7 +206,7 @@ declare_api! {
     /// Open a window.
     ///
     /// Returns the renderer ids.
-    pub fn open_window(&mut self, config: WindowConfig) -> (IdNamespace, PipelineId);
+    pub fn open_window(&mut self, config: WindowRequest) -> (IdNamespace, PipelineId);
 
     /// Open a headless surface.
     ///
@@ -214,7 +214,7 @@ declare_api! {
     /// rendered frames.
     ///
     /// Returns the renderer ids.
-    pub fn open_headless(&mut self, config: HeadlessConfig) -> (IdNamespace, PipelineId);
+    pub fn open_headless(&mut self, config: HeadlessRequest) -> (IdNamespace, PipelineId);
 
     /// Close the window or headless surface.
     pub fn close_window(&mut self, id: WindowId);
@@ -422,7 +422,7 @@ declare_api! {
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
     /// Returns the frame ID and all hits from front-to-back.
-    pub fn hit_test(&mut self, id: WindowId, point: PxPoint) -> (Epoch, HitTestResult);
+    pub fn hit_test(&mut self, id: WindowId, point: PxPoint) -> (FrameId, HitTestResult);
 
     /// Set the text anti-aliasing used in the window renderer.
     pub fn set_text_aa(&mut self, id: WindowId, aa: TextAntiAliasing);
@@ -434,7 +434,7 @@ declare_api! {
     pub fn render(&mut self, id: WindowId, frame: FrameRequest);
 
     /// Update the current frame and re-render it.
-    pub fn render_update(&mut self, id: WindowId, updates: DynamicProperties, clear_color: Option<ColorF>);
+    pub fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest);
 
     /// Used for testing respawn.
     #[cfg(debug_assertions)]

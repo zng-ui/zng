@@ -106,11 +106,11 @@ fn test_trace(node: impl UiNode) {
 
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::invalid(), window_id, wgt.id(), root_transform_key, l_size.to_px(), 1.0);
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, l_size.to_px(), 1.0);
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
-    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::invalid());
+    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID);
     wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
 
@@ -197,7 +197,7 @@ pub fn default_no_child() {
     // we expect default to not render anything.
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::invalid(), window_id, wgt.id(), root_transform_key, desired_size, 1.0);
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, desired_size, 1.0);
     wgt.test_render(&mut ctx, &mut frame);
     let (_, _, frame_info) = frame.finalize();
     let wgt_info = frame_info.find(wgt.id()).unwrap();
@@ -205,7 +205,7 @@ pub fn default_no_child() {
     assert!(wgt_info.meta().is_empty());
 
     // and not update render..
-    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::invalid());
+    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID);
     wgt.test_render_update(&mut ctx, &mut update);
     let (update, render_color) = update.finalize();
     assert!(update.transforms.is_empty());

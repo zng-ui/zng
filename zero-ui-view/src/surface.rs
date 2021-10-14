@@ -4,12 +4,15 @@ use gleam::gl;
 use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, Api as GApi, ContextBuilder, GlRequest};
 use webrender::{
     api::{
-        BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, Epoch, FontInstanceKey, FontInstanceOptions,
-        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier,
+        BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey,
+        FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
-use zero_ui_view_api::{units::*, FrameRequest, HeadlessConfig, ImageId, ImageLoadedData, TextAntiAliasing, ViewProcessGen, WindowId};
+use zero_ui_view_api::{
+    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, TextAntiAliasing, ViewProcessGen,
+    WindowId,
+};
 
 use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -33,8 +36,8 @@ pub(crate) struct Surface {
     rbos: [u32; 2],
     fbo: u32,
 
-    pending_frames: VecDeque<(Epoch, bool)>,
-    rendered_frame_id: Epoch,
+    pending_frames: VecDeque<(FrameId, bool)>,
+    rendered_frame_id: FrameId,
     resized: bool,
 }
 impl fmt::Debug for Surface {
@@ -51,7 +54,7 @@ impl fmt::Debug for Surface {
 impl Surface {
     pub fn open(
         gen: ViewProcessGen,
-        cfg: HeadlessConfig,
+        cfg: HeadlessRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
         event_sender: impl AppEventSender,
@@ -151,7 +154,7 @@ impl Surface {
             fbo,
 
             pending_frames: VecDeque::new(),
-            rendered_frame_id: Epoch::invalid(),
+            rendered_frame_id: FrameId::INVALID,
             resized: true,
         }
     }
@@ -172,7 +175,7 @@ impl Surface {
         self.scale_factor
     }
 
-    pub fn frame_id(&self) -> Epoch {
+    pub fn frame_id(&self) -> FrameId {
         self.rendered_frame_id
     }
 
@@ -265,7 +268,7 @@ impl Surface {
         );
         let viewport_size = self.size.to_px(self.scale_factor).to_wr();
         txn.set_display_list(
-            frame.id,
+            frame.id.epoch(),
             Some(frame.clear_color),
             viewport_size,
             (frame.pipeline_id, display_list),
@@ -275,26 +278,26 @@ impl Surface {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(frame.id.0 as u64);
+        txn.generate_frame(frame.id.get());
         self.api.send_transaction(self.document_id, txn);
     }
 
-    pub fn render_update(&mut self, updates: DynamicProperties, clear_color: Option<ColorF>) {
-        if let Some(color) = clear_color {
+    pub fn render_update(&mut self, frame: FrameUpdateRequest) {
+        if let Some(color) = frame.clear_color {
             self.renderer.as_mut().unwrap().set_clear_color(color);
         }
 
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
-        txn.update_dynamic_properties(updates);
+        txn.update_dynamic_properties(frame.updates);
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(self.frame_id().0 as u64);
+        txn.generate_frame(self.frame_id().get());
         self.api.send_transaction(self.document_id, txn);
     }
 
-    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> (Epoch, Option<ImageLoadedData>) {
+    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> (FrameId, Option<ImageLoadedData>) {
         let (frame_id, capture) = self.pending_frames.pop_front().unwrap();
         self.rendered_frame_id = frame_id;
 
@@ -342,7 +345,7 @@ impl Surface {
         )
     }
 
-    pub fn hit_test(&mut self, point: PxPoint) -> (Epoch, HitTestResult) {
+    pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
         (
             self.rendered_frame_id,
             self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),

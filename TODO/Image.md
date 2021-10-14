@@ -21,7 +21,6 @@ Image loading and rendering.
    - Also test if `ImageMetadataLoaded` event is happening before the full image is received.
 * API for choosing the format in the request for image download.
 * Error View.
-* Capture in frame update (review frame-id).
 
 ## Questions
 

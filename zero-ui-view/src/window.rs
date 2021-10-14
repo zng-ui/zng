@@ -19,15 +19,15 @@ use glutin::{
 };
 use webrender::{
     api::{
-        BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, Epoch, FontInstanceKey, FontInstanceOptions,
-        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier,
+        BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey,
+        FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
     units::{PxToDip, *},
-    Event, FrameRequest, ImageId, ImageLoadedData, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowConfig,
-    WindowId, WindowState,
+    Event, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode,
+    ViewProcessGen, WindowId, WindowRequest, WindowState,
 };
 
 use crate::{
@@ -53,8 +53,8 @@ pub(crate) struct Window {
     redirect_frame: Arc<AtomicBool>,
     redirect_frame_recv: flume::Receiver<()>,
 
-    pending_frames: VecDeque<(Epoch, bool)>,
-    rendered_frame_id: Epoch,
+    pending_frames: VecDeque<(FrameId, bool)>,
+    rendered_frame_id: FrameId,
 
     resized: bool,
 
@@ -86,7 +86,7 @@ impl Window {
     pub fn open(
         gen: ViewProcessGen,
         icon: Option<Icon>,
-        cfg: WindowConfig,
+        cfg: WindowRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
         event_sender: impl AppEventSender,
@@ -226,7 +226,7 @@ impl Window {
             movable: cfg.movable,
             transparent: cfg.transparent,
             pending_frames: VecDeque::new(),
-            rendered_frame_id: Epoch::invalid(),
+            rendered_frame_id: FrameId::INVALID,
             state: WindowState::Normal,
         };
         win.state_change(); // update
@@ -254,7 +254,7 @@ impl Window {
     }
 
     /// Latest rendered frame.
-    pub fn frame_id(&self) -> Epoch {
+    pub fn frame_id(&self) -> FrameId {
         self.rendered_frame_id
     }
 
@@ -573,7 +573,7 @@ impl Window {
             frame.display_list.1,
         );
         txn.set_display_list(
-            frame.id,
+            frame.id.epoch(),
             Some(frame.clear_color),
             viewport_size,
             (frame.pipeline_id, display_list),
@@ -583,29 +583,29 @@ impl Window {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(frame.id.0 as u64); // TODO review frame_id != Epoch?
+        txn.generate_frame(frame.id.get());
         self.api.send_transaction(self.document_id, txn);
     }
 
     /// Start rendering a new frame based on the data of the last frame.
-    pub fn render_update(&mut self, updates: DynamicProperties, clear_color: Option<ColorF>) {
-        if let Some(color) = clear_color {
+    pub fn render_update(&mut self, frame: FrameUpdateRequest) {
+        if let Some(color) = frame.clear_color {
             self.renderer.as_mut().unwrap().set_clear_color(color);
         }
 
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
-        txn.update_dynamic_properties(updates);
+        txn.update_dynamic_properties(frame.updates);
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(self.frame_id().0 as u64);
+        txn.generate_frame(self.frame_id().get());
         self.api.send_transaction(self.document_id, txn);
     }
 
     /// Returns if it is the first frame.
     #[must_use = "if `true` must notify the initial Resized event"]
-    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> (bool, Epoch, Option<ImageLoadedData>) {
+    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> (bool, FrameId, Option<ImageLoadedData>) {
         let (frame_id, capture) = self.pending_frames.pop_front().unwrap();
         self.rendered_frame_id = frame_id;
 
@@ -650,7 +650,7 @@ impl Window {
         &mut self,
         deadline: Instant,
         images: &mut ImageCache<S>,
-    ) -> Option<(Epoch, Option<ImageLoadedData>)> {
+    ) -> Option<(FrameId, Option<ImageLoadedData>)> {
         self.redirect_frame.store(true, Ordering::Relaxed);
         let stop_redirect = util::RunOnDrop::new(|| self.redirect_frame.store(false, Ordering::Relaxed));
 
@@ -722,7 +722,7 @@ impl Window {
     /// Does a hit-test on the current frame.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, point: PxPoint) -> (Epoch, HitTestResult) {
+    pub fn hit_test(&self, point: PxPoint) -> (FrameId, HitTestResult) {
         (
             self.rendered_frame_id,
             self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),

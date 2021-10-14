@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 pub use serde_bytes::ByteBuf;
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
-use webrender_api::{BuiltDisplayListDescriptor, ColorF, Epoch, HitTestResult, PipelineId};
+use webrender_api::DynamicProperties;
+use webrender_api::Epoch;
+use webrender_api::{BuiltDisplayListDescriptor, ColorF, HitTestResult, PipelineId};
 
 /// Window ID in channel.
 ///
@@ -48,6 +50,58 @@ pub type AxisId = u32;
 
 /// Identifier for a specific button on some device.
 pub type ButtonId = u32;
+
+/// Identifier of a frame or frame update.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FrameId(Epoch, u32);
+impl FrameId {
+    /// Dummy frame ID.
+    pub const INVALID: FrameId = FrameId(Epoch(u32::MAX), u32::MAX);
+
+    /// Create first frame id of a window.
+    #[inline]
+    pub fn first() -> FrameId {
+        FrameId(Epoch(0), 0)
+    }
+
+    /// Create the next full frame ID after the current one.
+    #[inline]
+    pub fn next(self) -> FrameId {
+        let mut id = self.0 .0.wrapping_add(1);
+        if id == u32::MAX {
+            id = 0;
+        }
+        FrameId(Epoch(id), 0)
+    }
+
+    /// Create the next update frame ID after the current one.
+    #[inline]
+    pub fn next_update(self) -> FrameId {
+        let mut id = self.1.wrapping_add(1);
+        if id == u32::MAX {
+            id = 0;
+        }
+        FrameId(self.0, id)
+    }
+
+    /// Get the raw ID.
+    #[inline]
+    pub fn get(self) -> u64 {
+        (self.0 .0 as u64) << 32 | (self.1 as u64)
+    }
+
+    /// Get the full frame ID.
+    #[inline]
+    pub fn epoch(self) -> Epoch {
+        self.0
+    }
+
+    /// Get the frame update ID.
+    #[inline]
+    pub fn update(self) -> u32 {
+        self.1
+    }
+}
 
 /// Pixels-per-inch of each dimension of an image.
 ///
@@ -542,8 +596,8 @@ pub enum Event {
     FrameRendered {
         /// Window that was rendered.
         window: WindowId,
-        /// ID of the new frame.
-        frame: Epoch,
+        /// Frame that was rendered.
+        frame: FrameId,
         /// Frame image, if one was requested with the frame request.
         frame_image: Option<ImageLoadedData>,
     },
@@ -648,7 +702,7 @@ pub enum Event {
         /// Hit-test result at the new position of the cursor.
         hit_test: HitTestResult,
         /// Frame that was hit-tested.
-        frame: Epoch,
+        frame: FrameId,
     },
 
     /// The cursor has entered the window.
@@ -777,7 +831,7 @@ pub enum Event {
         /// Window that had pixels copied.
         window: WindowId,
         /// The frame that was rendered when the pixels where copied.
-        frame: Epoch,
+        frame: FrameId,
         /// The frame image.
         image: ImageId,
         /// The pixel selection relative to the top-left.
@@ -950,8 +1004,8 @@ pub(crate) type VpResult<T> = std::result::Result<T, Respawned>;
 /// Data for rendering a new frame.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FrameRequest {
-    /// Frame Tag.
-    pub id: Epoch,
+    /// ID of the new frame.
+    pub id: FrameId,
     /// Pipeline Tag.
     pub pipeline_id: PipelineId,
 
@@ -971,13 +1025,55 @@ impl fmt::Debug for FrameRequest {
         f.debug_struct("FrameRequest")
             .field("id", &self.id)
             .field("pipeline_id", &self.pipeline_id)
+            .field("capture_image", &self.pipeline_id)
             .finish_non_exhaustive()
+    }
+}
+
+/// Data for rendering a new frame that is derived from the current frame.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct FrameUpdateRequest {
+    /// ID of the new frame.
+    pub id: FrameId,
+
+    /// Binding updates.
+    pub updates: DynamicProperties,
+    /// New clear color.
+    pub clear_color: Option<ColorF>,
+    /// Automatically create an image from this rendered frame.
+    ///
+    /// The [`Event::FrameImageReady`] is send with the image.
+    pub capture_image: bool,
+}
+impl FrameUpdateRequest {
+    /// A request that does nothing, apart from re-rendering the frame.
+    pub fn empty(id: FrameId) -> FrameUpdateRequest {
+        FrameUpdateRequest {
+            id,
+            updates: DynamicProperties {
+                transforms: vec![],
+                floats: vec![],
+                colors: vec![],
+            },
+            clear_color: None,
+            capture_image: false,
+        }
+    }
+}
+impl fmt::Debug for FrameUpdateRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FrameUpdateRequest")
+            .field("id", &self.id)
+            .field("updates", &self.updates)
+            .field("clear_color", &self.clear_color)
+            .field("capture_image", &self.capture_image)
+            .finish()
     }
 }
 
 /// Configuration of a new window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WindowConfig {
+pub struct WindowRequest {
     /// ID that will identify the new window.
     pub id: WindowId,
     /// Title text.
@@ -1025,13 +1121,13 @@ pub struct WindowConfig {
     pub capture_mode: bool,
 }
 
-/// Configuration of a headless surface.
+/// Configuration of a new headless surface.
 ///
 /// Headless surfaces are always [`capture_mode`] enabled.
 ///
 /// [`capture_mode`]: WindowConfig::capture_mode
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HeadlessConfig {
+pub struct HeadlessRequest {
     /// ID that will identify the new headless surface.
     ///
     /// The surface is identified by a [`WindowId`] so that some API methods
@@ -1046,39 +1142,6 @@ pub struct HeadlessConfig {
 
     /// Text anti-aliasing.
     pub text_aa: TextAntiAliasing,
-}
-
-/// BGRA8 pixel data copied from a cached decoded image.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ImagePixels {
-    /// Selection of the image that is copied here.
-    pub area: PxRect,
-    /// BGRA8 data, top-to-bottom and pre-multiplied.
-    pub bgra: ByteBuf,
-    /// "Dots-per-inch" metadata of the image.
-    pub ppi: ImagePpi,
-    /// If all alpha values in `bgra` are `255`.
-    pub opaque: bool,
-}
-impl Default for ImagePixels {
-    fn default() -> Self {
-        Self {
-            area: PxRect::zero(),
-            bgra: ByteBuf::default(),
-            ppi: None,
-            opaque: true,
-        }
-    }
-}
-impl fmt::Debug for ImagePixels {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ImagePixels")
-            .field("area", &self.area)
-            .field("bgra", &format_args!("<{} bytes>", self.bgra.len()))
-            .field("ppi", &self.ppi)
-            .field("opaque", &self.opaque)
-            .finish()
-    }
 }
 
 /// Information about a monitor screen.
