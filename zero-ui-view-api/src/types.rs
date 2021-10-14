@@ -1125,7 +1125,7 @@ pub struct WindowRequest {
 ///
 /// Headless surfaces are always [`capture_mode`] enabled.
 ///
-/// [`capture_mode`]: WindowConfig::capture_mode
+/// [`capture_mode`]: WindowRequest::capture_mode
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeadlessRequest {
     /// ID that will identify the new headless surface.

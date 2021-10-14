@@ -2998,7 +2998,7 @@ impl WindowVars {
     ///
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
-    /// [`Updates::render`]: crate::context::Updates::render
+    /// [`Updates::render_update`]: crate::context::Updates::render_update
     #[inline]
     pub fn frame_capture_mode(&self) -> &RcVar<FrameCaptureMode> {
         &self.0.frame_capture_mode
