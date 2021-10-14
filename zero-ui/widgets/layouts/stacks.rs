@@ -138,6 +138,8 @@ pub mod h_stack {
             self.children.arrange_all(ctx, |i, _| {
                 let r = &mut rectangles[i];
 
+                let spacing = if r.size.width > Px(0) { spacing } else { Px(0) };
+
                 r.size.width += extra_width;
                 r.origin.x = x_offset;
 
@@ -295,6 +297,7 @@ pub mod v_stack {
             self.children.arrange_all(ctx, |i, _| {
                 let r = &mut rectangles[i];
 
+                let spacing = if r.size.height > Px(0) { spacing } else { Px(0) };
                 r.size.height += extra_height;
                 r.origin.y = y_offset;
 
