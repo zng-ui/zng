@@ -75,7 +75,7 @@ pub use ui_list::*;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::{property_new, widget_declare, widget_inherit, widget_new};
+pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_inherit, widget_new};
 
 /// Expands an `impl` block into an [`UiNode`] trait implementation.
 ///

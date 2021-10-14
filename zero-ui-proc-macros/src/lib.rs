@@ -14,6 +14,7 @@ mod util;
 mod derive_service;
 pub(crate) mod expr_var;
 mod hex_color;
+mod static_list;
 mod when_var;
 
 mod impl_ui_node;
@@ -134,4 +135,10 @@ pub fn task_any_all(input: TokenStream) -> TokenStream {
 pub fn trace(input: TokenStream) -> TokenStream {
     eprintln!("{}", input.to_string());
     input
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn static_list(input: TokenStream) -> TokenStream {
+    static_list::expand(input)
 }

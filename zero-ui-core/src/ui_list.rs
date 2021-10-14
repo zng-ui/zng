@@ -763,20 +763,8 @@ macro_rules! __nodes {
             $crate::UiNodeList::chain_nodes(w8, $crate::__nodes!($($w_rest),+))
         })
     };
-    (
-        $(
-        $(#[$meta:meta])* $node:expr
-        ),*
-        $(,)?
-    ) => {
-        $crate::opaque_nodes({
-            let nodes = $crate::UiNodeList0;
-            $(
-                $(#[$meta])*
-                let nodes = nodes.push($node);
-            )*
-            nodes
-        })
+    ($($tt:tt)*) => {
+        $crate::opaque_nodes($crate::static_list!($crate::UiNodeList0; $($tt)*))
     };
 }
 
@@ -790,20 +778,8 @@ macro_rules! __widgets {
             $crate::WidgetList::chain(w8, $crate::__widgets!($($w_rest),+))
         })
     };
-    (
-        $(
-        $(#[$meta:meta])* $wgt:expr
-        ),*
-        $(,)?
-    ) => {
-        $crate::opaque_widgets({
-            let widgets = $crate::WidgetList0;
-            $(
-                $(#[$meta])*
-                let widgets = widgets.push($wgt);
-            )*
-            widgets
-        })
+    ($($tt:tt)*) => {
+        $crate::opaque_widgets($crate::static_list!($crate::WidgetList0; $($tt)*))
     };
 }
 
