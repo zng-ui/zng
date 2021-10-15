@@ -36,7 +36,7 @@ use crate::{
     },
     text::Text,
     units::*,
-    var::{var, RcVar, ReadOnlyRcVar, Var, WeakVar},
+    var::{var, RcVar, ReadOnlyRcVar, Var, Vars, WeakVar},
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
@@ -94,13 +94,13 @@ impl AppExtension for ImageManager {
                 var.touch(ctx.vars);
                 let img = var.get(ctx.vars);
                 img.done_signal.set();
-                if let Some(k) = img.cache_key() {
+                if let Some(k) = &img.cache_key {
                     if let Some(e) = images.cache.get(k) {
                         e.error.set(img.is_error())
                     }
                 }
             }
-        } else if ViewProcessRespawnedEvent.update(args).is_some() {
+        } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
             let images = ctx.services.images();
             images.cleanup_not_cached(true);
             images.download_accept.clear();
@@ -115,6 +115,9 @@ impl AppExtension for ImageManager {
                 let img = v.get(ctx.vars);
 
                 if let Some(view) = img.view.get() {
+                    if view.generation() == args.generation {
+                        continue; // already recovered, can this happen?
+                    }
                     if let Some(e) = view.error() {
                         // respawned, but image was an error.
                         v.set(ctx.vars, Image::dummy(Some(e.to_owned())));
@@ -191,7 +194,7 @@ impl AppExtension for ImageManager {
                             });
 
                             // flag error for user retry
-                            if let Some(k) = var.get(ctx.vars).cache_key() {
+                            if let Some(k) = &var.get(ctx.vars).cache_key {
                                 if let Some(e) = images.cache.get(k) {
                                     e.error.set(true)
                                 }
@@ -371,6 +374,46 @@ impl Images {
     /// Returns `true` if the image was cached.
     pub fn purge(&mut self, key: &Hash128) -> bool {
         self.proxy_then_remove(key, true)
+    }
+
+    /// Gets the cache key of an image.
+    pub fn cache_key(&self, image: &Image) -> Option<Hash128> {
+        if let Some(key) = &image.cache_key {
+            if self.cache.contains_key(key) {
+                return Some(*key);
+            }
+        }
+        None
+    }
+
+    /// If the image is cached.
+    pub fn is_cached(&self, image: &Image) -> bool {
+        image.cache_key.as_ref().map(|k| self.cache.contains_key(k)).unwrap_or(false)
+    }
+
+    /// Returns an image that is not cached.
+    ///
+    /// If the `image` is the only reference returns it and removes it from the cache. If there are other
+    /// references a new [`ImageVar`] is generated from a clone of the image.
+    pub fn detach(&mut self, image: ImageVar, vars: &Vars) -> ImageVar {
+        if let Some(key) = &image.get(vars).cache_key {
+            if self.cache.contains_key(key) {
+                // is cached, `clean` if is only external reference.
+                if image.strong_count() == 2 {
+                    self.cache.remove(key);
+                }
+            }
+
+            // remove `cache_key` from image, this clones the `Image` only-if is still in cache.
+            let mut img = image.into_value(vars);
+            img.cache_key = None;
+            let img = var(img);
+            self.not_cached.push(img.downgrade());
+            img.into_read_only()
+        } else {
+            // already not cached
+            image
+        }
     }
 
     fn proxy_then_remove(&mut self, key: &Hash128, purge: bool) -> bool {
@@ -910,18 +953,6 @@ impl Image {
         let view = self.view.get().unwrap();
         let data = view.encode(format).await.map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
         task::wait(move || std::fs::write(path, &data[..])).await
-    }
-
-    /// Reference the unique identifies of this image in [`Images`].
-    pub fn cache_key(&self) -> Option<&Hash128> {
-        self.cache_key.as_ref() // TODO review can this be exposed here, what if the image is purged?
-    }
-
-    /// If this image has a [`cache_key`].
-    ///
-    /// If `true` the image is held in memory by [`Images`] until TODO.
-    pub fn is_cached(&self) -> bool {
-        self.cache_key.is_some()
     }
 }
 impl crate::render::Image for Image {

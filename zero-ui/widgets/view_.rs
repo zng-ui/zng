@@ -1,3 +1,7 @@
+use std::{any::type_name, cell::RefCell, fmt, rc::Rc};
+
+use zero_ui_core::{BoxedUiNode, NilUiNode};
+
 use crate::prelude::new_widget::*;
 
 /// [`view`] update.
@@ -6,6 +10,16 @@ pub enum View<U: UiNode> {
     Update(U),
     /// Keep the same view child.
     Same,
+}
+impl<U: UiNode> View<U> {
+    /// Convert to `View<BoxedUiNode>`.
+    #[inline]
+    pub fn boxed(self) -> View<BoxedUiNode> {
+        match self {
+            View::Update(ui) => View::Update(ui.boxed()),
+            View::Same => View::Same,
+        }
+    }
 }
 
 /// Dynamically presents a data variable.
@@ -146,3 +160,128 @@ where
         _d: std::marker::PhantomData,
     }
 }
+
+type BoxedGenerator<D> = Box<dyn FnMut(&mut WidgetContext, &D) -> BoxedUiNode>;
+
+/// Boxed shared closure that generates a view for a given data.
+///
+/// # Examples
+///
+/// Define the content that is shown when an image fails to load:
+///
+/// ```
+/// # use zero_ui::{widgets::{ViewGenerator, image, text}, core::color::colors};
+/// # let _ =
+/// image! {
+///     source = "not_found.png";
+///     error_view = ViewGenerator::new(|_ctx, error| text! {
+///         text = error;
+///         color = colors::RED;
+///     });
+/// }
+/// # ;
+/// ```
+///
+/// You can also use the [`view_generator!`] macro, it has the advantage of being clone move.
+pub struct ViewGenerator<D>(Option<Rc<RefCell<BoxedGenerator<D>>>>);
+impl<D> Clone for ViewGenerator<D> {
+    fn clone(&self) -> Self {
+        ViewGenerator(self.0.clone())
+    }
+}
+impl<D> fmt::Debug for ViewGenerator<D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ViewGenerator<{}>", type_name::<D>())
+    }
+}
+impl<D> ViewGenerator<D> {
+    /// New from a closure that generates a [`View`] update from data.
+    pub fn new<U: UiNode>(mut presenter: impl FnMut(&mut WidgetContext, &D) -> U + 'static) -> Self {
+        ViewGenerator(Some(Rc::new(RefCell::new(Box::new(move |ctx, data| presenter(ctx, data).boxed())))))
+    }
+
+    /// Generator that always produces the [`NilUiNode`].
+    ///
+    /// No heap allocation happens in this function. See [`nil_static`] for creating context variables.
+    pub fn nil() -> Self {
+        // TODO make this const when rust#57563 is resolved.
+        ViewGenerator(None)
+    }
+
+    /// [`nil`] as a static reference.
+    ///
+    /// Note that this function is `const` allowing it to be used as the default value of a [`context_var!`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zero_ui::{core::context_var, widgets::ViewGenerator};
+    /// # pub struct Foo;
+    /// context_var! {
+    ///     /// View generator for `Foo` items.
+    ///     pub struct FooViewVar: ViewGenerator<Foo> = return ViewGenerator::nil_static();
+    /// }
+    pub fn nil_static() -> &'static Self {
+        static NIL: Option<std::num::NonZeroUsize> = None;
+
+        #[cfg(debug_assertions)]
+        fn _assert_size() {
+            let _: ViewGenerator<()> = unsafe { std::mem::transmute(None::<std::num::NonZeroUsize>) };
+        }
+
+        unsafe { std::mem::transmute(&NIL) }
+    }
+
+    /// If this is  the [`nil`] generator.
+    ///
+    /// [`nil`]: ViewGenerator::nil
+    pub fn is_nil(&self) -> bool {
+        self.0.is_none()
+    }
+
+    /// Executes the generator for the given `data`.
+    pub fn present(&self, ctx: &mut WidgetContext, data: &D) -> BoxedUiNode {
+        if let Some(p) = &self.0 {
+            let mut presenter = p.borrow_mut();
+            presenter(ctx, data)
+        } else {
+            NilUiNode.boxed()
+        }
+    }
+}
+
+/// <span data-inline></span> Declares a view generator closure.
+///
+/// The output type is a [`ViewGenerator`], the closure is [`clone_move!`].
+///
+/// # Examples
+///
+/// Define the content that is shown when an image fails to load, capturing another variable too.
+///
+/// ```
+/// # use zero_ui::{widgets::{view_generator, image, text}, core::{color::{Rgba, colors}, var::var, widget_base::Visibility}};
+/// let img_error_vis = var(Visibility::Visible);
+/// # let _ =
+/// image! {
+///     source = "not_found.png";
+///     error_view = view_generator!(img_error_vis, |_ctx, error| text! {
+///         text = error;
+///         color = colors::RED;
+///         visibility = img_error_vis;
+///     });
+/// }
+/// # ;
+/// ```
+///
+/// [`ViewGenerator`]: crate::widgets::ViewGenerator
+/// [`clone_move!`]: crate::core::clone_move
+#[macro_export]
+macro_rules! view_generator {
+    ($($tt:tt)+) => {
+        $crate::widgets::ViewGenerator::new($crate::core::clone_move! {
+            $($tt)+
+        })
+    }
+}
+#[doc(inline)]
+pub use crate::view_generator;

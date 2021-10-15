@@ -138,6 +138,8 @@ pub mod image {
         }
 
         /// Arguments for [`on_error`].
+        ///
+        /// [`on_error`]: fn@on_error
         #[derive(Clone, Debug)]
         pub struct ImageErrorArgs {
             /// Error message.
@@ -224,10 +226,23 @@ pub mod image {
             /// No context image is set.
             None,
         }
+        impl Default for ContextImage {
+            fn default() -> Self {
+                ContextImage::None
+            }
+        }
         impl ContextImage {
             /// Like `Option::as_ref`.
             pub fn as_ref(&self) -> Option<&ImageVar> {
                 match self {
+                    ContextImage::Some(var) => Some(var),
+                    ContextImage::None => None,
+                }
+            }
+
+            /// Like `Option::take`.
+            pub fn take(&mut self) -> Option<ImageVar> {
+                match std::mem::take(self) {
                     ContextImage::Some(var) => Some(var),
                     ContextImage::None => None,
                 }
@@ -249,6 +264,9 @@ pub mod image {
         /// The image is not rendered by this property, the [`image_presenter`] renders the image in [`ContextImageVar`].
         ///
         /// In an widget this should be placed inside context properties and before event properties.
+        ///
+        /// [`Images`]: crate::core::image::Images
+        /// [`image_cache`]: fn@crate::widgets::image::properties::image_cache
         pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
             struct ImageSourceNode<C, S> {
                 child: C,
@@ -315,24 +333,21 @@ pub mod image {
                         force_new = true;
                     } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
                         // cache-mode update:
-                        if enabled {
-                            if !self.image.as_ref().unwrap().get(ctx.vars).is_cached() {
+                        let images = ctx.services.images();
+                        let is_cached = images.is_cached(self.image.as_ref().unwrap().get(ctx.vars));
+                        if enabled != is_cached {
+                            force_new = true;
+
+                            if is_cached {
+                                // must not cache but is cached, detach from cache.
+
+                                self.image = ContextImage::Some(images.detach(self.image.take().unwrap(), ctx.vars));
+                            } else {
                                 // must cache, but image is not cached, get source again.
 
                                 let source = self.source.get_clone(ctx);
                                 self.image = ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache));
-
-                                force_new = true;
                             }
-                        } else if let Some(key) = self.image.as_ref().unwrap().get(ctx.vars).cache_key().cloned() {
-                            // cannot cache, but image is cached, detach from cache.
-
-                            let source = self.source.get_clone(ctx);
-                            let images = ctx.services.images();
-                            self.image = ContextImage::Some(images.get(source, ImageCacheMode::Ignore));
-                            images.clean(key);
-
-                            force_new = true;
                         }
                     }
 
