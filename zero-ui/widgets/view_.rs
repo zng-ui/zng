@@ -222,13 +222,13 @@ impl<D> ViewGenerator<D> {
     ///     pub struct FooViewVar: ViewGenerator<Foo> = return ViewGenerator::nil_static();
     /// }
     pub fn nil_static() -> &'static Self {
-        static NIL: Option<std::num::NonZeroUsize> = None;
-
         #[cfg(debug_assertions)]
         fn _assert_size() {
             let _: ViewGenerator<()> = unsafe { std::mem::transmute(None::<std::num::NonZeroUsize>) };
         }
-
+        
+        // SAFETY: TODO check if None is zero in both cases.
+        static NIL: Option<std::num::NonZeroUsize> = None;
         unsafe { std::mem::transmute(&NIL) }
     }
 
