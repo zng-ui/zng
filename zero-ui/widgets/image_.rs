@@ -44,6 +44,12 @@ pub mod image {
         /// [`source`]: #wp-source
         /// [`Images`]: zero_ui::core::image::Images
         properties::image_cache as cache;
+
+        /// If the image failed to load.
+        properties::is_error;
+
+        /// Event called when the image fails to load.
+        properties::on_error;
     }
 
     fn new_child() -> impl UiNode {
@@ -63,6 +69,7 @@ pub mod image {
         use super::*;
 
         pub use crate::core::render::ImageRendering;
+        use nodes::ContextImageVar;
 
         context_var! {
             /// The Image scaling algorithm in the renderer.
@@ -94,6 +101,101 @@ pub mod image {
         #[property(context, default(true))]
         pub fn image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             with_context_var(child, ImageCacheVar, enabled)
+        }
+
+        /// If the [`ContextImageVar`] is an error.
+        #[property(outer)]
+        pub fn is_error(child: impl UiNode, state: StateVar) -> impl UiNode {
+            struct IsErrorNode<C> {
+                child: C,
+                state: StateVar,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for IsErrorNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        let is_error = var.get(ctx.vars).is_error();
+                        self.state.set_ne(ctx.vars, is_error);
+                    } else {
+                        self.state.set_ne(ctx.vars, false);
+                    }
+                    self.child.init(ctx);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
+                        let is_error = new_var.as_ref().map(|v| v.get(ctx.vars).is_error()).unwrap_or(false);
+                        self.state.set_ne(ctx.vars, is_error);
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        if let Some(img) = var.get_new(ctx.vars) {
+                            self.state.set_ne(ctx.vars, img.is_error());
+                        }
+                    }
+                    self.child.update(ctx);
+                }
+            }
+            IsErrorNode { child, state }
+        }
+
+        /// Arguments for [`on_error`].
+        #[derive(Clone, Debug)]
+        pub struct ImageErrorArgs {
+            /// Error message.
+            pub error: Text,
+        }
+
+        /// Calls a `handler` when the variable updates with a different error.
+        #[property(event)]
+        pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>) -> impl UiNode {
+            struct OnErrorNode<C, H> {
+                child: C,
+                handler: H,
+                error: Text,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode, H: WidgetHandler<ImageErrorArgs>> UiNode for OnErrorNode<C, H> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        if let Some(error) = var.get(ctx.vars).error() {
+                            self.error = error.to_owned().into();
+                            self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
+                        }
+                    }
+                    self.child.init(ctx);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
+                        if let Some(error) = new_var.as_ref().and_then(|v| v.get(ctx.vars).error()) {
+                            if self.error != error {
+                                self.error = error.to_owned().into();
+                                self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
+                            }
+                        } else {
+                            self.error = "".into();
+                        }
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        if let Some(img) = var.get_new(ctx.vars) {
+                            if let Some(error) = img.error() {
+                                if self.error != error {
+                                    self.error = error.to_owned().into();
+                                    self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
+                                }
+                            } else {
+                                self.error = "".into();
+                            }
+                        }
+                    }
+
+                    self.handler.update(ctx);
+                    self.child.update(ctx);
+                }
+            }
+            OnErrorNode {
+                child,
+                handler,
+                error: "".into(),
+            }
         }
     }
 
