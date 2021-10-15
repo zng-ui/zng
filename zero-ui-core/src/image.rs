@@ -358,38 +358,37 @@ impl Images {
     /// You can use [`ImageSource::hash128_read`] and [`ImageSource::hash128_download`] to get the `key`
     /// for files or downloads.
     ///
-    /// Returns `Some(img)` if the image was removed.
-    pub fn clean(&mut self, key: &Hash128) -> Option<ImageVar> {
-        self.proxy_then_remove(key, false)
+    /// Returns `true` if the image was removed.
+    pub fn clean(&mut self, key: Hash128) -> bool {
+        self.proxy_then_remove(&key, false)
     }
 
     /// Remove the image from the cache, even if it is still referenced outside of the cache.
     ///
-    ///
     /// You can use [`ImageSource::hash128_read`] and [`ImageSource::hash128_download`] to get the `key`
     /// for files or downloads.
     ///
-    /// Returns `Some(img)` if the image was cached.
-    pub fn purge(&mut self, key: &Hash128) -> Option<ImageVar> {
+    /// Returns `true` if the image was cached.
+    pub fn purge(&mut self, key: &Hash128) -> bool {
         self.proxy_then_remove(key, true)
     }
 
-    fn proxy_then_remove(&mut self, key: &Hash128, purge: bool) -> Option<ImageVar> {
+    fn proxy_then_remove(&mut self, key: &Hash128, purge: bool) -> bool {
         for proxy in &mut self.proxies {
             let r = proxy.remove(key, purge);
             match r {
                 ProxyRemoveResult::None => continue,
                 ProxyRemoveResult::Remove(r, p) => return self.proxied_remove(&r, p),
-                ProxyRemoveResult::Removed(img) => return img,
+                ProxyRemoveResult::Removed => return true,
             }
         }
         self.proxied_remove(key, purge)
     }
-    fn proxied_remove(&mut self, key: &Hash128, purge: bool) -> Option<ImageVar> {
-        if purge {
-            self.cache.remove(key).map(|v| v.img.into_read_only())
+    fn proxied_remove(&mut self, key: &Hash128, purge: bool) -> bool {
+        if purge || self.cache.get(key).map(|v| v.img.strong_count() > 1).unwrap_or(false) {
+            self.cache.remove(key).is_some()
         } else {
-            todo!()
+            false
         }
     }
 
@@ -685,7 +684,7 @@ pub enum ProxyRemoveResult {
     /// The `bool` indicates if the entry should be purged.
     Remove(Hash128, bool),
     /// Consider the request fulfilled.
-    Removed(Option<ImageVar>),
+    Removed,
 }
 
 /// Represents an [`Image`] tracked by the [`Images`] cache.
@@ -915,7 +914,14 @@ impl Image {
 
     /// Reference the unique identifies of this image in [`Images`].
     pub fn cache_key(&self) -> Option<&Hash128> {
-        self.cache_key.as_ref()
+        self.cache_key.as_ref() // TODO review can this be exposed here, what if the image is purged?
+    }
+
+    /// If this image has a [`cache_key`].
+    ///
+    /// If `true` the image is held in memory by [`Images`] until TODO.
+    pub fn is_cached(&self) -> bool {
+        self.cache_key.is_some()
     }
 }
 impl crate::render::Image for Image {

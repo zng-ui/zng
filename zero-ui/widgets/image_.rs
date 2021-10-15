@@ -13,12 +13,10 @@ pub mod image {
     use properties::{ImageCacheVar, ImageRenderingVar};
 
     properties! {
-        child {
-            /// The image source.
-            ///
-            /// Can be a file path, an URI, binary included in the app and more.
-            source(impl IntoVar<ImageSource>);
-        }
+        /// The image source.
+        ///
+        /// Can be a file path, an URI, binary included in the app and more.
+        source(impl IntoVar<ImageSource>);
 
         /// Sets the image scaling algorithm used to rescale the image in the renderer.
         ///
@@ -48,70 +46,12 @@ pub mod image {
         properties::image_cache as cache;
     }
 
-    fn new_child(source: impl IntoVar<ImageSource>) -> impl UiNode {
-        struct ImageNode<T> {
-            source: T,
-            image: Option<ImageVar>,
-            measured_image_size: PxSize,
-            final_size: PxSize,
-        }
-        #[impl_ui_node(none)]
-        impl<T: Var<ImageSource>> UiNode for ImageNode<T> {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                let cache_mode = if *ImageCacheVar::get(ctx) {
-                    ImageCacheMode::Cache
-                } else {
-                    ImageCacheMode::Ignore
-                };
-                let img = ctx.services.images().get(self.source.get_clone(ctx.vars), cache_mode);
-                self.image = Some(img);
-            }
-            fn deinit(&mut self, _: &mut WidgetContext) {
-                self.image = None;
-            }
+    fn new_child() -> impl UiNode {
+        nodes::image_presenter()
+    }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                if self.source.is_new(ctx) {
-                    self.init(ctx);
-                } else if let Some(img) = self.image.as_ref().unwrap().get_new(ctx.vars) {
-                    if let Some(e) = img.error() {
-                        log::error!("{}", e);
-                        if self.final_size != PxSize::zero() {
-                            ctx.updates.layout();
-                        }
-                    } else if self.measured_image_size != img.size() {
-                        ctx.updates.layout();
-                    } else {
-                        ctx.updates.render();
-                    }
-                }
-            }
-
-            fn measure(&mut self, ctx: &mut LayoutContext, _: AvailableSize) -> PxSize {
-                let img = self.image.as_ref().unwrap().get(ctx.vars);
-                self.measured_image_size = img.size();
-                img.layout_size(ctx)
-            }
-
-            fn arrange(&mut self, _: &mut LayoutContext, final_size: PxSize) {
-                self.final_size = final_size;
-            }
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let img = self.image.as_ref().unwrap().get(ctx.vars);
-                if img.is_loaded() {
-                    frame.push_image(PxRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
-                } else if let Some(e) = img.error() {
-                    todo!("{}", e);
-                    //frame.push_text();
-                }
-            }
-        }
-        ImageNode {
-            source: source.into_var(),
-            image: None,
-            measured_image_size: PxSize::zero(),
-            final_size: PxSize::zero(),
-        }
+    fn new_event(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
+        nodes::image_source(child, source)
     }
 
     /// Properties that configure [`image!`] widgets from parent widgets.
@@ -154,6 +94,246 @@ pub mod image {
         #[property(context, default(true))]
         pub fn image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             with_context_var(child, ImageCacheVar, enabled)
+        }
+    }
+
+    /// UI nodes used for building the image widget.
+    pub mod nodes {
+        use super::*;
+        use std::fmt;
+
+        context_var! {
+            /// Image acquired by [`image_source`], or `Unset` by default.
+            pub struct ContextImageVar: ContextImage = return &ContextImage::None;
+        }
+
+        /// Image set in a parent widget.
+        ///
+        /// This type exists due to generics problems when using an `Option<impl Var<T>>` as the value of another variable.
+        /// Call [`as_ref`] to use it like `Option`.
+        ///
+        /// See [`ContextImageVar`] for details.
+        ///
+        /// [`as_ref`]: ContextImage::as_ref
+        #[derive(Clone)]
+        pub enum ContextImage {
+            /// The context image variable.
+            Some(ImageVar),
+            /// No context image is set.
+            None,
+        }
+        impl ContextImage {
+            /// Like `Option::as_ref`.
+            pub fn as_ref(&self) -> Option<&ImageVar> {
+                match self {
+                    ContextImage::Some(var) => Some(var),
+                    ContextImage::None => None,
+                }
+            }
+        }
+        impl fmt::Debug for ContextImage {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    Self::Some(_) => write!(f, "Some(_)"),
+                    Self::None => write!(f, "None"),
+                }
+            }
+        }
+
+        /// Requests an image from [`Images`] and sets [`ContextImageVar`].
+        ///
+        /// Caches the image if [`image_cache`] is `true` in the context.
+        ///
+        /// The image is not rendered by this property, the [`image_presenter`] renders the image in [`ContextImageVar`].
+        ///
+        /// In an widget this should be placed inside context properties and before event properties.
+        pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
+            struct ImageSourceNode<C, S> {
+                child: C,
+                source: S,
+                image: ContextImage,
+            }
+            impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let mode = if *ImageCacheVar::get(ctx) {
+                        ImageCacheMode::Cache
+                    } else {
+                        ImageCacheMode::Ignore
+                    };
+                    self.image = ContextImage::Some(ctx.services.images().get(self.source.get_clone(ctx.vars), mode));
+                    let child = &mut self.child;
+                    ctx.vars.with_context_var(
+                        ContextImageVar,
+                        &self.image,
+                        self.source.is_new(ctx.vars),
+                        self.source.version(ctx.vars),
+                        || {
+                            child.init(ctx);
+                        },
+                    );
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    let child = &mut self.child;
+                    ctx.vars.with_context_var(
+                        ContextImageVar,
+                        &self.image,
+                        self.source.is_new(ctx.vars),
+                        self.source.version(ctx.vars),
+                        || {
+                            child.deinit(ctx);
+                        },
+                    );
+                    self.image = ContextImage::None;
+                }
+
+                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                    let child = &mut self.child;
+                    ctx.vars.with_context_var(
+                        ContextImageVar,
+                        &self.image,
+                        self.source.is_new(ctx.vars),
+                        self.source.version(ctx.vars),
+                        || {
+                            child.event(ctx, args);
+                        },
+                    );
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    let mut force_new = false;
+                    if let Some(s) = self.source.clone_new(ctx) {
+                        // source update:
+                        let mode = if *ImageCacheVar::get(ctx) {
+                            ImageCacheMode::Cache
+                        } else {
+                            ImageCacheMode::Ignore
+                        };
+                        self.image = ContextImage::Some(ctx.services.images().get(s, mode));
+                        force_new = true;
+                    } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
+                        // cache-mode update:
+                        if enabled {
+                            if !self.image.as_ref().unwrap().get(ctx.vars).is_cached() {
+                                // must cache, but image is not cached, get source again.
+
+                                let source = self.source.get_clone(ctx);
+                                self.image = ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache));
+
+                                force_new = true;
+                            }
+                        } else if let Some(key) = self.image.as_ref().unwrap().get(ctx.vars).cache_key().cloned() {
+                            // cannot cache, but image is cached, detach from cache.
+
+                            let source = self.source.get_clone(ctx);
+                            let images = ctx.services.images();
+                            self.image = ContextImage::Some(images.get(source, ImageCacheMode::Ignore));
+                            images.clean(key);
+
+                            force_new = true;
+                        }
+                    }
+
+                    let child = &mut self.child;
+                    ctx.vars.with_context_var(
+                        ContextImageVar,
+                        &self.image,
+                        force_new || self.source.is_new(ctx.vars),
+                        self.source.version(ctx.vars),
+                        || {
+                            child.update(ctx);
+                        },
+                    );
+                }
+
+                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                    let child = &mut self.child;
+                    ctx.vars
+                        .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
+                            child.measure(ctx, available_size)
+                        })
+                }
+
+                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                    let child = &mut self.child;
+                    ctx.vars
+                        .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
+                            child.arrange(ctx, final_size);
+                        });
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    ctx.vars
+                        .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
+                            self.child.render(ctx, frame);
+                        });
+                }
+
+                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                    ctx.vars
+                        .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
+                            self.child.render_update(ctx, update);
+                        });
+                }
+            }
+            ImageSourceNode {
+                child,
+                source: source.into_var(),
+                image: ContextImage::None,
+            }
+        }
+
+        /// Renders the [`ContextImageVar`] if set.
+        ///
+        /// This is the inner-most node of an image widget. It is configured by the [`ImageRenderingVar`].
+        pub fn image_presenter() -> impl UiNode {
+            struct ImagePresenterNode {
+                measured_image_size: PxSize,
+                final_size: PxSize,
+            }
+            #[impl_ui_node(none)]
+            impl UiNode for ImagePresenterNode {
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if ContextImageVar::is_new(ctx) {
+                        ctx.updates.layout();
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        if let Some(img) = var.get_new(ctx.vars) {
+                            if self.measured_image_size == img.size() {
+                                ctx.updates.render();
+                            } else {
+                                ctx.updates.layout();
+                            }
+                        }
+                    }
+                }
+
+                fn measure(&mut self, ctx: &mut LayoutContext, _: AvailableSize) -> PxSize {
+                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        let img = var.get(ctx.vars);
+                        self.measured_image_size = img.size();
+                        img.layout_size(ctx)
+                    } else {
+                        PxSize::zero()
+                    }
+                }
+
+                fn arrange(&mut self, _: &mut LayoutContext, final_size: PxSize) {
+                    self.final_size = final_size;
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        let img = var.get(ctx.vars);
+                        if img.is_loaded() {
+                            frame.push_image(PxRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
+                        }
+                    }
+                }
+            }
+            ImagePresenterNode {
+                measured_image_size: PxSize::zero(),
+                final_size: PxSize::zero(),
+            }
         }
     }
 }
