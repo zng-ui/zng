@@ -183,18 +183,18 @@ type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, &D) -> BoxedUiNode>;
 /// ```
 ///
 /// You can also use the [`view_generator!`] macro, it has the advantage of being clone move.
-pub struct ViewGenerator<D>(Option<Rc<BoxedGenerator<D>>>);
-impl<D> Clone for ViewGenerator<D> {
+pub struct ViewGenerator<D: ?Sized>(Option<Rc<BoxedGenerator<D>>>);
+impl<D: ?Sized> Clone for ViewGenerator<D> {
     fn clone(&self) -> Self {
         ViewGenerator(self.0.clone())
     }
 }
-impl<D> fmt::Debug for ViewGenerator<D> {
+impl<D: ?Sized> fmt::Debug for ViewGenerator<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ViewGenerator<{}>", type_name::<D>())
     }
 }
-impl<D> ViewGenerator<D> {
+impl<D: ?Sized> ViewGenerator<D> {
     /// New from a closure that generates a [`View`] update from data.
     pub fn new<U: UiNode>(generator: impl Fn(&mut WidgetContext, &D) -> U + 'static) -> Self {
         ViewGenerator(Some(Rc::new(Box::new(move |ctx, data| generator(ctx, data).boxed()))))
