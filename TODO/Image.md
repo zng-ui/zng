@@ -19,9 +19,15 @@ Image loading and rendering.
 * Support creating resized image from existing image.
 * Partial image API implemented, need to implement use in Images and try implement partial decoding using the `images` crate.
    - Also test if `ImageMetadataLoaded` event is happening before the full image is received.
-* API for choosing the format in the request for image download.
-* Error View.
+
+## images
 * Cache cleanup after memory limit.
+* Download/file blocking.
+
+## image! { }
+* Stretch.
+* Alignment.
+* Error/loading view that contains image can cause stack-overflow (remove recursion).
 
 ## Questions
 

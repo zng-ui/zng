@@ -13,7 +13,7 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Image Example";
-            
+
             // Set a loading view generator used in all images in this window.
             image_loading_view = view_generator!(|ctx, _| {
                 let mut dots_count = 3;
@@ -33,7 +33,7 @@ fn app_main() {
 
             // Set a error view generator used in all images in this window.
             image_error_view = view_generator!(|_, args: &ImageErrorArgs| {
-                log::error!("Image error: {}", args.error);
+                log::error!("{}", args.error);
                 text!{
                     text = args.error.clone();
                     color = colors::RED;
@@ -42,8 +42,10 @@ fn app_main() {
             content = v_stack!{
                 spacing = 20;
                 items = widgets![
+                    demo_image("File", image("examples/res/image/RGB8.png")),
                     demo_image("Web", image("https://httpbin.org/image")),
-                    demo_image("Error", image("404.png")),
+                    demo_image("Web (accept)", image((Uri::from_static("https://httpbin.org/image"), "image/png"))),
+                    demo_image("Error File", image("404.png")),
                     demo_image("Error Web", image("https://httpbin.org/delay/5"))
                 ];
             };
@@ -52,5 +54,13 @@ fn app_main() {
 }
 
 fn demo_image(title: impl IntoVar<Text> + 'static, image: impl Widget) -> impl Widget {
-    v_stack(widgets![strong(title), image])
+    v_stack(widgets![
+        strong(title),
+        container! {
+            content = image;
+            content_align = unset!;
+            padding = 2;
+            background_color = colors::BLACK;
+        }
+    ])
 }

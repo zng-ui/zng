@@ -909,7 +909,7 @@ pub mod prelude {
         render::WidgetPath,
         service::Services,
         take_if, take_on, take_on_init,
-        task::{self, rayon::prelude::*},
+        task::{self, http::Uri, rayon::prelude::*},
         text::{
             font_features::{
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
