@@ -10,7 +10,7 @@ pub mod image {
     use zero_ui::core::image::{ImageCacheMode, ImageSource, ImageVar};
 
     use super::*;
-    use properties::{ImageCacheVar, ImageRenderingVar};
+    use properties::{ImageCacheVar, ImageErrorViewVar, ImageRenderingVar};
 
     properties! {
         /// The image source.
@@ -44,6 +44,9 @@ pub mod image {
         /// [`source`]: #wp-source
         /// [`Images`]: zero_ui::core::image::Images
         properties::image_cache as cache;
+
+        /// View generator that creates the error content when the image failed to load.
+        properties::image_error_view as error_view;
 
         /// If the image failed to load.
         properties::is_error;
@@ -81,6 +84,9 @@ pub mod image {
             ///
             /// Is `true` by default.
             pub struct ImageCacheVar: bool = const true;
+
+            /// View generator for the content shown when the image does not load.
+            pub struct ImageErrorViewVar: ViewGenerator<Text> = return ViewGenerator::nil_static();
         }
 
         /// Sets the [`ImageRendering`] of all inner images.
@@ -135,6 +141,14 @@ pub mod image {
                 }
             }
             IsErrorNode { child, state }
+        }
+
+        /// Sets the [view generator] that is used to create a content for the error message.
+        ///
+        /// [view generator]: crate::widgets::view_generator
+        #[property(context)]
+        pub fn image_error_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<Text>>) -> impl UiNode {
+            with_context_var(child, ImageErrorViewVar, generator)
         }
 
         /// Arguments for [`on_error`].
@@ -407,14 +421,66 @@ pub mod image {
             struct ImagePresenterNode {
                 measured_image_size: PxSize,
                 final_size: PxSize,
+                error_view: Option<BoxedUiNode>,
             }
             #[impl_ui_node(none)]
             impl UiNode for ImagePresenterNode {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let error: Option<Text> = if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        let img = var.get(ctx.vars);
+                        img.error().map(|error| error.to_owned().into())
+                    } else {
+                        Some("`image_source` is not set".into())
+                    };
+
+                    if let Some(error) = error {
+                        let gen = ImageErrorViewVar::get(ctx.vars);
+                        if !gen.is_nil() {
+                            let mut view = gen.generate(ctx, &error);
+                            view.init(ctx);
+                            self.error_view = Some(view);
+                        }
+                    }
+                }
+
                 fn update(&mut self, ctx: &mut WidgetContext) {
-                    if ContextImageVar::is_new(ctx) {
+                    if let Some(var_opt) = ContextImageVar::get_new(ctx.vars) {
                         ctx.updates.layout();
+
+                        let mut error = None::<Text>;
+                        if let Some(var) = var_opt.as_ref() {
+                            if let Some(e) = var.get(ctx.vars).error() {
+                                error = Some(e.to_owned().into());
+                            }
+                        } else {
+                            error = Some("`image_source` is not set".into());
+                        }
+
+                        if let Some(mut view) = self.error_view.take() {
+                            view.deinit(ctx);
+                        }
+                        if let Some(error) = error {
+                            let gen = ImageErrorViewVar::get(ctx.vars);
+                            if !gen.is_nil() {
+                                let mut view = gen.generate(ctx, &error);
+                                view.init(ctx);
+                                self.error_view = Some(view);
+                            }
+                        }
                     } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         if let Some(img) = var.get_new(ctx.vars) {
+                            if let Some(error) = img.error() {
+                                let gen = ImageErrorViewVar::get(ctx.vars);
+                                if !gen.is_nil() {
+                                    let mut view = gen.generate(ctx, &error.to_owned().into());
+                                    view.init(ctx);
+                                    self.error_view = Some(view);
+                                }
+                            } else if let Some(mut view) = self.error_view.take() {
+                                view.deinit(ctx);
+                                ctx.updates.layout();
+                            }
+
                             if self.measured_image_size == img.size() {
                                 ctx.updates.render();
                             } else {
@@ -422,10 +488,22 @@ pub mod image {
                             }
                         }
                     }
+
+                    if let Some(error) = &mut self.error_view {
+                        error.update(ctx);
+                    }
                 }
 
-                fn measure(&mut self, ctx: &mut LayoutContext, _: AvailableSize) -> PxSize {
-                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(mut error) = self.error_view.take() {
+                        error.deinit(ctx);
+                    }
+                }
+
+                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                    if let Some(error) = &mut self.error_view {
+                        error.measure(ctx, available_size)
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
                         self.measured_image_size = img.size();
                         img.layout_size(ctx)
@@ -434,22 +512,35 @@ pub mod image {
                     }
                 }
 
-                fn arrange(&mut self, _: &mut LayoutContext, final_size: PxSize) {
-                    self.final_size = final_size;
+                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                    if let Some(error) = &mut self.error_view {
+                        error.arrange(ctx, final_size);
+                    } else {
+                        self.final_size = final_size;
+                    }
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                    if let Some(error) = &self.error_view {
+                        error.render(ctx, frame);
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
                         if img.is_loaded() {
                             frame.push_image(PxRect::from(self.final_size), img, *ImageRenderingVar::get(ctx.vars));
                         }
                     }
                 }
+
+                fn render_update(&self, ctx: &mut RenderContext, updates: &mut FrameUpdate) {
+                    if let Some(error) = &self.error_view {
+                        error.render_update(ctx, updates);
+                    }
+                }
             }
             ImagePresenterNode {
                 measured_image_size: PxSize::zero(),
                 final_size: PxSize::zero(),
+                error_view: None,
             }
         }
     }

@@ -1,4 +1,4 @@
-use std::{any::type_name, cell::RefCell, fmt, rc::Rc};
+use std::{any::type_name, fmt, rc::Rc};
 
 use zero_ui_core::{BoxedUiNode, NilUiNode};
 
@@ -161,7 +161,7 @@ where
     }
 }
 
-type BoxedGenerator<D> = Box<dyn FnMut(&mut WidgetContext, &D) -> BoxedUiNode>;
+type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, &D) -> BoxedUiNode>;
 
 /// Boxed shared closure that generates a view for a given data.
 ///
@@ -170,12 +170,12 @@ type BoxedGenerator<D> = Box<dyn FnMut(&mut WidgetContext, &D) -> BoxedUiNode>;
 /// Define the content that is shown when an image fails to load:
 ///
 /// ```
-/// # use zero_ui::{widgets::{ViewGenerator, image, text}, core::color::colors};
+/// # use zero_ui::{widgets::{ViewGenerator, image, text::text}, core::{color::colors, text::Text}};
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
-///     error_view = ViewGenerator::new(|_ctx, error| text! {
-///         text = error;
+///     error_view = ViewGenerator::new(|_ctx, e: &Text| text! {
+///         text = e.to_owned();
 ///         color = colors::RED;
 ///     });
 /// }
@@ -183,7 +183,7 @@ type BoxedGenerator<D> = Box<dyn FnMut(&mut WidgetContext, &D) -> BoxedUiNode>;
 /// ```
 ///
 /// You can also use the [`view_generator!`] macro, it has the advantage of being clone move.
-pub struct ViewGenerator<D>(Option<Rc<RefCell<BoxedGenerator<D>>>>);
+pub struct ViewGenerator<D>(Option<Rc<BoxedGenerator<D>>>);
 impl<D> Clone for ViewGenerator<D> {
     fn clone(&self) -> Self {
         ViewGenerator(self.0.clone())
@@ -196,8 +196,8 @@ impl<D> fmt::Debug for ViewGenerator<D> {
 }
 impl<D> ViewGenerator<D> {
     /// New from a closure that generates a [`View`] update from data.
-    pub fn new<U: UiNode>(mut presenter: impl FnMut(&mut WidgetContext, &D) -> U + 'static) -> Self {
-        ViewGenerator(Some(Rc::new(RefCell::new(Box::new(move |ctx, data| presenter(ctx, data).boxed())))))
+    pub fn new<U: UiNode>(generator: impl Fn(&mut WidgetContext, &D) -> U + 'static) -> Self {
+        ViewGenerator(Some(Rc::new(Box::new(move |ctx, data| generator(ctx, data).boxed()))))
     }
 
     /// Generator that always produces the [`NilUiNode`].
@@ -222,12 +222,7 @@ impl<D> ViewGenerator<D> {
     ///     pub struct FooViewVar: ViewGenerator<Foo> = return ViewGenerator::nil_static();
     /// }
     pub fn nil_static() -> &'static Self {
-        #[cfg(debug_assertions)]
-        fn _assert_size() {
-            let _: ViewGenerator<()> = unsafe { std::mem::transmute(None::<std::num::NonZeroUsize>) };
-        }
-        
-        // SAFETY: TODO check if None is zero in both cases.
+        // SAFETY: see `tests::validate_nil_static_unsafe`.
         static NIL: Option<std::num::NonZeroUsize> = None;
         unsafe { std::mem::transmute(&NIL) }
     }
@@ -240,10 +235,9 @@ impl<D> ViewGenerator<D> {
     }
 
     /// Executes the generator for the given `data`.
-    pub fn present(&self, ctx: &mut WidgetContext, data: &D) -> BoxedUiNode {
-        if let Some(p) = &self.0 {
-            let mut presenter = p.borrow_mut();
-            presenter(ctx, data)
+    pub fn generate(&self, ctx: &mut WidgetContext, data: &D) -> BoxedUiNode {
+        if let Some(g) = &self.0 {
+            g(ctx, data)
         } else {
             NilUiNode.boxed()
         }
@@ -259,15 +253,15 @@ impl<D> ViewGenerator<D> {
 /// Define the content that is shown when an image fails to load, capturing another variable too.
 ///
 /// ```
-/// # use zero_ui::{widgets::{view_generator, image, text}, core::{color::{Rgba, colors}, var::var, widget_base::Visibility}};
+/// # use zero_ui::{widgets::{view_generator, image, text::text}, core::{color::{Rgba, colors}, text::Text, var::var, widget_base::Visibility}};
 /// let img_error_vis = var(Visibility::Visible);
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
-///     error_view = view_generator!(img_error_vis, |_ctx, error| text! {
-///         text = error;
+///     error_view = view_generator!(img_error_vis, |_ctx, e: &Text| text! {
+///         text = e.to_owned();
 ///         color = colors::RED;
-///         visibility = img_error_vis;
+///         visibility = img_error_vis.clone();
 ///     });
 /// }
 /// # ;
@@ -285,3 +279,19 @@ macro_rules! view_generator {
 }
 #[doc(inline)]
 pub use crate::view_generator;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_nil_static_unsafe() {
+        // same size:
+        let _: ViewGenerator<()> = unsafe { std::mem::transmute(None::<std::num::NonZeroUsize>) };
+
+        // same value:
+        let nil: usize = unsafe { std::mem::transmute(ViewGenerator::<()>::nil()) };
+        let none: usize = unsafe { std::mem::transmute(None::<std::num::NonZeroUsize>) };
+        assert_eq!(nil, none);
+    }
+}
