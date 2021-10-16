@@ -10,7 +10,7 @@ pub mod image {
     use zero_ui::core::image::{ImageCacheMode, ImageSource, ImageVar};
 
     use super::*;
-    use properties::{ImageCacheVar, ImageErrorViewVar, ImageRenderingVar};
+    use properties::{ImageCacheVar, ImageErrorViewVar, ImageRenderingVar, ImageLoadingViewVar};
 
     properties! {
         /// The image source.
@@ -88,7 +88,10 @@ pub mod image {
             pub struct ImageCacheVar: bool = const true;
 
             /// View generator for the content shown when the image does not load.
-            pub struct ImageErrorViewVar: ViewGenerator<str> = return ViewGenerator::nil_static();
+            pub struct ImageErrorViewVar: ViewGenerator<ImageErrorArgs> = return ViewGenerator::nil_static();
+
+            /// View generator for the content shown when the image is still loading.
+            pub struct ImageLoadingViewVar: ViewGenerator<ImageLoadingArgs> = return ViewGenerator::nil_static();
         }
 
         /// Sets the [`ImageRendering`] of all inner images.
@@ -149,11 +152,24 @@ pub mod image {
         ///
         /// [view generator]: crate::widgets::view_generator
         #[property(context)]
-        pub fn image_error_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<str>>) -> impl UiNode {
+        pub fn image_error_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ImageErrorArgs>>) -> impl UiNode {
             with_context_var(child, ImageErrorViewVar, generator)
         }
 
-        /// Arguments for [`on_error`].
+        /// Sets the [view generator] that is used to create a content for the error message.
+        ///
+        /// [view generator]: crate::widgets::view_generator
+        #[property(context)]
+        pub fn image_loading_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ImageLoadingArgs>>) -> impl UiNode {
+            with_context_var(child, ImageLoadingViewVar, generator)
+        }
+
+        /// Arguments for [`image_loading_view`].
+        #[derive(Clone, Debug)]
+        pub struct ImageLoadingArgs {
+        }
+
+        /// Arguments for [`on_error`] and [`image_error_view`].
         ///
         /// [`on_error`]: fn@on_error
         #[derive(Clone, Debug)]
@@ -220,6 +236,7 @@ pub mod image {
     /// UI nodes used for building the image widget.
     pub mod nodes {
         use super::*;
+        use super::properties::{ImageErrorArgs, ImageLoadingArgs};
         use std::fmt;
 
         context_var! {
@@ -416,7 +433,11 @@ pub mod image {
             }
         }
 
-        /// Presents error view if the image has error.
+        /// Presents the contextual [`ImageErrorViewVar`] if the [`ContextualImageVar`] is an error.
+        /// 
+        /// The error view is rendered under the `child`.
+        /// 
+        /// The image widget adds this node around the [`image_presenter`] node.
         pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
             struct ImageErrorPresenterNode<C> {
                 child: C,
@@ -424,11 +445,13 @@ pub mod image {
             }
             impl<C: UiNode> UiNode for ImageErrorPresenterNode<C> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
-                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                        if let Some(error) = var.get(ctx.vars).error() {
-                            let generator = ImageErrorViewVar::get(ctx.vars);
-                            if !generator.is_nil() {
-                                let mut view = generator.generate(ctx, error);
+                    let generator = ImageErrorViewVar::get(ctx.vars);
+                    if !generator.is_nil() {
+                        if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                            if let Some(error) = var.get(ctx.vars).error() {
+                                let mut view = generator.generate(ctx, &ImageErrorArgs {
+                                    error: error.to_owned().into()
+                                });
                                 view.init(ctx);
                                 self.error_view = Some(view);
                             }
@@ -452,39 +475,48 @@ pub mod image {
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
-                    let mut error = None;
-                    let mut updated = false;
-                    if let Some(var_opt) = ContextImageVar::get_new(ctx.vars) {
-                        if let Some(var) = var_opt.as_ref() {
-                            error = var.get(ctx.vars).error();
-                            updated = true;
+                    let generator = ImageErrorViewVar::get(ctx.vars);
+                    if !generator.is_nil() {
+                        let mut error = None;
+                        let mut updated = false;
+                        if let Some(var_opt) = ContextImageVar::get_new(ctx.vars) {
+                            updated = true; // `ImageVar` changed.
+                            if let Some(var) = var_opt.as_ref() {
+                                error = var.get(ctx.vars).error();
+                            }
+                        } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                            if let Some(img) = var.get_new(ctx.vars) {
+                                updated = true; // `Image` changed.
+                                error = img.error();
+                            }
+                        } else if ImageErrorViewVar::is_new(ctx.vars) {
+                            updated = true; // Error `ViewGenerator` changed.
+                            error = ContextImageVar::get(ctx.vars).as_ref().and_then(|var| var.get(ctx.vars).error());
                         }
-                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                        if let Some(img) = var.get_new(ctx.vars) {
-                            error = img.error();
-                            updated = true;
-                        }
-                    } else if ImageErrorViewVar::is_new(ctx.vars) {
-                        error = ContextImageVar::get(ctx.vars).as_ref().and_then(|var| var.get(ctx.vars).error());
-                        updated = true;
-                    }
 
-                    if updated {
-                        if let Some(mut view) = self.error_view.take() {
-                            view.deinit(ctx);
-                        }
-                        if let Some(error) = error {
-                            let generator = ImageErrorViewVar::get(ctx.vars);
-                            if !generator.is_nil() {
-                                let mut view = generator.generate(ctx, error);
+                        if updated {
+                            // deinit and drop the previous error view.
+                            if let Some(mut view) = self.error_view.take() {
+                                view.deinit(ctx);
+                            }
+
+                            // generate and init the new error view.
+                            if let Some(error) = error {
+                                let mut view = generator.generate(ctx, &ImageErrorArgs {
+                                    error: error.to_owned().into()
+                                });
                                 view.init(ctx);
                                 self.error_view = Some(view);
                             }
+                            ctx.updates.layout();
+                        } else if let Some(view) = &mut self.error_view {
+                            view.update(ctx);
                         }
-                        ctx.updates.layout();
-                    } else if let Some(view) = &mut self.error_view {
-                        view.update(ctx);
+                    } else if let Some(mut view) = self.error_view.take() {
+                        // `ImageErrorViewVar` changed to nil.
+                        view.deinit(ctx);
                     }
+
                     self.child.update(ctx);
                 }
 
@@ -521,8 +553,123 @@ pub mod image {
             ImageErrorPresenterNode { child, error_view: None }
         }
 
+        /// Presents the contextual [`ImageLoadingViewVar`] if the [`ContextualImageVar`] is loading.
+        /// 
+        /// The loading view is rendered under the `child`.
+        /// 
+        /// The image widget adds this node around the [`image_error_presenter`] node.
         pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
-            child
+            struct ImageLoadingPresenterNode<C> {
+                child: C,
+                loading_view: Option<BoxedUiNode>,
+            }
+            impl<C: UiNode> UiNode for ImageLoadingPresenterNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let generator = ImageLoadingViewVar::get(ctx.vars);
+                    if !generator.is_nil() {
+                        if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                            if var.get(ctx.vars).is_loading() {
+                                let mut view = generator.generate(ctx, &ImageLoadingArgs { });
+                                view.init(ctx);
+                                self.loading_view = Some(view);
+                            }
+                        }
+                    }
+                    self.child.init(ctx);
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(mut view) = self.loading_view.take() {
+                        view.deinit(ctx);
+                    }
+                    self.child.deinit(ctx);
+                }
+
+                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                    if let Some(view) = &mut self.loading_view {
+                        view.event(ctx, args);
+                    }
+                    self.child.event(ctx, args);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    let generator = ImageLoadingViewVar::get(ctx.vars);
+                    if !generator.is_nil() {
+                        let mut is_loading = false;
+                        let mut updated = false;
+                        if let Some(var_opt) = ContextImageVar::get_new(ctx.vars) {
+                            updated = true; // `ImageVar` changed.
+                            if let Some(var) = var_opt.as_ref() {
+                                is_loading = var.get(ctx.vars).is_loading();
+                            }
+                        } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                            if let Some(img) = var.get_new(ctx.vars) {
+                                updated = true; // `Image` changed.
+                                is_loading = img.is_loading();
+                            }
+                        } else if ImageLoadingViewVar::is_new(ctx.vars) {
+                            updated = true; // Loading `ViewGenerator` changed.
+                            is_loading = ContextImageVar::get(ctx.vars).as_ref().map(|var| var.get(ctx.vars).is_loading()).unwrap_or(false);
+                        }
+
+                        if updated {
+                            // deinit and drop the previous loading view.
+                            if let Some(mut view) = self.loading_view.take() {
+                                view.deinit(ctx);
+                            }
+
+                            // generate and init the new loading view.
+                            if is_loading {
+                                let mut view = generator.generate(ctx, &ImageLoadingArgs { });
+                                view.init(ctx);
+                                self.loading_view = Some(view);
+                            }
+                            ctx.updates.layout();
+                        } else if let Some(view) = &mut self.loading_view {
+                            view.update(ctx);
+                        }
+                    } else if let Some(mut view) = self.loading_view.take() {
+                        // `ImageErrorViewVar` changed to nil.
+                        view.deinit(ctx);
+                    }
+
+                    self.child.update(ctx);
+                }
+
+                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                    let desired_size = self.child.measure(ctx, available_size);
+                    if let Some(view) = &mut self.loading_view {
+                        desired_size.max(view.measure(ctx, available_size))
+                    } else {
+                        desired_size
+                    }
+                }
+
+                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                    self.child.arrange(ctx, final_size);
+                    if let Some(view) = &mut self.loading_view {
+                        view.arrange(ctx, final_size);
+                    }
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    if let Some(view) = &self.loading_view {
+                        view.render(ctx, frame);
+                    }
+                    self.child.render(ctx, frame);
+                }
+
+                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                    if let Some(view) = &self.loading_view {
+                        view.render_update(ctx, update);
+                    }
+                    self.child.render_update(ctx, update);
+                }
+            }
+            ImageLoadingPresenterNode {
+                child,
+                loading_view: None
+            }
         }
 
         /// Renders the [`ContextImageVar`] if set.
