@@ -48,6 +48,12 @@ pub mod image {
         /// View generator that creates the error content when the image failed to load.
         properties::image_error_view as error_view;
 
+        /// If the image successfully loaded.
+        properties::is_loaded;
+
+        /// Event called when the images successfully loads.
+        properties::on_load;
+
         /// If the image failed to load.
         properties::is_error;
 
@@ -148,6 +154,40 @@ pub mod image {
             IsErrorNode { child, state }
         }
 
+        /// If the [`ContextImageVar`] is a successfully loaded image.
+        #[property(outer)]
+        pub fn is_loaded(child: impl UiNode, state: StateVar) -> impl UiNode {
+            struct IsLoadedNode<C> {
+                child: C,
+                state: StateVar,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for IsLoadedNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        let is_loaded = var.get(ctx.vars).is_loaded();
+                        self.state.set_ne(ctx.vars, is_loaded);
+                    } else {
+                        self.state.set_ne(ctx.vars, false);
+                    }
+                    self.child.init(ctx);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
+                        let is_loaded = new_var.as_ref().map(|v| v.get(ctx.vars).is_loaded()).unwrap_or(false);
+                        self.state.set_ne(ctx.vars, is_loaded);
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        if let Some(img) = var.get_new(ctx.vars) {
+                            self.state.set_ne(ctx.vars, img.is_loaded());
+                        }
+                    }
+                    self.child.update(ctx);
+                }
+            }
+            IsLoadedNode { child, state }
+        }
+
         /// Sets the [view generator] that is used to create a content for the error message.
         ///
         /// [view generator]: crate::widgets::view_generator
@@ -165,20 +205,40 @@ pub mod image {
         }
 
         /// Arguments for [`image_loading_view`].
+        ///
+        /// [`image_loading_view`]: fn@image_loading_view
         #[derive(Clone, Debug)]
         pub struct ImageLoadingArgs {}
+
+        /// Arguments for [`on_load`].
+        ///
+        /// [`on_load`]: fn@on_load
+        #[derive(Clone, Debug)]
+        pub struct ImageLoadArgs {}
 
         /// Arguments for [`on_error`] and [`image_error_view`].
         ///
         /// [`on_error`]: fn@on_error
+        /// [`image_error_view`]: fn@image_error_view
         #[derive(Clone, Debug)]
         pub struct ImageErrorArgs {
             /// Error message.
             pub error: Text,
         }
 
-        /// Calls a `handler` when the variable updates with a different error.
-        #[property(event)]
+        /// Image load or decode error event.
+        ///
+        /// This property calls `handler` every time the [`ContextImageVar`] updates with a different error.
+        ///
+        /// # Handlers
+        ///
+        /// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+        /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
+        ///
+        /// # Route
+        ///
+        /// This property is not routed, it works only inside an widget that loads images. There is also no *preview* event.
+        #[property(event, default( hn!(|_, _|{}) ))]
         pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>) -> impl UiNode {
             struct OnErrorNode<C, H> {
                 child: C,
@@ -229,6 +289,58 @@ pub mod image {
                 handler,
                 error: "".into(),
             }
+        }
+
+        /// Image loaded event.
+        ///
+        /// This property calls `handler` every time the [`ContextImageVar`] updates with a successfully loaded image.
+        ///
+        /// # Handlers
+        ///
+        /// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+        /// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
+        ///
+        /// # Route
+        ///
+        /// This property is not routed, it works only inside an widget that loads images. There is also no *preview* event.
+        #[property(event, default( hn!(|_, _|{}) ))]
+        pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -> impl UiNode {
+            struct OnLoadNode<C, H> {
+                child: C,
+                handler: H,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode, H: WidgetHandler<ImageLoadArgs>> UiNode for OnLoadNode<C, H> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        if var.get(ctx.vars).is_loaded() {
+                            self.handler.event(ctx, &ImageLoadArgs {});
+                        }
+                    }
+
+                    self.child.init(ctx);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(var_opt) = ContextImageVar::get_new(ctx.vars) {
+                        if let Some(var) = var_opt.as_ref() {
+                            if var.get(ctx.vars).is_loaded() {
+                                self.handler.event(ctx, &ImageLoadArgs {});
+                            }
+                        }
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        if let Some(img) = var.get_new(ctx.vars) {
+                            if img.is_loaded() {
+                                self.handler.event(ctx, &ImageLoadArgs {});
+                            }
+                        }
+                    }
+
+                    self.handler.update(ctx);
+                    self.child.update(ctx);
+                }
+            }
+            OnLoadNode { child, handler }
         }
     }
 
@@ -432,7 +544,7 @@ pub mod image {
             }
         }
 
-        /// Presents the contextual [`ImageErrorViewVar`] if the [`ContextualImageVar`] is an error.
+        /// Presents the contextual [`ImageErrorViewVar`] if the [`ContextImageVar`] is an error.
         ///
         /// The error view is rendered under the `child`.
         ///
@@ -558,7 +670,7 @@ pub mod image {
             ImageErrorPresenterNode { child, error_view: None }
         }
 
-        /// Presents the contextual [`ImageLoadingViewVar`] if the [`ContextualImageVar`] is loading.
+        /// Presents the contextual [`ImageLoadingViewVar`] if the [`ContextImageVar`] is loading.
         ///
         /// The loading view is rendered under the `child`.
         ///
