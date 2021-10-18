@@ -17,7 +17,7 @@ use zero_ui_view_api::{
 use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::{GlContextManager, GlHeadlessContext},
-    AppEvent, AppEventSender,
+    AppEvent, AppEventSender, FrameReadyMsg,
 };
 
 /// A headless "window".
@@ -297,29 +297,40 @@ impl Surface {
         self.api.send_transaction(self.document_id, txn);
     }
 
-    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> (FrameId, Option<ImageLoadedData>) {
-        let (frame_id, capture) = self.pending_frames.pop_front().unwrap();
+    pub fn on_frame_ready<S: AppEventSender>(
+        &mut self,
+        msg: FrameReadyMsg,
+        images: &mut ImageCache<S>,
+    ) -> (FrameId, Option<ImageLoadedData>) {
+        debug_assert_eq!(self.document_id, msg.document_id);
+
+        let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or_else(|| {
+            debug_assert!(!msg.composite_needed);
+            (self.rendered_frame_id, false)
+        });
         self.rendered_frame_id = frame_id;
 
-        let _ctx = self.context.make_current();
+        let mut captured_data = None;
 
-        let renderer = self.renderer.as_mut().unwrap();
+        if msg.composite_needed || capture {
+            let _ctx = self.context.make_current();
+            let renderer = self.renderer.as_mut().unwrap();
 
-        renderer.update();
-        renderer.render((self.size.to_px(self.scale_factor)).to_wr_device(), 0).unwrap();
-        let _ = renderer.flush_pipeline_info();
-
-        let data = if capture {
-            Some(images.frame_image_data(
-                renderer,
-                PxRect::from_size(self.size.to_px(self.scale_factor)),
-                true,
-                self.scale_factor,
-            ))
-        } else {
-            None
-        };
-        (frame_id, data)
+            if msg.composite_needed {
+                renderer.update();
+                renderer.render((self.size.to_px(self.scale_factor)).to_wr_device(), 0).unwrap();
+                let _ = renderer.flush_pipeline_info();
+            }
+            if capture {
+                captured_data = Some(images.frame_image_data(
+                    renderer,
+                    PxRect::from_size(self.size.to_px(self.scale_factor)),
+                    true,
+                    self.scale_factor,
+                ));
+            }
+        }
+        (frame_id, captured_data)
     }
 
     pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> ImageId {
@@ -391,7 +402,11 @@ impl<S: AppEventSender> RenderNotifier for Notifier<S> {
 
     fn wake_up(&self, _: bool) {}
 
-    fn new_frame_ready(&self, _: DocumentId, _: bool, _: bool, _: Option<u64>) {
-        let _ = self.sender.send(AppEvent::FrameReady(self.id));
+    fn new_frame_ready(&self, document_id: DocumentId, _scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
+        let msg = FrameReadyMsg {
+            document_id,
+            composite_needed,
+        };
+        let _ = self.sender.send(AppEvent::FrameReady(self.id, msg));
     }
 }

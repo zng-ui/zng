@@ -23,6 +23,8 @@ Image loading and rendering.
 ## images
 * Cache cleanup after memory limit.
 * Download/file blocking.
+* Per-request limits.
+* Improve limits error message.
 
 ## image! { }
 * Stretch.

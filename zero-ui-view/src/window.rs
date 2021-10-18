@@ -34,7 +34,7 @@ use crate::{
     config,
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
-    AppEvent, AppEventSender,
+    AppEvent, AppEventSender, FrameReadyMsg,
 };
 
 /// A headed window.
@@ -51,7 +51,7 @@ pub(crate) struct Window {
     capture_mode: bool,
 
     redirect_frame: Arc<AtomicBool>,
-    redirect_frame_recv: flume::Receiver<()>,
+    redirect_frame_recv: flume::Receiver<FrameReadyMsg>,
 
     pending_frames: VecDeque<(FrameId, bool)>,
     rendered_frame_id: FrameId,
@@ -109,6 +109,12 @@ impl Window {
         if let Some(pos) = cfg.pos {
             winit = winit.with_position(pos.to_winit());
         }
+
+        winit = match cfg.state {
+            WindowState::Normal | WindowState::Minimized => winit,
+            WindowState::Maximized => winit.with_maximized(true),
+            WindowState::Fullscreen | WindowState::Exclusive => winit.with_fullscreen(None),
+        };
 
         let glutin = match ContextBuilder::new()
             .with_hardware_acceleration(None)
@@ -227,12 +233,18 @@ impl Window {
             transparent: cfg.transparent,
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
-            state: WindowState::Normal,
+            state: cfg.state,
         };
-        win.state_change(); // update
 
         win.set_taskbar_visible(cfg.taskbar_visible);
-        let _ = win.set_state(cfg.state);
+
+        if let Some(state) = win.state_change() {
+            if state != cfg.state {
+                // some states don't apply correctly (minimize and fullscreen)
+                log::debug!("needed state correction, request: {:?}, actual: {:?}", cfg.state, state);
+                let _ = win.set_state(cfg.state);
+            }
+        }
 
         win
     }
@@ -605,24 +617,37 @@ impl Window {
 
     /// Returns if it is the first frame.
     #[must_use = "if `true` must notify the initial Resized event"]
-    pub fn on_frame_ready<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> (bool, FrameId, Option<ImageLoadedData>) {
-        let (frame_id, capture) = self.pending_frames.pop_front().unwrap();
+    pub fn on_frame_ready<S: AppEventSender>(
+        &mut self,
+        msg: FrameReadyMsg,
+        images: &mut ImageCache<S>,
+    ) -> (bool, FrameId, Option<ImageLoadedData>) {
+        debug_assert_eq!(self.document_id, msg.document_id);
+
+        let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or_else(|| {
+            debug_assert!(!msg.composite_needed);
+            (self.rendered_frame_id, false)
+        });
         self.rendered_frame_id = frame_id;
 
         let first_frame = self.waiting_first_frame;
 
         if self.waiting_first_frame {
+            debug_assert!(msg.composite_needed);
+
             self.waiting_first_frame = false;
             self.redraw();
             if self.visible {
                 self.window.set_visible(true);
             }
-        } else {
+        } else if msg.composite_needed {
             self.window.request_redraw();
         }
 
         let data = if capture {
-            self.redraw();
+            if msg.composite_needed {
+                self.redraw();
+            }
             let scale_factor = self.scale_factor();
             let renderer = self.renderer.as_mut().unwrap();
             Some(images.frame_image_data(renderer, PxRect::from_size(self.window.inner_size().to_px()), true, scale_factor))
@@ -654,12 +679,12 @@ impl Window {
         self.redirect_frame.store(true, Ordering::Relaxed);
         let stop_redirect = util::RunOnDrop::new(|| self.redirect_frame.store(false, Ordering::Relaxed));
 
-        let received = self.redirect_frame_recv.recv_deadline(deadline).is_ok();
+        let received = self.redirect_frame_recv.recv_deadline(deadline);
 
         drop(stop_redirect);
 
-        if received {
-            let (_, frame_id, image) = self.on_frame_ready(images);
+        if let Ok(msg) = received {
+            let (_, frame_id, image) = self.on_frame_ready(msg, images);
             Some((frame_id, image))
         } else {
             None
@@ -746,7 +771,7 @@ struct Notifier<S> {
     window_id: WindowId,
     sender: S,
     redirect: Arc<AtomicBool>,
-    redirect_sender: flume::Sender<()>,
+    redirect_sender: flume::Sender<FrameReadyMsg>,
 }
 impl<S: AppEventSender> RenderNotifier for Notifier<S> {
     fn clone(&self) -> Box<dyn RenderNotifier> {
@@ -760,11 +785,15 @@ impl<S: AppEventSender> RenderNotifier for Notifier<S> {
 
     fn wake_up(&self, _: bool) {}
 
-    fn new_frame_ready(&self, _: DocumentId, _: bool, _: bool, _: Option<u64>) {
+    fn new_frame_ready(&self, document_id: DocumentId, _scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
+        let msg = FrameReadyMsg {
+            document_id,
+            composite_needed,
+        };
         if self.redirect.load(Ordering::Relaxed) {
-            let _ = self.redirect_sender.send(());
+            let _ = self.redirect_sender.send(msg);
         } else {
-            let _ = self.sender.send(AppEvent::FrameReady(self.window_id));
+            let _ = self.sender.send(AppEvent::FrameReady(self.window_id, msg));
         }
     }
 }

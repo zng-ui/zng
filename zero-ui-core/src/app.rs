@@ -402,7 +402,7 @@ cancelable_event_args! {
 ///
 /// # Debug Log
 ///
-/// In debug builds, `App` sets a [`logger`](log) that prints warnings and errors to `stderr`
+/// In debug builds, `App` sets a [`logger`](log) that prints info, warning and error logs to `stderr`
 /// if no logger was registered before the call to [`blank`] or [`default`].
 ///
 /// [`blank`]: App::blank
@@ -1799,8 +1799,9 @@ struct DebugLogger;
 #[cfg(debug_assertions)]
 impl DebugLogger {
     fn init() {
+        // init debug logger if no other logger was already used.
         if log::set_logger(&DebugLogger).is_ok() {
-            log::set_max_level(log::LevelFilter::Warn);
+            log::set_max_level(log::LevelFilter::Info);
         }
     }
 }
@@ -1808,7 +1809,7 @@ impl DebugLogger {
 #[cfg(debug_assertions)]
 impl log::Log for DebugLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= log::Level::Warn
+        metadata.level() <= log::Level::Info
     }
 
     fn log(&self, record: &log::Record) {
@@ -1826,6 +1827,9 @@ impl log::Log for DebugLogger {
                     }
 
                     eprintln!("{}: [{}] {}", "warn".bright_yellow().bold(), record.target(), record.args())
+                }
+                log::Level::Info => {
+                    eprintln!("{}: [{}] {}", "info".bright_blue().bold(), record.target(), record.args())
                 }
                 _ => {}
             }

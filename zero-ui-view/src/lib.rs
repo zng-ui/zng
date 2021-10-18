@@ -237,9 +237,9 @@ impl App<()> {
                             break;
                         }
                     }
-                    AppEvent::FrameReady(id) => {
+                    AppEvent::FrameReady(id, msg) => {
                         let r = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
-                            Some(s.on_frame_ready(&mut app.image_cache))
+                            Some(s.on_frame_ready(msg, &mut app.image_cache))
                         } else {
                             None
                         };
@@ -317,7 +317,7 @@ impl App<()> {
                             }
                         }
                         AppEvent::Notify(ev) => app.notify(ev),
-                        AppEvent::FrameReady(wid) => app.on_frame_ready(wid),
+                        AppEvent::FrameReady(wid, msg) => app.on_frame_ready(wid, msg),
                         AppEvent::RefreshMonitors => app.refresh_monitors(),
                         AppEvent::ParentProcessExited => {
                             app.exited = true;
@@ -630,9 +630,9 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
-    fn on_frame_ready(&mut self, window_id: WindowId) {
+    fn on_frame_ready(&mut self, window_id: WindowId, msg: FrameReadyMsg) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
-            let (first_frame, frame_id, image) = w.on_frame_ready(&mut self.image_cache);
+            let (first_frame, frame_id, image) = w.on_frame_ready(msg, &mut self.image_cache);
 
             if first_frame {
                 let pos = w.outer_position();
@@ -661,7 +661,7 @@ impl<S: AppEventSender> App<S> {
                 frame_image: image,
             });
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
-            let (frame_id, image) = s.on_frame_ready(&mut self.image_cache);
+            let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
 
             self.notify(Event::FrameRendered {
                 window: window_id,
@@ -1155,7 +1155,7 @@ pub(crate) enum AppEvent {
     /// Notify an event.
     Notify(Event),
     /// A frame is ready for redraw.
-    FrameReady(WindowId),
+    FrameReady(WindowId, FrameReadyMsg),
     /// Re-query available monitors and send update event.
     RefreshMonitors,
     /// Lost connection with app-process.
@@ -1163,6 +1163,11 @@ pub(crate) enum AppEvent {
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
     ImageLoaded(ImageLoadedData),
+}
+
+pub(crate) struct FrameReadyMsg {
+    pub document_id: DocumentId,
+    pub composite_needed: bool,
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.

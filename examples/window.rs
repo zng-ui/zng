@@ -28,6 +28,7 @@ fn app_main() {
         let icon = var(WindowIcon::Default);
         let chrome = var(WindowChrome::Default);
         let state = var(WindowState::Normal);
+        let visible = var(true);
 
         window! {
             position = position.clone();
@@ -36,6 +37,7 @@ fn app_main() {
             chrome = chrome.clone();
             background_color = background_color.clone();
             state = state.clone();
+            visible = visible.clone();
             title;
             on_state_changed = hn!(|_, args: &WindowStateChangedArgs| {
                 println!("state: {:?}", args.new_state);
@@ -75,6 +77,7 @@ fn app_main() {
                                 set_state(WindowState::Maximized, &state),
                                 set_state(WindowState::Fullscreen, &state),
                                 set_state(WindowState::Exclusive, &state),
+                                hide_for_1_sec(visible),
                             ]),
                         ]
                     },
@@ -320,6 +323,20 @@ fn set_icon(label: impl IntoVar<Text> + 'static, icon: impl Into<WindowIcon>, va
         content = text(label);
         on_click = hn!(|ctx, _| {
             var.set_ne(ctx, icon.clone());
+        });
+    }
+}
+
+fn hide_for_1_sec(visible: RcVar<bool>) -> impl Widget {
+    button! {
+        enabled = visible.clone();
+        content = text("Hide for 1s");
+        on_click = async_hn!(visible, |ctx, _| {
+            visible.set(&ctx, false);
+            println!("visible=false");
+            task::timeout(1.secs()).await;
+            visible.set(&ctx, true);
+            println!("visible=true");
         });
     }
 }
