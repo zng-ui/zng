@@ -77,6 +77,7 @@ fn app_main() {
                                 set_state(WindowState::Maximized, &state),
                                 set_state(WindowState::Fullscreen, &state),
                                 set_state(WindowState::Exclusive, &state),
+                                separator(),
                                 hide_for_1_sec(visible),
                             ]),
                         ]
@@ -339,4 +340,8 @@ fn hide_for_1_sec(visible: RcVar<bool>) -> impl Widget {
             println!("visible=true");
         });
     }
+}
+
+fn separator() -> impl Widget {
+    line_w!(color = rgba(1.0, 1.0, 1.0, 0.2))
 }

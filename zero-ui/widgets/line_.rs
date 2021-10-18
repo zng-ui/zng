@@ -16,7 +16,11 @@ pub mod line_w {
         stroke_width(impl IntoVar<Length>) = 1;
 
         /// Line length.
-        length(impl IntoVar<Length>) = 100.pct();
+        ///
+        /// Set to [`Default`] to fill available length without requesting any length.
+        ///
+        /// [`Default`]: Length::Default
+        length(impl IntoVar<Length>) = Length::Default;
 
         /// Line style.
         style(impl IntoVar<LineStyle>) = LineStyle::Solid;
@@ -71,22 +75,22 @@ pub mod line_w {
 
             match *self.orientation.get(ctx) {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length
-                        .get(ctx)
-                        .to_layout(ctx, available_space.width, available_space.width.to_px()),
+                    self.length.get(ctx).to_layout(ctx, available_space.width, Px(0)),
                     self.stroke_width.get(ctx).to_layout(ctx, available_space.height, default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
                     self.stroke_width.get(ctx).to_layout(ctx, available_space.height, default_stroke),
-                    self.length
-                        .get(ctx)
-                        .to_layout(ctx, available_space.width, available_space.height.to_px()),
+                    self.length.get(ctx).to_layout(ctx, available_space.width, Px(0)),
                 ),
             }
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.bounds = self.measure(ctx, AvailableSize::finite(final_size));
+            if self.length.get(ctx).is_default() {
+                self.bounds = final_size;
+            } else {
+                self.bounds = self.measure(ctx, AvailableSize::finite(final_size)).max(final_size);
+            }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -102,10 +106,8 @@ pub mod line_w {
 /// Draws a horizontal or vertical line.
 pub fn line_w(
     orientation: impl IntoVar<LineOrientation> + 'static,
-    length: impl IntoVar<Length> + 'static,
-    width: impl IntoVar<Length> + 'static,
     color: impl IntoVar<Rgba> + 'static,
     style: impl IntoVar<LineStyle> + 'static,
 ) -> impl Widget {
-    line_w! { orientation; length; width; color; style; }
+    line_w! { orientation; color; style; }
 }
