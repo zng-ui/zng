@@ -1873,8 +1873,8 @@ impl AppWindow {
             vars,
             frame_pixels_id: frame_info.frame_id(),
             scale_factor: 1.0, // will be set on the first layout
-            frame_info,        // TODO
-            is_focused: false, // will be set by listening to RawWindowFocusEvent, usually in first render
+            frame_info,
+            is_focused: false, // will be set by listening to RawWindowFocusEvent, usually in first layout
         };
 
         (win, info)
@@ -2261,6 +2261,8 @@ impl AppWindow {
                 }
 
                 RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, data.scale_factor));
+
+                RawWindowFocusEvent.notify(ctx.events, RawWindowFocusArgs::now(self.id, data.focused));
             }
             WindowMode::HeadlessWithRenderer => {
                 let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;

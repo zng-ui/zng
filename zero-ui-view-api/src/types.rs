@@ -1339,4 +1339,6 @@ pub struct WindowOpenData {
     pub size: DipSize,
     /// Final scale factor.
     pub scale_factor: f32,
+    /// If the window has the keyboard focus.
+    pub focused: bool,
 }
