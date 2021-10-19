@@ -248,6 +248,7 @@ impl App<()> {
                                 window: id,
                                 frame: frame_id,
                                 frame_image: image,
+                                cursor_hits: HitTestResult::default(),
                             });
                         }
                     }
@@ -459,13 +460,14 @@ impl<S: AppEventSender> App<S> {
 
                 // if we are still within 1 second, wait webrender, and if a frame was rendered here, notify.
                 if received_frame && deadline > Instant::now() {
-                    if let Some((frame_id, image)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
+                    if let Some((frame_id, image, cursor_hits)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
                         let id = self.windows[i].id();
 
                         self.notify(Event::FrameRendered {
                             window: id,
                             frame: frame_id,
                             frame_image: image,
+                            cursor_hits,
                         });
                     }
                 }
@@ -515,6 +517,7 @@ impl<S: AppEventSender> App<S> {
                 let p = px_p.to_dip(scale_factor);
                 let d_id = self.device_id(device_id);
                 let (f_id, ht) = self.windows[i].hit_test(px_p);
+                self.windows[i].set_cursor_pos(px_p);
                 self.notify(Event::CursorMoved {
                     window: id,
                     device: d_id,
@@ -632,12 +635,13 @@ impl<S: AppEventSender> App<S> {
 
     fn on_frame_ready(&mut self, window_id: WindowId, msg: FrameReadyMsg) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
-            let (frame_id, image) = w.on_frame_ready(msg, &mut self.image_cache);
+            let (frame_id, image, cursor_hits) = w.on_frame_ready(msg, &mut self.image_cache);
 
             self.notify(Event::FrameRendered {
                 window: window_id,
                 frame: frame_id,
                 frame_image: image,
+                cursor_hits,
             });
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
@@ -646,6 +650,7 @@ impl<S: AppEventSender> App<S> {
                 window: window_id,
                 frame: frame_id,
                 frame_image: image,
+                cursor_hits: HitTestResult::default(),
             })
         }
     }
@@ -975,11 +980,12 @@ impl<S: AppEventSender> Api for App<S> {
                     cause: EventCause::App,
                 }));
 
-                if let Some((frame_id, image)) = frame {
+                if let Some((frame_id, image, cursor_hits)) = frame {
                     self.notify(Event::FrameRendered {
                         window: id,
                         frame: frame_id,
                         frame_image: image,
+                        cursor_hits,
                     });
                 }
             }

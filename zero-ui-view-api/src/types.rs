@@ -600,6 +600,8 @@ pub enum Event {
         frame: FrameId,
         /// Frame image, if one was requested with the frame request.
         frame_image: Option<ImageLoadedData>,
+        /// Hit-test at the cursor position.
+        cursor_hits: HitTestResult,
     },
 
     /// Window maximized/minimized/restored.

@@ -77,13 +77,13 @@
 //! creating a [`FrameFocusInfo`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
 
 use crate::{
-    app::{AppEventSender, AppExtension},
+    app::{raw_events::RawFrameRenderedEvent, AppEventSender, AppExtension},
     context::*,
     crate_util::IdMap,
     event::*,
     gesture::{shortcut, ShortcutEvent},
     mouse::MouseDownEvent,
-    render::{DescendantFilter, FrameId, FrameInfo, WidgetInfo, WidgetPath},
+    render::{DescendantFilter, FrameInfo, WidgetInfo, WidgetPath},
     service::Service,
     units::*,
     var::impl_from_and_into_var,
@@ -507,6 +507,23 @@ impl AppExtension for FocusManager {
         ctx.services.register(Focus::new(ctx.updates.sender()));
     }
 
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawFrameRenderedEvent.update(args) {
+            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+
+            if self.focused.as_ref().map(|f| f.window_id() == args.window_id).unwrap_or_default() {
+                // new window frame, check if focus is still valid
+                self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
+            }
+
+            for args in focus.cleanup_returns(FrameFocusInfo::new(
+                windows.frame_info(args.window_id).expect("window in on_new_frame"),
+            )) {
+                ReturnFocusChangedEvent.notify(ctx.events, args);
+            }
+        }
+    }
+
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let mut request = None;
 
@@ -572,19 +589,6 @@ impl AppExtension for FocusManager {
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             self.notify(focus.fulfill_request(request, windows), focus, windows, ctx.events);
-        }
-    }
-
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, _: FrameId) {
-        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-
-        if self.focused.as_ref().map(|f| f.window_id() == window_id).unwrap_or_default() {
-            // new window frame, check if focus is still valid
-            self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
-        }
-
-        for args in focus.cleanup_returns(FrameFocusInfo::new(windows.frame_info(window_id).expect("window in on_new_frame"))) {
-            ReturnFocusChangedEvent.notify(ctx.events, args);
         }
     }
 }

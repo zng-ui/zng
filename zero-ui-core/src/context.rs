@@ -1,9 +1,6 @@
 //! Context information for app extensions, windows and widgets.
 
-use crate::{
-    app::view_process::ViewRenderer, event::Events, render::FrameId, service::Services, units::*, var::Vars, window::WindowId, WidgetId,
-};
-use linear_map::LinearMap;
+use crate::{app::view_process::ViewRenderer, event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
 use retain_mut::RetainMut;
 use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, time::Instant};
 
@@ -190,8 +187,6 @@ pub struct Updates {
     display_update: UpdateDisplayRequest,
     win_display_update: UpdateDisplayRequest,
 
-    new_frames: LinearMap<WindowId, FrameId>,
-
     pre_handlers: Vec<UpdateHandler>,
     pos_handlers: Vec<UpdateHandler>,
 }
@@ -202,7 +197,6 @@ impl Updates {
             update: false,
             display_update: UpdateDisplayRequest::None,
             win_display_update: UpdateDisplayRequest::None,
-            new_frames: LinearMap::default(),
 
             pre_handlers: vec![],
             pos_handlers: vec![],
@@ -282,12 +276,6 @@ impl Updates {
     pub fn render_update(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::RenderUpdate;
         self.display_update |= UpdateDisplayRequest::RenderUpdate;
-    }
-
-    /// Notify app extensions that a window has new frame info.
-    #[inline]
-    pub(crate) fn new_frame_rendered(&mut self, window_id: WindowId, frame_id: FrameId) {
-        self.new_frames.insert(window_id, frame_id);
     }
 
     /// Returns `true` if only a frame update is scheduled.
@@ -381,12 +369,8 @@ impl Updates {
         });
     }
 
-    fn take_updates(&mut self) -> (bool, UpdateDisplayRequest, LinearMap<WindowId, FrameId>) {
-        (
-            mem::take(&mut self.update),
-            mem::take(&mut self.display_update),
-            mem::take(&mut self.new_frames),
-        )
+    fn take_updates(&mut self) -> (bool, UpdateDisplayRequest) {
+        (mem::take(&mut self.update), mem::take(&mut self.display_update))
     }
 }
 /// crate::app::HeadlessApp::block_on
@@ -517,14 +501,13 @@ impl OwnedAppContext {
         let events = self.events.apply_updates(&self.vars, &mut self.updates);
         self.vars.apply_updates(&mut self.updates);
 
-        let (update, display_update, new_frames) = self.updates.take_updates();
+        let (update, display_update) = self.updates.take_updates();
 
         ContextUpdates {
             events,
             update,
             display_update,
             wake_time,
-            new_frames,
         }
     }
 }
@@ -904,13 +887,12 @@ impl TestWidgetContext {
         let wake_time = self.timers.apply_updates(&self.vars);
         let events = self.events.apply_updates(&self.vars, &mut self.updates);
         self.vars.apply_updates(&mut self.updates);
-        let (update, display_update, new_frames) = self.updates.take_updates();
+        let (update, display_update) = self.updates.take_updates();
         ContextUpdates {
             events,
             update,
             display_update,
             wake_time,
-            new_frames,
         }
     }
 }
@@ -931,9 +913,6 @@ pub struct ContextUpdates {
 
     /// Time for the loop to awake and update.
     pub wake_time: Option<Instant>,
-
-    /// Windows with new frame metadata.
-    pub new_frames: LinearMap<WindowId, FrameId>,
 }
 impl ContextUpdates {
     /// If [`update`](Self::update) or [`display_update`](Self::display_update) where requested.

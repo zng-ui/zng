@@ -778,6 +778,30 @@ impl AppExtension for MouseManager {
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawFrameRenderedEvent.update(args) {
+            // update hovered
+            if self.pos_window == Some(args.window_id) {
+                let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
+                let hits = FrameHitInfo::new(
+                    args.window_id,
+                    args.frame_id,
+                    self.pos.to_px(windows.scale_factor(args.window_id).unwrap()),
+                    &args.cursor_hits,
+                );
+                let target = hits
+                    .target()
+                    .and_then(|t| windows.frame_info(args.window_id).unwrap().find(t.widget_id))
+                    .map(|w| w.path());
+                self.update_hovered(args.window_id, None, hits, target, ctx.events, mouse);
+            }
+            // update capture
+            if self.capture_count > 0 {
+                let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
+                if let Ok(frame) = windows.frame_info(args.window_id) {
+                    mouse.continue_capture(frame, ctx.events);
+                }
+            }
+        }
         if let Some(args) = RawCursorMovedEvent.update(args) {
             let windows = ctx.services.windows();
             self.on_cursor_moved(
@@ -867,26 +891,6 @@ impl AppExtension for MouseManager {
         let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
 
         mouse.fulfill_requests(windows, ctx.events);
-    }
-
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, _: FrameId) {
-        // update hovered
-        if self.pos_window == Some(window_id) {
-            let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
-            let hits = windows.hit_test(window_id, self.pos).unwrap(); // TODO optimize this
-            let target = hits
-                .target()
-                .and_then(|t| windows.frame_info(window_id).unwrap().find(t.widget_id))
-                .map(|w| w.path());
-            self.update_hovered(window_id, None, hits, target, ctx.events, mouse);
-        }
-        // update capture
-        if self.capture_count > 0 {
-            let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
-            if let Ok(frame) = windows.frame_info(window_id) {
-                mouse.continue_capture(frame, ctx.events);
-            }
-        }
     }
 }
 

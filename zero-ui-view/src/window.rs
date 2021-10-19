@@ -72,6 +72,8 @@ pub(crate) struct Window {
 
     movable: bool, // TODO
     transparent: bool,
+
+    cursor_pos: PxPoint,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -234,6 +236,7 @@ impl Window {
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             state: cfg.state,
+            cursor_pos: PxPoint::zero(),
         };
 
         win.set_taskbar_visible(cfg.taskbar_visible);
@@ -265,6 +268,10 @@ impl Window {
 
     pub fn set_title(&self, title: String) {
         self.window.set_title(&title);
+    }
+
+    pub fn set_cursor_pos(&mut self, pos: PxPoint) {
+        self.cursor_pos = pos;
     }
 
     pub fn set_visible(&mut self, visible: bool) {
@@ -349,7 +356,7 @@ impl Window {
         size: DipSize,
         frame: FrameRequest,
         images: &mut ImageCache<S>,
-    ) -> Option<(DipSize, Option<(FrameId, Option<ImageLoadedData>)>)> {
+    ) -> Option<(DipSize, Option<(FrameId, Option<ImageLoadedData>, HitTestResult)>)> {
         if self.resized(size) {
             let new_size = size.to_winit();
             self.render(frame);
@@ -662,7 +669,7 @@ impl Window {
         &mut self,
         msg: FrameReadyMsg,
         images: &mut ImageCache<S>,
-    ) -> (FrameId, Option<ImageLoadedData>) {
+    ) -> (FrameId, Option<ImageLoadedData>, HitTestResult) {
         debug_assert_eq!(self.document_id, msg.document_id);
 
         let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or_else(|| {
@@ -694,7 +701,10 @@ impl Window {
             None
         };
 
-        (frame_id, data)
+        let (_hits_frame_id, hits) = self.hit_test(self.cursor_pos);
+        debug_assert_eq!(_hits_frame_id, frame_id);
+
+        (frame_id, data, hits)
     }
 
     pub fn redraw(&mut self) {
@@ -714,7 +724,7 @@ impl Window {
         &mut self,
         deadline: Instant,
         images: &mut ImageCache<S>,
-    ) -> Option<(FrameId, Option<ImageLoadedData>)> {
+    ) -> Option<(FrameId, Option<ImageLoadedData>, HitTestResult)> {
         self.redirect_frame.store(true, Ordering::Relaxed);
         let stop_redirect = util::RunOnDrop::new(|| self.redirect_frame.store(false, Ordering::Relaxed));
 

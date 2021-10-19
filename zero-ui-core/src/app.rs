@@ -18,7 +18,6 @@ use crate::{
     window::{WindowId, WindowManager},
 };
 
-use linear_map::LinearMap;
 use once_cell::sync::Lazy;
 use std::future::Future;
 use std::path::PathBuf;
@@ -209,12 +208,6 @@ pub trait AppExtension: 'static {
         let _ = (ctx, update);
     }
 
-    /// Called when a new frame is ready to be inspected.
-    #[inline]
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
-        let _ = (ctx, window_id, frame_id);
-    }
-
     /// Called when a shutdown was requested.
     #[inline]
     fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
@@ -253,7 +246,6 @@ pub trait AppExtensionBoxed: 'static {
     fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn update_display_boxed(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest);
-    fn new_frame_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId);
     fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs);
     fn deinit_boxed(&mut self, ctx: &mut AppContext);
 }
@@ -300,10 +292,6 @@ impl<T: AppExtension> AppExtensionBoxed for T {
 
     fn update_display_boxed(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
         self.update_display(ctx, update);
-    }
-
-    fn new_frame_boxed(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
-        self.new_frame(ctx, window_id, frame_id);
     }
 
     fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
@@ -360,10 +348,6 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
 
     fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
         self.as_mut().update_display_boxed(ctx, update);
-    }
-
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
-        self.as_mut().new_frame_boxed(ctx, window_id, frame_id);
     }
 
     fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
@@ -917,12 +901,13 @@ impl<E: AppExtension> RunningApp<E> {
                 window: w_id,
                 frame: frame_id,
                 frame_image,
+                cursor_hits,
             } => {
                 let image = frame_image.map(|img| {
                     let view = self.ctx().services.view_process();
                     view.on_frame_image(img)
                 });
-                let args = RawFrameRenderedArgs::now(window_id(w_id), frame_id, image);
+                let args = RawFrameRenderedArgs::now(window_id(w_id), frame_id, image, cursor_hits);
                 self.notify_event(RawFrameRenderedEvent, args, observer);
                 // `FrameRendered` is not followed by a `EventsCleared`.
                 return self.update(observer);
@@ -1225,7 +1210,6 @@ impl<E: AppExtension> RunningApp<E> {
             self.maybe_has_updates = false;
 
             let mut display_update = UpdateDisplayRequest::None;
-            let mut new_frames = LinearMap::with_capacity(1);
 
             let mut limit = 100_000;
             loop {
@@ -1239,7 +1223,6 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.wake_time = u.wake_time;
                 display_update |= u.display_update;
-                new_frames.extend(u.new_frames);
 
                 if u.update {
                     // check shutdown.
@@ -1288,11 +1271,6 @@ impl<E: AppExtension> RunningApp<E> {
 
                     self.extensions.update_display(&mut ctx, display_update);
                     observer.update_display(&mut ctx, display_update);
-                } else if !new_frames.is_empty() {
-                    for (window_id, frame_id) in new_frames.drain() {
-                        self.extensions.new_frame(&mut ctx, window_id, frame_id);
-                        observer.new_frame(&mut ctx, window_id, frame_id);
-                    }
                 } else {
                     break;
                 }
@@ -1524,12 +1502,6 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
-        self.0.new_frame(ctx, window_id, frame_id);
-        self.1.new_frame(ctx, window_id, frame_id);
-    }
-
-    #[inline]
     fn update_preview(&mut self, ctx: &mut AppContext) {
         self.0.update_preview(ctx);
         self.1.update_preview(ctx);
@@ -1603,12 +1575,6 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
 
     fn enable_device_events(&self) -> bool {
         self.iter().any(|e| e.enable_device_events())
-    }
-
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
-        for ext in self {
-            ext.new_frame(ctx, window_id, frame_id);
-        }
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
@@ -3186,6 +3152,9 @@ pub mod raw_events {
 
             /// The frame pixels if it was requested when the frame request was sent to the view process.
             pub frame_image: Option<ViewImage>,
+
+            /// Hit-test at the cursor position.
+            pub cursor_hits: crate::render::webrender_api::HitTestResult,
 
             ..
 

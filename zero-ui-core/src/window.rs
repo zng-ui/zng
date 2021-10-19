@@ -18,7 +18,7 @@ use crate::{
     var::Vars,
 };
 use linear_map::LinearMap;
-use zero_ui_view_api::FrameUpdateRequest;
+use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest};
 
 use crate::{
     app::{
@@ -2401,9 +2401,6 @@ impl AppWindow {
 
         w_info.frame_info = frame_info;
 
-        // already notify, extensions are interested only in the frame metadata.
-        ctx.updates.new_frame_rendered(self.id, self.frame_id);
-
         let (payload, descriptor) = display_list.into_data();
 
         let capture_image = self.take_capture_image(ctx.vars);
@@ -2418,6 +2415,10 @@ impl AppWindow {
                 capture_image,
             })
         } else {
+            RawFrameRenderedEvent.notify(
+                ctx,
+                RawFrameRenderedArgs::now(self.id, self.frame_id, None, HitTestResult::default()),
+            );
             None
         }
     }
@@ -2467,8 +2468,6 @@ impl AppWindow {
         }
 
         self.frame_id = next_frame_id;
-
-        // TODO notify, after we implement metadata modification in render_update.
 
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
