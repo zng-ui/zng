@@ -104,7 +104,7 @@ impl Window {
             .with_max_inner_size(cfg.max_size.to_winit())
             .with_always_on_top(cfg.always_on_top)
             .with_window_icon(icon);
-            //.with_visible(false); // we wait for the first frame to show the window.
+        //.with_visible(false); // we wait for the first frame to show the window.
 
         if let Some(pos) = cfg.pos {
             winit = winit.with_position(pos.to_winit());

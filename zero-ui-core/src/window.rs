@@ -1779,7 +1779,7 @@ struct AppWindow {
     icon_img: Option<ImageVar>,
 
     first_update: bool,
-    first_render: bool,
+    first_layout: bool,
 
     // latest frame.
     frame_id: FrameId,
@@ -1856,7 +1856,7 @@ impl AppWindow {
             icon_img: None,
 
             first_update: true,
-            first_render: true,
+            first_layout: true,
 
             frame_id: frame_info.frame_id(),
             position: None,
@@ -1906,7 +1906,7 @@ impl AppWindow {
             /// Respawned error is ok here, because we recreate the window on respawn.
             type Ignore = Result<(), Respawned>;
 
-            if self.vars.position().is_new(ctx) && !self.first_render {
+            if self.vars.position().is_new(ctx) && !self.first_layout {
                 self.position = self.layout_position(ctx);
 
                 if let Some(w) = &self.headed {
@@ -2065,7 +2065,7 @@ impl AppWindow {
     ///
     /// Do measure/arrange, and if sizes actually changed send resizes.
     fn on_size_vars_update(&mut self, ctx: &mut AppContext) {
-        if self.first_render {
+        if self.first_layout {
             // values will be used in first-layout.
             return;
         }
@@ -2115,7 +2115,7 @@ impl AppWindow {
             return;
         }
 
-        if self.first_render {
+        if self.first_layout {
             self.on_init_layout(ctx);
             return;
         }
@@ -2142,33 +2142,169 @@ impl AppWindow {
 
     /// `on_layout` requested before the first frame render.
     fn on_init_layout(&mut self, ctx: &mut AppContext) {
-        debug_assert!(self.first_render);
+        debug_assert!(self.first_layout);
+        self.first_layout = false;
 
-        let (final_size, min_size, max_size) = self.layout_size(ctx, false);
+        let state = self.vars.state().copy(ctx);
 
-        self.size = final_size;
-        self.min_size = min_size;
-        self.max_size = max_size;
+        if let WindowState::Normal | WindowState::Minimized = state {
+            // we already have the size, and need to calculate the start-position.
 
-        // compute start position.
-        match self.context.root.start_position {
-            StartPosition::Default => {
-                // `layout_position` can return `None` or a computed position.
-                // We use `None` to signal the view-process to let the OS define the start position.
-                self.position = self.layout_position(ctx);
+            let (final_size, min_size, max_size) = self.layout_size(ctx, false);
+
+            self.size = final_size;
+            self.min_size = min_size;
+            self.max_size = max_size;
+
+            // compute start position.
+            match self.context.root.start_position {
+                StartPosition::Default => {
+                    // `layout_position` can return `None` or a computed position.
+                    // We use `None` to signal the view-process to let the OS define the start position.
+                    self.position = self.layout_position(ctx);
+                }
+                StartPosition::CenterMonitor => {
+                    let (scr_size, _, _) = self.monitor_metrics(ctx);
+                    self.position = Some(DipPoint::new(
+                        (scr_size.width - self.size.width) / Dip::new(2),
+                        (scr_size.height - self.size.height) / Dip::new(2),
+                    ));
+                }
+                StartPosition::CenterParent => todo!(),
             }
-            StartPosition::CenterMonitor => {
-                let (scr_size, _, _) = self.monitor_metrics(ctx);
-                self.position = Some(DipPoint::new(
-                    (scr_size.width - self.size.width) / Dip::new(2),
-                    (scr_size.height - self.size.height) / Dip::new(2),
-                ));
+
+            // `on_render` will complete first_render.
+            self.context.update = UpdateDisplayRequest::Render;
+        } else if state.is_fullscreen() {
+            // we already have the size, it is the monitor size (for Exclusive we are okay with a blink if the resolution does not match).
+
+            let (size, _, _) = self.monitor_metrics(ctx);
+
+            if self.size != size {
+                self.size = size;
+                RawWindowResizedEvent.notify(ctx, RawWindowResizedArgs::now(self.id, size, EventCause::App));
             }
-            StartPosition::CenterParent => todo!(),
+
+            let (size, min_size, max_size) = self.layout_size(ctx, true);
+            debug_assert_eq!(size, self.size);
+            self.min_size = min_size;
+            self.max_size = max_size;
+
+            self.context.update = UpdateDisplayRequest::Render;
+        } else {
+            // we don't have the size, the maximized size needs to exclude window-chrome and non-client area.
+            self.context.update = UpdateDisplayRequest::Layout;
         }
 
-        // `on_render` will complete first_render.
-        self.context.update = UpdateDisplayRequest::Render;
+        // open the view window, it will remain invisible until the first frame is rendered
+        // but we need it now to get the frame size.
+        let vp = ctx.services.get::<ViewProcess>();
+        match self.mode {
+            WindowMode::Headed => {
+                // send window request to the view-process, in the view-process the window will start but
+                // still not visible, when the renderer has a frame ready to draw then the window becomes
+                // visible. All layout values are ready here too.
+                let config = view_process::WindowRequest {
+                    id: self.id.get(),
+                    title: self.vars.title().get(ctx.vars).to_string(),
+                    pos: self.position,
+                    size: self.size,
+                    min_size: self.min_size,
+                    max_size: self.max_size,
+                    state: self.vars.state().copy(ctx.vars),
+                    video_mode: self.vars.video_mode().copy(ctx.vars),
+                    visible: self.vars.visible().copy(ctx.vars),
+                    taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
+                    chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
+                    allow_alt_f4: self.vars.allow_alt_f4().copy(ctx.vars),
+                    text_aa: self.vars.text_aa().copy(ctx.vars),
+                    always_on_top: self.vars.always_on_top().copy(ctx.vars),
+                    movable: self.vars.movable().copy(ctx.vars),
+                    resizable: self.vars.resizable().copy(ctx.vars),
+                    icon: match self.vars.icon().get(ctx.vars) {
+                        WindowIcon::Default => None,
+                        WindowIcon::Image(_) => {
+                            let vars = ctx.vars;
+                            self.icon_img.as_ref().and_then(|i| i.get(vars).view()).map(|i| i.id())
+                        }
+                        WindowIcon::Render(_) => todo!(),
+                    },
+                    transparent: self.vars.transparent().copy(ctx.vars),
+                    capture_mode: matches!(self.vars.frame_capture_mode().copy(ctx.vars), FrameCaptureMode::All),
+                };
+
+                // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
+                let (headed, data) = match vp.unwrap().open_window(config) {
+                    Ok(h) => h,
+                    // we re-render and re-open the window on respawn event.
+                    Err(Respawned) => return,
+                };
+
+                self.renderer = Some(headed.renderer());
+                self.headed = Some(headed);
+                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
+
+                if self.size != data.size || self.context.update.is_layout() {
+                    self.size = data.size;
+                    RawWindowResizedEvent.notify(ctx, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
+                    self.context.update = UpdateDisplayRequest::Render;
+
+                    let (size, min_size, max_size) = self.layout_size(ctx, true);
+                    debug_assert_eq!(size, self.size);
+                    self.min_size = min_size;
+                    self.max_size = max_size;
+                }
+
+                if self.position != Some(data.position) {
+                    self.position = Some(data.position);
+                    RawWindowMovedEvent.notify(ctx, RawWindowMovedArgs::now(self.id, data.position, EventCause::App));
+                }
+            }
+            WindowMode::HeadlessWithRenderer => {
+                let config = view_process::HeadlessRequest {
+                    id: self.id.get(),
+                    size: self.size,
+                    scale_factor: self.headless_monitor.as_ref().unwrap().scale_factor,
+                    text_aa: self.vars.text_aa().copy(ctx.vars),
+                };
+
+                let surface = match vp.unwrap().open_headless(config) {
+                    Ok(h) => h,
+                    // we re-render and re-open the window on respawn event.
+                    Err(Respawned) => return,
+                };
+                self.renderer = Some(surface.renderer());
+                self.headless_surface = Some(surface);
+                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
+            }
+            WindowMode::Headless => {
+                // headless without renderer only provides the `FrameInfo` (notified in `render_frame`),
+                // but if we are in a full headless app we can simulate the behavior of headed windows that
+                // become visible and focused when they present the first frame and "resized" and "moved" with
+                // initial values.
+
+                let timestamp = Instant::now();
+                if vp.is_none() {
+                    // if we are in a headless app too, we simulate focus.
+                    drop(vp);
+                    if let Some((prev_focus_id, _)) = ctx.services.windows().windows_info.iter_mut().find(|(_, w)| w.is_focused) {
+                        let args = RawWindowFocusArgs::new(timestamp, *prev_focus_id, false);
+                        RawWindowFocusEvent.notify(ctx.events, args)
+                    }
+                    let args = RawWindowFocusArgs::new(timestamp, self.id, true);
+                    RawWindowFocusEvent.notify(ctx.events, args)
+                }
+
+                RawWindowMovedEvent.notify(
+                    ctx.events,
+                    RawWindowMovedArgs::new(timestamp, self.id, self.position.unwrap_or_default(), EventCause::App),
+                );
+                RawWindowResizedEvent.notify(
+                    ctx.events,
+                    RawWindowResizedArgs::new(timestamp, self.id, self.size, EventCause::App),
+                );
+            }
+        }
     }
 
     /// Calculate the position var in the current monitor.
@@ -2257,7 +2393,7 @@ impl AppWindow {
         // `UiNode::render`
         let ((pipeline_id, display_list), clear_color, frame_info) =
             self.context
-                .render(ctx, next_frame_id, dbg!(self.size).to_px(scale_factor), scale_factor, &self.renderer);
+                .render(ctx, next_frame_id, self.size.to_px(scale_factor), scale_factor, &self.renderer);
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
@@ -2305,108 +2441,6 @@ impl AppWindow {
             return;
         }
 
-        if self.first_render {
-            // in first frame we can open the window, it will stay hidden until it receives the first frame
-            // but the renderer will exist for resources to start loading.
-
-            self.first_render = false;
-
-            let vp = ctx.services.get::<ViewProcess>();
-
-            match self.mode {
-                WindowMode::Headed => {
-                    // send window request to the view-process, in the view-process the window will start but
-                    // still not visible, when the renderer has a frame ready to draw then the window becomes
-                    // visible. All layout values are ready here too.
-                    let config = view_process::WindowRequest {
-                        id: self.id.get(),
-                        title: self.vars.title().get(ctx.vars).to_string(),
-                        pos: self.position,
-                        size: self.size,
-                        min_size: self.min_size,
-                        max_size: self.max_size,
-                        state: self.vars.state().copy(ctx.vars),
-                        video_mode: self.vars.video_mode().copy(ctx.vars),
-                        visible: self.vars.visible().copy(ctx.vars),
-                        taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
-                        chrome_visible: self.vars.chrome().get(ctx.vars).is_default(),
-                        allow_alt_f4: self.vars.allow_alt_f4().copy(ctx.vars),
-                        text_aa: self.vars.text_aa().copy(ctx.vars),
-                        always_on_top: self.vars.always_on_top().copy(ctx.vars),
-                        movable: self.vars.movable().copy(ctx.vars),
-                        resizable: self.vars.resizable().copy(ctx.vars),
-                        icon: match self.vars.icon().get(ctx.vars) {
-                            WindowIcon::Default => None,
-                            WindowIcon::Image(_) => {
-                                let vars = ctx.vars;
-                                self.icon_img.as_ref().and_then(|i| i.get(vars).view()).map(|i| i.id())
-                            }
-                            WindowIcon::Render(_) => todo!(),
-                        },
-                        transparent: self.vars.transparent().copy(ctx.vars),
-                        capture_mode: matches!(self.vars.frame_capture_mode().copy(ctx.vars), FrameCaptureMode::All),
-                    };
-
-                    // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
-                    let (headed, data) = match vp.unwrap().open_window(config) {
-                        Ok(h) => h,
-                        // we re-render and re-open the window on respawn event.
-                        Err(Respawned) => return,
-                    };
-
-                    self.size = data.size;
-
-                    self.renderer = Some(headed.renderer());
-                    self.headed = Some(headed);
-                    ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
-                }
-                WindowMode::HeadlessWithRenderer => {
-                    let config = view_process::HeadlessRequest {
-                        id: self.id.get(),
-                        size: self.size,
-                        scale_factor: self.headless_monitor.as_ref().unwrap().scale_factor,
-                        text_aa: self.vars.text_aa().copy(ctx.vars),
-                    };
-
-                    let surface = match vp.unwrap().open_headless(config) {
-                        Ok(h) => h,
-                        // we re-render and re-open the window on respawn event.
-                        Err(Respawned) => return,
-                    };
-                    self.renderer = Some(surface.renderer());
-                    self.headless_surface = Some(surface);
-                    ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
-                }
-                WindowMode::Headless => {
-                    // headless without renderer only provides the `FrameInfo` (notified in `render_frame`),
-                    // but if we are in a full headless app we can simulate the behavior of headed windows that
-                    // become visible and focused when they present the first frame and "resized" and "moved" with
-                    // initial values.
-
-                    let timestamp = Instant::now();
-                    if vp.is_none() {
-                        // if we are in a headless app too, we simulate focus.
-                        drop(vp);
-                        if let Some((prev_focus_id, _)) = ctx.services.windows().windows_info.iter_mut().find(|(_, w)| w.is_focused) {
-                            let args = RawWindowFocusArgs::new(timestamp, *prev_focus_id, false);
-                            RawWindowFocusEvent.notify(ctx.events, args)
-                        }
-                        let args = RawWindowFocusArgs::new(timestamp, self.id, true);
-                        RawWindowFocusEvent.notify(ctx.events, args)
-                    }
-
-                    RawWindowMovedEvent.notify(
-                        ctx.events,
-                        RawWindowMovedArgs::new(timestamp, self.id, self.position.unwrap_or_default(), EventCause::App),
-                    );
-                    RawWindowResizedEvent.notify(
-                        ctx.events,
-                        RawWindowResizedArgs::new(timestamp, self.id, self.size, EventCause::App),
-                    );
-                }
-            }
-        }
-
         let frame = self.render_frame(ctx);
 
         if let Some(renderer) = &mut self.renderer {
@@ -2422,8 +2456,6 @@ impl AppWindow {
         if !self.context.update.is_render_update() {
             return;
         }
-
-        debug_assert!(!self.first_render);
 
         let capture_image = self.take_capture_image(ctx.vars);
 
@@ -2469,11 +2501,12 @@ impl AppWindow {
             }
         }
 
-        self.first_render = true;
+        self.first_layout = true;
         self.headed = None;
         self.renderer = None;
         ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = None;
 
+        self.on_layout(ctx, UpdateDisplayRequest::ForceLayout);
         self.on_render(ctx, UpdateDisplayRequest::ForceRender);
     }
 

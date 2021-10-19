@@ -1324,12 +1324,17 @@ impl fmt::Debug for ImageLoadedData {
     }
 }
 
-/// 
+/// Information about a successfully opened window.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WindowOpenData {
-    pub id_namespace: webrender_api::IdNamespace, 
+    /// Window renderer ID namespace.
+    pub id_namespace: webrender_api::IdNamespace,
+    /// Window renderer pipeline.
     pub pipeline_id: webrender_api::PipelineId,
+    /// Final top-left offset of the window (including outer chrome).
     pub position: DipPoint,
+    /// Final dimensions of the client area of the window (excluding outer chrome).
     pub size: DipSize,
+    /// Final scale factor.
     pub scale_factor: f32,
 }

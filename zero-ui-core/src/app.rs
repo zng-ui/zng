@@ -1907,7 +1907,7 @@ pub mod view_process {
     pub use zero_ui_view_api::{
         bytes_channel, ByteBuf, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat,
         ImagePpi, IpcBytesReceiver, IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen,
-        WindowRequest, WindowState, WindowTheme, WindowOpenData
+        WindowOpenData, WindowRequest, WindowState, WindowTheme,
     };
     use zero_ui_view_api::{
         Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
