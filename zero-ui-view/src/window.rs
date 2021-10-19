@@ -1,13 +1,13 @@
 use std::{
     cell::Cell,
     collections::VecDeque,
-    fmt,
+    fmt, mem,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use gleam::gl;
@@ -65,6 +65,7 @@ pub(crate) struct Window {
     state: WindowState,
 
     visible: bool,
+    ignore_state_change: bool,
     waiting_first_frame: bool,
 
     allow_alt_f4: Rc<Cell<bool>>,
@@ -227,6 +228,7 @@ impl Window {
             resized: true,
             waiting_first_frame: true,
             visible: cfg.visible,
+            ignore_state_change: false,
             allow_alt_f4,
             taskbar_visible: true,
             movable: cfg.movable,
@@ -276,7 +278,22 @@ impl Window {
 
     pub fn set_visible(&mut self, visible: bool) {
         if !self.waiting_first_frame {
-            self.window.set_visible(visible);
+            if visible {
+                self.window.set_visible(true);
+                match self.state {
+                    WindowState::Normal => {}
+                    WindowState::Minimized => self.window.set_minimized(true),
+                    WindowState::Maximized => self.window.set_maximized(true),
+                    WindowState::Fullscreen => self.window.set_fullscreen(None),
+                    WindowState::Exclusive => self.window.set_fullscreen(self.video_mode().map(Fullscreen::Exclusive)),
+                }
+            } else {
+                // hidden from maximized and fullscreen causes errors, so we minimize first.
+                // this minimize event is ignored.
+                self.ignore_state_change = true;
+                self.window.set_minimized(true);
+                self.window.set_visible(false);
+            }
         }
         self.visible = visible;
     }
@@ -340,12 +357,42 @@ impl Window {
         moved
     }
 
+    /// Resize window, returns `Some(new_size)` if actually resized and `Some(<frame>)` if the frame rendered within 300m.
+    #[must_use = "must send an event if the return is `Some(_)`"]
+    #[allow(clippy::type_complexity)]
+    pub fn set_inner_size<S: AppEventSender>(
+        &mut self,
+        size: DipSize,
+        frame: FrameRequest,
+        images: &mut ImageCache<S>,
+    ) -> Option<(DipSize, Option<(FrameId, Option<ImageLoadedData>)>)> {
+        if self.resized(size) {
+            let new_size = size.to_winit();
+            self.render(frame);
+            let render = self.wait_frame_ready(Instant::now() + Duration::from_millis(300), images);
+
+            self.window.set_inner_size(new_size);
+            self.on_resized();
+
+            if render.is_some() {
+                self.redraw();
+            }
+            Some((self.size(), render))
+        } else {
+            None
+        }
+    }
+
     pub fn set_icon(&mut self, icon: Option<Icon>) {
         self.window.set_window_icon(icon);
     }
 
     /// Probe state, returns `Some(new_state)`
     pub fn state_change(&mut self) -> Option<WindowState> {
+        if mem::take(&mut self.ignore_state_change) && self.window.inner_size().width == 0 && !self.visible {
+            return None; // visible=false minimized to avoid a bug.
+        }
+
         let state = if self.window.inner_size().width == 0 {
             WindowState::Minimized
         } else if let Some(h) = self.window.fullscreen() {
@@ -402,7 +449,8 @@ impl Window {
             if let Some(mode) = self.video_mode() {
                 self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
             } else {
-                todo!()
+                log::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
+                self.window.set_fullscreen(None);
             }
         }
     }
@@ -417,7 +465,8 @@ impl Window {
                     if let Some(mode) = self.video_mode() {
                         self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
                     } else {
-                        todo!()
+                        log::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
+                        self.window.set_fullscreen(None);
                     }
                 }
                 _ => unreachable!(),
