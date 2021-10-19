@@ -170,12 +170,12 @@ type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, &D) -> BoxedUiNode>;
 /// Define the content that is shown when an image fails to load:
 ///
 /// ```
-/// # use zero_ui::{widgets::{ViewGenerator, image, text::text}, core::{color::colors, text::Text}};
+/// # use zero_ui::{widgets::{ViewGenerator, image, image::properties::ImageErrorArgs, text::text}, core::color::colors};
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
-///     error_view = ViewGenerator::new(|_ctx, e: &Text| text! {
-///         text = e.to_owned();
+///     error_view = ViewGenerator::new(|_ctx, e: &ImageErrorArgs| text! {
+///         text = e.error.clone();
 ///         color = colors::RED;
 ///     });
 /// }
@@ -258,13 +258,13 @@ impl<D: ?Sized> ViewGenerator<D> {
 /// Define the content that is shown when an image fails to load, capturing another variable too.
 ///
 /// ```
-/// # use zero_ui::{widgets::{view_generator, image, text::text}, core::{color::{Rgba, colors}, text::Text, var::var, widget_base::Visibility}};
+/// # use zero_ui::{widgets::{view_generator, image, image::properties::ImageErrorArgs, text::text}, core::{color::{Rgba, colors}, var::var, widget_base::Visibility}};
 /// let img_error_vis = var(Visibility::Visible);
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
-///     error_view = view_generator!(img_error_vis, |_ctx, e: &Text| text! {
-///         text = e.to_owned();
+///     error_view = view_generator!(img_error_vis, |_ctx, e: &ImageErrorArgs| text! {
+///         text = e.error.clone();
 ///         color = colors::RED;
 ///         visibility = img_error_vis.clone();
 ///     });
