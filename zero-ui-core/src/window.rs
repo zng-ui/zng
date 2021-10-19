@@ -2259,12 +2259,15 @@ impl AppWindow {
                     self.position = Some(data.position);
                     RawWindowMovedEvent.notify(ctx, RawWindowMovedArgs::now(self.id, data.position, EventCause::App));
                 }
+
+                RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, data.scale_factor));
             }
             WindowMode::HeadlessWithRenderer => {
+                let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
                 let config = view_process::HeadlessRequest {
                     id: self.id.get(),
                     size: self.size,
-                    scale_factor: self.headless_monitor.as_ref().unwrap().scale_factor,
+                    scale_factor,
                     text_aa: self.vars.text_aa().copy(ctx.vars),
                 };
 
@@ -2276,6 +2279,8 @@ impl AppWindow {
                 self.renderer = Some(surface.renderer());
                 self.headless_surface = Some(surface);
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
+
+                RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, scale_factor));
             }
             WindowMode::Headless => {
                 // headless without renderer only provides the `FrameInfo` (notified in `render_frame`),
@@ -2303,6 +2308,9 @@ impl AppWindow {
                     ctx.events,
                     RawWindowResizedArgs::new(timestamp, self.id, self.size, EventCause::App),
                 );
+                let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
+
+                RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, scale_factor));
             }
         }
     }
