@@ -3,7 +3,7 @@ use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs, ImageLoadingArgs};
 
 fn main() {
-    //zero_ui_view::run_same_process(app_main);
+    zero_ui_view::run_same_process(app_main);
 
     zero_ui_view::init();
     app_main();

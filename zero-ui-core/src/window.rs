@@ -2257,7 +2257,7 @@ impl AppWindow {
         // `UiNode::render`
         let ((pipeline_id, display_list), clear_color, frame_info) =
             self.context
-                .render(ctx, next_frame_id, self.size.to_px(scale_factor), scale_factor, &self.renderer);
+                .render(ctx, next_frame_id, dbg!(self.size).to_px(scale_factor), scale_factor, &self.renderer);
 
         // update frame info.
         self.frame_id = frame_info.frame_id();
@@ -2348,11 +2348,13 @@ impl AppWindow {
                     };
 
                     // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
-                    let headed = match vp.unwrap().open_window(config) {
+                    let (headed, data) = match vp.unwrap().open_window(config) {
                         Ok(h) => h,
                         // we re-render and re-open the window on respawn event.
                         Err(Respawned) => return,
                     };
+
+                    self.size = data.size;
 
                     self.renderer = Some(headed.renderer());
                     self.headed = Some(headed);

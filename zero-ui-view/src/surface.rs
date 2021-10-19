@@ -163,7 +163,7 @@ impl Surface {
         self.id
     }
 
-    pub fn namespace_id(&self) -> IdNamespace {
+    pub fn id_namespace(&self) -> IdNamespace {
         self.api.get_namespace_id()
     }
 

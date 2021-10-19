@@ -732,13 +732,13 @@ impl<E: AppExtension> RunningApp<E> {
 
             let view_evs_sender = ctx.updates.sender();
             let view_app = view_process::ViewProcess::start(view_process_exe, device_events, false, move |ev| {
-                view_evs_sender.send_view_event(ev).unwrap()
+                let _ = view_evs_sender.send_view_event(ev);
             });
             ctx.services.register(view_app);
         } else if with_renderer {
             let view_evs_sender = ctx.updates.sender();
             let renderer = view_process::ViewProcess::start(view_process_exe, false, true, move |ev| {
-                view_evs_sender.send_view_event(ev).unwrap()
+                let _ = view_evs_sender.send_view_event(ev);
             });
             ctx.services.register(renderer);
         }
@@ -1907,7 +1907,7 @@ pub mod view_process {
     pub use zero_ui_view_api::{
         bytes_channel, ByteBuf, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat,
         ImagePpi, IpcBytesReceiver, IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen,
-        WindowRequest, WindowState, WindowTheme,
+        WindowRequest, WindowState, WindowTheme, WindowOpenData
     };
     use zero_ui_view_api::{
         Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
@@ -1984,20 +1984,21 @@ pub mod view_process {
         }
 
         /// Open a window and associate it with the `window_id`.
-        pub fn open_window(&self, config: WindowRequest) -> Result<ViewWindow> {
+        pub fn open_window(&self, config: WindowRequest) -> Result<(ViewWindow, WindowOpenData)> {
             let mut app = self.0.borrow_mut();
             let _ = app.check_generation();
 
             let id = config.id;
-            let (namespace_id, pipeline_id) = app.process.open_window(config)?;
+            let data = app.process.open_window(config)?;
 
-            Ok(ViewWindow(Rc::new(WindowConnection {
+            let win = ViewWindow(Rc::new(WindowConnection {
                 id,
                 app: self.0.clone(),
-                namespace_id,
-                pipeline_id,
+                id_namespace: data.id_namespace,
+                pipeline_id: data.pipeline_id,
                 generation: app.data_generation,
-            })))
+            }));
+            Ok((win, data))
         }
 
         /// Open a headless renderer and associate it with the `window_id`.
@@ -2013,7 +2014,7 @@ pub mod view_process {
             Ok(ViewHeadless(Rc::new(WindowConnection {
                 id,
                 app: self.0.clone(),
-                namespace_id,
+                id_namespace: namespace_id,
                 pipeline_id,
                 generation: app.data_generation,
             })))
@@ -2588,7 +2589,7 @@ pub mod view_process {
 
     struct WindowConnection {
         id: ApiWindowId,
-        namespace_id: IdNamespace,
+        id_namespace: IdNamespace,
         pipeline_id: PipelineId,
         generation: ViewProcessGen,
         app: Rc<RefCell<ViewApp>>,
@@ -2862,7 +2863,7 @@ pub mod view_process {
         pub fn namespace_id(&self) -> Result<IdNamespace> {
             if let Some(c) = self.0.upgrade() {
                 if c.alive() {
-                    return Ok(c.namespace_id);
+                    return Ok(c.id_namespace);
                 }
             }
             Err(Respawned)

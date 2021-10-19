@@ -103,12 +103,18 @@ impl Window {
             .with_min_inner_size(cfg.min_size.to_winit())
             .with_max_inner_size(cfg.max_size.to_winit())
             .with_always_on_top(cfg.always_on_top)
-            .with_window_icon(icon)
-            .with_visible(false); // we wait for the first frame to show the window.
+            .with_window_icon(icon);
+            //.with_visible(false); // we wait for the first frame to show the window.
 
         if let Some(pos) = cfg.pos {
             winit = winit.with_position(pos.to_winit());
         }
+
+        winit = match cfg.state {
+            WindowState::Normal | WindowState::Minimized => winit,
+            WindowState::Maximized => winit.with_maximized(true),
+            WindowState::Fullscreen | WindowState::Exclusive => winit.with_fullscreen(Some(Fullscreen::Borderless(None))),
+        };
 
         let glutin = match ContextBuilder::new()
             .with_hardware_acceleration(None)
@@ -231,6 +237,7 @@ impl Window {
         };
 
         win.set_taskbar_visible(cfg.taskbar_visible);
+        win.set_visible(false);
 
         win
     }
@@ -243,7 +250,7 @@ impl Window {
         self.window.id()
     }
 
-    pub fn namespace_id(&self) -> IdNamespace {
+    pub fn id_namespace(&self) -> IdNamespace {
         self.api.get_namespace_id()
     }
 
@@ -655,7 +662,7 @@ impl Window {
         &mut self,
         msg: FrameReadyMsg,
         images: &mut ImageCache<S>,
-    ) -> (bool, FrameId, Option<ImageLoadedData>) {
+    ) -> (FrameId, Option<ImageLoadedData>) {
         debug_assert_eq!(self.document_id, msg.document_id);
 
         let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or_else(|| {
@@ -663,8 +670,6 @@ impl Window {
             (self.rendered_frame_id, false)
         });
         self.rendered_frame_id = frame_id;
-
-        let first_frame = self.waiting_first_frame;
 
         if self.waiting_first_frame {
             debug_assert!(msg.composite_needed);
@@ -689,7 +694,7 @@ impl Window {
             None
         };
 
-        (first_frame, frame_id, data)
+        (frame_id, data)
     }
 
     pub fn redraw(&mut self) {
@@ -718,8 +723,7 @@ impl Window {
         drop(stop_redirect);
 
         if let Ok(msg) = received {
-            let (_, frame_id, image) = self.on_frame_ready(msg, images);
-            Some((frame_id, image))
+            Some(self.on_frame_ready(msg, images))
         } else {
             None
         }

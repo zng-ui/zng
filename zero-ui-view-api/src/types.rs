@@ -1323,3 +1323,13 @@ impl fmt::Debug for ImageLoadedData {
             .finish()
     }
 }
+
+/// 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WindowOpenData {
+    pub id_namespace: webrender_api::IdNamespace, 
+    pub pipeline_id: webrender_api::PipelineId,
+    pub position: DipPoint,
+    pub size: DipSize,
+    pub scale_factor: f32,
+}

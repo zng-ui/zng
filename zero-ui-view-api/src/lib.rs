@@ -206,7 +206,7 @@ declare_api! {
     /// Open a window.
     ///
     /// Returns the renderer ids.
-    pub fn open_window(&mut self, config: WindowRequest) -> (IdNamespace, PipelineId);
+    pub fn open_window(&mut self, config: WindowRequest) -> WindowOpenData;
 
     /// Open a headless surface.
     ///
@@ -293,7 +293,7 @@ declare_api! {
     pub fn pipeline_id(&mut self, id: WindowId) -> PipelineId;
 
     /// Gets the resources namespace.
-    pub fn namespace_id(&mut self, id: WindowId) -> IdNamespace;
+    pub fn id_namspace(&mut self, id: WindowId) -> IdNamespace;
 
     /// Cache an image resource.
     ///

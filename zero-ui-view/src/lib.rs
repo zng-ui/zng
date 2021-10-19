@@ -632,28 +632,7 @@ impl<S: AppEventSender> App<S> {
 
     fn on_frame_ready(&mut self, window_id: WindowId, msg: FrameReadyMsg) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
-            let (first_frame, frame_id, image) = w.on_frame_ready(msg, &mut self.image_cache);
-
-            if first_frame {
-                let pos = w.outer_position();
-                let size = w.size();
-                let scale_factor = w.scale_factor();
-
-                self.notify(Event::WindowMoved {
-                    window: window_id,
-                    position: pos,
-                    cause: EventCause::App,
-                });
-                self.notify(Event::WindowResized {
-                    window: window_id,
-                    size,
-                    cause: EventCause::App,
-                });
-                self.notify(Event::ScaleFactorChanged {
-                    window: window_id,
-                    scale_factor,
-                });
-            }
+            let (frame_id, image) = w.on_frame_ready(msg, &mut self.image_cache);
 
             self.notify(Event::FrameRendered {
                 window: window_id,
@@ -853,14 +832,21 @@ impl<S: AppEventSender> Api for App<S> {
             .collect()
     }
 
-    fn open_window(&mut self, config: WindowRequest) -> (webrender_api::IdNamespace, webrender_api::PipelineId) {
+    fn open_window(&mut self, config: WindowRequest) -> WindowOpenData {
         if self.headless {
-            self.open_headless(HeadlessRequest {
+            let (id_namespace, pipeline_id) = self.open_headless(HeadlessRequest {
                 id: config.id,
                 scale_factor: 1.0,
                 size: config.size,
                 text_aa: config.text_aa,
-            })
+            });
+            WindowOpenData {
+                id_namespace,
+                pipeline_id,
+                position: DipPoint::zero(),
+                size: config.size,
+                scale_factor: 1.0,
+            }
         } else {
             self.assert_started();
             let win = Window::open(
@@ -872,12 +858,17 @@ impl<S: AppEventSender> Api for App<S> {
                 self.app_sender.clone(),
             );
 
-            let namespace = win.namespace_id();
-            let pipeline = win.pipeline_id();
+            let data = WindowOpenData {
+                id_namespace: win.id_namespace(),
+                pipeline_id: win.pipeline_id(),
+                position: win.outer_position(),
+                size: win.size(),
+                scale_factor: win.scale_factor(),
+            };
 
             self.windows.push(win);
 
-            (namespace, pipeline)
+            data
         }
     }
 
@@ -890,7 +881,7 @@ impl<S: AppEventSender> Api for App<S> {
             &mut self.gl_manager,
             self.app_sender.clone(),
         );
-        let namespace = surf.namespace_id();
+        let namespace = surf.id_namespace();
         let pipeline = surf.pipeline_id();
 
         self.surfaces.push(surf);
@@ -1038,8 +1029,8 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.pipeline_id(), || PipelineId::dummy())
     }
 
-    fn namespace_id(&mut self, id: WindowId) -> IdNamespace {
-        with_window_or_surface!(self, id, |w| w.namespace_id(), || IdNamespace(0))
+    fn id_namspace(&mut self, id: WindowId) -> IdNamespace {
+        with_window_or_surface!(self, id, |w| w.id_namespace(), || IdNamespace(0))
     }
 
     fn image_decoders(&mut self) -> Vec<String> {
