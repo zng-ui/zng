@@ -1,7 +1,7 @@
 use std::{
     cell::Cell,
     collections::VecDeque,
-    fmt, mem,
+    fmt,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -65,7 +65,6 @@ pub(crate) struct Window {
     state: WindowState,
 
     visible: bool,
-    ignore_state_change: bool,
     waiting_first_frame: bool,
 
     allow_alt_f4: Rc<Cell<bool>>,
@@ -110,12 +109,6 @@ impl Window {
         if let Some(pos) = cfg.pos {
             winit = winit.with_position(pos.to_winit());
         }
-
-        winit = match cfg.state {
-            WindowState::Normal | WindowState::Minimized => winit,
-            WindowState::Maximized => winit.with_maximized(true),
-            WindowState::Fullscreen | WindowState::Exclusive => winit.with_fullscreen(None),
-        };
 
         let glutin = match ContextBuilder::new()
             .with_hardware_acceleration(None)
@@ -228,7 +221,6 @@ impl Window {
             resized: true,
             waiting_first_frame: true,
             visible: cfg.visible,
-            ignore_state_change: false,
             allow_alt_f4,
             taskbar_visible: true,
             movable: cfg.movable,
@@ -239,14 +231,6 @@ impl Window {
         };
 
         win.set_taskbar_visible(cfg.taskbar_visible);
-
-        if let Some(state) = win.state_change() {
-            if state != cfg.state {
-                // some states don't apply correctly (minimize and fullscreen)
-                log::debug!("needed state correction, request: {:?}, actual: {:?}", cfg.state, state);
-                let _ = win.set_state(cfg.state);
-            }
-        }
 
         win
     }
@@ -278,24 +262,17 @@ impl Window {
 
     pub fn set_visible(&mut self, visible: bool) {
         if !self.waiting_first_frame {
+            self.visible = visible;
             if visible {
                 self.window.set_visible(true);
-                match self.state {
-                    WindowState::Normal => {}
-                    WindowState::Minimized => self.window.set_minimized(true),
-                    WindowState::Maximized => self.window.set_maximized(true),
-                    WindowState::Fullscreen => self.window.set_fullscreen(None),
-                    WindowState::Exclusive => self.window.set_fullscreen(self.video_mode().map(Fullscreen::Exclusive)),
-                }
+                let _ = self.set_state(self.state);
             } else {
-                // hidden from maximized and fullscreen causes errors, so we minimize first.
-                // this minimize event is ignored.
-                self.ignore_state_change = true;
-                self.window.set_minimized(true);
+                self.window.set_fullscreen(None);
+                self.window.set_maximized(false);
+                self.window.set_minimized(false);
                 self.window.set_visible(false);
             }
         }
-        self.visible = visible;
     }
 
     pub fn set_always_on_top(&mut self, always_on_top: bool) {
@@ -389,8 +366,8 @@ impl Window {
 
     /// Probe state, returns `Some(new_state)`
     pub fn state_change(&mut self) -> Option<WindowState> {
-        if mem::take(&mut self.ignore_state_change) && self.window.inner_size().width == 0 && !self.visible {
-            return None; // visible=false minimized to avoid a bug.
+        if !self.visible {
+            return None;
         }
 
         let state = if self.window.inner_size().width == 0 {
@@ -450,7 +427,7 @@ impl Window {
                 self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
             } else {
                 log::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
-                self.window.set_fullscreen(None);
+                self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
             }
         }
     }
@@ -458,7 +435,15 @@ impl Window {
     /// Apply the new state, returns `true` if the state changed.
     #[must_use = "must send an event if the return is `true`"]
     pub fn set_state(&mut self, state: WindowState) -> bool {
+        if !self.visible {
+            // will apply when set to visible.
+            self.state = state;
+            return false;
+        }
+
         if state.is_fullscreen() {
+            self.window.set_minimized(false);
+
             match state {
                 WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
                 WindowState::Exclusive => {
@@ -466,21 +451,21 @@ impl Window {
                         self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
                     } else {
                         log::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
-                        self.window.set_fullscreen(None);
+                        self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
                     }
                 }
                 _ => unreachable!(),
             }
+        } else if let WindowState::Maximized = state {
+            self.window.set_minimized(false);
+            self.window.set_fullscreen(None);
+            self.window.set_maximized(true);
+        } else if let WindowState::Normal = state {
+            self.window.set_minimized(false);
+            self.window.set_fullscreen(None);
+            self.window.set_maximized(false);
         } else {
-            if self.window.fullscreen().is_some() {
-                self.window.set_fullscreen(None);
-            }
-            match state {
-                WindowState::Normal => self.window.set_maximized(false),
-                WindowState::Minimized => self.window.set_minimized(true),
-                WindowState::Maximized => self.window.set_maximized(true),
-                _ => unreachable!(),
-            }
+            self.window.set_minimized(true);
         }
 
         if let Some(s) = self.state_change() {
@@ -687,7 +672,7 @@ impl Window {
             self.waiting_first_frame = false;
             self.redraw();
             if self.visible {
-                self.window.set_visible(true);
+                self.set_visible(true);
             }
         } else if msg.composite_needed {
             self.window.request_redraw();
