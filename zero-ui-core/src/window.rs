@@ -2194,6 +2194,12 @@ impl AppWindow {
         } else {
             // we don't have the size, the maximized size needs to exclude window-chrome and non-client area.
             self.context.update = UpdateDisplayRequest::Layout;
+
+            // we do calculate the size as the "restore" size.
+            let (size, min_size, max_size) = self.layout_size(ctx, false);
+            self.size = size;
+            self.min_size = min_size;
+            self.max_size = max_size;
         }
 
         // open the view window, it will remain invisible until the first frame is rendered
@@ -2371,6 +2377,7 @@ impl AppWindow {
             });
 
         let root_font_size = Length::pt_to_px(14.0, scr_factor);
+
         let final_size = self.context.layout(
             ctx,
             root_font_size,
