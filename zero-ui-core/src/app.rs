@@ -2671,12 +2671,6 @@ pub mod view_process {
             self.0.call(|id, p| p.set_parent(id, parent.map(WindowId::get), modal))
         }
 
-        /// Set if the window is see-through.
-        #[inline]
-        pub fn set_transparent(&self, transparent: bool) -> Result<()> {
-            self.0.call(|id, p| p.set_transparent(id, transparent))
-        }
-
         /// Set the window position.
         #[inline]
         pub fn set_position(&self, pos: DipPoint) -> Result<()> {

@@ -183,10 +183,6 @@ impl Surface {
         self.size
     }
 
-    pub fn set_transparent(&mut self, transparent: bool) {
-        todo!("TODO headless set transparent {}", transparent)
-    }
-
     pub fn set_size(&mut self, size: DipSize, scale_factor: f32) {
         if self.size != size || (self.scale_factor - scale_factor).abs() > 0.001 {
             self.size = size;

@@ -18,6 +18,8 @@ fn app_main() {
             // Set a loading view generator used in all images in this window.
             image_loading_view = ViewGenerator::new(image_loading);
 
+            //transparent = true;
+
             // Set a error view generator used in all images in this window.
             image_error_view = view_generator!(|_, args: &ImageErrorArgs| {
                 log::error!(target: "expected", "{}", args.error);

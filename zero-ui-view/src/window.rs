@@ -71,7 +71,6 @@ pub(crate) struct Window {
     taskbar_visible: bool,
 
     movable: bool, // TODO
-    transparent: bool,
 
     cursor_pos: PxPoint,
 }
@@ -114,8 +113,14 @@ impl Window {
                 .with_visible(false);
         } else {
             // Maximized/Fullscreen Flickering Workaround Part 1
-            // 
-            // TODO: explain the problem this workaround is solving.
+            //
+            // We can't start maximized or fullscreen with visible=false because
+            // that causes a white rectangle over a black background to flash on open.
+            // The white rectangle is probably the window in Normal mode, not sure if its caused by winit or glutin.
+            //
+            // For some reason disabling the window chrome, then enabling it again after opening the window removes
+            // the white rectangle, the black background still flashes when transparent=false, but at least its just
+            // a solid fill.
             winit = winit.with_decorations(false);
         }
 
@@ -243,7 +248,6 @@ impl Window {
             allow_alt_f4,
             taskbar_visible: true,
             movable: cfg.movable,
-            transparent: cfg.transparent,
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             state: cfg.state,
@@ -323,13 +327,6 @@ impl Window {
 
     pub fn set_parent(&mut self, parent: Option<glutin::window::WindowId>, modal: bool) {
         todo!("implement parent & modal: {:?}", (parent, modal));
-    }
-
-    pub fn set_transparent(&mut self, transparent: bool) {
-        if self.transparent != transparent {
-            self.transparent = transparent;
-            todo!("respawn just the window?")
-        }
     }
 
     pub fn set_chrome_visible(&mut self, visible: bool) {

@@ -262,9 +262,6 @@ declare_api! {
     /// Set the window parent and if `self` blocks the parent events while open (`modal`).
     pub fn set_parent(&mut self, id: WindowId, parent: Option<WindowId>, modal: bool);
 
-    /// Set if the window is see-through.
-    pub fn set_transparent(&mut self, id: WindowId, transparent: bool);
-
     /// Set the window system border and title visibility.
     pub fn set_chrome_visible(&mut self, id: WindowId, visible: bool);
 

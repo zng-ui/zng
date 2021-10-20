@@ -847,7 +847,7 @@ mod capture {
                     data.clone(),
                     u64::MAX,
                 );
-                let opaque = true;
+                let opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
                 let size = s.to_px();
 
                 ImageLoadedData {

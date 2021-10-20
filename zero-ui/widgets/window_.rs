@@ -228,6 +228,20 @@ pub mod window {
         #[allowed_in_when = false]
         kiosk(bool) = false;
 
+        /// If semi-transparent content is "see-through", mixin with the OS pixels "behind" the window.
+        ///
+        /// This is `true` by default, as it avoids the screen flashing black for windows opening in maximized or fullscreen modes
+        /// in the Microsoft Windows OS.
+        ///
+        /// Note that to make use of this feature you must unset the [`clear_color`] and [`background_color`] or set then to
+        /// a semi-transparent color. The composition is a simple alpha blend, effects like blur do not apply to
+        /// the pixels "behind" the window.
+        ///
+        /// [`clear_color`]: #wp-clear_color
+        /// [`background_color`]: #wp-background_color
+        #[allowed_in_when = false]
+        allow_transparency(bool) = true;
+
         /// Event just after the window opens.
         ///
         /// This event notifies once per window, after the window content is inited and the first frame was send to the renderer.
@@ -368,9 +382,10 @@ pub mod window {
         root_id: WidgetId,
         start_position: impl Into<StartPosition>,
         kiosk: bool,
+        allow_transparency: bool,
         headless_monitor: impl Into<HeadlessMonitor>,
     ) -> Window {
-        Window::new(root_id, start_position, kiosk, headless_monitor, child)
+        Window::new(root_id, start_position, kiosk, allow_transparency, headless_monitor, child)
     }
 
     /// Window stand-alone properties.
@@ -472,8 +487,6 @@ pub mod window {
 
             parent: Option<WindowId>,
             modal: bool,
-
-            transparent: bool,
 
             frame_capture_mode: FrameCaptureMode,
         }

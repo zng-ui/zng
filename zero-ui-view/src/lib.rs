@@ -958,10 +958,6 @@ impl<S: AppEventSender> Api for App<S> {
         self.with_window(id, |w| w.set_parent(parent, modal), || ())
     }
 
-    fn set_transparent(&mut self, id: WindowId, transparent: bool) {
-        with_window_or_surface!(self, id, |w| w.set_transparent(transparent), || ())
-    }
-
     fn set_chrome_visible(&mut self, id: WindowId, visible: bool) {
         self.with_window(id, |w| w.set_chrome_visible(visible), || ())
     }

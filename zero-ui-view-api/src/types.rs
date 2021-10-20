@@ -1110,7 +1110,7 @@ pub struct WindowRequest {
     pub resizable: bool,
     /// Window icon.
     pub icon: Option<ImageId>,
-    /// If the window is see-through.
+    /// If the window is see-through in pixels that are not fully opaque.
     pub transparent: bool,
 
     /// Text anti-aliasing.

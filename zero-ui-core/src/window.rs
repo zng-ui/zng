@@ -236,6 +236,7 @@ pub struct Window {
     id: WidgetId,
     start_position: StartPosition,
     kiosk: bool,
+    transparent: bool,
     headless_monitor: HeadlessMonitor,
     child: BoxedUiNode,
 }
@@ -246,6 +247,7 @@ impl Window {
     /// * `start_position` - Position of the window when it first opens.
     /// * `kiosk` - Only allow full-screen mode. Note this does not configure the operating system, only blocks the app itself
     ///             from accidentally exiting full-screen. Also causes subsequent open windows to be child of this window.
+    /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
     /// * `mode` - Custom window mode for this window only, set to default to use the app mode.
     /// * `headless_monitor` - "Monitor" configuration used in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
@@ -254,6 +256,7 @@ impl Window {
         root_id: WidgetId,
         start_position: impl Into<StartPosition>,
         kiosk: bool,
+        transparent: bool,
         headless_monitor: impl Into<HeadlessMonitor>,
         child: impl UiNode,
     ) -> Self {
@@ -261,6 +264,7 @@ impl Window {
             state: OwnedStateMap::default(),
             id: root_id,
             kiosk,
+            transparent,
             start_position: start_position.into(),
             headless_monitor: headless_monitor.into(),
             child: child.boxed(),
@@ -1995,9 +1999,6 @@ impl AppWindow {
                 if self.vars.parent().is_new(ctx) || self.vars.modal().is_new(ctx) {
                     let _: Ignore = w.set_parent(self.vars.parent().copy(ctx), self.vars.modal().copy(ctx));
                 }
-                if let Some(transparent) = self.vars.transparent().copy_new(ctx) {
-                    let _: Ignore = w.set_transparent(transparent);
-                }
                 if let Some(allow) = self.vars.allow_alt_f4().copy_new(ctx) {
                     let _: Ignore = w.set_allow_alt_f4(allow);
                 }
@@ -2235,7 +2236,7 @@ impl AppWindow {
                         }
                         WindowIcon::Render(_) => todo!(),
                     },
-                    transparent: self.vars.transparent().copy(ctx.vars),
+                    transparent: self.context.root.transparent,
                     capture_mode: matches!(self.vars.frame_capture_mode().copy(ctx.vars), FrameCaptureMode::All),
                 };
 
@@ -2690,8 +2691,6 @@ struct WindowVarsData {
     parent: RcVar<Option<WindowId>>,
     modal: RcVar<bool>,
 
-    transparent: RcVar<bool>,
-
     text_aa: RcVar<TextAntiAliasing>,
 
     allow_alt_f4: RcVar<bool>,
@@ -2744,8 +2743,6 @@ impl WindowVars {
             parent: var(None),
             modal: var(false),
 
-            transparent: var(false),
-
             text_aa: var(TextAntiAliasing::Default),
 
             allow_alt_f4: var(!cfg!(windows)),
@@ -2769,14 +2766,6 @@ impl WindowVars {
     #[inline]
     pub fn chrome(&self) -> &RcVar<WindowChrome> {
         &self.0.chrome
-    }
-
-    /// If the window is see-through.
-    ///
-    /// The default value is `false`.
-    #[inline]
-    pub fn transparent(&self) -> &RcVar<bool> {
-        &self.0.transparent
     }
 
     /// Window icon.
