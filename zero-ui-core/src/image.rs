@@ -105,37 +105,53 @@ impl AppExtension for ImageManager {
             images.cleanup_not_cached(true);
             images.download_accept.clear();
             let vp = images.view.as_mut().unwrap();
-            for v in images
+            let decoding_interrupted = mem::take(&mut images.decoding);
+            for img_var in images
                 .cache
                 .values()
                 .map(|e| &e.img)
                 .cloned()
                 .chain(images.not_cached.iter().filter_map(|v| v.upgrade()))
             {
-                let img = v.get(ctx.vars);
+                let img = img_var.get(ctx.vars);
 
+                let vars = ctx.vars;
                 if let Some(view) = img.view.get() {
                     if view.generation() == args.generation {
                         continue; // already recovered, can this happen?
                     }
                     if let Some(e) = view.error() {
                         // respawned, but image was an error.
-                        v.set(ctx.vars, Image::dummy(Some(e.to_owned())));
+                        img_var.set(vars, Image::dummy(Some(e.to_owned())));
+                    } else if let Some((img_format, data, _)) =
+                        decoding_interrupted.iter().find(|(_, _, v)| v.get(vars).view() == Some(view))
+                    {
+                        // respawned, but image was decoding, need to restart decode.
+
+                        match vp.add_image(img_format.clone(), data.clone(), images.max_decoded_size.0 as u64) {
+                            Ok(img) => {
+                                img_var.set(vars, Image::new(img));
+                            }
+                            Err(Respawned) => { /*will receive another event.*/ }
+                        }
+                        images.decoding.push((img_format.clone(), data.clone(), img_var));
                     } else {
+                        // respawned and image was loaded.
+
                         let img_format = ImageDataFormat::Bgra8 {
                             size: view.size(),
                             ppi: view.ppi(),
                         };
-                        let data = view.shared_bgra8().expect("TODO: use images.decoding");
-                        // respawned and image was loaded.
+
+                        let data = view.shared_bgra8().unwrap();
                         let img = match vp.add_image(img_format.clone(), data.clone(), images.max_decoded_size.0 as u64) {
                             Ok(img) => img,
                             Err(Respawned) => return, // we will receive another event.
                         };
 
-                        v.set(ctx.vars, Image::new(img));
+                        img_var.set(vars, Image::new(img));
 
-                        images.decoding.push((img_format, data, v));
+                        images.decoding.push((img_format, data, img_var));
                     }
                 } // else { *is loading, will continue normally in self.update_preview()* }
             }
