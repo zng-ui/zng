@@ -105,8 +105,9 @@ impl Window {
             .with_min_inner_size(cfg.min_size.to_winit())
             .with_max_inner_size(cfg.max_size.to_winit())
             .with_always_on_top(cfg.always_on_top)
-            .with_window_icon(icon);
-        //.with_visible(false); // we wait for the first frame to show the window.
+            .with_window_icon(icon)
+             // we wait for the first frame to show the window (does not work with Maximized).
+            .with_visible(cfg.state == WindowState::Maximized);
 
         if let Some(pos) = cfg.pos {
             winit = winit.with_position(pos.to_winit());
@@ -240,7 +241,6 @@ impl Window {
         };
 
         win.set_taskbar_visible(cfg.taskbar_visible);
-        win.set_visible(false);
 
         win
     }
