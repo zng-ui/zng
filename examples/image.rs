@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs, ImageLoadingArgs};
+use zero_ui::core::image::ImageLimits;
 
 fn main() {
     // zero_ui_view::run_same_process(app_main);
@@ -66,7 +67,8 @@ fn large_image() -> impl Widget {
                 background_color = colors::BLACK;
                 content = image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                    image_loading_view = ViewGenerator::new(image_loading);
+                    loading_view = ViewGenerator::new(image_loading);
+                    limits = Some(ImageLimits { max_encoded_size: 1.gigabytes(), max_decoded_size: 2.gigabytes() });
                     on_error = hn!(|_, args: &ImageErrorArgs| {
                         log::error!(target: "unexpected", "{}", args.error);
                     })

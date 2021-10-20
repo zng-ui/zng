@@ -2933,38 +2933,38 @@ pub trait ByteUnits {
     /// Kibi-bytes.
     ///
     /// See [`ByteLength::from_kibi`] for more details.
-    fn kibi_bytes(self) -> ByteLength;
+    fn kibibytes(self) -> ByteLength;
     /// Kilo-bytes.
     ///
     /// See [`ByteLength::from_kilo`] for more details.
-    fn kilo_bytes(self) -> ByteLength;
+    fn kilobytes(self) -> ByteLength;
 
     /// Mebi-bytes.
     ///
     /// See [`ByteLength::from_mebi`] for more details.
-    fn mebi_bytes(self) -> ByteLength;
+    fn mebibytes(self) -> ByteLength;
     /// Mega-bytes.
     ///
     /// See [`ByteLength::from_mega`] for more details.
-    fn mega_bytes(self) -> ByteLength;
+    fn megabytes(self) -> ByteLength;
 
     /// Gibi-bytes.
     ///
     /// See [`ByteLength::from_gibi`] for more details.
-    fn gibi_bytes(self) -> ByteLength;
+    fn gibibytes(self) -> ByteLength;
     /// Giga-bytes.
     ///
     /// See [`ByteLength::from_giga`] for more details.
-    fn giga_bytes(self) -> ByteLength;
+    fn gigabytes(self) -> ByteLength;
 
     /// Tebi-bytes.
     ///
     /// See [`ByteLength::from_tebi`] for more details.
-    fn tebi_bytes(self) -> ByteLength;
+    fn tebibytes(self) -> ByteLength;
     /// Tera-bytes.
     ///
     /// See [`ByteLength::from_tera`] for more details.
-    fn tera_bytes(self) -> ByteLength;
+    fn terabytes(self) -> ByteLength;
 }
 impl ByteUnits for usize {
     #[inline]
@@ -2973,42 +2973,42 @@ impl ByteUnits for usize {
     }
 
     #[inline]
-    fn kibi_bytes(self) -> ByteLength {
+    fn kibibytes(self) -> ByteLength {
         ByteLength::from_kibi(self)
     }
 
     #[inline]
-    fn kilo_bytes(self) -> ByteLength {
+    fn kilobytes(self) -> ByteLength {
         ByteLength::from_kilo(self)
     }
 
     #[inline]
-    fn mebi_bytes(self) -> ByteLength {
+    fn mebibytes(self) -> ByteLength {
         ByteLength::from_mebi(self)
     }
 
     #[inline]
-    fn mega_bytes(self) -> ByteLength {
+    fn megabytes(self) -> ByteLength {
         ByteLength::from_mega(self)
     }
 
     #[inline]
-    fn gibi_bytes(self) -> ByteLength {
+    fn gibibytes(self) -> ByteLength {
         ByteLength::from_gibi(self)
     }
 
     #[inline]
-    fn giga_bytes(self) -> ByteLength {
+    fn gigabytes(self) -> ByteLength {
         ByteLength::from_giga(self)
     }
 
     #[inline]
-    fn tebi_bytes(self) -> ByteLength {
+    fn tebibytes(self) -> ByteLength {
         ByteLength::from_tebi(self)
     }
 
     #[inline]
-    fn tera_bytes(self) -> ByteLength {
+    fn terabytes(self) -> ByteLength {
         ByteLength::from_tera(self)
     }
 }
@@ -3193,26 +3193,28 @@ impl fmt::Debug for ByteLength {
 }
 impl fmt::Display for ByteLength {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // alternate uses 0..=1000 units, normal used 0..=1024 units.
+
         if f.alternate() {
             if self.0 >= 1024usize.pow(4) {
-                write!(f, "{} tebi-bytes", self.tebis())
+                write!(f, "{:.2} tebibytes", self.tebis())
             } else if self.0 >= 1024usize.pow(3) {
-                write!(f, "{} gibi-bytes", self.gibis())
+                write!(f, "{:.2} gibibytes", self.gibis())
             } else if self.0 >= 1024usize.pow(2) {
-                write!(f, "{} mebi-bytes", self.mebis())
+                write!(f, "{:.2} mebibytes", self.mebis())
             } else if self.0 >= 1024 {
-                write!(f, "{} kibi-bytes", self.kibis())
+                write!(f, "{:.2} kibibytes", self.kibis())
             } else {
                 write!(f, "{} bytes", self.bytes())
             }
         } else if self.0 >= 1000usize.pow(4) {
-            write!(f, "{} tera-bytes", self.teras())
+            write!(f, "{:.2} terabytes", self.teras())
         } else if self.0 >= 1000usize.pow(3) {
-            write!(f, "{} giga-bytes", self.gigas())
+            write!(f, "{:.2} gigabytes", self.gigas())
         } else if self.0 >= 1000usize.pow(2) {
-            write!(f, "{} mega-bytes", self.megas())
+            write!(f, "{:.2} megabytes", self.megas())
         } else if self.0 >= 1000 {
-            write!(f, "{} kilo-bytes", self.kilos())
+            write!(f, "{:.2} kilobytes", self.kilos())
         } else {
             write!(f, "{} bytes", self.bytes())
         }

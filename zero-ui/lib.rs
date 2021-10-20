@@ -920,7 +920,7 @@ pub mod prelude {
         },
         units::{
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight,
-            Point, Px, PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
+            Point, Px, PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, ByteUnits,
         },
         var::{merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, Vars},
         widget_base::Visibility,

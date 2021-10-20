@@ -45,8 +45,16 @@ pub mod image {
         /// [`Images`]: zero_ui::core::image::Images
         properties::image_cache as cache;
 
+        /// View generator that creates the loading content.
+        properties::image_loading_view as loading_view;
+
         /// View generator that creates the error content when the image failed to load.
         properties::image_error_view as error_view;
+
+        /// Sets custom image load and decode limits.
+        ///
+        /// If not set or set to `None` the [`Images::limits`] is used.
+        properties::image_limits as limits;
 
         /// If the image successfully loaded.
         properties::is_loaded;
@@ -79,6 +87,7 @@ pub mod image {
     pub mod properties {
         use super::*;
 
+        pub use crate::core::image::ImageLimits;
         pub use crate::core::render::ImageRendering;
         use nodes::ContextImageVar;
 
@@ -98,6 +107,11 @@ pub mod image {
 
             /// View generator for the content shown when the image is still loading.
             pub struct ImageLoadingViewVar: ViewGenerator<ImageLoadingArgs> = return ViewGenerator::nil_static();
+
+            /// Custom image load and decode limits.
+            ///
+            /// Set to `None` to use the [`Images::limits`].
+            pub struct ImageLimitsVar: Option<ImageLimits> = const None;
         }
 
         /// Sets the [`ImageRendering`] of all inner images.
@@ -118,6 +132,14 @@ pub mod image {
         #[property(context, default(true))]
         pub fn image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             with_context_var(child, ImageCacheVar, enabled)
+        }
+
+        /// Sets custom image load and decode limits.
+        ///
+        /// If not set or set to `None` the [`Images::limits`] is used.
+        #[property(context, default(None))]
+        pub fn image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
+            with_context_var(child, ImageLimitsVar, limits)
         }
 
         /// If the [`ContextImageVar`] is an error.
@@ -346,7 +368,7 @@ pub mod image {
 
     /// UI nodes used for building the image widget.
     pub mod nodes {
-        use super::properties::{ImageErrorArgs, ImageLoadingArgs};
+        use super::properties::{ImageErrorArgs, ImageLimitsVar, ImageLoadingArgs};
         use super::*;
         use std::fmt;
 
@@ -424,7 +446,8 @@ pub mod image {
                     } else {
                         ImageCacheMode::Ignore
                     };
-                    self.image = ContextImage::Some(ctx.services.images().get(self.source.get_clone(ctx.vars), mode));
+                    let limits = *ImageLimitsVar::get(ctx);
+                    self.image = ContextImage::Some(ctx.services.images().get(self.source.get_clone(ctx.vars), mode, limits));
                     let child = &mut self.child;
                     ctx.vars.with_context_var(
                         ContextImageVar,
@@ -473,7 +496,8 @@ pub mod image {
                         } else {
                             ImageCacheMode::Ignore
                         };
-                        self.image = ContextImage::Some(ctx.services.images().get(s, mode));
+                        let limits = *ImageLimitsVar::get(ctx);
+                        self.image = ContextImage::Some(ctx.services.images().get(s, mode, limits));
                         force_new = true;
                     } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
                         // cache-mode update:
@@ -490,7 +514,8 @@ pub mod image {
                                 // must cache, but image is not cached, get source again.
 
                                 let source = self.source.get_clone(ctx);
-                                self.image = ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache));
+                                let limits = *ImageLimitsVar::get(ctx);
+                                self.image = ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache, limits));
                             }
                         }
                     }

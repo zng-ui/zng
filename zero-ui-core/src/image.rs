@@ -106,12 +106,11 @@ impl AppExtension for ImageManager {
             images.download_accept.clear();
             let vp = images.view.as_mut().unwrap();
             let decoding_interrupted = mem::take(&mut images.decoding);
-            for img_var in images
+            for (img_var, max_decoded_size) in images
                 .cache
                 .values()
-                .map(|e| &e.img)
-                .cloned()
-                .chain(images.not_cached.iter().filter_map(|v| v.upgrade()))
+                .map(|e| (e.img.clone(), e.max_decoded_size))
+                .chain(images.not_cached.iter().filter_map(|(v, m)| v.upgrade().map(|v| (v, *m))))
             {
                 let img = img_var.get(ctx.vars);
 
@@ -128,7 +127,7 @@ impl AppExtension for ImageManager {
                     {
                         // respawned, but image was decoding, need to restart decode.
 
-                        match vp.add_image(img_format.clone(), data.clone(), images.max_decoded_size.0 as u64) {
+                        match vp.add_image(img_format.clone(), data.clone(), max_decoded_size.0 as u64) {
                             Ok(img) => {
                                 img_var.set(vars, Image::new(img));
                             }
@@ -144,7 +143,7 @@ impl AppExtension for ImageManager {
                         };
 
                         let data = view.shared_bgra8().unwrap();
-                        let img = match vp.add_image(img_format.clone(), data.clone(), images.max_decoded_size.0 as u64) {
+                        let img = match vp.add_image(img_format.clone(), data.clone(), max_decoded_size.0 as u64) {
                             Ok(img) => img,
                             Err(Respawned) => return, // we will receive another event.
                         };
@@ -167,7 +166,7 @@ impl AppExtension for ImageManager {
         let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
 
-        for (mut task, var) in mem::take(&mut images.loading) {
+        for (mut task, var, max_decoded_size) in mem::take(&mut images.loading) {
             task.update();
             match task.into_result() {
                 Ok(d) => {
@@ -175,7 +174,7 @@ impl AppExtension for ImageManager {
                         Ok(data) => {
                             if let Some(vp) = view {
                                 // success and we have a view-process.
-                                match vp.add_image(d.format.clone(), data.clone(), images.max_decoded_size.0 as u64) {
+                                match vp.add_image(d.format.clone(), data.clone(), max_decoded_size.0 as u64) {
                                     Ok(img) => {
                                         // request sent, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
@@ -219,7 +218,7 @@ impl AppExtension for ImageManager {
                     }
                 }
                 Err(task) => {
-                    loading.push((task, var));
+                    loading.push((task, var, max_decoded_size));
                 }
             }
         }
@@ -246,39 +245,29 @@ pub struct Images {
     /// [`dummy`]: Images::dummy
     pub load_in_headless: bool,
 
-    /// Maximum encoded file size allowed.
-    ///
-    /// An error is returned if the file size surpasses this value. If the size can read before
-    /// read/download it is, otherwise the error happens when this limit is reached and all already
-    /// loaded bytes are dropped.
-    ///
-    /// The default is `100mb`.
-    pub max_encoded_size: ByteLength,
-    /// Maximum decoded file size allowed.
-    ///
-    /// An error is returned if the decoded image memory would surpass the `width * height * 4`
-    pub max_decoded_size: ByteLength,
+    /// Default loading and decoding limits for each image.
+    pub limits: ImageLimits,
 
     view: Option<ViewProcess>,
     download_accept: Text,
     updates: AppEventSender,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
-    loading: Vec<(UiTask<ImageData>, RcVar<Image>)>,
+    loading: Vec<(UiTask<ImageData>, RcVar<Image>, ByteLength)>,
     decoding: Vec<(ImageDataFormat, IpcSharedMemory, RcVar<Image>)>,
     cache: IdMap<Hash128, CacheEntry>,
-    not_cached: Vec<WeakVar<Image>>,
+    not_cached: Vec<(WeakVar<Image>, ByteLength)>,
 }
 struct CacheEntry {
     img: RcVar<Image>,
     error: Cell<bool>,
+    max_decoded_size: ByteLength,
 }
 impl Images {
     fn new(view: Option<ViewProcess>, updates: AppEventSender) -> Self {
         Images {
             load_in_headless: false,
-            max_encoded_size: 100.mebi_bytes(), // TODO
-            max_decoded_size: 100.mebi_bytes(),
+            limits: ImageLimits::default(),
             view,
             updates,
             proxies: vec![],
@@ -342,22 +331,24 @@ impl Images {
 
     /// Get a cached image or add it to the cache.
     pub fn cache(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.get(source, ImageCacheMode::Cache)
+        self.get(source, ImageCacheMode::Cache, None)
     }
 
     /// Get a cached image or add it to the cache or retry if the cached image is an error.
     pub fn retry(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.get(source, ImageCacheMode::Retry)
+        self.get(source, ImageCacheMode::Retry, None)
     }
 
     /// Load an image, if it was already cached update the cached image with the reloaded data.
     pub fn reload(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.get(source, ImageCacheMode::Reload)
+        self.get(source, ImageCacheMode::Reload, None)
     }
 
     /// Get or load an image.
-    pub fn get(&mut self, source: impl Into<ImageSource>, cache_mode: impl Into<ImageCacheMode>) -> ImageVar {
-        self.proxy_then_get(source.into(), cache_mode.into())
+    ///
+    /// If `limits` is `None` the [`Images::limits`] is used.
+    pub fn get(&mut self, source: impl Into<ImageSource>, cache_mode: impl Into<ImageCacheMode>, limits: Option<ImageLimits>) -> ImageVar {
+        self.proxy_then_get(source.into(), cache_mode.into(), limits.unwrap_or(self.limits))
     }
 
     /// Associate the `image` with the `key` in the cache.
@@ -365,9 +356,17 @@ impl Images {
     /// Returns `Some(previous)` if the `key` was already associated with an image.
     #[inline]
     pub fn register(&mut self, key: Hash128, image: ViewImage) -> Option<ImageVar> {
+        let limits = ImageLimits {
+            max_encoded_size: self.limits.max_encoded_size,
+            max_decoded_size: self
+                .limits
+                .max_decoded_size
+                .max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
+        };
         let entry = CacheEntry {
             error: Cell::new(image.is_error()),
             img: var(Image::new(image)),
+            max_decoded_size: limits.max_decoded_size,
         };
         self.cache.insert(key, entry).map(|v| v.img.into_read_only())
     }
@@ -413,7 +412,12 @@ impl Images {
     /// references a new [`ImageVar`] is generated from a clone of the image.
     pub fn detach(&mut self, image: ImageVar, vars: &Vars) -> ImageVar {
         if let Some(key) = &image.get(vars).cache_key {
-            if self.cache.contains_key(key) {
+            let decoded_size = image.get(vars).bgra8().map(|b| b.len()).unwrap_or(0).bytes();
+            let mut max_decoded_size = self.limits.max_decoded_size.max(decoded_size);
+
+            if let Some(e) = self.cache.get(key) {
+                max_decoded_size = e.max_decoded_size;
+
                 // is cached, `clean` if is only external reference.
                 if image.strong_count() == 2 {
                     self.cache.remove(key);
@@ -424,7 +428,7 @@ impl Images {
             let mut img = image.into_value(vars);
             img.cache_key = None;
             let img = var(img);
-            self.not_cached.push(img.downgrade());
+            self.not_cached.push((img.downgrade(), max_decoded_size));
             img.into_read_only()
         } else {
             // already not cached
@@ -473,7 +477,7 @@ impl Images {
         self.proxies.push(proxy);
     }
 
-    fn proxy_then_get(&mut self, source: ImageSource, mode: ImageCacheMode) -> ImageVar {
+    fn proxy_then_get(&mut self, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
         match source {
             ImageSource::Image(r) => r,
             source => {
@@ -482,15 +486,15 @@ impl Images {
                     let r = proxy.get(&key, &source, mode);
                     match r {
                         ProxyGetResult::None => continue,
-                        ProxyGetResult::Cache(source, mode) => return self.proxied_get(key, source, mode),
+                        ProxyGetResult::Cache(source, mode) => return self.proxied_get(key, source, mode, limits),
                         ProxyGetResult::Image(img) => return img,
                     }
                 }
-                self.proxied_get(key, source, mode)
+                self.proxied_get(key, source, mode, limits)
             }
         }
     }
-    fn proxied_get(&mut self, key: Hash128, source: ImageSource, mode: ImageCacheMode) -> ImageVar {
+    fn proxied_get(&mut self, key: Hash128, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
         match mode {
             ImageCacheMode::Cache => {
                 if let Some(v) = self.cache.get(&key) {
@@ -514,15 +518,14 @@ impl Images {
                 CacheEntry {
                     img: dummy.clone(),
                     error: Cell::new(false),
+                    max_decoded_size: limits.max_decoded_size,
                 },
             );
             return dummy.into_read_only();
         }
 
-        let max_encoded_size = self.max_encoded_size;
-
         match source {
-            ImageSource::Read(path) => self.load_task(key, mode, async move {
+            ImageSource::Read(path) => self.load_task(key, mode, limits, async move {
                 let mut r = ImageData {
                     format: path
                         .extension()
@@ -548,8 +551,12 @@ impl Images {
                     }
                 };
 
-                if len > max_encoded_size.0 {
-                    r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len.bytes(), max_encoded_size));
+                if len > limits.max_encoded_size.0 {
+                    r.r = Err(format!(
+                        "file size `{}` exceeds the limit of `{}`",
+                        len.bytes(),
+                        limits.max_encoded_size
+                    ));
                     return r;
                 }
 
@@ -563,7 +570,7 @@ impl Images {
             }),
             ImageSource::Download(uri, accept) => {
                 let accept = accept.unwrap_or_else(|| self.download_accept());
-                self.load_task(key, mode, async move {
+                self.load_task(key, mode, limits, async move {
                     let mut r = ImageData {
                         format: ImageDataFormat::Unknown,
                         r: Err(String::new()),
@@ -584,16 +591,16 @@ impl Images {
                             }
 
                             if let Some(len) = rsp.content_len() {
-                                if len > max_encoded_size {
-                                    r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len.bytes(), max_encoded_size));
+                                if len > limits.max_encoded_size {
+                                    r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len, limits.max_encoded_size));
                                     return r;
                                 }
                             }
 
-                            match rsp.bytes_limited(max_encoded_size + 1.bytes()).await {
+                            match rsp.bytes_limited(limits.max_encoded_size + 1.bytes()).await {
                                 Ok(d) => {
-                                    if d.len().bytes() > max_encoded_size {
-                                        r.r = Err(format!("download exceeded the limit of `{}`", max_encoded_size));
+                                    if d.len().bytes() > limits.max_encoded_size {
+                                        r.r = Err(format!("download exceeded the limit of `{}`", limits.max_encoded_size));
                                     } else {
                                         r.r = Ok(IpcSharedMemory::from_bytes(&d))
                                     }
@@ -618,14 +625,14 @@ impl Images {
                     format: fmt,
                     r: Ok(IpcSharedMemory::from_bytes(bytes)),
                 };
-                self.load_task(key, mode, async { r })
+                self.load_task(key, mode, limits, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
                     r: Ok(IpcSharedMemory::from_bytes(&bytes)),
                 };
-                self.load_task(key, mode, async { r })
+                self.load_task(key, mode, limits, async { r })
             }
             ImageSource::Image(_) => unreachable!(),
         }
@@ -655,11 +662,17 @@ impl Images {
 
     fn cleanup_not_cached(&mut self, force: bool) {
         if force || self.not_cached.len() > 1000 {
-            self.not_cached.retain(|c| c.strong_count() > 0);
+            self.not_cached.retain(|c| c.0.strong_count() > 0);
         }
     }
 
-    fn load_task(&mut self, key: Hash128, mode: ImageCacheMode, fetch_bytes: impl Future<Output = ImageData> + 'static) -> ImageVar {
+    fn load_task(
+        &mut self,
+        key: Hash128,
+        mode: ImageCacheMode,
+        limits: ImageLimits,
+        fetch_bytes: impl Future<Output = ImageData> + 'static,
+    ) -> ImageVar {
         self.cleanup_not_cached(false);
 
         let img = if let ImageCacheMode::Reload = mode {
@@ -668,12 +681,13 @@ impl Images {
                 .or_insert_with(|| CacheEntry {
                     img: var(Image::new_none(Some(key))),
                     error: Cell::new(false),
+                    max_decoded_size: limits.max_decoded_size,
                 })
                 .img
                 .clone()
         } else if let ImageCacheMode::Ignore = mode {
             let img = var(Image::new_none(None));
-            self.not_cached.push(img.downgrade());
+            self.not_cached.push((img.downgrade(), limits.max_decoded_size));
             img
         } else {
             let img = var(Image::new_none(Some(key)));
@@ -682,6 +696,7 @@ impl Images {
                 CacheEntry {
                     img: img.clone(),
                     error: Cell::new(false),
+                    max_decoded_size: limits.max_decoded_size,
                 },
             );
             img
@@ -689,9 +704,35 @@ impl Images {
 
         let task = UiTask::new(&self.updates, fetch_bytes);
 
-        self.loading.push((task, img.clone()));
+        self.loading.push((task, img.clone(), limits.max_decoded_size));
 
         img.into_read_only()
+    }
+}
+
+/// Limits for image loading and decoding.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ImageLimits {
+    /// Maximum encoded file size allowed.
+    ///
+    /// An error is returned if the file size surpasses this value. If the size can read before
+    /// read/download it is, otherwise the error happens when this limit is reached and all already
+    /// loaded bytes are dropped.
+    ///
+    /// The default is `100mb`.
+    pub max_encoded_size: ByteLength,
+    /// Maximum decoded file size allowed.
+    ///
+    /// An error is returned if the decoded image memory would surpass the `width * height * 4`
+    pub max_decoded_size: ByteLength,
+}
+impl Default for ImageLimits {
+    // 100 megabytes encoded and 4096 megabytes decoded (BMP max).
+    fn default() -> Self {
+        Self {
+            max_encoded_size: 100.megabytes(),
+            max_decoded_size: 4096.megabytes(),
+        }
     }
 }
 

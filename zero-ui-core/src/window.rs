@@ -13,7 +13,7 @@ pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo,
 use crate::{
     app::ControlFlow,
     color::RenderColor,
-    image::{Image, ImageCacheMode, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
+    image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
     render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
     var::Vars,
 };
@@ -1962,7 +1962,7 @@ impl AppWindow {
                             self.icon_img = None;
                         }
                         WindowIcon::Image(r) => {
-                            let ico = ctx.services.images().get(r.clone(), ImageCacheMode::Cache);
+                            let ico = ctx.services.images().cache(r.clone());
                             let _: Ignore = w.set_icon(ico.get(ctx).view());
                             self.icon_img = Some(ico);
                         }

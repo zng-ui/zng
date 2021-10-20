@@ -5,7 +5,6 @@ use crate::crate_util::PanicPayload;
 use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::profiler::*;
-use crate::render::FrameId;
 use crate::timer::Timers;
 use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
 use crate::{
@@ -1468,11 +1467,6 @@ pub trait AppEventObserver {
     /// Called just after [`AppExtension::update_display`].
     fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
         let _ = (ctx, update);
-    }
-
-    /// Called just after [`AppExtension::new_frame`].
-    fn new_frame(&mut self, ctx: &mut AppContext, window_id: WindowId, frame_id: FrameId) {
-        let _ = (ctx, window_id, frame_id);
     }
 }
 /// Nil observer, does nothing.
