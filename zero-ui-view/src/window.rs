@@ -99,15 +99,25 @@ impl Window {
         let mut winit = WindowBuilder::new()
             .with_title(cfg.title)
             .with_inner_size(cfg.size.to_winit())
-            .with_decorations(cfg.chrome_visible)
             .with_resizable(cfg.resizable)
             .with_transparent(cfg.transparent)
             .with_min_inner_size(cfg.min_size.to_winit())
             .with_max_inner_size(cfg.max_size.to_winit())
             .with_always_on_top(cfg.always_on_top)
-            .with_window_icon(icon)
-             // we wait for the first frame to show the window (does not work with Maximized).
-            .with_visible(cfg.state == WindowState::Maximized);
+            .with_window_icon(icon);
+
+        if let WindowState::Normal | WindowState::Minimized = cfg.state {
+            winit = winit
+                .with_decorations(cfg.chrome_visible)
+                // we wait for the first frame to show the window,
+                // so that there is no white frame when it's opening.
+                .with_visible(false);
+        } else {
+            // Maximized/Fullscreen Flickering Workaround Part 1
+            // 
+            // TODO: explain the problem this workaround is solving.
+            winit = winit.with_decorations(false);
+        }
 
         if let Some(pos) = cfg.pos {
             winit = winit.with_position(pos.to_winit());
@@ -239,6 +249,16 @@ impl Window {
             state: cfg.state,
             cursor_pos: PxPoint::zero(),
         };
+
+        // Maximized/Fullscreen Flickering Workaround Part 2
+        if cfg.state != WindowState::Normal && cfg.state != WindowState::Minimized {
+            win.window.set_decorations(cfg.chrome_visible);
+            let _ = win.set_state(cfg.state);
+
+            // Prevents a false resize event that would have blocked
+            // the process while waiting a second frame.
+            win.prev_size = win.window.inner_size().to_px().to_dip(scale_factor);
+        }
 
         win.set_taskbar_visible(cfg.taskbar_visible);
 
