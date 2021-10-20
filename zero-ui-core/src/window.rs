@@ -1895,10 +1895,6 @@ impl AppWindow {
         } else {
             self.context.update(ctx);
 
-            if self.kiosk {
-                todo!()
-            }
-
             if self.vars.size().is_new(ctx)
                 || self.vars.auto_size().is_new(ctx)
                 || self.vars.min_size().is_new(ctx)
@@ -1979,7 +1975,11 @@ impl AppWindow {
                     let _: Ignore = w.set_icon(ico.get(ctx).view());
                 }
                 if let Some(state) = self.vars.state().copy_new(ctx) {
-                    let _: Ignore = w.set_state(state);
+                    if self.kiosk && !state.is_fullscreen() {
+                        log::warn!("kiosk mode blocked state `{:?}`, will remain fullscreen", state);
+                    } else {
+                        let _: Ignore = w.set_state(state);
+                    }
                 }
                 if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
                     let _: Ignore = w.set_resizable(resizable);
@@ -2071,6 +2071,11 @@ impl AppWindow {
             return;
         }
 
+        if self.kiosk {
+            // only fullscreen size allowed.
+            return;
+        }
+
         // `size` var is only used on init or once after update AND if auto_size did not override it.
         let use_system_size = !self.vars.size().is_new(ctx.vars);
         let (size, min_size, max_size) = self.layout_size(ctx, use_system_size);
@@ -2082,9 +2087,8 @@ impl AppWindow {
             self.size = size;
             if let Some(w) = &self.headed {
                 let _ = w.set_size(size, frame.unwrap());
-            } else if let Some(_r) = &self.renderer {
-                // TODO resize headless renderer.
-                todo!()
+            } else if let Some(s) = &self.headless_surface {
+                let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(1.0));
             } else {
                 // headless "resize"
                 RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
@@ -2146,7 +2150,11 @@ impl AppWindow {
         debug_assert!(self.first_layout);
         self.first_layout = false;
 
-        let state = self.vars.state().copy(ctx);
+        let mut state = self.vars.state().copy(ctx);
+        if self.kiosk && !state.is_fullscreen() {
+            log::warn!("kiosk mode but not fullscreen, will force to fullscreen");
+            state = WindowState::Fullscreen;
+        }
 
         if let WindowState::Normal | WindowState::Minimized = state {
             // we already have the size, and need to calculate the start-position.
@@ -2218,7 +2226,7 @@ impl AppWindow {
                     size: self.size,
                     min_size: self.min_size,
                     max_size: self.max_size,
-                    state: self.vars.state().copy(ctx.vars),
+                    state,
                     video_mode: self.vars.video_mode().copy(ctx.vars),
                     visible: self.vars.visible().copy(ctx.vars),
                     taskbar_visible: self.vars.taskbar_visible().copy(ctx.vars),
@@ -2354,7 +2362,7 @@ impl AppWindow {
                 let default_min_size = Size::new(192, 48).to_layout(ctx, scr_size, PxSize::zero());
                 let default_max_size = ctx.viewport_size; // (100%, 100%)
 
-                let mut size = if use_system_size {
+                let mut size = if use_system_size || self.kiosk {
                     self.size.to_px(ctx.scale_factor)
                 } else {
                     self.vars.size().get(ctx.vars).to_layout(ctx, scr_size, default_size)
