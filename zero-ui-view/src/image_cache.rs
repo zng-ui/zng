@@ -207,11 +207,10 @@ impl<S: AppEventSender> ImageCache<S> {
 
     /// Called after receive and decode completes correctly.
     pub(crate) fn loaded(&mut self, data: ImageLoadedData) {
-        let flags = if data.opaque {
-            ImageDescriptorFlags::IS_OPAQUE
-        } else {
-            ImageDescriptorFlags::empty()
-        };
+        let mut flags = ImageDescriptorFlags::empty(); //ImageDescriptorFlags::ALLOW_MIPMAPS;
+        if data.opaque {
+            flags |= ImageDescriptorFlags::IS_OPAQUE
+        }
 
         self.images.insert(
             data.id,

@@ -62,12 +62,21 @@ fn large_image() -> impl Widget {
         content = text("Large Image");
         on_click = hn!(|ctx, _| {
             ctx.services.windows().open(|_|window! {
-                title = "Large Image - Starry Night";
+                title = "Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB";
                 image_loading_view = ViewGenerator::new(image_loading);
                 background_color = colors::BLACK;
                 content = image! {
+                    //source = {
+                    //    let data = vec![255; 300 * 200 * 4];
+                    //    (data, PxSize::new(Px(300), Px(200)))
+                    //};
+                    source = {
+                        // same size but skip decoding.
+                        let data = vec![255; 30_000 * 23_756 * 4];
+                        (data, PxSize::new(Px(30_000), Px(23_756)))
+                    };
                     //source = "large-image.jpg";
-                    source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+                    //source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                     loading_view = ViewGenerator::new(image_loading);
                     limits = Some(ImageLimits { max_encoded_size: 300.megabytes(), max_decoded_size: 3.gigabytes() });
                     on_error = hn!(|_, args: &ImageErrorArgs| {
