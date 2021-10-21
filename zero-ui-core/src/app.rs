@@ -740,6 +740,9 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn run_headed(mut self) {
+        if let ControlFlow::Exit = self.update(&mut ()) {
+            return;
+        }
         loop {
             match self.poll(&mut ()) {
                 ControlFlow::Wait => {} // poll waits
