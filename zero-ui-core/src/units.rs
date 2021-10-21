@@ -3093,6 +3093,70 @@ impl ByteLength {
     pub fn teras(self) -> f64 {
         self.scaled(1000.0f64.powi(4))
     }
+
+    /// Maximum representable byte length.
+    pub const MAX: ByteLength = ByteLength(usize::MAX);
+
+    /// Adds the two lengths without overflowing or wrapping.
+    pub fn saturating_add(self, rhs: ByteLength) -> ByteLength {
+        ByteLength(self.0.saturating_add(rhs.0))
+    }
+
+    /// Subtracts the two lengths without overflowing or wrapping.
+    pub fn saturating_sub(self, rhs: ByteLength) -> ByteLength {
+        ByteLength(self.0.saturating_sub(rhs.0))
+    }
+
+    /// Multiplies the two lengths without overflowing or wrapping.
+    pub fn saturating_mul(self, rhs: ByteLength) -> ByteLength {
+        ByteLength(self.0.saturating_mul(rhs.0))
+    }
+
+    // unstable
+    ///// Divides the two lengths without overflowing or wrapping.
+    //pub fn saturating_div(self, rhs: ByteLength) -> ByteLength {
+    //    ByteLength(self.0.saturating_div(rhs.0))
+    //}
+
+    /// Adds the two lengths wrapping overflows.
+    pub fn wrapping_add(self, rhs: ByteLength) -> ByteLength {
+        ByteLength(self.0.wrapping_add(rhs.0))
+    }
+
+    /// Subtracts the two lengths wrapping overflows.
+    pub fn wrapping_sub(self, rhs: ByteLength) -> ByteLength {
+        ByteLength(self.0.wrapping_sub(rhs.0))
+    }
+
+    /// Multiplies the two lengths wrapping overflows.
+    pub fn wrapping_mul(self, rhs: ByteLength) -> ByteLength {
+        ByteLength(self.0.wrapping_mul(rhs.0))
+    }
+
+    /// Divides the two lengths wrapping overflows.
+    pub fn wrapping_div(self, rhs: ByteLength) -> ByteLength {
+        ByteLength(self.0.wrapping_div(rhs.0))
+    }
+
+    /// Adds the two lengths, returns `None` if the sum overflows.
+    pub fn checked_add(self, rhs: ByteLength) -> Option<ByteLength> {
+        self.0.checked_add(rhs.0).map(ByteLength)
+    }
+
+    /// Subtracts the two lengths, returns `None` if the subtraction overflows.
+    pub fn checked_sub(self, rhs: ByteLength) -> Option<ByteLength> {
+        self.0.checked_sub(rhs.0).map(ByteLength)
+    }
+
+    /// Multiplies the two lengths, returns `None` if the sum overflows.
+    pub fn checked_mul(self, rhs: ByteLength) -> Option<ByteLength> {
+        self.0.checked_mul(rhs.0).map(ByteLength)
+    }
+
+    /// Divides the two lengths, returns `None` if the subtraction overflows.
+    pub fn checked_div(self, rhs: ByteLength) -> Option<ByteLength> {
+        self.0.checked_div(rhs.0).map(ByteLength)
+    }
 }
 
 /// Constructors

@@ -293,9 +293,9 @@ impl Images {
     ///
     /// Optionally define the HTTP ACCEPT header, if not set all image formats supported by the view-process
     /// backend are accepted.
-    pub fn download(&mut self, uri: impl TryUri, accept: Option<impl Into<Text>>) -> ImageVar {
+    pub fn download(&mut self, uri: impl TryUri, accept: Option<Text>) -> ImageVar {
         match uri.try_into() {
-            Ok(uri) => self.cache(ImageSource::Download(uri, accept.map(Into::into))),
+            Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
             Err(e) => self.dummy(Some(e.to_string())),
         }
     }
@@ -597,7 +597,7 @@ impl Images {
                                 }
                             }
 
-                            match rsp.bytes_limited(limits.max_encoded_size + 1.bytes()).await {
+                            match rsp.bytes_limited(limits.max_encoded_size.saturating_add(1.bytes())).await {
                                 Ok(d) => {
                                     if d.len().bytes() > limits.max_encoded_size {
                                         r.r = Err(format!("download exceeded the limit of `{}`", limits.max_encoded_size));
@@ -725,6 +725,13 @@ pub struct ImageLimits {
     ///
     /// An error is returned if the decoded image memory would surpass the `width * height * 4`
     pub max_decoded_size: ByteLength,
+}
+impl ImageLimits {
+    /// Disable limits.
+    pub const MAX: ImageLimits = ImageLimits {
+        max_encoded_size: ByteLength::MAX,
+        max_decoded_size: ByteLength::MAX,
+    };
 }
 impl Default for ImageLimits {
     // 100 megabytes encoded and 4096 megabytes decoded (BMP max).

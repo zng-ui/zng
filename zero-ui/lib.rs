@@ -903,6 +903,7 @@ pub mod prelude {
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         handler::*,
+        image::ImagesExt,
         keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
         mouse::{ButtonState, MouseButton, MouseMoveArgs},
         node_vec, nodes,
