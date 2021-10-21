@@ -648,8 +648,15 @@ mod external {
     }
     impl ExternalImageHandler for WrImageCache {
         fn lock(&mut self, key: ExternalImageId, _channel_index: u8, _rendering: ImageRendering) -> ExternalImage {
-            // SAFETY: this is safe the Arc is kept alive in `ImageUseMap`.
-            let img = unsafe { Arc::<ImageData>::from_raw(key.0 as *const _) };
+            debug_assert!(self.locked.is_none());
+
+            // SAFETY: this is safe because the Arc is kept alive in `ImageUseMap`.
+            let img = unsafe {
+                let ptr = key.0 as *const ImageData;
+                Arc::increment_strong_count(ptr);
+                Arc::<ImageData>::from_raw(ptr)
+            };
+
             self.locked = Some(img); // keep alive just in case the image is removed mid-use?
             ExternalImage {
                 uv: TexelRect::new(0.0, 0.0, 1.0, 1.0),
