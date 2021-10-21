@@ -69,7 +69,7 @@ fn large_image() -> impl Widget {
                     //source = "large-image.jpg";
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                     loading_view = ViewGenerator::new(image_loading);
-                    limits = Some(ImageLimits { max_encoded_size: 1.gigabytes(), max_decoded_size: 2.gigabytes() });
+                    limits = Some(ImageLimits { max_encoded_size: 300.megabytes(), max_decoded_size: 3.gigabytes() });
                     on_error = hn!(|_, args: &ImageErrorArgs| {
                         log::error!(target: "unexpected", "{}", args.error);
                     })

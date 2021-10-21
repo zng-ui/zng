@@ -30,6 +30,7 @@ pub use isahc::cookies::{Cookie, CookieJar};
 pub use isahc::error::{Error, ErrorKind};
 pub use isahc::http::{header, uri, Method, StatusCode, Uri};
 
+use futures_lite::io::{AsyncReadExt, BufReader};
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
@@ -426,23 +427,27 @@ impl Response {
 
     /// Read at most `limit` bytes from the response body.
     pub async fn bytes_limited(&mut self, limit: ByteLength) -> std::io::Result<Vec<u8>> {
-        use futures_lite::io::AsyncReadExt;
-        let cap = self.0.body_mut().len().unwrap_or(1024);
-        let mut bytes = Vec::with_capacity(cap as usize);
-        self.0.body_mut().take(limit.0 as u64).read_to_end(&mut bytes).await?;
-        Ok(bytes)
+        let body = self.0.body_mut();
+        if let Some(len) = body.len() {
+            let cap = len.min(limit.0 as u64);
+            let mut bytes = Vec::with_capacity(cap as usize);
+            self.0.copy_to(&mut bytes).await?;
+            Ok(bytes)
+        } else {
+            let mut bytes = vec![];
+            body.take(limit.0 as u64).read_to_end(&mut bytes).await?;
+            Ok(bytes)
+        }
     }
 
     /// Read some bytes from the body, returns how many bytes where read.
     pub async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        use futures_lite::io::AsyncReadExt;
-        self.0.body_mut().read(buf).await
+        BufReader::new(self.0.body_mut()).read(buf).await
     }
 
     /// Read the from the body to exactly fill the buffer.
     pub async fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
-        use futures_lite::io::AsyncReadExt;
-        self.0.body_mut().read_exact(buf).await
+        BufReader::new(self.0.body_mut()).read_exact(buf).await
     }
 
     /// Deserialize the response body as JSON.
