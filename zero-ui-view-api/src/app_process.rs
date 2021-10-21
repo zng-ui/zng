@@ -64,7 +64,7 @@ impl Controller {
         });
 
         let (process, request_sender, response_receiver, mut event_receiver) =
-            Self::spawn_view_process(&view_process_exe, headless).expect("failed to spawn or connecto to view-process");
+            Self::spawn_view_process(&view_process_exe, headless).expect("failed to spawn or connect to view-process");
 
         let ev = thread::spawn(move || {
             while let Ok(ev) = event_receiver.recv() {
@@ -172,11 +172,11 @@ impl Controller {
             Ok(r) => r,
             Err(e) => {
                 if let Some(p) = process {
-                    if let Err(e) = p.kill() {
+                    if let Err(ke) = p.kill() {
                         log::error!(
                             "failed to kill new view-process after failing to connect to it\n connection error: {:?}\n kill error: {:?}",
-                            p,
-                            e
+                            e,
+                            ke
                         );
                     }
                 }

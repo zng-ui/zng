@@ -1,4 +1,4 @@
-use std::{fmt, io};
+use std::{fmt, io, thread, time::Duration};
 
 use crate::{AnyResult, Event, Request, Response};
 
@@ -43,7 +43,18 @@ impl AppInit {
 
     /// Tries to connect to the view-process and receive the actual channels.
     pub(crate) fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
-        let (_, (req_sender, chan_sender)) = self.server.accept()?;
+        let (init_sender, init_recv) = flume::bounded(1);
+        let handle = thread::spawn(move || {
+            let r = self.server.accept();
+            let _ = init_sender.send(r);
+        });
+
+        let (_, (req_sender, chan_sender)) = init_recv.recv_timeout(Duration::from_secs(5)).map_err(|e| match e {
+            flume::RecvTimeoutError::Timeout => "timeout, did not connect in 5 seconds",
+            flume::RecvTimeoutError::Disconnected => {
+                std::panic::resume_unwind(handle.join().unwrap_err());
+            }
+        })??;
         let (rsp_sender, rsp_recv) = channel()?;
         let (evt_sender, evt_recv) = channel()?;
         chan_sender.send((rsp_sender, evt_sender))?;

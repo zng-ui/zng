@@ -1534,7 +1534,7 @@ impl crate::context::TestWidgetContext {
                 thread::yield_now();
             }
             let start_time = Instant::now();
-            #[allow(clippy::blocks_in_if_conditions)]// false positive, see https://github.com/rust-lang/rust-clippy/issues/7580
+            #[allow(clippy::blocks_in_if_conditions)] // false positive, see https://github.com/rust-lang/rust-clippy/issues/7580
             while {
                 self.widget_context(|ctx| handlers.retain_mut(|h| h.update(ctx)));
                 !handlers.is_empty()
@@ -1616,7 +1616,7 @@ impl HeadlessApp {
 
         if !pending.is_empty() {
             let start_time = Instant::now();
-            #[allow(clippy::blocks_in_if_conditions)]// false positive, see https://github.com/rust-lang/rust-clippy/issues/7580
+            #[allow(clippy::blocks_in_if_conditions)] // false positive, see https://github.com/rust-lang/rust-clippy/issues/7580
             while {
                 pending.retain(|h| h());
                 !pending.is_empty()

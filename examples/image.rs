@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use zero_ui::core::image::ImageLimits;
 use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs, ImageLoadingArgs};
-use zero_ui::core::image::ImageLimits;
 
 fn main() {
     // zero_ui_view::run_same_process(app_main);
