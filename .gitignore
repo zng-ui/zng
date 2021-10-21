@@ -8,3 +8,5 @@ dump*.*
 screenshot.*
 wip
 cargo-timing*
+large-image.*
+examples/_test.rs
