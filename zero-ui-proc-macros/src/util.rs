@@ -572,7 +572,7 @@ pub fn cfg_attr_not(cfg: Option<Attribute>) -> TokenStream {
                 let span = cfg.span();
                 let condition = cfg.tokens; // note: already includes the parenthesis
                 quote_spanned! {span=>
-                    #[cfg(not#condition)]
+                    #[cfg(not #condition)]
                 }
             }
         }
@@ -998,7 +998,7 @@ mod tests {
         [package]
         name = "crate-name"
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         license = "Apache-2.0"
         "#;
 
@@ -1011,7 +1011,7 @@ mod tests {
         let toml = r#"
         [package]
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         name = "crate-name"
         license = "Apache-2.0"
         "#;
@@ -1026,7 +1026,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         license = "Apache-2.0"
 
         [dependencies]
@@ -1046,7 +1046,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         license = "Apache-2.0"
 
         [dependencies]
@@ -1066,7 +1066,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         license = "Apache-2.0"
 
         [target.'cfg(windows)'.dependencies]
@@ -1086,7 +1086,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         license = "Apache-2.0"
 
         [dev-dependencies]
@@ -1106,7 +1106,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         license = "Apache-2.0"
 
         [dev-dependencies.super-foo]
@@ -1126,7 +1126,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         license = "Apache-2.0"
 
         [dependencies.super-foo]
@@ -1146,7 +1146,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2018"
+        edition = "2021"
         license = "Apache-2.0"
 
         [dependencies.crate-name]

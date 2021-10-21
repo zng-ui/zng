@@ -1347,7 +1347,7 @@ macro_rules! __event_property {
         ///
         /// # Preview
         ///
-        #[doc = "You can preview this event using [`on_pre_"$event"`](fn.on_pre_"$event".html)."]
+        #[doc = "You can preview this event using [`on_pre_"$event "`](fn.on_pre_"$event ".html)."]
         /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
         ///
         /// # Async
@@ -1361,7 +1361,7 @@ macro_rules! __event_property {
             $crate::event::on_event(child, $Event, $filter, handler)
         }
 
-        #[doc = "Preview [`on_"$event"`](fn.on_"$event".html) event."]
+        #[doc = "Preview [`on_"$event "`](fn.on_"$event ".html) event."]
         ///
         /// # Preview
         ///

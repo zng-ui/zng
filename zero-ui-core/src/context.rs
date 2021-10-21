@@ -1314,10 +1314,10 @@ impl<'a> RenderContext<'a> {
 macro_rules! contextual_ctx {
     ($($Context:ident),+ $(,)?) => {$(paste::paste! {
 
-#[doc = " Represents a *contextual* reference to [`"$Context"`]."]
+#[doc = " Represents a *contextual* reference to [`"$Context "`]."]
 ///
-#[doc = "This type exist to provide access to a [`"$Context"`] inside [Ui bound](crate::task::ui) futures."]
-#[doc = "Every time the task updates the executor loads a exclusive reference to the context using the paired [`"$Context"Scope`]"]
+#[doc = "This type exist to provide access to a [`"$Context "`] inside [Ui bound](crate::task::ui) futures."]
+#[doc = "Every time the task updates the executor loads a exclusive reference to the context using the paired [`"$Context "Scope`]"]
 /// to provide the context for that update. Inside the future you can then call [`with`](Self::with) to get the exclusive
 /// reference to the context.
 pub struct [<$Context Mut>] {
@@ -1331,12 +1331,12 @@ impl Clone for [<$Context Mut>] {
     }
 }
 impl [<$Context Mut>] {
-    #[doc = "Runs an action with the *contextual* exclusive borrow to a [`"$Context"`]."]
+    #[doc = "Runs an action with the *contextual* exclusive borrow to a [`"$Context "`]."]
     ///
     /// ## Panics
     ///
     /// Panics if `with` is called again inside `action`, also panics if not called inside the paired
-    #[doc = "[`"$Context"Scope::with`]. You should assume that if you have access to a [`"$Context"Mut`] it is in a valid"]
+    #[doc = "[`"$Context "Scope::with`]. You should assume that if you have access to a [`"$Context "Mut`] it is in a valid"]
     /// state, the onus of safety is on the caller.
     #[inline]
     pub fn with<R, A>(&self, action: A) -> R
@@ -1362,7 +1362,7 @@ impl [<$Context Mut>] {
     }
 }
 
-#[doc = "Pair of [`"$Context"Mut`] that can setup its reference."]
+#[doc = "Pair of [`"$Context "Mut`] that can setup its reference."]
 pub struct [<$Context Scope>] {
     ctx: Rc<[<$Context ScopeData>]>,
 }
@@ -1371,7 +1371,7 @@ struct [<$Context ScopeData>] {
     borrowed: Cell<bool>,
 }
 impl [<$Context Scope>] {
-    #[doc = "Create a new [`"$Context"Scope`], [`"$Context"Mut`] pair."]
+    #[doc = "Create a new [`"$Context "Scope`], [`"$Context "Mut`] pair."]
     pub fn new() -> (Self, [<$Context Mut>]) {
         let ctx = Rc::new([<$Context ScopeData>] {
             ptr: Cell::new(ptr::null_mut()),
@@ -1381,7 +1381,7 @@ impl [<$Context Scope>] {
         (Self { ctx: Rc::clone(&ctx) }, [<$Context Mut>] { ctx })
     }
 
-    #[doc = "Runs `action` while the paired [`"$Context"Mut`] points to `ctx`."]
+    #[doc = "Runs `action` while the paired [`"$Context "Mut`] points to `ctx`."]
     pub fn with<R, F>(&self, ctx: &mut $Context, action: F) -> R
     where
         F: FnOnce() -> R,

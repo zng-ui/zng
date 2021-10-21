@@ -2,7 +2,7 @@
 name = "do-tasks"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Run tasks for managing this project. Implemented in \"./tools/do-tasks\"."
 
 [dependencies]

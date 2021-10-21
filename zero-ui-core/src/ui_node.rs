@@ -325,7 +325,7 @@ macro_rules! declare_widget_test_calls {
     ($(
         $method:ident
     ),+) => {$(paste::paste! {
-        #[doc = "Run [`UiNode::"$method"`] using the [`TestWidgetContext`]."]
+        #[doc = "Run [`UiNode::"$method "`] using the [`TestWidgetContext`]."]
         #[cfg(any(test, doc, feature = "test_util"))]
         #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
         fn [<test_ $method>](&mut self, ctx: &mut TestWidgetContext) {

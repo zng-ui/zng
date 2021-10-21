@@ -451,7 +451,7 @@ pub mod window {
                 $ident:ident: $Type:ty,
             )+) => {
                 $(paste::paste! {
-                    #[doc = "Binds the [`"$ident"`](WindowVars::"$ident") window var with the property value."]
+                    #[doc = "Binds the [`"$ident "`](WindowVars::"$ident ") window var with the property value."]
                     ///
                     /// The binding is bidirectional and the window variable is assigned on init.
                     #[property(context)]
@@ -495,7 +495,7 @@ pub mod window {
             ($(
                 $ident:ident . $member:ident = $name:ident : $Type:ty,
             )+) => {$(paste::paste! {
-                #[doc = "Binds the `"$member"` of the [`"$ident"`](WindowVars::"$ident") window var with the property value."]
+                #[doc = "Binds the `"$member "` of the [`"$ident "`](WindowVars::"$ident ") window var with the property value."]
                 ///
                 /// The binding is bidirectional and the window variable is assigned on init.
                 #[property(context)]

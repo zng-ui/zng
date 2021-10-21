@@ -627,9 +627,9 @@ pub fn user_cfg_when() {
     let mut wgt = empty_wgt! {
         util::live_trace = "trace";
 
-        #[allow(non_snake_case)]
         when self.util::is_state {
             util::live_trace = {
+                #[allow(non_snake_case)]
                 let weird___name;
                 weird___name = "is_state";
                 weird___name

@@ -356,11 +356,10 @@ mod analysis {
                 if let Prefix::State = prefix {
                     let crate_core = crate_core();
                     fn_.sig.inputs.push(parse_quote!(_missing_param: #crate_core::var::StateVar));
-                    args_are_valid = false;
                 } else {
                     fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
-                    args_are_valid = false;
                 }
+                args_are_valid = false;
             }
         } else {
             if fn_.sig.inputs.is_empty() {
@@ -372,11 +371,10 @@ mod analysis {
                 if let Prefix::State = prefix {
                     let crate_core = crate_core();
                     fn_.sig.inputs.push(parse_quote!(_missing_param: #crate_core::var::StateVar));
-                    args_are_valid = false;
                 } else {
                     fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
-                    args_are_valid = false;
                 }
+                args_are_valid = false;
             }
         }
         let args_are_valid = args_are_valid;
