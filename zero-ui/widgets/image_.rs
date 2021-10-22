@@ -10,13 +10,15 @@ pub mod image {
     use zero_ui::core::image::{ImageCacheMode, ImageSource, ImageVar};
 
     use super::*;
-    use properties::{ImageCacheVar, ImageErrorViewVar, ImageLoadingViewVar, ImageRenderingVar};
+    use properties::{ImageCacheVar, ImageErrorViewVar, ImageFitVar, ImageLoadingViewVar, ImageRenderingVar};
 
     properties! {
         /// The image source.
         ///
         /// Can be a file path, an URI, binary included in the app and more.
         source(impl IntoVar<ImageSource>);
+
+        properties::image_fit as fit;
 
         /// Sets the image scaling algorithm used to rescale the image in the renderer.
         ///
@@ -86,10 +88,39 @@ pub mod image {
     /// [`image!`]: mod@crate::widgets::image
     pub mod properties {
         use super::*;
+        use std::fmt;
 
         pub use crate::core::image::ImageLimits;
         pub use crate::core::render::ImageRendering;
         use nodes::ContextImageVar;
+
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        pub enum ImageFit {
+            ///
+            None,
+            /// The image is sized to completely fit the available size.
+            Fill,
+            /// The image is sized to fit the available space, but mantains the aspect ratio.
+            Contain,
+            ///
+            Cover,
+            ///
+            ScaleDown,
+        }
+        impl fmt::Debug for ImageFit {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                if f.alternate() {
+                    write!(f, "ImageFit::")?
+                }
+                match self {
+                    Self::None => write!(f, "None"),
+                    Self::Fill => write!(f, "Fill"),
+                    Self::Contain => write!(f, "Contain"),
+                    Self::Cover => write!(f, "Cover"),
+                    Self::ScaleDown => write!(f, "ScaleDown"),
+                }
+            }
+        }
 
         context_var! {
             /// The Image scaling algorithm in the renderer.
@@ -112,6 +143,18 @@ pub mod image {
             ///
             /// Set to `None` to use the [`Images::limits`].
             pub struct ImageLimitsVar: Option<ImageLimits> = const None;
+
+            pub struct ImageFitVar: ImageFit = const ImageFit::Contain;
+        }
+
+        /// Sets the [`ImageFit`] of all inner images.
+        ///
+        /// See the [`fit`] property in teh widget for more details.
+        ///
+        /// [`fit`]: crate::widgets::image#wp-fit
+        #[property(context, default(ImageFit::Contain))]
+        pub fn image_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
+            with_context_var(child, ImageFitVar, fit)
         }
 
         /// Sets the [`ImageRendering`] of all inner images.
@@ -825,7 +868,7 @@ pub mod image {
             #[impl_ui_node(none)]
             impl UiNode for ImagePresenterNode {
                 fn update(&mut self, ctx: &mut WidgetContext) {
-                    if ContextImageVar::is_new(ctx.vars) {
+                    if ContextImageVar::is_new(ctx.vars) || ImageFitVar::is_new(ctx.vars) {
                         ctx.updates.layout();
                     } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         if let Some(img) = var.get_new(ctx.vars) {
@@ -848,8 +891,27 @@ pub mod image {
                     }
                 }
 
-                fn arrange(&mut self, _: &mut LayoutContext, final_size: PxSize) {
-                    self.final_size = final_size;
+                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                    use properties::ImageFit::*;
+                    self.final_size = match *ImageFitVar::get(ctx) {
+                        None => self.measured_image_size,
+                        Fill => final_size,
+                        Contain => {
+                            let area = final_size.to_f32();
+                            let img = self.measured_image_size.to_f32();
+                            let scale = (area.width / img.width).min(area.height / img.height);
+                            let img = img * scale;
+                            img.cast()
+                        }
+                        Cover => {
+                            let area = final_size.to_f32();
+                            let img = self.measured_image_size.to_f32();
+                            let scale = (area.width / img.width).max(area.height / img.height);
+                            let img = img * scale;
+                            img.cast()
+                        }
+                        ScaleDown => todo!(),
+                    };
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

@@ -65,6 +65,29 @@ impl fmt::Display for Px {
         write!(f, "{}px", self.0)
     }
 }
+impl num_traits::ToPrimitive for Px {
+    fn to_i32(&self) -> Option<i32> {
+        Some(self.0)
+    }
+    fn to_i64(&self) -> Option<i64> {
+        Some(self.0 as i64)
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        Some(self.0 as u64)
+    }
+}
+impl num_traits::NumCast for Px {
+    fn from<T: num_traits::ToPrimitive>(n: T) -> Option<Self> {
+        if let Some(p) = n.to_i32() {
+            Some(Px(p))
+        } else if let Some(p) = n.to_f32() {
+            Some(Px(p as i32))
+        } else {
+            None
+        }
+    }
+}
 impl num_traits::Zero for Px {
     fn zero() -> Self {
         Px(0)

@@ -960,6 +960,8 @@ pub mod prelude {
     pub use crate::properties::transform::{transform, *};
 
     #[doc(no_inline)]
+    pub use crate::widgets::image::properties::ImageFit;
+    #[doc(no_inline)]
     pub use crate::widgets::layouts::*;
     #[doc(no_inline)]
     pub use crate::widgets::text::{text, *};
