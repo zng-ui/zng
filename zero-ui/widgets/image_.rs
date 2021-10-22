@@ -1089,7 +1089,9 @@ pub mod image {
 
                     let x_space = image_size.width - final_size.width;
                     let y_space = image_size.height - final_size.height;
-                    todo!("align")
+                    // TODO align
+
+                    // TODO offset
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
