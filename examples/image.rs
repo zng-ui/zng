@@ -33,7 +33,21 @@ fn app_main() {
             content = v_stack!{
                 spacing = 20;
                 items = widgets![
-                    demo_image("File", image("examples/res/image/RGB8.png")),
+                    demo_image("File", uniform_grid! {
+                        columns = 4;
+                        spacing = 2;
+                        align = Alignment::CENTER;
+                        items = widgets![
+                            image("examples/res/image/Luma8.png"),
+                            image("examples/res/image/Luma16.png"),
+                            image("examples/res/image/LumaA8.png"),
+                            image("examples/res/image/LumaA16.png"),
+                            image("examples/res/image/RGB8.png"),
+                            image("examples/res/image/RGB16.png"),
+                            image("examples/res/image/RGBA8.png"),
+                            image("examples/res/image/RGBA16.png"),
+                        ]
+                    }),
                     demo_image("Web", image("https://httpbin.org/image")),
                     demo_image("Web (accept)", image((Uri::from_static("https://httpbin.org/image"), "image/png"))),
                     demo_image("Error File", image("404.png")),

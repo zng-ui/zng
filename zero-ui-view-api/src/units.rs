@@ -81,10 +81,8 @@ impl num_traits::NumCast for Px {
     fn from<T: num_traits::ToPrimitive>(n: T) -> Option<Self> {
         if let Some(p) = n.to_i32() {
             Some(Px(p))
-        } else if let Some(p) = n.to_f32() {
-            Some(Px(p as i32))
         } else {
-            None
+            n.to_f32().map(|p| Px(p as i32))
         }
     }
 }

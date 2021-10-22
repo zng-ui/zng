@@ -70,15 +70,15 @@ pub trait Image {
 
 /// Image scaling algorithm in the renderer.
 ///
-/// If an image is not rendered at the same size as in their source it must be up-scaled or
-/// down-scaled. The algorithm used for this scaling can be selected using this `enum`.
+/// If an image is not rendered at the same size as their source it must be up-scaled or
+/// down-scaled. The algorithms used for this scaling can be selected using this `enum`.
 ///
 /// Note that the algorithms used in the renderer value performance over quality and do a good
 /// enough job for small or temporary changes in scale only, such as a small size correction or a scaling animation.
 /// If and image is constantly rendered at a different scale you should considered scaling it on the CPU using a
 /// slower but more complex algorithm or pre-scaling it before including in the app.
 ///
-/// You can use the [`Image`] type to re-scale an image.
+/// You can use the [`Image`] type to re-scale an image, image widgets probably can be configured to do this too.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ImageRendering {
@@ -740,7 +740,7 @@ impl FrameBuilder {
     /// Push an image using [`common_item_ps`].
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
-    pub fn push_image(&mut self, rect: PxRect, image: &impl Image, rendering: ImageRendering) {
+    pub fn push_image(&mut self, clip_rect: PxRect, img_rect: PxRect, image: &impl Image, rendering: ImageRendering) {
         if self.cancel_widget {
             return;
         }
@@ -749,10 +749,10 @@ impl FrameBuilder {
 
         if let Some(r) = &self.renderer {
             let image_key = image.image_key(r);
-            let item = self.common_hit_item_ps(rect);
+            let item = self.common_hit_item_ps(clip_rect);
             self.display_list.push_image(
                 &item,
-                rect.to_wr(),
+                img_rect.to_wr(),
                 rendering.into(),
                 image.alpha_type(),
                 image_key,

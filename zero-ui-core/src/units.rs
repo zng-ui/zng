@@ -215,6 +215,12 @@ pub trait AvailableSizeExt {
     fn max_px(self, other: PxSize) -> Self;
     /// Returns a size that has the lesser finite dimensions.
     fn min_px(self, other: PxSize) -> Self;
+
+    /// Returns the `desired_size` if infinite or the minimum size.
+    fn clip(self, desired_size: PxSize) -> PxSize;
+
+    /// Available size from finite size.
+    fn from_size(size: PxSize) -> AvailableSize;
 }
 impl AvailableSizeExt for AvailableSize {
     #[inline]
@@ -260,6 +266,16 @@ impl AvailableSizeExt for AvailableSize {
     #[inline]
     fn min_px(self, other: PxSize) -> Self {
         AvailableSize::new(self.width.min_px(other.width), self.height.min_px(other.height))
+    }
+
+    #[inline]
+    fn clip(self, other: PxSize) -> PxSize {
+        other.min(self.to_px_or(PxSize::new(Px::MAX, Px::MAX)))
+    }
+
+    #[inline]
+    fn from_size(size: PxSize) -> AvailableSize {
+        AvailableSize::new(size.width.into(), size.height.into())
     }
 }
 
@@ -571,6 +587,12 @@ impl FactorPercent {
     pub fn clamp_range(self) -> Self {
         FactorPercent(self.0.max(0.0).min(100.0))
     }
+
+    /// Convert to [`FactorNormal`].
+    #[inline]
+    pub fn as_normal(self) -> FactorNormal {
+        self.into()
+    }
 }
 impl PartialEq for FactorPercent {
     fn eq(&self, other: &Self) -> bool {
@@ -636,6 +658,12 @@ impl FactorNormal {
     pub fn abs(self) -> FactorNormal {
         FactorNormal(self.0.abs())
     }
+
+    /// Convert to [`FactorPercent`].
+    #[inline]
+    pub fn as_percent(self) -> FactorPercent {
+        self.into()
+    }
 }
 impl PartialEq for FactorNormal {
     fn eq(&self, other: &Self) -> bool {
@@ -663,6 +691,78 @@ impl ops::Div for FactorNormal {
 }
 impl ops::DivAssign for FactorNormal {
     fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
+impl ops::Mul<FactorNormal> for Px {
+    type Output = Px;
+
+    fn mul(self, rhs: FactorNormal) -> Px {
+        self * rhs.0
+    }
+}
+impl ops::Div<FactorNormal> for Px {
+    type Output = Px;
+
+    fn div(self, rhs: FactorNormal) -> Px {
+        self / rhs.0
+    }
+}
+impl ops::MulAssign<FactorNormal> for Px {
+    fn mul_assign(&mut self, rhs: FactorNormal) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<FactorNormal> for Px {
+    fn div_assign(&mut self, rhs: FactorNormal) {
+        *self = *self / rhs;
+    }
+}
+impl ops::Mul<FactorNormal> for PxPoint {
+    type Output = PxPoint;
+
+    fn mul(self, rhs: FactorNormal) -> PxPoint {
+        self * Scale2d::uniform(rhs)
+    }
+}
+impl ops::Div<FactorNormal> for PxPoint {
+    type Output = PxPoint;
+
+    fn div(self, rhs: FactorNormal) -> PxPoint {
+        self / Scale2d::uniform(rhs)
+    }
+}
+impl ops::MulAssign<FactorNormal> for PxPoint {
+    fn mul_assign(&mut self, rhs: FactorNormal) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<FactorNormal> for PxPoint {
+    fn div_assign(&mut self, rhs: FactorNormal) {
+        *self = *self / rhs;
+    }
+}
+impl ops::Mul<FactorNormal> for PxSize {
+    type Output = PxSize;
+
+    fn mul(self, rhs: FactorNormal) -> PxSize {
+        self * Scale2d::uniform(rhs)
+    }
+}
+impl ops::Div<FactorNormal> for PxSize {
+    type Output = PxSize;
+
+    fn div(self, rhs: FactorNormal) -> PxSize {
+        self / Scale2d::uniform(rhs)
+    }
+}
+impl ops::MulAssign<FactorNormal> for PxSize {
+    fn mul_assign(&mut self, rhs: FactorNormal) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<FactorNormal> for PxSize {
+    fn div_assign(&mut self, rhs: FactorNormal) {
         *self = *self / rhs;
     }
 }
@@ -1552,6 +1652,11 @@ impl Point {
             self.y.to_layout(ctx, available_size.height, default_value.y),
         )
     }
+
+    /// Returns `true` if all values are [`Length::Default`].
+    pub fn is_default(&self) -> bool {
+        self.x.is_default() && self.y.is_default()
+    }
 }
 impl_length_comp_conversions! {
     fn from(x: X, y: Y) -> Point {
@@ -1632,6 +1737,11 @@ impl Size {
             self.width.to_layout(ctx, available_size.width, default_value.width),
             self.height.to_layout(ctx, available_size.height, default_value.height),
         )
+    }
+
+    /// Returns `true` if all values are [`Length::Default`].
+    pub fn is_default(&self) -> bool {
+        self.width.is_default() && self.height.is_default()
     }
 }
 impl_length_comp_conversions! {
@@ -1946,6 +2056,11 @@ impl Rect {
             self.origin.to_layout(ctx, available_size, default_value.origin),
             self.size.to_layout(ctx, available_size, default_value.size),
         )
+    }
+
+    /// Returns `true` if all values are [`Length::Default`].
+    pub fn is_default(&self) -> bool {
+        self.origin.is_default() && self.size.is_default()
     }
 }
 impl From<Size> for Rect {
@@ -2380,16 +2495,17 @@ impl Alignment {
         !self.y.0.is_finite()
     }
 }
-impl<X: Into<FactorNormal>, Y: Into<FactorNormal>> From<(X, Y)> for Alignment {
-    fn from((x, y): (X, Y)) -> Self {
+impl_from_and_into_var! {
+    fn from<X: Into<FactorNormal> + Clone, Y: Into<FactorNormal> + Clone>((x, y): (X, Y)) -> Alignment {
         Alignment { x: x.into(), y: y.into() }
     }
-}
-impl<X: Into<FactorNormal> + Clone, Y: Into<FactorNormal> + Clone> IntoVar<Alignment> for (X, Y) {
-    type Var = OwnedVar<Alignment>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+    fn from(xy: FactorNormal) -> Alignment {
+        Alignment { x: xy, y: xy }
+    }
+
+    fn from(xy: FactorPercent) -> Alignment {
+        xy.as_normal().into()
     }
 }
 macro_rules! named_aligns {
@@ -2509,6 +2625,115 @@ impl Alignment {
         }
 
         r
+    }
+}
+
+/// Scale applied to ***x*** and ***y*** dimensions.
+#[derive(Clone, Copy, Debug)]
+pub struct Scale2d {
+    /// Scale applied in the ***x*** dimension.
+    pub x: FactorNormal,
+    /// Scale applied in the ***y*** dimension.
+    pub y: FactorNormal,
+}
+impl_from_and_into_var! {
+    fn from<X: Into<FactorNormal> + Clone, Y: Into<FactorNormal> + Clone>((x, y): (X, Y)) -> Scale2d {
+        Scale2d { x: x.into(), y: y.into() }
+    }
+
+    fn from(xy: FactorNormal) -> Scale2d {
+        Scale2d { x: xy, y: xy }
+    }
+
+    fn from(xy: FactorPercent) -> Scale2d {
+        xy.as_normal().into()
+    }
+
+    /// To relative width and height.
+    fn from(scale: Scale2d) -> Size {
+        Size {
+            width: scale.x.into(),
+            height: scale.y.into(),
+        }
+    }
+}
+impl Scale2d {
+    /// New scale with different scales for each dimension.
+    pub fn new(x: impl Into<FactorNormal>, y: impl Into<FactorNormal>) -> Self {
+        Scale2d { x: x.into(), y: y.into() }
+    }
+
+    /// Uniform scale applied to both ***x*** and ***y***.
+    pub fn uniform(xy: impl Into<FactorNormal>) -> Self {
+        let xy = xy.into();
+        xy.into()
+    }
+
+    /// No scaling.
+    pub fn identity() -> Self {
+        Self::uniform(1.0)
+    }
+
+    /// If the scale is the same for both ***x*** and ***y***.
+    pub fn is_uniform(self) -> bool {
+        self.x == self.y
+    }
+}
+impl fmt::Display for Scale2d {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_uniform() {
+            write!(f, "{}", self.x.as_percent())
+        } else {
+            write!(f, "({}, {})", self.x.as_percent(), self.y.as_percent())
+        }
+    }
+}
+impl ops::Mul<Scale2d> for PxSize {
+    type Output = PxSize;
+
+    fn mul(self, rhs: Scale2d) -> PxSize {
+        PxSize::new(self.width * rhs.x, self.height * rhs.y)
+    }
+}
+impl ops::Div<Scale2d> for PxSize {
+    type Output = PxSize;
+
+    fn div(self, rhs: Scale2d) -> PxSize {
+        PxSize::new(self.width / rhs.x, self.height / rhs.y)
+    }
+}
+impl ops::MulAssign<Scale2d> for PxSize {
+    fn mul_assign(&mut self, rhs: Scale2d) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Scale2d> for PxSize {
+    fn div_assign(&mut self, rhs: Scale2d) {
+        *self = *self / rhs;
+    }
+}
+impl ops::Mul<Scale2d> for PxPoint {
+    type Output = PxPoint;
+
+    fn mul(self, rhs: Scale2d) -> PxPoint {
+        PxPoint::new(self.x * rhs.x, self.y * rhs.y)
+    }
+}
+impl ops::Div<Scale2d> for PxPoint {
+    type Output = PxPoint;
+
+    fn div(self, rhs: Scale2d) -> PxPoint {
+        PxPoint::new(self.x / rhs.x, self.y / rhs.y)
+    }
+}
+impl ops::MulAssign<Scale2d> for PxPoint {
+    fn mul_assign(&mut self, rhs: Scale2d) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Scale2d> for PxPoint {
+    fn div_assign(&mut self, rhs: Scale2d) {
+        *self = *self / rhs;
     }
 }
 

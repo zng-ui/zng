@@ -54,7 +54,7 @@ so we can wait for now and focus in other features.
 ## Large Image
 
 * Need to generate mipmaps, and virtual tiles for zoomed in.
-    How to provide access to these?
+    How to provide access to these? Can use channel index?
 * Allow keeping image only at a size, to save memory for images that don't resize.
 * Image widget need to allow defining min/max scale and offset.
     Different widget?
