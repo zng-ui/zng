@@ -12,7 +12,7 @@ fn app_main() {
     App::default().run_window(|_| {
         let shortcut_text = var(Text::empty());
         let keypress_text = var(Text::empty());
-        let shortcut_color_dft = *TextColorVar::default_value();
+        let shortcut_color_dft = TextColorVar::default_value();
         let shortcut_color = var(shortcut_color_dft);
         window! {
             title = "Shortcuts Example";

@@ -814,7 +814,7 @@ pub use zero_ui_proc_macros::property;
 /// #   use super::*;
 /// static ST_VALUE: bool = true;
 ///
-/// context_var! { pub struct FooVar: bool = const true; }
+/// context_var! { pub struct FooVar: bool = true; }
 ///
 /// fn bar() -> bool { true }
 ///

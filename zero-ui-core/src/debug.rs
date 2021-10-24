@@ -354,7 +354,7 @@ unique_id_64! {
 }
 
 context_var! {
-    struct ParentPropertyName: &'static str = const "";
+    struct ParentPropertyName: &'static str = "";
 }
 
 type PropertyMembersVars = Box<[BoxedVar<ValueInfo>]>;

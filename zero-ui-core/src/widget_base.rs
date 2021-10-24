@@ -267,7 +267,7 @@ context_var! {
     /// Don't use this directly unless you read all the enabled related
     /// source code here and in core/window.rs
     #[doc(hidden)]
-    pub struct IsEnabledVar: bool = return &true;
+    pub struct IsEnabledVar: bool = true;
 }
 
 /// Extension method for accessing the [`enabled`](fn@enabled) state of widgets.
@@ -578,7 +578,7 @@ context_var! {
     /// Don't use this directly unless you read all the visibility related
     /// source code here and in core/window.rs
     #[doc(hidden)]
-    pub struct VisibilityVar: Visibility = return &Visibility::Visible;
+    pub struct VisibilityVar: Visibility = Visibility::Visible;
 }
 
 /// Extension method for accessing the [`Visibility`] of widgets.
@@ -713,7 +713,7 @@ pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> imp
 }
 
 context_var! {
-    struct IsHitTestableVar: bool = return &true;
+    struct IsHitTestableVar: bool = true;
 }
 
 /// Contextual [`hit_testable`](fn@hit_testable) accessor.

@@ -211,56 +211,56 @@ pub mod image {
             /// The Image scaling algorithm in the renderer.
             ///
             /// Is [`ImageRendering::Auto`] by default.
-            pub struct ImageRenderingVar: ImageRendering = const ImageRendering::Auto;
+            pub struct ImageRenderingVar: ImageRendering = ImageRendering::Auto;
 
             /// If the image is cached.
             ///
             /// Is `true` by default.
-            pub struct ImageCacheVar: bool = const true;
+            pub struct ImageCacheVar: bool = true;
 
             /// View generator for the content shown when the image does not load.
-            pub struct ImageErrorViewVar: ViewGenerator<ImageErrorArgs> = return ViewGenerator::nil_static();
+            pub struct ImageErrorViewVar: ViewGenerator<ImageErrorArgs> = ViewGenerator::nil();
 
             /// View generator for the content shown when the image is still loading.
-            pub struct ImageLoadingViewVar: ViewGenerator<ImageLoadingArgs> = return ViewGenerator::nil_static();
+            pub struct ImageLoadingViewVar: ViewGenerator<ImageLoadingArgs> = ViewGenerator::nil();
 
             /// Custom image load and decode limits.
             ///
             /// Set to `None` to use the [`Images::limits`].
-            pub struct ImageLimitsVar: Option<ImageLimits> = const None;
+            pub struct ImageLimitsVar: Option<ImageLimits> = None;
 
             /// The image layout mode.
             ///
             /// Is [`ImageFit::Contain`] by default.
-            pub struct ImageFitVar: ImageFit = const ImageFit::Contain;
+            pub struct ImageFitVar: ImageFit = ImageFit::Contain;
 
             /// Scaling applied to the image desired size.
             ///
             /// Does not scale by default, `1.0`.
-            pub struct ImageScaleVar: Scale2d = once Scale2d::identity();
+            pub struct ImageScaleVar: Scale2d = Scale2d::identity();
 
             /// If the image desired size is scaled by the screen scale factor.
             ///
             /// Is `true` by default.
-            pub struct ImageScaleFactorVar: bool = return &true;
+            pub struct ImageScaleFactorVar: bool = true;
 
             /// If the image desired size is scaled considering the image and screen PPIs.
             ///
             /// Is `false` by default.
-            pub struct ImageScalePpiVar: bool = return &false;
+            pub struct ImageScalePpiVar: bool = false;
 
             /// Alignment of the image in relation to the image widget final size.
             ///
             /// Is [`Alignment::CENTER`] by default.
-            pub struct ImageAlignVar: Alignment = const Alignment::CENTER;
+            pub struct ImageAlignVar: Alignment = Alignment::CENTER;
 
             /// Offset applied to the image after all measure and arrange.
-            pub struct ImageOffsetVar: Point = once Point::default();
+            pub struct ImageOffsetVar: Point = Point::default();
 
             /// Simple clip applied to the image before layout.
             ///
             /// No cropping is done by default.
-            pub struct ImageCropVar: Rect = once Rect::default();
+            pub struct ImageCropVar: Rect = Rect::default();
         }
 
         /// Sets the [`ImageFit`] of all inner images.
@@ -592,7 +592,7 @@ pub mod image {
 
         context_var! {
             /// Image acquired by [`image_source`], or `Unset` by default.
-            pub struct ContextImageVar: ContextImage = return &ContextImage::None;
+            pub struct ContextImageVar: ContextImage = ContextImage::None;
         }
 
         /// Image set in a parent widget.

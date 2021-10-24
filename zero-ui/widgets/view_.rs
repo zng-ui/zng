@@ -201,17 +201,7 @@ impl<D: ?Sized> ViewGenerator<D> {
 
     /// Generator that always produces the [`NilUiNode`].
     ///
-    /// No heap allocation happens in this function. See [`nil_static`] for creating context variables.
-    ///
-    /// [`nil_static`]: ViewGenerator::nil_static
-    pub fn nil() -> Self {
-        // TODO make this const when rust#57563 is resolved.
-        ViewGenerator(None)
-    }
-
-    /// [`nil`] as a static reference.
-    ///
-    /// Note that this function is `const` allowing it to be used as the default value of a [`context_var!`].
+    /// No heap allocation happens in this function.
     ///
     /// # Examples
     ///
@@ -220,15 +210,12 @@ impl<D: ?Sized> ViewGenerator<D> {
     /// # pub struct Foo;
     /// context_var! {
     ///     /// View generator for `Foo` items.
-    ///     pub struct FooViewVar: ViewGenerator<Foo> = return ViewGenerator::nil_static();
+    ///     pub struct FooViewVar: ViewGenerator<Foo> = ViewGenerator::nil();
     /// }
     /// ```
-    ///
-    /// [`nil`]: ViewGenerator::nil
-    pub fn nil_static() -> &'static Self {
-        // SAFETY: see `tests::validate_nil_static_unsafe`.
-        static NIL: Option<std::num::NonZeroUsize> = None;
-        unsafe { std::mem::transmute(&NIL) }
+    pub fn nil() -> Self {
+        // TODO make this const when rust#57563 is resolved.
+        ViewGenerator(None)
     }
 
     /// If this is  the [`nil`] generator.

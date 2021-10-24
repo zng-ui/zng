@@ -108,7 +108,7 @@ mod tests {
     }
 
     context_var! {
-        struct TestVar: u8 = const 1;
+        struct TestVar: u8 = 1;
     }
 
     #[property(context)]

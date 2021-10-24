@@ -250,66 +250,66 @@ pub mod text {
 
         context_var! {
             /// Font family of [`text`](crate::widgets::text) spans.
-            pub struct FontFamilyVar: FontNames = once FontNames::default();
+            pub struct FontFamilyVar: FontNames = FontNames::default();
 
             /// Font weight of [`text`](crate::widgets::text) spans.
-            pub struct FontWeightVar: FontWeight = const FontWeight::NORMAL;
+            pub struct FontWeightVar: FontWeight = FontWeight::NORMAL;
 
             /// Font style of [`text`](crate::widgets::text) spans.
-            pub struct FontStyleVar: FontStyle = const FontStyle::Normal;
+            pub struct FontStyleVar: FontStyle = FontStyle::Normal;
 
             /// Font stretch of [`text`](crate::widgets::text) spans.
-            pub struct FontStretchVar: FontStretch = const FontStretch::NORMAL;
+            pub struct FontStretchVar: FontStretch = FontStretch::NORMAL;
 
             /// Font synthesis of [`text`](crate::widgets::text) spans.
-            pub struct FontSynthesisVar: FontSynthesis = const FontSynthesis::ENABLED;
+            pub struct FontSynthesisVar: FontSynthesis = FontSynthesis::ENABLED;
 
             /// Font size of [`text`](crate::widgets::text) spans.
-            pub struct FontSizeVar: Length = once Length::Pt(11.0);
+            pub struct FontSizeVar: Length = Length::Pt(11.0);
 
             /// Text color of [`text`](crate::widgets::text) spans.
-            pub struct TextColorVar: Rgba = const colors::WHITE;
+            pub struct TextColorVar: Rgba = colors::WHITE;
             /// Text color of [`text`](crate::widgets::text) spans inside a disabled widget.
-            pub struct TextColorDisabledVar: Rgba = const colors::GRAY;
+            pub struct TextColorDisabledVar: Rgba = colors::GRAY;
 
             /// Text transformation function applied to [`text`](crate::widgets::text) spans.
-            pub struct TextTransformVar: TextTransformFn = return &TextTransformFn::None;
+            pub struct TextTransformVar: TextTransformFn = TextTransformFn::None;
 
             /// Text line height of [`text`](crate::widgets::text) spans.
-            pub struct LineHeightVar: LineHeight = return &LineHeight::Font;
+            pub struct LineHeightVar: LineHeight = LineHeight::Font;
 
             /// Extra spacing in between lines of [`text`](crate::widgets::text) spans.
-            pub struct LineSpacingVar: Length = return &Length::Px(Px(0));
+            pub struct LineSpacingVar: Length = Length::Px(Px(0));
 
             /// Extra letter spacing of [`text`](crate::widgets::text) spans.
-            pub struct LetterSpacingVar: LetterSpacing = return &LetterSpacing::Auto;
+            pub struct LetterSpacingVar: LetterSpacing = LetterSpacing::Auto;
 
             /// Extra word spacing of [`text`](crate::widgets::text) spans.
-            pub struct WordSpacingVar: WordSpacing = return &WordSpacing::Auto;
+            pub struct WordSpacingVar: WordSpacing = WordSpacing::Auto;
 
             /// Extra paragraph spacing of text blocks.
-            pub struct ParagraphSpacingVar: ParagraphSpacing = return &Length::Px(Px(0));
+            pub struct ParagraphSpacingVar: ParagraphSpacing = Length::Px(Px(0));
 
             /// Configuration of line breaks inside words during text wrap.
-            pub struct WordBreakVar: WordBreak = return &WordBreak::Normal;
+            pub struct WordBreakVar: WordBreak = WordBreak::Normal;
 
             /// Configuration of line breaks in Chinese, Japanese, or Korean text.
-            pub struct LineBreakVar: LineBreak = return &LineBreak::Auto;
+            pub struct LineBreakVar: LineBreak = LineBreak::Auto;
 
             /// Text line alignment in a text block.
-            pub struct TextAlignVar: TextAlign = return &TextAlign::Start;
+            pub struct TextAlignVar: TextAlign = TextAlign::Start;
 
             /// Length of the `TAB` space.
-            pub struct TabLengthVar: TabLength = once 400.pct().into();
+            pub struct TabLengthVar: TabLength = 400.pct().into();
 
             /// Text white space transform of [`text`](crate::widgets::text) spans.
-            pub struct WhiteSpaceVar: WhiteSpace = return &WhiteSpace::Preserve;
+            pub struct WhiteSpaceVar: WhiteSpace = WhiteSpace::Preserve;
 
             /// Font features of [`text`](crate::widgets::text) spans.
-            pub struct FontFeaturesVar: FontFeatures = once FontFeatures::new();
+            pub struct FontFeaturesVar: FontFeatures = FontFeatures::new();
 
             /// Font variations of [`text`](crate::widgets::text) spans.
-            pub struct FontVariationsVar: FontVariations = once FontVariations::new();
+            pub struct FontVariationsVar: FontVariations = FontVariations::new();
         }
 
         /// Sets the [`FontFamilyVar`] context var.
@@ -1084,7 +1084,7 @@ pub mod text {
 /// # `text!`
 ///
 /// There is a specific widget for creating configured text runs: [`text!`].
-/// 
+///
 /// [`font_family`]: fn@crate::widgets::text::properties::font_family
 /// [`font_size`]: fn@crate::widgets::text::properties::font_size
 /// [`text_color`]: fn@crate::widgets::text::properties::text_color

@@ -74,7 +74,7 @@ type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 ///
 /// ```
 /// # use zero_ui_core::{*, context::*, var::*, render::*};
-/// # context_var! { pub struct FooVar: bool = const false; }
+/// # context_var! { pub struct FooVar: bool = false; }
 /// # struct FooNode<C, V> { child: C, var: V }
 /// # #[impl_ui_node(child)]
 /// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
@@ -349,7 +349,7 @@ type PendingUpdate = Box<dyn FnOnce(u32) -> bool>;
 ///
 /// ```
 /// # use zero_ui_core::{*, context::*, var::*};
-/// # context_var! { pub struct FooVar: bool = const false; }
+/// # context_var! { pub struct FooVar: bool = false; }
 /// # struct FooNode<C, V> { child: C, var: V }
 /// # #[impl_ui_node(child)]
 /// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
@@ -1236,7 +1236,7 @@ impl VarBinding {
 /// # fn main() -> () { }
 /// # use zero_ui_core::{*, var::*};
 /// context_var! {
-///     pub struct FooVar: u32 = const 0;
+///     pub struct FooVar: u32 = 0;
 /// }
 ///
 /// /// Sets the [`FooVar`] in the widgets and its content.
@@ -1329,7 +1329,7 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
 /// # fn main() -> () { }
 /// # use zero_ui_core::{*, var::*, border::BorderRadius};
 /// context_var! {
-///     pub struct CornersClipVar: BorderRadius = once BorderRadius::zero();
+///     pub struct CornersClipVar: BorderRadius = BorderRadius::zero();
 /// }
 ///
 /// /// Sets widget content clip corner radius.

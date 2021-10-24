@@ -69,8 +69,10 @@ pub trait ContextVar: Clone + Copy + 'static {
     /// The variable type.
     type Type: VarValue;
 
-    /// Default value, used when the variable is not set in a context.
-    fn default_value() -> &'static Self::Type;
+    /// New default value.
+    ///
+    /// Returns a value that is equal to the variable value when it is not set in any context.
+    fn default_value() -> Self::Type;
 
     /// Gets the variable.
     #[inline]

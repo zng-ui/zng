@@ -14,10 +14,10 @@ pub mod focusable_mixin {
     };
 
     context_var! {
-        pub struct FocusHighlightWidthsVar: SideOffsets = once SideOffsets::new_all(0.5);
-        pub struct FocusHighlightOffsetsVar: SideOffsets = once SideOffsets::new_all(1.0);
-        pub struct FocusHighlightSidesVar: BorderSides = once BorderSides::dashed(rgba(200, 200, 200, 1.0));
-        pub struct FocusHighlightRadiusVar: BorderRadius = once BorderRadius::new_all(2.0);
+        pub struct FocusHighlightWidthsVar: SideOffsets = SideOffsets::new_all(0.5);
+        pub struct FocusHighlightOffsetsVar: SideOffsets = SideOffsets::new_all(1.0);
+        pub struct FocusHighlightSidesVar: BorderSides = BorderSides::dashed(rgba(200, 200, 200, 1.0));
+        pub struct FocusHighlightRadiusVar: BorderRadius = BorderRadius::new_all(2.0);
     }
 
     properties! {
