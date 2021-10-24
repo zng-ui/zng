@@ -2,7 +2,6 @@
 
 pub mod layouts;
 pub mod mixins;
-pub mod text;
 
 mod button_;
 mod container_;
@@ -12,6 +11,7 @@ mod image_;
 mod line_;
 mod slot_;
 mod switch_;
+mod text_;
 mod ui_n;
 mod view_;
 mod window_;
@@ -24,6 +24,7 @@ pub use image_::*;
 pub use line_::*;
 pub use slot_::*;
 pub use switch_::*;
+pub use text_::*;
 pub use ui_n::*;
 pub use view_::*;
 pub use window_::*;

@@ -20,7 +20,6 @@ pub mod events;
 pub mod filters;
 pub mod focus;
 pub mod states;
-pub mod text_theme;
 pub mod transform;
 
 pub use capture_mouse_::*;

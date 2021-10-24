@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::image::ImageLimits;
+use zero_ui::core::{image::ImageLimits, timer::Timers};
 use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs, ImageLoadingArgs};
 
@@ -11,7 +11,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|ctx| {
         window! {
             title = "Image Example";
             state = WindowState::Maximized;
@@ -52,6 +52,7 @@ fn app_main() {
                     demo_image("Web (accept)", image((Uri::from_static("https://httpbin.org/image"), "image/png"))),
                     demo_image("Error File", image("404.png")),
                     demo_image("Error Web", image("https://httpbin.org/delay/5")),
+                    demo_image("Sprite", sprite(ctx.timers)),
                     large_image(),
                 ];
             };
@@ -99,6 +100,27 @@ fn large_image() -> impl Widget {
                 };
             });
         });
+    }
+}
+
+fn sprite(timers: &mut Timers) -> impl Widget {
+    let timer30fps = timers.interval((1.0 / 30.0).secs());
+    let crop = timer30fps.map(|n| {
+        if n.count() == 10 {
+            n.set_count(0);
+        }
+        let offset = n.count() as i32 * 96;
+        Rect::new((offset.px(), 0.px()), (96.px(), 84.px()))
+    });
+
+    image! {
+        source = "examples/res/image/player_combat_sheet-10-96x84-CC0.png";
+        on_click = hn!(|ctx, _| {
+            let timer = timer30fps.get(ctx);
+            timer.set_enabled(!timer.is_enabled());
+        });
+        crop;
+        size = (96, 84);
     }
 }
 

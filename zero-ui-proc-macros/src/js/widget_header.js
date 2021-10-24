@@ -5,7 +5,7 @@ var div = document.currentScript.closest('div');
 if (div !== null) { // avoid using && here because rustdoc breaks it.
     if (div.classList.contains('item-right')) {
         if (document.widget_modules === undefined) {
-            document.widget_modules = new Array(div);
+            document.widget_modules = new Array(div.parentElement);
 
             document.addEventListener('DOMContentLoaded', function() {
                 var modules = document.querySelector('h2#modules.section-header');
@@ -31,7 +31,6 @@ if (div !== null) { // avoid using && here because rustdoc breaks it.
                     var table = document.createElement('div');
                     table.classList.add('item-table');
                     document.widget_modules.forEach(function(div) {
-                        table.appendChild(div.previousElementSibling);
                         table.appendChild(div);
                     });
                     document.widget_modules = null;
@@ -52,7 +51,7 @@ if (div !== null) { // avoid using && here because rustdoc breaks it.
                 }
             });
         } else {
-            document.widget_modules.push(div);
+            document.widget_modules.push(div.parentElement);
         }
     }
 }

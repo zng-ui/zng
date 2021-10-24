@@ -804,10 +804,10 @@
 //! that attribute line in your crate to support Windows releases.
 //!
 //! [`button!`]: mod@crate::widgets::button
-//! [`text()`]: fn@crate::widgets::text::text
-//! [`text!`]: mod@crate::widgets::text::text
+//! [`text()`]: fn@crate::widgets::text
+//! [`text!`]: mod@crate::widgets::text
 //! [`v_stack!`]: mod@crate::widgets::layouts::v_stack
-//! [`font_size`]: fn@crate::properties::text_theme::font_size
+//! [`font_size`]: fn@crate::widgets::text::properties::font_size
 //! [`margin`]: fn@crate::properties::margin
 //! [`on_click`]: fn@crate::properties::events::gesture::on_click
 //! [`UiNode`]: crate::core::UiNode
@@ -952,7 +952,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::properties::states::*;
     #[doc(no_inline)]
-    pub use crate::properties::text_theme::{
+    pub use crate::widgets::text::properties::{
         font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, text_align, text_color,
         text_transform, word_spacing,
     };
@@ -963,8 +963,6 @@ pub mod prelude {
     pub use crate::widgets::image::properties::ImageFit;
     #[doc(no_inline)]
     pub use crate::widgets::layouts::*;
-    #[doc(no_inline)]
-    pub use crate::widgets::text::{text, *};
 
     /// All the types you need to declare a new property.
     ///
@@ -1093,7 +1091,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::properties::states::*;
         #[doc(no_inline)]
-        pub use crate::properties::text_theme::{
+        pub use crate::widgets::text::properties::{
             font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, text_align, text_color,
             text_transform, word_spacing,
         };

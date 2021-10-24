@@ -2,10 +2,10 @@
 // In the functions list page it creates a new 'Property Functions' section.
 var div = document.currentScript.closest('div');
 if (document.property_fns === undefined) {
-    document.property_fns = new Array(div);
+    document.property_fns = new Array(div.parentElement);
     document.addEventListener('DOMContentLoaded', move_properties);
 } else {
-    document.property_fns.push(div);
+    document.property_fns.push(div.parentElement);
 }
 
 function move_properties() {
@@ -39,7 +39,6 @@ function move_properties() {
             let table = document.createElement('div');
             table.classList.add('item-table');
             property_fns.forEach(function(div) {
-                table.appendChild(div.previousElementSibling);
                 table.appendChild(div);
             });
             functions.parentNode.insertBefore(table, pf.nextSibling);

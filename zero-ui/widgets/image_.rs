@@ -43,6 +43,8 @@ pub mod image {
         /// [`offset`] property on the widget it-self, the widget is not moved just the image within the widget area.
         ///
         /// By default no offset is applied.
+        ///
+        /// [`offset`]: crate::properties::offset
         properties::image_offset;
 
         /// Simple clip rectangle applied to the image before all layout.
@@ -54,6 +56,7 @@ pub mod image {
         /// By default no cropping is done.
         ///
         /// [`scale_ppi`]: #wp-scale_ppi
+        /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas
         properties::image_crop as crop;
 
         /// Scale applied to the image desired size.
@@ -63,7 +66,7 @@ pub mod image {
         /// By default not scaling is done.
         ///
         /// [`scale_ppi`]: #wp-scale_ppi
-        properties::image_scale as scale;
+        properties::image_scale;
 
         /// Sets the image scaling algorithm used to rescale the image in the renderer.
         ///
@@ -92,9 +95,21 @@ pub mod image {
         /// [`Images`]: zero_ui::core::image::Images
         properties::image_cache as cache;
 
-        /// Sets the image desired size mode.
+        /// If the image desired size is scaled by the screen scale factor.
         ///
-        /// The image desired size is its original size, after [`crop`], and it can be in pixels or scaled considering the image and monitor PPI.
+        /// The image desired size is its original size after [`crop`], it is a pixel value, but widgets are layout using
+        /// device independent pixels that automatically scale in higher definition displays, when this property is enabled
+        /// the image size is also scaled so that the image will take the same screen space in all devices, the image can end
+        ///
+        /// This is enabled by default.
+        ///
+        /// [`crop`]: #wp-crop
+        properties::image_scale_factor as scale_factor;
+
+        /// If the image desired size is scaled by PPI.
+        ///
+        /// The image desired size is its original size, after [`crop`], and it can be in pixels or scaled considering
+        /// the image PPi, monitor PPI and scale factor.
         ///
         /// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, but it
         /// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`Monitors`] service.
@@ -155,9 +170,10 @@ pub mod image {
         /// This layout mode can be set to all images inside a widget using [`image_fit`], in the image widget
         /// it can be set using the [`fit`] property, the [`image_presenter`] uses this value to calculate the image final size.
         ///
-        /// The image desired size is always its original size, either in pixels or DIPs, (see [`ImageUnit`])
+        /// The image desired size is its original size, either in pixels or DIPs after cropping and scaling.
         ///
         /// [`fit`]: crate::widgets::image#wp-fit
+        /// [`image_fit`]: fn@image_fit
         /// [`image_presenter`]: crate::widgets::image::nodes::image_presenter
         #[derive(Clone, Copy, PartialEq, Eq)]
         pub enum ImageFit {
@@ -223,6 +239,11 @@ pub mod image {
             /// Does not scale by default, `1.0`.
             pub struct ImageScaleVar: Scale2d = once Scale2d::identity();
 
+            /// If the image desired size is scaled by the screen scale factor.
+            ///
+            /// Is `true` by default.
+            pub struct ImageScaleFactorVar: bool = return &true;
+
             /// If the image desired size is scaled considering the image and screen PPIs.
             ///
             /// Is `false` by default.
@@ -262,14 +283,20 @@ pub mod image {
             with_context_var(child, ImageScaleVar, scale)
         }
 
+        /// Sets if the image desired size is scaled by the screen scale factor.
+        #[property(context, default(true))]
+        pub fn image_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+            with_context_var(child, ImageScaleFactorVar, enabled)
+        }
+
         /// Sets if the image desired size is scaled considering the image and monitor PPI.
         ///
         /// See the [`scape_ppi`] property in the widget for more details.
         ///
         /// [`scape_ppi`]: crate::widgets::image#wp-scape_ppi
         #[property(context, default(false))]
-        pub fn image_scale_ppi(child: impl UiNode, fit: impl IntoVar<bool>) -> impl UiNode {
-            with_context_var(child, ImageScalePpiVar, fit)
+        pub fn image_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+            with_context_var(child, ImageScalePpiVar, enabled)
         }
 
         /// Sets the [`Alignment`] of all inner images within each image widget area.
@@ -557,7 +584,8 @@ pub mod image {
     /// UI nodes used for building the image widget.
     pub mod nodes {
         use super::properties::{
-            ImageCropVar, ImageErrorArgs, ImageFitVar, ImageLimitsVar, ImageLoadingArgs, ImageScalePpiVar, ImageScaleVar,
+            ImageAlignVar, ImageCropVar, ImageErrorArgs, ImageFitVar, ImageLimitsVar, ImageLoadingArgs, ImageScaleFactorVar,
+            ImageScalePpiVar, ImageScaleVar,
         };
         use super::*;
         use std::fmt;
@@ -1011,14 +1039,17 @@ pub mod image {
         /// * [`ContextImageVar`]: Defines the image to render.
         /// * [`ImageCropVar`]: Clip the image before layout.
         /// * [`ImageScalePpiVar`]: If the image desired size is scaled by PPI.
+        /// * [`ImageScaleFactorVar`]: If the image desired size is scaled by the screen scale factor.
         /// * [`ImageScaleVar`]: Custom scale applied to the desired size.
         /// * [`ImageFitVar`]: Defines the image final size.
+        /// * [`ImageAlignVar`]: Defines the image alignment in the presenter final size.
         /// * [`ImageRenderingVar`]: Defines the image resize algorithm used in the GPU.
         pub fn image_presenter() -> impl UiNode {
             struct ImagePresenterNode {
                 measured_image_size: PxSize,
+
+                crop_rect: PxRect,
                 desired_size: PxSize,
-                img_rect: PxRect,
                 final_rect: PxRect,
             }
             #[impl_ui_node(none)]
@@ -1029,11 +1060,13 @@ pub mod image {
                         || ImageScaleVar::is_new(ctx)
                         || ImageScalePpiVar::is_new(ctx)
                         || ImageCropVar::is_new(ctx)
+                        || ImageAlignVar::is_new(ctx)
                     {
                         ctx.updates.layout();
                     } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         if let Some(img) = var.get_new(ctx.vars) {
                             if self.measured_image_size == img.size() && ImageCropVar::get(ctx).is_default() {
+                                // layout did not change
                                 ctx.updates.render();
                             } else {
                                 ctx.updates.layout();
@@ -1047,31 +1080,41 @@ pub mod image {
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
-                        let img_size = img.size();
-                        self.measured_image_size = img_size;
+                        if img.is_loaded() {
+                            let img_size = img.size();
+                            self.measured_image_size = img_size;
+                            let img_rect = PxRect::from_size(img_size);
 
-                        let img_rect = PxRect::from_size(img_size);
-                        let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(img_size), img_rect);
+                            let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(img_size), img_rect);
+                            self.crop_rect = img_rect.intersection(&crop).unwrap_or_default();
 
-                        self.desired_size = if *ImageScalePpiVar::get(ctx) {
-                            img.layout_size(ctx)
-                        } else {
-                            img_size
-                        };
+                            self.desired_size = self.crop_rect.size;
 
-                        self.desired_size *= *ImageScaleVar::get(ctx);
+                            if *ImageScalePpiVar::get(ctx) {
+                                let sppi = ctx.metrics.screen_ppi;
+                                let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
+                                self.desired_size.width *= ippi_x / sppi;
+                                self.desired_size.height *= ippi_y / sppi;
+                            }
 
-                        available_size.clip(self.desired_size)
-                    } else {
-                        self.measured_image_size = PxSize::zero();
-                        self.desired_size = PxSize::zero();
-                        PxSize::zero()
+                            if *ImageScaleFactorVar::get(ctx) {
+                                self.desired_size *= ctx.scale_factor.normal();
+                            }
+
+                            self.desired_size *= *ImageScaleVar::get(ctx);
+
+                            return available_size.clip(self.desired_size);
+                        }
                     }
+
+                    // no context image or not loaded
+                    PxSize::zero()
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                     use ImageFit::*;
-                    let image_size = match *ImageFitVar::get(ctx) {
+
+                    self.final_rect.size = match *ImageFitVar::get(ctx) {
                         None => self.desired_size,
                         Fill => final_size,
                         Contain => contain_size(self.desired_size, final_size),
@@ -1085,28 +1128,27 @@ pub mod image {
                         }
                     };
 
-                    self.final_rect.size = final_size;
-
-                    let x_space = image_size.width - final_size.width;
-                    let y_space = image_size.height - final_size.height;
-                    // TODO align
-
-                    // TODO offset
+                    self.final_rect.origin = ImageAlignVar::get(ctx).solve_offset(self.final_rect.size, final_size);
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
-                        if img.is_loaded() {
-                            frame.push_image(self.final_rect, self.img_rect, img, *ImageRenderingVar::get(ctx.vars));
+                        if img.is_loaded() && !self.final_rect.is_empty() && !self.crop_rect.is_empty() {
+                            frame.push_image(
+                                PxRect::from_size(self.final_rect.size),
+                                self.crop_rect,
+                                img,
+                                *ImageRenderingVar::get(ctx.vars),
+                            );
                         }
                     }
                 }
             }
             ImagePresenterNode {
                 measured_image_size: PxSize::zero(),
+                crop_rect: PxRect::zero(),
                 desired_size: PxSize::zero(),
-                img_rect: PxRect::zero(),
                 final_rect: PxRect::zero(),
             }
         }

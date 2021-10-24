@@ -1112,12 +1112,6 @@ impl_from_and_into_var! {
     }
 }
 impl Length {
-    /// If is [`Length::Default`].
-    #[inline]
-    pub fn is_default(&self) -> bool {
-        matches!(self, Length::Default)
-    }
-
     /// Length of exact zero.
     #[inline]
     pub const fn zero() -> Length {
@@ -1253,6 +1247,21 @@ impl Length {
     pub fn px_to_pt(px: Px, scale_factor: f32) -> f32 {
         let dip = px.0 as f32 / scale_factor;
         dip / Self::PT_TO_DIP
+    }
+
+    /// If is [`Length::Default`].
+    #[inline]
+    pub fn is_default(&self) -> bool {
+        matches!(self, Length::Default)
+    }
+
+    /// Replaces `self` with `overwrite` if `self` is [`Default`].
+    ///
+    /// [`Default`]: Length::Default
+    pub fn replace_default(&mut self, overwrite: &Length) {
+        if self.is_default() {
+            *self = overwrite.clone();
+        }
     }
 
     /// 96.0 / 72.0
@@ -1657,6 +1666,12 @@ impl Point {
     pub fn is_default(&self) -> bool {
         self.x.is_default() && self.y.is_default()
     }
+
+    /// Replaces [`Length::Default`] values with `overwrite` values.
+    pub fn replace_default(&mut self, overwrite: &Point) {
+        self.x.replace_default(&overwrite.x);
+        self.y.replace_default(&overwrite.y);
+    }
 }
 impl_length_comp_conversions! {
     fn from(x: X, y: Y) -> Point {
@@ -1742,6 +1757,12 @@ impl Size {
     /// Returns `true` if all values are [`Length::Default`].
     pub fn is_default(&self) -> bool {
         self.width.is_default() && self.height.is_default()
+    }
+
+    /// Replaces [`Length::Default`] values with `overwrite` values.
+    pub fn replace_default(&mut self, overwrite: &Size) {
+        self.width.replace_default(&overwrite.width);
+        self.height.replace_default(&overwrite.height);
     }
 }
 impl_length_comp_conversions! {
@@ -2061,6 +2082,12 @@ impl Rect {
     /// Returns `true` if all values are [`Length::Default`].
     pub fn is_default(&self) -> bool {
         self.origin.is_default() && self.size.is_default()
+    }
+
+    /// Replaces [`Length::Default`] values with `overwrite` values.
+    pub fn replace_default(&mut self, overwrite: &Rect) {
+        self.origin.replace_default(&overwrite.origin);
+        self.size.replace_default(&overwrite.size);
     }
 }
 impl From<Size> for Rect {
@@ -2609,7 +2636,7 @@ impl Alignment {
     /// [`UiNode::arrange`]: crate::UiNode::arrange
     /// [`UiNode::render`]: crate::UiNode::render
     pub fn solve(self, content_size: PxSize, container_size: PxSize) -> PxRect {
-        let mut r = euclid::Rect::zero();
+        let mut r = PxRect::zero();
 
         if self.fill_width() {
             r.size.width = container_size.width;
@@ -2622,6 +2649,29 @@ impl Alignment {
         } else {
             r.size.height = container_size.height.min(content_size.height);
             r.origin.y = (container_size.height - r.size.height) * self.y.0;
+        }
+
+        r
+    }
+
+    /// Compute an offset to apply to the content given the available size.
+    ///
+    /// [`FILL`] align resolves like [`LEFT_TOP`] align.
+    ///
+    /// Unlike [`solve`] the content does not change size, it must be clipped if larger than the container.
+    ///
+    /// [`FILL`]: Alignment::FILL
+    /// [`LEFT_TOP`]: Alignment::LEFT_TOP
+    /// [`solve`]: Alignment::solve
+    pub fn solve_offset(self, content_size: PxSize, container_size: PxSize) -> PxPoint {
+        let mut r = PxPoint::zero();
+
+        if !self.fill_width() {
+            r.x = (container_size.width - content_size.width) * self.x.0;
+        }
+
+        if !self.fill_height() {
+            r.y = (container_size.height - content_size.height) * self.y.0;
         }
 
         r

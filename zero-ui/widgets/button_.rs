@@ -5,7 +5,7 @@ use crate::prelude::new_widget::*;
 pub mod button {
     use super::*;
     use crate::properties::capture_mouse;
-    use crate::properties::text_theme::{TextColorDisabledVar, TextColorVar};
+    use crate::widgets::text::properties::{TextColorDisabledVar, TextColorVar};
 
     inherit!(focusable_mixin);
     inherit!(container);

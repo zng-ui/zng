@@ -40,8 +40,7 @@ impl<U: UiNode> View<U> {
 /// ```
 /// use zero_ui::{
 ///     core::{color::{rgb, rgba}, text::ToText, var::Var, UiNode},
-///     properties::text_theme::{text_color, font_size},
-///     widgets::{text::text, view, View},
+///     widgets::{text, text::{properties::{text_color, font_size}}, view, View},
 /// };
 ///
 /// fn countdown(n: impl Var<usize>) -> impl UiNode {
@@ -170,7 +169,7 @@ type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, &D) -> BoxedUiNode>;
 /// Define the content that is shown when an image fails to load:
 ///
 /// ```
-/// # use zero_ui::{widgets::{ViewGenerator, image, image::properties::ImageErrorArgs, text::text}, core::color::colors};
+/// # use zero_ui::{widgets::{ViewGenerator, image, image::properties::ImageErrorArgs, text}, core::color::colors};
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
@@ -258,7 +257,7 @@ impl<D: ?Sized> ViewGenerator<D> {
 /// Define the content that is shown when an image fails to load, capturing another variable too.
 ///
 /// ```
-/// # use zero_ui::{widgets::{view_generator, image, image::properties::ImageErrorArgs, text::text}, core::{color::{Rgba, colors}, var::var, widget_base::Visibility}};
+/// # use zero_ui::{widgets::{view_generator, image, image::properties::ImageErrorArgs, text}, core::{color::{Rgba, colors}, var::var, widget_base::Visibility}};
 /// let img_error_vis = var(Visibility::Visible);
 /// # let _ =
 /// image! {
