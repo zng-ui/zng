@@ -4,10 +4,11 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
 9   | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
     |                                                                       ^^^^^^^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotUiNode`
     |
-   ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
+note: required by a bound in `delegate_iter_mut`
+   --> $DIR/ui_node.rs:532:75
     |
-    |     pub fn delegate_iter_mut<'a>(d: impl IntoIterator<Item = &'a mut impl UiNode>) -> impl IterMutImpl {
-    |                                                                           ------ required by this bound in `delegate_iter_mut`
+532 |     pub fn delegate_iter_mut<'a>(d: impl IntoIterator<Item = &'a mut impl UiNode>) -> impl IterMutImpl {
+    |                                                                           ^^^^^^ required by this bound in `delegate_iter_mut`
 
 error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
    --> $DIR/delegate_iter_items_not_ui_node.rs:9:32
@@ -15,7 +16,8 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
 9   | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
     |                                ^^^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotUiNode`
     |
-   ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
+note: required by a bound in `delegate_iter`
+   --> $DIR/ui_node.rs:528:67
     |
-    |     pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {
-    |                                                                   ------ required by this bound in `delegate_iter`
+528 |     pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {
+    |                                                                   ^^^^^^ required by this bound in `delegate_iter`

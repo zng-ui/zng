@@ -4,10 +4,11 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
 9   | #[impl_ui_node(child)]
     |                ^^^^^ the trait `UiNode` is not implemented for `NotANode`
     |
-   ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
+note: required by a bound in `delegate_mut`
+   --> $DIR/ui_node.rs:514:28
     |
-    |     pub fn delegate_mut<U: UiNode + ?Sized>(d: &mut U) -> &mut U {
-    |                            ------ required by this bound in `delegate_mut`
+514 |     pub fn delegate_mut<U: UiNode + ?Sized>(d: &mut U) -> &mut U {
+    |                            ^^^^^^ required by this bound in `delegate_mut`
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
    --> $DIR/delegate_expr_error_incorrect_type_child.rs:9:16
@@ -15,7 +16,8 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
 9   | #[impl_ui_node(child)]
     |                ^^^^^ the trait `UiNode` is not implemented for `NotANode`
     |
-   ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
+note: required by a bound in `delegate`
+   --> $DIR/ui_node.rs:510:24
     |
-    |     pub fn delegate<U: UiNode + ?Sized>(d: &U) -> &U {
-    |                        ------ required by this bound in `delegate`
+510 |     pub fn delegate<U: UiNode + ?Sized>(d: &U) -> &U {
+    |                        ^^^^^^ required by this bound in `delegate`

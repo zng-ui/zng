@@ -4,10 +4,11 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
 9   | #[impl_ui_node(children)]
     |                ^^^^^^^^ the trait `UiNodeList` is not implemented for `NotANodeList`
     |
-   ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
+note: required by a bound in `delegate_list_mut`
+   --> $DIR/ui_node.rs:523:33
     |
-    |     pub fn delegate_list_mut<U: UiNodeList + ?Sized>(d: &mut U) -> &mut U {
-    |                                 ---------- required by this bound in `delegate_list_mut`
+523 |     pub fn delegate_list_mut<U: UiNodeList + ?Sized>(d: &mut U) -> &mut U {
+    |                                 ^^^^^^^^^^ required by this bound in `delegate_list_mut`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
    --> $DIR/delegate_list_expr_error_incorrect_type_children.rs:9:16
@@ -15,7 +16,8 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
 9   | #[impl_ui_node(children)]
     |                ^^^^^^^^ the trait `UiNodeList` is not implemented for `NotANodeList`
     |
-   ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
+note: required by a bound in `delegate_list`
+   --> $DIR/ui_node.rs:519:29
     |
-    |     pub fn delegate_list<U: UiNodeList + ?Sized>(d: &U) -> &U {
-    |                             ---------- required by this bound in `delegate_list`
+519 |     pub fn delegate_list<U: UiNodeList + ?Sized>(d: &U) -> &U {
+    |                             ^^^^^^^^^^ required by this bound in `delegate_list`

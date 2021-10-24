@@ -22,10 +22,6 @@ help: consider importing one of these items
   |
 5 |     use zero_ui::prelude::Key::N;
   |
-5 |     use zero_ui_core::gesture::GestureKey::N;
-  |
-5 |     use zero_ui_core::keyboard::Key::N;
-  |
 
 error[E0277]: the trait bound `[bool; _]: UiNode` is not satisfied
   --> $DIR/new_fns_cannot_const_generics.rs:10:39

@@ -57,13 +57,13 @@ error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement
 11 | #[property(context)] // error because no allowed_in_when = false
    | ^^^^^^^^^^^^^^^^^^^^ `<impl invalid2_Args as invalid2_Args>::T_value` cannot be formatted using `{:?}` because it doesn't implement `Debug`
    |
-  ::: $WORKSPACE/zero-ui-core/src/var/owned.rs
-   |
-   | pub struct OwnedVar<T: VarValue>(pub T);
-   |                        -------- required by this bound in `OwnedVar`
-   |
    = help: the trait `Debug` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
    = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
+note: required by a bound in `OwnedVar`
+  --> $DIR/owned.rs:5:24
+   |
+5  | pub struct OwnedVar<T: VarValue>(pub T);
+   |                        ^^^^^^^^ required by this bound in `OwnedVar`
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
@@ -72,10 +72,10 @@ error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: C
 11 | #[property(context)] // error because no allowed_in_when = false
    | ^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
    |
-  ::: $WORKSPACE/zero-ui-core/src/var/owned.rs
-   |
-   | pub struct OwnedVar<T: VarValue>(pub T);
-   |                        -------- required by this bound in `OwnedVar`
-   |
    = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
+note: required by a bound in `OwnedVar`
+  --> $DIR/owned.rs:5:24
+   |
+5  | pub struct OwnedVar<T: VarValue>(pub T);
+   |                        ^^^^^^^^ required by this bound in `OwnedVar`
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
