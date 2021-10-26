@@ -1050,7 +1050,7 @@ pub mod image {
 
                 crop_rect: PxRect,
                 desired_size: PxSize,
-                final_rect: PxRect,
+                img_size: PxSize,
             }
             #[impl_ui_node(none)]
             impl UiNode for ImagePresenterNode {
@@ -1081,27 +1081,28 @@ pub mod image {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
                         if img.is_loaded() {
-                            let img_size = img.size();
-                            self.measured_image_size = img_size;
-                            let img_rect = PxRect::from_size(img_size);
+                            self.img_size = img.size();
+                            self.measured_image_size = self.img_size;
+                            let img_rect = PxRect::from_size(self.img_size);
 
-                            let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(img_size), img_rect);
+                            let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
                             self.crop_rect = img_rect.intersection(&crop).unwrap_or_default();
 
-                            self.desired_size = self.crop_rect.size;
-
+                            let mut scale = *ImageScaleVar::get(ctx);
                             if *ImageScalePpiVar::get(ctx) {
                                 let sppi = ctx.metrics.screen_ppi;
                                 let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
-                                self.desired_size.width *= ippi_x / sppi;
-                                self.desired_size.height *= ippi_y / sppi;
+                                scale *= Scale2d::new(ippi_x / sppi, ippi_y / sppi);
                             }
 
                             if *ImageScaleFactorVar::get(ctx) {
-                                self.desired_size *= ctx.scale_factor.normal();
+                                scale *= ctx.scale_factor.normal();
                             }
 
-                            self.desired_size *= *ImageScaleVar::get(ctx);
+                            self.img_size *= scale;
+
+                            self.crop_rect *= scale;
+                            self.desired_size = self.crop_rect.size;
 
                             return available_size.clip(self.desired_size);
                         }
@@ -1114,33 +1115,34 @@ pub mod image {
                 fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                     use ImageFit::*;
 
-                    self.final_rect.size = match *ImageFitVar::get(ctx) {
-                        None => self.desired_size,
-                        Fill => final_size,
-                        Contain => contain_size(self.desired_size, final_size),
-                        Cover => cover_size(self.desired_size, final_size),
-                        ScaleDown => {
-                            if self.desired_size.width <= final_size.width && self.desired_size.height <= final_size.height {
-                                self.desired_size
-                            } else {
-                                contain_size(self.desired_size, final_size)
-                            }
-                        }
-                    };
+                    //self.img_size = match *ImageFitVar::get(ctx) {
+                    //    None => self.desired_size,
+                    //    Fill => final_size,
+                    //    Contain => contain_size(self.desired_size, final_size),
+                    //    Cover => cover_size(self.desired_size, final_size),
+                    //    ScaleDown => {
+                    //        if self.desired_size.width <= final_size.width && self.desired_size.height <= final_size.height {
+                    //            self.desired_size
+                    //        } else {
+                    //            contain_size(self.desired_size, final_size)
+                    //        }
+                    //    }
+                    //};
 
-                    self.final_rect.origin = ImageAlignVar::get(ctx).solve_offset(self.final_rect.size, final_size);
+                    //self.final_rect.origin = ImageAlignVar::get(ctx).solve_offset(self.final_rect.size, final_size);
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
-                        if img.is_loaded() && !self.final_rect.is_empty() && !self.crop_rect.is_empty() {
-                            frame.push_image(
-                                PxRect::from_size(self.final_rect.size),
-                                self.crop_rect,
-                                img,
-                                *ImageRenderingVar::get(ctx.vars),
-                            );
+                        if img.is_loaded() && !self.img_size.is_empty() && !self.crop_rect.is_empty() {
+                            if self.crop_rect.origin != PxPoint::zero() {
+                                frame.push_reference_frame(self.crop_rect.origin * (-1.0).normal(), |frame| {
+                                    frame.push_image(self.crop_rect, self.img_size, img, *ImageRenderingVar::get(ctx.vars))
+                                });
+                            } else {
+                                frame.push_image(self.crop_rect, self.img_size, img, *ImageRenderingVar::get(ctx.vars));
+                            }
                         }
                     }
                 }
@@ -1149,7 +1151,7 @@ pub mod image {
                 measured_image_size: PxSize::zero(),
                 crop_rect: PxRect::zero(),
                 desired_size: PxSize::zero(),
-                final_rect: PxRect::zero(),
+                img_size: PxSize::zero(),
             }
         }
 

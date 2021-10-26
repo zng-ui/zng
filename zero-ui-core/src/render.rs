@@ -740,7 +740,7 @@ impl FrameBuilder {
     /// Push an image using [`common_item_ps`].
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
-    pub fn push_image(&mut self, clip_rect: PxRect, img_rect: PxRect, image: &impl Image, rendering: ImageRendering) {
+    pub fn push_image(&mut self, clip_rect: PxRect, img_size: PxSize, image: &impl Image, rendering: ImageRendering) {
         if self.cancel_widget {
             return;
         }
@@ -752,7 +752,7 @@ impl FrameBuilder {
             let item = self.common_hit_item_ps(clip_rect);
             self.display_list.push_image(
                 &item,
-                img_rect.to_wr(),
+                PxRect::from_size(img_size).to_wr(),
                 rendering.into(),
                 image.alpha_type(),
                 image_key,
