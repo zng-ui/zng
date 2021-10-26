@@ -25,6 +25,7 @@
 //! ```toml
 //! [dependencies]
 //! zero-ui = "0.1"
+//! zero-ui-view = "0.1"
 //! ```
 //!
 //! Then create your first window:
@@ -33,6 +34,8 @@
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
+//!     zero_ui_view::init();
+//!
 //!     App::default().run_window(|_| {
 //!         let size = var_from((800, 600));
 //!         window! {
@@ -890,7 +893,7 @@ pub mod prelude {
     pub use crate::core::{
         app::{App, AppProcessExt},
         async_clone_move,
-        border::{BorderSides, BorderStyle, LineOrientation},
+        border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
         color::{
             self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,

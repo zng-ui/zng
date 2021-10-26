@@ -6,8 +6,8 @@
 //!
 //! # VERSION
 //!
-//! The [`VERSION`] of the `zero-ui-vp-api` dependency must match in both *App-Process* and *View-Process*, otherwise a runtime
-//! panic error is generated. Usually both processes are initialized from the same executable so this is not a problem.
+//! The [`VERSION`] of this crate must match exactly in both *App-Process* and *View-Process*, otherwise a runtime
+//! panic error is generated.
 //!
 //! # `webrender_api`
 //!
@@ -31,8 +31,7 @@ pub use webrender_api;
 use serde::{Deserialize, Serialize};
 
 /// The *App Process* and *View Process* must be build using the same exact version and this is
-/// validated during run-time, causing a panic if the versions don't match. Usually the same executable is used
-/// for both processes so this is not a problem.
+/// validated during run-time, causing a panic if the versions don't match.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod units;

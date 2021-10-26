@@ -20,7 +20,7 @@ pub use ipc_channel::ipc::{bytes_channel, IpcBytesReceiver, IpcBytesSender, IpcS
 use ipc_channel::ipc::{channel, IpcReceiver, IpcSender};
 
 /// Call `new`, then spawn the view-process using the `name` then call `connect`.
-pub struct AppInit {
+pub(crate) struct AppInit {
     // (
     //    RequestSender,
     //    Workaround-sender-for-response-channel,
@@ -31,7 +31,7 @@ pub struct AppInit {
     name: String,
 }
 impl AppInit {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         let (server, name) = IpcOneShotServer::new().expect("failed to create init channel");
         AppInit { server, name }
     }
@@ -42,7 +42,7 @@ impl AppInit {
     }
 
     /// Tries to connect to the view-process and receive the actual channels.
-    pub(crate) fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
+    pub fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
         let (init_sender, init_recv) = flume::bounded(1);
         let handle = thread::spawn(move || {
             let r = self.server.accept();

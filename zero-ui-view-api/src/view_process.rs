@@ -1,6 +1,7 @@
-use std::{env, sync::Arc, time::Duration};
-
-use parking_lot::{Condvar, Mutex};
+use std::{
+    env, thread,
+    time::{Duration, Instant},
+};
 
 use crate::{MODE_VAR, SERVER_NAME_VAR};
 
@@ -17,7 +18,10 @@ pub struct ViewConfig {
     pub headless: bool,
 }
 impl ViewConfig {
-    /// Reads config from environment variables set by the [`Controller`].
+    /// Reads config from environment variables set by the [`Controller`] in a view-process instance.
+    ///
+    /// View API implementers should call this to get the config when it suspects that is running as a view-process.
+    /// Returns `Some(_)` if the process was initialized as a view-process.
     ///
     /// [`Controller`]: crate::Controller
     pub fn from_env() -> Option<Self> {
@@ -32,8 +36,7 @@ impl ViewConfig {
     /// Returns `true` if the current process is awaiting for the config to start the
     /// view process in the same process.
     pub(crate) fn waiting_same_process() -> bool {
-        println!("[2]SAME_PROCESS_CONFIG@0x{:x}", (&SAME_PROCESS_CONFIG) as *const _ as usize);
-        SAME_PROCESS_CONFIG.lock().is_some()
+        env::var_os(Self::SAME_PROCESS_VAR).unwrap_or_default() == Self::SG_WAITING
     }
 
     /// Sets and unblocks the same-process config if there is a request.
@@ -42,43 +45,54 @@ impl ViewConfig {
     ///
     /// If there is no pending `wait_same_process`.
     pub(crate) fn set_same_process(cfg: ViewConfig) {
-        if let Some(c) = &mut *SAME_PROCESS_CONFIG.lock() {
-            c.cfg = cfg;
-            c.waiter.notify_one();
+        if Self::waiting_same_process() {
+            let cfg = format!("{}\n{}", cfg.server_name, cfg.headless);
+            env::set_var(Self::SAME_PROCESS_VAR, cfg);
         } else {
-            unreachable!("use `waiting_same_process` to check")
+            unreachable!("use `waiting_same_process` to check, then call `set_same_process` only once")
         }
     }
 
     /// Wait for config from same-process.
-    pub fn wait_same_process() -> ViewConfig {
-        println!("[1]SAME_PROCESS_CONFIG@0x{:x}", (&SAME_PROCESS_CONFIG) as *const _ as usize);
-        let mut config = SAME_PROCESS_CONFIG.lock();
-        let waiter = Arc::new(Condvar::new());
-        *config = Some(SameProcessConfig {
-            waiter: waiter.clone(),
-            // temporary
-            cfg: ViewConfig {
-                server_name: String::new(),
-                headless: false,
-            },
-        });
+    ///
+    /// View API implementers should call this to sign that view-process config should be send to the same process
+    /// and then start the "app-process" code path in a different thread. This function returns when the app code path sends
+    /// the "view-process" configuration.
+    pub fn wait_same_process() -> Self {
+        if env::var_os(Self::SAME_PROCESS_VAR).is_some() {
+            panic!("`wait_same_process` can only be called once");
+        }
 
-        if cfg!(debug_assertions) {
-            waiter.wait(&mut config);
-        } else {
-            let r = waiter.wait_for(&mut config, Duration::from_secs(10)).timed_out();
-            if r {
-                panic!("Controller::start was not called in 10 seconds");
+        env::set_var(Self::SAME_PROCESS_VAR, Self::SG_WAITING);
+
+        let time = Instant::now();
+        let skip = Duration::from_millis(10);
+        let timeout = Duration::from_secs(5);
+
+        while Self::waiting_same_process() {
+            thread::sleep(skip);
+            if time.elapsed() >= timeout {
+                panic!("timeout, `wait_same_process` waited for `{:?}`", timeout);
             }
-        };
+        }
 
-        config.take().unwrap().cfg
+        let config = env::var(Self::SAME_PROCESS_VAR).unwrap();
+
+        env::set_var(Self::SAME_PROCESS_VAR, Self::SG_DONE);
+
+        let config: Vec<_> = config.lines().collect();
+        assert_eq!(config.len(), 2);
+
+        ViewConfig {
+            server_name: config[0].to_owned(),
+            headless: config[1] == "true",
+        }
     }
-}
 
-pub(crate) struct SameProcessConfig {
-    pub waiter: Arc<Condvar>,
-    pub cfg: ViewConfig,
+    /// Used to communicate the `ViewConfig` in the same process, we don't use
+    /// a static variable because prebuild view-process implementations don't
+    /// statically link with the same variable.
+    const SAME_PROCESS_VAR: &'static str = "zero_ui_view_api::ViewConfig";
+    const SG_WAITING: &'static str = "WAITING";
+    const SG_DONE: &'static str = "DONE";
 }
-pub(crate) static SAME_PROCESS_CONFIG: Mutex<Option<SameProcessConfig>> = parking_lot::const_mutex(None);

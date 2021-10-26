@@ -5,13 +5,13 @@ use zero_ui::core::{
 };
 use zero_ui::prelude::*;
 
-//use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    zero_ui_view::run_same_process(app_main);
+    //zero_ui_view::run_same_process(app_main);
 
-    //zero_ui_view::init();
-    //app_main();
+    zero_ui_view::init();
+    app_main();
 }
 
 fn app_main() {
@@ -345,5 +345,9 @@ fn hide_for_1_sec(visible: RcVar<bool>) -> impl Widget {
 }
 
 fn separator() -> impl Widget {
-    line_w!(color = rgba(1.0, 1.0, 1.0, 0.2))
+    line_w! {
+        color = rgba(1.0, 1.0, 1.0, 0.2);
+        margin = (0, 8);
+        style = LineStyle::Dashed;
+    }
 }

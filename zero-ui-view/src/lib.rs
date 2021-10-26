@@ -2,9 +2,17 @@
 //!
 //! This backend supports both headed and headless apps
 //!
-//! # Examples
+//! # Usage
 //!
-//! Call [`init`] before any other code in `main` to setup a view-process that uses
+//! First add this to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! zero-ui = "0.1"
+//! zero-ui-view = "0.1"
+//! ```
+//!
+//! Then call [`init`] before any other code in `main` to setup a view-process that uses
 //! the same app executable:
 //!
 //! ```no_run
@@ -50,12 +58,15 @@ use glutin::{
 use image_cache::ImageCache;
 use util::{GlContextManager, WinitToPx};
 
+// /*
+
 /// Doc-only `webrender` re-export.
 ///
 #[cfg(doc)]
 #[doc(inline)]
 pub use webrender;
 
+// */
 mod config;
 mod image_cache;
 mod surface;
