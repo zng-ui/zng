@@ -3,6 +3,8 @@ use zero_ui::core::{image::ImageLimits, timer::Timers};
 use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs, ImageLoadingArgs};
 
+use zero_ui_view_prebuilt as zero_ui_view;
+
 fn main() {
     // zero_ui_view::run_same_process(app_main);
 

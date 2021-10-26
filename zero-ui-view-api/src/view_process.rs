@@ -32,6 +32,7 @@ impl ViewConfig {
     /// Returns `true` if the current process is awaiting for the config to start the
     /// view process in the same process.
     pub(crate) fn waiting_same_process() -> bool {
+        println!("[2]SAME_PROCESS_CONFIG@0x{:x}", (&SAME_PROCESS_CONFIG) as *const _ as usize);
         SAME_PROCESS_CONFIG.lock().is_some()
     }
 
@@ -51,6 +52,7 @@ impl ViewConfig {
 
     /// Wait for config from same-process.
     pub fn wait_same_process() -> ViewConfig {
+        println!("[1]SAME_PROCESS_CONFIG@0x{:x}", (&SAME_PROCESS_CONFIG) as *const _ as usize);
         let mut config = SAME_PROCESS_CONFIG.lock();
         let waiter = Arc::new(Condvar::new());
         *config = Some(SameProcessConfig {

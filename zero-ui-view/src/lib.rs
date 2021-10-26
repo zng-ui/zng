@@ -114,6 +114,12 @@ pub fn init() {
     }
 }
 
+#[doc(hidden)]
+#[no_mangle]
+pub extern "C" fn extern_init() {
+    init()
+}
+
 /// Runs the view-process server in the current process and calls `run_app` to also
 /// run the app in the current process. Note that `run_app` will be called in a different thread
 /// so it must be [`Send`].
@@ -170,6 +176,13 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     } else {
         App::run_headed(c);
     }
+}
+
+#[doc(hidden)]
+#[no_mangle]
+pub extern "C" fn extern_run_same_process(run_app: extern "C" fn()) -> ! {
+    #[allow(clippy::redundant_closure)]
+    run_same_process(move || run_app())
 }
 
 /// The backend implementation.

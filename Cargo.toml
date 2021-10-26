@@ -47,9 +47,10 @@ image = "0.23"
 # enable test util
 zero-ui-core = { path = "zero-ui-core", features = ["test_util"] }
 zero-ui-view = { path = "zero-ui-view" }
+zero-ui-view-prebuilt = { path = "zero-ui-view-prebuilt" }
 
 [workspace]
-members = ["zero-ui-view-api", "zero-ui-view", "zero-ui-proc-macros", "zero-ui-core"]
+members = ["zero-ui-view-api", "zero-ui-view", "zero-ui-view-prebuilt", "zero-ui-proc-macros", "zero-ui-core"]
 exclude = ["dependencies/webrender"]
 
 [package.metadata.docs.rs]

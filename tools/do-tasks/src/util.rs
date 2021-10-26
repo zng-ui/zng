@@ -265,6 +265,27 @@ pub fn build_test_cases() -> Vec<(String, String)> {
     }
 }
 
+// Get "staticlib" crate output.
+pub fn staticlib_files(path: &str) -> Vec<String> {
+    let unix = format!("{}.a", path);
+    let windows = format!("{}.lib", path);
+
+    let mut r = vec![];
+    if std::path::PathBuf::from(&unix).exists() {
+        r.push(unix);
+    }
+    if std::path::PathBuf::from(&windows).exists() {
+        r.push(windows);
+    }
+
+    r
+}
+
+// Extracts the file name from path, or panics.
+pub fn file_name(path: &str) -> String {
+    std::path::PathBuf::from(path).file_name().unwrap().to_str().unwrap().to_owned()
+}
+
 fn glob(pattern: &str) -> Vec<String> {
     match glob::glob(pattern) {
         Ok(iter) => iter

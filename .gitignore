@@ -10,3 +10,4 @@ wip
 cargo-timing*
 large-image.*
 examples/_*.rs
+zero-ui-view-prebuilt/lib/zero_ui_view.*

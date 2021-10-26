@@ -207,7 +207,7 @@ macro_rules! context_var {
         $(#[$outer])*
         ///
         /// # ContextVar
-        /// 
+        ///
         /// This `struct` is a [`ContextVar`](crate::var::ContextVar).
         #[derive(Debug, Clone, Copy)]
         $vis struct $ident;

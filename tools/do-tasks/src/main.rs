@@ -13,6 +13,7 @@ fn main() {
         "doc" => doc(args),
         "expand" => expand(args),
         "build" | "b" => build(args),
+        "prebuild" => prebuild(args),
         "clean" => clean(args),
         "asm" => asm(args),
         "help" | "--help" => help(args),
@@ -387,6 +388,29 @@ fn release_rust_flags(is_release: bool) -> (&'static str, String) {
         };
     }
     rust_flags
+}
+
+// do prebuild
+//    Compile the pre-build `zero-ui-view` release.
+fn prebuild(args: Vec<&str>) {
+    cmd("cargo", &["build", "-p", "zero-ui-view", "--release"], &args);
+
+    let files = staticlib_files("target/release/zero_ui_view");
+
+    if files.is_empty() {
+        error("no `staticlib` output found");
+        return;
+    }
+
+    for file in files {
+        let target = format!("zero-ui-view-prebuilt/lib/{}", file_name(&file));
+        if let Err(e) = std::fs::copy(&file, &target) {
+            error(f!("failed to copy pre-build lib `{}` to `{}`, {}", file, target, e))
+        }
+    }
+
+    // test build
+    cmd("cargo", &["build", "-p", "zero-ui-view-prebuilt", "--release"], &[]);
 }
 
 // do clean [--test-crates] [--tools] [--workspace] [<cargo-clean-args>]
