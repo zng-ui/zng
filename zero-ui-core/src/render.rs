@@ -833,6 +833,86 @@ impl FrameBuilder {
             .push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
     }
 
+    /// Push a repeating radial gradient rectangle using [`common_item_ps`].
+    ///
+    /// TODO
+    ///
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_radial_gradient(
+        &mut self,
+        rect: PxRect,
+        center: PxPoint,
+        radius: PxSize,
+        stops: &[RenderGradientStop],
+        extend_mode: RenderExtendMode,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    ) {
+        if self.cancel_widget {
+            return;
+        }
+
+        debug_assert!(stops.len() >= 2);
+
+        self.open_widget_display();
+        let item = self.common_hit_item_ps(rect);
+
+        self.display_list.push_stops(stops);
+
+        let gradient = RadialGradient {
+            center: center.to_wr(),
+            radius: radius.to_wr(),
+            start_offset: 0.0, // TODO
+            end_offset: 1.0,
+            extend_mode,
+        };
+        self.display_list
+            .push_radial_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr())
+    }
+
+    /// Push a repeating conic gradient rectangle using [`common_item_ps`].
+    ///
+    /// TODO
+    ///
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_conic_gradient(
+        &mut self,
+        rect: PxRect,
+        center: PxPoint,
+        angle: AngleRadian,
+        stops: &[RenderGradientStop],
+        extend_mode: RenderExtendMode,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    ) {
+        if self.cancel_widget {
+            return;
+        }
+
+        debug_assert!(stops.len() >= 2);
+
+        self.open_widget_display();
+        let item = self.common_hit_item_ps(rect);
+
+        self.display_list.push_stops(stops);
+
+        GradientBuilder::new();
+
+        let gradient = ConicGradient {
+            center: center.to_wr(),
+            angle: angle.0,
+            start_offset: 0.0, // TODO
+            end_offset: 1.0,   // TODO
+            extend_mode,
+        };
+        self.display_list
+            .push_conic_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr())
+    }
+
     /// Push a styled vertical or horizontal line.
     #[inline]
     pub fn push_line(
@@ -883,23 +963,50 @@ impl FrameBuilder {
 
     /// Push a `color` dot to mark the `offset`.
     ///
-    /// The *dot* is a 4px/4px circle of the `color` that has two outlines white then black to increase contrast.
+    /// The *dot* is a circle of the `color` highlighted by an white outline and shadow.
     #[inline]
     pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
-        use crate::color::colors;
-        // TODO use radial gradient to draw a dot.
+        let scale = self.scale_factor();
 
-        let mut centered_rect = |mut o: PxPoint, s, c| {
-            let s = PxSize::new(s, s);
-            o.x -= s.width / 2.0;
-            o.y -= s.height / 2.0;
-            let rect = PxRect::new(o, s);
-            self.push_color(rect, c);
-        };
+        let radius = PxSize::splat(Px(6)) * scale.normal();
+        let color = color.into();
 
-        centered_rect(offset, Px(8), FrameBinding::Value(colors::BLACK.into()));
-        centered_rect(offset, Px(6), FrameBinding::Value(colors::WHITE.into()));
-        centered_rect(offset, Px(4), FrameBinding::Value(color.into()));
+        let mut builder = GradientBuilder::new();
+        builder.push(RenderGradientStop { offset: 0.0, color });
+        builder.push(RenderGradientStop { offset: 0.5, color });
+        builder.push(RenderGradientStop {
+            offset: 0.6,
+            color: RenderColor::WHITE,
+        });
+        builder.push(RenderGradientStop {
+            offset: 0.7,
+            color: RenderColor::WHITE,
+        });
+        builder.push(RenderGradientStop {
+            offset: 0.8,
+            color: RenderColor::BLACK,
+        });
+        builder.push(RenderGradientStop {
+            offset: 1.0,
+            color: RenderColor::TRANSPARENT,
+        });
+
+        let center = radius.to_vector().to_point();
+        let gradient = builder.radial_gradient(center.to_wr(), radius.to_wr(), RenderExtendMode::Clamp);
+        let stops = builder.into_stops();
+
+        let bounds = radius * 2.0.normal();
+
+        let offset = offset - radius.to_vector();
+
+        self.display_list.push_stops(&stops);
+        self.display_list.push_radial_gradient(
+            &self.common_item_ps(PxRect::new(offset, bounds)),
+            PxRect::new(offset, bounds).to_wr(),
+            gradient,
+            bounds.to_wr(),
+            PxSize::zero().to_wr(),
+        )
     }
 
     /// Finalizes the build.

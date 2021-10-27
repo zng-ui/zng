@@ -1202,9 +1202,18 @@ pub mod image {
                             if self.offset != PxPoint::zero() {
                                 frame.push_reference_frame(self.offset, |frame| {
                                     frame.push_image(self.clip_rect, self.img_size, img, *ImageRenderingVar::get(ctx.vars))
-                                });
+                                });                                
                             } else {
                                 frame.push_image(self.clip_rect, self.img_size, img, *ImageRenderingVar::get(ctx.vars));
+                            }
+
+                            #[cfg(debug_assertions)]
+                            match *ImageFitVar::get(ctx) {
+                                ImageFit::None => frame.push_debug_dot(self.offset, colors::RED),
+                                ImageFit::Fill => frame.push_debug_dot(self.offset, colors::YELLOW),
+                                ImageFit::Contain => frame.push_debug_dot(self.offset, colors::GREEN),
+                                ImageFit::Cover => frame.push_debug_dot(self.offset, colors::BLUE),
+                                ImageFit::ScaleDown => frame.push_debug_dot(self.offset, colors::GRAY),
                             }
                         }
                     }

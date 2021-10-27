@@ -6,6 +6,7 @@
     "configurations": [
 
 
+
         
         {
             "type": "lldb",
@@ -164,6 +165,24 @@
                 ],
                 "filter": {
                     "name": "gradient",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Example: image",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=image",
+                    "--package=zero-ui"
+                ],
+                "filter": {
+                    "name": "image",
                     "kind": "example"
                 }
             },
