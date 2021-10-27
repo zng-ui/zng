@@ -628,7 +628,9 @@ impl MouseManager {
             };
             let (target, position) = if let Some(t) = hits.target() {
                 (
-                    frame_info.find(t.widget_id).unwrap().path(),
+                    frame_info.find(t.widget_id).unwrap_or_else(|| {
+                        panic!("did not find cursor hit in frame_info, position: {:?}", position);
+                    }).path(),
                     t.point.to_dip(windows.scale_factor(window_id).unwrap()),
                 )
             } else {
