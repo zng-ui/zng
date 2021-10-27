@@ -29,35 +29,86 @@ fn app_main() {
                 text!{
                     text = args.error.clone();
                     margin = 20;
+                    align = Alignment::CENTER;
                     color = colors::RED;
                 }
             });
-            content = v_stack!{
-                spacing = 20;
+            content = h_stack! {
+                spacing = 30;
                 items = widgets![
-                    demo_image("File", uniform_grid! {
-                        columns = 4;
-                        spacing = 2;
-                        align = Alignment::CENTER;
+                    v_stack! {
+                        spacing = 20;
                         items = widgets![
-                            image("examples/res/image/Luma8.png"),
-                            image("examples/res/image/Luma16.png"),
-                            image("examples/res/image/LumaA8.png"),
-                            image("examples/res/image/LumaA16.png"),
-                            image("examples/res/image/RGB8.png"),
-                            image("examples/res/image/RGB16.png"),
-                            image("examples/res/image/RGBA8.png"),
-                            image("examples/res/image/RGBA16.png"),
-                        ]
-                    }),
-                    demo_image("Web", image("https://httpbin.org/image")),
-                    demo_image("Web (accept)", image((Uri::from_static("https://httpbin.org/image"), "image/png"))),
-                    demo_image("Error File", image("404.png")),
-                    demo_image("Error Web", image("https://httpbin.org/delay/5")),
-                    demo_image("Sprite", sprite(ctx.timers)),
-                    large_image(),
-                ];
-            };
+                            demo_image("File", uniform_grid! {
+                                columns = 4;
+                                spacing = 2;
+                                align = Alignment::CENTER;
+                                items = widgets![
+                                    image("examples/res/image/Luma8.png"),
+                                    image("examples/res/image/Luma16.png"),
+                                    image("examples/res/image/LumaA8.png"),
+                                    image("examples/res/image/LumaA16.png"),
+                                    image("examples/res/image/RGB8.png"),
+                                    image("examples/res/image/RGB16.png"),
+                                    image("examples/res/image/RGBA8.png"),
+                                    image("examples/res/image/RGBA16.png"),
+                                ]
+                            }),
+                            demo_image("Web", image("https://httpbin.org/image")),
+                            demo_image("Web (accept)", image((Uri::from_static("https://httpbin.org/image"), "image/png"))),
+                            demo_image("Error File", image("404.png")),
+                            demo_image("Error Web", image("https://httpbin.org/delay/5")),
+                            demo_image("Sprite", sprite(ctx.timers)),
+                            large_image(),
+                        ];
+                    },
+                    v_stack! {
+                        spacing = 20;
+                        items = widgets![
+                            demo_image(
+                                "None",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::None;
+                                }
+                            ),
+                            demo_image(
+                                "Fill",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Fill;
+                                }
+                            ),
+                            demo_image(
+                                "Contain",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Contain;
+                                }
+                            ),
+                            demo_image(
+                                "Cover",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Cover;
+                                }
+                            ),
+                            demo_image(
+                                "ScaleDown",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::ScaleDown;
+                                }
+                            ),
+                        ];
+                    }
+                ]
+            }
         }
     })
 }
@@ -106,30 +157,42 @@ fn large_image() -> impl Widget {
 }
 
 fn sprite(timers: &mut Timers) -> impl Widget {
-    let timer30fps = timers.interval((1.0 / 30.0).secs());
-    let crop = timer30fps.map(|n| {
-        if n.count() == 10 {
-            n.set_count(0);
-        }
-        let offset = n.count() as i32 * 96;
-        Rect::new((offset.px(), 0.px()), (96.px(), 84.px()))
-    });
+    let timer = timers.interval((1.0 / 24.0).secs(), false);
+    let label = var_from("play");
 
-    image! {
-        source = "examples/res/image/player_combat_sheet-10-96x84-CC0.png";
-        on_click = hn!(|ctx, _| {
-            let timer = timer30fps.get(ctx);
-            timer.set_enabled(!timer.is_enabled());
-        });
-        crop;
-        size = (96, 84);
+    v_stack! {
+        align = Alignment::CENTER;
+        items = widgets![
+            button! {
+                content = text(label.clone());
+                align = Alignment::CENTER;
+                padding = (2, 3);
+                on_click = hn!(timer, |ctx, _| {
+                    let t = timer.get(ctx);
+                    let enabled = !t.is_enabled();
+                    t.set_enabled(enabled);
+                    label.set(ctx, if enabled { "stop" } else { "play" });
+                });
+            },
+            image! {
+                source = "examples/res/image/player_combat_sheet-10-96x84-CC0.png";
+                size = (96, 84);
+                crop = timer.map(|n| {
+                    if n.count() == 10 {
+                        n.set_count(0);
+                    }
+                    let offset = n.count() as i32 * 96;
+                    Rect::new((offset.px(), 0.px()), (96.px(), 84.px()))
+                });
+            },
+        ]
     }
 }
 
 /// Image loading animation.
 fn image_loading(ctx: &mut WidgetContext, _: &ImageLoadingArgs) -> impl Widget {
     let mut dots_count = 3;
-    let msg = ctx.timers.interval(300.ms()).map(move |_| {
+    let msg = ctx.timers.interval(300.ms(), true).map(move |_| {
         dots_count += 1;
         if dots_count == 8 {
             dots_count = 0;
@@ -140,6 +203,7 @@ fn image_loading(ctx: &mut WidgetContext, _: &ImageLoadingArgs) -> impl Widget {
         text = msg;
         color = colors::LIGHT_GRAY;
         margin = 20;
+        align = Alignment::CENTER;
         font_style = FontStyle::Italic;
     }
 }

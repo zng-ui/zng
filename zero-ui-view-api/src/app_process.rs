@@ -150,7 +150,7 @@ impl Controller {
         let init = ipc::AppInit::new();
 
         // create process and spawn it, unless is running in same process mode.
-        let process = if ViewConfig::waiting_same_process() {
+        let process = if ViewConfig::is_awaiting_same_process() {
             ViewConfig::set_same_process(ViewConfig {
                 server_name: init.name().to_owned(),
                 headless,

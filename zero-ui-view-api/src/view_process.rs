@@ -35,7 +35,7 @@ impl ViewConfig {
 
     /// Returns `true` if the current process is awaiting for the config to start the
     /// view process in the same process.
-    pub(crate) fn waiting_same_process() -> bool {
+    pub(crate) fn is_awaiting_same_process() -> bool {
         env::var_os(Self::SAME_PROCESS_VAR).unwrap_or_default() == Self::SG_WAITING
     }
 
@@ -45,7 +45,7 @@ impl ViewConfig {
     ///
     /// If there is no pending `wait_same_process`.
     pub(crate) fn set_same_process(cfg: ViewConfig) {
-        if Self::waiting_same_process() {
+        if Self::is_awaiting_same_process() {
             let cfg = format!("{}\n{}", cfg.server_name, cfg.headless);
             env::set_var(Self::SAME_PROCESS_VAR, cfg);
         } else {
@@ -69,7 +69,7 @@ impl ViewConfig {
         let skip = Duration::from_millis(10);
         let timeout = Duration::from_secs(5);
 
-        while Self::waiting_same_process() {
+        while Self::is_awaiting_same_process() {
             thread::sleep(skip);
             if time.elapsed() >= timeout {
                 panic!("timeout, `wait_same_process` waited for `{:?}`", timeout);

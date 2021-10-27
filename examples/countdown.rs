@@ -10,7 +10,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|ctx| {
-        let count = ctx.timers.interval(1.secs()).map(move |t| {
+        let count = ctx.timers.interval(1.secs(), true).map(move |t| {
             let count = 10 - t.count();
             if count == 0 {
                 t.stop();

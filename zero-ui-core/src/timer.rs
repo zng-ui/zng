@@ -116,7 +116,8 @@ impl Timers {
 
     /// Returns a [`TimerVar`] that will update every time the `interval` elapses.
     ///
-    /// The timer can be controlled using methods in the variable value.
+    /// The timer can be controlled using methods in the variable value. The timer starts
+    /// running immediately if `enabled` is `true`.
     ///
     /// ```
     /// # use zero_ui_core::timer::*;
@@ -127,7 +128,7 @@ impl Timers {
     /// # use zero_ui_core::context::WidgetContext;
     /// # use std::time::Instant;
     /// # fn foo(ctx: &mut WidgetContext) {
-    /// let timer = ctx.timers.interval(1.secs());
+    /// let timer = ctx.timers.interval(1.secs(), true);
     ///
     /// # let
     /// text = timer.map(|t| match t.count() {
@@ -143,8 +144,8 @@ impl Timers {
     /// be used to control the timer to some extent, see [`TimerVar`] for details.
     #[inline]
     #[must_use]
-    pub fn interval(&mut self, interval: Duration) -> TimerVar {
-        let (owner, handle) = TimerHandle::new(interval);
+    pub fn interval(&mut self, interval: Duration, enabled: bool) -> TimerVar {
+        let (owner, handle) = TimerHandle::new(interval, enabled);
         let timer = var(Timer(handle));
         self.timers.push(TimerVarEntry {
             handle: owner,
@@ -218,11 +219,13 @@ impl Timers {
     }
 
     /// Register a `handler` that will be called every time the `interval` elapses.
-    pub fn on_interval<H>(&mut self, interval: Duration, mut handler: H) -> TimerHandle
+    ///
+    /// The timer starts running immediately if `enabled`.
+    pub fn on_interval<H>(&mut self, interval: Duration, enabled: bool, mut handler: H) -> TimerHandle
     where
         H: AppHandler<TimerArgs>,
     {
-        let (owner, handle) = TimerHandle::new(interval);
+        let (owner, handle) = TimerHandle::new(interval, enabled);
 
         self.timer_handlers.push(TimerHandlerEntry {
             handle: owner,
@@ -501,9 +504,9 @@ impl TimerDeadline {
     }
 }
 impl TimerHandle {
-    fn new(interval: Duration) -> (HandleOwner<TimerState>, TimerHandle) {
+    fn new(interval: Duration, enabled: bool) -> (HandleOwner<TimerState>, TimerHandle) {
         let (owner, handle) = Handle::new(TimerState {
-            enabled: AtomicBool::new(true),
+            enabled: AtomicBool::new(enabled),
             deadline: Mutex::new(TimerDeadline {
                 interval,
                 last: Instant::now(),

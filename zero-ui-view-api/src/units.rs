@@ -487,6 +487,12 @@ pub type PxPoint = euclid::Point2D<Px, ()>;
 /// A point in device independent pixels.
 pub type DipPoint = euclid::Point2D<Dip, ()>;
 
+/// A vector in device pixels.
+pub type PxVector = euclid::Vector2D<Px, ()>;
+
+/// A vector in device independent pixels.
+pub type DipVector = euclid::Vector2D<Dip, ()>;
+
 /// A size in device pixels.
 pub type PxSize = euclid::Size2D<Px, ()>;
 
