@@ -1116,61 +1116,81 @@ pub mod image {
 
                     let align = *ImageAlignVar::get(ctx.vars);
 
-                    match *ImageFitVar::get(ctx) {
-                        None => {
-                            let align_offset = align.solve_offset(self.clip_rect.size, final_size);
-                            if align_offset.x < Px(0) {
-                                self.clip_rect.origin.x -= align_offset.x;
-                            } else {
-                                self.offset.x += align_offset.x;
+                    let mut fit = *ImageFitVar::get(ctx);
+                    loop {
+                        // loops back once to "go-to".
+                        match fit {
+                            None => {
+                                let align_offset = align.solve_offset(self.clip_rect.size, final_size);
+                                if align_offset.x < Px(0) {
+                                    self.clip_rect.origin.x -= align_offset.x;
+                                } else {
+                                    self.offset.x += align_offset.x;
+                                }
+                                if align_offset.y < Px(0) {
+                                    self.clip_rect.origin.y -= align_offset.y;
+                                } else {
+                                    self.offset.y += align_offset.y;
+                                }
+                                self.clip_rect.size = self.clip_rect.size.min(final_size);
+
+                                break;
                             }
-                            if align_offset.y < Px(0) {
-                                self.clip_rect.origin.y -= align_offset.y;
-                            } else {
-                                self.offset.y += align_offset.y;
+                            Fill => {
+                                // the image will be distorted to fill the `final_size`.
+                                if self.clip_rect.size == self.img_size {
+                                    self.clip_rect.size = final_size;
+                                    self.img_size = final_size;
+                                } else {
+                                    // if the image is cropped adjust the image size so the same cropped pixels
+                                    // are still visible but now distorted to fill.
+                                    let scale_x = final_size.width.0 as f32 / self.clip_rect.size.width.0 as f32;
+                                    let scale_y = final_size.height.0 as f32 / self.clip_rect.size.height.0 as f32;
+                                    let scale = Scale2d::new(scale_x, scale_y);
+                                    self.clip_rect *= scale;
+                                    self.img_size *= scale;
+                                    debug_assert_eq!(self.clip_rect.size, final_size);
+                                }
+
+                                break;
                             }
-                            self.clip_rect.size = self.clip_rect.size.min(final_size);
-                        }
-                        Fill => {
-                            // the image will be distorted to fill the `final_size`.
-                            if self.clip_rect.size == self.img_size {
-                                self.clip_rect.size = final_size;
-                                self.img_size = final_size;
-                            } else {
-                                // if the image is cropped adjust the image size so the same cropped pixels
-                                // are still visible but now distorted to fill.
-                                let scale_x = final_size.width.0 as f32 / self.clip_rect.size.width.0 as f32;
-                                let scale_y = final_size.height.0 as f32 / self.clip_rect.size.height.0 as f32;
-                                let scale = Scale2d::new(scale_x, scale_y);
-                                self.clip_rect *= scale;
+                            Contain => {
+                                let area = final_size.to_f32();
+                                let img_size = self.clip_rect.size.to_f32();
+                                let scale = (area.width / img_size.width).min(area.height / img_size.height).normal();
+
                                 self.img_size *= scale;
-                                debug_assert_eq!(self.clip_rect.size, final_size);
+                                self.clip_rect *= scale;
+
+                                self.offset += align.solve_offset(self.clip_rect.size, final_size);
+
+                                break;
                             }
-                        }
-                        Contain => {
-                            let new_clip_size = contain_size(self.clip_rect.size, final_size);
+                            Cover => {
+                                let area = final_size.to_f32();
+                                let img_size = self.clip_rect.size.to_f32();
+                                let scale = (area.width / img_size.width).max(area.height / img_size.height).normal();
 
-                            if self.clip_rect.size == self.img_size {
-                                self.img_size = new_clip_size;
-                                self.clip_rect.size = new_clip_size;
-                            } else {
+                                self.img_size *= scale;
+                                self.clip_rect *= scale;
 
+                                // go-to
+                                fit = None;
                             }
-
-                            self.offset += align.solve_offset(self.clip_rect.size, final_size);
-                        }
-                        Cover => {
-                            //todo!("adjust img_size to new scale and crop to new cut")
-                        }
-                        ScaleDown => {
-                            if self.clip_rect.size.width > final_size.width || self.clip_rect.size.height > final_size.height {
-                                //todo!("Contain")
+                            ScaleDown => {
+                                // go-to
+                                fit = if self.clip_rect.size.width > final_size.width || self.clip_rect.size.height > final_size.height {
+                                    Contain
+                                } else {
+                                    None
+                                }
                             }
                         }
                     }
 
-                    //let user_shift = ImageOffsetVar::get(ctx.vars).to_layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
-                    //self.clip_rect.origin -= user_shift;
+                    // TODO
+                    let user_shift = ImageOffsetVar::get(ctx.vars).to_layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
+                    self.clip_rect.origin -= user_shift;
 
                     self.offset += self.clip_rect.origin.to_vector() * -(1.0.normal());
                 }
@@ -1196,22 +1216,6 @@ pub mod image {
                 img_size: PxSize::zero(),
                 offset: PxPoint::zero(),
             }
-        }
-
-        fn contain_size(desired_size: PxSize, final_size: PxSize) -> PxSize {
-            let area = final_size.to_f32();
-            let img = desired_size.to_f32();
-            let scale = (area.width / img.width).min(area.height / img.height);
-            let img = img * scale;
-            img.cast()
-        }
-
-        fn cover_size(desired_size: PxSize, final_size: PxSize) -> (PxSize, PxVector) {
-            let area = final_size.to_f32();
-            let img = desired_size.to_f32();
-            let scale = (area.width / img.width).max(area.height / img.height);
-            let img = img * scale;
-            (img.cast(), todo!())
         }
     }
 }
