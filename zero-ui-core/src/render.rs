@@ -791,9 +791,9 @@ impl FrameBuilder {
     /// Push a repeating linear gradient rectangle using [`common_item_ps`].
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
-    /// The `extend_mode` controls how the gradient fills the tile.
+    /// The `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
     ///
-    /// The gradient stops must be normalized, first stop at 0.0 and last stop at 1.0, this
+    /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
@@ -808,16 +808,16 @@ impl FrameBuilder {
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
-        if self.cancel_widget {
-            return;
-        }
-
         debug_assert!(stops.len() >= 2);
         debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
         debug_assert!(
             (stops[stops.len() - 1].offset - 1.0).abs() < 0.00001,
             "last color stop must be at offset 1.0"
         );
+
+        if self.cancel_widget {
+            return;
+        }
 
         self.open_widget_display();
         let item = self.common_hit_item_ps(rect);
@@ -835,7 +835,14 @@ impl FrameBuilder {
 
     /// Push a repeating radial gradient rectangle using [`common_item_ps`].
     ///
-    /// TODO
+    /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
+    /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
+    /// 
+    /// The `center` point is relative to the top-left of the tile, the `radius` is the distance between the first 
+    /// and last color stop in both directions and must be a non-zero positive value.
+    /// 
+    /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
+    /// is asserted in debug builds.
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
@@ -850,11 +857,16 @@ impl FrameBuilder {
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
+        debug_assert!(stops.len() >= 2);
+        debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
+        debug_assert!(
+            (stops[stops.len() - 1].offset - 1.0).abs() < 0.00001,
+            "last color stop must be at offset 1.0"
+        );
+
         if self.cancel_widget {
             return;
         }
-
-        debug_assert!(stops.len() >= 2);
 
         self.open_widget_display();
         let item = self.common_hit_item_ps(rect);
@@ -864,7 +876,7 @@ impl FrameBuilder {
         let gradient = RadialGradient {
             center: center.to_wr(),
             radius: radius.to_wr(),
-            start_offset: 0.0, // TODO
+            start_offset: 0.0, // TODO expose this?
             end_offset: 1.0,
             extend_mode,
         };
@@ -874,7 +886,11 @@ impl FrameBuilder {
 
     /// Push a repeating conic gradient rectangle using [`common_item_ps`].
     ///
-    /// TODO
+    /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
+    /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
+    /// 
+    /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
+    /// is asserted in debug builds.
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
@@ -889,11 +905,16 @@ impl FrameBuilder {
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
+        debug_assert!(stops.len() >= 2);
+        debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
+        debug_assert!(
+            (stops[stops.len() - 1].offset - 1.0).abs() < 0.00001,
+            "last color stop must be at offset 1.0"
+        );
+
         if self.cancel_widget {
             return;
         }
-
-        debug_assert!(stops.len() >= 2);
 
         self.open_widget_display();
         let item = self.common_hit_item_ps(rect);
@@ -905,8 +926,8 @@ impl FrameBuilder {
         let gradient = ConicGradient {
             center: center.to_wr(),
             angle: angle.0,
-            start_offset: 0.0, // TODO
-            end_offset: 1.0,   // TODO
+            start_offset: 0.0, // TODO expose this?
+            end_offset: 1.0,
             extend_mode,
         };
         self.display_list
