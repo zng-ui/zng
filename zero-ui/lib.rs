@@ -1033,6 +1033,8 @@ pub mod prelude {
         };
         #[doc(no_inline)]
         pub use crate::properties::set_widget_state;
+        #[doc(no_inline)]
+        pub use crate::widgets::{layouts::z_stack, DataUpdate, ViewGenerator};
     }
 
     /// All the types you need to declare a new widget or widget mix-in.
@@ -1105,7 +1107,7 @@ pub mod prelude {
             text_transform, word_spacing,
         };
         #[doc(no_inline)]
-        pub use crate::widgets::{container, ViewGenerator};
+        pub use crate::widgets::{container, layouts::z_stack, DataUpdate, ViewGenerator};
     }
 }
 

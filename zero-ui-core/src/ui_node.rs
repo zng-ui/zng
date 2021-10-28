@@ -321,6 +321,58 @@ impl UiNode for BoxedUiNode {
     }
 }
 
+impl<U: UiNode> UiNode for Option<U> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        if let Some(node) = self {
+            node.init(ctx);
+        }
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if let Some(node) = self {
+            node.deinit(ctx);
+        }
+    }
+
+    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        if let Some(node) = self {
+            node.event(ctx, args);
+        }
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(node) = self {
+            node.update(ctx);
+        }
+    }
+
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+        if let Some(node) = self {
+            node.measure(ctx, available_size)
+        } else {
+            PxSize::zero()
+        }
+    }
+
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        if let Some(node) = self {
+            node.arrange(ctx, final_size);
+        }
+    }
+
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        if let Some(node) = self {
+            node.render(ctx, frame);
+        }
+    }
+
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        if let Some(node) = self {
+            node.render_update(ctx, update);
+        }
+    }
+}
+
 macro_rules! declare_widget_test_calls {
     ($(
         $method:ident

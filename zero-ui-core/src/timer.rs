@@ -629,7 +629,7 @@ impl TimerHandle {
 /// # use zero_ui_core::context::WidgetContext;
 /// # use std::time::Instant;
 /// # fn foo(ctx: &mut WidgetContext) {
-/// let timer: TimerVar = ctx.timers.interval(1.secs());
+/// let timer: TimerVar = ctx.timers.interval(1.secs(), true);
 ///
 /// # let
 /// text = timer.map(|d| match 20 - d.count() {

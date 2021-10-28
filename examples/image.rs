@@ -24,10 +24,10 @@ fn app_main() {
             //transparent = true;
 
             // Set a error view generator used in all images in this window.
-            image_error_view = view_generator!(|_, args: &ImageErrorArgs| {
+            image_error_view = view_generator!(|_, args: ImageErrorArgs| {
                 log::error!(target: "expected", "{}", args.error);
                 text!{
-                    text = args.error.clone();
+                    text = args.error;
                     margin = 20;
                     align = Alignment::CENTER;
                     color = colors::RED;
@@ -201,7 +201,7 @@ fn sprite(timers: &mut Timers) -> impl Widget {
 }
 
 /// Image loading animation.
-fn image_loading(ctx: &mut WidgetContext, _: &ImageLoadingArgs) -> impl Widget {
+fn image_loading(ctx: &mut WidgetContext, _: ImageLoadingArgs) -> impl Widget {
     let mut dots_count = 3;
     let msg = ctx.timers.interval(300.ms(), true).map(move |_| {
         dots_count += 1;
