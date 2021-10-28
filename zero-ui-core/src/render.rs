@@ -837,10 +837,10 @@ impl FrameBuilder {
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
-    /// 
-    /// The `center` point is relative to the top-left of the tile, the `radius` is the distance between the first 
+    ///
+    /// The `center` point is relative to the top-left of the tile, the `radius` is the distance between the first
     /// and last color stop in both directions and must be a non-zero positive value.
-    /// 
+    ///
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///
@@ -888,7 +888,7 @@ impl FrameBuilder {
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
-    /// 
+    ///
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///

@@ -2781,12 +2781,12 @@ impl fmt::Display for Alignment {
 }
 impl Alignment {
     named_aligns! {
-        LEFT_TOP = (0.0, 0.0);
-        LEFT_BOTTOM = (0.0, 1.0);
+        TOP_LEFT = (0.0, 0.0);
+        BOTTOM_LEFT = (0.0, 1.0);
         LEFT_FILL = (0.0, f32::NAN);
 
-        RIGHT_TOP = (1.0, 0.0);
-        RIGHT_BOTTOM = (1.0, 1.0);
+        TOP_RIGHT = (1.0, 0.0);
+        BOTTOM_RIGHT = (1.0, 1.0);
         RIGHT_FILL = (1.0, f32::NAN);
 
         FILL_TOP = (f32::NAN, 0.0);
@@ -2842,12 +2842,12 @@ impl Alignment {
 
     /// Compute an offset to apply to the content given the available size.
     ///
-    /// [`FILL`] align resolves like [`LEFT_TOP`] align.
+    /// [`FILL`] align resolves like [`TOP_LEFT`] align.
     ///
     /// Unlike [`solve`] the content does not change size, it must be clipped if larger than the container.
     ///
     /// [`FILL`]: Alignment::FILL
-    /// [`LEFT_TOP`]: Alignment::LEFT_TOP
+    /// [`TOP_LEFT`]: Alignment::TOP_LEFT
     /// [`solve`]: Alignment::solve
     pub fn solve_offset(self, content_size: PxSize, container_size: PxSize) -> PxVector {
         let mut r = PxVector::zero();

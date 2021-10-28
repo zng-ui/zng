@@ -28,12 +28,12 @@ pub mod image {
         /// Alignment of the image after the final size is calculated.
         ///
         /// If the image is smaller then the widget area it is aligned like normal, if it is larger the "viewport" is aligned,
-        /// so for examples, alignment [`RIGHT_BOTTOM`] makes a smaller image sit at the bottom-right of the widget and makes
+        /// so for examples, alignment [`BOTTOM_RIGHT`] makes a smaller image sit at the bottom-right of the widget and makes
         /// a larger image bottom-right fill the widget, clipping the rest.
         ///
         /// By default the alignment is [`CENTER`].
         ///
-        /// [`RIGHT_BOTTOM`]: Alignment::RIGHT_BOTTOM
+        /// [`BOTTOM_RIGHT`]: Alignment::BOTTOM_RIGHT
         /// [`CENTER`]: Alignment::CENTER
         properties::image_align;
 
@@ -1111,7 +1111,6 @@ pub mod image {
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                     use ImageFit::*;
-
                     self.offset = PxPoint::zero();
 
                     let align = *ImageAlignVar::get(ctx.vars);
@@ -1190,7 +1189,8 @@ pub mod image {
 
                     // TODO
                     let user_shift = ImageOffsetVar::get(ctx.vars).to_layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
-                    self.clip_rect.origin -= user_shift;
+
+                    self.offset += user_shift;
 
                     self.offset += self.clip_rect.origin.to_vector() * -(1.0.normal());
                 }
@@ -1202,18 +1202,9 @@ pub mod image {
                             if self.offset != PxPoint::zero() {
                                 frame.push_reference_frame(self.offset, |frame| {
                                     frame.push_image(self.clip_rect, self.img_size, img, *ImageRenderingVar::get(ctx.vars))
-                                });                                
+                                });
                             } else {
                                 frame.push_image(self.clip_rect, self.img_size, img, *ImageRenderingVar::get(ctx.vars));
-                            }
-
-                            #[cfg(debug_assertions)]
-                            match *ImageFitVar::get(ctx) {
-                                ImageFit::None => frame.push_debug_dot(self.offset, colors::RED),
-                                ImageFit::Fill => frame.push_debug_dot(self.offset, colors::YELLOW),
-                                ImageFit::Contain => frame.push_debug_dot(self.offset, colors::GREEN),
-                                ImageFit::Cover => frame.push_debug_dot(self.offset, colors::BLUE),
-                                ImageFit::ScaleDown => frame.push_debug_dot(self.offset, colors::GRAY),
                             }
                         }
                     }

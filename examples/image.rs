@@ -87,6 +87,17 @@ fn app_main() {
                                     source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                                     size = (200, 100);
                                     fit = ImageFit::Contain;
+                                    image_align = Alignment::TOP_LEFT;
+                                }
+                            ),
+                            demo_image(
+                                "Contain with (50, 50) offset",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Contain;
+                                    image_align = Alignment::TOP_LEFT;
+                                    image_offset = (50, 50);
                                 }
                             ),
                             demo_image(
