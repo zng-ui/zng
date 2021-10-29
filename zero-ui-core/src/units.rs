@@ -594,6 +594,13 @@ impl FactorPercent {
         self.into()
     }
 }
+impl ops::Neg for FactorPercent {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        FactorPercent(-self.0)
+    }
+}
 impl PartialEq for FactorPercent {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EPSILON_100)

@@ -951,89 +951,74 @@ pub mod image {
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-                    use ImageFit::*;
-                    self.offset = PxPoint::zero();
+                    // 1 - fit crop-rect:
+
+                    let mut align_offset = PxVector::zero();
+                    let mut crop_size = self.clip_rect.size;
 
                     let align = *ImageAlignVar::get(ctx.vars);
-
                     let mut fit = *ImageFitVar::get(ctx);
                     loop {
-                        // loops back once to "go-to".
                         match fit {
-                            None => {
-                                let align_offset = align.solve_offset(self.clip_rect.size, final_size);
-                                if align_offset.x < Px(0) {
-                                    self.clip_rect.origin.x -= align_offset.x;
-                                } else {
-                                    self.offset.x += align_offset.x;
-                                }
-                                if align_offset.y < Px(0) {
-                                    self.clip_rect.origin.y -= align_offset.y;
-                                } else {
-                                    self.offset.y += align_offset.y;
-                                }
-                                self.clip_rect.size = self.clip_rect.size.min(final_size);
-
+                            ImageFit::None => {
+                                align_offset = align.solve_offset(crop_size, final_size);
                                 break;
                             }
-                            Fill => {
-                                // the image will be distorted to fill the `final_size`.
-                                if self.clip_rect.size == self.img_size {
-                                    self.clip_rect.size = final_size;
-                                    self.img_size = final_size;
-                                } else {
-                                    // if the image is cropped adjust the image size so the same cropped pixels
-                                    // are still visible but now distorted to fill.
-                                    let scale_x = final_size.width.0 as f32 / self.clip_rect.size.width.0 as f32;
-                                    let scale_y = final_size.height.0 as f32 / self.clip_rect.size.height.0 as f32;
-                                    let scale = Scale2d::new(scale_x, scale_y);
-                                    self.clip_rect *= scale;
-                                    self.img_size *= scale;
-                                    debug_assert_eq!(self.clip_rect.size, final_size);
-                                }
-
+                            ImageFit::Fill => {
+                                crop_size = final_size;
                                 break;
                             }
-                            Contain => {
-                                let area = final_size.to_f32();
-                                let img_size = self.clip_rect.size.to_f32();
-                                let scale = (area.width / img_size.width).min(area.height / img_size.height).normal();
-
-                                self.img_size *= scale;
-                                self.clip_rect *= scale;
-
-                                self.offset += align.solve_offset(self.clip_rect.size, final_size);
-
+                            ImageFit::Contain => {
+                                let container = final_size.to_f32();
+                                let content = crop_size.to_f32();
+                                let scale = (container.width / content.width).min(container.height / content.height).normal();
+                                crop_size *= scale;
+                                align_offset = align.solve_offset(crop_size, final_size);
                                 break;
                             }
-                            Cover => {
-                                let area = final_size.to_f32();
-                                let img_size = self.clip_rect.size.to_f32();
-                                let scale = (area.width / img_size.width).max(area.height / img_size.height).normal();
-
-                                self.img_size *= scale;
-                                self.clip_rect *= scale;
-
-                                // go-to
-                                fit = None;
+                            ImageFit::Cover => {
+                                let container = final_size.to_f32();
+                                let content = crop_size.to_f32();
+                                let scale = (container.width / content.width).max(container.height / content.height).normal();
+                                crop_size *= scale;
+                                align_offset = align.solve_offset(crop_size, final_size);
+                                break;
                             }
-                            ScaleDown => {
-                                // go-to
-                                fit = if self.clip_rect.size.width > final_size.width || self.clip_rect.size.height > final_size.height {
-                                    Contain
+                            ImageFit::ScaleDown => {
+                                if crop_size.width < final_size.width && crop_size.height < final_size.height {
+                                    fit = ImageFit::None;
                                 } else {
-                                    None
+                                    fit = ImageFit::Contain;
                                 }
                             }
                         }
                     }
 
-                    // TODO
-                    let user_shift = ImageOffsetVar::get(ctx.vars).to_layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
+                    // 2 - scale image to new crop size:
+                    let scale_x = crop_size.width.0 as f32 / self.clip_rect.size.width.0 as f32;
+                    let scale_y = crop_size.height.0 as f32 / self.clip_rect.size.height.0 as f32;
+                    let scale = Scale2d::new(scale_x, scale_y);
 
-                    self.offset += user_shift;
+                    self.img_size *= scale;
+                    self.clip_rect.origin *= scale;
+                    self.clip_rect.size = crop_size;
 
-                    self.offset += self.clip_rect.origin.to_vector() * -(1.0.normal());
+                    // 3 - offset to align + user image_offset:
+                    let mut offset = PxPoint::zero();
+                    offset += align_offset;
+                    offset += ImageOffsetVar::get(ctx.vars).to_layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
+
+                    // 4 - adjust clip_rect to clip content to container final_size:
+                    let top_left_clip = -offset.to_vector().min(PxVector::zero());
+                    self.clip_rect.origin += top_left_clip;
+                    self.clip_rect.size -= top_left_clip.to_size();
+                    offset += top_left_clip;
+                    // bottom-right clip
+                    self.clip_rect.size = self.clip_rect.size.min(final_size - offset.to_vector().to_size());
+
+                    // 5 - adjust offset so that clip_rect.origin is at widget (0, 0):
+                    self.offset = offset;
+                    self.offset -= self.clip_rect.origin.to_vector();
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
