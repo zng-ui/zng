@@ -26,9 +26,6 @@ Image loading and rendering.
 * Per-request limits.
 * Improve limits error message.
 
-## image! { }
-* Scale.
-
 ## Questions
 
 

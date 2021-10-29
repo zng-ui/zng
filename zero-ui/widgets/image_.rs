@@ -944,33 +944,32 @@ pub mod image {
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
-                        if img.is_loaded() {
-                            self.img_size = img.size();
-                            self.measured_image_size = self.img_size;
-                            let img_rect = PxRect::from_size(self.img_size);
 
-                            let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
-                            self.clip_rect = img_rect.intersection(&crop).unwrap_or_default();
+                        self.img_size = img.size();
+                        self.measured_image_size = self.img_size;
+                        let img_rect = PxRect::from_size(self.img_size);
 
-                            let mut scale = *ImageScaleVar::get(ctx);
-                            if *ImageScalePpiVar::get(ctx) {
-                                let sppi = ctx.metrics.screen_ppi;
-                                let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
-                                scale *= Scale2d::new(ippi_x / sppi, ippi_y / sppi);
-                            }
+                        let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
+                        self.clip_rect = img_rect.intersection(&crop).unwrap_or_default();
 
-                            if *ImageScaleFactorVar::get(ctx) {
-                                scale *= ctx.scale_factor.normal();
-                            }
-                            self.img_size *= scale;
-                            self.clip_rect *= scale;
-
-                            return available_size.clip(self.clip_rect.size);
+                        let mut scale = *ImageScaleVar::get(ctx);
+                        if *ImageScalePpiVar::get(ctx) {
+                            let sppi = ctx.metrics.screen_ppi;
+                            let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
+                            scale *= Scale2d::new(ippi_x / sppi, ippi_y / sppi);
                         }
-                    }
 
-                    // no context image or not loaded
-                    PxSize::zero()
+                        if *ImageScaleFactorVar::get(ctx) {
+                            scale *= ctx.scale_factor.normal();
+                        }
+                        self.img_size *= scale;
+                        self.clip_rect *= scale;
+
+                        available_size.clip(self.clip_rect.size)
+                    } else {
+                        // no context image
+                        PxSize::zero()
+                    }
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
