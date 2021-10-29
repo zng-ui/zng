@@ -787,48 +787,63 @@ pub mod image {
             }
         }
 
+        context_var! {
+            /// Used to avoid recursion in [`image_error_presenter`].
+            struct InErrorViewVar: bool = false;
+            /// Used to avoid recursion in [`image_loading_presenter`].
+            struct InLoadingViewVar: bool = false;
+        }
+
         /// Presents the contextual [`ImageErrorViewVar`] if the [`ContextImageVar`] is an error.
         ///
         /// The error view is rendered under the `child`.
         ///
         /// The image widget adds this node around the [`image_presenter`] node.
         pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
-            let view = ViewGenerator::presenter(ImageErrorViewVar, |ctx, is_new| {
-                if is_new {
-                    // init or generator changed.
-                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                        if let Some(e) = var.get(ctx).error() {
-                            return DataUpdate::Update(ImageErrorArgs {
-                                error: e.to_owned().into(),
-                            });
+            let view = ViewGenerator::presenter_map(
+                ImageErrorViewVar,
+                |ctx, is_new| {
+                    if *InErrorViewVar::get(ctx) {
+                        // avoid recursion.
+                        return DataUpdate::None;
+                    }
+                    if is_new {
+                        // init or generator changed.
+                        if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                            if let Some(e) = var.get(ctx).error() {
+                                return DataUpdate::Update(ImageErrorArgs {
+                                    error: e.to_owned().into(),
+                                });
+                            }
+                        }
+                        return DataUpdate::None;
+                    } else if let Some(new) = ContextImageVar::get_new(ctx.vars) {
+                        // image var update.
+                        if let Some(var) = new.as_ref() {
+                            if let Some(e) = var.get(ctx).error() {
+                                return DataUpdate::Update(ImageErrorArgs {
+                                    error: e.to_owned().into(),
+                                });
+                            }
+                        }
+                        return DataUpdate::None;
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        // image update.
+                        if let Some(new) = var.get_new(ctx) {
+                            if let Some(e) = new.error() {
+                                return DataUpdate::Update(ImageErrorArgs {
+                                    error: e.to_owned().into(),
+                                });
+                            } else {
+                                return DataUpdate::None;
+                            }
                         }
                     }
-                    return DataUpdate::None;
-                } else if let Some(new) = ContextImageVar::get_new(ctx.vars) {
-                    // image var update.
-                    if let Some(var) = new.as_ref() {
-                        if let Some(e) = var.get(ctx).error() {
-                            return DataUpdate::Update(ImageErrorArgs {
-                                error: e.to_owned().into(),
-                            });
-                        }
-                    }
-                    return DataUpdate::None;
-                } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                    // image update.
-                    if let Some(new) = var.get_new(ctx) {
-                        if let Some(e) = new.error() {
-                            return DataUpdate::Update(ImageErrorArgs {
-                                error: e.to_owned().into(),
-                            });
-                        } else {
-                            return DataUpdate::None;
-                        }
-                    }
-                }
 
-                DataUpdate::Same
-            });
+                    DataUpdate::Same
+                },
+                |view| with_context_var(view, InErrorViewVar, true),
+            );
 
             z_stack(nodes![view, child])
         }
@@ -839,36 +854,44 @@ pub mod image {
         ///
         /// The image widget adds this node around the [`image_error_presenter`] node.
         pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
-            let view = ViewGenerator::presenter(ImageLoadingViewVar, |ctx, is_new| {
-                if is_new {
-                    // init or generator changed.
-                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                        if var.get(ctx).is_loading() {
-                            return DataUpdate::Update(ImageLoadingArgs {});
+            let view = ViewGenerator::presenter_map(
+                ImageLoadingViewVar,
+                |ctx, is_new| {
+                    if *InLoadingViewVar::get(ctx) {
+                        // avoid recursion.
+                        return DataUpdate::None;
+                    }
+                    if is_new {
+                        // init or generator changed.
+                        if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                            if var.get(ctx).is_loading() {
+                                return DataUpdate::Update(ImageLoadingArgs {});
+                            }
+                        }
+                        return DataUpdate::None;
+                    } else if let Some(new) = ContextImageVar::get_new(ctx.vars) {
+                        // image var update.
+                        if let Some(var) = new.as_ref() {
+                            if var.get(ctx).is_loading() {
+                                return DataUpdate::Update(ImageLoadingArgs {});
+                            }
+                        }
+                        return DataUpdate::None;
+                    } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        // image update.
+                        if let Some(new) = var.get_new(ctx) {
+                            if new.is_loading() {
+                                return DataUpdate::Update(ImageLoadingArgs {});
+                            } else {
+                                return DataUpdate::None;
+                            }
                         }
                     }
-                    return DataUpdate::None;
-                } else if let Some(new) = ContextImageVar::get_new(ctx.vars) {
-                    // image var update.
-                    if let Some(var) = new.as_ref() {
-                        if var.get(ctx).is_loading() {
-                            return DataUpdate::Update(ImageLoadingArgs {});
-                        }
-                    }
-                    return DataUpdate::None;
-                } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                    // image update.
-                    if let Some(new) = var.get_new(ctx) {
-                        if new.is_loading() {
-                            return DataUpdate::Update(ImageLoadingArgs {});
-                        } else {
-                            return DataUpdate::None;
-                        }
-                    }
-                }
 
-                DataUpdate::Same
-            });
+                    DataUpdate::Same
+                },
+                |view| with_context_var(view, InLoadingViewVar, true),
+            );
 
             z_stack(nodes![view, child])
         }
@@ -1073,4 +1096,35 @@ pub mod image {
 /// [`source`]: mod@image#wp-source
 pub fn image(source: impl IntoVar<ImageSource>) -> impl Widget {
     image! { source }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    #[test]
+    fn error_view_recursion() {
+        let mut app = App::default().run_headless(false);
+        app.ctx().services.images().load_in_headless = true;
+        let ok = Rc::new(Cell::new(false));
+        app.open_window(clone_move!(ok, |_| {
+            window! {
+                content = image! {
+                    source = "";
+                    error_view = view_generator!(ok, |_, _| {
+                        ok.set(true);
+                        image! {
+                            source = "";
+                        }
+                    });
+                }
+            }
+        }));
+
+        let _ = app.update(false);
+
+        assert!(ok.get());
+    }
 }

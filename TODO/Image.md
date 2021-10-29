@@ -27,9 +27,7 @@ Image loading and rendering.
 * Improve limits error message.
 
 ## image! { }
-* Stretch.
-* Alignment.
-* Error/loading view that contains image can cause stack-overflow (remove recursion).
+* Scale.
 
 ## Questions
 

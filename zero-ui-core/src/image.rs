@@ -512,6 +512,8 @@ impl Images {
         }
 
         if self.view.is_none() && !self.load_in_headless {
+            log::warn!("loading dummy image, set `load_in_headless=true` to actually load without renderer");
+
             let dummy = var(Image::new(ViewImage::dummy(None)));
             self.cache.insert(
                 key,

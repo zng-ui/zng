@@ -248,17 +248,35 @@ impl<D> ViewGenerator<D> {
     where
         D: 'static,
     {
-        struct ViewGenVarPresenter<G, U> {
+        Self::presenter_map(generator, update, |v| v)
+    }
+
+    /// Like [`presenter`] but the generated view can be modified using the `map` closure.
+    ///
+    /// [`presenter`]: ViewGenerator::presenter
+    pub fn presenter_map<V>(
+        generator: impl IntoVar<ViewGenerator<D>>,
+        update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
+        map: impl FnMut(BoxedUiNode) -> V + 'static,
+    ) -> impl UiNode
+    where
+        D: 'static,
+        V: UiNode,
+    {
+        struct ViewGenVarPresenter<G, U, M, V> {
             gen: G,
             update: U,
-            child: Option<BoxedUiNode>,
+            map: M,
+            child: Option<V>,
         }
         #[impl_ui_node(child)]
-        impl<D, G, U> UiNode for ViewGenVarPresenter<G, U>
+        impl<D, G, U, M, V> UiNode for ViewGenVarPresenter<G, U, M, V>
         where
             D: 'static,
             G: Var<ViewGenerator<D>>,
             U: FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
+            M: FnMut(BoxedUiNode) -> V + 'static,
+            V: UiNode,
         {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let gen = self.gen.get(ctx.vars);
@@ -270,7 +288,7 @@ impl<D> ViewGenerator<D> {
 
                 match (self.update)(ctx, true) {
                     DataUpdate::Update(data) => {
-                        let mut child = gen.generate(ctx, data);
+                        let mut child = (self.map)(gen.generate(ctx, data));
                         child.init(ctx);
                         self.child = Some(child);
                     }
@@ -298,7 +316,7 @@ impl<D> ViewGenerator<D> {
                         if let Some(mut old) = self.child.take() {
                             old.deinit(ctx);
                         }
-                        let mut child = gen.generate(ctx, data);
+                        let mut child = (self.map)(gen.generate(ctx, data));
                         child.init(ctx);
                         self.child = Some(child);
                         ctx.updates.layout();
@@ -316,6 +334,7 @@ impl<D> ViewGenerator<D> {
         ViewGenVarPresenter {
             gen: generator.into_var(),
             update,
+            map,
             child: None,
         }
     }
