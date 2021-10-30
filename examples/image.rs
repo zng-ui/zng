@@ -119,9 +119,7 @@ fn demo_image(title: impl IntoVar<Text> + 'static, image: impl Widget) -> impl W
         container! {
             content = image;
             content_align = unset!;
-            background = checkerboard! {
-                colors = rgb(10, 10, 10), rgb(40, 40, 40);
-            };
+            background = transparency();
         }
     ])
 }
@@ -133,7 +131,7 @@ fn large_image() -> impl Widget {
             ctx.services.windows().open(|_|window! {
                 title = "Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB";
                 image_loading_view = ViewGenerator::new(image_loading);
-                background_color = colors::BLACK;
+                background = transparency();
                 content = image! {
                     //source = {
                     //    let data = vec![255; 300 * 200 * 4];
@@ -206,5 +204,12 @@ fn image_loading(ctx: &mut WidgetContext, _: ImageLoadingArgs) -> impl Widget {
         margin = 20;
         align = Alignment::CENTER;
         font_style = FontStyle::Italic;
+    }
+}
+
+fn transparency() -> impl Widget {
+    checkerboard! {
+        colors = rgb(20, 20, 20), rgb(40, 40, 40);
+        cb_size = (16, 16);
     }
 }
