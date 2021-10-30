@@ -119,8 +119,9 @@ fn demo_image(title: impl IntoVar<Text> + 'static, image: impl Widget) -> impl W
         container! {
             content = image;
             content_align = unset!;
-            padding = 2;
-            background_color = colors::BLACK;
+            background = checkerboard! {
+                colors = rgb(10, 10, 10), rgb(40, 40, 40);
+            };
         }
     ])
 }

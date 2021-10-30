@@ -4,6 +4,7 @@ pub mod layouts;
 pub mod mixins;
 
 mod button_;
+mod checkerboard_;
 mod container_;
 mod fill_color;
 mod gradient;
@@ -17,6 +18,7 @@ mod view_;
 mod window_;
 
 pub use button_::*;
+pub use checkerboard_::*;
 pub use container_::*;
 pub use fill_color::*;
 pub use gradient::*;
