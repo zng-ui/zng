@@ -1133,8 +1133,8 @@ impl fmt::Debug for Length {
         } else {
             match self {
                 Default => write!(f, "Default"),
-                Dip(e) => write!(f, "{}.dip()", e),
-                Px(e) => write!(f, "{}.px()", e),
+                Dip(e) => write!(f, "{}.dip()", e.to_f32()),
+                Px(e) => write!(f, "{}.px()", e.0),
                 Pt(e) => write!(f, "{}.pt()", e),
                 Relative(e) => write!(f, "{}.pct()", e.0 * 100.0),
                 Em(e) => write!(f, "{}.em()", e.0),

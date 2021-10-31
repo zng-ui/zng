@@ -786,7 +786,10 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 
             available_size.width = AvailablePx::Finite(width);
 
-            self.child.measure(ctx, available_size)
+            let mut desired_size = self.child.measure(ctx, available_size);
+            desired_size.width = width;
+
+            desired_size
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
@@ -847,7 +850,10 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
 
             available_size.height = AvailablePx::Finite(height);
 
-            self.child.measure(ctx, available_size)
+            let mut desired_size = self.child.measure(ctx, available_size);
+            desired_size.height = height;
+
+            desired_size
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {

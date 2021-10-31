@@ -1872,7 +1872,9 @@ pub mod view_process {
         ImagePpi, IpcBytesReceiver, IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen,
         WindowOpenData, WindowRequest, WindowState, WindowTheme,
     };
-    use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, DocumentRequest, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
+    use zero_ui_view_api::{
+        Controller, DeviceId as ApiDeviceId, DocumentRequest, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
+    };
 
     type Result<T> = std::result::Result<T, Respawned>;
 
@@ -1973,14 +1975,17 @@ pub mod view_process {
             let id = config.id;
             let data = app.process.open_headless(config)?;
 
-            Ok(ViewHeadless(Rc::new(WindowConnection {
-                id,
-                app: self.0.clone(),
-                id_namespace: data.id_namespace,
-                pipeline_id: data.pipeline_id,
-                document_id: data.document_id,
-                generation: app.data_generation,
-            }), data.document_id))
+            Ok(ViewHeadless(
+                Rc::new(WindowConnection {
+                    id,
+                    app: self.0.clone(),
+                    id_namespace: data.id_namespace,
+                    pipeline_id: data.pipeline_id,
+                    document_id: data.document_id,
+                    generation: app.data_generation,
+                }),
+                data.document_id,
+            ))
         }
 
         /// Read the system text anti-aliasing config.

@@ -203,6 +203,7 @@ fn image_loading(ctx: &mut WidgetContext, _: ImageLoadingArgs) -> impl Widget {
         color = colors::LIGHT_GRAY;
         margin = 20;
         align = Alignment::CENTER;
+        width = 80;
         font_style = FontStyle::Italic;
     }
 }
