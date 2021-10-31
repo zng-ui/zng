@@ -10,8 +10,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, TextAntiAliasing, ViewProcessGen,
-    WindowId,
+    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, ImageId, ImageLoadedData, TextAntiAliasing,
+    ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -25,6 +25,7 @@ pub(crate) struct Surface {
     id: WindowId,
     pipeline_id: PipelineId,
     document_id: DocumentId,
+    documents: Vec<DocumentId>,
     api: RenderApi,
     size: DipSize,
     scale_factor: f32,
@@ -45,7 +46,7 @@ impl fmt::Debug for Surface {
         f.debug_struct("Surface")
             .field("id", &self.id)
             .field("pipeline_id", &self.pipeline_id)
-            .field("document_id", &self.document_id)
+            .field("document", &self.documents)
             .field("size", &self.size)
             .field("scale_factor", &self.scale_factor)
             .finish_non_exhaustive()
@@ -142,6 +143,7 @@ impl Surface {
             id,
             pipeline_id,
             document_id,
+            documents: vec![],
             api,
             size: cfg.size,
             scale_factor: cfg.scale_factor,
@@ -159,6 +161,23 @@ impl Surface {
         }
     }
 
+    pub fn open_document(&mut self, scale_factor: f32, initial_size: DipSize) -> HeadlessOpenData {
+        let document_id = self.api.add_document(initial_size.to_px(scale_factor).to_wr_device());
+        self.documents.push(document_id);
+        HeadlessOpenData {
+            id_namespace: self.id_namespace(),
+            pipeline_id: self.pipeline_id,
+            document_id,
+        }
+    }
+
+    pub fn close_document(&mut self, document_id: DocumentId) {
+        if let Some(i) = self.documents.iter().position(|&d| d == document_id) {
+            self.documents.swap_remove(i);
+            self.api.delete_document(document_id);
+        }
+    }
+
     pub fn id(&self) -> WindowId {
         self.id
     }
@@ -169,6 +188,11 @@ impl Surface {
 
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
+    }
+
+    /// Root document ID.
+    pub fn document_id(&self) -> DocumentId {
+        self.document_id
     }
 
     pub fn scale_factor(&self) -> f32 {
@@ -183,39 +207,43 @@ impl Surface {
         self.size
     }
 
-    pub fn set_size(&mut self, size: DipSize, scale_factor: f32) {
+    pub fn set_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {
         if self.size != size || (self.scale_factor - scale_factor).abs() > 0.001 {
-            self.size = size;
-            self.scale_factor = scale_factor;
-            resize(&self.gl, self.rbos, size, scale_factor);
-            self.resized = true;
+            if self.document_id == document_id {
+                self.size = size;
+                self.scale_factor = scale_factor;
+                resize(&self.gl, self.rbos, size, scale_factor);
+                self.resized = true;
+            } else {
+                todo!()
+            }
         }
     }
 
     pub fn use_image(&mut self, image: &Image) -> ImageKey {
-        self.image_use.new_use(image, self.document_id, &mut self.api)
+        self.image_use.new_use(image, self.document_id(), &mut self.api)
     }
 
     pub fn update_image(&mut self, key: ImageKey, image: &Image) {
-        self.image_use.update_use(key, image, self.document_id, &mut self.api);
+        self.image_use.update_use(key, image, self.document_id(), &mut self.api);
     }
 
     pub fn delete_image(&mut self, key: ImageKey) {
-        self.image_use.delete(key, self.document_id, &mut self.api);
+        self.image_use.delete(key, self.document_id(), &mut self.api);
     }
 
     pub fn add_font(&mut self, font: Vec<u8>, index: u32) -> FontKey {
         let key = self.api.generate_font_key();
         let mut txn = webrender::Transaction::new();
         txn.add_raw_font(key, font, index);
-        self.api.send_transaction(self.document_id, txn);
+        self.api.send_transaction(self.document_id(), txn);
         key
     }
 
     pub fn delete_font(&mut self, key: FontKey) {
         let mut txn = webrender::Transaction::new();
         txn.delete_font(key);
-        self.api.send_transaction(self.document_id, txn);
+        self.api.send_transaction(self.document_id(), txn);
     }
 
     pub fn add_font_instance(
@@ -229,14 +257,14 @@ impl Surface {
         let key = self.api.generate_font_instance_key();
         let mut txn = webrender::Transaction::new();
         txn.add_font_instance(key, font_key, glyph_size.to_wr().get(), options, plataform_options, variations);
-        self.api.send_transaction(self.document_id, txn);
+        self.api.send_transaction(self.document_id(), txn);
         key
     }
 
     pub fn delete_font_instance(&mut self, instance_key: FontInstanceKey) {
         let mut txn = webrender::Transaction::new();
         txn.delete_font_instance(instance_key);
-        self.api.send_transaction(self.document_id, txn);
+        self.api.send_transaction(self.document_id(), txn);
     }
 
     pub fn set_text_aa(&mut self, aa: TextAntiAliasing) {
@@ -275,7 +303,7 @@ impl Surface {
         self.push_resize(&mut txn);
 
         txn.generate_frame(frame.id.get());
-        self.api.send_transaction(self.document_id, txn);
+        self.api.send_transaction(self.document_id(), txn);
     }
 
     pub fn render_update(&mut self, frame: FrameUpdateRequest) {
@@ -290,7 +318,7 @@ impl Surface {
         self.push_resize(&mut txn);
 
         txn.generate_frame(self.frame_id().get());
-        self.api.send_transaction(self.document_id, txn);
+        self.api.send_transaction(self.document_id(), txn);
     }
 
     pub fn on_frame_ready<S: AppEventSender>(
@@ -298,7 +326,11 @@ impl Surface {
         msg: FrameReadyMsg,
         images: &mut ImageCache<S>,
     ) -> (FrameId, Option<ImageLoadedData>) {
-        debug_assert_eq!(self.document_id, msg.document_id);
+        debug_assert!(self.document_id == msg.document_id || self.documents.contains(&msg.document_id));
+
+        if self.document_id != msg.document_id {
+            todo!("document rendering is not implemented in WR");
+        }
 
         let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or_else(|| {
             debug_assert!(!msg.composite_needed);
@@ -355,7 +387,7 @@ impl Surface {
     pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
         (
             self.rendered_frame_id,
-            self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),
+            self.api.hit_test(self.document_id(), Some(self.pipeline_id), point.to_wr_world()),
         )
     }
 }

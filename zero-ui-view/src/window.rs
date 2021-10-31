@@ -26,8 +26,8 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::{PxToDip, *},
-    Event, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, Key, KeyState, ScanCode, TextAntiAliasing, VideoMode,
-    ViewProcessGen, WindowId, WindowRequest, WindowState,
+    Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key, KeyState, ScanCode,
+    TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
 };
 
 use crate::{
@@ -42,6 +42,7 @@ pub(crate) struct Window {
     id: WindowId,
     pipeline_id: PipelineId,
     document_id: DocumentId,
+    documents: Vec<DocumentId>,
     api: RenderApi,
     image_use: ImageUseMap,
 
@@ -241,6 +242,7 @@ impl Window {
             video_mode: cfg.video_mode,
             api,
             document_id,
+            documents: vec![],
             pipeline_id,
             resized: true,
             waiting_first_frame: true,
@@ -269,6 +271,23 @@ impl Window {
         win
     }
 
+    pub fn open_document(&mut self, scale_factor: f32, initial_size: DipSize) -> HeadlessOpenData {
+        let document_id = self.api.add_document(initial_size.to_px(scale_factor).to_wr_device());
+        self.documents.push(document_id);
+        HeadlessOpenData {
+            id_namespace: self.id_namespace(),
+            pipeline_id: self.pipeline_id,
+            document_id,
+        }
+    }
+
+    pub fn close_document(&mut self, document_id: DocumentId) {
+        if let Some(i) = self.documents.iter().position(|&d| d == document_id) {
+            self.documents.swap_remove(i);
+            self.api.delete_document(document_id);
+        }
+    }
+
     pub fn id(&self) -> WindowId {
         self.id
     }
@@ -283,6 +302,11 @@ impl Window {
 
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
+    }
+
+    /// Root document ID.
+    pub fn document_id(&self) -> DocumentId {
+        self.document_id
     }
 
     /// Latest rendered frame.
@@ -389,6 +413,10 @@ impl Window {
         } else {
             None
         }
+    }
+
+    pub fn set_document_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {
+        todo!("doc-resize: {:?}", (document_id, size, scale_factor))
     }
 
     pub fn set_icon(&mut self, icon: Option<Icon>) {
@@ -687,7 +715,11 @@ impl Window {
         msg: FrameReadyMsg,
         images: &mut ImageCache<S>,
     ) -> (FrameId, Option<ImageLoadedData>, HitTestResult) {
-        debug_assert_eq!(self.document_id, msg.document_id);
+        debug_assert!(self.document_id == msg.document_id || self.documents.contains(&msg.document_id));
+
+        if self.document_id != msg.document_id {
+            todo!("document rendering is not implemented in WR");
+        }
 
         let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or_else(|| {
             debug_assert!(!msg.composite_needed);

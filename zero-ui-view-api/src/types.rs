@@ -1010,6 +1010,8 @@ pub struct FrameRequest {
     pub id: FrameId,
     /// Pipeline Tag.
     pub pipeline_id: PipelineId,
+    /// What virtual render surface to render.
+    pub document_id: webrender_api::DocumentId,
 
     /// Frame clear color.
     pub clear_color: ColorF,
@@ -1027,6 +1029,7 @@ impl fmt::Debug for FrameRequest {
         f.debug_struct("FrameRequest")
             .field("id", &self.id)
             .field("pipeline_id", &self.pipeline_id)
+            .field("document_id", &self.document_id)
             .field("capture_image", &self.pipeline_id)
             .finish_non_exhaustive()
     }
@@ -1144,6 +1147,19 @@ pub struct HeadlessRequest {
 
     /// Text anti-aliasing.
     pub text_aa: TextAntiAliasing,
+}
+
+/// Configuration of a new virtual headless surface.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentRequest {
+    /// ID of the window or headless surface where the document will be created.
+    pub renderer: WindowId,
+
+    /// Scale for the layout units in this config.
+    pub scale_factor: f32,
+
+    /// Surface area (viewport size).
+    pub size: DipSize,
 }
 
 /// Information about a monitor screen.
@@ -1333,6 +1349,9 @@ pub struct WindowOpenData {
     pub id_namespace: webrender_api::IdNamespace,
     /// Window renderer pipeline.
     pub pipeline_id: webrender_api::PipelineId,
+    /// Root document ID, usually `1`.
+    pub document_id: webrender_api::DocumentId,
+
     /// Final top-left offset of the window (including outer chrome).
     pub position: DipPoint,
     /// Final dimensions of the client area of the window (excluding outer chrome).
@@ -1341,4 +1360,34 @@ pub struct WindowOpenData {
     pub scale_factor: f32,
     /// If the window has the keyboard focus.
     pub focused: bool,
+}
+
+/// Information about a successfully opened headless surface.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HeadlessOpenData {
+    /// Window renderer ID namespace.
+    pub id_namespace: webrender_api::IdNamespace,
+    /// Window renderer pipeline.
+    pub pipeline_id: webrender_api::PipelineId,
+    /// Document ID, usually `1`, can be other values if
+    /// a renderer window or surface is shared by using `open_document`.
+    ///
+    /// [`open_document`]: crate::Api::open_document
+    pub document_id: webrender_api::DocumentId,
+}
+impl HeadlessOpenData {
+    /// Create an *invalid* result, for when the surface can not be opened.
+    pub fn invalid() -> Self {
+        HeadlessOpenData {
+            id_namespace: webrender_api::IdNamespace(0),
+            pipeline_id: webrender_api::PipelineId::dummy(),
+            document_id: webrender_api::DocumentId::INVALID,
+        }
+    }
+
+    /// If any of the data is invalid.
+    pub fn is_invalid(&self) -> bool {
+        let invalid = Self::invalid();
+        self.document_id == invalid.document_id || self.pipeline_id == invalid.pipeline_id || self.id_namespace == invalid.id_namespace
+    }
 }

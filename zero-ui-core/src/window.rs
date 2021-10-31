@@ -2432,10 +2432,11 @@ impl AppWindow {
         let capture_image = self.take_capture_image(ctx.vars);
 
         // will need to send frame if there is a renderer
-        if self.renderer.is_some() {
+        if let Some(r) = &self.renderer {
             Some(view_process::FrameRequest {
                 id: self.frame_id,
                 pipeline_id,
+                document_id: r.document_id().unwrap(),
                 clear_color,
                 display_list: (ByteBuf::from(payload.data), descriptor),
                 capture_image,

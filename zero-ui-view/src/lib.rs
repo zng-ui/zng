@@ -741,14 +741,6 @@ impl<S: AppEventSender> App<S> {
         })
     }
 
-    fn with_surface<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Surface) -> R, not_found: impl FnOnce() -> R) -> R {
-        self.assert_started();
-        self.surfaces.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
-            log::error!("headless window `{}` not found, will return fallback result", id);
-            not_found()
-        })
-    }
-
     fn monitor_id(&mut self, handle: &MonitorHandle) -> MonitorId {
         if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
             *id
@@ -863,15 +855,16 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn open_window(&mut self, config: WindowRequest) -> WindowOpenData {
         if self.headless {
-            let (id_namespace, pipeline_id) = self.open_headless(HeadlessRequest {
+            let data = self.open_headless(HeadlessRequest {
                 id: config.id,
                 scale_factor: 1.0,
                 size: config.size,
                 text_aa: config.text_aa,
             });
             WindowOpenData {
-                id_namespace,
-                pipeline_id,
+                id_namespace: data.id_namespace,
+                pipeline_id: data.pipeline_id,
+                document_id: data.document_id,
                 position: DipPoint::zero(),
                 size: config.size,
                 scale_factor: 1.0,
@@ -894,6 +887,7 @@ impl<S: AppEventSender> Api for App<S> {
             let data = WindowOpenData {
                 id_namespace: win.id_namespace(),
                 pipeline_id: win.pipeline_id(),
+                document_id: win.document_id(),
                 position: win.outer_position(),
                 size: win.size(),
                 scale_factor: win.scale_factor(),
@@ -906,7 +900,7 @@ impl<S: AppEventSender> Api for App<S> {
         }
     }
 
-    fn open_headless(&mut self, config: HeadlessRequest) -> (webrender_api::IdNamespace, webrender_api::PipelineId) {
+    fn open_headless(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
         self.assert_started();
         let surf = Surface::open(
             self.gen,
@@ -915,12 +909,28 @@ impl<S: AppEventSender> Api for App<S> {
             &mut self.gl_manager,
             self.app_sender.clone(),
         );
-        let namespace = surf.id_namespace();
-        let pipeline = surf.pipeline_id();
+        let id_namespace = surf.id_namespace();
+        let pipeline_id = surf.pipeline_id();
+        let document_id = surf.document_id();
 
         self.surfaces.push(surf);
 
-        (namespace, pipeline)
+        HeadlessOpenData {
+            id_namespace,
+            pipeline_id,
+            document_id,
+        }
+    }
+
+    fn open_document(&mut self, request: DocumentRequest) -> HeadlessOpenData {
+        self.assert_started();
+        if let Some(surf) = self.surfaces.iter_mut().find(|s| s.id() == request.renderer) {
+            surf.open_document(request.scale_factor, request.size)
+        } else if let Some(win) = self.windows.iter_mut().find(|s| s.id() == request.renderer) {
+            win.open_document(request.scale_factor, request.size)
+        } else {
+            HeadlessOpenData::invalid()
+        }
     }
 
     fn close_window(&mut self, id: WindowId) {
@@ -930,6 +940,16 @@ impl<S: AppEventSender> Api for App<S> {
         }
         if let Some(i) = self.surfaces.iter().position(|w| w.id() == id) {
             let _ = self.surfaces.swap_remove(i);
+        }
+    }
+
+    fn close_document(&mut self, renderer: WindowId, document_id: DocumentId) {
+        self.assert_started();
+        if let Some(surf) = self.surfaces.iter_mut().find(|w| w.id() == renderer) {
+            surf.close_document(document_id);
+        }
+        if let Some(win) = self.windows.iter_mut().find(|w| w.id() == renderer) {
+            win.close_document(document_id);
         }
     }
 
@@ -1029,14 +1049,13 @@ impl<S: AppEventSender> Api for App<S> {
         }
     }
 
-    fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: f32) {
-        self.with_surface(
-            id,
-            |w| {
-                w.set_size(size, scale_factor);
-            },
-            || (),
-        )
+    fn set_headless_size(&mut self, renderer: WindowId, document_id: DocumentId, size: DipSize, scale_factor: f32) {
+        self.assert_started();
+        if let Some(surf) = self.surfaces.iter_mut().find(|s| s.id() == renderer) {
+            surf.set_size(document_id, size, scale_factor)
+        } else if let Some(win) = self.windows.iter_mut().find(|s| s.id() == renderer) {
+            win.set_document_size(document_id, size, scale_factor)
+        }
     }
 
     fn set_video_mode(&mut self, id: WindowId, mode: VideoMode) {

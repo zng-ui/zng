@@ -1864,17 +1864,15 @@ pub mod view_process {
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
     use zero_ui_view_api::webrender_api::{
-        FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey,
-        PipelineId,
+        DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace,
+        ImageKey, PipelineId,
     };
     pub use zero_ui_view_api::{
         bytes_channel, ByteBuf, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat,
         ImagePpi, IpcBytesReceiver, IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen,
         WindowOpenData, WindowRequest, WindowState, WindowTheme,
     };
-    use zero_ui_view_api::{
-        Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
-    };
+    use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, DocumentRequest, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
     type Result<T> = std::result::Result<T, Respawned>;
 
@@ -1959,6 +1957,7 @@ pub mod view_process {
                 app: self.0.clone(),
                 id_namespace: data.id_namespace,
                 pipeline_id: data.pipeline_id,
+                document_id: data.document_id,
                 generation: app.data_generation,
             }));
             Ok((win, data))
@@ -1972,15 +1971,16 @@ pub mod view_process {
             let mut app = self.0.borrow_mut();
 
             let id = config.id;
-            let (namespace_id, pipeline_id) = app.process.open_headless(config)?;
+            let data = app.process.open_headless(config)?;
 
             Ok(ViewHeadless(Rc::new(WindowConnection {
                 id,
                 app: self.0.clone(),
-                id_namespace: namespace_id,
-                pipeline_id,
+                id_namespace: data.id_namespace,
+                pipeline_id: data.pipeline_id,
+                document_id: data.document_id,
                 generation: app.data_generation,
-            })))
+            }), data.document_id))
         }
 
         /// Read the system text anti-aliasing config.
@@ -2554,6 +2554,7 @@ pub mod view_process {
         id: ApiWindowId,
         id_namespace: IdNamespace,
         pipeline_id: PipelineId,
+        document_id: DocumentId,
         generation: ViewProcessGen,
         app: Rc<RefCell<ViewApp>>,
     }
@@ -2736,11 +2737,11 @@ pub mod view_process {
         }
     }
 
-    /// Connection to a headless surface open in the View Process.
+    /// Connection to a headless surface/document open in the View Process.
     ///
     /// This is a strong reference to the window connection. The view is disposed when every reference drops.
     #[derive(Clone)]
-    pub struct ViewHeadless(Rc<WindowConnection>);
+    pub struct ViewHeadless(Rc<WindowConnection>, DocumentId);
     impl PartialEq for ViewHeadless {
         fn eq(&self, other: &Self) -> bool {
             self.0.id == other.0.id && self.0.generation == other.0.generation
@@ -2751,13 +2752,26 @@ pub mod view_process {
         /// Resize the headless surface.
         #[inline]
         pub fn set_size(&self, size: DipSize, scale_factor: f32) -> Result<()> {
-            self.0.call(|id, p| p.set_headless_size(id, size, scale_factor))
+            let doc_id = self.1;
+            self.0.call(|id, p| p.set_headless_size(id, doc_id, size, scale_factor))
         }
 
         /// Reference the window renderer.
         #[inline]
         pub fn renderer(&self) -> ViewRenderer {
             ViewRenderer(Rc::downgrade(&self.0))
+        }
+
+        /// Open a virtual headless surface that shares the renderer used by `self`.
+        pub fn open_document(&self, size: DipSize, scale_factor: f32) -> Result<ViewHeadless> {
+            let c = self.0.call(|id, p| {
+                p.open_document(DocumentRequest {
+                    renderer: id,
+                    scale_factor,
+                    size,
+                })
+            })?;
+            Ok(Self(Rc::clone(&self.0), c.document_id))
         }
     }
 
@@ -2800,7 +2814,7 @@ pub mod view_process {
             self.0.upgrade().map(|c| c.alive()).unwrap_or(false)
         }
 
-        /// Gets the root pipeline ID.
+        /// Pipeline ID.
         ///
         /// This value is cached locally (not an IPC call).
         #[inline]
@@ -2821,6 +2835,19 @@ pub mod view_process {
             if let Some(c) = self.0.upgrade() {
                 if c.alive() {
                     return Ok(c.id_namespace);
+                }
+            }
+            Err(Respawned)
+        }
+
+        /// Document ID.
+        ///
+        /// This value is cached locally (not an IPC call).
+        #[inline]
+        pub fn document_id(&self) -> Result<DocumentId> {
+            if let Some(c) = self.0.upgrade() {
+                if c.alive() {
+                    return Ok(c.document_id);
                 }
             }
             Err(Respawned)

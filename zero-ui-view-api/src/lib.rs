@@ -48,7 +48,7 @@ pub use app_process::*;
 mod view_process;
 pub use view_process::*;
 
-use webrender_api::{FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
+use webrender_api::{DocumentId, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
 
 /// Packaged API request.
 #[derive(Serialize, Deserialize, Debug)]
@@ -205,7 +205,7 @@ declare_api! {
     /// Open a window.
     ///
     /// Returns the renderer ids.
-    pub fn open_window(&mut self, config: WindowRequest) -> WindowOpenData;
+    pub fn open_window(&mut self, request: WindowRequest) -> WindowOpenData;
 
     /// Open a headless surface.
     ///
@@ -213,10 +213,27 @@ declare_api! {
     /// rendered frames.
     ///
     /// Returns the renderer ids.
-    pub fn open_headless(&mut self, config: HeadlessRequest) -> (IdNamespace, PipelineId);
+    pub fn open_headless(&mut self, request: HeadlessRequest) -> HeadlessOpenData;
+
+    /// Opens a *virtual headless surface* in an existing renderer.
+    ///
+    /// Unlike [`open_headless`] the renderer is shared, all font instance keys and image keys created
+    /// in the parent renderer work in this one too.
+    ///
+    /// Returns the renderer ids,
+    pub fn open_document(&mut self, request: DocumentRequest) -> HeadlessOpenData;
 
     /// Close the window or headless surface.
+    ///
+    /// All documents associated with the window or surface are also closed.
     pub fn close_window(&mut self, id: WindowId);
+
+    /// Close a document in the existing renderer.
+    ///
+    /// Note only documents created using [`open_document`] are closed by this.
+    ///
+    /// [`open_document`]: Api::open_document
+    pub fn close_document(&mut self, renderer: WindowId, document_id: DocumentId);
 
     /// Reads the system default text anti-aliasing config.
     pub fn text_aa(&mut self) -> TextAntiAliasing;
@@ -273,8 +290,8 @@ declare_api! {
     /// Set the window state.
     pub fn set_state(&mut self, id: WindowId, state: WindowState);
 
-    /// Set the headless surface are size (viewport size).
-    pub fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: f32);
+    /// Set the headless surface or document area size (viewport size).
+    pub fn set_headless_size(&mut self, id: WindowId, document_id: DocumentId, size: DipSize, scale_factor: f32);
 
     /// Set the window minimum content area size.
     pub fn set_min_size(&mut self, id: WindowId, size: DipSize);
