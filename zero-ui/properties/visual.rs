@@ -77,6 +77,18 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     BackgroundNode { child, background }
 }
 
+/// Custom background generated using a [`ViewGenerator<()>`].
+///
+/// This is the equivalent of setting [`background`] to the [`presenter_default`] node.
+///
+/// [`ViewGenerator<()>`]: ViewGenerator
+/// [`background`]: fn@background
+/// [`presenter_default`]: ViewGenerator::presenter_default
+#[property(inner, default(ViewGenerator::nil()))]
+pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<()>>) -> impl UiNode {
+    background(child, ViewGenerator::presenter_default(generator))
+}
+
 /// Single color background property.
 ///
 /// This property applies a [`fill_color`] as [`background`].

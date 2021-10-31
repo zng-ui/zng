@@ -251,6 +251,17 @@ impl<D> ViewGenerator<D> {
         Self::presenter_map(generator, update, |v| v)
     }
 
+    /// Create a presenter node that only updates when the `generator` updates using the [`Default`] data.
+    pub fn presenter_default(generator: impl IntoVar<ViewGenerator<D>>) -> impl UiNode
+    where
+        D: Default + 'static,
+    {
+        Self::presenter(
+            generator,
+            |_, new| if new { DataUpdate::Update(D::default()) } else { DataUpdate::Same },
+        )
+    }
+
     /// Like [`presenter`] but the generated view can be modified using the `map` closure.
     ///
     /// [`presenter`]: ViewGenerator::presenter
