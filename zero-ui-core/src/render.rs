@@ -982,6 +982,11 @@ impl FrameBuilder {
         }
     }
 
+    /// TODO/Scrolling.md
+    pub fn push_scroll_frame(&mut self) {
+        //self.display_list.define_scroll_frame(self.clip_id, external_id, content_rect, frame_rect, scroll_sensitivity, external_scroll_offset)
+    }
+
     /// Push a `color` dot to mark the `offset`.
     ///
     /// The *dot* is a circle of the `color` highlighted by an white outline and shadow.
