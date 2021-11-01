@@ -44,6 +44,7 @@ fn app_main() {
                     v_stack! {
                         spacing = 20;
                         items = widgets![
+                            title("image_source"),
                             demo_image("File", uniform_grid! {
                                 columns = 4;
                                 spacing = 2;
@@ -70,6 +71,7 @@ fn app_main() {
                     v_stack! {
                         spacing = 20;
                         items = widgets![
+                            title("fit"),
                             demo_image(
                                 "None",
                                 image! {
@@ -111,6 +113,66 @@ fn app_main() {
                                 }
                             ),
                         ];
+                    },
+                    v_stack! {
+                        spacing = 20;
+                        items = widgets![
+                            title("filter"),
+                            demo_image(
+                                "grayscale",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Cover;
+                                    grayscale = true;
+                                }
+                            ),
+                            demo_image(
+                                "sepia",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Cover;
+                                    sepia = true;
+                                }
+                            ),
+                            demo_image(
+                                "blur",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Cover;
+                                    blur = 4;
+                                }
+                            ),
+                            demo_image(
+                                "opacity",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Cover;
+                                    opacity = 50.pct();
+                                }
+                            ),
+                            demo_image(
+                                "invert_color",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Cover;
+                                    invert_color = true;
+                                }
+                            ),
+                            demo_image(
+                                "hue_rotate",
+                                image! {
+                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                    size = (200, 100);
+                                    fit = ImageFit::Cover;
+                                    hue_rotate = -(90.deg());
+                                }
+                            ),
+                        ]
                     }
                 ]
             }
@@ -118,9 +180,13 @@ fn app_main() {
     })
 }
 
-fn demo_image(title: impl IntoVar<Text> + 'static, image: impl Widget) -> impl Widget {
+fn demo_image(title: &'static str, image: impl Widget) -> impl Widget {
     v_stack(widgets![
-        strong(title),
+        text! {
+            text = title;
+            margin = (0, 0, 4, 0);
+            font_weight = FontWeight::BOLD;
+        },
         container! {
             content = image;
             content_align = unset!;
@@ -222,5 +288,12 @@ fn transparency() -> impl Widget {
     checkerboard! {
         colors = rgb(20, 20, 20), rgb(40, 40, 40);
         cb_size = (16, 16);
+    }
+}
+
+fn title(s: &'static str) -> impl Widget {
+    text! {
+        text = s;
+        font_size = 20;
     }
 }
