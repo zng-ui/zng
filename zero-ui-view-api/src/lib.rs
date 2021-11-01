@@ -220,7 +220,9 @@ declare_api! {
     /// Unlike [`open_headless`] the renderer is shared, all font instance keys and image keys created
     /// in the parent renderer work in this one too.
     ///
-    /// Returns the renderer ids,
+    /// Returns the renderer ids.
+    /// 
+    /// [`open_headless`]: Api::open_headless
     pub fn open_document(&mut self, request: DocumentRequest) -> HeadlessOpenData;
 
     /// Close the window or headless surface.
