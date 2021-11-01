@@ -21,7 +21,7 @@ fn main() {
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_lib = Path::new(&out_dir).join("zero_ui_view").join(file);
-    
+
     if let Err(e) = std::fs::copy(lib, out_lib) {
         eprintln!("failed to copy `{}` to output, {}", file, e);
     }

@@ -100,11 +100,34 @@ impl Rgba {
         self.alpha = alpha.into().0
     }
 
+    /// Returns a copy of the color with a new `red` value.
+    pub fn with_red<R: Into<RgbaComponent>>(mut self, red: R) -> Self {
+        self.set_red(red);
+        self
+    }
+
+    /// Returns a copy of the color with a new `green` value.
+    pub fn with_green<R: Into<RgbaComponent>>(mut self, green: R) -> Self {
+        self.set_green(green);
+        self
+    }
+
+    /// Returns a copy of the color with a new `blue` value.
+    pub fn with_blue<B: Into<RgbaComponent>>(mut self, blue: B) -> Self {
+        self.set_blue(blue);
+        self
+    }
+
+    /// Returns a copy of the color with a new `alpha` value.
+    pub fn with_alpha<A: Into<RgbaComponent>>(mut self, alpha: A) -> Self {
+        self.set_alpha(alpha);
+        self
+    }
+
     /// Returns a copy of the color with the alpha set to `0`.
     #[inline]
-    pub fn transparent(mut self) -> Self {
-        self.alpha = 0.0;
-        self
+    pub fn transparent(self) -> Self {
+        self.with_alpha(0.0)
     }
 
     /// Convert a copy of the color to [`Hsla`].
@@ -267,13 +290,37 @@ impl Hsla {
     }
 
     /// Sets the [`saturation`](Self::saturation) value.
-    pub fn set_saturation<L: Into<FactorNormal>>(&mut self, saturation: L) {
+    pub fn set_saturation<S: Into<FactorNormal>>(&mut self, saturation: S) {
         self.saturation = saturation.into().0;
     }
 
     /// Sets the [`alpha`](Self::alpha) value.
     pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
         self.alpha = alpha.into().0
+    }
+
+    /// Returns a copy of this color with a new `hue`.
+    pub fn with_hue<H: Into<AngleDegree>>(mut self, hue: H) -> Self {
+        self.set_hue(hue);
+        self
+    }
+
+    /// Returns a copy of this color with a new `lightness`.
+    pub fn with_lightness<L: Into<FactorNormal>>(mut self, lightness: L) -> Self {
+        self.set_lightness(lightness);
+        self
+    }
+
+    /// Returns a copy of this color with a new `saturation`.
+    pub fn with_saturation<S: Into<FactorNormal>>(mut self, saturation: S) -> Self {
+        self.set_saturation(saturation);
+        self
+    }
+
+    /// Returns a copy of this color with a new `alpha`.
+    pub fn with_alpha<A: Into<FactorNormal>>(mut self, alpha: A) -> Self {
+        self.set_alpha(alpha);
+        self
     }
 
     /// Converts a copy of this color to [`Rgba`].
@@ -379,6 +426,30 @@ impl Hsva {
     /// Sets the [`alpha`](Self::alpha) value.
     pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
         self.alpha = alpha.into().0
+    }
+
+    /// Returns a copy of this color with a new `hue`.
+    pub fn with_hue<H: Into<AngleDegree>>(mut self, hue: H) -> Self {
+        self.set_hue(hue);
+        self
+    }
+
+    /// Returns a copy of this color with a new `value`.
+    pub fn with_value<V: Into<FactorNormal>>(mut self, value: V) -> Self {
+        self.set_value(value);
+        self
+    }
+
+    /// Returns a copy of this color with a new `saturation`.
+    pub fn with_saturation<S: Into<FactorNormal>>(mut self, saturation: S) -> Self {
+        self.set_saturation(saturation);
+        self
+    }
+
+    /// Returns a copy of this color with a new `alpha`.
+    pub fn with_alpha<A: Into<FactorNormal>>(mut self, alpha: A) -> Self {
+        self.set_alpha(alpha);
+        self
     }
 
     /// Converts a copy of this color to [`Rgba`].
@@ -1039,7 +1110,9 @@ impl Filter {
         self.op(FilterOp::Saturate(amount.into().0))
     }
 
-    /// Add a filter that adds the `angle` to each color [`hue`](Hsla::hue) value.
+    /// Add a filter that adds the `angle` to each color [`hue`] value.
+    ///
+    /// [`hue`]: Hsla::hue
     pub fn hue_rotate<A: Into<AngleDegree>>(self, angle: A) -> Self {
         self.op(FilterOp::HueRotate(angle.into().0))
     }

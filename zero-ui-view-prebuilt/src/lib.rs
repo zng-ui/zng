@@ -47,8 +47,8 @@ impl ViewLib {
     ///
     /// If the file does not have an extension searches for a file without extension then a
     /// `.dll` file in Windows, a `.so` file in Linux and a `.dylib` file in other operating systems.
-    /// 
-    /// If the path is local, 
+    ///
+    /// If the path is local,
     pub fn link(view_dylib: impl Into<PathBuf>) -> Result<Self, Error> {
         let mut lib = view_dylib.into();
         if !lib.exists() && lib.extension().is_none() {

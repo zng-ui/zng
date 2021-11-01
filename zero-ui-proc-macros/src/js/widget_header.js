@@ -37,7 +37,7 @@ if (div !== null) { // avoid using && here because rustdoc breaks it.
                     modules.parentNode.insertBefore(table, pm.nextSibling);
 
                     // remove empty modules
-                    if (modules.nextElementSibling.querySelector('tr') === null) {
+                    if (modules.nextElementSibling.querySelector('div.item-row') === null) {
                         modules.nextElementSibling.remove();
                         modules.remove();
                         side_modules.remove();

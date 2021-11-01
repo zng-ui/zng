@@ -26,11 +26,16 @@ fn app_main() {
             // Set a error view generator used in all images in this window.
             image_error_view = view_generator!(|_, args: ImageErrorArgs| {
                 log::error!(target: "expected", "{}", args.error);
-                text!{
+                text! {
                     text = args.error;
                     margin = 20;
                     align = Alignment::CENTER;
                     color = colors::RED;
+                    drop_shadow = {
+                        offset: (0, 0),
+                        blur_radius: 4,
+                        color: colors::DARK_RED
+                    };
                 }
             });
             content = h_stack! {
@@ -205,6 +210,11 @@ fn image_loading(ctx: &mut WidgetContext, _: ImageLoadingArgs) -> impl Widget {
         align = Alignment::CENTER;
         width = 80;
         font_style = FontStyle::Italic;
+        drop_shadow = {
+            offset: (0, 0),
+            blur_radius: 4,
+            color: colors::GRAY,
+        };
     }
 }
 

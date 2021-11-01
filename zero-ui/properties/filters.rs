@@ -9,8 +9,10 @@ use crate::prelude::new_property::*;
 ///
 /// # Performance
 ///
-/// The performance for setting specific filter properties versus this one is the same, except for [`opacity`](fn@opacity)
-/// with is optimized for animation.
+/// The performance for setting specific filter properties versus this one is the same, except for [`opacity`]
+/// which can be animated using only frame updates instead of generating a new frame every change.
+///
+/// [`opacity`]: fn@opacity
 #[property(context, default(Filter::default()))]
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     struct FilterNode<C, F> {
@@ -45,27 +47,57 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 
 /// Inverts the colors of the widget.
 ///
-/// This property is a shorthand way of setting [`filter`](fn@filter) to [`color::invert(amount)`](color::invert) using variable merging.
+/// Zero does not invert, one fully inverts.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::invert`] using variable mapping.
+///
+/// [`filter`]: fn@filter
 #[property(context, default(false))]
 pub fn invert_color(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::invert(a)))
 }
 
+/// Blur the widget.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::blur`] using variable mapping.
+///
+/// [`filter`]: fn@filter
 #[property(context, default(0))]
 pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
     filter(child, radius.into_var().map(|r| color::blur(r.clone())))
 }
 
+/// Sepia tone the widget.
+///
+/// zero is the original colors, one is the full desaturated brown look.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::sepia`] using variable mapping.
+///
+/// [`filter`]: fn@filter
 #[property(context, default(false))]
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::sepia(a)))
 }
 
+/// Grayscale tone the widget.
+///
+/// Zero is the original colors, one if the full grayscale.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::grayscale`] using variable mapping.
+///
+/// [`filter`]: fn@filter
 #[property(context, default(false))]
 pub fn grayscale(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::grayscale(a)))
 }
 
+/// Drop-shadow effect for the widget.
+///
+/// The shadow is *pixel accurate*.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::drop_shadow`] using variable merging.
+///
+/// [`filter`]: fn@filter
 #[property(context, default((0, 0), 0, colors::BLACK.transparent()))]
 pub fn drop_shadow(
     child: impl UiNode,
@@ -81,21 +113,50 @@ pub fn drop_shadow(
     )
 }
 
+/// Adjust the widget colors brightness.
+///
+/// Zero removes all brightness, one is the original brightness.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::brightness`] using variable mapping.
+///
+/// [`filter`]: fn@filter
 #[property(context, default(1.0))]
 pub fn brightness(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::brightness(a)))
 }
 
+/// Adjust the widget colors contrast.
+///
+/// Zero removes all contrast, one is the original contrast.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::brightness`] using variable mapping.
+///
+/// [`filter`]: fn@filter
 #[property(context, default(1.0))]
 pub fn contrast(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::contrast(a)))
 }
 
+/// Adjust the widget colors saturation.
+///
+/// Zero fully desaturates, one is the original saturation.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::saturate`] using variable mapping.
+///
+/// [`filter`]: fn@filter
 #[property(context, default(1.0))]
 pub fn saturate(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::saturate(a)))
 }
 
+/// Hue shift the widget colors.
+///
+/// Adds `angle` to the [`hue`] of the widget colors.
+///
+/// This property is a shorthand way of setting [`filter`] to [`color::hue_rotate`] using variable mapping.
+///
+/// [`filter`]: fn@filter
+/// [`hue`]: Hsla::hue
 #[property(context, default(0.deg()))]
 pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
     filter(child, angle.into_var().map(|&a| color::hue_rotate(a)))

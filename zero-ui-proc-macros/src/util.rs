@@ -443,7 +443,7 @@ pub fn is_doc_hidden_tt(docs: TokenStream) -> bool {
 /// parent module summary list page.
 pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js: &'static str) {
     if docs.is_empty() {
-        doc_extend!(output, "{}", js);
+        doc_extend!(output, "<script>{}</script>", js);
     } else {
         let inner = docs[0].tokens.to_string();
         let mut skip = 0;

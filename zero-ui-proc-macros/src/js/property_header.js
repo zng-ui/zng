@@ -44,7 +44,7 @@ function move_properties() {
             functions.parentNode.insertBefore(table, pf.nextSibling);
 
             // remove empty section
-            if (functions.nextElementSibling.querySelector('tr') === null) {
+            if (functions.nextElementSibling.querySelector('div.item-row') === null) {
                 functions.nextElementSibling.remove();
                 functions.remove();
                 side_functions.remove();
