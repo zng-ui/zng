@@ -395,10 +395,10 @@ fn release_rust_flags(is_release: bool) -> (&'static str, String) {
 fn prebuild(args: Vec<&str>) {
     cmd("cargo", &["build", "-p", "zero-ui-view", "--release"], &args);
 
-    let files = staticlib_files("target/release/zero_ui_view");
+    let files = cdylib_files("target/release/zero_ui_view");
 
     if files.is_empty() {
-        error("no `staticlib` output found");
+        error("no `cdylib` output found");
         return;
     }
 

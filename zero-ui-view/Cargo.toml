@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [lib]
-crate-type = ["lib", "staticlib"]
+crate-type = ["lib", "cdylib"]
 
 [dependencies]
 zero-ui-view-api = { path = "../zero-ui-view-api" }

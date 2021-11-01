@@ -265,17 +265,21 @@ pub fn build_test_cases() -> Vec<(String, String)> {
     }
 }
 
-// Get "staticlib" crate output.
-pub fn staticlib_files(path: &str) -> Vec<String> {
-    let unix = format!("{}.a", path);
-    let windows = format!("{}.lib", path);
+// Get "cdylib" crate output.
+pub fn cdylib_files(path: &str) -> Vec<String> {
+    let linux = format!("{}.so", path);
+    let windows = format!("{}.dll", path);
+    let macos = format!("{}.dylib", path);
 
     let mut r = vec![];
-    if std::path::PathBuf::from(&unix).exists() {
-        r.push(unix);
+    if std::path::PathBuf::from(&linux).exists() {
+        r.push(linux);
     }
     if std::path::PathBuf::from(&windows).exists() {
         r.push(windows);
+    }
+    if std::path::PathBuf::from(&macos).exists() {
+        r.push(macos);
     }
 
     r

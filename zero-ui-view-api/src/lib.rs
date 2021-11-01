@@ -221,7 +221,7 @@ declare_api! {
     /// in the parent renderer work in this one too.
     ///
     /// Returns the renderer ids.
-    /// 
+    ///
     /// [`open_headless`]: Api::open_headless
     pub fn open_document(&mut self, request: DocumentRequest) -> HeadlessOpenData;
 
