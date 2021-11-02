@@ -31,7 +31,7 @@ use crate::{
     context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
     event::{event, EventUpdateArgs},
     event_args, impl_from_and_into_var, profile_scope,
-    render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, WidgetTransformKey},
+    render::{webrender_api::ExternalScrollId, FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, WidgetTransformKey},
     service::Service,
     state::OwnedStateMap,
     state_key,
@@ -2489,8 +2489,15 @@ impl AppWindow {
 
         let next_frame_id = self.frame_id.next_update();
 
-        let (updates, clear_color) = self.context.render_update(ctx, next_frame_id);
-        if clear_color.is_none() && updates.transforms.is_empty() && updates.floats.is_empty() && !capture_image {
+        let (updates, scroll_updates, clear_color) = self.context.render_update(ctx, next_frame_id);
+        let request = FrameUpdateRequest {
+            id: next_frame_id,
+            updates,
+            scroll_updates,
+            clear_color,
+            capture_image,
+        };
+        if request.is_empty() {
             return;
         }
 
@@ -2498,12 +2505,7 @@ impl AppWindow {
 
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
-            let _: Result<(), Respawned> = renderer.render_update(FrameUpdateRequest {
-                id: next_frame_id,
-                updates,
-                clear_color,
-                capture_image,
-            });
+            let _: Result<(), Respawned> = renderer.render_update(request);
         }
     }
 
@@ -2649,7 +2651,11 @@ impl OwnedWindowContext {
         frame.finalize()
     }
 
-    fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId) -> (DynamicProperties, Option<RenderColor>) {
+    fn render_update(
+        &mut self,
+        ctx: &mut AppContext,
+        frame_id: FrameId,
+    ) -> (DynamicProperties, Vec<(ExternalScrollId, PxVector)>, Option<RenderColor>) {
         debug_assert!(self.update.is_render_update());
         self.update = UpdateDisplayRequest::None;
 

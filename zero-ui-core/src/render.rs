@@ -125,7 +125,7 @@ pub struct FrameBuilder {
 
     widget_id: WidgetId,
     widget_transform_key: WidgetTransformKey,
-    widget_stack_ctx_data: Option<(LayoutTransform, Vec<FilterOp>)>,
+    widget_stack_ctx_data: Option<(LayoutTransform, Vec<FilterOp>, PrimitiveFlags)>,
     cancel_widget: bool,
     widget_display_mode: WidgetDisplayMode,
 
@@ -194,7 +194,7 @@ impl FrameBuilder {
             offset: PxPoint::zero(),
         };
         new.push_widget_hit_area(root_id, root_size);
-        new.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default()));
+        new.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
         new
     }
 
@@ -384,7 +384,7 @@ impl FrameBuilder {
         if self.cancel_widget {
             return Ok(());
         }
-        if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
+        if let Some((t, _, _)) = self.widget_stack_ctx_data.as_mut() {
             // we don't use post_transform here fore the same reason `Self::open_widget_display`
             // reverses filters, there is a detailed comment there.
             *t = transform.then(t);
@@ -411,7 +411,7 @@ impl FrameBuilder {
         if self.cancel_widget {
             return Ok(());
         }
-        if let Some((_, f)) = self.widget_stack_ctx_data.as_mut() {
+        if let Some((_, f, _)) = self.widget_stack_ctx_data.as_mut() {
             f.extend(filter.into_iter().rev()); // see `Self::open_widget_display` for why it is reversed.
             child.render(ctx, self);
             Ok(())
@@ -436,12 +436,30 @@ impl FrameBuilder {
         if self.cancel_widget {
             return Ok(());
         }
-        if let Some((_, f)) = self.widget_stack_ctx_data.as_mut() {
+        if let Some((_, f, _)) = self.widget_stack_ctx_data.as_mut() {
             let value = match &bind {
                 PropertyBinding::Value(v) => *v,
                 PropertyBinding::Binding(_, v) => *v,
             };
             f.push(FilterOp::Opacity(bind, value));
+            child.render(ctx, self);
+            Ok(())
+        } else {
+            child.render(ctx, self);
+            Err(WidgetStartedError)
+        }
+    }
+
+    /// Include the `flags` on the widget stacking context flags.
+    #[inline]
+    pub fn width_widget_flags(
+        &mut self,
+        flags: PrimitiveFlags,
+        child: &impl UiNode,
+        ctx: &mut RenderContext,
+    ) -> Result<(), WidgetStartedError> {
+        if let Some((_, _, f)) = self.widget_stack_ctx_data.as_mut() {
+            *f |= flags;
             child.render(ctx, self);
             Ok(())
         } else {
@@ -456,7 +474,7 @@ impl FrameBuilder {
         if self.cancel_widget {
             return;
         }
-        if let Some((transform, mut filters)) = self.widget_stack_ctx_data.take() {
+        if let Some((transform, mut filters, flags)) = self.widget_stack_ctx_data.take() {
             if transform != LayoutTransform::identity() {
                 self.widget_display_mode |= WidgetDisplayMode::REFERENCE_FRAME;
 
@@ -473,7 +491,7 @@ impl FrameBuilder {
                 );
             }
 
-            if !filters.is_empty() {
+            if !filters.is_empty() || !flags.is_empty() {
                 // we want to apply filters in the top-to-bottom, left-to-right order they appear in
                 // the widget declaration, but the widget declaration expands to have the top property
                 // node be inside the bottom property node, so the bottom property ends up inserting
@@ -487,7 +505,7 @@ impl FrameBuilder {
                 self.display_list.push_simple_stacking_context_with_filters(
                     PxPoint::zero().to_wr(),
                     self.spatial_id,
-                    PrimitiveFlags::empty(),
+                    flags,
                     &filters,
                     &[],
                     &[],
@@ -545,7 +563,7 @@ impl FrameBuilder {
 
         self.push_widget_hit_area(id, area); // self.open_widget_display() happens here.
 
-        self.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default()));
+        self.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
 
         let parent_id = mem::replace(&mut self.widget_id, id);
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
@@ -1089,6 +1107,7 @@ pub struct WidgetStartedError;
 pub struct FrameUpdate {
     bindings: DynamicProperties,
     clear_color: Option<RenderColor>,
+    scrolls: Vec<(ExternalScrollId, PxVector)>,
     frame_id: FrameId,
     window_id: WindowId,
     widget_id: WidgetId,
@@ -1106,6 +1125,7 @@ impl FrameUpdate {
     pub fn new(window_id: WindowId, root_id: WidgetId, root_transform_key: WidgetTransformKey, frame_id: FrameId) -> Self {
         FrameUpdate {
             bindings: DynamicProperties::default(),
+            scrolls: vec![],
             window_id,
             clear_color: None,
             widget_id: root_id,
@@ -1165,6 +1185,14 @@ impl FrameUpdate {
         self.bindings.colors.push(new_value)
     }
 
+    /// Update a scroll frame offset.
+    ///
+    /// The `offset` is added to the offset used in the last full frame render.
+    #[inline]
+    pub fn update_scroll(&mut self, id: ExternalScrollId, offset: PxVector) {
+        self.scrolls.push((id, offset))
+    }
+
     /// Calls [`render_update`](UiNode::render_update) for `child` inside a new widget context.
     #[inline]
     pub fn update_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, child: &impl UiNode, ctx: &mut RenderContext) {
@@ -1206,13 +1234,13 @@ impl FrameUpdate {
 
     /// Finalize the update.
     ///
-    /// Returns the property updates and the new clear color if any was set.
-    pub fn finalize(mut self) -> (DynamicProperties, Option<RenderColor>) {
+    /// Returns the property updates, scroll updates and the new clear color if any was set.
+    pub fn finalize(mut self) -> (DynamicProperties, Vec<(ExternalScrollId, PxVector)>, Option<RenderColor>) {
         if self.widget_transform != LayoutTransform::identity() {
             self.update_transform(self.widget_transform_key.update(self.widget_transform));
         }
 
-        (self.bindings, self.clear_color)
+        (self.bindings, self.scrolls, self.clear_color)
     }
 }
 

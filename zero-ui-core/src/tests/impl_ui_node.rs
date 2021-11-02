@@ -207,10 +207,11 @@ pub fn default_no_child() {
     // and not update render..
     let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID);
     wgt.test_render_update(&mut ctx, &mut update);
-    let (update, render_color) = update.finalize();
+    let (update, scroll_update, render_color) = update.finalize();
     assert!(update.transforms.is_empty());
     assert!(update.floats.is_empty());
     assert!(update.colors.is_empty());
+    assert!(scroll_update.is_empty());
     assert!(render_color.is_none());
 }
 

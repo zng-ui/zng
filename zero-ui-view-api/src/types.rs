@@ -5,9 +5,7 @@ use serde::{Deserialize, Serialize};
 pub use serde_bytes::ByteBuf;
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
-use webrender_api::DynamicProperties;
-use webrender_api::Epoch;
-use webrender_api::{BuiltDisplayListDescriptor, ColorF, HitTestResult, PipelineId};
+use webrender_api::*;
 
 /// Window ID in channel.
 ///
@@ -1043,6 +1041,10 @@ pub struct FrameUpdateRequest {
 
     /// Binding updates.
     pub updates: DynamicProperties,
+
+    /// Scroll frame updates.
+    pub scroll_updates: Vec<(ExternalScrollId, PxVector)>,
+
     /// New clear color.
     pub clear_color: Option<ColorF>,
     /// Automatically create an image from this rendered frame.
@@ -1060,9 +1062,21 @@ impl FrameUpdateRequest {
                 floats: vec![],
                 colors: vec![],
             },
+            scroll_updates: vec![],
             clear_color: None,
             capture_image: false,
         }
+    }
+
+    /// If this request does not do anything, apart from notifying
+    /// a new frame if send to the renderer.
+    pub fn is_empty(&self) -> bool {
+        self.updates.transforms.is_empty()
+            && self.updates.floats.is_empty()
+            && self.updates.colors.is_empty()
+            && self.scroll_updates.is_empty()
+            && self.clear_color.is_none()
+            && !self.capture_image
     }
 }
 impl fmt::Debug for FrameUpdateRequest {
@@ -1070,6 +1084,7 @@ impl fmt::Debug for FrameUpdateRequest {
         f.debug_struct("FrameUpdateRequest")
             .field("id", &self.id)
             .field("updates", &self.updates)
+            .field("scroll_updates", &self.scroll_updates)
             .field("clear_color", &self.clear_color)
             .field("capture_image", &self.capture_image)
             .finish()

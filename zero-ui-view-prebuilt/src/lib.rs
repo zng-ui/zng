@@ -47,9 +47,9 @@ impl ViewLib {
     }
 
     /// Try to delete the installed library from the data directory.
-    /// 
+    ///
     /// See [`uninstall_from`] for details.
-    /// 
+    ///
     /// [`uninstall_from`]: Self::uninstall_from
     pub fn uninstall() -> Result<bool, io::Error> {
         let dir = dirs::data_dir().unwrap_or_else(env::temp_dir).join("zero_ui_view");
@@ -80,9 +80,9 @@ impl ViewLib {
 
     /// Try to delete the installed library from the given `dir`.
     ///
-    /// Returns `Ok(true)` if uninstalled, `Ok(false)` if was not installed and `Err(_)` 
+    /// Returns `Ok(true)` if uninstalled, `Ok(false)` if was not installed and `Err(_)`
     /// if is installed and failed to delete.
-    /// 
+    ///
     /// Note that the file is probably in use if it was installed in the current process instance, in Windows
     /// files cannot be deleted until they are released.
     pub fn uninstall_from(dir: impl Into<PathBuf>) -> Result<bool, io::Error> {

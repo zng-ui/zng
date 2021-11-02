@@ -20,7 +20,7 @@ use glutin::{
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey,
-        FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier,
+        FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier, ScrollClamping,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
@@ -699,9 +699,12 @@ impl Window {
         }
 
         let mut txn = Transaction::new();
+
         txn.set_root_pipeline(self.pipeline_id);
         txn.update_dynamic_properties(frame.updates);
-        //TODO: txn.scroll_node_with_id(Point2D<f32, LayoutPixel>, ExternalScrollId, ScrollClamping)
+        for (scroll_id, offset) in frame.scroll_updates {
+            txn.scroll_node_with_id(offset.to_point().to_wr(), scroll_id, ScrollClamping::NoClamping);
+        }
 
         self.push_resize(&mut txn);
 

@@ -40,7 +40,10 @@ fn main() {
         hash[..8].copy_from_slice(&a.to_le_bytes());
         hash[8..].copy_from_slice(&b.to_le_bytes());
 
-        println!("cargo:rustc-env=ZERO_UI_VIEW_LIB_HASH={}", base64::encode_config(&hash, base64::URL_SAFE_NO_PAD));
+        println!(
+            "cargo:rustc-env=ZERO_UI_VIEW_LIB_HASH={}",
+            base64::encode_config(&hash, base64::URL_SAFE_NO_PAD)
+        );
     } else {
         println!("cargo:warning=missing `{}`, run `do prebuild`", file);
     }
