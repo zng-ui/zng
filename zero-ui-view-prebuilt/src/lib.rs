@@ -62,6 +62,7 @@ impl ViewLib {
     pub fn install_to(dir: impl Into<PathBuf>) -> Result<Self, Error> {
         #[cfg(not(zero_ui_lib_embedded))]
         {
+            let _ = dir;
             panic!("library not embedded");
         }
 
@@ -87,7 +88,8 @@ impl ViewLib {
     pub fn uninstall_from(dir: impl Into<PathBuf>) -> Result<bool, io::Error> {
         #[cfg(not(zero_ui_lib_embedded))]
         {
-            return Ok(false);
+            let _ = dir;
+            Ok(false)
         }
 
         #[cfg(zero_ui_lib_embedded)]
