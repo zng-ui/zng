@@ -1,12 +1,15 @@
-use std::{env, path::Path};
+use std::{env, hash::Hasher, path::Path};
+
+use hashers::jenkins::spooky_hash::SpookyHasher;
 
 fn main() {
-    let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let mut lib = Path::new(&dir).join("lib");
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let mut lib = Path::new(&manifest_dir).join("lib");
+
     println!("cargo:rerun-if-changed={}", lib.display());
 
     #[allow(unused_variables)]
-    let file = "unknown-OS";
+    let file = "";
 
     #[cfg(target_os = "windows")]
     let file = "zero_ui_view.dll";
@@ -17,12 +20,28 @@ fn main() {
     #[cfg(target_os = "macos")]
     let file = "zero_ui_view.dylib";
 
-    lib.set_file_name(file);
+    if file.is_empty() {
+        panic!("unsuported OS");
+    }
 
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let out_lib = Path::new(&out_dir).join("zero_ui_view").join(file);
+    lib = lib.join(file);
 
-    if let Err(e) = std::fs::copy(lib, out_lib) {
-        eprintln!("failed to copy `{}` to output, {}", file, e);
+    if lib.exists() {
+        println!("cargo:rustc-cfg=zero_ui_lib_embedded");
+        println!("cargo:rustc-env=ZERO_UI_VIEW_LIB={}", lib.canonicalize().unwrap().display());
+
+        let lib_bytes = std::fs::read(lib).unwrap();
+
+        // just to identify build.
+        let mut hasher = SpookyHasher::new(u64::from_le_bytes(*b"prebuild"), u64::from_le_bytes(*b"view-lib"));
+        hasher.write(&lib_bytes);
+        let (a, b) = hasher.finish128();
+        let mut hash = [0; 16];
+        hash[..8].copy_from_slice(&a.to_le_bytes());
+        hash[8..].copy_from_slice(&b.to_le_bytes());
+
+        println!("cargo:rustc-env=ZERO_UI_VIEW_LIB_HASH={}", base64::encode_config(&hash, base64::URL_SAFE_NO_PAD));
+    } else {
+        println!("cargo:warning=missing `{}`, run `do prebuild`", file);
     }
 }
