@@ -375,12 +375,7 @@ impl FrameBuilder {
     ///
     /// In case of error the `child` render is still called just without the transform.
     #[inline]
-    pub fn with_widget_transform(
-        &mut self,
-        transform: &LayoutTransform,
-        child: &impl UiNode,
-        ctx: &mut RenderContext,
-    ) -> Result<(), WidgetStartedError> {
+    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
@@ -388,10 +383,10 @@ impl FrameBuilder {
             // we don't use post_transform here fore the same reason `Self::open_widget_display`
             // reverses filters, there is a detailed comment there.
             *t = transform.then(t);
-            child.render(ctx, self);
+            f(self);
             Ok(())
         } else {
-            child.render(ctx, self);
+            f(self);
             Err(WidgetStartedError)
         }
     }
@@ -402,21 +397,16 @@ impl FrameBuilder {
     ///
     /// In case of error the `child` render is still called just without the filter.
     #[inline]
-    pub fn with_widget_filter(
-        &mut self,
-        filter: RenderFilter,
-        child: &impl UiNode,
-        ctx: &mut RenderContext,
-    ) -> Result<(), WidgetStartedError> {
+    pub fn with_widget_filter(&mut self, filter: RenderFilter, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
-        if let Some((_, f, _)) = self.widget_stack_ctx_data.as_mut() {
-            f.extend(filter.into_iter().rev()); // see `Self::open_widget_display` for why it is reversed.
-            child.render(ctx, self);
+        if let Some((_, fi, _)) = self.widget_stack_ctx_data.as_mut() {
+            fi.extend(filter.into_iter().rev()); // see `Self::open_widget_display` for why it is reversed.
+            f(self);
             Ok(())
         } else {
-            child.render(ctx, self);
+            f(self);
             Err(WidgetStartedError)
         }
     }
@@ -427,43 +417,33 @@ impl FrameBuilder {
     ///
     /// In case of error the `child` render is still called just without the filter.
     #[inline]
-    pub fn with_widget_opacity(
-        &mut self,
-        bind: FrameBinding<f32>,
-        child: &impl UiNode,
-        ctx: &mut RenderContext,
-    ) -> Result<(), WidgetStartedError> {
+    pub fn with_widget_opacity(&mut self, bind: FrameBinding<f32>, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
-        if let Some((_, f, _)) = self.widget_stack_ctx_data.as_mut() {
+        if let Some((_, fi, _)) = self.widget_stack_ctx_data.as_mut() {
             let value = match &bind {
                 PropertyBinding::Value(v) => *v,
                 PropertyBinding::Binding(_, v) => *v,
             };
-            f.push(FilterOp::Opacity(bind, value));
-            child.render(ctx, self);
+            fi.push(FilterOp::Opacity(bind, value));
+            f(self);
             Ok(())
         } else {
-            child.render(ctx, self);
+            f(self);
             Err(WidgetStartedError)
         }
     }
 
     /// Include the `flags` on the widget stacking context flags.
     #[inline]
-    pub fn width_widget_flags(
-        &mut self,
-        flags: PrimitiveFlags,
-        child: &impl UiNode,
-        ctx: &mut RenderContext,
-    ) -> Result<(), WidgetStartedError> {
-        if let Some((_, _, f)) = self.widget_stack_ctx_data.as_mut() {
-            *f |= flags;
-            child.render(ctx, self);
+    pub fn width_widget_flags(&mut self, flags: PrimitiveFlags, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
+        if let Some((_, _, fl)) = self.widget_stack_ctx_data.as_mut() {
+            *fl |= flags;
+            f(self);
             Ok(())
         } else {
-            child.render(ctx, self);
+            f(self);
             Err(WidgetStartedError)
         }
     }
@@ -649,7 +629,7 @@ impl FrameBuilder {
     // TODO use the widget transform instead of calling this method.
     /// Calls `f` inside a new reference frame at `origin`.
     #[inline]
-    pub fn push_reference_frame(&mut self, origin: PxPoint, f: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_reference_frame(&mut self, origin: PxPoint, f: impl FnOnce(&mut Self)) {
         if self.cancel_widget {
             return;
         }
@@ -684,7 +664,7 @@ impl FrameBuilder {
 
     /// Calls `f` inside a new reference frame transformed by `transform`.
     #[inline]
-    pub fn push_transform(&mut self, transform: FrameBinding<LayoutTransform>, f: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_transform(&mut self, transform: FrameBinding<LayoutTransform>, f: impl FnOnce(&mut Self)) {
         if self.cancel_widget {
             return;
         }
@@ -1171,9 +1151,9 @@ impl FrameUpdate {
 
     /// Includes the widget transform.
     #[inline]
-    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode, ctx: &mut RenderContext) {
+    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, f: impl FnOnce(&mut Self)) {
         self.widget_transform = self.widget_transform.then(transform);
-        child.render_update(ctx, self);
+        f(self);
     }
 
     /// Update a layout transform value.

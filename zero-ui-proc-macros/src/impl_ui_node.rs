@@ -117,7 +117,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     };
 
     if validate_manual_delegate {
-        let skip = vec![ident!("render"), ident!("render_update"), ident!("boxed")];
+        let skip = vec![ident!("boxed")];
 
         // validate that manually implemented UiNode methods call the expected method in the struct child or children.
 

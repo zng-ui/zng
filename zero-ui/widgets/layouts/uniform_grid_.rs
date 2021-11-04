@@ -198,6 +198,7 @@ pub mod uniform_grid {
             self.cells_iter = CellsIter::new(cell_size, columns, first_column as i32, layout_spacing);
         }
         #[UiNode]
+        #[allow_(zero_ui::missing_delegate)] // false positive, TODO
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let mut cells = self.cells_iter.clone();
             self.children.render_not_collapsed(move |_| cells.next().unwrap(), ctx, frame);

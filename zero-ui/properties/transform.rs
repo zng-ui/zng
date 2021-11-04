@@ -33,11 +33,13 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.with_widget_transform(&self.layout_transform, &self.child, ctx).unwrap();
+            frame
+                .with_widget_transform(&self.layout_transform, |frame| self.child.render(ctx, frame))
+                .unwrap();
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.with_widget_transform(&self.layout_transform, &self.child, ctx);
+            update.with_widget_transform(&self.layout_transform, |update| self.child.render_update(ctx, update));
         }
     }
     TransformNode {
