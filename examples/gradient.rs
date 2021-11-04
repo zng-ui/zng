@@ -13,18 +13,20 @@ fn app_main() {
         window! {
             title = "Gradient Example";
             auto_size = true;
-            padding = 20;
-            content = v_stack! {
-                spacing = 20;
-                items = widgets![
-                    title("Linear"),
-                    linear_angle(),
-                    linear_points(),
-                    linear_tile(),
-                    title("Stack"),
-                    stack_linear(),
-                ];
-            };
+            content = scrollable! {
+                padding = 20;
+                content = v_stack! {
+                    spacing = 20;
+                    items = widgets![
+                        title("Linear"),
+                        linear_angle(),
+                        linear_points(),
+                        linear_tile(),
+                        title("Stack"),
+                        stack_linear(),
+                    ];
+                };
+            }
         }
     })
 }

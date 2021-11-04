@@ -1034,7 +1034,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::properties::set_widget_state;
         #[doc(no_inline)]
-        pub use crate::widgets::{layouts::z_stack, DataUpdate, ViewGenerator};
+        pub use crate::widgets::{layouts::z_stack, view_generator, DataUpdate, ViewGenerator};
     }
 
     /// All the types you need to declare a new widget or widget mix-in.
@@ -1083,7 +1083,8 @@ pub mod prelude {
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property, widget,
             widget_base::{Visibility, VisibilityContext, WidgetListVisibilityExt, WidgetVisibilityExt},
-            widget_mixin, widget_vec, widgets, BoxedUiNode, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
+            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList,
+            WidgetVec,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
@@ -1107,7 +1108,7 @@ pub mod prelude {
             text_transform, word_spacing,
         };
         #[doc(no_inline)]
-        pub use crate::widgets::{container, layouts::z_stack, DataUpdate, ViewGenerator};
+        pub use crate::widgets::{container, layouts::z_stack, view_generator, DataUpdate, ViewGenerator};
     }
 }
 

@@ -38,18 +38,66 @@ where
     K::Type: VarValue,
     V: IntoVar<K::Type>,
 {
-    struct SetWidgetStateNode<U, K, V> {
+    set_widget_state_update(child, key, value, |_, _| {})
+}
+
+/// Helper for declaring properties that set the widget state that affects layout.
+///
+/// When `value` updates a layout update is requested.
+///
+/// See [`set_widget_state`] for more details.
+pub fn set_widget_layout_state<U, K, V>(child: U, key: K, value: V) -> impl UiNode
+where
+    U: UiNode,
+    K: StateKey,
+    K::Type: VarValue,
+    V: IntoVar<K::Type>,
+{
+    set_widget_state_update(child, key, value, |ctx, _| ctx.updates.layout())
+}
+
+/// Helper for declaring properties that set the widget state that affects render.
+///
+/// When `value` updates a new frame render is requested.
+///
+/// See [`set_widget_state`] for more details.
+pub fn set_widget_render_state<U, K, V>(child: U, key: K, value: V) -> impl UiNode
+where
+    U: UiNode,
+    K: StateKey,
+    K::Type: VarValue,
+    V: IntoVar<K::Type>,
+{
+    set_widget_state_update(child, key, value, |ctx, _| ctx.updates.render())
+}
+
+/// Helper for declaring properties that set the widget state with a custom closure executed when the value updates.
+///
+/// The `on_update` closure is called every time the `value` variable updates.
+///
+/// See [`set_widget_state`] for more details.
+pub fn set_widget_state_update<U, K, V, H>(child: U, key: K, value: V, on_update: H) -> impl UiNode
+where
+    U: UiNode,
+    K: StateKey,
+    K::Type: VarValue,
+    V: IntoVar<K::Type>,
+    H: FnMut(&mut WidgetContext, &K::Type) + 'static,
+{
+    struct SetWidgetStateNode<U, K, V, H> {
         child: U,
         key: K,
         var: V,
+        on_update: H,
     }
     #[impl_ui_node(child)]
-    impl<U, K, V> UiNode for SetWidgetStateNode<U, K, V>
+    impl<U, K, V, H> UiNode for SetWidgetStateNode<U, K, V, H>
     where
         U: UiNode,
         K: StateKey,
         K::Type: VarValue,
         V: Var<K::Type>,
+        H: FnMut(&mut WidgetContext, &K::Type) + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.widget_state.set(self.key, self.var.get(ctx).clone());
@@ -58,6 +106,7 @@ where
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(new) = self.var.clone_new(ctx) {
+                (self.on_update)(ctx, &new);
                 ctx.widget_state.set(self.key, new);
             }
             self.child.update(ctx);
@@ -67,6 +116,7 @@ where
         child,
         key,
         var: value.into_var(),
+        on_update,
     }
 }
 

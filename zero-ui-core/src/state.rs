@@ -106,6 +106,22 @@ impl StateMap {
         })
     }
 
+    /// Copy the key value set in this map.
+    pub fn copy<S: StateKey>(&self, key: S) -> Option<S::Type>
+    where
+        S::Type: Copy,
+    {
+        self.get(key).copied()
+    }
+
+    /// Clone the key value set in this map.
+    pub fn get_clone<S: StateKey>(&self, key: S) -> Option<S::Type>
+    where
+        S::Type: Clone,
+    {
+        self.get(key).cloned()
+    }
+
     /// Mutable borrow the key value set in this map.
     pub fn get_mut<S: StateKey>(&mut self, _key: S) -> Option<&mut S::Type> {
         self.map.get_mut(&TypeId::of::<S>()).map(|any| {

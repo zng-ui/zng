@@ -147,6 +147,11 @@ impl ops::Add<Px> for AvailablePx {
         }
     }
 }
+impl ops::AddAssign<Px> for AvailablePx {
+    fn add_assign(&mut self, rhs: Px) {
+        *self = *self + rhs;
+    }
+}
 impl ops::Sub<Px> for AvailablePx {
     type Output = AvailablePx;
 
@@ -155,6 +160,41 @@ impl ops::Sub<Px> for AvailablePx {
             AvailablePx::Finite(px) => AvailablePx::Finite(px - rhs),
             s => s,
         }
+    }
+}
+impl ops::SubAssign<Px> for AvailablePx {
+    fn sub_assign(&mut self, rhs: Px) {
+        *self = *self - rhs;
+    }
+}
+impl ops::Mul<FactorNormal> for AvailablePx {
+    type Output = AvailablePx;
+
+    fn mul(self, rhs: FactorNormal) -> Self::Output {
+        match self {
+            AvailablePx::Finite(px) => AvailablePx::Finite(px * rhs),
+            s => s,
+        }
+    }
+}
+impl ops::MulAssign<FactorNormal> for AvailablePx {
+    fn mul_assign(&mut self, rhs: FactorNormal) {
+        *self = *self * rhs;
+    }
+}
+impl ops::Div<FactorNormal> for AvailablePx {
+    type Output = AvailablePx;
+
+    fn div(self, rhs: FactorNormal) -> Self::Output {
+        match self {
+            AvailablePx::Finite(px) => AvailablePx::Finite(px / rhs),
+            s => s,
+        }
+    }
+}
+impl ops::DivAssign<FactorNormal> for AvailablePx {
+    fn div_assign(&mut self, rhs: FactorNormal) {
+        *self = *self / rhs;
     }
 }
 impl ops::Add<AvailablePx> for AvailablePx {
@@ -633,7 +673,7 @@ impl fmt::Display for FactorPercent {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialOrd)]
 pub struct FactorNormal(pub f32);
 impl FactorNormal {
     /// Clamp factor to [0.0..=1.0] range.
