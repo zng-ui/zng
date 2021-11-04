@@ -1052,6 +1052,7 @@ pub(crate) enum FnPriority {
     NewSize,
     NewOuter,
     NewEvent,
+    NewContext,
 
     New,
 }
@@ -1068,6 +1069,7 @@ impl FnPriority {
             "new_size" => Some(Self::NewSize),
             "new_outer" => Some(Self::NewOuter),
             "new_event" => Some(Self::NewEvent),
+            "new_context" => Some(Self::NewContext),
             "new" => Some(Self::New),
             _ => None,
         }
@@ -1085,6 +1087,7 @@ impl FnPriority {
             Self::NewSize,
             Self::NewOuter,
             Self::NewEvent,
+            Self::NewContext,
             Self::New,
         ]
     }
@@ -1102,6 +1105,7 @@ impl fmt::Display for FnPriority {
             FnPriority::NewSize => write!(f, "new_size"),
             FnPriority::NewOuter => write!(f, "new_outer"),
             FnPriority::NewEvent => write!(f, "new_event"),
+            FnPriority::NewContext => write!(f, "new_context"),
             FnPriority::New => write!(f, "new"),
         }
     }

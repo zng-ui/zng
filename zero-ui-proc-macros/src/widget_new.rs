@@ -730,10 +730,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 });
             }
-            // if is the function new, continue
-            if !child_priority && priority.is_context() {
-                continue;
-            }
+
             let cap_i = i + if child_priority { 1 } else { 6 };
             let caps = &caps[cap_i];
             let cap_idents = caps.iter().map(|(i, _)| i);

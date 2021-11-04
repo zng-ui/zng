@@ -142,9 +142,6 @@ mod input {
         pub fn is_capture_only(self) -> bool {
             matches!(self, Priority::CaptureOnly(_))
         }
-        pub fn is_context(self) -> bool {
-            matches!(self, Priority::Context(_))
-        }
         pub fn all_settable() -> [Self; 5] {
             use crate::property::keyword::*;
             [

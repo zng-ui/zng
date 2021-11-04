@@ -1793,6 +1793,8 @@ struct AppWindow {
     min_size: DipSize,
     max_size: DipSize,
 
+    clear_color: RenderColor,
+
     deinited: bool,
 }
 impl AppWindow {
@@ -1867,6 +1869,7 @@ impl AppWindow {
             size: DipSize::zero(),
             min_size: DipSize::zero(),
             max_size: DipSize::zero(),
+            clear_color: RenderColor::TRANSPARENT,
 
             deinited: false,
         };
@@ -2265,7 +2268,14 @@ impl AppWindow {
                     self.context.update = UpdateDisplayRequest::Render;
 
                     let (size, min_size, max_size) = self.layout_size(ctx, true);
-                    debug_assert_eq!(size, self.size);
+
+                    if size != self.size {
+                        log::error!(
+                            "content size does not match window size, expected `{:?}`, but was `{:?}`",
+                            self.size,
+                            size
+                        );
+                    }
                     self.min_size = min_size;
                     self.max_size = max_size;
                 }
@@ -2421,6 +2431,8 @@ impl AppWindow {
             self.context
                 .render(ctx, next_frame_id, self.size.to_px(scale_factor), scale_factor, &self.renderer);
 
+        self.clear_color = clear_color;
+
         // update frame info.
         self.frame_id = frame_info.frame_id();
         let w_info = ctx.services.windows().windows_info.get_mut(&self.id).unwrap();
@@ -2484,12 +2496,16 @@ impl AppWindow {
         if !self.context.update.is_render_update() {
             return;
         }
-
         let capture_image = self.take_capture_image(ctx.vars);
 
         let next_frame_id = self.frame_id.next_update();
 
-        let (updates, scroll_updates, clear_color) = self.context.render_update(ctx, next_frame_id);
+        let (updates, scroll_updates, clear_color) = self.context.render_update(ctx, next_frame_id, self.clear_color);
+
+        if let Some(c) = clear_color {
+            self.clear_color = c;
+        }
+
         let request = FrameUpdateRequest {
             id: next_frame_id,
             updates,
@@ -2655,6 +2671,7 @@ impl OwnedWindowContext {
         &mut self,
         ctx: &mut AppContext,
         frame_id: FrameId,
+        clear_color: RenderColor,
     ) -> (DynamicProperties, Vec<(ExternalScrollId, PxVector)>, Option<RenderColor>) {
         debug_assert!(self.update.is_render_update());
         self.update = UpdateDisplayRequest::None;
@@ -2665,7 +2682,7 @@ impl OwnedWindowContext {
         let (updates, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let window_id = *ctx.window_id;
             ctx.render_context(root.id, &root.state, |ctx| {
-                let mut update = FrameUpdate::new(window_id, root.id, root_transform_key, frame_id);
+                let mut update = FrameUpdate::new(window_id, root.id, root_transform_key, frame_id, clear_color);
                 root.child.render_update(ctx, &mut update);
                 update.finalize()
             })

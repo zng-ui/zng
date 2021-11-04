@@ -701,7 +701,7 @@ impl Window {
         let mut txn = Transaction::new();
 
         txn.set_root_pipeline(self.pipeline_id);
-        txn.update_dynamic_properties(frame.updates);
+        txn.update_dynamic_properties(dbg!(frame.updates));
         for (scroll_id, offset) in frame.scroll_updates {
             txn.scroll_node_with_id(offset.to_point().to_wr(), scroll_id, ScrollClamping::NoClamping);
         }
@@ -721,14 +721,13 @@ impl Window {
     ) -> (FrameId, Option<ImageLoadedData>, HitTestResult) {
         debug_assert!(self.document_id == msg.document_id || self.documents.contains(&msg.document_id));
 
+        //println!("{:#?}", msg);
+
         if self.document_id != msg.document_id {
             todo!("document rendering is not implemented in WR");
         }
 
-        let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or_else(|| {
-            debug_assert!(!msg.composite_needed);
-            (self.rendered_frame_id, false)
-        });
+        let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false));
         self.rendered_frame_id = frame_id;
 
         if self.waiting_first_frame {
@@ -886,10 +885,11 @@ impl<S: AppEventSender> RenderNotifier for Notifier<S> {
 
     fn wake_up(&self, _: bool) {}
 
-    fn new_frame_ready(&self, document_id: DocumentId, _scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
+    fn new_frame_ready(&self, document_id: DocumentId, scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
         let msg = FrameReadyMsg {
             document_id,
             composite_needed,
+            scrolled,
         };
         if self.redirect.load(Ordering::Relaxed) {
             let _ = self.redirect_sender.send(msg);

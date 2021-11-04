@@ -335,10 +335,7 @@ impl Surface {
             todo!("document rendering is not implemented in WR");
         }
 
-        let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or_else(|| {
-            debug_assert!(!msg.composite_needed);
-            (self.rendered_frame_id, false)
-        });
+        let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false));
         self.rendered_frame_id = frame_id;
 
         let mut captured_data = None;
@@ -433,10 +430,11 @@ impl<S: AppEventSender> RenderNotifier for Notifier<S> {
 
     fn wake_up(&self, _: bool) {}
 
-    fn new_frame_ready(&self, document_id: DocumentId, _scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
+    fn new_frame_ready(&self, document_id: DocumentId, scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
         let msg = FrameReadyMsg {
             document_id,
             composite_needed,
+            scrolled,
         };
         let _ = self.sender.send(AppEvent::FrameReady(self.id, msg));
     }

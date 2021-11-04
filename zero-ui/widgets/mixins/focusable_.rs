@@ -13,13 +13,6 @@ pub mod focusable_mixin {
         foreground_highlight,
     };
 
-    context_var! {
-        pub struct FocusHighlightWidthsVar: SideOffsets = SideOffsets::new_all(0.5);
-        pub struct FocusHighlightOffsetsVar: SideOffsets = SideOffsets::new_all(1.0);
-        pub struct FocusHighlightSidesVar: BorderSides = BorderSides::dashed(rgba(200, 200, 200, 1.0));
-        pub struct FocusHighlightRadiusVar: BorderRadius = BorderRadius::new_all(2.0);
-    }
-
     properties! {
         /// Enables keyboard focusing in the widget.
         focusable = true;
@@ -35,11 +28,23 @@ pub mod focusable_mixin {
         /// When widget has keyboard focus and highlight is requested.
         when self.is_focused_hgl {
             focus_highlight = {
-                offsets: FocusHighlightOffsetsVar,
-                widths: FocusHighlightWidthsVar,
-                sides: FocusHighlightSidesVar,
-                radius: FocusHighlightRadiusVar
+                offsets: theme::FocusHighlightOffsetsVar,
+                widths: theme::FocusHighlightWidthsVar,
+                sides: theme::FocusHighlightSidesVar,
+                radius: theme::FocusHighlightRadiusVar
             };
+        }
+    }
+
+    /// Theme variables.
+    pub mod theme {
+        use super::*;
+
+        context_var! {
+            pub struct FocusHighlightWidthsVar: SideOffsets = SideOffsets::new_all(0.5);
+            pub struct FocusHighlightOffsetsVar: SideOffsets = SideOffsets::new_all(1.0);
+            pub struct FocusHighlightSidesVar: BorderSides = BorderSides::dashed(rgba(200, 200, 200, 1.0));
+            pub struct FocusHighlightRadiusVar: BorderRadius = BorderRadius::new_all(2.0);
         }
     }
 }

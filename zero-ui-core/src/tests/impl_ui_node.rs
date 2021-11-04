@@ -4,15 +4,7 @@
 
 use util::{assert_did_not_trace, assert_only_traced, TraceNode};
 
-use crate::{
-    context::{TestWidgetContext, UpdateDisplayRequest, WidgetContext},
-    impl_ui_node, node_vec, nodes,
-    render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
-    units::*,
-    widget_base::implicit_base,
-    window::WindowId,
-    UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
-};
+use crate::{UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, color::RenderColor, context::{TestWidgetContext, UpdateDisplayRequest, WidgetContext}, impl_ui_node, node_vec, nodes, render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey}, units::*, widget_base::implicit_base, window::WindowId};
 
 #[test]
 pub fn default_child() {
@@ -110,7 +102,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
-    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID);
+    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK);
     wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
 
@@ -205,7 +197,7 @@ pub fn default_no_child() {
     assert!(wgt_info.meta().is_empty());
 
     // and not update render..
-    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID);
+    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK);
     wgt.test_render_update(&mut ctx, &mut update);
     let (update, scroll_update, render_color) = update.finalize();
     assert!(update.transforms.is_empty());

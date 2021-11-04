@@ -38,10 +38,10 @@ pub mod h_stack {
             /// Items alignment.
             ///
             /// Horizontal alignment applies to all items together, vertical alignment applies to each
-            /// item individually. The default is [`LEFT_FILL`].
+            /// item individually. The default is [`FILL_LEFT`].
             ///
-            /// [`LEFT_FILL`]: Alignment::LEFT_FILL
-            items_align(impl IntoVar<Alignment>) = Alignment::LEFT_FILL;
+            /// [`FILL_LEFT`]: Alignment::FILL_LEFT
+            items_align(impl IntoVar<Alignment>) = Alignment::FILL_LEFT;
         }
     }
 

@@ -2830,14 +2830,9 @@ impl Alignment {
     named_aligns! {
         TOP_LEFT = (0.0, 0.0);
         BOTTOM_LEFT = (0.0, 1.0);
-        LEFT_FILL = (0.0, f32::NAN);
 
         TOP_RIGHT = (1.0, 0.0);
         BOTTOM_RIGHT = (1.0, 1.0);
-        RIGHT_FILL = (1.0, f32::NAN);
-
-        FILL_TOP = (f32::NAN, 0.0);
-        FILL_BOTTOM = (f32::NAN, 1.0);
 
         LEFT = (0.0, 0.5);
         RIGHT = (1.0, 0.5);
@@ -2845,6 +2840,12 @@ impl Alignment {
         BOTTOM = (0.5, 1.0);
 
         CENTER = (0.5, 0.5);
+
+        FILL_TOP = (f32::NAN, 0.0);
+        FILL_BOTTOM = (f32::NAN, 1.0);
+        FILL_RIGHT = (1.0, f32::NAN);
+        FILL_LEFT = (0.0, f32::NAN);
+
         FILL = (f32::NAN, f32::NAN);
     }
 }

@@ -1,4 +1,5 @@
 use zero_ui::prelude::new_property::*;
+use zero_ui_core::render::webrender_api::PrimitiveFlags;
 
 /// Helper for declaring properties that set the widget state.
 ///
@@ -117,6 +118,36 @@ where
         key,
         var: value.into_var(),
         on_update,
+    }
+}
+
+/// Sets the [`PrimitiveFlags`] of the widget stacking context.
+///
+/// This is a low level property that helps tagging special widgets for the renderer.
+///
+/// In particular scrollbars and scroll-thumbs need to set this to their respective flags.
+#[property(context, default(PrimitiveFlags::empty()))]
+pub fn primitive_flags(child: impl UiNode, flags: impl IntoVar<PrimitiveFlags>) -> impl UiNode {
+    struct PrimitiveFlagsNode<C, F> {
+        child: C,
+        flags: F,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, F: Var<PrimitiveFlags>> UiNode for PrimitiveFlagsNode<C, F> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+            if self.flags.is_new(ctx) {
+                ctx.updates.render();
+            }
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.width_widget_flags(self.flags.copy(ctx), &self.child, ctx).unwrap();
+        }
+    }
+    PrimitiveFlagsNode {
+        child,
+        flags: flags.into_var(),
     }
 }
 

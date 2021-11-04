@@ -8,6 +8,9 @@ pub mod scrollable {
     use bitflags::*;
     use properties::*;
 
+    #[doc(inline)]
+    pub use super::scrollbar;
+
     properties! {
         child {
             /// Content UI.
@@ -71,9 +74,9 @@ pub mod scrollable {
                 let h_scroll = self.children.widget_measure(2, ctx, available_size);
 
                 self.joiner = PxSize::new(v_scroll.width, h_scroll.height);
-                let _joiner = self.children.widget_measure(3, ctx, AvailableSize::from_size(self.joiner));
+                let _ = self.children.widget_measure(3, ctx, AvailableSize::from_size(self.joiner));
 
-                PxSize::new(viewport.width + v_scroll.width, viewport.height + h_scroll.height)
+                available_size.clip(viewport + self.joiner)
             }
 
             fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
@@ -84,15 +87,15 @@ pub mod scrollable {
                     self.viewport.width = final_size.width;
                 } else {
                     self.children
-                        .widget_arrange(1, ctx, PxSize::new(self.joiner.width, final_size.height - self.joiner.height))
+                        .widget_arrange(1, ctx, PxSize::new(self.joiner.width, self.viewport.height))
                 }
 
                 if self.viewport.height < self.joiner.height * 3.0.normal() {
-                    self.joiner.width = Px(0);
+                    self.joiner.height = Px(0);
                     self.viewport.height = final_size.height;
                 } else {
                     self.children
-                        .widget_arrange(2, ctx, PxSize::new(final_size.width - self.joiner.width, final_size.height))
+                        .widget_arrange(2, ctx, PxSize::new(self.viewport.width, self.joiner.height))
                 }
 
                 self.children.widget_arrange(0, ctx, self.viewport);
@@ -133,9 +136,8 @@ pub mod scrollable {
         }
     }
 
-    fn new(child: impl UiNode, id: impl Into<WidgetId>) -> impl Widget {
-        let child = with_context_var(child, ScrollContextVar, Some(ScrollContext::new()));
-        crate::core::widget_base::implicit_base::new(child, id)
+    fn new_context(child: impl UiNode) -> impl UiNode {
+        with_context_var(child, ScrollContextVar, Some(ScrollContext::new()))
     }
 
     /// Properties that configure [`scrollable!`] widgets from parent widgets.
@@ -145,38 +147,40 @@ pub mod scrollable {
     /// [`scrollable!`]: mod@crate::widgets::scrollable
     pub mod properties {
         use super::*;
-        use crate::widgets::{blank, fill_color};
+        use crate::widgets::fill_color;
 
         context_var! {
             /// View generator for creating the vertical scrollbar of an scrollable widget.
-            pub struct VerticalScrollBarViewVar: ViewGenerator<ScrollBarArgs> = view_generator!(|_, args: ScrollBarArgs| {
-                blank! {
-                    background_color = colors::RED;
-                    width = 10;
-                    visibility = args.viewport_ratio.map(|&r| if r < 1.0.normal() { Visibility::Visible } else { Visibility::Collapsed })
-                }
-            });
+            pub struct VerticalScrollBarViewVar: ViewGenerator<ScrollBarArgs> = default_scrollbar();
 
             /// View generator for creating the vertical scrollbar of an scrollable widget.
-            pub struct HorizontalScrollBarViewVar: ViewGenerator<ScrollBarArgs> = view_generator!(|_, args: ScrollBarArgs| {
-                blank! {
-                    background_color = colors::RED;
-                    height = 10;
-                }
-            });
+            pub struct HorizontalScrollBarViewVar: ViewGenerator<ScrollBarArgs> = default_scrollbar();
 
             /// View generator for the little square that joins the two scrollbars when both are visible.
-            pub struct ScrollBarJoinerViewVar: ViewGenerator<()> = view_generator!(|_, _| fill_color(colors::BLUE));
+            pub struct ScrollBarJoinerViewVar: ViewGenerator<()> = view_generator!(|_, _| fill_color(scrollbar::theme::BackgroundVar));
+        }
+
+        fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
+            view_generator!(|_, args: ScrollBarArgs| {
+                scrollbar! {
+                    thumb = scrollbar::thumb! {
+                        orientation = args.orientation;
+                        viewport_ratio = args.viewport_ratio.clone();
+                    };
+                    orientation = args.orientation;
+                    //visibility = args.viewport_ratio.map(|&r| if r < 1.0.normal() { Visibility::Visible } else { Visibility::Collapsed })
+                }
+            })
         }
 
         /// Vertical scrollbar generator for all scrollable widget descendants.
-        #[property(context, default(ViewGenerator::nil()))]
+        #[property(context, default(default_scrollbar()))]
         pub fn v_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
             with_context_var(child, VerticalScrollBarViewVar, generator)
         }
 
         /// Horizontal scrollbar generator for all scrollable widget descendants.
-        #[property(context, default(ViewGenerator::nil()))]
+        #[property(context, default(default_scrollbar()))]
         pub fn h_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
             with_context_var(child, HorizontalScrollBarViewVar, generator)
         }
@@ -198,7 +202,7 @@ pub mod scrollable {
         #[derive(Clone)]
         pub struct ScrollBarArgs {
             /// Scrollbar orientation.
-            pub orientation: ScrollBarOrientation,
+            pub orientation: scrollbar::Orientation,
 
             /// Amount scrolled.
             ///
@@ -214,29 +218,20 @@ pub mod scrollable {
         }
         impl ScrollBarArgs {
             /// Arguments from scroll context.
-            pub fn new(ctx: &ScrollContext, orientation: ScrollBarOrientation) -> Self {
+            pub fn new(ctx: &ScrollContext, orientation: scrollbar::Orientation) -> Self {
                 match orientation {
-                    ScrollBarOrientation::Horizontal => Self {
+                    scrollbar::Orientation::Horizontal => Self {
                         orientation,
                         offset: ctx.h_offset.clone(),
                         viewport_ratio: ctx.h_ratio.clone(),
                     },
-                    ScrollBarOrientation::Vertical => Self {
+                    scrollbar::Orientation::Vertical => Self {
                         orientation,
                         offset: ctx.v_offset.clone(),
                         viewport_ratio: ctx.v_ratio.clone(),
                     },
                 }
             }
-        }
-
-        /// Orientation of a scrollbar.
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub enum ScrollBarOrientation {
-            /// Bar fills the in the ***x*** dimension and scrolls left-right.
-            Horizontal,
-            /// Bar fills the in the ***y*** dimension and scrolls top-bottom.
-            Vertical,
         }
     }
 
@@ -293,17 +288,17 @@ pub mod scrollable {
         ///
         /// [vertical scrollbar]: VerticalScrollBarViewVar
         pub fn v_scrollbar_presenter() -> impl UiNode {
-            scrollbar_presenter(VerticalScrollBarViewVar, ScrollBarOrientation::Vertical)
+            scrollbar_presenter(VerticalScrollBarViewVar, scrollbar::Orientation::Vertical)
         }
 
         /// Create a node that generates and presents the [horizontal scrollbar].
         ///
         /// [horizontal scrollbar]: HorizontalScrollBarViewVar
         pub fn h_scrollbar_presenter() -> impl UiNode {
-            scrollbar_presenter(HorizontalScrollBarViewVar, ScrollBarOrientation::Horizontal)
+            scrollbar_presenter(HorizontalScrollBarViewVar, scrollbar::Orientation::Horizontal)
         }
 
-        fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientation: ScrollBarOrientation) -> impl UiNode {
+        fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
             ViewGenerator::presenter(var, move |ctx, is_new| {
                 if is_new {
                     if let Some(ctx) = ScrollContext::get(ctx) {
@@ -434,4 +429,167 @@ pub mod scrollable {
 /// [`scrollable!`]: mod@scrollable
 pub fn scrollable(content: impl UiNode) -> impl UiNode {
     scrollable!(content)
+}
+
+/// Scrollbar widget.
+#[widget($crate::widgets::scrollable::scrollbar)]
+pub mod scrollbar {
+    use super::*;
+    use crate::core::render::webrender_api::PrimitiveFlags;
+
+    #[doc(inline)]
+    pub use super::thumb;
+
+    properties! {
+        /// Thumb widget.
+        ///
+        /// Recommended widget is [`thumb!`], but can be any widget that implements
+        /// thumb behavior and tags it-self in the frame.
+        ///
+        /// [`thumb!`]: mod@thumb
+        #[required]
+        #[allowed_in_when = false]
+        thumb(impl UiNode);
+
+        /// Fills the track with [`theme::BackgroundVar`]
+        background_color = theme::BackgroundVar;
+
+        /// Scrollbar orientation.
+        ///
+        /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
+        orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
+    }
+
+    fn new_child(thumb: impl UiNode) -> impl UiNode {
+        thumb
+    }
+
+    fn new_outer(child: impl UiNode, orientation: impl IntoVar<Orientation>) -> impl UiNode {
+        let orientation = orientation.into_var();
+        align(
+            child,
+            orientation.map(|o| match o {
+                Orientation::Vertical => Alignment::FILL_RIGHT,
+                Orientation::Horizontal => Alignment::FILL_BOTTOM,
+            }),
+        )
+    }
+
+    fn new_context(child: impl UiNode) -> impl UiNode {
+        primitive_flags(child, PrimitiveFlags::IS_SCROLLBAR_CONTAINER)
+    }
+
+    /// Theme variables and properties.
+    pub mod theme {
+        use crate::prelude::new_property::*;
+
+        context_var! {
+            /// Scrollbar track background color
+            pub struct BackgroundVar: Rgba = rgba(80, 80, 80, 50.pct());
+        }
+    }
+
+    /// Orientation of a scrollbar.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Orientation {
+        /// Bar fills the in the ***x*** dimension and scrolls left-right.
+        Horizontal,
+        /// Bar fills the in the ***y*** dimension and scrolls top-bottom.
+        Vertical,
+    }
+}
+
+/// Scrollbar thumb widget.
+#[widget($crate::widgets::scrollable::scrollbar::thumb)]
+pub mod thumb {
+    use super::*;
+    use crate::core::render::webrender_api::PrimitiveFlags;
+
+    properties! {
+        /// Scrollbar orientation.
+        orientation(impl IntoVar<scrollbar::Orientation>) = scrollbar::Orientation::Vertical;
+
+        /// Viewport/content ratio.
+        ///
+        /// This becomes the height for vertical and width for horizontal.
+        #[required]
+        viewport_ratio(impl IntoVar<FactorNormal>);
+
+        /// Width if orientation is vertical, otherwise height if orientation is horizontal.
+        cross_length(impl IntoVar<Length>) = 16;
+
+        /// Fills the thumb with [`theme::BackgroundVar`].
+        background_color = theme::BackgroundVar;
+
+        /// Enabled by default.
+        ///
+        /// Blocks pointer interaction with other widgets while the thumb is pressed.
+        capture_mouse = true;
+
+        /// When the pointer device is over this thumb.
+        when self.is_cap_hovered {
+            background_color = theme::hovered::BackgroundVar;
+        }
+
+        /// When the thumb is pressed.
+        when self.is_pressed  {
+            background_color = theme::pressed::BackgroundVar;
+        }
+    }
+
+    fn new_size(
+        child: impl UiNode,
+        orientation: impl IntoVar<scrollbar::Orientation>,
+        viewport_ratio: impl IntoVar<FactorNormal>,
+        cross_length: impl IntoVar<Length>,
+    ) -> impl UiNode {
+        size(
+            child,
+            merge_var!(
+                orientation.into_var(),
+                viewport_ratio.into_var(),
+                cross_length.into_var(),
+                |o, r, l| {
+                    match o {
+                        scrollbar::Orientation::Vertical => Size::new(l.clone(), *r),
+                        scrollbar::Orientation::Horizontal => Size::new(*r, l.clone()),
+                    }
+                }
+            ),
+        )
+    }
+
+    fn new_context(child: impl UiNode) -> impl UiNode {
+        primitive_flags(child, PrimitiveFlags::IS_SCROLLBAR_THUMB)
+    }
+
+    /// Theme variables.
+    pub mod theme {
+        use crate::prelude::new_property::*;
+
+        context_var! {
+            /// Fill color.
+            pub struct BackgroundVar: Rgba = rgba(200, 200, 200, 50.pct());
+        }
+
+        /// Variables when the pointer device is over the thumb.
+        pub mod hovered {
+            use super::*;
+
+            context_var! {
+                /// Fill color.
+                pub struct BackgroundVar: Rgba = rgba(200, 200, 200, 70.pct());
+            }
+        }
+
+        /// Variables when the pointer device is pressing the thumb.
+        pub mod pressed {
+            use super::*;
+
+            context_var! {
+                /// Fill color.
+                pub struct BackgroundVar: Rgba = rgba(200, 200, 200, 90.pct());
+            }
+        }
+    }
 }

@@ -101,6 +101,11 @@ pub mod implicit_base {
         child
     }
 
+    /// No-op, returns `child`.
+    pub fn new_context(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
     /// Implicit `new`, captures the `id` property.
     ///
     /// Returns a [`Widget`] node that introduces a new widget context. The node calls

@@ -1106,6 +1106,7 @@ pub struct WidgetStartedError;
 /// Any [`FrameBindingKey`] used in the creation of the frame can be used for updating the frame.
 pub struct FrameUpdate {
     bindings: DynamicProperties,
+    current_clear_color: RenderColor,
     clear_color: Option<RenderColor>,
     scrolls: Vec<(ExternalScrollId, PxVector)>,
     frame_id: FrameId,
@@ -1122,7 +1123,14 @@ impl FrameUpdate {
     /// * `root_id` - Id of the widget at the root of the frame.
     /// * `root_transform_key` - Frame binding for the root widget layout transform.
     /// * `frame_id` - Id of the frame that will be updated.
-    pub fn new(window_id: WindowId, root_id: WidgetId, root_transform_key: WidgetTransformKey, frame_id: FrameId) -> Self {
+    /// * `clear_color` - The current clear color.
+    pub fn new(
+        window_id: WindowId,
+        root_id: WidgetId,
+        root_transform_key: WidgetTransformKey,
+        frame_id: FrameId,
+        clear_color: RenderColor,
+    ) -> Self {
         FrameUpdate {
             bindings: DynamicProperties::default(),
             scrolls: vec![],
@@ -1132,6 +1140,7 @@ impl FrameUpdate {
             widget_transform: LayoutTransform::identity(),
             widget_transform_key: root_transform_key,
             frame_id,
+            current_clear_color: clear_color,
             cancel_widget: false,
         }
     }
@@ -1238,6 +1247,10 @@ impl FrameUpdate {
     pub fn finalize(mut self) -> (DynamicProperties, Vec<(ExternalScrollId, PxVector)>, Option<RenderColor>) {
         if self.widget_transform != LayoutTransform::identity() {
             self.update_transform(self.widget_transform_key.update(self.widget_transform));
+        }
+
+        if self.clear_color == Some(self.current_clear_color) {
+            self.clear_color = None;
         }
 
         (self.bindings, self.scrolls, self.clear_color)

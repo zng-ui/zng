@@ -227,6 +227,8 @@ pub enum WidgetNewFn {
     NewOuter,
     /// `new_event`
     NewEvent,
+    /// `new_context`
+    NewContext,
 
     /// `new`
     New,
@@ -245,6 +247,7 @@ impl WidgetNewFn {
             Self::NewSize,
             Self::NewOuter,
             Self::NewEvent,
+            Self::NewContext,
             Self::New,
         ]
     }
@@ -262,6 +265,7 @@ impl fmt::Display for WidgetNewFn {
             Self::NewSize => write!(f, "new_size"),
             Self::NewOuter => write!(f, "new_outer"),
             Self::NewEvent => write!(f, "new_event"),
+            Self::NewContext => write!(f, "new_context"),
             Self::New => write!(f, "new"),
         }
     }
