@@ -1778,9 +1778,10 @@ impl log::Log for DebugLogger {
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
             use colored::*;
+            let mut level = None;
             match record.metadata().level() {
                 log::Level::Error => {
-                    eprintln!("{}: [{}] {}", "error".bright_red().bold(), record.target(), record.args())
+                    level = Some("error".bright_red().bold());
                 }
                 log::Level::Warn => {
                     // suppress webrender vertex debug-only warnings.
@@ -1789,12 +1790,22 @@ impl log::Log for DebugLogger {
                         return;
                     }
 
-                    eprintln!("{}: [{}] {}", "warn".bright_yellow().bold(), record.target(), record.args())
+                    level = Some("warn".bright_yellow().bold());
                 }
                 log::Level::Info => {
-                    eprintln!("{}: [{}] {}", "info".bright_blue().bold(), record.target(), record.args())
+                    level = Some("info".bright_blue().bold());
                 }
                 _ => {}
+            }
+            if let Some(level) = level {
+                match record.file() {
+                    Some(file) => {
+                        eprintln!("{}: [{}:{}] {}", level, file, record.line().unwrap_or(1), record.args())
+                    },
+                    None => {
+                        eprintln!("{}: [{}] {}", level, record.target(), record.args())
+                    },
+                }   
             }
         }
     }
