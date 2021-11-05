@@ -209,13 +209,13 @@ impl Updates {
         self.event_sender.clone()
     }
 
-    /// Schedules a low-pressure update.
+    /// Schedules an update.
     #[inline]
     pub fn update(&mut self) {
         self.update = true;
     }
 
-    /// Gets `true` if a low-pressure update was requested.
+    /// Gets `true` if an update was requested.
     #[inline]
     pub fn update_requested(&self) -> bool {
         self.update

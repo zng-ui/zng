@@ -743,6 +743,46 @@ impl WrToPx for wr::DeviceIntSize {
         PxSize::new(Px(self.width), Px(self.height))
     }
 }
+impl PxToWr for PxVector {
+    type AsDevice = wr::DeviceVector2D;
+
+    type AsLayout = wr::LayoutVector2D;
+
+    type AsWorld = wr::WorldVector2D;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        wr::DeviceVector2D::new(self.x.0 as f32, self.y.0 as f32)
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        wr::WorldVector2D::new(self.x.0 as f32, self.y.0 as f32)
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        wr::LayoutVector2D::new(self.x.0 as f32, self.y.0 as f32)
+    }
+}
+impl WrToPx for wr::LayoutVector2D {
+    type AsPx = PxVector;
+
+    fn to_px(self) -> Self::AsPx {
+        PxVector::new(Px(self.x.round() as i32), Px(self.y.round() as i32))
+    }
+}
+impl DipToPx for DipVector {
+    type AsPx = PxVector;
+
+    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+        PxVector::new(self.x.to_px(scale_factor), self.y.to_px(scale_factor))
+    }
+}
+impl PxToDip for PxVector {
+    type AsDip = DipVector;
+
+    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+        DipVector::new(self.x.to_dip(scale_factor), self.y.to_dip(scale_factor))
+    }
+}
 
 impl PxToDip for PxRect {
     type AsDip = DipRect;

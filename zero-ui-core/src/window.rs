@@ -1317,8 +1317,13 @@ impl AppExtension for WindowManager {
         with_detached_windows(ctx, |ctx, windows| {
             for (_, w) in windows.iter_mut() {
                 w.on_layout(ctx, r);
-                w.on_render(ctx, r);
-                w.on_render_update(ctx);
+
+                if !ctx.vars.update_requested() {
+                    w.on_render(ctx, r);
+                    w.on_render_update(ctx);
+                } else {
+                    ctx.updates.layout();
+                }
             }
         });
     }

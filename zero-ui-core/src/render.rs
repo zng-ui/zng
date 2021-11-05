@@ -113,6 +113,8 @@ impl From<ImageRendering> for webrender_api::ImageRendering {
 
 /// A full frame builder.
 pub struct FrameBuilder {
+    pipeline_id: PipelineId,
+
     clear_color: Option<RenderColor>,
 
     renderer: Option<ViewRenderer>,
@@ -174,6 +176,7 @@ impl FrameBuilder {
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
         let spatial_id = SpatialId::root_reference_frame(pipeline_id);
         let mut new = FrameBuilder {
+            pipeline_id,
             renderer,
             scale_factor,
             display_list: DisplayListBuilder::with_capacity(pipeline_id, 100),
@@ -277,6 +280,14 @@ impl FrameBuilder {
     #[inline]
     pub fn renderer(&self) -> Option<&ViewRenderer> {
         self.renderer.as_ref()
+    }
+
+    /// Renderer pipeline ID or [`dummy`].
+    ///
+    /// [`dummy`]: PipelineId::dummy
+    #[inline]
+    pub fn pipeline_id(&self) -> PipelineId {
+        self.pipeline_id
     }
 
     /// Window that owns the frame.
@@ -602,7 +613,9 @@ impl FrameBuilder {
         self.hit_testable = parent_hit_testable;
     }
 
-    /// Calls `f` with a new [`clip_id`](FrameBuilder::clip_id) that clips to `bounds`.
+    /// Calls `f` with a new [`clip_id`] that clips to `bounds`.
+    ///
+    /// [`clip_id`]: FrameBuilder::clip_id
     #[inline]
     pub fn push_simple_clip(&mut self, bounds: PxSize, f: impl FnOnce(&mut FrameBuilder)) {
         if self.cancel_widget {
@@ -624,6 +637,39 @@ impl FrameBuilder {
         f(self);
 
         self.clip_id = parent_clip_id;
+    }
+
+    /// Calls `f` inside a scroll viewport space.
+    ///
+    /// If `clip` is `true` also clips to the viewport bounds.
+    pub fn push_scroll_frame(
+        &mut self,
+        scroll_id: ScrollId,
+        viewport_size: PxSize,
+        content_rect: PxRect,
+        //clip: bool,
+        f: impl FnOnce(&mut FrameBuilder),
+    ) {
+        if self.cancel_widget {
+            return;
+        }
+
+        self.open_widget_display();
+
+        let parent_spatial_id = self.spatial_id;
+
+        self.spatial_id = self.display_list.define_scroll_frame(
+            parent_spatial_id,
+            scroll_id.to_wr(self.pipeline_id),
+            content_rect.to_wr(),
+            PxRect::from_size(viewport_size).to_wr(),
+            ScrollSensitivity::ScriptAndInputEvents,
+            content_rect.origin.to_vector().to_wr(),
+        );
+
+        f(self);
+
+        self.spatial_id = parent_spatial_id;
     }
 
     // TODO use the widget transform instead of calling this method.
@@ -980,11 +1026,6 @@ impl FrameBuilder {
         }
     }
 
-    /// TODO/Scrolling.md
-    pub fn push_scroll_frame(&mut self) {
-        //self.display_list.define_scroll_frame(self.clip_id, external_id, content_rect, frame_rect, scroll_sensitivity, external_scroll_offset)
-    }
-
     /// Push a `color` dot to mark the `offset`.
     ///
     /// The *dot* is a circle of the `color` highlighted by an white outline and shadow.
@@ -1254,6 +1295,28 @@ pub type FrameValue<T> = PropertyValue<T>;
 unique_id_64! {
     #[derive(Debug)]
     struct FrameBindingKeyId;
+}
+
+unique_id_64! {
+    /// Unique ID of a scroll viewport.
+    #[derive(Debug)]
+    pub struct ScrollId;
+}
+impl ScrollId {
+    /// Id of the implicit scroll ID at the root of all frames.
+    ///
+    /// This [`ExternalScrollId`] cannot be represented by [`ScrollId`] because
+    /// it is the zero value.
+    #[inline]
+    pub fn wr_root(pipeline_id: PipelineId) -> ExternalScrollId {
+        ExternalScrollId(0, pipeline_id)
+    }
+
+    /// To webrender [`ExternalScrollId`].
+    #[inline]
+    pub fn to_wr(self, pipeline_id: PipelineId) -> ExternalScrollId {
+        ExternalScrollId(self.get(), pipeline_id)
+    }
 }
 
 /// Unique key of a [`FrameBinding`] value.

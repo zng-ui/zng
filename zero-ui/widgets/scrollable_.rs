@@ -168,7 +168,7 @@ pub mod scrollable {
                         viewport_ratio = args.viewport_ratio.clone();
                     };
                     orientation = args.orientation;
-                    //visibility = args.viewport_ratio.map(|&r| if r < 1.0.normal() { Visibility::Visible } else { Visibility::Collapsed })
+                    visibility = args.viewport_ratio.map(|&r| if r < 1.0.normal() { Visibility::Visible } else { Visibility::Collapsed })
                 }
             })
         }
@@ -242,7 +242,10 @@ pub mod scrollable {
         /// The actual content presenter, measures the content allowing any size and renders it clipped and scrolled
         /// by the TODO
         pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {
+            use crate::core::render::ScrollId;
+
             struct ViewportNode<C, M> {
+                scroll_id: ScrollId,
                 child: C,
                 mode: M,
                 viewport_size: PxSize,
@@ -273,11 +276,25 @@ pub mod scrollable {
                         self.content_size.width = final_size.width;
                     }
 
-                    self.child.arrange(ctx, self.content_size)
+                    self.child.arrange(ctx, self.content_size);
+
+                    let cell_ctx = ScrollContextVar::get(ctx.vars).as_ref().unwrap();
+                    let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
+                    let h_ratio = self.viewport_size.width.0 as f32 / self.content_size.width.0 as f32;
+
+                    cell_ctx.v_ratio_var.set_ne(ctx, v_ratio.normal());
+                    cell_ctx.h_ratio_var.set_ne(ctx, h_ratio.normal());
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    frame.push_scroll_frame(self.scroll_id, self.viewport_size, PxRect::from_size(self.content_size), |frame| {
+                        self.child.render(ctx, frame);
+                    })
                 }
             }
             ViewportNode {
                 child,
+                scroll_id: ScrollId::new_unique(),
                 mode: mode.into_var(),
                 viewport_size: PxSize::zero(),
                 content_size: PxSize::zero(),

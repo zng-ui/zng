@@ -676,6 +676,11 @@ impl Vars {
 
         handle
     }
+
+    /// If one or more variables have pending updates.
+    pub fn update_requested(&self) -> bool {
+        !self.pending.borrow().is_empty()
+    }
 }
 impl Deref for Vars {
     type Target = VarsRead;
@@ -740,6 +745,14 @@ impl<'a> WithVars for crate::context::WindowContext<'a> {
     }
 }
 impl<'a> WithVars for crate::context::WidgetContext<'a> {
+    fn with_vars<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&Vars) -> R,
+    {
+        action(self.vars)
+    }
+}
+impl<'a> WithVars for crate::context::LayoutContext<'a> {
     fn with_vars<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&Vars) -> R,
