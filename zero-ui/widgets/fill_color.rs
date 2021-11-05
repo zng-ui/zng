@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crate::prelude::new_widget::*;
 
 /// Fill the widget area with a color.
@@ -6,12 +8,14 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
         color: C,
         frame_key: Option<FrameBindingKey<RenderColor>>,
         final_size: PxSize,
+        requested_update: Cell<bool>,
     }
     #[impl_ui_node(none)]
     impl<C: Var<Rgba>> UiNode for FillColorNode<C> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.color.is_new(ctx) {
                 ctx.updates.render_update();
+                self.requested_update.set(true);
             }
         }
         fn arrange(&mut self, _: &mut LayoutContext, final_size: PxSize) {
@@ -19,6 +23,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.requested_update.set(false);
             let color = self.color.copy(ctx).into();
             let color = if let Some(key) = self.frame_key {
                 key.bind(color)
@@ -30,8 +35,10 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Some(key) = self.frame_key {
-                let color = key.update(self.color.copy(ctx).into());
-                update.update_color(color);
+                if self.requested_update.take() {
+                    let color = key.update(self.color.copy(ctx).into());
+                    update.update_color(color);
+                }
             }
         }
     }
@@ -46,5 +53,6 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
         color,
         frame_key,
         final_size: PxSize::zero(),
+        requested_update: Cell::new(false),
     }
 }

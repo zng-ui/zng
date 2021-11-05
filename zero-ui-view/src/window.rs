@@ -701,7 +701,7 @@ impl Window {
         let mut txn = Transaction::new();
 
         txn.set_root_pipeline(self.pipeline_id);
-        txn.update_dynamic_properties(dbg!(frame.updates));
+        txn.update_dynamic_properties(frame.updates);
         for (scroll_id, offset) in frame.scroll_updates {
             txn.scroll_node_with_id(offset.to_point().to_wr(), scroll_id, ScrollClamping::NoClamping);
         }

@@ -8,7 +8,7 @@ use super::margin;
 
 /// Custom background property. Allows using any other widget as a background.
 ///
-/// Backgrounds are not focusable and don't influence the widget layout.
+/// Backgrounds don't influence the widget layout.
 ///
 /// # Example
 ///
@@ -32,49 +32,21 @@ use super::margin;
 /// The example renders a custom text background.
 #[property(inner, allowed_in_when = false, default(crate::core::NilUiNode))]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
-    struct BackgroundNode<T: UiNode, B: UiNode> {
-        child: T,
-        background: B,
+    struct BackgroundNode<C> {
+        /// [background, child]
+        children: C,
     }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, B: UiNode> UiNode for BackgroundNode<T, B> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.background.init(ctx);
-            self.child.init(ctx);
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.background.deinit(ctx);
-            self.child.deinit(ctx);
-        }
-
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            self.background.event(ctx, args);
-            self.child.event(ctx, args);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.background.update(ctx);
-            self.child.update(ctx);
-        }
-
+    #[impl_ui_node(children)]
+    impl<C: UiNodeList> UiNode for BackgroundNode<C> {
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let available_size = self.child.measure(ctx, available_size);
-            self.background.measure(ctx, AvailableSize::finite(available_size));
+            let available_size = self.children.widget_measure(1, ctx, available_size);
+            self.children.widget_measure(0, ctx, AvailableSize::finite(available_size));
             available_size
         }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.background.arrange(ctx, final_size);
-            self.child.arrange(ctx, final_size);
-        }
-
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.background.render(ctx, frame); // TODO, disable events and focus for this?
-            self.child.render(ctx, frame);
-        }
     }
-    BackgroundNode { child, background }
+    BackgroundNode {
+        children: nodes![background, child],
+    }
 }
 
 /// Custom background generated using a [`ViewGenerator<()>`].

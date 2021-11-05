@@ -1197,6 +1197,7 @@ impl FrameUpdate {
         let parent_transform = mem::replace(&mut self.widget_transform, LayoutTransform::identity());
         let transforms_len = self.bindings.transforms.len();
         let floats_len = self.bindings.floats.len();
+        let colors_len = self.bindings.colors.len();
 
         child.render_update(ctx, self);
 
@@ -1208,6 +1209,7 @@ impl FrameUpdate {
             self.widget_transform = parent_transform;
             self.bindings.transforms.truncate(transforms_len);
             self.bindings.floats.truncate(floats_len);
+            self.bindings.colors.truncate(colors_len);
         } else {
             let widget_transform = mem::replace(&mut self.widget_transform, parent_transform);
             if widget_transform != LayoutTransform::identity() {
