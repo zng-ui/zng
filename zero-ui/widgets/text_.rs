@@ -565,16 +565,18 @@ pub mod text {
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
-                        child.measure(ctx, available_size)
-                    })
+                    ctx.vars
+                        .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
+                            child.measure(ctx, available_size)
+                        })
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
-                        child.arrange(ctx, final_size);
-                    });
+                    ctx.vars
+                        .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
+                            child.arrange(ctx, final_size);
+                        });
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -687,13 +689,14 @@ pub mod text {
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     let child = &mut self.child;
-                    ctx.vars
-                        .with_context_var(FontFeaturesVar, &self.features, self.version, || child.measure(ctx, available_size))
+                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
+                        child.measure(ctx, available_size)
+                    })
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
+                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
                         child.arrange(ctx, final_size);
                     });
                 }

@@ -238,12 +238,12 @@ impl VarsRead {
     ///
     /// [new]: Var::is_new
     #[inline(always)]
-    pub fn with_context_bind_wgt_only<C: ContextVar, R, F: FnOnce() -> R, V: Var<C::Type>>(
-        &self,
-        context_var: C,
-        other_var: &V,
-        f: F,
-    ) -> R {
+    pub fn with_context_bind_wgt_only<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+        V: Var<C::Type>,
+    {
         self.with_context_var_wgt_only_impl(context_var, other_var.get(self), false, other_var.version(self), f)
     }
 
@@ -429,7 +429,11 @@ impl Vars {
     ///
     /// See also the [`with_context_var_expr`] helper function for declaring a property that sets a context var.
     #[inline(always)]
-    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+    pub fn with_context_var<C, R, F>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+    {
         self.with_context_var_impl(context_var, value, is_new, version, f)
     }
 
@@ -442,7 +446,11 @@ impl Vars {
     ///
     /// See also the [`with_context_var_wgt_only_expr`] helper function for declaring a property that sets a context var.
     #[inline(always)]
-    pub fn with_context_var_wgt_only<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+    {
         self.with_context_var_wgt_only_impl(context_var, value, is_new, version, f)
     }
 
@@ -450,7 +458,12 @@ impl Vars {
     ///
     /// See also the [`with_context_var`] helper function to declare a property that sets a context var.
     #[inline(always)]
-    pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: Var<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+    pub fn with_context_bind<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+        V: Var<C::Type>,
+    {
         self.with_context_var_impl(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }
 
@@ -458,7 +471,12 @@ impl Vars {
     ///
     /// See also the [`with_context_var_wgt_only`] helper function to declare a property that sets a context var.
     #[inline(always)]
-    pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: Var<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+    pub fn with_context_bind_wgt_only<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
+    where
+        C: ContextVar,
+        F: FnOnce() -> R,
+        V: Var<C::Type>,
+    {
         self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
     }
 
@@ -1475,13 +1493,13 @@ pub fn with_context_var_expr<T: VarValue>(
         fn measure(&mut self, ctx: &mut crate::context::LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars
-                .with_context_var(self.var, &self.value, self.version, || child.measure(ctx, available_size))
+                .with_context_var(self.var, &self.value, false, self.version, || child.measure(ctx, available_size))
         }
 
         #[inline(always)]
         fn arrange(&mut self, ctx: &mut crate::context::LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
-            ctx.vars.with_context_var(self.var, &self.value, self.version, || {
+            ctx.vars.with_context_var(self.var, &self.value, false, self.version, || {
                 child.arrange(ctx, final_size);
             });
         }
@@ -1577,13 +1595,13 @@ pub fn with_context_var_wgt_only_expr<T: VarValue>(
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars
-                .with_context_var_wgt_only(self.var, &self.value, self.version, || child.measure(ctx, available_size))
+                .with_context_var_wgt_only(self.var, &self.value, false, self.version, || child.measure(ctx, available_size))
         }
 
         #[inline(always)]
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
-            ctx.vars.with_context_var_wgt_only(self.var, &self.value, self.version, || {
+            ctx.vars.with_context_var_wgt_only(self.var, &self.value, false, self.version, || {
                 child.arrange(ctx, final_size);
             });
         }

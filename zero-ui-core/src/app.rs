@@ -1801,11 +1801,11 @@ impl log::Log for DebugLogger {
                 match record.file() {
                     Some(file) => {
                         eprintln!("{}: [{}:{}] {}", level, file, record.line().unwrap_or(1), record.args())
-                    },
+                    }
                     None => {
                         eprintln!("{}: [{}] {}", level, record.target(), record.args())
-                    },
-                }   
+                    }
+                }
             }
         }
     }

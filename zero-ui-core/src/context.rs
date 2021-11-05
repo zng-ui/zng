@@ -1215,8 +1215,8 @@ pub struct LayoutContext<'a> {
     /// layout update yet, or from `measure` signal `arrange`.
     pub update_state: &'a mut StateMap,
 
-    /// Read-only access to variables.
-    pub vars: &'a VarsRead,
+    /// Access to variables.
+    pub vars: &'a Vars,
 }
 impl<'a> Deref for LayoutContext<'a> {
     type Target = LayoutMetrics;
