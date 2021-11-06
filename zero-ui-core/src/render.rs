@@ -133,7 +133,6 @@ pub struct FrameBuilder {
 
     meta: OwnedStateMap,
     cursor: CursorIcon,
-    hit_testable: bool,
 
     clip_id: ClipId,
     spatial_id: SpatialId,
@@ -190,7 +189,6 @@ impl FrameBuilder {
             widget_display_mode: WidgetDisplayMode::empty(),
             meta: OwnedStateMap::new(),
             cursor: CursorIcon::default(),
-            hit_testable: true,
             clip_id: ClipId::root(pipeline_id),
             spatial_id,
             parent_spatial_id: spatial_id,
@@ -335,12 +333,6 @@ impl FrameBuilder {
         (self.widget_id.get(), self.cursor as u16)
     }
 
-    /// If the context is hit-testable.
-    #[inline]
-    pub fn hit_testable(&self) -> bool {
-        self.hit_testable
-    }
-
     /// Common item properties given a `clip_rect` and the current context.
     ///
     /// This is a common case helper, the `clip_rect` is not snapped to pixels.
@@ -354,18 +346,15 @@ impl FrameBuilder {
         }
     }
 
-    /// Generate a [`common_item_ps`] and, if the current context is [`hit_testable`], pushes
+    /// Generate a [`common_item_ps`] and pushes
     /// a hit-test [`item_tag`].
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
-    /// [`hit_testable`]: FrameBuilder::hit_testable
     /// [`item_tag`]: FrameBuilder::item_tag
     #[inline]
     pub fn common_hit_item_ps(&mut self, clip_rect: PxRect) -> CommonItemProperties {
         let item = self.common_item_ps(clip_rect);
-        if self.hit_testable {
-            self.display_list.push_hit_test(&item, self.item_tag());
-        }
+        self.display_list.push_hit_test(&item, self.item_tag());
         item
     }
 
@@ -584,33 +573,17 @@ impl FrameBuilder {
         self.info_id = parent_node;
     }
 
-    /// Push a hit-test `rect` using [`common_item_ps`]
-    /// if [`hit_testable`] is `true`.
+    /// Push a hit-test `rect` using [`common_item_ps`].
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
-    /// [`hit_testable`]: FrameBuilder::hit_testable
     #[inline]
     pub fn push_hit_test(&mut self, rect: PxRect) {
         if self.cancel_widget {
             return;
         }
 
-        if self.hit_testable {
-            self.open_widget_display();
-            self.display_list.push_hit_test(&self.common_item_ps(rect), self.item_tag());
-        }
-    }
-
-    /// Calls `f` while [`hit_testable`](FrameBuilder::hit_testable) is set to `false`.
-    #[inline]
-    pub fn push_not_hit_testable(&mut self, f: impl FnOnce(&mut FrameBuilder)) {
-        if self.cancel_widget {
-            return;
-        }
-
-        let parent_hit_testable = mem::replace(&mut self.hit_testable, false);
-        f(self);
-        self.hit_testable = parent_hit_testable;
+        self.open_widget_display();
+        self.display_list.push_hit_test(&self.common_item_ps(rect), self.item_tag());
     }
 
     /// Calls `f` with a new [`clip_id`] that clips to `bounds`.
@@ -756,9 +729,7 @@ impl FrameBuilder {
         });
 
         let info = self.common_hit_item_ps(bounds);
-        if self.hit_testable {
-            self.display_list.push_hit_test(&info, self.item_tag());
-        }
+
         self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
     }
 

@@ -2,11 +2,7 @@
 
 use std::time::Duration;
 
-use zero_ui_core::timer::DeadlineVar;
-use zero_ui_core::widget_base::{IsHitTestable, WidgetHitTestableExt};
-
-use crate::core::mouse::*;
-use crate::core::window::WindowFocusChangedEvent;
+use crate::core::{mouse::*, timer::DeadlineVar, window::WindowFocusChangedEvent};
 use crate::prelude::new_property::*;
 
 /// If the mouse pointer is over the widget or an widget descendant.
@@ -316,37 +312,6 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
-/// If the widget is hit-test visible.
-///
-/// This property is used only for probing the state. You can set the state using the
-/// [`hit_testable`](crate::properties::hit_testable) property.
-#[property(context)]
-pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsHitTestableNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-    }
-    impl<C: UiNode> IsHitTestableNode<C> {
-        fn update_state(&self, ctx: &mut WidgetContext) {
-            let hit_testable = IsHitTestable::get(ctx) && ctx.widget_state.hit_testable();
-            self.state.set_ne(ctx.vars, hit_testable);
-        }
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsHitTestableNode<C> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-            self.update_state(ctx);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
-            self.update_state(ctx);
-        }
-    }
-    IsHitTestableNode { child, state }
-}
-
 struct IsEnabledNode<C: UiNode> {
     child: C,
     state: StateVar,
@@ -371,6 +336,7 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
         self.update_state(ctx);
     }
 }
+
 /// If the widget is enabled for receiving events.
 ///
 /// This property is used only for probing the state. You can set the state using
