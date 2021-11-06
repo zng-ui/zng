@@ -77,7 +77,7 @@ pub mod text {
             // Font instance using the actual font_size.
             font: Option<FontRef>,
             // Shaped and wrapped text.
-            shaped_text: ShapedText,
+            shaped_text: Option<ShapedText>,
             // Box size of the text block.
             size: PxSize,
         }
@@ -98,7 +98,7 @@ pub mod text {
                     line_shaping_args: TextShapingArgs::default(),
                     layout_line_spacing: 0.0,
                     font: None,
-                    shaped_text: ShapedText::default(),
+                    shaped_text: None,
                     size: PxSize::zero(),
                 }
             }
@@ -117,13 +117,13 @@ pub mod text {
                 let text = self.text_var.get_clone(ctx);
                 let text = TextTransformVar::get(ctx).transform(text);
                 let text = WhiteSpaceVar::get(ctx).transform(text);
-                self.text = SegmentedText::new(text)
+                self.text = SegmentedText::new(text);
             }
 
             fn deinit(&mut self, _: &mut WidgetContext) {
                 self.font = None;
                 self.font_face = None;
-                self.shaped_text = ShapedText::default();
+                self.shaped_text = None;
                 self.text = SegmentedText::default();
             }
 
@@ -135,7 +135,7 @@ pub mod text {
                     let text = white_space.transform(text);
                     if self.text.text() != text {
                         self.text = SegmentedText::new(text);
-                        self.shaped_text = ShapedText::default();
+                        self.shaped_text = None;
 
                         ctx.updates.layout();
                     }
@@ -145,7 +145,7 @@ pub mod text {
                     let text = white_space.transform(text);
                     if self.text.text() != text {
                         self.text = SegmentedText::new(text);
-                        self.shaped_text = ShapedText::default();
+                        self.shaped_text = None;
 
                         ctx.updates.layout();
                     }
@@ -164,7 +164,7 @@ pub mod text {
                         self.synthesis_used = *FontSynthesisVar::get(ctx) & face.synthesis_for(font_style, font_weight);
                         self.font_face = Some(face);
                         self.font = None;
-                        self.shaped_text = ShapedText::default();
+                        self.shaped_text = None;
 
                         ctx.updates.layout();
                     }
@@ -173,7 +173,7 @@ pub mod text {
                 // update `self.font_instance`, affects shaping and layout
                 if TextContext::font_update(ctx).is_some() {
                     self.font = None;
-                    self.shaped_text = ShapedText::default();
+                    self.shaped_text = None;
                     ctx.updates.layout();
                 }
 
@@ -209,11 +209,12 @@ pub mod text {
                     );
                 }
 
-                if self.shaped_text.is_empty() {
+                if self.shaped_text.is_none() {
                     // TODO
                     let font = self.font.as_ref().unwrap();
-                    self.shaped_text = font.shape_text(&self.text, &self.line_shaping_args);
-                    self.size = self.shaped_text.size();
+                    let shaped_text = font.shape_text(&self.text, &self.line_shaping_args);
+                    self.size = shaped_text.size();
+                    self.shaped_text = Some(shaped_text);
                 }
 
                 if available_size.width < self.size.width {
@@ -231,7 +232,7 @@ pub mod text {
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 frame.push_text(
                     PxRect::from_size(self.size),
-                    self.shaped_text.glyphs(),
+                    self.shaped_text.as_ref().expect("shaped text not inited in render").glyphs(),
                     self.font.as_ref().expect("font not initied in render"),
                     RenderColor::from(*TextColorVar::get(ctx)),
                     self.synthesis_used,

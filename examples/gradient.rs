@@ -168,9 +168,9 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
         items = widgets![
             text(name),
             container! {
-                background = gradient;
                 size = (180, 180);
-                content = text("");
+                content_align = unset!;
+                content = gradient;
             }
         ];
     }
