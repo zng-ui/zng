@@ -1313,17 +1313,19 @@ impl AppExtension for WindowManager {
         });
     }
 
-    fn update_display(&mut self, ctx: &mut AppContext, r: UpdateDisplayRequest) {
+    fn layout(&mut self, ctx: &mut AppContext) {
         with_detached_windows(ctx, |ctx, windows| {
             for (_, w) in windows.iter_mut() {
                 w.on_layout(ctx, r);
+            }
+        });
+    }
 
-                if !ctx.vars.update_requested() {
-                    w.on_render(ctx, r);
-                    w.on_render_update(ctx);
-                } else {
-                    ctx.updates.layout();
-                }
+    fn render(&mut self, ctx: &mut AppContext) {
+        with_detached_windows(ctx, |ctx, windows| {
+            for (_, w) in windows.iter_mut() {
+                w.on_render(ctx, r);
+                w.on_render_update(ctx);
             }
         });
     }

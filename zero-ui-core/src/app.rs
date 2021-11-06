@@ -2,7 +2,7 @@
 
 use crate::context::*;
 use crate::crate_util::PanicPayload;
-use crate::event::{cancelable_event_args, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
+use crate::event::{cancelable_event_args, event, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::profiler::*;
 use crate::timer::Timers;
@@ -110,6 +110,66 @@ impl<'a, M> Future for RecvFut<'a, M> {
 }
 
 /// An [`App`] extension.
+/// 
+/// # App Loop
+/// 
+/// Methods in app extension are called in this synchronous order:
+/// 
+/// ## 1 - Init
+/// 
+/// The [`init`] method is called once at the start of the app. Extensions are initialized in the order then where *inserted* in the app.
+/// 
+/// ## 2 - Events
+/// 
+/// The [`event_preview`], [`event_ui`] and [`event`] methods are called in this order for each event message received. Events
+/// received from other threads are buffered until the app is free and then are processed using these methods.
+/// 
+/// ## 3 - Updates
+/// 
+/// The [`update_preview`], [`update_ui`] and [`update`] methods are called in this order every time an [update is requested],
+/// a sequence of events have processed, variables where assigned or timers elapsed. The app loops between [events] and [updates] until
+/// no more updates or events are pending, if [layout] or [render] are requested they are deferred until a event-update cycle is complete.
+/// 
+/// # 4 - Layout
+/// 
+/// The [`layout`] method is called if during [init], [events] or [updates] a layout was requested, extensions should also remember which
+/// unit requested layout, to avoid unnecessary work, for example the [`WindowManager`] remembers witch window requested layout.
+/// 
+/// If the [`layout`] call requests updates the app goes back to [updates], requests for render are again deferred.
+/// 
+/// # 5 - Render
+/// 
+/// The [`render`] method is called if during [init], [events], [updates] or [layout] a render was requested and no other
+/// event, update or layout is pending. Extensions should identify which unit is pending a render or render update and generate
+/// and send a display list or frame update.
+/// 
+/// This method does not block until the frame pixels are rendered, it covers only the creation of a frame request sent to the view-process.
+/// A [`RawFrameRenderedEvent`] is send when a frame finished rendering in the view-process.
+/// 
+/// ## 6 - Deinit
+/// 
+/// The [`deinit`] method is called once after a shutdown was requested and not cancelled. Shutdowns are
+/// requested using the [`AppProcess`] service, it causes a [`ShutdownEvent`] that can be cancelled, if it
+/// is not cancelled the extensions are deinited and then dropped.
+/// 
+/// Deinit happens from the last inited extension first, so in reverse of init order, the [drop] happens in undefined order. Deinit is not called
+/// if the app thread is unwinding from a panic, the extensions will just be dropped in this case.
+/// 
+/// # Resize Loop
+/// 
+/// The app enters a special loop when a window is resizing, 
+/// 
+/// [`init`]: AppExtension::init
+/// [`event_preview`]: AppExtension::event_preview
+/// [`event_ui`]: AppExtension::event_ui
+/// [`event`]: AppExtension::event
+/// [`deinit`]: AppExtension::deinit
+/// [drop]: Drop
+/// [update is requested]: Updates::update
+/// [init]: #1-init
+/// [events]: #2-events
+/// [updates]: #3-updates
+/// [layout]: #3-layout
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait AppExtension: 'static {
     /// Type id of this extension.
@@ -144,6 +204,34 @@ pub trait AppExtension: 'static {
         false
     }
 
+    /// Called just before [`event_ui`](Self::event_ui).
+    ///
+    /// Extensions can handle this method to to intersect event updates before the UI.
+    ///
+    /// Note that this is not related to the `on_event_preview` properties, all UI events
+    /// happen in `on_event_ui`.
+    #[inline]
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        let _ = (ctx, args);
+    }
+
+    /// Called just before [`event`](Self::event).
+    ///
+    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](super::UiNode::event)
+    /// method is called here.
+    #[inline]
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        let _ = (ctx, args);
+    }
+
+    /// Called after every [`event_ui`](Self::event_ui).
+    ///
+    /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
+    #[inline]
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        let _ = (ctx, args);
+    }
+
     /// Called just before [`update_ui`](Self::update_ui).
     ///
     /// Extensions can handle this method to interact with updates before the UI.
@@ -173,44 +261,18 @@ pub trait AppExtension: 'static {
         let _ = ctx;
     }
 
-    /// Called just before [`event_ui`](Self::event_ui).
-    ///
-    /// Extensions can handle this method to to intersect event updates before the UI.
-    ///
-    /// Note that this is not related to the `on_event_preview` properties, all UI events
-    /// happen in `on_event_ui`.
+    /// Called after every sequence of updates if layout was requested.
+    /// 
+    /// 
     #[inline]
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _ = (ctx, args);
+    fn layout(&mut self, ctx: &mut AppContext) {
+        let _ = ctx;
     }
 
-    /// Called just before [`event`](Self::event).
-    ///
-    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](super::UiNode::event)
-    /// method is called here.
+    /// Called after every 
     #[inline]
-    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _ = (ctx, args);
-    }
-
-    /// Called after every [`event_ui`](Self::event_ui).
-    ///
-    /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
-    #[inline]
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _ = (ctx, args);
-    }
-
-    /// Called after every sequence of updates if display update was requested.
-    #[inline]
-    fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
-        let _ = (ctx, update);
-    }
-
-    /// Called when a shutdown was requested.
-    #[inline]
-    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
-        let _ = (ctx, args);
+    fn render(&mut self, ctx: &mut AppContext) {
+        let _ = ctx;
     }
 
     /// Called when the application is shutdown.
@@ -244,8 +306,8 @@ pub trait AppExtensionBoxed: 'static {
     fn event_preview_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
     fn event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
-    fn update_display_boxed(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest);
-    fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs);
+    fn layout_boxed(&mut self, ctx: &mut AppContext);
+    fn render_boxed(&mut self, ctx: &mut AppContext);
     fn deinit_boxed(&mut self, ctx: &mut AppContext);
 }
 impl<T: AppExtension> AppExtensionBoxed for T {
@@ -289,12 +351,12 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.event(ctx, args);
     }
 
-    fn update_display_boxed(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
-        self.update_display(ctx, update);
+    fn layout_boxed(&mut self, ctx: &mut AppContext) {
+        self.layout(ctx);
     }
 
-    fn shutdown_requested_boxed(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
-        self.shutdown_requested(ctx, args);
+    fn render_boxed(&mut self, ctx: &mut AppContext) {
+        self.render(ctx);
     }
 
     fn deinit_boxed(&mut self, ctx: &mut AppContext) {
@@ -345,12 +407,12 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().event_boxed(ctx, &args);
     }
 
-    fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
-        self.as_mut().update_display_boxed(ctx, update);
+    fn layout(&mut self, ctx: &mut AppContext) {
+        self.as_mut().layout_boxed(ctx);
     }
 
-    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
-        self.as_mut().shutdown_requested_boxed(ctx, args);
+    fn render(&mut self, ctx: &mut AppContext) {
+        self.as_mut().render_boxed(ctx);
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {
@@ -366,7 +428,7 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
 }
 
 cancelable_event_args! {
-    /// Arguments for `on_shutdown_requested`.
+    /// Arguments for [`ShutdownRequestedEvent`].
     pub struct ShutdownRequestedArgs {
         ..
         /// Always true.
@@ -374,6 +436,17 @@ cancelable_event_args! {
             true
         }
     }
+}
+
+event! {
+    /// Cancellable event raised when app shutdown is requested.
+    /// 
+    /// App shutdown can be requested using the [`AppProcess`] service, some extensions
+    /// also request shutdown if some conditions are met, [`WindowManager`] requests shutdown
+    /// after the last window is closed for example.
+    /// 
+    /// Shutdown can be cancelled using the [`ShutdownRequestedArgs::cancel`] method.
+    pub ShutdownRequestedEvent: ShutdownRequestedArgs;
 }
 
 /// Defines and runs an application.
@@ -493,7 +566,9 @@ pub struct AppExtended<E: AppExtension> {
     view_process_exe: Option<PathBuf>,
 }
 
-/// Cancellation message of a [shutdown request](AppProcess::shutdown).
+/// Cancellation message of a [shutdown request].
+/// 
+/// [shutdown request]: AppProcess::shutdown
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ShutdownCancelled;
 impl fmt::Display for ShutdownCancelled {
@@ -519,8 +594,10 @@ impl AppProcess {
     }
 
     /// Register a request for process shutdown in the next update.
+    /// 
+    /// The [`ShutdownRequestedEvent`] will be raised, and if not cancelled the app will shutdown.
     ///
-    /// Returns an event listener that is updated once with the unit value [`ShutdownCancelled`]
+    /// Returns a response variable that is updated once with the unit value [`ShutdownCancelled`]
     /// if the shutdown operation is cancelled.
     pub fn shutdown(&mut self) -> ResponseVar<ShutdownCancelled> {
         if let Some(r) = &self.shutdown_requests {
@@ -798,7 +875,7 @@ impl<E: AppExtension> RunningApp<E> {
         let mut flow = ControlFlow::Poll;
 
         #[cfg(feature = "app_profiler")]
-        let mut _idle = crate::profiler::ProfileScope::new("<poll-recv>");
+        let mut _idle = crate::profiler::ProfileScope::new("<poll-idle>");
 
         while let ControlFlow::Poll = flow {
             let ev = if let Some(timer) = self.wake_time {
@@ -820,7 +897,7 @@ impl<E: AppExtension> RunningApp<E> {
 
             #[cfg(feature = "app_profiler")]
             {
-                _idle = crate::profiler::ProfileScope::new("<poll-recv>");
+                _idle = crate::profiler::ProfileScope::new("<poll-idle>");
             }
 
             flow = if !matches!(ev, AppEvent::ViewEvent(view_process::Event::EventsCleared)) || self.receiver.is_empty() {
@@ -886,6 +963,7 @@ impl<E: AppExtension> RunningApp<E> {
     /// Does `update` on `EventsCleared`.
     fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) -> ControlFlow {
         profile_scope!("view_event");
+        profile_scope!("{:?}", ev);
 
         use raw_device_events::*;
         use raw_events::*;
@@ -1208,6 +1286,7 @@ impl<E: AppExtension> RunningApp<E> {
     /// [`Exit`]: ControlFlow::Exit
     /// [`wake_time`]: RunningApp::wake_time
     pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
+        profile_scope!("update-{}", self.maybe_has_updates);
         if self.maybe_has_updates {
             self.maybe_has_updates = false;
 
@@ -1229,8 +1308,12 @@ impl<E: AppExtension> RunningApp<E> {
                 if u.update {
                     // check shutdown.
                     if let Some(r) = ctx.services.app_process().take_requests() {
+                        profile_scope!("shutdown_requested");
+
                         let args = ShutdownRequestedArgs::now();
-                        self.extensions.shutdown_requested(&mut ctx, &args);
+                       
+                        self.notify_event(ShutdownRequestedEvent, args.clone(), observer);
+
                         if args.cancel_requested() {
                             r.respond(ctx.vars, ShutdownCancelled);
                         }
@@ -1244,35 +1327,49 @@ impl<E: AppExtension> RunningApp<E> {
                     Timers::notify(&mut ctx);
 
                     // does `Event` notifications.
-                    for event in u.events {
-                        self.extensions.event_preview(&mut ctx, &event);
-                        observer.event_preview(&mut ctx, &event);
-                        Events::on_pre_events(&mut ctx, &event);
+                    {
+                        profile_scope!("events");
 
-                        self.extensions.event_ui(&mut ctx, &event);
-                        observer.event_ui(&mut ctx, &event);
-
-                        self.extensions.event(&mut ctx, &event);
-                        observer.event(&mut ctx, &event);
-                        Events::on_events(&mut ctx, &event);
+                        for event in u.events {
+                            self.extensions.event_preview(&mut ctx, &event);
+                            observer.event_preview(&mut ctx, &event);
+                            Events::on_pre_events(&mut ctx, &event);
+    
+                            self.extensions.event_ui(&mut ctx, &event);
+                            observer.event_ui(&mut ctx, &event);
+    
+                            self.extensions.event(&mut ctx, &event);
+                            observer.event(&mut ctx, &event);
+                            Events::on_events(&mut ctx, &event);
+                        }
                     }
 
                     // does general updates.
-                    self.extensions.update_preview(&mut ctx);
-                    observer.update_preview(&mut ctx);
-                    Updates::on_pre_updates(&mut ctx);
+                    {
+                        profile_scope!("update");
 
-                    self.extensions.update_ui(&mut ctx);
-                    observer.update_ui(&mut ctx);
+                        self.extensions.update_preview(&mut ctx);
+                        observer.update_preview(&mut ctx);
+                        Updates::on_pre_updates(&mut ctx);
+    
+                        self.extensions.update_ui(&mut ctx);
+                        observer.update_ui(&mut ctx);
+    
+                        self.extensions.update(&mut ctx);
+                        observer.update(&mut ctx);
+                        Updates::on_updates(&mut ctx);
+                    }
 
-                    self.extensions.update(&mut ctx);
-                    observer.update(&mut ctx);
-                    Updates::on_updates(&mut ctx);
-                } else if display_update != UpdateDisplayRequest::None {
+                } else if display_update.is_layout() {
+                    profile_scope!("layout");
                     display_update = UpdateDisplayRequest::None;
-
-                    self.extensions.update_display(&mut ctx, display_update);
-                    observer.update_display(&mut ctx, display_update);
+                    self.extensions.layout(&mut ctx);
+                    observer.layout(&mut ctx);
+                } else if display_update.is_render() {
+                    profile_scope!("render");
+                    display_update = UpdateDisplayRequest::None;
+                    self.extensions.render(&mut ctx);
+                    observer.render(&mut ctx);
                 } else {
                     break;
                 }
@@ -1467,9 +1564,14 @@ pub trait AppEventObserver {
         let _ = ctx;
     }
 
-    /// Called just after [`AppExtension::update_display`].
-    fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
-        let _ = (ctx, update);
+    /// Called just after [`AppExtension::layout`].
+    fn layout(&mut self, ctx: &mut AppContext) {
+        let _ = ctx;
+    }
+
+    /// Called just after [`AppExtension::render`].
+    fn render(&mut self, ctx: &mut AppContext) {
+        let _ = ctx;
     }
 }
 /// Nil observer, does nothing.
@@ -1517,9 +1619,15 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
-        self.0.update_display(ctx, update);
-        self.1.update_display(ctx, update);
+    fn layout(&mut self, ctx: &mut AppContext) {
+        self.0.layout(ctx);
+        self.1.layout(ctx);
+    }
+
+    #[inline]
+    fn render(&mut self, ctx: &mut AppContext) {
+        self.0.render(ctx);
+        self.1.render(ctx);
     }
 
     #[inline]
@@ -1541,15 +1649,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
-        self.0.shutdown_requested(ctx, args);
-        self.1.shutdown_requested(ctx, args);
-    }
-
-    #[inline]
     fn deinit(&mut self, ctx: &mut AppContext) {
-        self.0.deinit(ctx);
         self.1.deinit(ctx);
+        self.0.deinit(ctx);
     }
 }
 
@@ -1592,12 +1694,6 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn update_display(&mut self, ctx: &mut AppContext, update: UpdateDisplayRequest) {
-        for ext in self {
-            ext.update_display(ctx, update);
-        }
-    }
-
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         for ext in self {
             ext.event_preview(ctx, args);
@@ -1616,14 +1712,20 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn shutdown_requested(&mut self, ctx: &mut AppContext, args: &ShutdownRequestedArgs) {
+    fn layout(&mut self, ctx: &mut AppContext) {
         for ext in self {
-            ext.shutdown_requested(ctx, args);
+            ext.layout(ctx);
+        }
+    }
+
+    fn render(&mut self, ctx: &mut AppContext) {
+        for ext in self {
+            ext.render(ctx);
         }
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {
-        for ext in self {
+        for ext in self.iter_mut().rev() {
             ext.deinit(ctx);
         }
     }
