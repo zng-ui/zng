@@ -613,14 +613,11 @@ impl FrameBuilder {
     }
 
     /// Calls `f` inside a scroll viewport space.
-    ///
-    /// If `clip` is `true` also clips to the viewport bounds.
     pub fn push_scroll_frame(
         &mut self,
         scroll_id: ScrollId,
         viewport_size: PxSize,
         content_rect: PxRect,
-        //clip: bool,
         f: impl FnOnce(&mut FrameBuilder),
     ) {
         if self.cancel_widget {

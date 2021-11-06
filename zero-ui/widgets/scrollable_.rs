@@ -45,13 +45,23 @@ pub mod scrollable {
 
         /// Horizontal scrollbar generator.
         h_scrollbar_view;
+
+        /// Clip content to only be visible within the scrollable bounds, including under scrollbars.
+        ///
+        /// Enabled by default.
+        clip_to_bounds = true;
+
+        /// Clip content to only be visible within the viewport.
+        ///
+        /// Disabled by default.
+        clip_to_viewport(impl IntoVar<bool>) = false;
     }
 
     fn new_child(content: impl UiNode) -> impl UiNode {
         content
     }
 
-    fn new_child_context(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {
+    fn new_child_context(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
         struct ScrollableNode<N> {
             children: N,
             viewport: PxSize,
@@ -85,20 +95,19 @@ pub mod scrollable {
                 if self.viewport.width < self.joiner.width * 3.0.normal() {
                     self.joiner.width = Px(0);
                     self.viewport.width = final_size.width;
-                } else {
-                    self.children
-                        .widget_arrange(1, ctx, PxSize::new(self.joiner.width, self.viewport.height))
                 }
-
                 if self.viewport.height < self.joiner.height * 3.0.normal() {
                     self.joiner.height = Px(0);
                     self.viewport.height = final_size.height;
-                } else {
-                    self.children
-                        .widget_arrange(2, ctx, PxSize::new(self.viewport.width, self.joiner.height))
                 }
 
                 self.children.widget_arrange(0, ctx, self.viewport);
+
+                self.children
+                    .widget_arrange(1, ctx, PxSize::new(self.joiner.width, self.viewport.height));
+                self.children
+                    .widget_arrange(2, ctx, PxSize::new(self.viewport.width, self.joiner.height));
+
                 self.children.widget_arrange(3, ctx, self.joiner);
             }
 
@@ -126,7 +135,7 @@ pub mod scrollable {
         }
         ScrollableNode {
             children: nodes![
-                nodes::viewport(child, mode.into_var()),
+                clip_to_bounds(nodes::viewport(child, mode.into_var()), clip_to_viewport.into_var()),
                 nodes::v_scrollbar_presenter(),
                 nodes::h_scrollbar_presenter(),
                 nodes::scrollbar_joiner_presenter(),
