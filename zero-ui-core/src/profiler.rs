@@ -1,9 +1,11 @@
 //! Performance profiling.
 //!
-//! Crate must be compiled with the `app_profiler`. See [`profile_scope!`](crate::profiler::profile_scope)
-//! and [`write_profile`](crate::profiler::write_profile) for more details.
+//! Crate must be compiled with the `app_profiler`. See [`profile_scope!`] and [`write_profile`] for more details.
 //!
 //! Profiler can be viewed using the `chrome://tracing` app.
+//!
+//! [`profile_scope!`]: crate::profiler::profile_scope
+//! [`write_profile`]: crate::profiler::write_profile
 
 #[cfg(feature = "app_profiler")]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "app_profiler")))]
@@ -99,6 +101,8 @@ mod profiler_impl {
             let start_time = precise_time_ns();
             let mut data = Vec::new();
 
+            let p_id = std::process::id();
+
             while let Ok(sample) = self.rx.try_recv() {
                 if sample.t0 > start_time {
                     break;
@@ -113,7 +117,7 @@ mod profiler_impl {
                 }
 
                 data.push(json!({
-                    "pid": 0,
+                    "pid": p_id,
                     "tid": thread_id,
                     "name": sample.name.as_ref(),
                     "ph": "B",
@@ -121,7 +125,7 @@ mod profiler_impl {
                 }));
 
                 data.push(json!({
-                    "pid": 0,
+                    "pid": p_id,
                     "tid": thread_id,
                     "ph": "E",
                     "ts": t1

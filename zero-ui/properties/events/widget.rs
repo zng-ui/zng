@@ -220,11 +220,16 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> +
 
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<OnDeinitArgs>> UiNode for OnDeinitNode<C, H> {
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
 
             self.count = self.count.wrapping_add(1);
             self.handler.event(ctx, &OnDeinitArgs { count: self.count });
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+            self.handler.update(ctx);
         }
     }
 
@@ -257,10 +262,15 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
 
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<OnDeinitArgs>> UiNode for OnPreviewDeinitNode<C, H> {
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.count = self.count.wrapping_add(1);
             self.handler.event(ctx, &OnDeinitArgs { count: self.count });
 
+            self.child.deinit(ctx);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.handler.update(ctx);
             self.child.update(ctx);
         }
     }

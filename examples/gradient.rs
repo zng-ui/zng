@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 
+use zero_ui::properties::events::widget::on_deinit;
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
@@ -28,7 +29,11 @@ fn app_main() {
                         stack_linear(),
                     ];
                 };
-            }
+            };
+            #[cfg(feature = "app_profiler")]
+            on_deinit = hn!(|_, _| {
+                zero_ui::core::profiler::write_profile("resize-profile.json", false);
+            });
         }
     })
 }
