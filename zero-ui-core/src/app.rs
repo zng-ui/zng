@@ -110,55 +110,55 @@ impl<'a, M> Future for RecvFut<'a, M> {
 }
 
 /// An [`App`] extension.
-/// 
+///
 /// # App Loop
-/// 
+///
 /// Methods in app extension are called in this synchronous order:
-/// 
+///
 /// ## 1 - Init
-/// 
+///
 /// The [`init`] method is called once at the start of the app. Extensions are initialized in the order then where *inserted* in the app.
-/// 
+///
 /// ## 2 - Events
-/// 
+///
 /// The [`event_preview`], [`event_ui`] and [`event`] methods are called in this order for each event message received. Events
 /// received from other threads are buffered until the app is free and then are processed using these methods.
-/// 
+///
 /// ## 3 - Updates
-/// 
+///
 /// The [`update_preview`], [`update_ui`] and [`update`] methods are called in this order every time an [update is requested],
 /// a sequence of events have processed, variables where assigned or timers elapsed. The app loops between [events] and [updates] until
 /// no more updates or events are pending, if [layout] or [render] are requested they are deferred until a event-update cycle is complete.
-/// 
+///
 /// # 4 - Layout
-/// 
+///
 /// The [`layout`] method is called if during [init], [events] or [updates] a layout was requested, extensions should also remember which
 /// unit requested layout, to avoid unnecessary work, for example the [`WindowManager`] remembers witch window requested layout.
-/// 
+///
 /// If the [`layout`] call requests updates the app goes back to [updates], requests for render are again deferred.
-/// 
+///
 /// # 5 - Render
-/// 
+///
 /// The [`render`] method is called if during [init], [events], [updates] or [layout] a render was requested and no other
 /// event, update or layout is pending. Extensions should identify which unit is pending a render or render update and generate
 /// and send a display list or frame update.
-/// 
+///
 /// This method does not block until the frame pixels are rendered, it covers only the creation of a frame request sent to the view-process.
 /// A [`RawFrameRenderedEvent`] is send when a frame finished rendering in the view-process.
-/// 
+///
 /// ## 6 - Deinit
-/// 
+///
 /// The [`deinit`] method is called once after a shutdown was requested and not cancelled. Shutdowns are
 /// requested using the [`AppProcess`] service, it causes a [`ShutdownEvent`] that can be cancelled, if it
 /// is not cancelled the extensions are deinited and then dropped.
-/// 
+///
 /// Deinit happens from the last inited extension first, so in reverse of init order, the [drop] happens in undefined order. Deinit is not called
 /// if the app thread is unwinding from a panic, the extensions will just be dropped in this case.
-/// 
+///
 /// # Resize Loop
-/// 
-/// The app enters a special loop when a window is resizing, 
-/// 
+///
+/// The app enters a special loop when a window is resizing,
+///
 /// [`init`]: AppExtension::init
 /// [`event_preview`]: AppExtension::event_preview
 /// [`event_ui`]: AppExtension::event_ui
@@ -262,14 +262,12 @@ pub trait AppExtension: 'static {
     }
 
     /// Called after every sequence of updates if layout was requested.
-    /// 
-    /// 
     #[inline]
     fn layout(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
 
-    /// Called after every 
+    /// Called after every sequence of updates and layout if render was requested.
     #[inline]
     fn render(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
@@ -440,11 +438,11 @@ cancelable_event_args! {
 
 event! {
     /// Cancellable event raised when app shutdown is requested.
-    /// 
+    ///
     /// App shutdown can be requested using the [`AppProcess`] service, some extensions
     /// also request shutdown if some conditions are met, [`WindowManager`] requests shutdown
     /// after the last window is closed for example.
-    /// 
+    ///
     /// Shutdown can be cancelled using the [`ShutdownRequestedArgs::cancel`] method.
     pub ShutdownRequestedEvent: ShutdownRequestedArgs;
 }
@@ -567,7 +565,7 @@ pub struct AppExtended<E: AppExtension> {
 }
 
 /// Cancellation message of a [shutdown request].
-/// 
+///
 /// [shutdown request]: AppProcess::shutdown
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ShutdownCancelled;
@@ -594,7 +592,7 @@ impl AppProcess {
     }
 
     /// Register a request for process shutdown in the next update.
-    /// 
+    ///
     /// The [`ShutdownRequestedEvent`] will be raised, and if not cancelled the app will shutdown.
     ///
     /// Returns a response variable that is updated once with the unit value [`ShutdownCancelled`]
@@ -847,18 +845,26 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Notify an event directly to the app extensions.
-    pub fn notify_event<Ev: crate::event::Event, O: AppEventObserver>(&mut self, _event: Ev, args: Ev::Args, observer: &mut O) {
+    pub fn notify_event<Ev: crate::event::Event, O: AppEventObserver>(&mut self, event: Ev, args: Ev::Args, observer: &mut O) {
+        Self::notify_event_(&mut self.owned_ctx.borrow(), &mut self.extensions, event, args, observer);
+        self.maybe_has_updates = true;
+    }
+    fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
+        ctx: &mut AppContext,
+        extensions: &mut E,
+        _event: Ev,
+        args: Ev::Args,
+        observer: &mut O,
+    ) {
         profile_scope!("notify_event<{}>", type_name::<Ev>());
 
         let update = EventUpdate::<Ev>(args);
-        let mut ctx = self.owned_ctx.borrow();
-        self.extensions.event_preview(&mut ctx, &update);
-        observer.event_preview(&mut ctx, &update);
-        self.extensions.event_ui(&mut ctx, &update);
-        observer.event_ui(&mut ctx, &update);
-        self.extensions.event(&mut ctx, &update);
-        observer.event(&mut ctx, &update);
-        self.maybe_has_updates = true;
+        extensions.event_preview(ctx, &update);
+        observer.event_preview(ctx, &update);
+        extensions.event_ui(ctx, &update);
+        observer.event_ui(ctx, &update);
+        extensions.event(ctx, &update);
+        observer.event(ctx, &update);
     }
 
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
@@ -1290,7 +1296,8 @@ impl<E: AppExtension> RunningApp<E> {
         if self.maybe_has_updates {
             self.maybe_has_updates = false;
 
-            let mut display_update = UpdateDisplayRequest::None;
+            let mut layout = false;
+            let mut render = false;
 
             let mut limit = 100_000;
             loop {
@@ -1303,7 +1310,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let mut ctx = self.owned_ctx.borrow();
 
                 self.wake_time = u.wake_time;
-                display_update |= u.display_update;
+                layout |= u.layout;
+                render |= u.render;
 
                 if u.update {
                     // check shutdown.
@@ -1311,8 +1319,8 @@ impl<E: AppExtension> RunningApp<E> {
                         profile_scope!("shutdown_requested");
 
                         let args = ShutdownRequestedArgs::now();
-                       
-                        self.notify_event(ShutdownRequestedEvent, args.clone(), observer);
+
+                        Self::notify_event_(&mut ctx, &mut self.extensions, ShutdownRequestedEvent, args.clone(), observer);
 
                         if args.cancel_requested() {
                             r.respond(ctx.vars, ShutdownCancelled);
@@ -1334,10 +1342,10 @@ impl<E: AppExtension> RunningApp<E> {
                             self.extensions.event_preview(&mut ctx, &event);
                             observer.event_preview(&mut ctx, &event);
                             Events::on_pre_events(&mut ctx, &event);
-    
+
                             self.extensions.event_ui(&mut ctx, &event);
                             observer.event_ui(&mut ctx, &event);
-    
+
                             self.extensions.event(&mut ctx, &event);
                             observer.event(&mut ctx, &event);
                             Events::on_events(&mut ctx, &event);
@@ -1351,25 +1359,28 @@ impl<E: AppExtension> RunningApp<E> {
                         self.extensions.update_preview(&mut ctx);
                         observer.update_preview(&mut ctx);
                         Updates::on_pre_updates(&mut ctx);
-    
+
                         self.extensions.update_ui(&mut ctx);
                         observer.update_ui(&mut ctx);
-    
+
                         self.extensions.update(&mut ctx);
                         observer.update(&mut ctx);
                         Updates::on_updates(&mut ctx);
                     }
-
-                } else if display_update.is_layout() {
+                } else if layout {
                     profile_scope!("layout");
-                    display_update = UpdateDisplayRequest::None;
+
                     self.extensions.layout(&mut ctx);
                     observer.layout(&mut ctx);
-                } else if display_update.is_render() {
+
+                    layout = false;
+                } else if render {
                     profile_scope!("render");
-                    display_update = UpdateDisplayRequest::None;
+
                     self.extensions.render(&mut ctx);
                     observer.render(&mut ctx);
+
+                    render = false;
                 } else {
                     break;
                 }

@@ -9,35 +9,36 @@ use std::{
     time::Instant,
 };
 
-pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
-use crate::{
-    app::ControlFlow,
-    color::RenderColor,
-    image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
-    render::webrender_api::{BuiltDisplayList, DynamicProperties, PipelineId},
-    var::Vars,
-};
 use linear_map::LinearMap;
 use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest};
+
+pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
 
 use crate::{
     app::{
         self,
         raw_events::*,
         view_process::{self, Respawned, ViewHeadless, ViewProcess, ViewProcessGen, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
-        AppEventSender, AppExtended, AppExtension, AppProcessExt,
+        AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
     },
     cancelable_event_args,
-    context::{AppContext, UpdateDisplayRequest, WidgetContext, WindowContext},
+    color::RenderColor,
+    context::{AppContext, WidgetContext, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::{event, EventUpdateArgs},
-    event_args, impl_from_and_into_var, profile_scope,
-    render::{webrender_api::ExternalScrollId, FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, WidgetTransformKey},
+    event_args,
+    image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
+    impl_from_and_into_var, profile_scope,
+    render::{
+        webrender_api::{BuiltDisplayList, DynamicProperties, ExternalScrollId, PipelineId},
+        FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, WidgetTransformKey,
+    },
     service::Service,
     state::OwnedStateMap,
     state_key,
     task::http::Uri,
     text::{Text, TextAntiAliasing, ToText},
     units::*,
+    var::Vars,
     var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
     BoxedUiNode, UiNode, WidgetId,
 };
@@ -1316,7 +1317,7 @@ impl AppExtension for WindowManager {
     fn layout(&mut self, ctx: &mut AppContext) {
         with_detached_windows(ctx, |ctx, windows| {
             for (_, w) in windows.iter_mut() {
-                w.on_layout(ctx, r);
+                w.on_layout(ctx);
             }
         });
     }
@@ -1324,7 +1325,7 @@ impl AppExtension for WindowManager {
     fn render(&mut self, ctx: &mut AppContext) {
         with_detached_windows(ctx, |ctx, windows| {
             for (_, w) in windows.iter_mut() {
-                w.on_render(ctx, r);
+                w.on_render(ctx);
                 w.on_render_update(ctx);
             }
         });
@@ -1844,7 +1845,7 @@ impl AppWindow {
             root_transform_key: WidgetTransformKey::new_unique(),
             state: wn_state,
             root,
-            update: UpdateDisplayRequest::Layout,
+            update: WindowUpdates::all(),
         };
 
         // we want the window content to init, update, layout & render to get
@@ -2069,7 +2070,8 @@ impl AppWindow {
         self.context
             .layout(ctx, font_size, scr_factor, scr_ppi, actual_size, |_| actual_size);
         // the frame is send using the normal request
-        self.on_render(ctx, UpdateDisplayRequest::ForceRender);
+        self.context.update.render |= WindowRenderUpdate::Render;
+        self.on_render(ctx);
     }
 
     /// On any of the variables involved in sizing updated.
@@ -2125,8 +2127,8 @@ impl AppWindow {
     /// On layout request can go two ways, if auto-size is enabled we will end-up resizing the window (probably)
     /// in this case we also render to send the frame together with the resize request, otherwise we just do layout
     /// and then wait for the normal render request.
-    fn on_layout(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
-        if !request.in_window(self.context.update).is_layout() {
+    fn on_layout(&mut self, ctx: &mut AppContext) {
+        if !self.context.update.layout {
             return;
         }
 
@@ -2193,7 +2195,7 @@ impl AppWindow {
             }
 
             // `on_render` will complete first_render.
-            self.context.update = UpdateDisplayRequest::Render;
+            self.context.update = WindowUpdates::render();
         } else if state.is_fullscreen() {
             // we already have the size, it is the monitor size (for Exclusive we are okay with a blink if the resolution does not match).
 
@@ -2209,10 +2211,10 @@ impl AppWindow {
             self.min_size = min_size;
             self.max_size = max_size;
 
-            self.context.update = UpdateDisplayRequest::Render;
+            self.context.update = WindowUpdates::render();
         } else {
             // we don't have the size, the maximized size needs to exclude window-chrome and non-client area.
-            self.context.update = UpdateDisplayRequest::Layout;
+            self.context.update = WindowUpdates::all();
 
             // we do calculate the size as the "restore" size.
             let (size, min_size, max_size) = self.layout_size(ctx, false);
@@ -2269,10 +2271,10 @@ impl AppWindow {
                 self.headed = Some(headed);
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
 
-                if self.size != data.size || self.context.update.is_layout() {
+                if self.size != data.size || self.context.update.layout {
                     self.size = data.size;
                     RawWindowResizedEvent.notify(ctx, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
-                    self.context.update = UpdateDisplayRequest::Render;
+                    self.context.update = WindowUpdates::render();
 
                     let (size, min_size, max_size) = self.layout_size(ctx, true);
 
@@ -2483,8 +2485,8 @@ impl AppWindow {
     /// On render request.
     ///
     /// If there is a pending request we generate the frame and send.
-    fn on_render(&mut self, ctx: &mut AppContext, request: UpdateDisplayRequest) {
-        if !request.in_window(self.context.update).is_render() {
+    fn on_render(&mut self, ctx: &mut AppContext) {
+        if !self.context.update.render.is_render() {
             return;
         }
 
@@ -2500,7 +2502,7 @@ impl AppWindow {
     ///
     /// If there is a pending request we collect updates and send.
     fn on_render_update(&mut self, ctx: &mut AppContext) {
-        if !self.context.update.is_render_update() {
+        if !self.context.update.render.is_render_update() {
             return;
         }
         let capture_image = self.take_capture_image(ctx.vars);
@@ -2557,8 +2559,9 @@ impl AppWindow {
         self.renderer = None;
         ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = None;
 
-        self.on_layout(ctx, UpdateDisplayRequest::ForceLayout);
-        self.on_render(ctx, UpdateDisplayRequest::ForceRender);
+        self.context.update = WindowUpdates::all();
+        self.on_layout(ctx);
+        self.on_render(ctx);
     }
 
     fn deinit(mut self, ctx: &mut AppContext) {
@@ -2581,7 +2584,7 @@ struct OwnedWindowContext {
     root_transform_key: WidgetTransformKey,
     state: OwnedStateMap,
     root: Window,
-    update: UpdateDisplayRequest,
+    update: WindowUpdates,
 }
 impl OwnedWindowContext {
     fn init(&mut self, ctx: &mut AppContext) {
@@ -2649,7 +2652,7 @@ impl OwnedWindowContext {
     ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
         profile_scope!("OwnedWindowContext::render");
 
-        self.update = UpdateDisplayRequest::None;
+        self.update = WindowUpdates::none();
 
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
@@ -2680,8 +2683,8 @@ impl OwnedWindowContext {
         frame_id: FrameId,
         clear_color: RenderColor,
     ) -> (DynamicProperties, Vec<(ExternalScrollId, PxVector)>, Option<RenderColor>) {
-        debug_assert!(self.update.is_render_update());
-        self.update = UpdateDisplayRequest::None;
+        debug_assert!(self.update.render.is_render_update());
+        self.update = WindowUpdates::none();
 
         let root = &self.root;
         let root_transform_key = self.root_transform_key;

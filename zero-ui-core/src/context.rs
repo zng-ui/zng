@@ -7,101 +7,6 @@ use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, time::Instant};
 #[doc(inline)]
 pub use crate::state::*;
 
-/// Required updates for a window layout and frame.
-#[repr(u8)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum UpdateDisplayRequest {
-    /// No update required.
-    None = 0b0000_0000,
-    /// Windows that requested this must update their existing frame and re-render.
-    RenderUpdate = 0b0000_0001,
-    /// Windows that requested this must generate a new frame and render.
-    Render = 0b0000_0011,
-    /// All open windows must generate a new frame and render.
-    ForceRender = 0b1000_0011,
-    /// Windows that requested this must re-compute layout, generate a new frame and render.
-    Layout = 0b0000_0111,
-    /// All open windows must re-compute layout, generate a new frame and render.
-    ForceLayout = 0b1000_0111,
-}
-impl UpdateDisplayRequest {
-    /// If the request must be applied to all open windows.
-    #[inline]
-    pub fn is_force(self) -> bool {
-        (self as u8 & 0b1000_0000) == 0b1000_0000
-    }
-
-    /// If the request includes a re-compute of the window layout.
-    #[inline]
-    pub fn is_layout(self) -> bool {
-        (self as u8 & 0b0000_0100) == 0b0000_0100
-    }
-
-    /// If the request includes the generation of a new frame.
-    ///
-    /// Returns `true` if it is layout too.
-    #[inline]
-    pub fn is_render(self) -> bool {
-        (self as u8 & 0b0000_0010) == 0b0000_0010
-    }
-
-    /// If the request is only a render update. If `true` the window must update
-    /// the current frame and re-render.
-    ///
-    /// Returns `false` if it is a full layout or render.
-    #[inline]
-    pub fn is_render_update(self) -> bool {
-        self == UpdateDisplayRequest::RenderUpdate
-    }
-
-    /// If contains any update.
-    #[inline]
-    pub fn is_some(self) -> bool {
-        !self.is_none()
-    }
-
-    /// If does not contain any update.
-    #[inline]
-    pub fn is_none(self) -> bool {
-        self == UpdateDisplayRequest::None
-    }
-
-    /// Combine `self` as the app level request with an specific window request.
-    ///
-    /// Returns what update the window must apply.
-    pub fn in_window(self, window_request: UpdateDisplayRequest) -> UpdateDisplayRequest {
-        if self.is_force() {
-            self
-        } else {
-            window_request
-        }
-    }
-}
-impl Default for UpdateDisplayRequest {
-    #[inline]
-    fn default() -> Self {
-        UpdateDisplayRequest::None
-    }
-}
-impl std::ops::BitOrAssign for UpdateDisplayRequest {
-    #[inline]
-    fn bitor_assign(&mut self, rhs: Self) {
-        let a = (*self) as u8;
-        let b = rhs as u8;
-        // SAFETY: flag OR
-        *self = unsafe { mem::transmute(a | b) }
-    }
-}
-impl std::ops::BitOr for UpdateDisplayRequest {
-    type Output = Self;
-
-    #[inline]
-    fn bitor(mut self, rhs: Self) -> Self {
-        self |= rhs;
-        self
-    }
-}
-
 use crate::app::AppEventSender;
 use crate::crate_util::{Handle, HandleOwner, RunOnDrop};
 use crate::event::BoxedEventUpdate;
@@ -180,12 +85,10 @@ pub struct UpdateArgs {
 pub struct Updates {
     event_sender: AppEventSender,
     update: bool,
+    layout: bool,
+    render: bool,
 
-    // `win_display_update` tracks the requests made inside the window
-    // in the end `display_update` is applied but windows ignore the request
-    // if it was not made inside the window and is not `force`.
-    display_update: UpdateDisplayRequest,
-    win_display_update: UpdateDisplayRequest,
+    window_updates: WindowUpdates,
 
     pre_handlers: Vec<UpdateHandler>,
     pos_handlers: Vec<UpdateHandler>,
@@ -195,8 +98,10 @@ impl Updates {
         Updates {
             event_sender,
             update: false,
-            display_update: UpdateDisplayRequest::None,
-            win_display_update: UpdateDisplayRequest::None,
+            layout: false,
+            render: false,
+
+            window_updates: WindowUpdates::default(),
 
             pre_handlers: vec![],
             pos_handlers: vec![],
@@ -221,74 +126,44 @@ impl Updates {
         self.update
     }
 
-    /// Schedules a layout update.
-    ///
-    /// In a [`WindowContext`] and [`WidgetContext`] this only requests a layout for the parent window,
-    /// use [`layout_all`] to re-layout all open windows.
-    ///
-    /// [`layout_all`]: Self::layout_all
+    /// Schedules a layout update for the parent window.
     #[inline]
     pub fn layout(&mut self) {
-        self.win_display_update |= UpdateDisplayRequest::Layout;
-        self.display_update |= UpdateDisplayRequest::Layout;
-    }
-
-    /// Schedules a layout update for all open windows.
-    #[inline]
-    pub fn layout_all(&mut self) {
-        self.win_display_update |= UpdateDisplayRequest::ForceLayout;
-        self.display_update |= UpdateDisplayRequest::ForceLayout;
+        self.layout = true;
+        self.window_updates.layout = true;
+        
+        // TODO remove this.
+        self.render();
     }
 
     /// Gets `true` if a layout update is scheduled.
     #[inline]
     pub fn layout_requested(&self) -> bool {
-        self.win_display_update == UpdateDisplayRequest::Layout
+        self.layout
     }
 
-    /// Schedules a new frame.
-    ///
-    /// In a [`WindowContext`] and [`WidgetContext`] this only requests a new frame for the parent window,
-    /// use [`render_all`] to re-render all open windows.
-    ///
-    /// [`render_all`]: Self::render_all
+    /// Schedules a new frame for the parent window.
     #[inline]
     pub fn render(&mut self) {
-        self.win_display_update |= UpdateDisplayRequest::Render;
-        self.display_update |= UpdateDisplayRequest::Render;
-    }
-
-    /// Schedules a new frame for all open windows.
-    #[inline]
-    pub fn render_all(&mut self) {
-        self.win_display_update |= UpdateDisplayRequest::ForceRender;
-        self.display_update |= UpdateDisplayRequest::ForceRender;
+        self.render = true;
+        self.window_updates.render = WindowRenderUpdate::Render;
     }
 
     /// Returns `true` if a new frame is scheduled, including layout.
     #[inline]
     pub fn render_requested(&self) -> bool {
-        self.win_display_update.is_render()
+        self.render
     }
 
-    /// Schedule a frame update.
+    /// Schedule a frame update for the parent window.
+    ///
+    /// Note that if another widget requests a full [`render`] this update will not run.
+    ///
+    /// [`render`]: Updates::render
     #[inline]
     pub fn render_update(&mut self) {
-        self.win_display_update |= UpdateDisplayRequest::RenderUpdate;
-        self.display_update |= UpdateDisplayRequest::RenderUpdate;
-    }
-
-    /// Returns `true` if only a frame update is scheduled.
-    #[inline]
-    pub fn render_update_requested(&self) -> bool {
-        self.win_display_update.is_render_update()
-    }
-
-    /// Schedule the `updates`.
-    #[inline]
-    pub fn schedule_display_updates(&mut self, updates: UpdateDisplayRequest) {
-        self.win_display_update |= updates;
-        self.display_update |= updates;
+        self.render = true;
+        self.window_updates.render |= WindowRenderUpdate::RenderUpdate;
     }
 
     /// Schedule an *once* handler to run when these updates are applied.
@@ -369,8 +244,20 @@ impl Updates {
         });
     }
 
-    fn take_updates(&mut self) -> (bool, UpdateDisplayRequest) {
-        (mem::take(&mut self.update), mem::take(&mut self.display_update))
+    fn enter_window_ctx(&mut self) {
+        self.window_updates = WindowUpdates::default();
+    }
+
+    fn take_win_updates(&mut self) -> WindowUpdates {
+        mem::take(&mut self.window_updates)
+    }
+
+    fn take_updates(&mut self) -> (bool, bool, bool) {
+        (
+            mem::take(&mut self.update),
+            mem::take(&mut self.layout),
+            mem::take(&mut self.render),
+        )
     }
 }
 /// crate::app::HeadlessApp::block_on
@@ -501,12 +388,13 @@ impl OwnedAppContext {
         let events = self.events.apply_updates(&self.vars, &mut self.updates);
         self.vars.apply_updates(&mut self.updates);
 
-        let (update, display_update) = self.updates.take_updates();
+        let (update, layout, render) = self.updates.take_updates();
 
         ContextUpdates {
             events,
             update,
-            display_update,
+            layout,
+            render,
             wake_time,
         }
     }
@@ -548,6 +436,8 @@ impl<'a> AppContext<'a> {
     }
 
     /// Runs a function `f` in the context of a window.
+    ///
+    /// Returns the function result and
     #[inline(always)]
     pub fn window_context<R>(
         &mut self,
@@ -556,10 +446,8 @@ impl<'a> AppContext<'a> {
         window_state: &mut OwnedStateMap,
         renderer: &Option<ViewRenderer>,
         f: impl FnOnce(&mut WindowContext) -> R,
-    ) -> (R, UpdateDisplayRequest) {
-        if !self.updates.display_update.is_force() {
-            self.updates.win_display_update = UpdateDisplayRequest::None;
-        }
+    ) -> (R, WindowUpdates) {
+        self.updates.enter_window_ctx();
 
         let mut update_state = StateMap::new();
 
@@ -577,7 +465,7 @@ impl<'a> AppContext<'a> {
             updates: self.updates,
         });
 
-        (r, mem::take(&mut self.updates.win_display_update))
+        (r, self.updates.take_win_updates())
     }
 
     /// Run a function `f` in the layout context of the monitor that contains a window.
@@ -887,11 +775,12 @@ impl TestWidgetContext {
         let wake_time = self.timers.apply_updates(&self.vars);
         let events = self.events.apply_updates(&self.vars, &mut self.updates);
         self.vars.apply_updates(&mut self.updates);
-        let (update, display_update) = self.updates.take_updates();
+        let (update, layout, render) = self.updates.take_updates();
         ContextUpdates {
             events,
             update,
-            display_update,
+            layout,
+            render,
             wake_time,
         }
     }
@@ -908,17 +797,20 @@ pub struct ContextUpdates {
     /// Update requested.
     pub update: bool,
 
-    /// Display update to notify.
-    pub display_update: UpdateDisplayRequest,
+    /// Layout requested.
+    pub layout: bool,
+
+    /// Full frame or frame update requested.
+    pub render: bool,
 
     /// Time for the loop to awake and update.
     pub wake_time: Option<Instant>,
 }
 impl ContextUpdates {
-    /// If [`update`](Self::update) or [`display_update`](Self::display_update) where requested.
+    /// If update, layout or render was requested.
     #[inline]
     pub fn has_updates(&self) -> bool {
-        self.update || self.display_update.is_some()
+        self.update || self.layout || self.render
     }
 }
 impl std::ops::BitOrAssign for ContextUpdates {
@@ -926,7 +818,8 @@ impl std::ops::BitOrAssign for ContextUpdates {
     fn bitor_assign(&mut self, rhs: Self) {
         self.events.extend(rhs.events);
         self.update |= rhs.update;
-        self.display_update = rhs.display_update;
+        self.layout |= rhs.layout;
+        self.render |= rhs.render;
         self.wake_time = match (self.wake_time, rhs.wake_time) {
             (None, None) => None,
             (None, Some(t)) | (Some(t), None) => Some(t),
@@ -935,6 +828,113 @@ impl std::ops::BitOrAssign for ContextUpdates {
     }
 }
 impl std::ops::BitOr for ContextUpdates {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(mut self, rhs: Self) -> Self {
+        self |= rhs;
+        self
+    }
+}
+
+/// Layout or render updates that where requested by the content of a window.
+/// 
+/// Unlike the general updates, layout and render can be optimized to only apply if
+/// the window content requested it.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct WindowUpdates {
+    /// Layout requested.
+    pub layout: bool,
+    /// Full frame or frame update requested.
+    pub render: WindowRenderUpdate,
+}
+impl WindowUpdates {
+    /// No updates, this the default value.
+    pub fn none() -> Self {
+        Self::default()
+    }
+
+    /// Update layout and render frame.
+    pub fn all() -> Self {
+        WindowUpdates {
+            layout: true,
+            render: WindowRenderUpdate::Render,
+        }
+    }
+
+    /// Update layout only.
+    pub fn layout() -> Self {
+        WindowUpdates {
+            layout: true,
+            render: WindowRenderUpdate::None,
+        }
+    }
+
+    /// Update render only.
+    pub fn render() -> Self {
+        WindowUpdates {
+            layout: false,
+            render: WindowRenderUpdate::Render,
+        }
+    }
+}
+impl std::ops::BitOrAssign for WindowUpdates {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.layout |= rhs.layout;
+        self.render |= rhs.render;
+    }
+}
+impl std::ops::BitOr for WindowUpdates {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(mut self, rhs: Self) -> Self {
+        self |= rhs;
+        self
+    }
+}
+
+/// Kind of render updated requested by the content of a window.
+#[derive(Debug, Clone, Copy)]
+pub enum WindowRenderUpdate {
+    /// No render update requested.
+    None,
+    /// Full frame requested.
+    Render,
+    /// Only frame update requested.
+    RenderUpdate,
+}
+impl WindowRenderUpdate {
+    /// If full frame was requested.
+    #[inline]
+    pub fn is_render(self) -> bool {
+        matches!(self, Self::Render)
+    }
+
+    /// If only frame update was requested.
+    #[inline]
+    pub fn is_render_update(self) -> bool {
+        matches!(self, Self::RenderUpdate)
+    }
+}
+impl Default for WindowRenderUpdate {
+    fn default() -> Self {
+        WindowRenderUpdate::None
+    }
+}
+impl std::ops::BitOrAssign for WindowRenderUpdate {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        use WindowRenderUpdate::*;
+        *self = match (*self, rhs) {
+            (Render, _) | (_, Render) => Render,
+            (RenderUpdate, _) | (_, RenderUpdate) => RenderUpdate,
+            _ => None,
+        };
+    }
+}
+impl std::ops::BitOr for WindowRenderUpdate {
     type Output = Self;
 
     #[inline]
