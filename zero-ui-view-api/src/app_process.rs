@@ -173,7 +173,7 @@ impl Controller {
             Err(e) => {
                 if let Some(p) = process {
                     if let Err(ke) = p.kill() {
-                        log::error!(
+                        tracing::error!(
                             "failed to kill new view-process after failing to connect to it\n connection error: {:?}\n kill error: {:?}",
                             e,
                             ke
@@ -208,7 +208,7 @@ impl Controller {
     /// If another disconnect happens during the view-process startup dialog.
     pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
         if gen == self.generation {
-            log::error!(target: "vp_respawn", "channel disconnect, will try respawn");
+            tracing::error!(target: "vp_respawn", "channel disconnect, will try respawn");
             self.respawn_impl(false)
         }
     }
@@ -227,7 +227,7 @@ impl Controller {
             p
         } else {
             if self.same_process {
-                log::error!(target: "vp_respawn", "cannot recover in same_process mode");
+                tracing::error!(target: "vp_respawn", "cannot recover in same_process mode");
             }
             return;
         };
@@ -262,14 +262,14 @@ impl Controller {
         let code_and_output = match process.into_output() {
             Ok(c) => Some(c),
             Err(e) => {
-                log::error!(target: "vp_respawn", "view-process could not be heaped, will abandon running, {:?}", e);
+                tracing::error!(target: "vp_respawn", "view-process could not be heaped, will abandon running, {:?}", e);
                 None
             }
         };
 
         // try print stdout/err and exit code.
         if let Some(c) = code_and_output {
-            log::info!(target: "vp_respawn", "view-process reaped");
+            tracing::info!(target: "vp_respawn", "view-process reaped");
 
             let code = c.status.code();
 
@@ -278,14 +278,14 @@ impl Controller {
 
                 #[cfg(windows)]
                 if code == Some(1) {
-                    log::warn!(target: "vp_respawn", "view-process exit code is `1`, probably killed by the Task Manager, \
+                    tracing::warn!(target: "vp_respawn", "view-process exit code is `1`, probably killed by the Task Manager, \
                                         will exit app-process with the same code");
                     std::process::exit(1);
                 }
 
                 #[cfg(unix)]
                 if code == None {
-                    log::warn!(target: "vp_respawn", "view-process exited by signal, probably killed by the user, \
+                    tracing::warn!(target: "vp_respawn", "view-process exited by signal, probably killed by the user, \
                                         will exit app-process too");
                     std::process::exit(1);
                 }
@@ -294,28 +294,28 @@ impl Controller {
             let code = code.unwrap();
 
             if !killed_by_us {
-                log::error!(target: "vp_respawn", "view-process exit_code: 0x{:x}", code);
+                tracing::error!(target: "vp_respawn", "view-process exit_code: 0x{:x}", code);
             }
 
             match String::from_utf8(c.stderr) {
                 Ok(s) => {
                     if !s.is_empty() {
-                        log::error!(target: "vp_respawn", "view-process stderr:\n```stderr\n{}\n```", s)
+                        tracing::error!(target: "vp_respawn", "view-process stderr:\n```stderr\n{}\n```", s)
                     }
                 }
-                Err(e) => log::error!(target: "vp_respawn", "failed to read view-process stderr: {}", e),
+                Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stderr: {}", e),
             }
 
             match String::from_utf8(c.stdout) {
                 Ok(s) => {
                     if !s.is_empty() {
-                        log::info!(target: "vp_respawn", "view-process stdout:\n```stdout\n{}\n```", s)
+                        tracing::info!(target: "vp_respawn", "view-process stdout:\n```stdout\n{}\n```", s)
                     }
                 }
-                Err(e) => log::error!(target: "vp_respawn", "failed to read view-process stdout: {}", e),
+                Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stdout: {}", e),
             }
         } else {
-            log::error!(target: "vp_respawn", "failed to reap view-process, will abandon it running and spawn a new one");
+            tracing::error!(target: "vp_respawn", "failed to reap view-process, will abandon it running and spawn a new one");
         }
 
         // recover event listener closure (in a box).
@@ -330,12 +330,12 @@ impl Controller {
             match Self::spawn_view_process(&self.view_process_exe, self.headless) {
                 Ok(r) => break r,
                 Err(e) => {
-                    log::error!(target: "vp_respawn",  "failed to respawn, {:?}", e);
+                    tracing::error!(target: "vp_respawn",  "failed to respawn, {:?}", e);
                     retries -= 1;
                     if retries == 0 {
                         panic!("failed to respawn `view-process` after 3 retries");
                     }
-                    log::info!(target: "vp_respawn", "retrying respawn");
+                    tracing::info!(target: "vp_respawn", "retrying respawn");
                 }
             }
         };

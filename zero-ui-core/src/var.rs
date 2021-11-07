@@ -324,7 +324,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         T: Copy,
     {
         if !self.can_update() {
-            log::warn!("`Var::wait_copy` called in a variable that never updates");
+            tracing::warn!("`Var::wait_copy` called in a variable that never updates");
         }
         VarCopyNewFut::new(vars, self)
     }
@@ -373,7 +373,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     #[inline]
     fn wait_clone<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarCloneNewFut<'a, Vw, T, Self> {
         if !self.can_update() {
-            log::warn!("`Var::wait_clone` called in a variable that never updates");
+            tracing::warn!("`Var::wait_clone` called in a variable that never updates");
         }
         VarCloneNewFut::new(vars, self)
     }
@@ -422,7 +422,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     #[inline]
     fn wait_new<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarIsNewFut<'a, Vw, T, Self> {
         if !self.can_update() {
-            log::warn!("`Var::wait_new` called in a variable that never updates");
+            tracing::warn!("`Var::wait_new` called in a variable that never updates");
         }
         VarIsNewFut::new(vars, self)
     }

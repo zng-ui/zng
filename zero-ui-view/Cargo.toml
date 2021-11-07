@@ -11,7 +11,7 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 zero-ui-view-api = { path = "../zero-ui-view-api" }
 webrender = { path = "../dependencies/webrender/webrender" }
-log = "0.4"
+tracing = "0.1"
 gleam = "0.13.1"
 glutin = "0.27"
 flume = "0.10"

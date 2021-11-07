@@ -262,7 +262,7 @@ where
                         }
                     }));
                     if let Err(p) = r {
-                        log::error!("panic in `task::spawn`: {}", panic_str(&p));
+                        tracing::error!("panic in `task::spawn`: {}", panic_str(&p));
                     }
                 }
             })
@@ -607,7 +607,7 @@ where
 {
     spawn(async move {
         if let Err(p) = wait_catch(task).await {
-            log::error!("parallel `spawn_wait` task panicked: {}", panic_str(&p))
+            tracing::error!("parallel `spawn_wait` task panicked: {}", panic_str(&p))
         }
     });
 }

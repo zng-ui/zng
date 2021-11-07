@@ -494,7 +494,7 @@ impl FontFace {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
-                log::debug!("respawned calling `namespace_id`, will return dummy font key");
+                tracing::debug!("respawned calling `namespace_id`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
@@ -508,7 +508,7 @@ impl FontFace {
         let key = match renderer.add_font((*self.bytes).clone(), self.face_index) {
             Ok(k) => k,
             Err(Respawned) => {
-                log::debug!("respawned calling `add_font`, will return dummy font key");
+                tracing::debug!("respawned calling `add_font`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
@@ -599,7 +599,7 @@ impl FontFace {
                 .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), font_size, variations)));
             Rc::clone(f)
         } else {
-            log::warn!(target: "font_loading", "creating font from unregistered `{}`, will not cache", self.display_name);
+            tracing::warn!(target: "font_loading", "creating font from unregistered `{}`, will not cache", self.display_name);
             Rc::new(Font::new(Rc::clone(self), font_size, variations))
         }
     }
@@ -668,7 +668,7 @@ impl Font {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
-                log::debug!("respawned calling `namespace_id`, will return dummy font key");
+                tracing::debug!("respawned calling `namespace_id`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
@@ -700,7 +700,7 @@ impl Font {
         let key = match renderer.add_font_instance(font_key, self.size, Some(opt), None, variations) {
             Ok(k) => k,
             Err(Respawned) => {
-                log::debug!("respawned calling `add_font_instance`, will return dummy font key");
+                tracing::debug!("respawned calling `add_font_instance`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
         };
@@ -1060,7 +1060,7 @@ impl FontFaceLoader {
         }
 
         if r.is_empty() {
-            log::error!(target: "font_loading", "failed to load fallback font");
+            tracing::error!(target: "font_loading", "failed to load fallback font");
             r.push(Rc::new(FontFace::empty()));
         }
 
@@ -1109,7 +1109,7 @@ impl FontFaceLoader {
                     return Some(f); // new match
                 }
                 Err(e) => {
-                    log::error!(target: "font_loading", "failed to load system font, {}", e);
+                    tracing::error!(target: "font_loading", "failed to load system font, {}", e);
                 }
             }
         } else {
@@ -1133,7 +1133,7 @@ impl FontFaceLoader {
         {
             Ok(handle) => Some(handle),
             Err(e) => {
-                log::error!(target: "font_loading", "failed to select system font, {}", e);
+                tracing::error!(target: "font_loading", "failed to select system font, {}", e);
                 None
             }
         }

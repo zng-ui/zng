@@ -736,7 +736,7 @@ impl<S: AppEventSender> App<S> {
     fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
         self.assert_started();
         self.windows.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
-            log::error!("headed window `{}` not found, will return fallback result", id);
+            tracing::error!("headed window `{}` not found, will return fallback result", id);
             not_found()
         })
     }
@@ -776,7 +776,7 @@ macro_rules! with_window_or_surface {
         } else if let Some($el) = $self.surfaces.iter_mut().find(|w| w.id() == $id) {
             $action
         } else {
-            log::error!("window `{}` not found, will return fallback result", $id);
+            tracing::error!("window `{}` not found, will return fallback result", $id);
             $fallback
         }
     };
@@ -1031,7 +1031,7 @@ impl<S: AppEventSender> Api for App<S> {
                 }
             }
         } else {
-            log::error!("headed window `{}` not found, will return fallback result", id);
+            tracing::error!("headed window `{}` not found, will return fallback result", id);
         }
     }
 

@@ -137,7 +137,7 @@ pub fn next_id32(next: &'static AtomicU32) -> NonZeroU32 {
         let id = next.fetch_add(1, Ordering::Relaxed);
 
         if id == 0 {
-            log::error!("id generator reached `u64::MAX`, will start reusing");
+            tracing::error!("id generator reached `u64::MAX`, will start reusing");
         } else {
             let id = hash32(id);
             if let Some(id) = NonZeroU32::new(id) {
@@ -153,7 +153,7 @@ pub fn next_id64(next: &'static AtomicU64) -> NonZeroU64 {
         let id = next.fetch_add(1, Ordering::Relaxed);
 
         if id == 0 {
-            log::error!("id generator reached `u64::MAX`, will start reusing");
+            tracing::error!("id generator reached `u64::MAX`, will start reusing");
         } else {
             // remove the sequential clustering.
             let id = splitmix64(id);

@@ -6,6 +6,7 @@ use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, 
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
+    examples_util::print_info();
     // zero_ui_view::run_same_process(app_main);
 
     zero_ui_view::init();
@@ -25,7 +26,7 @@ fn app_main() {
 
             // Set a error view generator used in all images in this window.
             image_error_view = view_generator!(|_, args: ImageErrorArgs| {
-                log::error!(target: "expected", "{}", args.error);
+                tracing::error!(target: "expected", "{}", args.error);
                 text! {
                     text = args.error;
                     margin = 20;
@@ -218,7 +219,7 @@ fn large_image() -> impl Widget {
                     loading_view = ViewGenerator::new(image_loading);
                     limits = Some(ImageLimits { max_encoded_size: 300.megabytes(), max_decoded_size: 3.gigabytes() });
                     on_error = hn!(|_, args: &ImageErrorArgs| {
-                        log::error!(target: "unexpected", "{}", args.error);
+                        tracing::error!(target: "unexpected", "{}", args.error);
                     })
                 };
             });

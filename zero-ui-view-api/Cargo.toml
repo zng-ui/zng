@@ -13,7 +13,7 @@ parking_lot = "0.11"
 ipc-channel = "0.15"
 duct = "0.13"
 
-log = "0.4"
+tracing = "0.1"
 flume = { version = "0.10", default-features  = false }
 bitflags = "1"
 num-traits = "0.2"

@@ -1599,12 +1599,12 @@ impl FrameInfoBuilder {
 
         #[cfg(debug_assertions)]
         for (widget_id, repeats) in repeats {
-            log::error!(target: "render", "widget id `{:?}` appears more then once in {:?}:FrameId({}){}",
+            tracing::error!(target: "render", "widget id `{:?}` appears more then once in {:?}:FrameId({}){}",
             widget_id, self.window_id, self.frame_id.get(), {
                 let mut places = String::new();
                 use std::fmt::Write;
-                for node in repeats {
-                    let info = WidgetInfo::new(&r, node);
+                for node in &repeats {
+                    let info = WidgetInfo::new(&r, *node);
                     write!(places, "\n    {}", info.path()).unwrap();
                 }
                 places

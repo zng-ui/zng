@@ -5,6 +5,7 @@ use zero_ui::prelude::*;
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
+    examples_util::print_info();
     zero_ui_view::init();
     App::default().run_window(|_| {
         window! {

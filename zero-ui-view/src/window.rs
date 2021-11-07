@@ -484,7 +484,7 @@ impl Window {
             if let Some(mode) = self.video_mode() {
                 self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
             } else {
-                log::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
+                tracing::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
                 self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
             }
         }
@@ -508,7 +508,7 @@ impl Window {
                     if let Some(mode) = self.video_mode() {
                         self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
                     } else {
-                        log::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
+                        tracing::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
                         self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
                     }
                 }
@@ -571,7 +571,7 @@ impl Window {
                         winerror::S_OK => {}
                         error => {
                             let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
-                            log::error!(
+                            tracing::error!(
                                 target: "window",
                                 "cannot set `taskbar_visible`, `ITaskbarList::{}` failed, error: {:X}",
                                 mtd_name,
@@ -582,7 +582,7 @@ impl Window {
                     tb.Release();
                 }
                 error => {
-                    log::error!(
+                    tracing::error!(
                         target: "window",
                         "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {:X}",
                         error

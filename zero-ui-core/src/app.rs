@@ -461,11 +461,6 @@ event! {
 /// A view-process must be initialized before creating an app. Panics on `run` if there is
 /// not view-process, also panics if the current process is executing as a view-process.
 ///
-/// # Debug Log
-///
-/// In debug builds, `App` sets a [`logger`](log) that prints info, warning and error logs to `stderr`
-/// if no logger was registered before the call to [`blank`] or [`default`].
-///
 /// [`blank`]: App::blank
 /// [`default`]: App::default
 pub struct App;
@@ -533,7 +528,6 @@ impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         assert_not_view_process();
-        DebugLogger::init();
         AppExtended {
             extensions: vec![],
             view_process_exe: None,
@@ -1876,63 +1870,6 @@ mod headless_tests {
         let _a = TestWidgetContext::new();
         let _b = App::default().run_headless(false);
     }
-}
-
-#[cfg(debug_assertions)]
-struct DebugLogger;
-
-#[cfg(debug_assertions)]
-impl DebugLogger {
-    fn init() {
-        // init debug logger if no other logger was already used.
-        if log::set_logger(&DebugLogger).is_ok() {
-            log::set_max_level(log::LevelFilter::Info);
-        }
-    }
-}
-
-#[cfg(debug_assertions)]
-impl log::Log for DebugLogger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= log::Level::Info
-    }
-
-    fn log(&self, record: &log::Record) {
-        if self.enabled(record.metadata()) {
-            use colored::*;
-            let mut level = None;
-            match record.metadata().level() {
-                log::Level::Error => {
-                    level = Some("error".bright_red().bold());
-                }
-                log::Level::Warn => {
-                    // suppress webrender vertex debug-only warnings.
-                    // see: https://bugzilla.mozilla.org/show_bug.cgi?id=1615342
-                    if record.target() == "webrender::device::gl" || record.line() == Some(2331) {
-                        return;
-                    }
-
-                    level = Some("warn".bright_yellow().bold());
-                }
-                log::Level::Info => {
-                    level = Some("info".bright_blue().bold());
-                }
-                _ => {}
-            }
-            if let Some(level) = level {
-                match record.file() {
-                    Some(file) => {
-                        eprintln!("{}: [{}:{}] {}", level, file, record.line().unwrap_or(1), record.args())
-                    }
-                    None => {
-                        eprintln!("{}: [{}] {}", level, record.target(), record.args())
-                    }
-                }
-            }
-        }
-    }
-
-    fn flush(&self) {}
 }
 
 unique_id_64! {

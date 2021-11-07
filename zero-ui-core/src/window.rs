@@ -1091,7 +1091,7 @@ impl AppExtension for WindowManager {
                         window.on_resize_event(ctx, args.size);
                     }
                 } else if matches!(args.cause, EventCause::System) {
-                    log::warn!("received `RawWindowResizedEvent` with the same size, caused by system");
+                    tracing::warn!("received `RawWindowResizedEvent` with the same size, caused by system");
                     // view process is waiting a frame.
                     window.render_empty_update();
                 }
@@ -1106,7 +1106,7 @@ impl AppExtension for WindowManager {
                         WindowMoveArgs::new(args.timestamp, args.window_id, args.position, args.cause),
                     );
                 } else if matches!(args.cause, EventCause::System) {
-                    log::warn!("received `RawWindowMovedEvent` with the same position, caused by system");
+                    tracing::warn!("received `RawWindowMovedEvent` with the same position, caused by system");
                 }
             }
         } else if let Some(args) = RawWindowStateChangedEvent.update(args) {
@@ -1114,7 +1114,7 @@ impl AppExtension for WindowManager {
                 let prev_state = window.vars.state().copy(ctx.vars);
                 if let EventCause::System = args.cause {
                     if !window.vars.state().set_ne(ctx.vars, args.state) {
-                        log::warn!("received `RawWindowStateChangedEvent` with the same state, caused by system");
+                        tracing::warn!("received `RawWindowStateChangedEvent` with the same state, caused by system");
                     }
                 }
                 WindowStateChangedEvent.notify(
@@ -1132,7 +1132,7 @@ impl AppExtension for WindowManager {
             }
         } else if let Some(args) = RawWindowCloseEvent.update(args) {
             if ctx.services.windows().windows.contains_key(&args.window_id) {
-                log::error!("view-process closed window without request");
+                tracing::error!("view-process closed window without request");
                 let args = WindowCloseArgs::new(args.timestamp, args.window_id);
                 WindowCloseEvent.notify(ctx, args);
             }
@@ -1758,7 +1758,7 @@ impl AppWindowInfo {
                 Ok((frame_id, hit_test)) => {
                     return FrameHitInfo::new(self.id, frame_id, point, &hit_test);
                 }
-                Err(Respawned) => log::debug!("respawned calling `hit_test`, will return `no_hits`"),
+                Err(Respawned) => tracing::debug!("respawned calling `hit_test`, will return `no_hits`"),
             }
         }
 
@@ -1991,7 +1991,7 @@ impl AppWindow {
                 }
                 if let Some(state) = self.vars.state().copy_new(ctx) {
                     if self.kiosk && !state.is_fullscreen() {
-                        log::warn!("kiosk mode blocked state `{:?}`, will remain fullscreen", state);
+                        tracing::warn!("kiosk mode blocked state `{:?}`, will remain fullscreen", state);
                     } else {
                         let _: Ignore = w.set_state(state);
                     }
@@ -2173,7 +2173,7 @@ impl AppWindow {
 
         let mut state = self.vars.state().copy(ctx);
         if self.kiosk && !state.is_fullscreen() {
-            log::warn!("kiosk mode but not fullscreen, will force to fullscreen");
+            tracing::warn!("kiosk mode but not fullscreen, will force to fullscreen");
             state = WindowState::Fullscreen;
         }
 
@@ -2292,7 +2292,7 @@ impl AppWindow {
                     let (size, min_size, max_size) = self.layout_size(ctx, true);
 
                     if size != self.size {
-                        log::error!(
+                        tracing::error!(
                             "content size does not match window size, expected `{:?}`, but was `{:?}`",
                             self.size,
                             size
@@ -2589,7 +2589,7 @@ impl AppWindow {
 impl Drop for AppWindow {
     fn drop(&mut self) {
         if !self.deinited && !thread::panicking() {
-            log::error!("`AppWindow` dropped without calling `deinit`, no memory is leaked but shared state may be incorrect now");
+            tracing::error!("`AppWindow` dropped without calling `deinit`, no memory is leaked but shared state may be incorrect now");
         }
     }
 }

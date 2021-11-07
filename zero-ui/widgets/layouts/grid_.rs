@@ -170,7 +170,7 @@ pub mod grid {
                     let (mut c_span, mut r_span) = state.get(SpanKey).copied().unwrap_or((1, 1));
 
                     if c >= columns_len || r >= rows_len || c_span == 0 || r_span == 0 {
-                        log::debug!(
+                        tracing::debug!(
                             "grid child index `({:?})`, span `({:?})` is not placeable in a {}x{} grid and will not be rendered",
                             (c, r),
                             (c_span, r_span),
@@ -182,7 +182,7 @@ pub mod grid {
                     }
 
                     if c + c_span > columns_len {
-                        log::debug!(
+                        tracing::debug!(
                             "grid child column `{}` and span `{}` overflows the a grid with `{}` columns, span corrected",
                             c,
                             c_span,
@@ -191,7 +191,7 @@ pub mod grid {
                         c_span = columns_len - c;
                     }
                     if r + r_span > rows_len {
-                        log::debug!(
+                        tracing::debug!(
                             "grid child row `{}` and span `{}` overflows the a grid with `{}` rows, span corrected",
                             c,
                             c_span,

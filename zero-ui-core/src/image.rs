@@ -512,7 +512,7 @@ impl Images {
         }
 
         if self.view.is_none() && !self.load_in_headless {
-            log::warn!("loading dummy image, set `load_in_headless=true` to actually load without renderer");
+            tracing::warn!("loading dummy image, set `load_in_headless=true` to actually load without renderer");
 
             let dummy = var(Image::new(ViewImage::dummy(None)));
             self.cache.insert(
@@ -1029,7 +1029,7 @@ impl crate::render::Image for Image {
             let namespace = match renderer.namespace_id() {
                 Ok(n) => n,
                 Err(Respawned) => {
-                    log::debug!("respawned calling `namespace_id`, will return DUMMY");
+                    tracing::debug!("respawned calling `namespace_id`, will return DUMMY");
                     return ImageKey::DUMMY;
                 }
             };
@@ -1041,13 +1041,13 @@ impl crate::render::Image for Image {
             let key = match renderer.use_image(self.view.get().unwrap()) {
                 Ok(k) => {
                     if k == ImageKey::DUMMY {
-                        log::error!("received DUMMY from `use_image`");
+                        tracing::error!("received DUMMY from `use_image`");
                         return k;
                     }
                     k
                 }
                 Err(Respawned) => {
-                    log::debug!("respawned `add_image`, will return DUMMY");
+                    tracing::debug!("respawned `add_image`, will return DUMMY");
                     return ImageKey::DUMMY;
                 }
             };

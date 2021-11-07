@@ -651,7 +651,7 @@ where
             handler(ctx, args);
             handler_args.handle.unsubscribe();
         } else {
-            log::error!("`app_hn_once!` called after requesting unsubscribe");
+            tracing::error!("`app_hn_once!` called after requesting unsubscribe");
         }
     }
 }
@@ -903,7 +903,7 @@ where
                 }
             }
         } else {
-            log::error!("`async_app_hn_once!` called after requesting unsubscribe");
+            tracing::error!("`async_app_hn_once!` called after requesting unsubscribe");
         }
     }
 }

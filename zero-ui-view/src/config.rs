@@ -57,7 +57,7 @@ pub fn text_aa() -> TextAntiAliasing {
         let mut smoothing_type: u32 = 0;
 
         if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
-            log::error!("SPI_GETFONTSMOOTHING error: {:X}", GetLastError());
+            tracing::error!("SPI_GETFONTSMOOTHING error: {:X}", GetLastError());
             return TextAntiAliasing::Mono;
         }
         if enabled == 0 {
@@ -65,7 +65,7 @@ pub fn text_aa() -> TextAntiAliasing {
         }
 
         if SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &mut smoothing_type as *mut _ as *mut _, 0) == 0 {
-            log::error!("SPI_GETFONTSMOOTHINGTYPE error: {:X}", GetLastError());
+            tracing::error!("SPI_GETFONTSMOOTHINGTYPE error: {:X}", GetLastError());
             return TextAntiAliasing::Mono;
         }
 
@@ -116,7 +116,7 @@ pub fn animation_enabled() -> bool {
         let mut enabled = true;
 
         if SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
-            log::error!("SPI_GETCLIENTAREAANIMATION error: {:X}", GetLastError());
+            tracing::error!("SPI_GETCLIENTAREAANIMATION error: {:X}", GetLastError());
             return true;
         }
 
@@ -137,7 +137,7 @@ pub fn key_repeat_delay() -> Duration {
         let mut index = 0;
 
         if SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &mut index as *mut _ as *mut _, 0) == 0 {
-            log::error!("SPI_GETCLIENTAREAANIMATION error: {:X}", GetLastError());
+            tracing::error!("SPI_GETCLIENTAREAANIMATION error: {:X}", GetLastError());
             return Duration::from_millis(600);
         }
 

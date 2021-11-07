@@ -666,7 +666,7 @@ impl MouseManager {
             // mouse_enter/mouse_leave.
             self.update_hovered(window_id, Some(device_id), hits, Some(target), ctx.events, ctx.services.mouse());
         } else {
-            log::warn!("RawCursorMoved did not actually move")
+            tracing::warn!("RawCursorMoved did not actually move")
         }
     }
 

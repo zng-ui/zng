@@ -689,7 +689,7 @@ pub mod window {
                         use std::io::*;
                         stdout()
                             .write_all(&buffer)
-                            .unwrap_or_else(|e| log::error!("error printing frame {}", e));
+                            .unwrap_or_else(|e| tracing::error!("error printing frame {}", e));
                     });
                 }),
             )
