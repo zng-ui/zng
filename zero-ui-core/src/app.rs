@@ -3126,11 +3126,13 @@ pub mod view_process {
 
         /// Render a new frame.
         pub fn render(&self, frame: FrameRequest) -> Result<()> {
+            profile_scope!("ViewRenderer.render");
             self.call(|id, p| p.render(id, frame))
         }
 
         /// Update the current frame and re-render it.
         pub fn render_update(&self, frame: FrameUpdateRequest) -> Result<()> {
+            profile_scope!("ViewRenderer.render_update");
             self.call(|id, p| p.render_update(id, frame))
         }
     }

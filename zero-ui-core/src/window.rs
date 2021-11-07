@@ -2669,6 +2669,8 @@ impl OwnedWindowContext {
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
+        profile_scope!("WindowContext.render");
+
         self.update = WindowUpdates::none();
 
         let root = &mut self.root;

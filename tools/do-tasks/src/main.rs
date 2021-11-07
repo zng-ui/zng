@@ -219,7 +219,8 @@ fn run(mut args: Vec<&str>) {
         let release = take_flag(&mut args, &["--release"]);
         let rust_flags = release_rust_flags(release);
         let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];
-        cmd_env("cargo", &["run", "--features", "app_profiler", "--example"], &args, rust_flags);
+        let release = if release { "--release" } else { "" };
+        cmd_env("cargo", &["run", "--features", "app_profiler", release, "--example"], &args, rust_flags);
     } else if let Some(&"*") = args.first() {
         args.remove(0);
         let release = args.contains(&"--release");
