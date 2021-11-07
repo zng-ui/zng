@@ -267,7 +267,6 @@ impl Window {
         }
 
         win.set_taskbar_visible(cfg.taskbar_visible);
-
         win
     }
 

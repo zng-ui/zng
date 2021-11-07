@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{prelude::*, widgets::text::properties::TextColorVar};
 
+use zero_ui_view_prebuilt as zero_ui_view;
+
 fn main() {
     // zero_ui_view::run_same_process(app_main);
 

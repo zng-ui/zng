@@ -868,12 +868,9 @@ impl<S: AppEventSender> Api for App<S> {
                 position: DipPoint::zero(),
                 size: config.size,
                 scale_factor: 1.0,
-                focused: false,
             }
         } else {
             self.assert_started();
-
-            let will_focus = config.state != WindowState::Minimized;
 
             let win = Window::open(
                 self.gen,
@@ -891,7 +888,6 @@ impl<S: AppEventSender> Api for App<S> {
                 position: win.outer_position(),
                 size: win.size(),
                 scale_factor: win.scale_factor(),
-                focused: will_focus,
             };
 
             self.windows.push(win);

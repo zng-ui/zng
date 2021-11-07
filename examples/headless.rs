@@ -1,6 +1,8 @@
 use zero_ui::core::window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt};
 use zero_ui::prelude::*;
 
+use zero_ui_view_prebuilt as zero_ui_view;
+
 fn main() {
     // zero_ui_view::run_same_process(app_main);
 

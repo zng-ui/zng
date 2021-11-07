@@ -1309,7 +1309,7 @@ impl AppExtension for WindowManager {
         // notify content
         with_detached_windows(ctx, |ctx, windows| {
             for (_, w) in windows.iter_mut() {
-                w.update(ctx);
+                w.on_update(ctx);
             }
         });
     }
@@ -1889,7 +1889,7 @@ impl AppWindow {
             frame_pixels_id: frame_info.frame_id(),
             scale_factor: 1.0, // will be set on the first layout
             frame_info,
-            is_focused: false, // will be set by listening to RawWindowFocusEvent, usually in first layout
+            is_focused: false, // will be set by listening to RawWindowFocusEvent
         };
 
         (win, info)
@@ -1899,11 +1899,15 @@ impl AppWindow {
         self.context.event(ctx, args);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn on_update(&mut self, ctx: &mut AppContext) {
         if self.first_update {
+            profile_scope!("window({})::on_update::init", self.id.sequential());
+
             self.context.init(ctx);
             self.first_update = false;
         } else {
+            profile_scope!("window({})::on_update", self.id.sequential());
+
             self.context.update(ctx);
 
             if self.vars.size().is_new(ctx)
@@ -2137,6 +2141,8 @@ impl AppWindow {
             return;
         }
 
+        profile_scope!("window({})::on_layout", self.id.sequential());
+
         // layout using the "system" size, it can still be overwritten by auto_size.
         let (size, _, _) = self.layout_size(ctx, true);
 
@@ -2160,6 +2166,9 @@ impl AppWindow {
     /// `on_layout` requested before the first frame render.
     fn on_init_layout(&mut self, ctx: &mut AppContext) {
         debug_assert!(self.first_layout);
+
+        profile_scope!("window({})::on_init_layout", self.id.sequential());
+
         self.first_layout = false;
 
         let mut state = self.vars.state().copy(ctx);
@@ -2299,8 +2308,6 @@ impl AppWindow {
                 }
 
                 RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, data.scale_factor));
-
-                RawWindowFocusEvent.notify(ctx.events, RawWindowFocusArgs::now(self.id, data.focused));
             }
             WindowMode::HeadlessWithRenderer => {
                 let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
@@ -2494,6 +2501,8 @@ impl AppWindow {
             return;
         }
 
+        profile_scope!("window({})::on_render", self.id.sequential());
+
         let frame = self.render_frame(ctx);
 
         if let Some(renderer) = &mut self.renderer {
@@ -2509,6 +2518,9 @@ impl AppWindow {
         if !self.context.update.render.is_render_update() {
             return;
         }
+
+        profile_scope!("window({})::on_render_update", self.id.sequential());
+
         let capture_image = self.take_capture_image(ctx.vars);
 
         let next_frame_id = self.frame_id.next_update();
@@ -2625,6 +2637,8 @@ impl OwnedWindowContext {
         available_size: PxSize,
         calc_final_size: impl FnOnce(PxSize) -> PxSize,
     ) -> DipSize {
+        self.update = WindowUpdates::none();
+
         let root = &mut self.root;
         let (final_size, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let child = &mut root.child;
@@ -2655,8 +2669,6 @@ impl OwnedWindowContext {
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
-        profile_scope!("OwnedWindowContext::render");
-
         self.update = WindowUpdates::none();
 
         let root = &mut self.root;

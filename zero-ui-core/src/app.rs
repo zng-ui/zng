@@ -722,8 +722,6 @@ impl<E: AppExtension> AppExtended<E> {
         #[cfg(feature = "app_profiler")]
         register_thread_with_profiler();
 
-        profile_scope!("app::run");
-
         let mut app = RunningApp::start(self.extensions, true, true, self.view_process_exe);
 
         start(&mut app.ctx());
@@ -742,19 +740,11 @@ impl<E: AppExtension> AppExtended<E> {
     /// [`TestWidgetContext`] are running in the current thread.
     pub fn run_headless(self, with_renderer: bool) -> HeadlessApp {
         #[cfg(feature = "app_profiler")]
-        let profile_scope = {
-            register_thread_with_profiler();
-            ProfileScope::new("app::run_headless")
-        };
+        register_thread_with_profiler();
 
         let app = RunningApp::start(self.extensions.boxed(), false, with_renderer, self.view_process_exe);
 
-        HeadlessApp {
-            app,
-
-            #[cfg(feature = "app_profiler")]
-            _pf: profile_scope,
-        }
+        HeadlessApp { app }
     }
 }
 
@@ -783,6 +773,8 @@ impl<E: AppExtension> RunningApp<E> {
             }
         }
 
+        profile_scope!("App::start");
+
         let (sender, receiver) = AppEventSender::new();
 
         let mut owned_ctx = OwnedAppContext::instance(sender);
@@ -808,7 +800,10 @@ impl<E: AppExtension> RunningApp<E> {
             ctx.services.register(renderer);
         }
 
-        extensions.init(&mut ctx);
+        {
+            profile_scope!("extensions::init");
+            extensions.init(&mut ctx);
+        }
 
         RunningApp {
             device_events,
@@ -887,10 +882,10 @@ impl<E: AppExtension> RunningApp<E> {
     pub fn poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         let mut flow = ControlFlow::Poll;
 
-        #[cfg(feature = "app_profiler")]
-        let mut _idle = crate::profiler::ProfileScope::new("<poll-idle>");
-
         while let ControlFlow::Poll = flow {
+            #[cfg(feature = "app_profiler")]
+            let idle = crate::profiler::ProfileScope::new("<poll-idle>");
+
             let ev = if let Some(timer) = self.wake_time {
                 match self.receiver.recv_deadline(timer) {
                     Ok(ev) => ev,
@@ -909,9 +904,7 @@ impl<E: AppExtension> RunningApp<E> {
             };
 
             #[cfg(feature = "app_profiler")]
-            {
-                _idle = crate::profiler::ProfileScope::new("<poll-idle>");
-            }
+            drop(idle);
 
             flow = if !matches!(ev, AppEvent::ViewEvent(view_process::Event::EventsCleared)) || self.receiver.is_empty() {
                 // notify event, ignores `EventsCleared` if there is already more events in the channel.
@@ -976,7 +969,14 @@ impl<E: AppExtension> RunningApp<E> {
     /// Does `update` on `EventsCleared`.
     fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) -> ControlFlow {
         profile_scope!("view_event");
-        profile_scope!("{:?}", ev);
+        profile_scope!("{}", {
+            let ev = format!("Event::{:?}", ev);
+            let l = ev.len();
+            let p = ev.find('(').unwrap_or(l);
+            let c = ev.find('{').unwrap_or(l);
+            let i = p.min(c);
+            ev[..i].to_owned()
+        });
 
         use raw_device_events::*;
         use raw_events::*;
@@ -1299,8 +1299,9 @@ impl<E: AppExtension> RunningApp<E> {
     /// [`Exit`]: ControlFlow::Exit
     /// [`wake_time`]: RunningApp::wake_time
     pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
-        profile_scope!("update-{}", self.maybe_has_updates);
         if self.maybe_has_updates {
+            profile_scope!("update-cycle");
+
             self.maybe_has_updates = false;
 
             let mut layout = false;
@@ -1428,8 +1429,6 @@ pub enum ControlFlow {
 /// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
 pub struct HeadlessApp {
     app: RunningApp<Box<dyn AppExtensionBoxed>>,
-    #[cfg(feature = "app_profiler")]
-    _pf: ProfileScope,
 }
 impl HeadlessApp {
     /// App state.
@@ -1993,7 +1992,7 @@ pub mod view_process {
     use crate::task::SignalOnce;
     use crate::units::{DipPoint, DipSize, Px, PxPoint, PxRect, PxSize};
     use crate::window::{MonitorId, WindowId};
-    use crate::{event, event_args};
+    use crate::{event, event_args, profile_scope};
     use zero_ui_view_api::webrender_api::{
         DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace,
         ImageKey, PipelineId,
@@ -2053,6 +2052,8 @@ pub mod view_process {
         where
             F: FnMut(Event) + Send + 'static,
         {
+            profile_scope!("ViewProcess::start");
+
             let process = zero_ui_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
             Self(Rc::new(RefCell::new(ViewApp {
                 data_generation: process.generation(),
@@ -2079,6 +2080,8 @@ pub mod view_process {
 
         /// Open a window and associate it with the `window_id`.
         pub fn open_window(&self, config: WindowRequest) -> Result<(ViewWindow, WindowOpenData)> {
+            profile_scope!("ViewProcess::open_window");
+
             let mut app = self.0.borrow_mut();
             let _ = app.check_generation();
 
@@ -2101,6 +2104,8 @@ pub mod view_process {
         /// Note that no actual window is created, only the renderer, the use of window-ids to identify
         /// this renderer is only for convenience.
         pub fn open_headless(&self, config: HeadlessRequest) -> Result<ViewHeadless> {
+            profile_scope!("ViewProcess::open_headless");
+
             let mut app = self.0.borrow_mut();
 
             let id = config.id;
