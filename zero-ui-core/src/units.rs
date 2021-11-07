@@ -3297,10 +3297,11 @@ pub type TabLength = Length;
 #[derive(Clone, Default, Debug)]
 pub struct Transform {
     steps: Vec<TransformStep>,
+    needs_layout: bool,
 }
 #[derive(Clone, Debug)]
 enum TransformStep {
-    Computed(LayoutTransform),
+    Computed(RenderTransform),
     Translate(Length, Length),
 }
 impl Transform {
@@ -3313,6 +3314,7 @@ impl Transform {
     /// Appends the `other` transform.
     pub fn and(mut self, other: Transform) -> Self {
         let mut other_steps = other.steps.into_iter();
+        self.needs_layout |= other.needs_layout;
         if let Some(first) = other_steps.next() {
             match first {
                 TransformStep::Computed(first) => self.push_transform(first),
@@ -3323,7 +3325,7 @@ impl Transform {
         self
     }
 
-    fn push_transform(&mut self, transform: LayoutTransform) {
+    fn push_transform(&mut self, transform: RenderTransform) {
         if let Some(TransformStep::Computed(last)) = self.steps.last_mut() {
             *last = last.then(&transform);
         } else {
@@ -3333,7 +3335,7 @@ impl Transform {
 
     /// Append a 2d rotation transform.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.push_transform(LayoutTransform::rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
+        self.push_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
         self
     }
 
@@ -3341,22 +3343,23 @@ impl Transform {
     #[inline]
     pub fn translate<X: Into<Length>, Y: Into<Length>>(mut self, x: X, y: Y) -> Self {
         self.steps.push(TransformStep::Translate(x.into(), y.into()));
+        self.needs_layout = true;
         self
     }
     /// Append a 2d translation transform in the X dimension.
     #[inline]
-    pub fn translate_x(self, x: f32) -> Self {
+    pub fn translate_x<X: Into<Length>>(self, x: X) -> Self {
         self.translate(x, 0.0)
     }
     /// Append a 2d translation transform in the Y dimension.
     #[inline]
-    pub fn translate_y(self, y: f32) -> Self {
+    pub fn translate_y<Y: Into<Length>>(self, y: Y) -> Self {
         self.translate(0.0, y)
     }
 
     /// Append a 2d skew transform.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-        self.push_transform(LayoutTransform::skew(x.into().to_layout(), y.into().to_layout()));
+        self.push_transform(RenderTransform::skew(x.into().to_layout(), y.into().to_layout()));
         self
     }
     /// Append a 2d skew transform in the X dimension.
@@ -3370,7 +3373,7 @@ impl Transform {
 
     /// Append a 2d scale transform.
     pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(mut self, x: X, y: Y) -> Self {
-        self.push_transform(LayoutTransform::scale(x.into().0, y.into().0, 1.0));
+        self.push_transform(RenderTransform::scale(x.into().0, y.into().0, 1.0));
         self
     }
     /// Append a 2d scale transform in the X dimension.
@@ -3387,14 +3390,14 @@ impl Transform {
         self.scale_xy(s, s)
     }
 
-    /// Compute a [`LayoutTransform`].
+    /// Compute a [`RenderTransform`].
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> LayoutTransform {
-        let mut r = LayoutTransform::identity();
+    pub fn to_render(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> RenderTransform {
+        let mut r = RenderTransform::identity();
         for step in &self.steps {
             r = match step {
                 TransformStep::Computed(m) => r.then(m),
-                TransformStep::Translate(x, y) => r.then(&LayoutTransform::translation(
+                TransformStep::Translate(x, y) => r.then(&RenderTransform::translation(
                     x.to_layout(ctx, available_size.width, Px(0)).to_wr().get(),
                     y.to_layout(ctx, available_size.height, Px(0)).to_wr().get(),
                     0.0,
@@ -3402,6 +3405,28 @@ impl Transform {
             };
         }
         r
+    }
+
+    /// Compute a [`RenderTransform`] if it is not affected by the layout context.
+    pub fn try_render(&self) -> Option<RenderTransform> {
+        if self.needs_layout {
+            return None;
+        }
+
+        let mut r = RenderTransform::identity();
+        for step in &self.steps {
+            r = match step {
+                TransformStep::Computed(m) => r.then(m),
+                TransformStep::Translate(_, _) => unreachable!(),
+            }
+        }
+        Some(r)
+    }
+
+    /// Returns `true` if this filter is affected by the layout context where it is evaluated.
+    #[inline]
+    pub fn needs_layout(&self) -> bool {
+        self.needs_layout
     }
 }
 

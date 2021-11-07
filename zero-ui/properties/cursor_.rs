@@ -22,7 +22,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNo
     impl<T: UiNode, C: Var<CursorIcon>> UiNode for CursorNode<T, C> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.cursor.is_new(ctx) {
-                ctx.updates.render();
+                ctx.updates.render(); // TODO reduce this to a metadata render_update.
             }
             self.child.update(ctx);
         }

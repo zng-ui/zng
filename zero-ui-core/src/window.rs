@@ -1852,7 +1852,7 @@ impl AppWindow {
         // all the values needed to actually spawn a real window, this is so we
         // have a frame ready to show when the window is visible.
         ctx.updates.update();
-        ctx.updates.layout();
+        ctx.updates.layout_and_render();
 
         let frame_info = FrameInfo::blank(id, root_id);
 
@@ -2196,6 +2196,7 @@ impl AppWindow {
 
             // `on_render` will complete first_render.
             self.context.update = WindowUpdates::render();
+            ctx.updates.render();
         } else if state.is_fullscreen() {
             // we already have the size, it is the monitor size (for Exclusive we are okay with a blink if the resolution does not match).
 
@@ -2212,9 +2213,11 @@ impl AppWindow {
             self.max_size = max_size;
 
             self.context.update = WindowUpdates::render();
+            ctx.updates.render();
         } else {
             // we don't have the size, the maximized size needs to exclude window-chrome and non-client area.
             self.context.update = WindowUpdates::all();
+            ctx.updates.layout();
 
             // we do calculate the size as the "restore" size.
             let (size, min_size, max_size) = self.layout_size(ctx, false);
@@ -2275,6 +2278,7 @@ impl AppWindow {
                     self.size = data.size;
                     RawWindowResizedEvent.notify(ctx, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
                     self.context.update = WindowUpdates::render();
+                    ctx.updates.render();
 
                     let (size, min_size, max_size) = self.layout_size(ctx, true);
 
@@ -2622,7 +2626,7 @@ impl OwnedWindowContext {
         calc_final_size: impl FnOnce(PxSize) -> PxSize,
     ) -> DipSize {
         let root = &mut self.root;
-        let (final_size, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
+        let (final_size, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let child = &mut root.child;
             ctx.layout_context(
                 font_size,
@@ -2639,6 +2643,7 @@ impl OwnedWindowContext {
                 },
             )
         });
+        self.update |= update;
         final_size.to_dip(scale_factor)
     }
 

@@ -49,6 +49,7 @@ struct LinearGradientNode<A, S, E> {
     stops: S,
     extend_mode: E,
 
+    do_layout: bool,
     render_line: PxLine,
     render_stops: Vec<RenderGradientStop>,
 
@@ -66,8 +67,11 @@ where
             axis,
             stops,
             extend_mode,
+
+            do_layout: true,
             render_line: PxLine::zero(),
             render_stops: vec![],
+
             final_size: PxSize::zero(),
         }
     }
@@ -75,23 +79,30 @@ where
     #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.axis.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+            self.do_layout = true;
             ctx.updates.layout();
         }
     }
     #[UiNode]
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-        self.final_size = final_size;
-        self.render_line = self.axis.get(ctx).layout(ctx, AvailableSize::finite(final_size));
+        if self.do_layout || self.final_size != final_size {
+            self.do_layout = false;
 
-        let length = self.render_line.length();
+            self.final_size = final_size;
+            self.render_line = self.axis.get(ctx).layout(ctx, AvailableSize::finite(final_size));
 
-        self.stops.get(ctx).layout_linear(
-            AvailablePx::Finite(length),
-            ctx,
-            *self.extend_mode.get(ctx),
-            &mut self.render_line,
-            &mut self.render_stops,
-        );
+            let length = self.render_line.length();
+
+            self.stops.get(ctx).layout_linear(
+                AvailablePx::Finite(length),
+                ctx,
+                *self.extend_mode.get(ctx),
+                &mut self.render_line,
+                &mut self.render_stops,
+            );
+
+            ctx.updates.render();
+        }
     }
     #[UiNode]
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -134,10 +145,15 @@ where
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        if self.g.final_size != final_size {
+            ctx.updates.render();
+        }
+
         let available_size = AvailableSize::finite(final_size);
         self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, available_size, final_size);
         self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, available_size, final_size);
         self.g.arrange(ctx, self.render_tile_size);
+
         self.g.final_size = final_size;
     }
 

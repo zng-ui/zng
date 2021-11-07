@@ -1021,6 +1021,7 @@ impl From<FactorNormal> for RgbaComponent {
 #[derive(Clone, Default)]
 pub struct Filter {
     filters: Vec<FilterData>,
+    needs_layout: bool,
 }
 impl Filter {
     fn op(mut self, op: FilterOp) -> Self {
@@ -1056,6 +1057,30 @@ impl Filter {
             .collect()
     }
 
+    /// Compute a [`RenderFilter`] if the filter is not affected by layout.
+    pub fn try_render(&self) -> Option<RenderFilter> {
+        if self.needs_layout {
+            return None;
+        }
+
+        let mut r = Vec::with_capacity(self.filters.len());
+
+        for f in &self.filters {
+            match f {
+                FilterData::Op(op) => r.push(*op),
+                FilterData::Blur(_) | FilterData::DropShadow { .. } => unreachable!(),
+            }
+        }
+
+        Some(r)
+    }
+
+    /// Returns `true` if this filter is affected by the layout context where it is evaluated.
+    #[inline]
+    pub fn needs_layout(&self) -> bool {
+        self.needs_layout
+    }
+
     /// Add an opacity adjustment to the filter, zero is fully transparent, one is the input transparency.
     pub fn opacity<A: Into<FactorNormal>>(self, alpha: A) -> Self {
         let alpha_value = alpha.into().0;
@@ -1071,6 +1096,7 @@ impl Filter {
     ///
     /// Relative lengths are calculated by the width of the available space.
     pub fn blur<R: Into<Length>>(mut self, radius: R) -> Self {
+        self.needs_layout = true;
         self.filters.push(FilterData::Blur(radius.into()));
         self
     }
@@ -1087,6 +1113,7 @@ impl Filter {
 
     /// Add a drop-shadow to the effect.
     pub fn drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(mut self, offset: O, blur_radius: R, color: C) -> Self {
+        self.needs_layout = true;
         self.filters.push(FilterData::DropShadow {
             offset: offset.into(),
             blur_radius: blur_radius.into(),

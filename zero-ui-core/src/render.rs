@@ -127,7 +127,7 @@ pub struct FrameBuilder {
 
     widget_id: WidgetId,
     widget_transform_key: WidgetTransformKey,
-    widget_stack_ctx_data: Option<(LayoutTransform, Vec<FilterOp>, PrimitiveFlags)>,
+    widget_stack_ctx_data: Option<(RenderTransform, Vec<FilterOp>, PrimitiveFlags)>,
     cancel_widget: bool,
     widget_display_mode: WidgetDisplayMode,
 
@@ -195,7 +195,7 @@ impl FrameBuilder {
             offset: PxPoint::zero(),
         };
         new.push_widget_hit_area(root_id, root_size);
-        new.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
+        new.widget_stack_ctx_data = Some((RenderTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
         new
     }
 
@@ -375,7 +375,7 @@ impl FrameBuilder {
     ///
     /// In case of error the `child` render is still called just without the transform.
     #[inline]
-    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
+    pub fn with_widget_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
@@ -455,7 +455,7 @@ impl FrameBuilder {
             return;
         }
         if let Some((transform, mut filters, flags)) = self.widget_stack_ctx_data.take() {
-            if transform != LayoutTransform::identity() {
+            if transform != RenderTransform::identity() {
                 self.widget_display_mode |= WidgetDisplayMode::REFERENCE_FRAME;
 
                 self.parent_spatial_id = self.spatial_id;
@@ -543,7 +543,7 @@ impl FrameBuilder {
 
         self.push_widget_hit_area(id, area); // self.open_widget_display() happens here.
 
-        self.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
+        self.widget_stack_ctx_data = Some((RenderTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
 
         let parent_id = mem::replace(&mut self.widget_id, id);
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
@@ -680,7 +680,7 @@ impl FrameBuilder {
 
     /// Calls `f` inside a new reference frame transformed by `transform`.
     #[inline]
-    pub fn push_transform(&mut self, transform: FrameBinding<LayoutTransform>, f: impl FnOnce(&mut Self)) {
+    pub fn push_transform(&mut self, transform: FrameBinding<RenderTransform>, f: impl FnOnce(&mut Self)) {
         if self.cancel_widget {
             return;
         }
@@ -1101,7 +1101,7 @@ pub struct FrameUpdate {
     frame_id: FrameId,
     window_id: WindowId,
     widget_id: WidgetId,
-    widget_transform: LayoutTransform,
+    widget_transform: RenderTransform,
     widget_transform_key: WidgetTransformKey,
     cancel_widget: bool,
 }
@@ -1126,7 +1126,7 @@ impl FrameUpdate {
             window_id,
             clear_color: None,
             widget_id: root_id,
-            widget_transform: LayoutTransform::identity(),
+            widget_transform: RenderTransform::identity(),
             widget_transform_key: root_transform_key,
             frame_id,
             current_clear_color: clear_color,
@@ -1160,14 +1160,14 @@ impl FrameUpdate {
 
     /// Includes the widget transform.
     #[inline]
-    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, f: impl FnOnce(&mut Self)) {
+    pub fn with_widget_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
         self.widget_transform = self.widget_transform.then(transform);
         f(self);
     }
 
     /// Update a layout transform value.
     #[inline]
-    pub fn update_transform(&mut self, new_value: FrameValue<LayoutTransform>) {
+    pub fn update_transform(&mut self, new_value: FrameValue<RenderTransform>) {
         self.bindings.transforms.push(new_value);
     }
 
@@ -1203,7 +1203,7 @@ impl FrameUpdate {
 
         let parent_id = mem::replace(&mut self.widget_id, id);
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
-        let parent_transform = mem::replace(&mut self.widget_transform, LayoutTransform::identity());
+        let parent_transform = mem::replace(&mut self.widget_transform, RenderTransform::identity());
         let transforms_len = self.bindings.transforms.len();
         let floats_len = self.bindings.floats.len();
         let colors_len = self.bindings.colors.len();
@@ -1221,7 +1221,7 @@ impl FrameUpdate {
             self.bindings.colors.truncate(colors_len);
         } else {
             let widget_transform = mem::replace(&mut self.widget_transform, parent_transform);
-            if widget_transform != LayoutTransform::identity() {
+            if widget_transform != RenderTransform::identity() {
                 self.update_transform(self.widget_transform_key.update(widget_transform));
             }
         }
@@ -1236,7 +1236,7 @@ impl FrameUpdate {
     ///
     /// Returns the property updates, scroll updates and the new clear color if any was set.
     pub fn finalize(mut self) -> (DynamicProperties, Vec<(ExternalScrollId, PxVector)>, Option<RenderColor>) {
-        if self.widget_transform != LayoutTransform::identity() {
+        if self.widget_transform != RenderTransform::identity() {
             self.update_transform(self.widget_transform_key.update(self.widget_transform));
         }
 
@@ -1327,7 +1327,7 @@ impl<T> FrameBindingKey<T> {
 }
 
 /// `FrameBindingKey<LayoutTransform>`.
-pub type WidgetTransformKey = FrameBindingKey<LayoutTransform>;
+pub type WidgetTransformKey = FrameBindingKey<RenderTransform>;
 
 /// Complement of [`ItemTag`] that indicates the hit area of a widget.
 pub const WIDGET_HIT_AREA: u16 = u16::max_value();

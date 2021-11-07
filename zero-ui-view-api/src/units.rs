@@ -570,6 +570,15 @@ impl<T: fmt::Debug, U> fmt::Debug for CornerRadius<T, U> {
             .finish()
     }
 }
+impl<T: PartialEq, U> PartialEq for CornerRadius<T, U> {
+    fn eq(&self, other: &Self) -> bool {
+        self.top_left == other.top_left
+            && self.top_right == other.top_right
+            && self.bottom_left == other.bottom_left
+            && self.bottom_right == other.bottom_right
+    }
+}
+impl<T: Eq, U> Eq for CornerRadius<T, U> {}
 
 /// Corner-radius in device pixels.
 pub type PxCornerRadius = CornerRadius<Px, ()>;
@@ -577,7 +586,7 @@ pub type PxCornerRadius = CornerRadius<Px, ()>;
 /// Corner-radius in device independent pixels.
 pub type DipCornerRadius = CornerRadius<Dip, ()>;
 
-pub use wr::LayoutTransform;
+pub use wr::RenderTransform;
 
 /// Conversion from [`Px`] to [`Dip`] units.
 pub trait PxToDip {

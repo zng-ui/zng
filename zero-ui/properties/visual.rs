@@ -140,48 +140,20 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// The example renders a custom see-through text overlay.
 #[property(inner, allowed_in_when = false, default(crate::core::NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
-    struct ForegroundNode<T: UiNode, B: UiNode> {
-        child: T,
-        foreground: B,
+    struct ForegroundNode<C> {
+        children: C,
     }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, B: UiNode> UiNode for ForegroundNode<T, B> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-            self.foreground.init(ctx);
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            self.foreground.deinit(ctx);
-        }
-
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            self.child.event(ctx, args);
-            self.foreground.event(ctx, args);
-        }
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
-            self.foreground.update(ctx);
-        }
-
+    #[impl_ui_node(children)]
+    impl<C: UiNodeList> UiNode for ForegroundNode<C> {
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let available_size = self.child.measure(ctx, available_size);
-            self.foreground.measure(ctx, AvailableSize::finite(available_size));
+            let available_size = self.children.widget_measure(0, ctx, available_size);
+            self.children.widget_measure(1, ctx, AvailableSize::finite(available_size));
             available_size
         }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.foreground.arrange(ctx, final_size);
-            self.child.arrange(ctx, final_size);
-        }
-
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
-            self.foreground.render(ctx, frame); // TODO, disable events and focus for this?
-        }
     }
-    ForegroundNode { child, foreground }
+    ForegroundNode {
+        children: nodes![child, foreground],
+    }
 }
 
 /// Foreground highlight border overlay.
@@ -320,12 +292,18 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.bounds = final_size;
+            if self.bounds != final_size {
+                self.bounds = final_size;
+
+                if self.clip.copy(ctx) {
+                    ctx.updates.render();
+                }
+            }
             self.child.arrange(ctx, final_size)
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if *self.clip.get(ctx) {
+            if self.clip.copy(ctx) {
                 frame.push_simple_clip(self.bounds, |frame| self.child.render(ctx, frame));
             } else {
                 self.child.render(ctx, frame);

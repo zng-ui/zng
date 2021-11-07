@@ -72,7 +72,7 @@ pub mod h_stack {
             self.children.update_all(ctx);
 
             if self.spacing.is_new(ctx) || self.align.is_new(ctx) {
-                ctx.updates.layout();
+                ctx.updates.layout_and_render();
             }
         }
 
@@ -231,7 +231,7 @@ pub mod v_stack {
             self.children.update_all(ctx);
 
             if self.spacing.is_new(ctx) || self.align.is_new(ctx) {
-                ctx.updates.layout();
+                ctx.updates.layout_and_render();
             }
         }
 
@@ -422,7 +422,7 @@ pub mod z_stack {
     impl<I: UiNodeList, A: Var<Alignment>> UiNode for ZStackNode<I, A> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.align.is_new(ctx) {
-                ctx.updates.layout()
+                ctx.updates.layout_and_render()
             }
             self.children.update_all(ctx);
         }

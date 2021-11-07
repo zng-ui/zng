@@ -12,7 +12,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
     struct TransformNode<C, T> {
         child: C,
         transform: T,
-        layout_transform: LayoutTransform,
+        render_transform: Option<RenderTransform>,
     }
     #[impl_ui_node(child)]
     impl<C, T> UiNode for TransformNode<C, T>
@@ -20,32 +20,49 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         C: UiNode,
         T: Var<Transform>,
     {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.render_transform = self.transform.get(ctx).try_render();
+            self.child.init(ctx);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if self.transform.is_new(ctx) {
-                ctx.updates.render_update();
+            if let Some(t) = self.transform.get_new(ctx.vars) {
+                if let Some(t) = t.try_render() {
+                    self.render_transform = Some(t);
+                    ctx.updates.render_update();
+                } else {
+                    self.render_transform = None;
+                    ctx.updates.layout();
+                }
             }
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.layout_transform = self.transform.get(ctx).to_layout(ctx, AvailableSize::finite(final_size));
+            if self.render_transform.is_none() {
+                let t = self.transform.get(ctx).to_render(ctx, AvailableSize::finite(final_size));
+                self.render_transform = Some(t);
+                ctx.updates.render_update();
+            }
             self.child.arrange(ctx, final_size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame
-                .with_widget_transform(&self.layout_transform, |frame| self.child.render(ctx, frame))
+                .with_widget_transform(&self.render_transform.as_ref().unwrap(), |frame| self.child.render(ctx, frame))
                 .unwrap();
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.with_widget_transform(&self.layout_transform, |update| self.child.render_update(ctx, update));
+            update.with_widget_transform(self.render_transform.as_ref().unwrap(), |update| {
+                self.child.render_update(ctx, update)
+            });
         }
     }
     TransformNode {
         child,
         transform: transform.into_var(),
-        layout_transform: LayoutTransform::identity(),
+        render_transform: None,
     }
 }
 
@@ -198,7 +215,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     impl<C: UiNode, O: Var<Point>> UiNode for TransformOriginNode<C, O> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.origin.is_new(ctx) {
-                ctx.updates.render_update();
+                ctx.updates.layout();
             }
             self.child.update(ctx);
         }

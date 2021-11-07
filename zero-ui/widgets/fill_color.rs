@@ -18,8 +18,11 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
                 self.requested_update.set(true);
             }
         }
-        fn arrange(&mut self, _: &mut LayoutContext, final_size: PxSize) {
-            self.final_size = final_size;
+        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            if self.final_size != final_size {
+                self.final_size = final_size;
+                ctx.updates.render();
+            }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

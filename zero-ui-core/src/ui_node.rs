@@ -953,7 +953,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                             rc.inited.set(true);
                             rc.owner_id.set(self.slot_id);
                             self.state = SlotNodeState::Active(rc);
-                            ctx.updates.layout();
+                            ctx.updates.layout_and_render();
                         }
                     } else {
                         self.state = SlotNodeState::Dropped
@@ -966,7 +966,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     rc.node.borrow_mut().as_mut().unwrap().init(ctx);
                     rc.inited.set(true);
                     self.state = SlotNodeState::Active(Rc::clone(rc));
-                    ctx.updates.layout();
+                    ctx.updates.layout_and_render();
                 }
             }
             SlotNodeState::Active(rc) => {
@@ -976,7 +976,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     }
                     ctx.updates.update(); // notify the other slot to activate.
                     self.state = SlotNodeState::Inactive(Rc::downgrade(rc));
-                    ctx.updates.layout();
+                    ctx.updates.layout_and_render();
                 } else {
                     rc.node.borrow_mut().as_mut().unwrap().update(ctx);
                 }

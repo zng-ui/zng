@@ -1049,6 +1049,8 @@ pub mod image {
                     // 5 - adjust offset so that clip_rect.origin is at widget (0, 0):
                     self.offset = offset;
                     self.offset -= self.clip_rect.origin.to_vector();
+
+                    ctx.updates.render(); // TODO optimize
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

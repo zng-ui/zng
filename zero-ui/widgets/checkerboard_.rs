@@ -132,7 +132,9 @@ pub mod checkerboard {
             fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                 self.final_size = final_size;
                 let available_size = AvailableSize::from_size(final_size);
-                self.tile_size = CheckerboardSizeVar::get(ctx.vars).to_layout(ctx, available_size, PxSize::splat(Px(4)));
+
+                let tile_size = CheckerboardSizeVar::get(ctx.vars).to_layout(ctx, available_size, PxSize::splat(Px(4)));
+
                 let mut offset = CheckerboardOffsetVar::get(ctx.vars).to_layout(ctx, available_size, PxVector::zero());
                 if offset.x > self.tile_size.width {
                     offset.x /= self.tile_size.width;
@@ -140,8 +142,16 @@ pub mod checkerboard {
                 if offset.y > self.tile_size.height {
                     offset.y /= self.tile_size.height;
                 }
-                self.center = self.tile_size.to_vector().to_point() / 2.0.normal();
-                self.center += offset;
+
+                let mut center = self.tile_size.to_vector().to_point() / 2.0.normal();
+                center += offset;
+
+                if self.tile_size != tile_size || self.center != center {
+                    self.tile_size = tile_size;
+                    self.center = center;
+
+                    ctx.updates.render();
+                }
             }
 
             fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {

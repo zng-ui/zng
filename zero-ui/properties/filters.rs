@@ -18,32 +18,47 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     struct FilterNode<C, F> {
         child: C,
         filter: F,
-        render_filter: RenderFilter,
+        render_filter: Option<RenderFilter>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: Var<Filter>> UiNode for FilterNode<C, F> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.render_filter = self.filter.get(ctx).try_render();
+            self.child.init(ctx);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.filter.is_new(ctx) {
-                ctx.updates.layout() //TODO don't use layout when not needed.
+            if let Some(f) = self.filter.get_new(ctx.vars) {
+                if let Some(f) = f.try_render() {
+                    self.render_filter = Some(f);
+                    ctx.updates.render();
+                } else {
+                    self.render_filter = None;
+                    ctx.updates.layout();
+                }
             }
             self.child.update(ctx)
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.render_filter = self.filter.get(ctx).to_render(ctx, AvailableSize::finite(final_size));
+            if self.render_filter.is_none() {
+                self.render_filter = Some(self.filter.get(ctx).to_render(ctx, AvailableSize::finite(final_size)));
+                ctx.updates.render();
+            }
+
             self.child.arrange(ctx, final_size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame
-                .with_widget_filter(self.render_filter.clone(), |frame| self.child.render(ctx, frame))
+                .with_widget_filter(self.render_filter.clone().unwrap(), |frame| self.child.render(ctx, frame))
                 .unwrap();
         }
     }
     FilterNode {
         child,
         filter: filter.into_var(),
-        render_filter: RenderFilter::default(),
+        render_filter: None,
     }
 }
 

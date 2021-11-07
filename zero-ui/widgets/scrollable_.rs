@@ -90,15 +90,20 @@ pub mod scrollable {
             }
 
             fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-                self.viewport = final_size - self.joiner;
+                let mut viewport = final_size - self.joiner;
 
-                if self.viewport.width < self.joiner.width * 3.0.normal() {
+                if viewport.width < self.joiner.width * 3.0.normal() {
                     self.joiner.width = Px(0);
-                    self.viewport.width = final_size.width;
+                    viewport.width = final_size.width;
                 }
-                if self.viewport.height < self.joiner.height * 3.0.normal() {
+                if viewport.height < self.joiner.height * 3.0.normal() {
                     self.joiner.height = Px(0);
-                    self.viewport.height = final_size.height;
+                    viewport.height = final_size.height;
+                }
+
+                if viewport != self.viewport {
+                    self.viewport = viewport;
+                    ctx.updates.render();
                 }
 
                 self.children.widget_arrange(0, ctx, self.viewport);
@@ -248,8 +253,7 @@ pub mod scrollable {
     pub mod nodes {
         use super::*;
 
-        /// The actual content presenter, measures the content allowing any size and renders it clipped and scrolled
-        /// by the TODO
+        /// The actual content presenter.
         pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {
             use crate::core::render::ScrollId;
 
@@ -257,11 +261,20 @@ pub mod scrollable {
                 scroll_id: ScrollId,
                 child: C,
                 mode: M,
+
                 viewport_size: PxSize,
                 content_size: PxSize,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    self.child.update(ctx);
+
+                    if self.mode.is_new(ctx) {
+                        ctx.updates.layout();
+                    }
+                }
+
                 fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: AvailableSize) -> PxSize {
                     let mode = self.mode.copy(ctx);
                     if mode.contains(ScrollMode::VERTICAL) {
@@ -270,12 +283,26 @@ pub mod scrollable {
                     if mode.contains(ScrollMode::HORIZONTAL) {
                         available_size.width = AvailablePx::Infinite;
                     }
-                    self.content_size = self.child.measure(ctx, available_size);
-                    self.content_size
+
+                    let ct_size = self.child.measure(ctx, available_size);
+
+                    if mode.contains(ScrollMode::VERTICAL) && ct_size.height != self.content_size.height {
+                        self.content_size.height = ct_size.height;
+                        ctx.updates.render();
+                    }
+                    if mode.contains(ScrollMode::HORIZONTAL) && ct_size.width != self.content_size.width {
+                        self.content_size.width = ct_size.width;
+                        ctx.updates.render();
+                    }
+
+                    ct_size
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-                    self.viewport_size = final_size;
+                    if self.viewport_size != final_size {
+                        self.viewport_size = final_size;
+                        ctx.updates.render();
+                    }
 
                     let mode = self.mode.copy(ctx);
                     if !mode.contains(ScrollMode::VERTICAL) {

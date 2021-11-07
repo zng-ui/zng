@@ -450,7 +450,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(&vis) = self.visibility.get_new(ctx) {
                 ctx.widget_state.set(VisibilityState, vis);
-                ctx.updates.layout();
+                ctx.updates.layout_and_render();
             }
             self.with_context(ctx.vars, |c| c.update(ctx));
         }

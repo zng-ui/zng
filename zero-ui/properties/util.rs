@@ -42,36 +42,6 @@ where
     set_widget_state_update(child, key, value, |_, _| {})
 }
 
-/// Helper for declaring properties that set the widget state that affects layout.
-///
-/// When `value` updates a layout update is requested.
-///
-/// See [`set_widget_state`] for more details.
-pub fn set_widget_layout_state<U, K, V>(child: U, key: K, value: V) -> impl UiNode
-where
-    U: UiNode,
-    K: StateKey,
-    K::Type: VarValue,
-    V: IntoVar<K::Type>,
-{
-    set_widget_state_update(child, key, value, |ctx, _| ctx.updates.layout())
-}
-
-/// Helper for declaring properties that set the widget state that affects render.
-///
-/// When `value` updates a new frame render is requested.
-///
-/// See [`set_widget_state`] for more details.
-pub fn set_widget_render_state<U, K, V>(child: U, key: K, value: V) -> impl UiNode
-where
-    U: UiNode,
-    K: StateKey,
-    K::Type: VarValue,
-    V: IntoVar<K::Type>,
-{
-    set_widget_state_update(child, key, value, |ctx, _| ctx.updates.render())
-}
-
 /// Helper for declaring properties that set the widget state with a custom closure executed when the value updates.
 ///
 /// The `on_update` closure is called every time the `value` variable updates.

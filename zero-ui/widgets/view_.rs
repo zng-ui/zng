@@ -133,7 +133,7 @@ where
         fn refresh_child(&mut self, ctx: &mut WidgetContext) {
             if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
                 self.child = new_child;
-                ctx.updates.layout();
+                ctx.updates.layout_and_render();
             }
         }
 
@@ -316,7 +316,7 @@ impl<D> ViewGenerator<D> {
                 if gen.is_nil() {
                     if let Some(mut old) = self.child.take() {
                         old.deinit(ctx);
-                        ctx.updates.layout();
+                        ctx.updates.layout_and_render();
                     }
 
                     return;
@@ -330,13 +330,13 @@ impl<D> ViewGenerator<D> {
                         let mut child = (self.map)(gen.generate(ctx, data));
                         child.init(ctx);
                         self.child = Some(child);
-                        ctx.updates.layout();
+                        ctx.updates.layout_and_render();
                     }
                     DataUpdate::Same => self.child.update(ctx),
                     DataUpdate::None => {
                         if let Some(mut old) = self.child.take() {
                             old.deinit(ctx);
-                            ctx.updates.layout();
+                            ctx.updates.layout_and_render();
                         }
                     }
                 }

@@ -2,6 +2,7 @@
 
 use crate::{app::view_process::ViewRenderer, event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
 use retain_mut::RetainMut;
+use std::ops::DerefMut;
 use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, time::Instant};
 
 #[doc(inline)]
@@ -86,9 +87,7 @@ pub struct Updates {
     event_sender: AppEventSender,
     update: bool,
     layout: bool,
-    render: bool,
-
-    window_updates: WindowUpdates,
+    l_updates: LayoutUpdates,
 
     pre_handlers: Vec<UpdateHandler>,
     pos_handlers: Vec<UpdateHandler>,
@@ -99,9 +98,10 @@ impl Updates {
             event_sender,
             update: false,
             layout: false,
-            render: false,
-
-            window_updates: WindowUpdates::default(),
+            l_updates: LayoutUpdates {
+                render: false,
+                window_updates: WindowUpdates::default(),
+            },
 
             pre_handlers: vec![],
             pos_handlers: vec![],
@@ -126,14 +126,18 @@ impl Updates {
         self.update
     }
 
+    /// Schedules a layout and render update.
+    #[inline]
+    pub fn layout_and_render(&mut self) {
+        self.layout();
+        self.render();
+    }
+
     /// Schedules a layout update for the parent window.
     #[inline]
     pub fn layout(&mut self) {
         self.layout = true;
-        self.window_updates.layout = true;
-        
-        // TODO remove this.
-        self.render();
+        self.l_updates.window_updates.layout = true;
     }
 
     /// Gets `true` if a layout update is scheduled.
@@ -142,17 +146,16 @@ impl Updates {
         self.layout
     }
 
-    /// Schedules a new frame for the parent window.
+    /// Schedules a new full frame for the parent window.
     #[inline]
     pub fn render(&mut self) {
-        self.render = true;
-        self.window_updates.render = WindowRenderUpdate::Render;
+        self.l_updates.render();
     }
 
-    /// Returns `true` if a new frame is scheduled, including layout.
+    /// Returns `true` if a new frame or frame update is scheduled.
     #[inline]
     pub fn render_requested(&self) -> bool {
-        self.render
+        self.l_updates.render_requested()
     }
 
     /// Schedule a frame update for the parent window.
@@ -162,8 +165,7 @@ impl Updates {
     /// [`render`]: Updates::render
     #[inline]
     pub fn render_update(&mut self) {
-        self.render = true;
-        self.window_updates.render |= WindowRenderUpdate::RenderUpdate;
+        self.l_updates.render_update();
     }
 
     /// Schedule an *once* handler to run when these updates are applied.
@@ -245,18 +247,18 @@ impl Updates {
     }
 
     fn enter_window_ctx(&mut self) {
-        self.window_updates = WindowUpdates::default();
+        self.l_updates.window_updates = WindowUpdates::default();
     }
 
     fn take_win_updates(&mut self) -> WindowUpdates {
-        mem::take(&mut self.window_updates)
+        mem::take(&mut self.l_updates.window_updates)
     }
 
     fn take_updates(&mut self) -> (bool, bool, bool) {
         (
             mem::take(&mut self.update),
             mem::take(&mut self.layout),
-            mem::take(&mut self.render),
+            mem::take(&mut self.l_updates.render),
         )
     }
 }
@@ -276,6 +278,49 @@ impl Updates {
                 r
             })
             .collect()
+    }
+}
+impl Deref for Updates {
+    type Target = LayoutUpdates;
+
+    fn deref(&self) -> &Self::Target {
+        &self.l_updates
+    }
+}
+impl DerefMut for Updates {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.l_updates
+    }
+}
+
+/// Subsect of [`Updates`] that is accessible in [`LayoutContext`].
+pub struct LayoutUpdates {
+    render: bool,
+    window_updates: WindowUpdates,
+}
+impl LayoutUpdates {
+    /// Schedules a new frame for the parent window.
+    #[inline]
+    pub fn render(&mut self) {
+        self.render = true;
+        self.window_updates.render = WindowRenderUpdate::Render;
+    }
+
+    /// Schedule a frame update for the parent window.
+    ///
+    /// Note that if another widget requests a full [`render`] this update will not run.
+    ///
+    /// [`render`]: LayoutUpdates::render
+    #[inline]
+    pub fn render_update(&mut self) {
+        self.render = true;
+        self.window_updates.render |= WindowRenderUpdate::RenderUpdate;
+    }
+
+    /// Returns `true` if a new frame or frame update is scheduled.
+    #[inline]
+    pub fn render_requested(&self) -> bool {
+        self.render
     }
 }
 
@@ -487,6 +532,7 @@ impl<'a> AppContext<'a> {
             widget_state: &mut StateMap::new(),
             update_state: &mut StateMap::new(),
             vars: self.vars,
+            updates: self.updates,
         })
     }
 }
@@ -584,6 +630,8 @@ impl<'a> WindowContext<'a> {
             update_state: self.update_state,
 
             vars: self.vars,
+
+            updates: self.updates,
         })
     }
 
@@ -744,6 +792,7 @@ impl TestWidgetContext {
             widget_state: &mut self.widget_state.0,
             update_state: &mut self.update_state.0,
             vars: &self.vars,
+            updates: &mut self.updates,
         })
     }
 
@@ -838,7 +887,7 @@ impl std::ops::BitOr for ContextUpdates {
 }
 
 /// Layout or render updates that where requested by the content of a window.
-/// 
+///
 /// Unlike the general updates, layout and render can be optimized to only apply if
 /// the window content requested it.
 #[derive(Debug, Default, Clone, Copy)]
@@ -960,9 +1009,11 @@ pub struct WidgetContext<'a> {
 
     /// State that lives for the duration of the node tree method call in the window.
     ///
-    /// This state lives only for the current [`UiNode`](crate::UiNode) method call in all nodes
+    /// This state lives only for the current [`UiNode`] method call in all nodes
     /// of the window. You can use this to signal properties and event handlers from nodes that
     /// will be updated further then the current one.
+    ///
+    /// [`UiNode`]: crate::UiNode
     pub update_state: &'a mut StateMap,
 
     /// Access to variables.
@@ -1191,7 +1242,6 @@ impl LayoutMetrics {
 /// A widget layout context.
 ///
 /// This type dereferences to [`LayoutMetrics`].
-#[derive(Debug)]
 pub struct LayoutContext<'a> {
     /// Contextual layout metrics.
     pub metrics: &'a LayoutMetrics,
@@ -1216,7 +1266,13 @@ pub struct LayoutContext<'a> {
     pub update_state: &'a mut StateMap,
 
     /// Access to variables.
+    ///
+    /// Note that if you assign a variable any frame request is deferred and the app loop goes back
+    /// to the [`UiNode::update`] cycle.
     pub vars: &'a Vars,
+
+    /// Updates that can be requested in layout context.
+    pub updates: &'a mut LayoutUpdates,
 }
 impl<'a> Deref for LayoutContext<'a> {
     type Target = LayoutMetrics;
@@ -1240,6 +1296,7 @@ impl<'a> LayoutContext<'a> {
             update_state: self.update_state,
 
             vars: self.vars,
+            updates: self.updates,
         })
     }
 
@@ -1260,6 +1317,7 @@ impl<'a> LayoutContext<'a> {
                 update_state: self.update_state,
 
                 vars: self.vars,
+                updates: self.updates,
             })
         });
 

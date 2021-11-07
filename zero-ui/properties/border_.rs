@@ -22,6 +22,7 @@ pub fn border(
         child_rect: PxRect,
 
         final_widths: PxSideOffsets,
+        final_sides: BorderSides,
         final_size: PxSize,
         final_radius: PxCornerRadius,
     }
@@ -41,15 +42,24 @@ pub fn border(
             if self.widths.is_new(ctx) || self.radius.is_new(ctx) {
                 ctx.updates.layout()
             }
-            if self.sides.is_new(ctx) {
-                ctx.updates.render()
+            if let Some(s) = self.sides.copy_new(ctx) {
+                ctx.updates.render();
+
+                self.final_sides = s;
             }
         }
 
         #[UiNode]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            self.final_widths = self.widths.get(ctx).to_layout(ctx, available_size, PxSideOffsets::zero());
-            self.final_radius = self.radius.get(ctx).to_layout(ctx, available_size, PxCornerRadius::zero());
+            let final_widths = self.widths.get(ctx).to_layout(ctx, available_size, PxSideOffsets::zero());
+            let final_radius = self.radius.get(ctx).to_layout(ctx, available_size, PxCornerRadius::zero());
+
+            if final_widths != self.final_widths || final_radius != self.final_radius {
+                ctx.updates.render();
+
+                self.final_widths = final_widths;
+                self.final_radius = final_radius;
+            }
 
             let size_inc = self.size_increment();
             self.child.measure(ctx, available_size.sub_px(size_inc)) + size_inc
@@ -57,10 +67,17 @@ pub fn border(
 
         #[UiNode]
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.child_rect.origin = PxPoint::new(self.final_widths.left, self.final_widths.top);
+            let origin = PxPoint::new(self.final_widths.left, self.final_widths.top);
             let child_size = final_size - self.size_increment();
-            self.child_rect.size = child_size;
-            self.final_size = final_size;
+            let child_rect = PxRect::new(origin, child_size);
+
+            if self.final_size != final_size || child_rect != self.child_rect {
+                self.child_rect = child_rect;
+                self.final_size = final_size;
+
+                ctx.updates.render();
+            }
+
             self.child.arrange(ctx, child_size);
         }
 
@@ -74,7 +91,7 @@ pub fn border(
             frame.push_border(
                 PxRect::from_size(self.final_size),
                 self.final_widths,
-                *self.sides.get(ctx),
+                self.final_sides,
                 self.final_radius,
             );
             frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
@@ -91,6 +108,7 @@ pub fn border(
         child_rect: PxRect::zero(),
         final_size: PxSize::zero(),
         final_widths: PxSideOffsets::zero(),
+        final_sides: BorderSides::solid(colors::BLACK.transparent()),
         final_radius: PxCornerRadius::zero(),
     }
 }

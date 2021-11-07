@@ -308,8 +308,8 @@ pub mod grid {
     ///
     /// [`items`]: #wp-items
     #[property(context, default((0, 0)))]
-    pub fn index(child: impl UiNode, column_row: impl IntoVar<(u32, u32)>) -> impl UiNode {
-        set_widget_layout_state(child, IndexKey, column_row)
+    pub fn index(child: impl UiNode, index: impl IntoVar<(u32, u32)>) -> impl UiNode {
+        set_widget_state_update(child, IndexKey, index, |ctx, _| ctx.updates.layout_and_render())
     }
 
     /// Sets the `(column, row)` counts of columns and rows the widget takes.
@@ -321,7 +321,7 @@ pub mod grid {
     /// [`items`]: #wp-items
     #[property(context, default((1, 1)))]
     pub fn span(child: impl UiNode, column_row: impl IntoVar<(u32, u32)>) -> impl UiNode {
-        set_widget_layout_state(child, SpanKey, column_row)
+        set_widget_state_update(child, SpanKey, column_row, |ctx, _| ctx.updates.layout_and_render())
     }
 
     /// Sets the z-order index of a widget in the grid.
@@ -333,7 +333,7 @@ pub mod grid {
     /// but this property can override that. Note that item widgets are always rendered on-top columns and rows, this cannot be changed.
     #[property(context, default(0))]
     pub fn z_index(child: impl UiNode, z_index: impl IntoVar<i32>) -> impl UiNode {
-        set_widget_render_state(child, ZIndexKey, z_index)
+        set_widget_state_update(child, ZIndexKey, z_index, |ctx, _| ctx.updates.render())
     }
 
     state_key! {

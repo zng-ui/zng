@@ -39,7 +39,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         child: T,
         margin: M,
         size_increment: PxSize,
-        child_rect: PxRect,
+        child_origin: PxPoint,
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, M: Var<SideOffsets>> UiNode for MarginNode<T, M> {
@@ -52,29 +52,32 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let margin = self.margin.get(ctx).to_layout(ctx, available_size, PxSideOffsets::zero());
+
             self.size_increment = PxSize::new(margin.left + margin.right, margin.top + margin.bottom);
 
-            // the size is set in `arrange`
-            self.child_rect.origin = PxPoint::new(margin.left, margin.top);
+            let origin = PxPoint::new(margin.left, margin.top);
+            if origin != self.child_origin {
+                self.child_origin = origin;
+                ctx.updates.render();
+            }
 
             self.child.measure(ctx, available_size.sub_px(self.size_increment)) + self.size_increment
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
             final_size -= self.size_increment;
-            self.child_rect.size = final_size;
             self.child.arrange(ctx, final_size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.child_origin, |frame| self.child.render(ctx, frame));
         }
     }
     MarginNode {
         child,
         margin: margin.into_var(),
         size_increment: PxSize::zero(),
-        child_rect: PxRect::zero(),
+        child_origin: PxPoint::zero(),
     }
 }
 
@@ -120,9 +123,15 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.child_rect = self.alignment.get(ctx.vars).solve(self.child_rect.size, final_size);
+            let child_rect = self.alignment.get(ctx.vars).solve(self.child_rect.size, final_size);
 
-            self.child.arrange(ctx, self.child_rect.size);
+            if self.child_rect.origin != child_rect.origin {
+                ctx.updates.render();
+            }
+
+            self.child_rect = child_rect;
+
+            self.child.arrange(ctx, child_rect.size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -177,10 +186,16 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             self.child.arrange(ctx, final_size);
-            self.final_position = self
+
+            let final_pos = self
                 .position
                 .get(ctx)
                 .to_layout(ctx, AvailableSize::finite(final_size), PxPoint::zero());
+
+            if self.final_position != final_pos {
+                self.final_position = final_pos;
+                ctx.updates.render();
+            }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -233,7 +248,12 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             self.child.arrange(ctx, final_size);
-            self.final_x = self.x.get(ctx).to_layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
+
+            let x = self.x.get(ctx).to_layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
+            if self.final_x != x {
+                self.final_x = x;
+                ctx.updates.render();
+            }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -286,7 +306,13 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             self.child.arrange(ctx, final_size);
-            self.final_y = self.y.get(ctx).to_layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
+
+            let y = self.y.get(ctx).to_layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
+
+            if self.final_y != y {
+                self.final_y = y;
+                ctx.updates.render();
+            }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

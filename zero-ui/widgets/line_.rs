@@ -86,10 +86,15 @@ pub mod line_w {
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            if self.length.get(ctx).is_default() {
-                self.bounds = final_size;
+            let bounds = if self.length.get(ctx).is_default() {
+                final_size
             } else {
-                self.bounds = self.measure(ctx, AvailableSize::finite(final_size)).max(final_size);
+                self.measure(ctx, AvailableSize::finite(final_size)).max(final_size)
+            };
+
+            if bounds != self.bounds {
+                self.bounds = bounds;
+                ctx.updates.render();
             }
         }
 

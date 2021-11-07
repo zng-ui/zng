@@ -28,7 +28,7 @@ pub mod switch {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.options.update_all(ctx);
             if self.index.is_new(ctx) {
-                ctx.updates.layout();
+                ctx.updates.layout_and_render();
             }
         }
 

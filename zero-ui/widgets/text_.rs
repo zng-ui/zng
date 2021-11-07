@@ -207,6 +207,8 @@ pub mod text {
                             .expect("font not inited in measure")
                             .sized(size, variations.finalize()),
                     );
+
+                    ctx.updates.render();
                 }
 
                 if self.shaped_text.is_none() {
@@ -215,6 +217,8 @@ pub mod text {
                     let shaped_text = font.shape_text(&self.text, &self.line_shaping_args);
                     self.size = shaped_text.size();
                     self.shaped_text = Some(shaped_text);
+
+                    ctx.updates.render();
                 }
 
                 if available_size.width < self.size.width {
