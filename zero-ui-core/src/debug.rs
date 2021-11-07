@@ -673,7 +673,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        profile_scope!("{}::render", self.info.borrow().property_name);
+        profile_scope!("{}.render", self.info.borrow().property_name);
 
         let t = Instant::now();
         self.child.render(ctx, frame);

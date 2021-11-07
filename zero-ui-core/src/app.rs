@@ -801,7 +801,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         {
-            profile_scope!("extensions::init");
+            profile_scope!("extensions.init");
             extensions.init(&mut ctx);
         }
 
@@ -1347,6 +1347,8 @@ impl<E: AppExtension> RunningApp<E> {
                         profile_scope!("events");
 
                         for event in u.events {
+                            profile_scope!("{:?}", event);
+
                             self.extensions.event_preview(&mut ctx, &event);
                             observer.event_preview(&mut ctx, &event);
                             Events::on_pre_events(&mut ctx, &event);
@@ -1404,6 +1406,7 @@ impl<E: AppExtension> RunningApp<E> {
 }
 impl<E: AppExtension> Drop for RunningApp<E> {
     fn drop(&mut self) {
+        profile_scope!("extensions.deinit");
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
     }
@@ -2080,7 +2083,7 @@ pub mod view_process {
 
         /// Open a window and associate it with the `window_id`.
         pub fn open_window(&self, config: WindowRequest) -> Result<(ViewWindow, WindowOpenData)> {
-            profile_scope!("ViewProcess::open_window");
+            profile_scope!("ViewProcess.open_window");
 
             let mut app = self.0.borrow_mut();
             let _ = app.check_generation();
@@ -2104,7 +2107,7 @@ pub mod view_process {
         /// Note that no actual window is created, only the renderer, the use of window-ids to identify
         /// this renderer is only for convenience.
         pub fn open_headless(&self, config: HeadlessRequest) -> Result<ViewHeadless> {
-            profile_scope!("ViewProcess::open_headless");
+            profile_scope!("ViewProcess.open_headless");
 
             let mut app = self.0.borrow_mut();
 
