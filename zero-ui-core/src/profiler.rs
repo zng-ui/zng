@@ -90,7 +90,10 @@ mod profiler_impl {
                     None
                 }
             });
-            if let Some(name) = registered_name {
+            if let Some(mut name) = registered_name {
+                if cfg!(debug_assertions) {
+                    name.push_str("-DEBUG");
+                }
                 self.threads.push(ThreadInfo { name });
             }
         }
