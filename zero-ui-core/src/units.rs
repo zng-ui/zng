@@ -4,6 +4,7 @@ use derive_more as dm;
 use std::fmt::Write;
 use std::{cmp, mem, ops};
 use std::{f32::consts::*, fmt, time::Duration};
+use zero_ui_view_api::webrender_api;
 
 use crate::context::LayoutMetrics;
 use crate::var::{impl_from_and_into_var, IntoVar, OwnedVar};
@@ -3280,6 +3281,9 @@ pub type ParagraphSpacing = Length;
 /// Relative lengths are computed from the normal space character "advance" plus the [`WordSpacing`].
 /// So a `400%` length is 4 spaces.
 pub type TabLength = Length;
+
+/// Computed [`Transform`].
+pub type RenderTransform = webrender_api::units::LayoutTransform;
 
 /// A transform builder type.
 ///

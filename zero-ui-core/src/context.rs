@@ -1269,6 +1269,8 @@ pub struct LayoutContext<'a> {
     ///
     /// Note that if you assign a variable any frame request is deferred and the app loop goes back
     /// to the [`UiNode::update`] cycle.
+    ///
+    /// [`UiNode::update`]: crate::UiNode::update
     pub vars: &'a Vars,
 
     /// Updates that can be requested in layout context.

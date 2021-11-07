@@ -586,8 +586,6 @@ pub type PxCornerRadius = CornerRadius<Px, ()>;
 /// Corner-radius in device independent pixels.
 pub type DipCornerRadius = CornerRadius<Dip, ()>;
 
-pub use wr::RenderTransform;
-
 /// Conversion from [`Px`] to [`Dip`] units.
 pub trait PxToDip {
     /// `Self` equivalent in [`Dip`] units.

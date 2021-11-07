@@ -149,7 +149,7 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// ## 6 - Deinit
 ///
 /// The [`deinit`] method is called once after a shutdown was requested and not cancelled. Shutdowns are
-/// requested using the [`AppProcess`] service, it causes a [`ShutdownEvent`] that can be cancelled, if it
+/// requested using the [`AppProcess`] service, it causes a [`ShutdownRequestedEvent`] that can be cancelled, if it
 /// is not cancelled the extensions are deinited and then dropped.
 ///
 /// Deinit happens from the last inited extension first, so in reverse of init order, the [drop] happens in undefined order. Deinit is not called
@@ -163,6 +163,11 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// [`event_preview`]: AppExtension::event_preview
 /// [`event_ui`]: AppExtension::event_ui
 /// [`event`]: AppExtension::event
+/// [`update_preview`]: AppExtension::update_preview
+/// [`update_ui`]: AppExtension::update_ui
+/// [`update`]: AppExtension::update
+/// [`layout`]: AppExtension::layout
+/// [`render`]: AppExtension::event
 /// [`deinit`]: AppExtension::deinit
 /// [drop]: Drop
 /// [update is requested]: Updates::update
@@ -170,6 +175,8 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// [events]: #2-events
 /// [updates]: #3-updates
 /// [layout]: #3-layout
+/// [render]: #5-render
+/// [`RawFrameRenderedEvent`]: raw_events::RawFrameRenderedEvent
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait AppExtension: 'static {
     /// Type id of this extension.

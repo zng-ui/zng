@@ -414,8 +414,8 @@ pub mod row {
     /// This struct deliberately does not implement [`Widget`] or [`UiNode`], it should only be used in the
     /// grid [`rows`] property.
     ///
-    /// [`row!`]: wp@crate::widgets::layouts::grid::row
-    /// [`rows`]: wp@crate::widgets::layouts::grid#wp-rows
+    /// [`row!`]: mod@crate::widgets::layouts::grid::row
+    /// [`rows`]: mod@crate::widgets::layouts::grid#wp-rows
     pub struct Definition {
         wgt: BoxedWidget,
     }
@@ -503,8 +503,8 @@ pub mod column {
     /// This struct deliberately does not implement [`Widget`] or [`UiNode`], it should only be used in the
     /// grid [`columns`] property.
     ///
-    /// [`column!`]: wp@crate::widgets::layouts::grid::column
-    /// [`columns`]: wp@crate::widgets::layouts::grid#wp-columns
+    /// [`column!`]: mod@crate::widgets::layouts::grid::column
+    /// [`columns`]: mod@crate::widgets::layouts::grid#wp-columns
     pub struct Definition {
         wgt: BoxedWidget,
     }
