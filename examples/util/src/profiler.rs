@@ -4,7 +4,7 @@ use std::{
     io::{BufWriter, Write},
     path::Path,
     sync::atomic::{AtomicU64, Ordering},
-    thread::{self, ThreadId},
+    thread,
 };
 
 use rustc_hash::FxHashMap;
@@ -21,7 +21,6 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
     let (sender, recv) = flume::unbounded();
 
     let worker = thread::spawn(move || {
-        let mut threads = FxHashMap::<ThreadId, String>::default();
         let mut spans = FxHashMap::<span::Id, Span>::default();
 
         struct Span {
@@ -47,10 +46,9 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                     line,
                     ts,
                 } => {
-                    let tid = threads.get(&tid).unwrap();
                     write!(
                         &mut file,
-                        r#"{}{{"pid":"{}","tid":"{}","ts":{},"ph":"i","name":"{}","args":{{"target":"{}""#,
+                        r#"{}{{"pid":{},"tid":{},"ts":{},"ph":"i","name":"{}","args":{{"target":"{}""#,
                         comma,
                         pid,
                         tid,
@@ -70,10 +68,9 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                 }
                 Msg::Enter { id, tid, ts } => {
                     let span = spans.get(&id).unwrap();
-                    let tid = threads.get(&tid).unwrap();
                     write!(
                         &mut file,
-                        r#"{}{{"pid":"{}","tid":"{}","name":"{}","ph":"B","ts":{},"args":{{"target":"{}""#,
+                        r#"{}{{"pid":{},"tid":{},"name":"{}","ph":"B","ts":{},"args":{{"target":"{}""#,
                         comma,
                         pid,
                         tid,
@@ -93,16 +90,7 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                 }
                 Msg::Exit { id, tid, ts } => {
                     let _ = id;
-                    let tid = threads.get(&tid).unwrap();
-                    write!(
-                        &mut file,
-                        r#"{}{{"pid":"{}","tid":"{}","ph":"E","ts":{}}}"#,
-                        comma,
-                        pid,
-                        escape(tid),
-                        ts
-                    )
-                    .unwrap();
+                    write!(&mut file, r#"{}{{"pid":{},"tid":{},"ph":"E","ts":{}}}"#, comma, pid, tid, ts).unwrap();
                     comma = ",";
                 }
                 Msg::NewSpan {
@@ -115,7 +103,13 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                     spans.insert(id, Span { name, target, file, line });
                 }
                 Msg::ThreadInfo { id, name } => {
-                    threads.insert(id, name);
+                    write!(
+                        &mut file,
+                        r#"{}{{"name":"thread_name","ph":"M","pid":{},"tid":{},"args":{{"name":"{}"}}}}"#,
+                        comma, pid, id, name
+                    )
+                    .unwrap();
+                    comma = ",";
                 }
                 Msg::Finish => break,
             }
@@ -145,7 +139,7 @@ impl Recording {
 
 enum Msg {
     ThreadInfo {
-        id: ThreadId,
+        id: u64,
         name: String,
     },
 
@@ -158,7 +152,7 @@ enum Msg {
     },
 
     Event {
-        tid: ThreadId,
+        tid: u64,
         name: &'static str,
         target: &'static str,
         file: Option<&'static str>,
@@ -168,12 +162,12 @@ enum Msg {
 
     Enter {
         id: span::Id,
-        tid: ThreadId,
+        tid: u64,
         ts: u64,
     },
     Exit {
         id: span::Id,
-        tid: ThreadId,
+        tid: u64,
         ts: u64,
     },
 
@@ -182,37 +176,37 @@ enum Msg {
 
 struct Profiler {
     id: AtomicU64,
+    tid: AtomicU64,
     sender: flume::Sender<Msg>,
 }
 impl Profiler {
     fn new(sender: flume::Sender<Msg>) -> Self {
         Profiler {
             id: AtomicU64::new(1),
+            tid: AtomicU64::new(1),
             sender,
         }
     }
 
-    fn thread_id(&self) -> ThreadId {
-        let thread = thread::current();
-        let tid = thread.id();
-
-        THREAD_INFO.with(|sent| {
-            if !sent.get() {
-                sent.set(true);
-
+    fn thread_id(&self) -> u64 {
+        THREAD_ID.with(|id| {
+            if let Some(id) = id.get() {
+                id
+            } else {
+                let tid = self.tid.fetch_add(1, Ordering::Relaxed);
+                id.set(Some(tid));
                 self.sender
                     .send(Msg::ThreadInfo {
                         id: tid,
-                        name: thread
+                        name: thread::current()
                             .name()
                             .map(|n| escape(n).to_string())
                             .unwrap_or_else(|| format!("<{:?}>", tid)),
                     })
                     .unwrap();
+                tid
             }
-        });
-
-        tid
+        })
     }
 }
 impl Subscriber for Profiler {
@@ -289,5 +283,5 @@ fn time_ns() -> u64 {
 }
 
 thread_local! {
-    static THREAD_INFO: Cell<bool> = Cell::new(false);
+    static THREAD_ID: Cell<Option<u64>> = Cell::new(None);
 }
