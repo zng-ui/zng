@@ -205,6 +205,38 @@ unsafe extern "system" fn subclass_raw_event_proc<
     }
 }
 
+#[cfg(windows)]
+pub(crate) fn unregister_raw_input() {
+    use winapi::shared::hidusage::{HID_USAGE_GENERIC_KEYBOARD, HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC};
+    use winapi::um::winuser::{RAWINPUTDEVICE, RIDEV_REMOVE};
+
+    let flags = RIDEV_REMOVE;
+
+    let devices: [RAWINPUTDEVICE; 2] = [
+        RAWINPUTDEVICE {
+            usUsagePage: HID_USAGE_PAGE_GENERIC,
+            usUsage: HID_USAGE_GENERIC_MOUSE,
+            dwFlags: flags,
+            hwndTarget: std::ptr::null_mut() as _,
+        },
+        RAWINPUTDEVICE {
+            usUsagePage: HID_USAGE_PAGE_GENERIC,
+            usUsage: HID_USAGE_GENERIC_KEYBOARD,
+            dwFlags: flags,
+            hwndTarget: std::ptr::null_mut() as _,
+        },
+    ];
+
+    let device_size = std::mem::size_of::<RAWINPUTDEVICE>() as _;
+
+    let ok = unsafe { winapi::um::winuser::RegisterRawInputDevices((&devices).as_ptr(), devices.len() as _, device_size) != 0 };
+
+    if !ok {
+        let e = unsafe { winapi::um::errhandlingapi::GetLastError() };
+        panic!("failed `unregister_raw_input`, 0x{:X}", e);
+    }
+}
+
 /// Conversion from `winit` logical units to [`Dip`].
 ///
 /// All conversions are 1 to 1.

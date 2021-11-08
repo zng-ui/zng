@@ -81,7 +81,7 @@ impl<E: Event> EventUpdate<E> {
         self.0.clone()
     }
 
-    fn boxed(self) -> BoxedEventUpdate {
+    pub(crate) fn boxed(self) -> BoxedEventUpdate {
         BoxedEventUpdate {
             event_type: TypeId::of::<E>(),
             event_name: type_name::<E>(),

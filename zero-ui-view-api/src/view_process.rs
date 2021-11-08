@@ -59,6 +59,8 @@ impl ViewConfig {
     /// and then start the "app-process" code path in a different thread. This function returns when the app code path sends
     /// the "view-process" configuration.
     pub fn wait_same_process() -> Self {
+        let _s = tracing::trace_span!("ViewConfig::wait_same_process").entered();
+
         if env::var_os(Self::SAME_PROCESS_VAR).is_some() {
             panic!("`wait_same_process` can only be called once");
         }

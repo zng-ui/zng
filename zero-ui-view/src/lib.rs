@@ -122,6 +122,8 @@ pub fn init() {
         } else {
             App::run_headed(c);
         }
+    } else {
+        tracing::trace!("init not in view-process");
     }
 }
 
@@ -176,7 +178,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
         panic!("only call `run_same_process` in the main thread, this is a requirement of OpenGL");
     }
 
-    thread::spawn(run_app);
+    thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();
 
     let config = ViewConfig::wait_same_process();
 
@@ -241,6 +243,8 @@ impl<S> fmt::Debug for App<S> {
 }
 impl App<()> {
     pub fn run_headless(c: ViewChannels) -> ! {
+        tracing::info!("running headless view-process");
+
         let (app_sender, app_receiver) = flume::unbounded();
         let (redirect_sender, redirect_receiver) = flume::unbounded();
         let mut app = App::new(app_sender, c.response_sender, c.event_sender, redirect_receiver);
@@ -304,6 +308,8 @@ impl App<()> {
     }
 
     pub fn run_headed(c: ViewChannels) -> ! {
+        tracing::info!("running headed view-process");
+
         let event_loop = EventLoop::with_user_event();
         let app_sender = event_loop.create_proxy();
         let (redirect_sender, redirect_receiver) = flume::unbounded();
@@ -313,7 +319,21 @@ impl App<()> {
         #[cfg(windows)]
         let config_listener = config::config_listener(app.app_sender.clone(), &event_loop);
 
+        struct IdleTrace(Option<tracing::span::EnteredSpan>);
+        impl IdleTrace {
+            pub fn enter(&mut self) {
+                self.0 = Some(tracing::trace_span!("<winit-idle>").entered());
+            }
+            pub fn exit(&mut self) {
+                self.0 = None;
+            }
+        }
+        let mut idle = IdleTrace(None);
+        idle.enter();
+
         event_loop.run(move |event, target, flow| {
+            idle.exit();
+
             app.window_target = target;
 
             *flow = ControlFlow::Wait;
@@ -362,6 +382,8 @@ impl App<()> {
             }
 
             app.window_target = std::ptr::null();
+
+            idle.enter();
         })
     }
 }
@@ -792,12 +814,17 @@ impl<S: AppEventSender> Api for App<S> {
             panic!("already started");
         }
         if self.exited {
-            panic!("cannot restart exited")
+            panic!("cannot restart exited");
         }
         self.started = true;
         self.gen = gen;
         self.device_events = device_events;
         self.headless = headless;
+
+        #[cfg(windows)]
+        if !self.device_events {
+            util::unregister_raw_input();
+        }
     }
 
     fn exit(&mut self) {

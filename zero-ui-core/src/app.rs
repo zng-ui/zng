@@ -848,12 +848,19 @@ impl<E: AppExtension> RunningApp<E> {
         let _scope = tracing::trace_span!("notify_event", event = type_name::<Ev>()).entered();
 
         let update = EventUpdate::<Ev>(args);
+
         extensions.event_preview(ctx, &update);
         observer.event_preview(ctx, &update);
+        let update = update.boxed();
+        Events::on_pre_events(ctx, &update);
+        let update = EventUpdate::<Ev>(update.unbox_for::<Ev>().unwrap());
+
         extensions.event_ui(ctx, &update);
         observer.event_ui(ctx, &update);
+
         extensions.event(ctx, &update);
         observer.event(ctx, &update);
+        Events::on_events(ctx, &update.boxed());
     }
 
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
@@ -1319,7 +1326,7 @@ impl<E: AppExtension> RunningApp<E> {
                     // does `Timers::on_*` notifications.
                     Timers::notify(&mut ctx);
 
-                    // does `Event` notifications.
+                    // does events raised by extensions.
                     {
                         let _s = tracing::trace_span!("events").entered();
 

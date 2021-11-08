@@ -19,7 +19,7 @@ use v_jsonescape::escape;
 ///
 /// Call [`Recording::finish`] to stop recording and wait flush.
 ///
-/// Profiles can be viewed using the `chrome://tracing` app.
+/// Profiles can be viewed using the `chrome://tracing` app. Log events from the `log` crate are not recorded.
 ///
 /// # Name
 ///
@@ -232,15 +232,13 @@ impl Profiler {
             } else {
                 let tid = self.tid.fetch_add(1, Ordering::Relaxed);
                 id.set(Some(tid));
-                self.sender
-                    .send(Msg::ThreadInfo {
-                        id: tid,
-                        name: thread::current()
-                            .name()
-                            .map(|n| escape(n).to_string())
-                            .unwrap_or_else(|| format!("<{:?}>", tid)),
-                    })
-                    .unwrap();
+                let _ = self.sender.send(Msg::ThreadInfo {
+                    id: tid,
+                    name: thread::current()
+                        .name()
+                        .map(|n| escape(n).to_string())
+                        .unwrap_or_else(|| format!("<{:?}>", tid)),
+                });
                 tid
             }
         })
@@ -259,17 +257,15 @@ impl Subscriber for Profiler {
         let mut args = FxHashMap::default();
         span.record(&mut RecordVisitor(&mut args));
 
-        self.sender
-            .send(Msg::NewSpan {
-                id: id.clone(),
-                level: *meta.level(),
-                name: meta.name(),
-                target: meta.target(),
-                file: meta.file(),
-                line: meta.line(),
-                args,
-            })
-            .unwrap();
+        let _ = self.sender.send(Msg::NewSpan {
+            id: id.clone(),
+            level: *meta.level(),
+            name: meta.name(),
+            target: meta.target(),
+            file: meta.file(),
+            line: meta.line(),
+            args,
+        });
 
         id
     }
@@ -291,18 +287,16 @@ impl Subscriber for Profiler {
         let mut args = FxHashMap::default();
         event.record(&mut RecordVisitor(&mut args));
 
-        self.sender
-            .send(Msg::Event {
-                tid,
-                level: *meta.level(),
-                name: meta.name(),
-                target: meta.target(),
-                file: meta.file(),
-                line: meta.line(),
-                args,
-                ts,
-            })
-            .unwrap();
+        let _ = self.sender.send(Msg::Event {
+            tid,
+            level: *meta.level(),
+            name: meta.name(),
+            target: meta.target(),
+            file: meta.file(),
+            line: meta.line(),
+            args,
+            ts,
+        });
     }
 
     fn enter(&self, span: &span::Id) {
@@ -310,7 +304,7 @@ impl Subscriber for Profiler {
 
         let tid = self.thread_id();
 
-        self.sender.send(Msg::Enter { id: span.clone(), tid, ts }).unwrap();
+        let _ = self.sender.send(Msg::Enter { id: span.clone(), tid, ts });
     }
 
     fn exit(&self, span: &span::Id) {
@@ -318,7 +312,7 @@ impl Subscriber for Profiler {
 
         let tid = self.thread_id();
 
-        self.sender.send(Msg::Exit { id: span.clone(), tid, ts }).unwrap();
+        let _ = self.sender.send(Msg::Exit { id: span.clone(), tid, ts });
     }
 }
 

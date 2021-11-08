@@ -64,6 +64,8 @@ impl AppInit {
 
 /// Start the view-process server and waits for `(request, response, event)`.
 pub fn connect_view_process(server_name: String) -> IpcResult<ViewChannels> {
+    let _s = tracing::trace_span!("connect_view_process").entered();
+
     let app_init_sender = IpcSender::connect(server_name).expect("failed to connect to init channel");
 
     let (req_sender, req_recv) = channel().map_err(handle_io_error)?;

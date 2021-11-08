@@ -7,6 +7,8 @@ pub(crate) fn config_listener(
     event_loop: impl crate::AppEventSender,
     window_target: &glutin::event_loop::EventLoopWindowTarget<AppEvent>,
 ) -> glutin::window::Window {
+    tracing::trace!("config_listener");
+
     use glutin::window::WindowBuilder;
     use winapi::um::winuser::*;
     use zero_ui_view_api::Event;
