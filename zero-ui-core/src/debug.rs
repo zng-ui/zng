@@ -55,7 +55,7 @@ use crate::{
     context::RenderContext,
     crate_util::IdMap,
     event::EventUpdateArgs,
-    formatx, profile_scope,
+    formatx,
     text::{Text, ToText},
     BoxedUiNode,
 };
@@ -673,7 +673,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        profile_scope!("{}.render", self.info.borrow().property_name);
+        let _scope = tracing::trace_span!("property.render", property = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
         self.child.render(ctx, frame);

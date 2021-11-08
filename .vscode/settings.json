@@ -1,7 +1,4 @@
 {
-    "rust.features": [
-        "app_profiler"
-    ],
     "spellright.language": [
         "en"
     ],

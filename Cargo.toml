@@ -10,13 +10,6 @@ readme = "README.md"
 path = "zero-ui/lib.rs"
 
 [features]
-# Enable the zero_ui::core::profiler module.
-#
-# USAGE:
-#
-# `#[cfg(feature = "app_profiler")` or just use the `profile_scope!` macro.
-app_profiler = ["zero-ui-core/app_profiler"]
-
 # # Other Features
 #
 # ## `doc_nightly`

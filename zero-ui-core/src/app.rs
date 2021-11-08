@@ -4,7 +4,6 @@ use crate::context::*;
 use crate::crate_util::PanicPayload;
 use crate::event::{cancelable_event_args, event, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
-use crate::profiler::*;
 use crate::timer::Timers;
 use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
 use crate::{
@@ -713,9 +712,6 @@ impl<E: AppExtension> AppExtended<E> {
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
     pub fn run(self, start: impl FnOnce(&mut AppContext)) {
-        #[cfg(feature = "app_profiler")]
-        register_thread_with_profiler();
-
         let mut app = RunningApp::start(self.extensions, true, true, self.view_process_exe);
 
         start(&mut app.ctx());
@@ -733,9 +729,6 @@ impl<E: AppExtension> AppExtended<E> {
     /// If called in a test (`cfg(test)`) this blocks until no other instance of [`HeadlessApp`] and
     /// [`TestWidgetContext`] are running in the current thread.
     pub fn run_headless(self, with_renderer: bool) -> HeadlessApp {
-        #[cfg(feature = "app_profiler")]
-        register_thread_with_profiler();
-
         let app = RunningApp::start(self.extensions.boxed(), false, with_renderer, self.view_process_exe);
 
         HeadlessApp { app }
@@ -767,7 +760,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
         }
 
-        profile_scope!("App::start");
+        let _s = tracing::debug_span!("App::start").entered();
 
         let (sender, receiver) = AppEventSender::new();
 
@@ -795,7 +788,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         {
-            profile_scope!("extensions.init");
+            let _s = tracing::debug_span!("extensions.init").entered();
             extensions.init(&mut ctx);
         }
 
@@ -852,7 +845,7 @@ impl<E: AppExtension> RunningApp<E> {
         args: Ev::Args,
         observer: &mut O,
     ) {
-        profile_scope!("notify_event<{}>", type_name::<Ev>());
+        let _scope = tracing::trace_span!("notify_event", event = type_name::<Ev>()).entered();
 
         let update = EventUpdate::<Ev>(args);
         extensions.event_preview(ctx, &update);
@@ -877,8 +870,7 @@ impl<E: AppExtension> RunningApp<E> {
         let mut flow = ControlFlow::Poll;
 
         while let ControlFlow::Poll = flow {
-            #[cfg(feature = "app_profiler")]
-            let idle = crate::profiler::ProfileScope::new("<poll-idle>");
+            let idle = tracing::trace_span!("<poll-idle>").entered();
 
             let ev = if let Some(timer) = self.wake_time {
                 match self.receiver.recv_deadline(timer) {
@@ -897,7 +889,6 @@ impl<E: AppExtension> RunningApp<E> {
                 self.receiver.recv().expect("app events channel disconnected")
             };
 
-            #[cfg(feature = "app_profiler")]
             drop(idle);
 
             flow = if !matches!(ev, AppEvent::ViewEvent(view_process::Event::EventsCleared)) || self.receiver.is_empty() {
@@ -937,7 +928,7 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Process an [`AppEvent`].
     fn app_event<O: AppEventObserver>(&mut self, app_event: AppEvent, observer: &mut O) -> ControlFlow {
-        profile_scope!("app_event");
+        let _s = tracing::trace_span!("app_event").entered();
 
         self.maybe_has_updates = true;
 
@@ -962,15 +953,7 @@ impl<E: AppExtension> RunningApp<E> {
     ///
     /// Does `update` on `EventsCleared`.
     fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) -> ControlFlow {
-        profile_scope!("view_event");
-        profile_scope!("{}", {
-            let ev = format!("Event::{:?}", ev);
-            let l = ev.len();
-            let p = ev.find('(').unwrap_or(l);
-            let c = ev.find('{').unwrap_or(l);
-            let i = p.min(c);
-            ev[..i].to_owned()
-        });
+        let _s = tracing::debug_span!("view_event", ?ev).entered();
 
         use raw_device_events::*;
         use raw_events::*;
@@ -1294,7 +1277,7 @@ impl<E: AppExtension> RunningApp<E> {
     /// [`wake_time`]: RunningApp::wake_time
     pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         if self.maybe_has_updates {
-            profile_scope!("update-cycle");
+            let _s = tracing::debug_span!("update-cycle").entered();
 
             self.maybe_has_updates = false;
 
@@ -1318,7 +1301,7 @@ impl<E: AppExtension> RunningApp<E> {
                 if u.update {
                     // check shutdown.
                     if let Some(r) = ctx.services.app_process().take_requests() {
-                        profile_scope!("shutdown_requested");
+                        let _s = tracing::debug_span!("shutdown_requested").entered();
 
                         let args = ShutdownRequestedArgs::now();
 
@@ -1338,10 +1321,10 @@ impl<E: AppExtension> RunningApp<E> {
 
                     // does `Event` notifications.
                     {
-                        profile_scope!("events");
+                        let _s = tracing::trace_span!("events").entered();
 
                         for event in u.events {
-                            profile_scope!("{:?}", event);
+                            let _s = tracing::debug_span!("event", ?event).entered();
 
                             self.extensions.event_preview(&mut ctx, &event);
                             observer.event_preview(&mut ctx, &event);
@@ -1358,7 +1341,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                     // does general updates.
                     {
-                        profile_scope!("update");
+                        let _s = tracing::trace_span!("update").entered();
 
                         self.extensions.update_preview(&mut ctx);
                         observer.update_preview(&mut ctx);
@@ -1372,14 +1355,14 @@ impl<E: AppExtension> RunningApp<E> {
                         Updates::on_updates(&mut ctx);
                     }
                 } else if layout {
-                    profile_scope!("layout");
+                    let _s = tracing::trace_span!("layout").entered();
 
                     self.extensions.layout(&mut ctx);
                     observer.layout(&mut ctx);
 
                     layout = false;
                 } else if render {
-                    profile_scope!("render");
+                    let _s = tracing::trace_span!("render").entered();
 
                     self.extensions.render(&mut ctx);
                     observer.render(&mut ctx);
@@ -1400,7 +1383,7 @@ impl<E: AppExtension> RunningApp<E> {
 }
 impl<E: AppExtension> Drop for RunningApp<E> {
     fn drop(&mut self) {
-        profile_scope!("extensions.deinit");
+        let _s = tracing::debug_span!("extensions.deinit").entered();
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
     }
@@ -1932,7 +1915,7 @@ pub mod view_process {
     use crate::task::SignalOnce;
     use crate::units::{DipPoint, DipSize, Px, PxPoint, PxRect, PxSize};
     use crate::window::{MonitorId, WindowId};
-    use crate::{event, event_args, profile_scope};
+    use crate::{event, event_args};
     use zero_ui_view_api::webrender_api::{
         DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace,
         ImageKey, PipelineId,
@@ -1992,7 +1975,7 @@ pub mod view_process {
         where
             F: FnMut(Event) + Send + 'static,
         {
-            profile_scope!("ViewProcess::start");
+            let _s = tracing::debug_span!("ViewProcess::start").entered();
 
             let process = zero_ui_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
             Self(Rc::new(RefCell::new(ViewApp {
@@ -2020,7 +2003,7 @@ pub mod view_process {
 
         /// Open a window and associate it with the `window_id`.
         pub fn open_window(&self, config: WindowRequest) -> Result<(ViewWindow, WindowOpenData)> {
-            profile_scope!("ViewProcess.open_window");
+            let _s = tracing::debug_span!("ViewProcess.open_window").entered();
 
             let mut app = self.0.borrow_mut();
             let _ = app.check_generation();
@@ -2044,7 +2027,7 @@ pub mod view_process {
         /// Note that no actual window is created, only the renderer, the use of window-ids to identify
         /// this renderer is only for convenience.
         pub fn open_headless(&self, config: HeadlessRequest) -> Result<ViewHeadless> {
-            profile_scope!("ViewProcess.open_headless");
+            let _s = tracing::debug_span!("ViewProcess.open_headless").entered();
 
             let mut app = self.0.borrow_mut();
 
@@ -3063,13 +3046,13 @@ pub mod view_process {
 
         /// Render a new frame.
         pub fn render(&self, frame: FrameRequest) -> Result<()> {
-            profile_scope!("ViewRenderer.render");
+            let _s = tracing::debug_span!("ViewRenderer.render").entered();
             self.call(|id, p| p.render(id, frame))
         }
 
         /// Update the current frame and re-render it.
         pub fn render_update(&self, frame: FrameUpdateRequest) -> Result<()> {
-            profile_scope!("ViewRenderer.render_update");
+            let _s = tracing::debug_span!("ViewRenderer.render_update").entered();
             self.call(|id, p| p.render_update(id, frame))
         }
     }

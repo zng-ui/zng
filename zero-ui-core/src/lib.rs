@@ -54,7 +54,6 @@ pub mod gradient;
 pub mod image;
 pub mod keyboard;
 pub mod mouse;
-pub mod profiler;
 pub mod render;
 pub mod service;
 pub mod task;

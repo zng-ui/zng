@@ -27,7 +27,7 @@ use crate::{
     event::{event, EventUpdateArgs},
     event_args,
     image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
-    impl_from_and_into_var, profile_scope,
+    impl_from_and_into_var,
     render::{
         webrender_api::{BuiltDisplayList, DynamicProperties, ExternalScrollId, PipelineId},
         FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, WidgetTransformKey,
@@ -1901,12 +1901,12 @@ impl AppWindow {
 
     fn on_update(&mut self, ctx: &mut AppContext) {
         if self.first_update {
-            profile_scope!("window({}).on_update-init", self.id.sequential());
+            let _s = tracing::trace_span!("window.on_update#first", window = %self.id.sequential());
 
             self.context.init(ctx);
             self.first_update = false;
         } else {
-            profile_scope!("window({}).on_update", self.id.sequential());
+            let _s = tracing::trace_span!("window.on_update", window = %self.id.sequential());
 
             self.context.update(ctx);
 
@@ -2141,7 +2141,7 @@ impl AppWindow {
             return;
         }
 
-        profile_scope!("window({}).on_layout", self.id.sequential());
+        let _s = tracing::trace_span!("window.on_layout", window = %self.id.sequential());
 
         // layout using the "system" size, it can still be overwritten by auto_size.
         let (size, _, _) = self.layout_size(ctx, true);
@@ -2167,7 +2167,7 @@ impl AppWindow {
     fn on_init_layout(&mut self, ctx: &mut AppContext) {
         debug_assert!(self.first_layout);
 
-        profile_scope!("window({}).on_init_layout", self.id.sequential());
+        let _s = tracing::trace_span!("window.on_init_layout", window = %self.id.sequential());
 
         self.first_layout = false;
 
@@ -2501,7 +2501,7 @@ impl AppWindow {
             return;
         }
 
-        profile_scope!("window({}).on_render", self.id.sequential());
+        let _s = tracing::trace_span!("window.on_render", window = %self.id.sequential());
 
         let frame = self.render_frame(ctx);
 
@@ -2519,7 +2519,7 @@ impl AppWindow {
             return;
         }
 
-        profile_scope!("window({}).on_render_update", self.id.sequential());
+        let _s = tracing::trace_span!("window.on_render_update", window = %self.id.sequential());
 
         let capture_image = self.take_capture_image(ctx.vars);
 
@@ -2669,7 +2669,7 @@ impl OwnedWindowContext {
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
-        profile_scope!("WindowContext.render");
+        let _s = tracing::trace_span!("WindowContext.render");
 
         self.update = WindowUpdates::none();
 

@@ -116,9 +116,6 @@ fn app_main() {
             };
         }
     });
-
-    #[cfg(feature = "app_profiler")]
-    zero_ui::core::profiler::write_profile("window-profile.json", false);
 }
 
 fn property_stack(header: &'static str, items: impl WidgetList) -> impl Widget {

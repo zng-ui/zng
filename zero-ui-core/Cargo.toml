@@ -6,13 +6,6 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-# Enable the zero_ui_core::profiler module.
-#
-# USAGE:
-#
-# `#[cfg(feature = "app_profiler")` or just use the `profile_scope!` macro.
-app_profiler = []
-
 # like cfg(test) but also visible in docs and integration tests.
 #
 # USAGE:

@@ -4,11 +4,14 @@ use zero_ui::prelude::*;
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    examples_util::print_info();
+    //examples_util::print_info();
+    let rec = examples_util::record_profile("profile-gradient.json");
     // zero_ui_view::run_same_process(app_main);
 
     zero_ui_view::init();
     app_main();
+
+    rec.finish();
 }
 
 fn app_main() {
@@ -32,9 +35,6 @@ fn app_main() {
             };
         }
     });
-
-    #[cfg(feature = "app_profiler")]
-    zero_ui::core::profiler::write_profile("profile-gradient.json", false);
 }
 
 fn title(title: &'static str) -> impl Widget {
