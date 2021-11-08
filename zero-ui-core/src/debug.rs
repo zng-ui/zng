@@ -673,7 +673,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let _scope = tracing::trace_span!("property.render", property = self.info.borrow().property_name).entered();
+        let _scope = tracing::trace_span!("property.render", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
         self.child.render(ctx, frame);

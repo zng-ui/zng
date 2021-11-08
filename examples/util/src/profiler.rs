@@ -1,5 +1,6 @@
 use std::{
     cell::Cell,
+    fmt,
     fs::File,
     io::{BufWriter, Write},
     path::Path,
@@ -8,7 +9,10 @@ use std::{
 };
 
 use rustc_hash::FxHashMap;
-use tracing::{span, Level, Subscriber};
+use tracing::{
+    field::{Field, Visit},
+    span, Level, Subscriber,
+};
 use v_jsonescape::escape;
 
 /// Start recording trace level spans and events.
@@ -16,6 +20,11 @@ use v_jsonescape::escape;
 /// Call [`Recording::finish`] to stop recording and wait flush.
 ///
 /// Profiles can be viewed using the `chrome://tracing` app.
+///
+/// # Name
+///
+/// If a span or event has an attribute `"name"` the value will be included in the trace entry title,
+/// you can use this to dynamically generate a name.
 pub fn record_profile(path: impl AsRef<Path>) -> Recording {
     let mut file = BufWriter::new(File::create(path).unwrap());
     let (sender, recv) = flume::unbounded();
@@ -25,9 +34,11 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
 
         struct Span {
             name: &'static str,
+            level: Level,
             target: &'static str,
             file: Option<&'static str>,
             line: Option<u32>,
+            args: FxHashMap<&'static str, String>,
         }
 
         let pid = std::process::id();
@@ -40,20 +51,23 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
             match recv.recv().unwrap() {
                 Msg::Event {
                     tid,
+                    level,
                     name,
                     target,
                     file: c_file,
                     line,
+                    args,
                     ts,
                 } => {
                     write!(
                         &mut file,
-                        r#"{}{{"pid":{},"tid":{},"ts":{},"ph":"i","name":"{}","args":{{"target":"{}""#,
+                        r#"{}{{"pid":{},"tid":{},"ts":{},"ph":"i","name":"{}","cat":"{}","args":{{"target":"{}""#,
                         comma,
                         pid,
                         tid,
                         ts,
-                        escape(name),
+                        NameDisplay(name, &args),
+                        level,
                         escape(target)
                     )
                     .unwrap();
@@ -63,6 +77,9 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                     if let Some(l) = line {
                         write!(&mut file, r#","line":{}"#, l).unwrap();
                     }
+                    for (arg_name, arg_value) in args {
+                        write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
+                    }
                     write!(&mut file, "}}}}").unwrap();
                     comma = ",";
                 }
@@ -70,11 +87,12 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                     let span = spans.get(&id).unwrap();
                     write!(
                         &mut file,
-                        r#"{}{{"pid":{},"tid":{},"name":"{}","ph":"B","ts":{},"args":{{"target":"{}""#,
+                        r#"{}{{"pid":{},"tid":{},"name":"{}","cat":"{}","ph":"B","ts":{},"args":{{"target":"{}""#,
                         comma,
                         pid,
                         tid,
-                        escape(span.name),
+                        NameDisplay(span.name, &span.args),
+                        span.level,
                         ts,
                         escape(span.target)
                     )
@@ -84,6 +102,9 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                     }
                     if let Some(l) = span.line {
                         write!(&mut file, r#","line":{}"#, l).unwrap();
+                    }
+                    for (arg_name, arg_value) in &span.args {
+                        write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
                     }
                     write!(&mut file, "}}}}").unwrap();
                     comma = ",";
@@ -95,12 +116,24 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                 }
                 Msg::NewSpan {
                     id,
+                    level,
                     name,
                     target,
                     file,
                     line,
+                    args,
                 } => {
-                    spans.insert(id, Span { name, target, file, line });
+                    spans.insert(
+                        id,
+                        Span {
+                            level,
+                            name,
+                            target,
+                            file,
+                            line,
+                            args,
+                        },
+                    );
                 }
                 Msg::ThreadInfo { id, name } => {
                     write!(
@@ -145,18 +178,22 @@ enum Msg {
 
     NewSpan {
         id: span::Id,
+        level: Level,
         name: &'static str,
         target: &'static str,
         file: Option<&'static str>,
         line: Option<u32>,
+        args: FxHashMap<&'static str, String>,
     },
 
     Event {
         tid: u64,
+        level: Level,
         name: &'static str,
         target: &'static str,
         file: Option<&'static str>,
         line: Option<u32>,
+        args: FxHashMap<&'static str, String>,
         ts: u64,
     },
 
@@ -219,13 +256,18 @@ impl Subscriber for Profiler {
 
         let meta = span.metadata();
 
+        let mut args = FxHashMap::default();
+        span.record(&mut RecordVisitor(&mut args));
+
         self.sender
             .send(Msg::NewSpan {
                 id: id.clone(),
+                level: *meta.level(),
                 name: meta.name(),
                 target: meta.target(),
                 file: meta.file(),
                 line: meta.line(),
+                args,
             })
             .unwrap();
 
@@ -246,13 +288,18 @@ impl Subscriber for Profiler {
         let tid = self.thread_id();
         let meta = event.metadata();
 
+        let mut args = FxHashMap::default();
+        event.record(&mut RecordVisitor(&mut args));
+
         self.sender
             .send(Msg::Event {
                 tid,
+                level: *meta.level(),
                 name: meta.name(),
                 target: meta.target(),
                 file: meta.file(),
                 line: meta.line(),
+                args,
                 ts,
             })
             .unwrap();
@@ -284,4 +331,52 @@ fn time_ns() -> u64 {
 
 thread_local! {
     static THREAD_ID: Cell<Option<u64>> = Cell::new(None);
+}
+
+struct RecordVisitor<'a>(&'a mut FxHashMap<&'static str, String>);
+impl<'a> Visit for RecordVisitor<'a> {
+    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+        let value = format!("{:?}", value);
+        let value = escape(&value);
+        self.0.insert(field.name(), format!(r#""{}""#, value));
+    }
+
+    fn record_f64(&mut self, field: &Field, value: f64) {
+        self.0.insert(field.name(), format!("{}", value));
+    }
+
+    fn record_i64(&mut self, field: &Field, value: i64) {
+        self.0.insert(field.name(), format!("{}", value));
+    }
+
+    fn record_u64(&mut self, field: &Field, value: u64) {
+        self.0.insert(field.name(), format!("{}", value));
+    }
+
+    fn record_bool(&mut self, field: &Field, value: bool) {
+        self.0.insert(field.name(), format!("{}", value));
+    }
+
+    fn record_str(&mut self, field: &Field, value: &str) {
+        let value = escape(value);
+        self.0.insert(field.name(), format!(r#""{}""#, value));
+    }
+}
+
+struct NameDisplay<'a>(&'static str, &'a FxHashMap<&'static str, String>);
+impl<'a> fmt::Display for NameDisplay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(dyn_name) = self.1.get("name") {
+            let dyn_name = dyn_name.trim_matches('"');
+            if self.0.is_empty() {
+                write!(f, "{}", dyn_name)
+            } else {
+                write!(f, "{} ({})", escape(self.0), dyn_name)
+            }
+        } else if self.0.is_empty() {
+            write!(f, "<unnamed>")
+        } else {
+            write!(f, "{}", escape(self.0))
+        }
+    }
 }
