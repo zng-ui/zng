@@ -49,7 +49,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame
-                .with_widget_transform(&self.render_transform.as_ref().unwrap(), |frame| self.child.render(ctx, frame))
+                .with_widget_transform(self.render_transform.as_ref().unwrap(), |frame| self.child.render(ctx, frame))
                 .unwrap();
         }
 
