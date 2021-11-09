@@ -19,6 +19,5 @@ goto next
 :done
 
 :: Run Task
-set DO_NAME=do
-set DO_MANIFEST_PATH=tools/do-tasks/Cargo.toml
-cargo run --manifest-path %DO_MANIFEST_PATH% --release --quiet -- %ARGS%
+set DO_CMD=do
+cargo do %ARGS%

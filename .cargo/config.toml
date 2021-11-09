@@ -1,0 +1,5 @@
+[env]
+DO_CMD = "cargo do"
+
+[alias]
+do = ["run", "--manifest-path", "tools/do-tasks/Cargo.toml", "--release", "--quiet", "--"]

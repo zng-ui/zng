@@ -2,13 +2,84 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "cargo",
-			"command": "fmt",
+			"label": "do build",
+			"type": "shell",
+			"command": "cargo do build",
+			"group": "build",
 			"problemMatcher": [
 				"$rustc"
 			],
+		},
+		{
+			"label": "do build --examples",
+			"type": "shell",
+			"command": "cargo do build --examples",
 			"group": "build",
-			"label": "rust: cargo fmt"
+			"problemMatcher": [
+				"$rustc"
+			],
+		},
+		{
+			"label": "do check",
+			"type": "shell",
+			"command": "cargo do check",
+			"group": "build",
+			"problemMatcher": [
+				"$rustc"
+			],
+		},
+		{
+			"label": "do prebuild",
+			"type": "shell",
+			"command": "cargo do prebuild",
+			"group": "build",
+			"problemMatcher": [
+				"$rustc"
+			],
+		},
+		{
+			"label": "do test",
+			"type": "shell",
+			"command": "cargo do test ${input:testGroupID}",
+			"group": "test",
+			"problemMatcher": [
+				"$rustc"
+			],
+		},
+		{
+			"label": "do run",
+			"type": "shell",
+			"command": "cargo do run ${input:exampleNameID}",
+			"group": "build",
+			"problemMatcher": [
+				"$rustc"
+			],
+		},
+		{
+			"label": "do fmt",
+			"type": "shell",
+			"command": "cargo do fmt",
+			"problemMatcher": [
+				"$rustc"
+			],
+		},
+	],
+	"inputs": [
+		{
+			"id": "exampleNameID",
+			"description": "example name",
+			"type": "promptString",
+		},
+		{
+			"id": "testGroupID",
+			"description": "test group",
+			"type": "pickString",
+			"options": [
+				"--workspace",
+				"--doc",
+				"--test-crates",
+				"--build *"
+			]
 		}
 	]
 }

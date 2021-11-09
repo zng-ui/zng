@@ -20,17 +20,17 @@ use v_jsonescape::escape;
 /// Call [`Recording::finish`] to stop recording and wait flush.
 ///
 /// Profiles can be viewed using the `chrome://tracing` app. Log events from the `log` crate are not recorded.
-/// 
+///
 /// # Output
-/// 
+///
 /// The `path` is a JSON file that will be written too as the profiler records. Returns a
 /// [`Recording`] struct, you must call [`Recording::finish`] to stop recording and correctly
 /// terminate the JSON file. If `finish` is not called the output file will not be valid JSON,
 /// you can probably fix it manually in this case by removing the last incomplete event entry and adding
 /// `]}`.
-/// 
+///
 /// # About
-/// 
+///
 /// The `about` array is a list of any key-value metadata to be included in the output.
 ///
 /// # Special Attributes
@@ -40,16 +40,16 @@ use v_jsonescape::escape;
 ///
 /// If a span has an attribute `"thread"` the span will be recorded as the *virtual thread* named.
 pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recording {
-    let mut file = BufWriter::new(File::create(path).unwrap());   
+    let mut file = BufWriter::new(File::create(path).unwrap());
 
-    // specs: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lpfof2aylapb        
+    // specs: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lpfof2aylapb
 
     write!(
         &mut file,
         r#"{{"recorder":"{}-{}","about":{{"#,
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
-    )        
+    )
     .unwrap();
     let mut comma = "";
     for (key, value) in about {
@@ -60,133 +60,136 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
 
     let (sender, recv) = flume::unbounded();
 
-    let worker = thread::Builder::new().name("profiler".to_owned()).spawn(move || {
-        let mut spans = FxHashMap::<span::Id, Span>::default();
+    let worker = thread::Builder::new()
+        .name("profiler".to_owned())
+        .spawn(move || {
+            let mut spans = FxHashMap::<span::Id, Span>::default();
 
-        struct Span {
-            name: &'static str,
-            level: Level,
-            target: &'static str,
-            file: Option<&'static str>,
-            line: Option<u32>,
-            args: FxHashMap<&'static str, String>,
-        }
-
-        let pid = std::process::id();        
-
-        let mut comma = "";
-        loop {
-            match recv.recv().unwrap() {
-                Msg::Event {
-                    tid,
-                    level,
-                    name,
-                    target,
-                    file: c_file,
-                    line,
-                    args,
-                    ts,
-                } => {
-                    write!(
-                        &mut file,
-                        r#"{}{{"pid":{},"tid":{},"ts":{},"ph":"i","name":"{}","cat":"{}","args":{{"target":"{}""#,
-                        comma,
-                        pid,
-                        tid,
-                        ts,
-                        NameDisplay(name, &args),
-                        level,
-                        escape(target)
-                    )
-                    .unwrap();
-                    if let Some(f) = c_file {
-                        write!(&mut file, r#","file":"{}""#, escape(f)).unwrap();
-                    }
-                    if let Some(l) = line {
-                        write!(&mut file, r#","line":{}"#, l).unwrap();
-                    }
-                    for (arg_name, arg_value) in args {
-                        write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
-                    }
-                    write!(&mut file, "}}}}").unwrap();
-                    comma = ",";
-                }
-                Msg::Enter { id, tid, ts } => {
-                    let span = spans.get(&id).unwrap();
-                    write!(
-                        &mut file,
-                        r#"{}{{"pid":{},"tid":{},"name":"{}","cat":"{}","ph":"B","ts":{},"args":{{"target":"{}""#,
-                        comma,
-                        pid,
-                        ThreadIdDisplay(tid, &span.args),
-                        NameDisplay(span.name, &span.args),
-                        span.level,
-                        ts,
-                        escape(span.target)
-                    )
-                    .unwrap();
-                    if let Some(f) = span.file {
-                        write!(&mut file, r#","file":"{}""#, escape(f)).unwrap();
-                    }
-                    if let Some(l) = span.line {
-                        write!(&mut file, r#","line":{}"#, l).unwrap();
-                    }
-                    for (arg_name, arg_value) in &span.args {
-                        write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
-                    }
-                    write!(&mut file, "}}}}").unwrap();
-                    comma = ",";
-                }
-                Msg::Exit { id, tid, ts } => {
-                    let span = spans.get(&id).unwrap();
-                    write!(
-                        &mut file,
-                        r#"{}{{"pid":{},"tid":{},"ph":"E","ts":{}}}"#,
-                        comma,
-                        pid,
-                        ThreadIdDisplay(tid, &span.args),
-                        ts
-                    )
-                    .unwrap();
-                    comma = ",";
-                }
-                Msg::NewSpan {
-                    id,
-                    level,
-                    name,
-                    target,
-                    file,
-                    line,
-                    args,
-                } => {
-                    spans.insert(
-                        id,
-                        Span {
-                            level,
-                            name,
-                            target,
-                            file,
-                            line,
-                            args,
-                        },
-                    );
-                }
-                Msg::ThreadInfo { id, name } => {
-                    write!(
-                        &mut file,
-                        r#"{}{{"name":"thread_name","ph":"M","pid":{},"tid":{},"args":{{"name":"{}"}}}}"#,
-                        comma, pid, id, name
-                    )
-                    .unwrap();
-                    comma = ",";
-                }
-                Msg::Finish => break,
+            struct Span {
+                name: &'static str,
+                level: Level,
+                target: &'static str,
+                file: Option<&'static str>,
+                line: Option<u32>,
+                args: FxHashMap<&'static str, String>,
             }
-        }
-        write!(&mut file, "]}}").unwrap();
 
-        file.flush().unwrap();
-    }).unwrap();
+            let pid = std::process::id();
+
+            let mut comma = "";
+            loop {
+                match recv.recv().unwrap() {
+                    Msg::Event {
+                        tid,
+                        level,
+                        name,
+                        target,
+                        file: c_file,
+                        line,
+                        args,
+                        ts,
+                    } => {
+                        write!(
+                            &mut file,
+                            r#"{}{{"pid":{},"tid":{},"ts":{},"ph":"i","name":"{}","cat":"{}","args":{{"target":"{}""#,
+                            comma,
+                            pid,
+                            tid,
+                            ts,
+                            NameDisplay(name, &args),
+                            level,
+                            escape(target)
+                        )
+                        .unwrap();
+                        if let Some(f) = c_file {
+                            write!(&mut file, r#","file":"{}""#, escape(f)).unwrap();
+                        }
+                        if let Some(l) = line {
+                            write!(&mut file, r#","line":{}"#, l).unwrap();
+                        }
+                        for (arg_name, arg_value) in args {
+                            write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
+                        }
+                        write!(&mut file, "}}}}").unwrap();
+                        comma = ",";
+                    }
+                    Msg::Enter { id, tid, ts } => {
+                        let span = spans.get(&id).unwrap();
+                        write!(
+                            &mut file,
+                            r#"{}{{"pid":{},"tid":{},"name":"{}","cat":"{}","ph":"B","ts":{},"args":{{"target":"{}""#,
+                            comma,
+                            pid,
+                            ThreadIdDisplay(tid, &span.args),
+                            NameDisplay(span.name, &span.args),
+                            span.level,
+                            ts,
+                            escape(span.target)
+                        )
+                        .unwrap();
+                        if let Some(f) = span.file {
+                            write!(&mut file, r#","file":"{}""#, escape(f)).unwrap();
+                        }
+                        if let Some(l) = span.line {
+                            write!(&mut file, r#","line":{}"#, l).unwrap();
+                        }
+                        for (arg_name, arg_value) in &span.args {
+                            write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
+                        }
+                        write!(&mut file, "}}}}").unwrap();
+                        comma = ",";
+                    }
+                    Msg::Exit { id, tid, ts } => {
+                        let span = spans.get(&id).unwrap();
+                        write!(
+                            &mut file,
+                            r#"{}{{"pid":{},"tid":{},"ph":"E","ts":{}}}"#,
+                            comma,
+                            pid,
+                            ThreadIdDisplay(tid, &span.args),
+                            ts
+                        )
+                        .unwrap();
+                        comma = ",";
+                    }
+                    Msg::NewSpan {
+                        id,
+                        level,
+                        name,
+                        target,
+                        file,
+                        line,
+                        args,
+                    } => {
+                        spans.insert(
+                            id,
+                            Span {
+                                level,
+                                name,
+                                target,
+                                file,
+                                line,
+                                args,
+                            },
+                        );
+                    }
+                    Msg::ThreadInfo { id, name } => {
+                        write!(
+                            &mut file,
+                            r#"{}{{"name":"thread_name","ph":"M","pid":{},"tid":{},"args":{{"name":"{}"}}}}"#,
+                            comma, pid, id, name
+                        )
+                        .unwrap();
+                        comma = ",";
+                    }
+                    Msg::Finish => break,
+                }
+            }
+            write!(&mut file, "]}}").unwrap();
+
+            file.flush().unwrap();
+        })
+        .unwrap();
 
     tracing::dispatcher::set_global_default(tracing::Dispatch::new(Profiler::new(sender.clone()))).unwrap();
 

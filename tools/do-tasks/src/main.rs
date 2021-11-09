@@ -12,12 +12,15 @@ fn main() {
         "run" | "r" => run(args),
         "doc" => doc(args),
         "expand" => expand(args),
+        "check" | "c" => check(args),
         "build" | "b" => build(args),
         "prebuild" => prebuild(args),
         "clean" => clean(args),
         "asm" => asm(args),
+        "rust_analyzer_run" => rust_analyzer_run(args),
+        "rust_analyzer_check" => rust_analyzer_check(args),
         "help" | "--help" => help(args),
-        _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, DO)),
+        _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, do_cmd())),
     }
 }
 
@@ -318,6 +321,12 @@ fn fmt(args: Vec<&str>) {
     println("done");
 }
 
+// do check, c
+//    Runs clippy on the workspace.
+fn check(args: Vec<&str>) {
+    cmd("cargo", &["clippy", "--no-deps", "--workspace"], &args);
+}
+
 // do build, b [-e, --example] [--all] [-t, --timing] [<cargo-build-args>]
 //    Compile the main crate and its dependencies.
 // USAGE:
@@ -435,8 +444,10 @@ fn clean(mut args: Vec<&str>) {
             }
             cmd("cargo", &["clean", "--manifest-path", &tool_], &args);
         }
+
         // external because it will delete self.
-        cmd_external("cargo", &["clean", "--manifest-path", env!("DO_MANIFEST_PATH")], &args);
+        let manifest_path = format!("{}/Cargo.toml", file!().strip_prefix("/src/main.rs").unwrap());
+        cmd_external("cargo", &["clean", "--manifest-path", &manifest_path], &args);
     }
 }
 
@@ -490,6 +501,18 @@ fn asm(mut args: Vec<&str>) {
     cmd("cargo", &asm_args, &args);
 }
 
+fn rust_analyzer_run(args: Vec<&str>) {
+    if let Some(&"check") = args.first() {
+        cmd("cargo", &["clippy", "--no-deps"], &args[1..]);
+    } else {
+        cmd("cargo", &args, &[]);
+    }
+}
+
+fn rust_analyzer_check(args: Vec<&str>) {
+    cmd("cargo", &["clippy", "--no-deps", "--workspace", "--message-format=json"], &args)
+}
+
 // do help, --help [task]
 //    Prints help for all tasks.
 // USAGE:
@@ -499,7 +522,7 @@ fn help(mut args: Vec<&str>) {
     println(f!(
         "\n{}{}{} ({} {})",
         c_wb(),
-        DO,
+        do_cmd(),
         c_w(),
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION")
@@ -510,7 +533,7 @@ fn help(mut args: Vec<&str>) {
     if !specific_task {
         println(f!("   {}", env!("CARGO_PKG_DESCRIPTION")));
         println("\nUSAGE:");
-        println(f!("    {} TASK [<TASK-ARGS>]", DO));
+        println(f!("    {} TASK [<TASK-ARGS>]", do_cmd()));
         println("\nFLAGS:");
         println(r#"    --dump   Redirect output to "dump.log" or other file specified by task."#);
     }

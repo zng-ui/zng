@@ -81,11 +81,23 @@ You also need the nightly toolchain for building the documentation (`do doc`), a
 build the documentation in stable using `cargo doc`, but custom pages like widget items may not
 render properly because of changes in the `cargo-doc` HTML templates.
 
-## `do`
+## `cargo do`
 
-There is a built-in task runner for managing this project, run `do help` or `./do help` for details.
+There is a built-in task runner for managing this project, run `cargo do help` or `./do help` for details.
 
-The task runner is implemented as a Rust crate in `tools/do-tasks`, the shell script builds it in the first run.
+The task runner is implemented as a Rust crate in `tools/do-tasks` and an alias in `.cargo/config.toml`,
+it builds the tool silently in the first run, after it should run without noticeable delay.
+
+Shell script to run `do` are also provided:
+ 
+ * cmd.exe: `do help`.
+ * PowerShell: `./do.ps1 help`.
+ * Bash: `/.do help`.
+
+ ## VSCode & Rust Analyzer
+
+Some workspace settings are included in the repository, in particular, `rust-analyzer` "checkOnSave" 
+and runnables are redirected to the `do` tool.
 
 [`API docs`]: https://docs.rs/zero-ui
 [`cargo-expand`]: https://github.com/dtolnay/cargo-expand

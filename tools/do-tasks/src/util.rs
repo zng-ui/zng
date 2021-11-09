@@ -3,8 +3,10 @@ use std::format_args as f;
 use std::io::Write;
 use std::process::{self, Command, Stdio};
 
-// shell script that builds and runs do-tasks.
-pub static DO: &str = env!("DO_NAME");
+// Command line to run `do`
+pub fn do_cmd() -> String {
+    env::var("DO_CMD").ok().unwrap_or_else(|| "cargo do".to_owned())
+}
 
 // Run a command, args are chained, empty ("") arg strings are filtered, command streams are inherited.
 pub fn cmd(cmd: &str, default_args: &[&str], user_args: &[&str]) {
@@ -157,7 +159,7 @@ pub fn args() -> (&'static str, Vec<&'static str>) {
     info.dump = take_flag(&mut args, &["--dump"]);
 
     // prints header
-    println(f!("{}Running{}: {}{} {:?} {:?}", c_green(), c_wb(), DO, c_w(), task, args));
+    println(f!("{}Running{}: {}{} {:?} {:?}", c_green(), c_wb(), do_cmd(), c_w(), task, args));
 
     (task, args)
 }
