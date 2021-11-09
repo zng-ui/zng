@@ -20,6 +20,18 @@ use v_jsonescape::escape;
 /// Call [`Recording::finish`] to stop recording and wait flush.
 ///
 /// Profiles can be viewed using the `chrome://tracing` app. Log events from the `log` crate are not recorded.
+/// 
+/// # Output
+/// 
+/// The `path` is a JSON file that will be written too as the profiler records. Returns a
+/// [`Recording`] struct, you must call [`Recording::finish`] to stop recording and correctly
+/// terminate the JSON file. If `finish` is not called the output file will not be valid JSON,
+/// you can probably fix it manually in this case by removing the last incomplete event entry and adding
+/// `]}`.
+/// 
+/// # About
+/// 
+/// The `about` array is a list of any key-value metadata to be included in the output.
 ///
 /// # Special Attributes
 ///
@@ -27,11 +39,28 @@ use v_jsonescape::escape;
 /// you can use this to dynamically generate a name.
 ///
 /// If a span has an attribute `"thread"` the span will be recorded as the *virtual thread* named.
-pub fn record_profile(path: impl AsRef<Path>) -> Recording {
-    let mut file = BufWriter::new(File::create(path).unwrap());
+pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recording {
+    let mut file = BufWriter::new(File::create(path).unwrap());   
+
+    // specs: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lpfof2aylapb        
+
+    write!(
+        &mut file,
+        r#"{{"recorder":"{}-{}","about":{{"#,
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION"),
+    )        
+    .unwrap();
+    let mut comma = "";
+    for (key, value) in about {
+        write!(&mut file, r#"{}"{}":"{}""#, comma, escape(key), escape(value)).unwrap();
+        comma = ",";
+    }
+    write!(&mut file, r#"}},"traceEvents":["#).unwrap();
+
     let (sender, recv) = flume::unbounded();
 
-    let worker = thread::spawn(move || {
+    let worker = thread::Builder::new().name("profiler".to_owned()).spawn(move || {
         let mut spans = FxHashMap::<span::Id, Span>::default();
 
         struct Span {
@@ -43,11 +72,8 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
             args: FxHashMap<&'static str, String>,
         }
 
-        let pid = std::process::id();
+        let pid = std::process::id();        
 
-        // specs: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lpfof2aylapb
-
-        write!(&mut file, "[").unwrap();
         let mut comma = "";
         loop {
             match recv.recv().unwrap() {
@@ -157,10 +183,10 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                 Msg::Finish => break,
             }
         }
-        write!(&mut file, "]").unwrap();
+        write!(&mut file, "]}}").unwrap();
 
         file.flush().unwrap();
-    });
+    }).unwrap();
 
     tracing::dispatcher::set_global_default(tracing::Dispatch::new(Profiler::new(sender.clone()))).unwrap();
 
