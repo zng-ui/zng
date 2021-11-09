@@ -23,7 +23,7 @@ use crate::{
     },
     cancelable_event_args,
     color::RenderColor,
-    context::{AppContext, WidgetContext, WindowContext, WindowUpdates},
+    context::{AppContext, WidgetContext, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::{event, EventUpdateArgs},
     event_args,
     image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
@@ -1902,12 +1902,12 @@ impl AppWindow {
 
     fn on_update(&mut self, ctx: &mut AppContext) {
         if self.first_update {
-            let _s = tracing::trace_span!("window.on_update#first", window = %self.id.sequential());
+            let _s = tracing::trace_span!("window.on_update#first", window = %self.id.sequential()).entered();
 
             self.context.init(ctx);
             self.first_update = false;
         } else {
-            let _s = tracing::trace_span!("window.on_update", window = %self.id.sequential());
+            let _s = tracing::trace_span!("window.on_update", window = %self.id.sequential()).entered();
 
             self.context.update(ctx);
 
@@ -2128,7 +2128,7 @@ impl AppWindow {
             return;
         }
 
-        let _s = tracing::trace_span!("window.on_layout", window = %self.id.sequential());
+        let _s = tracing::trace_span!("window.on_layout", window = %self.id.sequential()).entered();
 
         // layout using the "system" size, it can still be overwritten by auto_size.
         let (size, _, _) = self.layout_size(ctx, true);
@@ -2154,7 +2154,7 @@ impl AppWindow {
     fn on_init_layout(&mut self, ctx: &mut AppContext) {
         debug_assert!(self.first_layout);
 
-        let _s = tracing::trace_span!("window.on_init_layout", window = %self.id.sequential());
+        let _s = tracing::trace_span!("window.on_init_layout", window = %self.id.sequential()).entered();
 
         self.first_layout = false;
 
@@ -2488,7 +2488,7 @@ impl AppWindow {
             return;
         }
 
-        let _s = tracing::trace_span!("window.on_render", window = %self.id.sequential());
+        let _s = tracing::trace_span!("window.on_render", window = %self.id.sequential()).entered();
 
         let frame = self.render_frame(ctx);
 
@@ -2506,7 +2506,7 @@ impl AppWindow {
             return;
         }
 
-        let _s = tracing::trace_span!("window.on_render_update", window = %self.id.sequential());
+        let _s = tracing::trace_span!("window.on_render_update", window = %self.id.sequential()).entered();
 
         let capture_image = self.take_capture_image(ctx.vars);
 
@@ -2624,7 +2624,7 @@ impl OwnedWindowContext {
         available_size: PxSize,
         calc_final_size: impl FnOnce(PxSize) -> PxSize,
     ) -> DipSize {
-        self.update = WindowUpdates::none();
+        self.update.layout = false;
 
         let root = &mut self.root;
         let (final_size, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
@@ -2656,9 +2656,7 @@ impl OwnedWindowContext {
         scale_factor: f32,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
-        let _s = tracing::trace_span!("WindowContext.render");
-
-        self.update = WindowUpdates::none();
+        self.update.render = WindowRenderUpdate::None;
 
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
@@ -2690,7 +2688,7 @@ impl OwnedWindowContext {
         clear_color: RenderColor,
     ) -> (DynamicProperties, Vec<(ExternalScrollId, PxVector)>, Option<RenderColor>) {
         debug_assert!(self.update.render.is_render_update());
-        self.update = WindowUpdates::none();
+        self.update.render = WindowRenderUpdate::None;
 
         let root = &self.root;
         let root_transform_key = self.root_transform_key;
