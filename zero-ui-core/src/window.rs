@@ -23,7 +23,7 @@ use crate::{
     },
     cancelable_event_args,
     color::RenderColor,
-    context::{AppContext, WidgetContext, WindowContext, WindowRenderUpdate, WindowUpdates},
+    context::{AppContext, WidgetContext, WindowContext, WindowUpdates},
     event::{event, EventUpdateArgs},
     event_args,
     image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
@@ -1088,7 +1088,8 @@ impl AppExtension for WindowManager {
 
                     if matches!(args.cause, EventCause::System) {
                         // the view process is waiting a new frame or update, this will send one.
-                        window.on_resize_event(ctx, args.size);
+                        window.context.update = WindowUpdates::all();
+                        ctx.updates.layout_and_render();
                     }
                 } else if matches!(args.cause, EventCause::System) {
                     tracing::warn!("received `RawWindowResizedEvent` with the same size, caused by system");
@@ -2062,20 +2063,6 @@ impl AppWindow {
             let scr = self.headless_monitor.as_ref().unwrap();
             (scr.size, scr.scale_factor, scr.ppi)
         }
-    }
-
-    /// On resize we need to re-layout, render and send a frame render quick, because
-    /// the view process blocks for up to one second waiting the new frame, to reduce the
-    /// chances of the user seeing the clear_color when resizing.
-    fn on_resize_event(&mut self, ctx: &mut AppContext, actual_size: DipSize) {
-        let (_scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
-        let actual_size = actual_size.to_px(scr_factor);
-        let font_size = Length::pt_to_px(14.0, scr_factor);
-        self.context
-            .layout(ctx, font_size, scr_factor, scr_ppi, actual_size, |_| actual_size);
-        // the frame is send using the normal request
-        self.context.update.render |= WindowRenderUpdate::Render;
-        self.on_render(ctx);
     }
 
     /// On any of the variables involved in sizing updated.
