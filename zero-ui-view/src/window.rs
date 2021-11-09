@@ -17,6 +17,7 @@ use glutin::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
     ContextBuilder, CreationError, GlRequest,
 };
+use tracing::span::EnteredSpan;
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey,
@@ -54,7 +55,7 @@ pub(crate) struct Window {
     redirect_frame: Arc<AtomicBool>,
     redirect_frame_recv: flume::Receiver<FrameReadyMsg>,
 
-    pending_frames: VecDeque<(FrameId, bool)>,
+    pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
 
     resized: bool,
@@ -94,6 +95,8 @@ impl Window {
         event_sender: impl AppEventSender,
     ) -> Self {
         let id = cfg.id;
+
+        let glutin_scope = tracing::trace_span!("open/glutin").entered();
 
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
@@ -179,6 +182,9 @@ impl Window {
             });
         }
 
+        drop(glutin_scope);
+        let wr_scope = tracing::trace_span!("open/webrender").entered();
+
         // create renderer and start the first frame.
         let gl_ctx = context.make_current();
 
@@ -223,6 +229,8 @@ impl Window {
 
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
+
+        drop(wr_scope);
 
         let pipeline_id = webrender::api::PipelineId(gen, id);
 
@@ -663,7 +671,10 @@ impl Window {
     ///
     /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
     pub fn render(&mut self, frame: FrameRequest) {
-        self.pending_frames.push_back((frame.id, frame.capture_image));
+        let frame_scope =
+            tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
+
+        self.pending_frames.push_back((frame.id, frame.capture_image, Some(frame_scope)));
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let size = self.window.inner_size();
@@ -726,10 +737,11 @@ impl Window {
             todo!("document rendering is not implemented in WR");
         }
 
-        let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false));
+        let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
         self.rendered_frame_id = frame_id;
 
         if self.waiting_first_frame {
+            let _s = tracing::trace_span!("Window.first-draw").entered();
             debug_assert!(msg.composite_needed);
 
             self.waiting_first_frame = false;
@@ -742,6 +754,7 @@ impl Window {
         }
 
         let data = if capture {
+            let _s = tracing::trace_span!("capture_image").entered();
             if msg.composite_needed {
                 self.redraw();
             }
@@ -759,6 +772,8 @@ impl Window {
     }
 
     pub fn redraw(&mut self) {
+        let _s = tracing::trace_span!("Window.redraw").entered();
+
         let ctx = self.context.make_current();
         let renderer = self.renderer.as_mut().unwrap();
         renderer.update();

@@ -334,6 +334,8 @@ impl App<()> {
         event_loop.run(move |event, target, flow| {
             idle.exit();
 
+            let _s = tracing::trace_span!("winit-event", ?event).entered();
+
             app.window_target = target;
 
             *flow = ControlFlow::Wait;
@@ -346,10 +348,13 @@ impl App<()> {
                     GEvent::NewEvents(_) => {}
                     GEvent::WindowEvent { window_id, event } => {
                         #[cfg(windows)]
-                        if window_id == config_listener.id() {
-                            return; // ignore events for this window.
+                        if window_id != config_listener.id() {
+                            app.on_window_event(window_id, event);
                         }
-                        app.on_window_event(window_id, event)
+                        #[cfg(not(windows))]
+                        {
+                            app.on_window_event(window_id, event);
+                        }
                     }
                     GEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
                     GEvent::UserEvent(ev) => match ev {
@@ -382,6 +387,8 @@ impl App<()> {
             }
 
             app.window_target = std::ptr::null();
+
+            drop(_s);
 
             idle.enter();
         })
@@ -436,6 +443,8 @@ impl<S: AppEventSender> App<S> {
         } else {
             return;
         };
+
+        let _s = tracing::trace_span!("on_window_event", ?event).entered();
 
         let id = self.windows[i].id();
         let scale_factor = self.windows[i].scale_factor();
@@ -881,6 +890,8 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn open_window(&mut self, config: WindowRequest) -> WindowOpenData {
+        let _s = tracing::debug_span!("open_window", ?config).entered();
+
         if self.headless {
             let data = self.open_headless(HeadlessRequest {
                 id: config.id,
@@ -924,6 +935,8 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn open_headless(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
+        let _s = tracing::debug_span!("open_headless", ?config).entered();
+
         self.assert_started();
         let surf = Surface::open(
             self.gen,
@@ -957,6 +970,8 @@ impl<S: AppEventSender> Api for App<S> {
     }
 
     fn close_window(&mut self, id: WindowId) {
+        let _s = tracing::debug_span!("close_window", ?id);
+
         self.assert_started();
         if let Some(i) = self.windows.iter().position(|w| w.id() == id) {
             let _ = self.windows.swap_remove(i);
@@ -1224,6 +1239,7 @@ impl<S: AppEventSender> Api for App<S> {
 }
 
 /// Message inserted in the event loop from the view-process.
+#[derive(Debug)]
 pub(crate) enum AppEvent {
     /// A request.
     Request(Request),

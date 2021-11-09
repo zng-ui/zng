@@ -21,10 +21,12 @@ use v_jsonescape::escape;
 ///
 /// Profiles can be viewed using the `chrome://tracing` app. Log events from the `log` crate are not recorded.
 ///
-/// # Name
+/// # Special Attributes
 ///
 /// If a span or event has an attribute `"name"` the value will be included in the trace entry title,
 /// you can use this to dynamically generate a name.
+///
+/// If a span has an attribute `"thread"` the span will be recorded as the *virtual thread* named.
 pub fn record_profile(path: impl AsRef<Path>) -> Recording {
     let mut file = BufWriter::new(File::create(path).unwrap());
     let (sender, recv) = flume::unbounded();
@@ -90,7 +92,7 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                         r#"{}{{"pid":{},"tid":{},"name":"{}","cat":"{}","ph":"B","ts":{},"args":{{"target":"{}""#,
                         comma,
                         pid,
-                        tid,
+                        ThreadIdDisplay(tid, &span.args),
                         NameDisplay(span.name, &span.args),
                         span.level,
                         ts,
@@ -110,8 +112,16 @@ pub fn record_profile(path: impl AsRef<Path>) -> Recording {
                     comma = ",";
                 }
                 Msg::Exit { id, tid, ts } => {
-                    let _ = id;
-                    write!(&mut file, r#"{}{{"pid":{},"tid":{},"ph":"E","ts":{}}}"#, comma, pid, tid, ts).unwrap();
+                    let span = spans.get(&id).unwrap();
+                    write!(
+                        &mut file,
+                        r#"{}{{"pid":{},"tid":{},"ph":"E","ts":{}}}"#,
+                        comma,
+                        pid,
+                        ThreadIdDisplay(tid, &span.args),
+                        ts
+                    )
+                    .unwrap();
                     comma = ",";
                 }
                 Msg::NewSpan {
@@ -371,6 +381,17 @@ impl<'a> fmt::Display for NameDisplay<'a> {
             write!(f, "<unnamed>")
         } else {
             write!(f, "{}", escape(self.0))
+        }
+    }
+}
+
+struct ThreadIdDisplay<'a>(u64, &'a FxHashMap<&'static str, String>);
+impl<'a> fmt::Display for ThreadIdDisplay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(v_thread) = self.1.get("thread") {
+            write!(f, "{}", v_thread)
+        } else {
+            write!(f, "{}", self.0)
         }
     }
 }
