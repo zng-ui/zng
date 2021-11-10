@@ -1288,6 +1288,7 @@ impl<E: AppExtension> RunningApp<E> {
 
             self.maybe_has_updates = false;
 
+            let mut update = false;
             let mut layout = false;
             let mut render = false;
 
@@ -1302,10 +1303,30 @@ impl<E: AppExtension> RunningApp<E> {
                 let mut ctx = self.owned_ctx.borrow();
 
                 self.wake_time = u.wake_time;
+                update |= u.update;
                 layout |= u.layout;
                 render |= u.render;
 
-                if u.update {
+                if !u.events.is_empty() {
+                    // does events raised by extensions.
+
+                    let _s = tracing::trace_span!("events").entered();
+
+                    for event in u.events {
+                        let _s = tracing::debug_span!("event", ?event).entered();
+
+                        self.extensions.event_preview(&mut ctx, &event);
+                        observer.event_preview(&mut ctx, &event);
+                        Events::on_pre_events(&mut ctx, &event);
+
+                        self.extensions.event_ui(&mut ctx, &event);
+                        observer.event_ui(&mut ctx, &event);
+
+                        self.extensions.event(&mut ctx, &event);
+                        observer.event(&mut ctx, &event);
+                        Events::on_events(&mut ctx, &event);
+                    }
+                } else if update {
                     // check shutdown.
                     if let Some(r) = ctx.services.app_process().take_requests() {
                         let _s = tracing::debug_span!("shutdown_requested").entered();
@@ -1326,26 +1347,6 @@ impl<E: AppExtension> RunningApp<E> {
                     // does `Timers::on_*` notifications.
                     Timers::notify(&mut ctx);
 
-                    // does events raised by extensions.
-                    {
-                        let _s = tracing::trace_span!("events").entered();
-
-                        for event in u.events {
-                            let _s = tracing::debug_span!("event", ?event).entered();
-
-                            self.extensions.event_preview(&mut ctx, &event);
-                            observer.event_preview(&mut ctx, &event);
-                            Events::on_pre_events(&mut ctx, &event);
-
-                            self.extensions.event_ui(&mut ctx, &event);
-                            observer.event_ui(&mut ctx, &event);
-
-                            self.extensions.event(&mut ctx, &event);
-                            observer.event(&mut ctx, &event);
-                            Events::on_events(&mut ctx, &event);
-                        }
-                    }
-
                     // does general updates.
                     {
                         let _s = tracing::trace_span!("update").entered();
@@ -1361,6 +1362,8 @@ impl<E: AppExtension> RunningApp<E> {
                         observer.update(&mut ctx);
                         Updates::on_updates(&mut ctx);
                     }
+
+                    update = false;
                 } else if layout {
                     let _s = tracing::trace_span!("layout").entered();
 

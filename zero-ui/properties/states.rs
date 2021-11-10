@@ -31,11 +31,13 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
             if let Some(args) = MouseEnterEvent.update(args) {
                 if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_hovered = true;
+                    ctx.updates.update();
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseLeaveEvent.update(args) {
                 if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_hovered = false;
+                    ctx.updates.update();
                 }
                 self.child.event(ctx, args);
             } else {
@@ -82,19 +84,23 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
             if let Some(args) = MouseEnterEvent.update(args) {
                 if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_hovered = true;
+                    ctx.updates.update();
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseLeaveEvent.update(args) {
                 if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_hovered = false;
+                    ctx.updates.update();
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseCaptureEvent.update(args) {
                 if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     if args.is_got(ctx.path.widget_id()) {
                         self.is_captured = true;
+                        ctx.updates.update();
                     } else if args.is_lost(ctx.path.widget_id()) {
                         self.is_captured = false;
+                        ctx.updates.update();
                     }
                 }
                 self.child.event(ctx, args);
@@ -155,11 +161,13 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             if let Some(args) = MouseEnterEvent.update(args) {
                 if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_over = true;
+                    ctx.updates.update();
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseLeaveEvent.update(args) {
                 if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
                     self.is_over = false;
+                    ctx.updates.update();
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseInputEvent.update(args) {
@@ -168,10 +176,12 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                         ButtonState::Pressed => {
                             if args.concerns_capture(ctx) {
                                 self.is_down = true;
+                                ctx.updates.update();
                             }
                         }
                         ButtonState::Released => {
                             self.is_down = false;
+                            ctx.updates.update();
                         }
                     }
                 }
@@ -253,10 +263,12 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                         ButtonState::Pressed => {
                             if args.concerns_capture(ctx) {
                                 self.is_down = true;
+                                ctx.updates.update();
                             }
                         }
                         ButtonState::Released => {
                             self.is_down = false;
+                            ctx.updates.update();
                         }
                     }
                 }

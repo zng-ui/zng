@@ -430,7 +430,7 @@ impl OwnedAppContext {
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
         let wake_time = self.timers.apply_updates(&self.vars);
-        let events = self.events.apply_updates(&self.vars, &mut self.updates);
+        let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
 
         let (update, layout, render) = self.updates.take_updates();
@@ -822,7 +822,7 @@ impl TestWidgetContext {
             }
         }
         let wake_time = self.timers.apply_updates(&self.vars);
-        let events = self.events.apply_updates(&self.vars, &mut self.updates);
+        let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
         let (update, layout, render) = self.updates.take_updates();
         ContextUpdates {
@@ -838,7 +838,7 @@ impl TestWidgetContext {
 /// Updates that must be reacted by an app context owner.
 #[derive(Debug, Default)]
 pub struct ContextUpdates {
-    /// Events update to notify.
+    /// Events to notify.
     ///
     /// When this is not empty [`update`](Self::update) is `true`.
     pub events: Vec<BoxedEventUpdate>,
@@ -856,7 +856,7 @@ pub struct ContextUpdates {
     pub wake_time: Option<Instant>,
 }
 impl ContextUpdates {
-    /// If update, layout or render was requested.
+    /// If has events, update, layout or render was requested.
     #[inline]
     pub fn has_updates(&self) -> bool {
         self.update || self.layout || self.render

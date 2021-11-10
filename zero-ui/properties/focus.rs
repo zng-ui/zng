@@ -335,6 +335,8 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
                         .as_ref()
                         .map(|p| p.widget_id() == ctx.path.widget_id())
                         .unwrap_or_default();
+
+                    ctx.updates.update();
                 }
 
                 self.child.event(ctx, args);
@@ -385,6 +387,8 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
                         .as_ref()
                         .map(|p| p.contains(ctx.path.widget_id()))
                         .unwrap_or_default();
+
+                    ctx.updates.update();
                 }
                 self.child.event(ctx, args);
             } else {
@@ -438,6 +442,8 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
                             .as_ref()
                             .map(|p| p.widget_id() == ctx.path.widget_id())
                             .unwrap_or_default();
+
+                    ctx.updates.update();
                 }
 
                 self.child.event(ctx, args);
@@ -493,6 +499,8 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
                             .as_ref()
                             .map(|p| p.contains(ctx.path.widget_id()))
                             .unwrap_or_default();
+
+                    ctx.updates.update();
                 }
 
                 self.child.event(ctx, args);
@@ -544,6 +552,7 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
                         .unwrap_or_default()
                     {
                         self.is_return_focus = false;
+                        ctx.updates.update();
                     } else if args
                         .new_return
                         .as_ref()
@@ -551,6 +560,7 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
                         .unwrap_or_default()
                     {
                         self.is_return_focus = true;
+                        ctx.updates.update();
                     }
                 }
                 self.child.event(ctx, args);

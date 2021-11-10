@@ -5,7 +5,7 @@ use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
-use crate::context::{AppContext, Updates, WidgetContext};
+use crate::context::{AppContext, WidgetContext};
 use crate::crate_util::{Handle, HandleOwner};
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
@@ -854,12 +854,9 @@ impl Events {
     }
 
     #[must_use]
-    pub(super) fn apply_updates(&mut self, vars: &Vars, updates: &mut Updates) -> Vec<BoxedEventUpdate> {
+    pub(super) fn apply_updates(&mut self, vars: &Vars) -> Vec<BoxedEventUpdate> {
         for command in &self.commands {
             command.update_state(vars);
-        }
-        if !self.updates.is_empty() {
-            updates.update();
         }
         self.updates.drain(..).collect()
     }
