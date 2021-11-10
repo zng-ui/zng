@@ -119,7 +119,7 @@ pub struct FrameBuilder {
 
     renderer: Option<ViewRenderer>,
 
-    scale_factor: f32,
+    scale_factor: FactorNormal,
     display_list: DisplayListBuilder,
 
     info: FrameInfoBuilder,
@@ -166,7 +166,7 @@ impl FrameBuilder {
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
         root_size: PxSize,
-        scale_factor: f32,
+        scale_factor: FactorNormal,
     ) -> Self {
         let pipeline_id = renderer
             .as_ref()
@@ -206,7 +206,7 @@ impl FrameBuilder {
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
         root_size: PxSize,
-        scale_factor: f32,
+        scale_factor: FactorNormal,
     ) -> Self {
         Self::new(frame_id, window_id, None, root_id, root_transform_key, root_size, scale_factor)
     }
@@ -215,7 +215,7 @@ impl FrameBuilder {
     ///
     /// All layout values are scaled by this factor in the renderer.
     #[inline]
-    pub fn scale_factor(&self) -> f32 {
+    pub fn scale_factor(&self) -> FactorNormal {
         self.scale_factor
     }
 
@@ -1001,7 +1001,7 @@ impl FrameBuilder {
     pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
         let scale = self.scale_factor();
 
-        let radius = PxSize::splat(Px(6)) * scale.normal();
+        let radius = PxSize::splat(Px(6)) * scale;
         let color = color.into();
 
         let mut builder = GradientBuilder::new();
@@ -1028,7 +1028,7 @@ impl FrameBuilder {
         let gradient = builder.radial_gradient(center.to_wr(), radius.to_wr(), RenderExtendMode::Clamp);
         let stops = builder.into_stops();
 
-        let bounds = radius * 2.0.normal();
+        let bounds = radius * 2.0.fct();
 
         let offset = offset - radius.to_vector();
 

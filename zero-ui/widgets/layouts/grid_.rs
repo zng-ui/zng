@@ -146,10 +146,10 @@ pub mod grid {
                 //
                 // The available space is divided equally for each column.
                 let mut c_available_size = available_size;
-                c_available_size.width *= (self.columns.len() as f32 / 1.0).normal();
+                c_available_size.width *= (self.columns.len() as f32 / 1.0).fct();
 
                 let mut r_available_size = available_size;
-                r_available_size.height *= (self.rows.len() as f32 / 1.0).normal();
+                r_available_size.height *= (self.rows.len() as f32 / 1.0).fct();
 
                 let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size, PxGridSpacing::zero());
 

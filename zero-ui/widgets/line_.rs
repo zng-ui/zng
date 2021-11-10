@@ -71,7 +71,7 @@ pub mod line_w {
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_space: AvailableSize) -> PxSize {
-            let default_stroke = Dip::new(1).to_px(ctx.scale_factor);
+            let default_stroke = Dip::new(1).to_px(ctx.scale_factor.0);
 
             match *self.orientation.get(ctx) {
                 LineOrientation::Horizontal => PxSize::new(

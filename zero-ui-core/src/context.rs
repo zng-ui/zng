@@ -518,7 +518,7 @@ impl<'a> AppContext<'a> {
     pub fn outer_layout_context<R>(
         &mut self,
         screen_size: PxSize,
-        scale_factor: f32,
+        scale_factor: FactorNormal,
         screen_ppi: f32,
         window_id: WindowId,
         root_id: WidgetId,
@@ -612,7 +612,7 @@ impl<'a> WindowContext<'a> {
     pub fn layout_context<R>(
         &mut self,
         font_size: Px,
-        scale_factor: f32,
+        scale_factor: FactorNormal,
         screen_ppi: f32,
         viewport_size: PxSize,
         widget_id: WidgetId,
@@ -777,7 +777,7 @@ impl TestWidgetContext {
         root_font_size: Px,
         font_size: Px,
         viewport_size: PxSize,
-        scale_factor: f32,
+        scale_factor: FactorNormal,
         screen_ppi: f32,
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
@@ -1159,7 +1159,7 @@ pub struct LayoutMetrics {
     pub root_font_size: Px,
 
     /// Pixel scale factor.
-    pub scale_factor: f32,
+    pub scale_factor: FactorNormal,
 
     /// Size of the window content.
     pub viewport_size: PxSize,
@@ -1185,7 +1185,7 @@ impl LayoutMetrics {
     /// [`with_screen_ppi`] to set a different value.
     ///
     /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
-    pub fn new(scale_factor: f32, viewport_size: PxSize, font_size: Px) -> Self {
+    pub fn new(scale_factor: FactorNormal, viewport_size: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             font_size,
             root_font_size: font_size,
@@ -1224,7 +1224,7 @@ impl LayoutMetrics {
     ///
     /// [`scale_factor`]: Self::scale_factor
     #[inline]
-    pub fn with_scale_factor(mut self, scale_factor: f32) -> Self {
+    pub fn with_scale_factor(mut self, scale_factor: FactorNormal) -> Self {
         self.scale_factor = scale_factor;
         self
     }

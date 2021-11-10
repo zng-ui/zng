@@ -942,8 +942,8 @@ impl Image {
         let screen_res = ctx.screen_ppi;
         let mut s = self.size();
 
-        s.width *= (dpi_x / screen_res) * ctx.scale_factor;
-        s.height *= (dpi_y / screen_res) * ctx.scale_factor;
+        s.width *= (dpi_x / screen_res) * ctx.scale_factor.0;
+        s.height *= (dpi_y / screen_res) * ctx.scale_factor.0;
 
         s
     }

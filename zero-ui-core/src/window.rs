@@ -279,7 +279,7 @@ pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
     ///
     /// `1.0` by default.
-    pub scale_factor: f32,
+    pub scale_factor: FactorNormal,
 
     /// Size of the imaginary monitor screen that contains the headless window.
     ///
@@ -311,12 +311,12 @@ impl HeadlessMonitor {
     /// New with custom size at `1.0` scale.
     #[inline]
     pub fn new(size: DipSize) -> Self {
-        Self::new_scaled(size, 1.0)
+        Self::new_scaled(size, 1.0.fct())
     }
 
     /// New with custom size and scale.
     #[inline]
-    pub fn new_scaled(size: DipSize, scale_factor: f32) -> Self {
+    pub fn new_scaled(size: DipSize, scale_factor: FactorNormal) -> Self {
         HeadlessMonitor {
             scale_factor,
             size,
@@ -326,7 +326,7 @@ impl HeadlessMonitor {
 
     /// New default size `1920x1080` and custom scale.
     #[inline]
-    pub fn new_scale(scale_factor: f32) -> Self {
+    pub fn new_scale(scale_factor: FactorNormal) -> Self {
         HeadlessMonitor {
             scale_factor,
             ..Self::default()
@@ -343,8 +343,8 @@ impl_from_and_into_var! {
     fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone>((width, height): (W, H)) -> HeadlessMonitor {
         HeadlessMonitor::new(DipSize::new(width.into(), height.into()))
     }
-    fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone>((width, height, scale): (W, H, f32)) -> HeadlessMonitor {
-        HeadlessMonitor::new_scaled(DipSize::new(width.into(), height.into()), scale)
+    fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone, F: Into<FactorNormal> + Clone>((width, height, scale): (W, H, F)) -> HeadlessMonitor {
+        HeadlessMonitor::new_scaled(DipSize::new(width.into(), height.into()), scale.into())
     }
 }
 
@@ -853,7 +853,7 @@ event_args! {
         /// Window ID.
         pub window_id: WindowId,
         /// New scale factor.
-        pub new_scale_factor: f32,
+        pub new_scale_factor: FactorNormal,
 
         ..
 
@@ -1681,7 +1681,7 @@ impl Windows {
     }
 
     /// Gets the current window scale factor.
-    pub fn scale_factor(&self, window_id: WindowId) -> Result<f32, WindowNotFound> {
+    pub fn scale_factor(&self, window_id: WindowId) -> Result<FactorNormal, WindowNotFound> {
         self.windows_info
             .get(&window_id)
             .map(|w| w.scale_factor)
@@ -1742,7 +1742,7 @@ struct AppWindowInfo {
     mode: WindowMode,
     renderer: Option<ViewRenderer>,
     vars: WindowVars,
-    scale_factor: f32,
+    scale_factor: FactorNormal,
 
     // latest frame.
     frame_info: FrameInfo,
@@ -1754,7 +1754,7 @@ struct AppWindowInfo {
 impl AppWindowInfo {
     fn hit_test(&self, point: DipPoint) -> FrameHitInfo {
         if let Some(r) = &self.renderer {
-            let point = point.to_px(self.scale_factor);
+            let point = point.to_px(self.scale_factor.0);
             match r.hit_test(point) {
                 Ok((frame_id, hit_test)) => {
                     return FrameHitInfo::new(self.id, frame_id, point, &hit_test);
@@ -1888,7 +1888,7 @@ impl AppWindow {
             renderer: None, // will be set on the first render
             vars,
             frame_pixels_id: frame_info.frame_id(),
-            scale_factor: 1.0, // will be set on the first layout
+            scale_factor: 1.0.fct(), // will be set on the first layout
             frame_info,
             is_focused: false, // will be set by listening to RawWindowFocusEvent
         };
@@ -2032,14 +2032,14 @@ impl AppWindow {
     }
 
     /// (monitor_size, scale_factor, ppi)
-    fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (DipSize, f32, f32) {
+    fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (DipSize, FactorNormal, f32) {
         if let WindowMode::Headed = self.mode {
             // TODO only query monitors in the first layout and after `monitor` updates only.
 
             // try `actual_monitor`
             if let Some(id) = self.vars.actual_monitor().copy(ctx) {
                 if let Some(m) = ctx.services.monitors().monitor(id) {
-                    return (m.info.dip_size(), m.info.scale_factor, m.ppi.copy(ctx.vars));
+                    return (m.info.dip_size(), m.info.scale_factor.fct(), m.ppi.copy(ctx.vars));
                 }
             }
 
@@ -2047,13 +2047,13 @@ impl AppWindow {
             {
                 let query = self.vars.monitor().get(ctx.vars);
                 if let Some(m) = query.select(ctx.services.monitors()) {
-                    return (m.info.dip_size(), m.info.scale_factor, m.ppi.copy(ctx.vars));
+                    return (m.info.dip_size(), m.info.scale_factor.fct(), m.ppi.copy(ctx.vars));
                 }
             }
 
             // fallback to primary monitor.
             if let Some(p) = ctx.services.monitors().primary_monitor() {
-                return (p.info.dip_size(), p.info.scale_factor, p.ppi.copy(ctx.vars));
+                return (p.info.dip_size(), p.info.scale_factor.fct(), p.ppi.copy(ctx.vars));
             }
 
             // fallback to headless defaults.
@@ -2091,7 +2091,10 @@ impl AppWindow {
             if let Some(w) = &self.headed {
                 let _ = w.set_size(size, frame.unwrap());
             } else if let Some(s) = &self.headless_surface {
-                let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(1.0));
+                let _ = s.set_size(
+                    size,
+                    self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(FactorNormal(1.0)),
+                );
             } else {
                 // headless "resize"
                 RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
@@ -2301,7 +2304,7 @@ impl AppWindow {
                 let config = view_process::HeadlessRequest {
                     id: self.id.get(),
                     size: self.size,
-                    scale_factor,
+                    scale_factor: scale_factor.0,
                     text_aa: self.vars.text_aa().copy(ctx.vars),
                 };
 
@@ -2358,10 +2361,10 @@ impl AppWindow {
         if pos.x.is_default() || pos.y.is_default() {
             None
         } else {
-            let pos = ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+            let pos = ctx.outer_layout_context(scr_size.to_px(scr_factor.0), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
                 pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size), PxPoint::zero())
             });
-            Some(pos.to_dip(scr_factor))
+            Some(pos.to_dip(scr_factor.0))
         }
     }
 
@@ -2372,7 +2375,7 @@ impl AppWindow {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
         let (available_size, min_size, max_size, auto_size) =
-            ctx.outer_layout_context(scr_size.to_px(scr_factor), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+            ctx.outer_layout_context(scr_size.to_px(scr_factor.0), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
                 let scr_size = AvailableSize::finite(ctx.viewport_size);
 
                 let default_size = Size::new(800, 600).to_layout(ctx, scr_size, PxSize::zero());
@@ -2380,7 +2383,7 @@ impl AppWindow {
                 let default_max_size = ctx.viewport_size; // (100%, 100%)
 
                 let mut size = if use_system_size || self.kiosk {
-                    self.size.to_px(ctx.scale_factor)
+                    self.size.to_px(ctx.scale_factor.0)
                 } else {
                     self.vars.size().get(ctx.vars).to_layout(ctx, scr_size, default_size)
                 };
@@ -2409,7 +2412,7 @@ impl AppWindow {
             root_font_size,
             scr_factor,
             scr_ppi,
-            scr_size.to_px(scr_factor),
+            scr_size.to_px(scr_factor.0),
             |desired_size| {
                 let mut final_size = available_size;
                 if auto_size.contains(AutoSize::CONTENT_WIDTH) {
@@ -2422,7 +2425,7 @@ impl AppWindow {
             },
         );
 
-        (final_size, min_size.to_dip(scr_factor), max_size.to_dip(scr_factor))
+        (final_size, min_size.to_dip(scr_factor.0), max_size.to_dip(scr_factor.0))
     }
 
     /// Render frame for sending.
@@ -2436,7 +2439,7 @@ impl AppWindow {
         // `UiNode::render`
         let ((pipeline_id, display_list), clear_color, frame_info) =
             self.context
-                .render(ctx, next_frame_id, self.size.to_px(scale_factor), scale_factor, &self.renderer);
+                .render(ctx, next_frame_id, self.size.to_px(scale_factor.0), scale_factor, &self.renderer);
 
         self.clear_color = clear_color;
 
@@ -2619,7 +2622,7 @@ impl OwnedWindowContext {
         &mut self,
         ctx: &mut AppContext,
         font_size: Px,
-        scale_factor: f32,
+        scale_factor: FactorNormal,
         screen_ppi: f32,
         available_size: PxSize,
         calc_final_size: impl FnOnce(PxSize) -> PxSize,
@@ -2645,7 +2648,7 @@ impl OwnedWindowContext {
             )
         });
         self.update |= update;
-        final_size.to_dip(scale_factor)
+        final_size.to_dip(scale_factor.0)
     }
 
     fn render(
@@ -2653,7 +2656,7 @@ impl OwnedWindowContext {
         ctx: &mut AppContext,
         frame_id: FrameId,
         root_size: PxSize,
-        scale_factor: f32,
+        scale_factor: FactorNormal,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
         self.update.render = WindowRenderUpdate::None;

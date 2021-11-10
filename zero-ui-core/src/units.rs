@@ -941,15 +941,15 @@ impl fmt::Display for FactorNormal {
 /// let percent = 100.pct();
 /// ```
 pub trait FactorUnits {
-    /// Percent.
+    /// Percent factor.
     fn pct(self) -> FactorPercent;
 
-    /// Normal.
+    /// Normalized factor.
     ///
     /// # Note
     ///
     /// [`FactorNormal`] implements `From<f32>`.
-    fn normal(self) -> FactorNormal;
+    fn fct(self) -> FactorNormal;
 }
 impl FactorUnits for f32 {
     #[inline]
@@ -958,7 +958,7 @@ impl FactorUnits for f32 {
     }
 
     #[inline]
-    fn normal(self) -> FactorNormal {
+    fn fct(self) -> FactorNormal {
         self.into()
     }
 }
@@ -969,7 +969,7 @@ impl FactorUnits for i32 {
     }
 
     #[inline]
-    fn normal(self) -> FactorNormal {
+    fn fct(self) -> FactorNormal {
         FactorNormal(self as f32)
     }
 }
@@ -1327,7 +1327,7 @@ impl Length {
         use Length::*;
         match self {
             Default => default_value,
-            Dip(l) => l.to_px(ctx.scale_factor),
+            Dip(l) => l.to_px(ctx.scale_factor.0),
             Px(l) => *l,
             Pt(l) => Self::pt_to_px(*l, ctx.scale_factor),
             Relative(f) => available_size.to_px() * f.0,
@@ -1366,14 +1366,14 @@ impl Length {
     }
 
     /// Convert a `pt` unit value to [`Px`] given a `scale_factor`.
-    pub fn pt_to_px(pt: f32, scale_factor: f32) -> Px {
-        let px = pt * Self::PT_TO_DIP * scale_factor;
+    pub fn pt_to_px(pt: f32, scale_factor: FactorNormal) -> Px {
+        let px = pt * Self::PT_TO_DIP * scale_factor.0;
         Px(px.round() as i32)
     }
 
     /// Convert a [`Px`] unit value to a `Pt` value given a `scale_factor`.
-    pub fn px_to_pt(px: Px, scale_factor: f32) -> f32 {
-        let dip = px.0 as f32 / scale_factor;
+    pub fn px_to_pt(px: Px, scale_factor: FactorNormal) -> f32 {
+        let dip = px.0 as f32 / scale_factor.0;
         dip / Self::PT_TO_DIP
     }
 
@@ -1601,11 +1601,11 @@ impl LengthUnits for i32 {
     }
     #[inline]
     fn em(self) -> Length {
-        Length::Em(self.normal())
+        Length::Em(self.fct())
     }
     #[inline]
     fn rem(self) -> Length {
-        Length::RootEm(self.normal())
+        Length::RootEm(self.fct())
     }
     #[inline]
     fn vw(self) -> Length {
@@ -4066,7 +4066,7 @@ mod tests {
     #[test]
     pub fn length_expr_eval() {
         let l = (Length::from(200) - 100.pct()).abs();
-        let ctx = LayoutMetrics::new(1.0, PxSize::new(Px(600), Px(400)), Px(0));
+        let ctx = LayoutMetrics::new(1.0.fct(), PxSize::new(Px(600), Px(400)), Px(0));
         let l = l.to_layout(&ctx, AvailablePx::Finite(Px(600)), Px(0));
 
         assert_eq!(l.0, (200i32 - 600i32).abs());
@@ -4077,7 +4077,7 @@ mod tests {
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));
 
-        let metrics = LayoutMetrics::new(1.0, PxSize::zero(), Px(0));
+        let metrics = LayoutMetrics::new(1.0.fct(), PxSize::zero(), Px(0));
 
         let r = l.to_layout(&metrics, AvailablePx::Finite(Px(200)), Px(0));
         assert_eq!(r.0, 200);

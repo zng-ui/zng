@@ -423,7 +423,7 @@ impl MouseManager {
         let (target, position) = if let Some(t) = hits.target() {
             (
                 frame_info.find(t.widget_id).unwrap().path(),
-                t.point.to_dip(windows.scale_factor(window_id).unwrap()),
+                t.point.to_dip(windows.scale_factor(window_id).unwrap().0),
             )
         } else {
             (frame_info.root().path(), position)
@@ -513,8 +513,8 @@ impl MouseManager {
                             && start_tgt == &target
                             // within distance of first click
                             && {
-                                let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(1.0);
-                                let dist = (pos.to_px(scale_factor) - self.pos.to_px(scale_factor)).abs();
+                                let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(FactorNormal(1.0));
+                                let dist = (pos.to_px(scale_factor.0) - self.pos.to_px(scale_factor.0)).abs();
                                 dist.x <= cfg.area.width && dist.y <= cfg.area.height
                             };
 
@@ -634,7 +634,7 @@ impl MouseManager {
                             panic!("did not find cursor hit in frame_info, position: {:?}", position);
                         })
                         .path(),
-                    t.point.to_dip(windows.scale_factor(window_id).unwrap()),
+                    t.point.to_dip(windows.scale_factor(window_id).unwrap().0),
                 )
             } else {
                 (frame_info.root().path(), position)
@@ -790,7 +790,7 @@ impl AppExtension for MouseManager {
                 let hits = FrameHitInfo::new(
                     args.window_id,
                     args.frame_id,
-                    self.pos.to_px(windows.scale_factor(args.window_id).unwrap()),
+                    self.pos.to_px(windows.scale_factor(args.window_id).unwrap().0),
                     &args.cursor_hits,
                 );
                 let target = hits
@@ -816,7 +816,7 @@ impl AppExtension for MouseManager {
                 FrameHitInfo::new(
                     args.window_id,
                     args.frame_id,
-                    args.position.to_px(windows.scale_factor(args.window_id).unwrap()),
+                    args.position.to_px(windows.scale_factor(args.window_id).unwrap().0),
                     &args.hit_test,
                 ),
                 ctx,

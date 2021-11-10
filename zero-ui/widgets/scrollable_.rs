@@ -92,11 +92,11 @@ pub mod scrollable {
             fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
                 let mut viewport = final_size - self.joiner;
 
-                if viewport.width < self.joiner.width * 3.0.normal() {
+                if viewport.width < self.joiner.width * 3.0.fct() {
                     self.joiner.width = Px(0);
                     viewport.width = final_size.width;
                 }
-                if viewport.height < self.joiner.height * 3.0.normal() {
+                if viewport.height < self.joiner.height * 3.0.fct() {
                     self.joiner.height = Px(0);
                     viewport.height = final_size.height;
                 }
@@ -182,7 +182,7 @@ pub mod scrollable {
                         viewport_ratio = args.viewport_ratio.clone();
                     };
                     orientation = args.orientation;
-                    visibility = args.viewport_ratio.map(|&r| if r < 1.0.normal() { Visibility::Visible } else { Visibility::Collapsed })
+                    visibility = args.viewport_ratio.map(|&r| if r < 1.0.fct() { Visibility::Visible } else { Visibility::Collapsed })
                 }
             })
         }
@@ -318,8 +318,8 @@ pub mod scrollable {
                     let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
                     let h_ratio = self.viewport_size.width.0 as f32 / self.content_size.width.0 as f32;
 
-                    cell_ctx.v_ratio_var.set_ne(ctx, v_ratio.normal());
-                    cell_ctx.h_ratio_var.set_ne(ctx, h_ratio.normal());
+                    cell_ctx.v_ratio_var.set_ne(ctx, v_ratio.fct());
+                    cell_ctx.h_ratio_var.set_ne(ctx, h_ratio.fct());
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -432,12 +432,12 @@ pub mod scrollable {
     }
     impl ScrollContext {
         fn new() -> Self {
-            let v_ratio_var = var(1.0.normal());
-            let h_ratio_var = var(1.0.normal());
+            let v_ratio_var = var(1.0.fct());
+            let h_ratio_var = var(1.0.fct());
 
             ScrollContext {
-                v_offset: var(0.0.normal()),
-                h_offset: var(0.0.normal()),
+                v_offset: var(0.0.fct()),
+                h_offset: var(0.0.fct()),
                 v_ratio: v_ratio_var.clone().into_read_only(),
                 h_ratio: h_ratio_var.clone().into_read_only(),
                 v_ratio_var,

@@ -918,7 +918,7 @@ pub mod image {
         /// * [`ImageRenderingVar`]: Defines the image resize algorithm used in the GPU.
         pub fn image_presenter() -> impl UiNode {
             enum State {
-                //
+                // Full measure must be done.
                 Measure,
                 Arrange,
                 Render,
@@ -975,7 +975,7 @@ pub mod image {
                         }
 
                         if *ImageScaleFactorVar::get(ctx) {
-                            scale *= ctx.scale_factor.normal();
+                            scale *= ctx.scale_factor;
                         }
                         self.img_size *= scale;
                         self.clip_rect *= scale;
@@ -1008,7 +1008,7 @@ pub mod image {
                             ImageFit::Contain => {
                                 let container = final_size.to_f32();
                                 let content = crop_size.to_f32();
-                                let scale = (container.width / content.width).min(container.height / content.height).normal();
+                                let scale = (container.width / content.width).min(container.height / content.height).fct();
                                 crop_size *= scale;
                                 align_offset = align.solve_offset(crop_size, final_size);
                                 break;
@@ -1016,7 +1016,7 @@ pub mod image {
                             ImageFit::Cover => {
                                 let container = final_size.to_f32();
                                 let content = crop_size.to_f32();
-                                let scale = (container.width / content.width).max(container.height / content.height).normal();
+                                let scale = (container.width / content.width).max(container.height / content.height).fct();
                                 crop_size *= scale;
                                 align_offset = align.solve_offset(crop_size, final_size);
                                 break;

@@ -439,7 +439,7 @@ impl GradientStops {
                             offset: {
                                 let r = offset;
                                 offset += offset_step;
-                                r.normal().into()
+                                r.fct().into()
                             },
                         })
                     })
@@ -506,7 +506,7 @@ impl GradientStops {
             };
             let mut middle = vec![ColorStop {
                 color: start.color,
-                offset: (offset - tran).normal().into(),
+                offset: (offset - tran).fct().into(),
             }
             .into()];
 
@@ -515,7 +515,7 @@ impl GradientStops {
                 middle.push(
                     ColorStop {
                         color,
-                        offset: (offset + tran).normal().into(),
+                        offset: (offset + tran).fct().into(),
                     }
                     .into(),
                 );
@@ -523,7 +523,7 @@ impl GradientStops {
                 middle.push(
                     ColorStop {
                         color,
-                        offset: (offset - tran).normal().into(),
+                        offset: (offset - tran).fct().into(),
                     }
                     .into(),
                 );
@@ -536,7 +536,7 @@ impl GradientStops {
             middle.push(
                 ColorStop {
                     color: end.color,
-                    offset: offset.normal().into(),
+                    offset: offset.fct().into(),
                 }
                 .into(),
             );
@@ -1007,7 +1007,7 @@ mod tests {
     fn test_layout_stops(stops: GradientStops) -> Vec<RenderGradientStop> {
         let mut render_stops = vec![];
         let mut ctx = TestWidgetContext::new();
-        ctx.layout_context(Px(0), Px(0), PxSize::new(Px(100), Px(100)), 1.0, 96.0, |ctx| {
+        ctx.layout_context(Px(0), Px(0), PxSize::new(Px(100), Px(100)), 1.0.fct(), 96.0, |ctx| {
             stops.layout_linear(
                 AvailablePx::Finite(Px(100)),
                 ctx,

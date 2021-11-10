@@ -107,7 +107,7 @@ fn test_trace(node: impl UiNode) {
 
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, l_size.to_px(), 1.0);
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, l_size.to_px(), 1.0.fct());
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
@@ -199,7 +199,7 @@ pub fn default_no_child() {
     // we expect default to not render anything.
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, desired_size, 1.0);
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, desired_size, 1.0.fct());
     wgt.test_render(&mut ctx, &mut frame);
     let (_, _, frame_info) = frame.finalize();
     let wgt_info = frame_info.find(wgt.id()).unwrap();
