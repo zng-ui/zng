@@ -292,7 +292,7 @@ impl_from_and_into_var! {
     }
 
     /// Conversion to [`Length::Relative`] color hint.
-    fn from(color_hint: FactorNormal) -> GradientStop {
+    fn from(color_hint: Factor) -> GradientStop {
         GradientStop::ColorHint(color_hint.into())
     }
 
@@ -456,7 +456,7 @@ impl GradientStops {
     ///
     /// The `transition` parameter controls relative length of the transition between two stripes.
     /// `1.0` or `100.pct()` is the length of a stripe, set to `0.0` to get hard-lines.
-    pub fn from_stripes<C: Into<Rgba> + Copy, T: Into<FactorNormal>>(colors: &[C], transition: T) -> Self {
+    pub fn from_stripes<C: Into<Rgba> + Copy, T: Into<Factor>>(colors: &[C], transition: T) -> Self {
         let tran = transition.into().0;
         let tran = if tran.is_nan() || tran < 0.0 {
             0.0
@@ -485,11 +485,11 @@ impl GradientStops {
                 middle: vec![
                     GradientStop::Color(ColorStop {
                         color,
-                        offset: Length::Relative(FactorNormal(0.5 - tran)),
+                        offset: Length::Relative(Factor(0.5 - tran)),
                     }),
                     GradientStop::Color(ColorStop {
                         color: end.color,
-                        offset: Length::Relative(FactorNormal(0.5 + tran)),
+                        offset: Length::Relative(Factor(0.5 + tran)),
                     }),
                 ],
                 end,
@@ -531,7 +531,7 @@ impl GradientStops {
 
             let end = ColorStop {
                 color: colors[last].into(),
-                offset: Length::Relative(FactorNormal(1.0)),
+                offset: Length::Relative(Factor(1.0)),
             };
             middle.push(
                 ColorStop {

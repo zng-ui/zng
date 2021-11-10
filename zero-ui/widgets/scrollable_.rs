@@ -222,13 +222,13 @@ pub mod scrollable {
             ///
             /// If the content the content top or left is fully visible it is `0.0`, the the content bottom or right is
             /// fully visible it is `1.0`.
-            pub offset: RcVar<FactorNormal>,
+            pub offset: RcVar<Factor>,
 
             /// Viewport size / content size.
             ///
             /// If the content is smaller or equal to the available area this var is `1.0`, if the content is ten times
             /// larger then the available size this var is `0.1`.
-            pub viewport_ratio: ReadOnlyRcVar<FactorNormal>,
+            pub viewport_ratio: ReadOnlyRcVar<Factor>,
         }
         impl ScrollBarArgs {
             /// Arguments from scroll context.
@@ -413,17 +413,17 @@ pub mod scrollable {
     #[derive(Clone)]
     pub struct ScrollContext {
         /// Amount of vertical scroll.
-        pub v_offset: RcVar<FactorNormal>,
+        pub v_offset: RcVar<Factor>,
         /// Amount of horizontal scroll.
-        pub h_offset: RcVar<FactorNormal>,
+        pub h_offset: RcVar<Factor>,
 
-        v_ratio_var: RcVar<FactorNormal>,
-        h_ratio_var: RcVar<FactorNormal>,
+        v_ratio_var: RcVar<Factor>,
+        h_ratio_var: RcVar<Factor>,
 
         /// Viewport width / content width.
-        pub v_ratio: ReadOnlyRcVar<FactorNormal>,
+        pub v_ratio: ReadOnlyRcVar<Factor>,
         /// Viewport height / content height.
-        pub h_ratio: ReadOnlyRcVar<FactorNormal>,
+        pub h_ratio: ReadOnlyRcVar<Factor>,
     }
     impl fmt::Debug for ScrollContext {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -566,7 +566,7 @@ pub mod thumb {
         ///
         /// This becomes the height for vertical and width for horizontal.
         #[required]
-        viewport_ratio(impl IntoVar<FactorNormal>);
+        viewport_ratio(impl IntoVar<Factor>);
 
         /// Width if orientation is vertical, otherwise height if orientation is horizontal.
         cross_length(impl IntoVar<Length>) = 16;
@@ -593,7 +593,7 @@ pub mod thumb {
     fn new_size(
         child: impl UiNode,
         orientation: impl IntoVar<scrollbar::Orientation>,
-        viewport_ratio: impl IntoVar<FactorNormal>,
+        viewport_ratio: impl IntoVar<Factor>,
         cross_length: impl IntoVar<Length>,
     ) -> impl UiNode {
         size(

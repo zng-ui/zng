@@ -334,7 +334,7 @@ impl_from_and_into_var! {
         BorderRadius::new_all(percent)
     }
    /// All corners same relative length.
-    fn from(norm: FactorNormal) -> BorderRadius {
+    fn from(norm: Factor) -> BorderRadius {
         BorderRadius::new_all(norm)
     }
 

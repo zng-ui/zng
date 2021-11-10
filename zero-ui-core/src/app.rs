@@ -1923,7 +1923,7 @@ pub mod view_process {
     use crate::render::FrameId;
     use crate::service::Service;
     use crate::task::SignalOnce;
-    use crate::units::{DipPoint, DipSize, FactorNormal, Px, PxPoint, PxRect, PxSize};
+    use crate::units::{DipPoint, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
     use crate::window::{MonitorId, WindowId};
     use crate::{event, event_args};
     use zero_ui_view_api::webrender_api::{
@@ -2825,7 +2825,7 @@ pub mod view_process {
     impl ViewHeadless {
         /// Resize the headless surface.
         #[inline]
-        pub fn set_size(&self, size: DipSize, scale_factor: FactorNormal) -> Result<()> {
+        pub fn set_size(&self, size: DipSize, scale_factor: Factor) -> Result<()> {
             let doc_id = self.1;
             self.0.call(|id, p| p.set_headless_size(id, doc_id, size, scale_factor.0))
         }
@@ -2837,7 +2837,7 @@ pub mod view_process {
         }
 
         /// Open a virtual headless surface that shares the renderer used by `self`.
-        pub fn open_document(&self, size: DipSize, scale_factor: FactorNormal) -> Result<ViewHeadless> {
+        pub fn open_document(&self, size: DipSize, scale_factor: Factor) -> Result<ViewHeadless> {
             let c = self.0.call(|id, p| {
                 p.open_document(DocumentRequest {
                     renderer: id,
@@ -3120,7 +3120,7 @@ pub mod raw_events {
         keyboard::{Key, KeyState, ModifiersState, ScanCode},
         mouse::{ButtonState, MouseButton, MultiClickConfig},
         render::FrameId,
-        units::{DipPoint, DipSize, FactorNormal, PxRect},
+        units::{DipPoint, DipSize, Factor, PxRect},
         window::{EventCause, MonitorId, WindowId, WindowTheme},
     };
 
@@ -3497,7 +3497,7 @@ pub mod raw_events {
             pub window_id: WindowId,
 
             /// New pixel scale factor.
-            pub scale_factor: FactorNormal,
+            pub scale_factor: Factor,
 
             ..
 

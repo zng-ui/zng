@@ -513,7 +513,7 @@ impl MouseManager {
                             && start_tgt == &target
                             // within distance of first click
                             && {
-                                let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(FactorNormal(1.0));
+                                let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(Factor(1.0));
                                 let dist = (pos.to_px(scale_factor.0) - self.pos.to_px(scale_factor.0)).abs();
                                 dist.x <= cfg.area.width && dist.y <= cfg.area.height
                             };

@@ -70,7 +70,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 ///
 /// [`filter`]: fn@filter
 #[property(context, default(false))]
-pub fn invert_color(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::invert(a)))
 }
 
@@ -92,7 +92,7 @@ pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// [`filter`]: fn@filter
 #[property(context, default(false))]
-pub fn sepia(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::sepia(a)))
 }
 
@@ -104,7 +104,7 @@ pub fn sepia(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiN
 ///
 /// [`filter`]: fn@filter
 #[property(context, default(false))]
-pub fn grayscale(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::grayscale(a)))
 }
 
@@ -138,7 +138,7 @@ pub fn drop_shadow(
 ///
 /// [`filter`]: fn@filter
 #[property(context, default(1.0))]
-pub fn brightness(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::brightness(a)))
 }
 
@@ -150,7 +150,7 @@ pub fn brightness(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> imp
 ///
 /// [`filter`]: fn@filter
 #[property(context, default(1.0))]
-pub fn contrast(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::contrast(a)))
 }
 
@@ -162,7 +162,7 @@ pub fn contrast(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl 
 ///
 /// [`filter`]: fn@filter
 #[property(context, default(1.0))]
-pub fn saturate(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| color::saturate(a)))
 }
 
@@ -184,14 +184,14 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 /// This property provides the same visual result as setting [`filter`] to [`color::opacity(opacity)`](color::opacity),
 /// **but** updating the opacity is faster in this property.
 #[property(context, default(1.0))]
-pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     struct OpacityNode<C, A> {
         child: C,
         alpha_value: A,
         frame_key: Option<FrameBindingKey<f32>>,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, A: Var<FactorNormal>> UiNode for OpacityNode<C, A> {
+    impl<C: UiNode, A: Var<Factor>> UiNode for OpacityNode<C, A> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.alpha_value.is_new(ctx) {
                 ctx.updates.render_update();

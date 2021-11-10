@@ -91,8 +91,8 @@ impl Default for TextShapingUnit {
     }
 }
 /// Initializes the factor as a [`Relative`](TextShapingUnit::Relative) value.
-impl From<FactorNormal> for TextShapingUnit {
-    fn from(f: FactorNormal) -> Self {
+impl From<Factor> for TextShapingUnit {
+    fn from(f: Factor) -> Self {
         TextShapingUnit::Relative(f.0)
     }
 }

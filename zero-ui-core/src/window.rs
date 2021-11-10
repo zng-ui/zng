@@ -279,7 +279,7 @@ pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
     ///
     /// `1.0` by default.
-    pub scale_factor: FactorNormal,
+    pub scale_factor: Factor,
 
     /// Size of the imaginary monitor screen that contains the headless window.
     ///
@@ -316,7 +316,7 @@ impl HeadlessMonitor {
 
     /// New with custom size and scale.
     #[inline]
-    pub fn new_scaled(size: DipSize, scale_factor: FactorNormal) -> Self {
+    pub fn new_scaled(size: DipSize, scale_factor: Factor) -> Self {
         HeadlessMonitor {
             scale_factor,
             size,
@@ -326,7 +326,7 @@ impl HeadlessMonitor {
 
     /// New default size `1920x1080` and custom scale.
     #[inline]
-    pub fn new_scale(scale_factor: FactorNormal) -> Self {
+    pub fn new_scale(scale_factor: Factor) -> Self {
         HeadlessMonitor {
             scale_factor,
             ..Self::default()
@@ -343,7 +343,7 @@ impl_from_and_into_var! {
     fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone>((width, height): (W, H)) -> HeadlessMonitor {
         HeadlessMonitor::new(DipSize::new(width.into(), height.into()))
     }
-    fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone, F: Into<FactorNormal> + Clone>((width, height, scale): (W, H, F)) -> HeadlessMonitor {
+    fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone, F: Into<Factor> + Clone>((width, height, scale): (W, H, F)) -> HeadlessMonitor {
         HeadlessMonitor::new_scaled(DipSize::new(width.into(), height.into()), scale.into())
     }
 }
@@ -853,7 +853,7 @@ event_args! {
         /// Window ID.
         pub window_id: WindowId,
         /// New scale factor.
-        pub new_scale_factor: FactorNormal,
+        pub new_scale_factor: Factor,
 
         ..
 
@@ -1681,7 +1681,7 @@ impl Windows {
     }
 
     /// Gets the current window scale factor.
-    pub fn scale_factor(&self, window_id: WindowId) -> Result<FactorNormal, WindowNotFound> {
+    pub fn scale_factor(&self, window_id: WindowId) -> Result<Factor, WindowNotFound> {
         self.windows_info
             .get(&window_id)
             .map(|w| w.scale_factor)
@@ -1742,7 +1742,7 @@ struct AppWindowInfo {
     mode: WindowMode,
     renderer: Option<ViewRenderer>,
     vars: WindowVars,
-    scale_factor: FactorNormal,
+    scale_factor: Factor,
 
     // latest frame.
     frame_info: FrameInfo,
@@ -2032,7 +2032,7 @@ impl AppWindow {
     }
 
     /// (monitor_size, scale_factor, ppi)
-    fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (DipSize, FactorNormal, f32) {
+    fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (DipSize, Factor, f32) {
         if let WindowMode::Headed = self.mode {
             // TODO only query monitors in the first layout and after `monitor` updates only.
 
@@ -2091,10 +2091,7 @@ impl AppWindow {
             if let Some(w) = &self.headed {
                 let _ = w.set_size(size, frame.unwrap());
             } else if let Some(s) = &self.headless_surface {
-                let _ = s.set_size(
-                    size,
-                    self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(FactorNormal(1.0)),
-                );
+                let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(Factor(1.0)));
             } else {
                 // headless "resize"
                 RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
@@ -2622,7 +2619,7 @@ impl OwnedWindowContext {
         &mut self,
         ctx: &mut AppContext,
         font_size: Px,
-        scale_factor: FactorNormal,
+        scale_factor: Factor,
         screen_ppi: f32,
         available_size: PxSize,
         calc_final_size: impl FnOnce(PxSize) -> PxSize,
@@ -2656,7 +2653,7 @@ impl OwnedWindowContext {
         ctx: &mut AppContext,
         frame_id: FrameId,
         root_size: PxSize,
-        scale_factor: FactorNormal,
+        scale_factor: Factor,
         renderer: &Option<ViewRenderer>,
     ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
         self.update.render = WindowRenderUpdate::None;

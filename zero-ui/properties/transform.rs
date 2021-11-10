@@ -86,7 +86,7 @@ pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNo
 ///
 /// [`transform`]: fn@transform
 #[property(context, default(1.0))]
-pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn scale(child: impl UiNode, s: impl IntoVar<Factor>) -> impl UiNode {
     transform(child, s.into_var().map(|&x| units::scale(x)))
 }
 
@@ -98,7 +98,7 @@ pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
 ///
 /// [`transform`]: fn@transform
 #[property(context, default(1.0, 1.0))]
-pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn scale_xy(child: impl UiNode, x: impl IntoVar<Factor>, y: impl IntoVar<Factor>) -> impl UiNode {
     transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::scale_xy(x, y)))
 }
 
@@ -110,7 +110,7 @@ pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoV
 ///
 /// [`transform`]: fn@transform
 #[property(context, default(1.0))]
-pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn scale_x(child: impl UiNode, x: impl IntoVar<Factor>) -> impl UiNode {
     transform(child, x.into_var().map(|&x| units::scale_x(x)))
 }
 
@@ -122,7 +122,7 @@ pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode
 ///
 /// [`transform`]: fn@transform
 #[property(context, default(1.0))]
-pub fn scale_y(child: impl UiNode, y: impl IntoVar<FactorNormal>) -> impl UiNode {
+pub fn scale_y(child: impl UiNode, y: impl IntoVar<Factor>) -> impl UiNode {
     transform(child, y.into_var().map(|&y| units::scale_y(y)))
 }
 

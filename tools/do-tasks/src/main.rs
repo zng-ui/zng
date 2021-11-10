@@ -510,7 +510,11 @@ fn rust_analyzer_run(args: Vec<&str>) {
 }
 
 fn rust_analyzer_check(args: Vec<&str>) {
-    cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--message-format=json"], &args)
+    cmd(
+        "cargo",
+        &["clippy", "--no-deps", "--tests", "--workspace", "--message-format=json"],
+        &args,
+    )
 }
 
 // do help, --help [task]

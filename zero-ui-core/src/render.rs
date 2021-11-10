@@ -119,7 +119,7 @@ pub struct FrameBuilder {
 
     renderer: Option<ViewRenderer>,
 
-    scale_factor: FactorNormal,
+    scale_factor: Factor,
     display_list: DisplayListBuilder,
 
     info: FrameInfoBuilder,
@@ -166,7 +166,7 @@ impl FrameBuilder {
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
         root_size: PxSize,
-        scale_factor: FactorNormal,
+        scale_factor: Factor,
     ) -> Self {
         let pipeline_id = renderer
             .as_ref()
@@ -206,7 +206,7 @@ impl FrameBuilder {
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
         root_size: PxSize,
-        scale_factor: FactorNormal,
+        scale_factor: Factor,
     ) -> Self {
         Self::new(frame_id, window_id, None, root_id, root_transform_key, root_size, scale_factor)
     }
@@ -215,7 +215,7 @@ impl FrameBuilder {
     ///
     /// All layout values are scaled by this factor in the renderer.
     #[inline]
-    pub fn scale_factor(&self) -> FactorNormal {
+    pub fn scale_factor(&self) -> Factor {
         self.scale_factor
     }
 

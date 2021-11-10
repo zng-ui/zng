@@ -168,33 +168,33 @@ impl ops::SubAssign<Px> for AvailablePx {
         *self = *self - rhs;
     }
 }
-impl ops::Mul<FactorNormal> for AvailablePx {
+impl ops::Mul<Factor> for AvailablePx {
     type Output = AvailablePx;
 
-    fn mul(self, rhs: FactorNormal) -> Self::Output {
+    fn mul(self, rhs: Factor) -> Self::Output {
         match self {
             AvailablePx::Finite(px) => AvailablePx::Finite(px * rhs),
             s => s,
         }
     }
 }
-impl ops::MulAssign<FactorNormal> for AvailablePx {
-    fn mul_assign(&mut self, rhs: FactorNormal) {
+impl ops::MulAssign<Factor> for AvailablePx {
+    fn mul_assign(&mut self, rhs: Factor) {
         *self = *self * rhs;
     }
 }
-impl ops::Div<FactorNormal> for AvailablePx {
+impl ops::Div<Factor> for AvailablePx {
     type Output = AvailablePx;
 
-    fn div(self, rhs: FactorNormal) -> Self::Output {
+    fn div(self, rhs: Factor) -> Self::Output {
         match self {
             AvailablePx::Finite(px) => AvailablePx::Finite(px / rhs),
             s => s,
         }
     }
 }
-impl ops::DivAssign<FactorNormal> for AvailablePx {
-    fn div_assign(&mut self, rhs: FactorNormal) {
+impl ops::DivAssign<Factor> for AvailablePx {
+    fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
 }
@@ -629,9 +629,9 @@ impl FactorPercent {
         FactorPercent(self.0.max(0.0).min(100.0))
     }
 
-    /// Convert to [`FactorNormal`].
+    /// Convert to [`Factor`].
     #[inline]
-    pub fn as_normal(self) -> FactorNormal {
+    pub fn as_normal(self) -> Factor {
         self.into()
     }
 }
@@ -648,7 +648,7 @@ impl PartialEq for FactorPercent {
     }
 }
 impl_from_and_into_var! {
-    fn from(n: FactorNormal) -> FactorPercent {
+    fn from(n: Factor) -> FactorPercent {
         FactorPercent(n.0 * 100.0)
     }
 }
@@ -667,44 +667,48 @@ impl fmt::Display for FactorPercent {
     }
 }
 
-/// Normalized multiplication factor (0.0-1.0).
+/// Normalized multiplication factor.
 ///
-/// See [`FactorUnits`] for more details.
+/// Values of this type are normalized to generally be in between `0.0` and `1.0` to indicate a fraction
+/// of a unit. However, values are not clamped to this range, `Factor(2.0)` is a valid value and so are
+/// negative values.
+///
+/// You can use the *suffix method* `1.0.fct()` to init a factor, see [`FactorUnits`] for more details.
 ///
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
 #[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialOrd)]
-pub struct FactorNormal(pub f32);
-impl FactorNormal {
-    /// Clamp factor to [0.0..=1.0] range.
+pub struct Factor(pub f32);
+impl Factor {
+    /// Clamp factor to `[0.0..=1.0]` range.
     #[inline]
     pub fn clamp_range(self) -> Self {
-        FactorNormal(self.0.max(0.0).min(1.0))
+        Factor(self.0.max(0.0).min(1.0))
     }
 
     /// Returns the maximum of two factors.
     #[inline]
-    pub fn max(self, other: impl Into<FactorNormal>) -> FactorNormal {
-        FactorNormal(self.0.max(other.into().0))
+    pub fn max(self, other: impl Into<Factor>) -> Factor {
+        Factor(self.0.max(other.into().0))
     }
 
     /// Returns the minimum of two factors.
     #[inline]
-    pub fn min(self, other: impl Into<FactorNormal>) -> FactorNormal {
-        FactorNormal(self.0.min(other.into().0))
+    pub fn min(self, other: impl Into<Factor>) -> Factor {
+        Factor(self.0.min(other.into().0))
     }
 
     /// Returns `self` if `min <= self <= max`, returns `min` if `self < min` or returns `max` if `self > max`.
     #[inline]
-    pub fn clamp(self, min: impl Into<FactorNormal>, max: impl Into<FactorNormal>) -> FactorNormal {
+    pub fn clamp(self, min: impl Into<Factor>, max: impl Into<Factor>) -> Factor {
         self.min(max).max(min)
     }
 
     /// Computes the absolute value of self.
     #[inline]
-    pub fn abs(self) -> FactorNormal {
-        FactorNormal(self.0.abs())
+    pub fn abs(self) -> Factor {
+        Factor(self.0.abs())
     }
 
     /// Convert to [`FactorPercent`].
@@ -713,218 +717,218 @@ impl FactorNormal {
         self.into()
     }
 }
-impl PartialEq for FactorNormal {
+impl PartialEq for Factor {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EPSILON)
     }
 }
-impl ops::Mul for FactorNormal {
+impl ops::Mul for Factor {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        FactorNormal(self.0 * rhs.0)
+        Factor(self.0 * rhs.0)
     }
 }
-impl ops::MulAssign for FactorNormal {
+impl ops::MulAssign for Factor {
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs;
     }
 }
-impl ops::Div for FactorNormal {
+impl ops::Div for Factor {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        FactorNormal(self.0 / rhs.0)
+        Factor(self.0 / rhs.0)
     }
 }
-impl ops::DivAssign for FactorNormal {
+impl ops::DivAssign for Factor {
     fn div_assign(&mut self, rhs: Self) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<FactorNormal> for Px {
+impl ops::Mul<Factor> for Px {
     type Output = Px;
 
-    fn mul(self, rhs: FactorNormal) -> Px {
+    fn mul(self, rhs: Factor) -> Px {
         self * rhs.0
     }
 }
-impl ops::Div<FactorNormal> for Px {
+impl ops::Div<Factor> for Px {
     type Output = Px;
 
-    fn div(self, rhs: FactorNormal) -> Px {
+    fn div(self, rhs: Factor) -> Px {
         self / rhs.0
     }
 }
-impl ops::MulAssign<FactorNormal> for Px {
-    fn mul_assign(&mut self, rhs: FactorNormal) {
+impl ops::MulAssign<Factor> for Px {
+    fn mul_assign(&mut self, rhs: Factor) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<FactorNormal> for Px {
-    fn div_assign(&mut self, rhs: FactorNormal) {
+impl ops::DivAssign<Factor> for Px {
+    fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<FactorNormal> for PxPoint {
+impl ops::Mul<Factor> for PxPoint {
     type Output = PxPoint;
 
-    fn mul(self, rhs: FactorNormal) -> PxPoint {
+    fn mul(self, rhs: Factor) -> PxPoint {
         self * Scale2d::uniform(rhs)
     }
 }
-impl ops::Div<FactorNormal> for PxPoint {
+impl ops::Div<Factor> for PxPoint {
     type Output = PxPoint;
 
-    fn div(self, rhs: FactorNormal) -> PxPoint {
+    fn div(self, rhs: Factor) -> PxPoint {
         self / Scale2d::uniform(rhs)
     }
 }
-impl ops::MulAssign<FactorNormal> for PxPoint {
-    fn mul_assign(&mut self, rhs: FactorNormal) {
+impl ops::MulAssign<Factor> for PxPoint {
+    fn mul_assign(&mut self, rhs: Factor) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<FactorNormal> for PxPoint {
-    fn div_assign(&mut self, rhs: FactorNormal) {
+impl ops::DivAssign<Factor> for PxPoint {
+    fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<FactorNormal> for PxVector {
+impl ops::Mul<Factor> for PxVector {
     type Output = PxVector;
 
-    fn mul(self, rhs: FactorNormal) -> PxVector {
+    fn mul(self, rhs: Factor) -> PxVector {
         self * Scale2d::uniform(rhs)
     }
 }
-impl ops::Div<FactorNormal> for PxVector {
+impl ops::Div<Factor> for PxVector {
     type Output = PxVector;
 
-    fn div(self, rhs: FactorNormal) -> PxVector {
+    fn div(self, rhs: Factor) -> PxVector {
         self / Scale2d::uniform(rhs)
     }
 }
-impl ops::MulAssign<FactorNormal> for PxVector {
-    fn mul_assign(&mut self, rhs: FactorNormal) {
+impl ops::MulAssign<Factor> for PxVector {
+    fn mul_assign(&mut self, rhs: Factor) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<FactorNormal> for PxVector {
-    fn div_assign(&mut self, rhs: FactorNormal) {
+impl ops::DivAssign<Factor> for PxVector {
+    fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<FactorNormal> for PxSize {
+impl ops::Mul<Factor> for PxSize {
     type Output = PxSize;
 
-    fn mul(self, rhs: FactorNormal) -> PxSize {
+    fn mul(self, rhs: Factor) -> PxSize {
         self * Scale2d::uniform(rhs)
     }
 }
-impl ops::Div<FactorNormal> for PxSize {
+impl ops::Div<Factor> for PxSize {
     type Output = PxSize;
 
-    fn div(self, rhs: FactorNormal) -> PxSize {
+    fn div(self, rhs: Factor) -> PxSize {
         self / Scale2d::uniform(rhs)
     }
 }
-impl ops::MulAssign<FactorNormal> for PxSize {
-    fn mul_assign(&mut self, rhs: FactorNormal) {
+impl ops::MulAssign<Factor> for PxSize {
+    fn mul_assign(&mut self, rhs: Factor) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<FactorNormal> for PxSize {
-    fn div_assign(&mut self, rhs: FactorNormal) {
+impl ops::DivAssign<Factor> for PxSize {
+    fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<FactorNormal> for Scale2d {
+impl ops::Mul<Factor> for Scale2d {
     type Output = Scale2d;
 
-    fn mul(self, rhs: FactorNormal) -> Scale2d {
+    fn mul(self, rhs: Factor) -> Scale2d {
         Scale2d::new(self.x * rhs, self.y * rhs)
     }
 }
-impl ops::Div<FactorNormal> for Scale2d {
+impl ops::Div<Factor> for Scale2d {
     type Output = Scale2d;
 
-    fn div(self, rhs: FactorNormal) -> Scale2d {
+    fn div(self, rhs: Factor) -> Scale2d {
         Scale2d::new(self.x / rhs, self.y / rhs)
     }
 }
-impl ops::MulAssign<FactorNormal> for Scale2d {
-    fn mul_assign(&mut self, rhs: FactorNormal) {
+impl ops::MulAssign<Factor> for Scale2d {
+    fn mul_assign(&mut self, rhs: Factor) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<FactorNormal> for Scale2d {
-    fn div_assign(&mut self, rhs: FactorNormal) {
+impl ops::DivAssign<Factor> for Scale2d {
+    fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<FactorNormal> for PxRect {
+impl ops::Mul<Factor> for PxRect {
     type Output = PxRect;
 
-    fn mul(self, rhs: FactorNormal) -> PxRect {
+    fn mul(self, rhs: Factor) -> PxRect {
         self * Scale2d::uniform(rhs)
     }
 }
-impl ops::Div<FactorNormal> for PxRect {
+impl ops::Div<Factor> for PxRect {
     type Output = PxRect;
 
-    fn div(self, rhs: FactorNormal) -> PxRect {
+    fn div(self, rhs: Factor) -> PxRect {
         self / Scale2d::uniform(rhs)
     }
 }
-impl ops::MulAssign<FactorNormal> for PxRect {
-    fn mul_assign(&mut self, rhs: FactorNormal) {
+impl ops::MulAssign<Factor> for PxRect {
+    fn mul_assign(&mut self, rhs: Factor) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<FactorNormal> for PxRect {
-    fn div_assign(&mut self, rhs: FactorNormal) {
+impl ops::DivAssign<Factor> for PxRect {
+    fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
 }
-impl ops::Neg for FactorNormal {
-    type Output = FactorNormal;
+impl ops::Neg for Factor {
+    type Output = Factor;
 
     fn neg(self) -> Self::Output {
-        FactorNormal(-self.0)
+        Factor(-self.0)
     }
 }
 
 impl_from_and_into_var! {
-    fn from(percent: FactorPercent) -> FactorNormal {
-        FactorNormal(percent.0 / 100.0)
+    fn from(percent: FactorPercent) -> Factor {
+        Factor(percent.0 / 100.0)
     }
 
-    fn from(f: f32) -> FactorNormal {
-        FactorNormal(f)
+    fn from(f: f32) -> Factor {
+        Factor(f)
     }
 
-    fn from(f: f64) -> FactorNormal {
-        FactorNormal(f as f32)
+    fn from(f: f64) -> Factor {
+        Factor(f as f32)
     }
 
     /// | Input  | Output  |
     /// |--------|---------|
     /// |`true`  | `1.0`   |
     /// |`false` | `0.0`   |
-    fn from(b: bool) -> FactorNormal {
-        FactorNormal(if b { 1.0 } else { 0.0 })
+    fn from(b: bool) -> Factor {
+        Factor(if b { 1.0 } else { 0.0 })
     }
 }
-impl fmt::Debug for FactorNormal {
+impl fmt::Debug for Factor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            f.debug_tuple("FactorNormal").field(&self.0).finish()
+            f.debug_tuple("Factor").field(&self.0).finish()
         } else {
             write!(f, "{}.normal()", self.0)
         }
     }
 }
-impl fmt::Display for FactorNormal {
+impl fmt::Display for Factor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
@@ -948,8 +952,8 @@ pub trait FactorUnits {
     ///
     /// # Note
     ///
-    /// [`FactorNormal`] implements `From<f32>`.
-    fn fct(self) -> FactorNormal;
+    /// [`Factor`] implements `From<f32>`.
+    fn fct(self) -> Factor;
 }
 impl FactorUnits for f32 {
     #[inline]
@@ -958,7 +962,7 @@ impl FactorUnits for f32 {
     }
 
     #[inline]
-    fn fct(self) -> FactorNormal {
+    fn fct(self) -> Factor {
         self.into()
     }
 }
@@ -969,8 +973,8 @@ impl FactorUnits for i32 {
     }
 
     #[inline]
-    fn fct(self) -> FactorNormal {
-        FactorNormal(self as f32)
+    fn fct(self) -> Factor {
+        Factor(self as f32)
     }
 }
 
@@ -983,7 +987,7 @@ impl FactorUnits for i32 {
 /// Two lengths are equal if they are of the same variant and if:
 ///
 /// * `Dip` and `px` lengths uses [`Dip`] and [`Px`] equality.
-/// * `Relative`, `Em`, `RootEm` lengths use the [`FactorNormal`] equality.
+/// * `Relative`, `Em`, `RootEm` lengths use the [`Factor`] equality.
 /// * Viewport lengths uses [`about_eq`] with `0.00001` epsilon.
 #[derive(Clone)]
 pub enum Length {
@@ -998,11 +1002,11 @@ pub enum Length {
     /// The exact length in font points.
     Pt(f32),
     /// Relative to the available size.
-    Relative(FactorNormal),
+    Relative(Factor),
     /// Relative to the font-size of the widget.
-    Em(FactorNormal),
+    Em(Factor),
     /// Relative to the font-size of the root widget.
-    RootEm(FactorNormal),
+    RootEm(Factor),
     /// Relative to 1% of the width of the viewport.
     ViewportWidth(f32),
     /// Relative to 1% of the height of the viewport.
@@ -1068,7 +1072,7 @@ impl<L: Into<Length>> ops::SubAssign<L> for Length {
         *self = lhs - rhs.into();
     }
 }
-impl<F: Into<FactorNormal>> ops::Mul<F> for Length {
+impl<F: Into<Factor>> ops::Mul<F> for Length {
     type Output = Length;
 
     fn mul(self, rhs: F) -> Self::Output {
@@ -1089,13 +1093,13 @@ impl<F: Into<FactorNormal>> ops::Mul<F> for Length {
         }
     }
 }
-impl<F: Into<FactorNormal>> ops::MulAssign<F> for Length {
+impl<F: Into<Factor>> ops::MulAssign<F> for Length {
     fn mul_assign(&mut self, rhs: F) {
         let lhs = mem::replace(self, Length::Px(Px(0)));
         *self = lhs * rhs.into();
     }
 }
-impl<F: Into<FactorNormal>> ops::Div<F> for Length {
+impl<F: Into<Factor>> ops::Div<F> for Length {
     type Output = Length;
 
     fn div(self, rhs: F) -> Self::Output {
@@ -1118,7 +1122,7 @@ impl<F: Into<FactorNormal>> ops::Div<F> for Length {
         }
     }
 }
-impl<F: Into<FactorNormal>> ops::DivAssign<F> for Length {
+impl<F: Into<Factor>> ops::DivAssign<F> for Length {
     fn div_assign(&mut self, rhs: F) {
         let lhs = mem::replace(self, Length::Px(Px(0)));
         *self = lhs / rhs.into();
@@ -1215,7 +1219,7 @@ impl_from_and_into_var! {
     }
 
     /// Conversion to [`Length::Relative`]
-    fn from(norm: FactorNormal) -> Length {
+    fn from(norm: Factor) -> Length {
         Length::Relative(norm)
     }
 
@@ -1249,13 +1253,13 @@ impl Length {
     /// Length that fills the available space.
     #[inline]
     pub const fn fill() -> Length {
-        Length::Relative(FactorNormal(1.0))
+        Length::Relative(Factor(1.0))
     }
 
     /// Length that fills 50% of the available space.
     #[inline]
     pub const fn half() -> Length {
-        Length::Relative(FactorNormal(0.5))
+        Length::Relative(Factor(0.5))
     }
 
     /// Returns a length that resolves to the maximum layout length between `self` and `other`.
@@ -1366,13 +1370,13 @@ impl Length {
     }
 
     /// Convert a `pt` unit value to [`Px`] given a `scale_factor`.
-    pub fn pt_to_px(pt: f32, scale_factor: FactorNormal) -> Px {
+    pub fn pt_to_px(pt: f32, scale_factor: Factor) -> Px {
         let px = pt * Self::PT_TO_DIP * scale_factor.0;
         Px(px.round() as i32)
     }
 
     /// Convert a [`Px`] unit value to a `Pt` value given a `scale_factor`.
-    pub fn px_to_pt(px: Px, scale_factor: FactorNormal) -> f32 {
+    pub fn px_to_pt(px: Px, scale_factor: Factor) -> f32 {
         let dip = px.0 as f32 / scale_factor.0;
         dip / Self::PT_TO_DIP
     }
@@ -1404,9 +1408,9 @@ pub enum LengthExpr {
     /// Subtracts the first layout length from the second.
     Sub(Length, Length),
     /// Multiplies the layout length by the factor.
-    Mul(Length, FactorNormal),
+    Mul(Length, Factor),
     /// Divide the layout length by the factor.
-    Div(Length, FactorNormal),
+    Div(Length, Factor),
     /// Maximum layout length.
     Max(Length, Length),
     /// Minimum layout length.
@@ -2118,7 +2122,7 @@ impl_from_and_into_var! {
         Ellipse::new_all(percent)
     }
     /// New circular relative length.
-    fn from(norm: FactorNormal) -> Ellipse {
+    fn from(norm: Factor) -> Ellipse {
         Ellipse::new_all(norm)
     }
 
@@ -2198,7 +2202,7 @@ impl_from_and_into_var! {
         GridSpacing::new_all(percent)
     }
     /// Column and row equal relative length.
-    fn from(norm: FactorNormal) -> GridSpacing {
+    fn from(norm: Factor) -> GridSpacing {
         GridSpacing::new_all(norm)
     }
 
@@ -2686,7 +2690,7 @@ impl_from_and_into_var! {
         SideOffsets::new_all(percent)
     }
     /// All sides equal relative length.
-    fn from(norm: FactorNormal) -> SideOffsets {
+    fn from(norm: Factor) -> SideOffsets {
         SideOffsets::new_all(norm)
     }
 
@@ -2732,9 +2736,9 @@ impl_length_comp_conversions! {
 #[derive(Clone, Copy)]
 pub struct Alignment {
     /// *x* alignment in a `[0.0..=1.0]` range.
-    pub x: FactorNormal,
+    pub x: Factor,
     /// *y* alignment in a `[0.0..=1.0]` range.
-    pub y: FactorNormal,
+    pub y: Factor,
 }
 impl PartialEq for Alignment {
     fn eq(&self, other: &Self) -> bool {
@@ -2757,11 +2761,11 @@ impl Alignment {
     }
 }
 impl_from_and_into_var! {
-    fn from<X: Into<FactorNormal> + Clone, Y: Into<FactorNormal> + Clone>((x, y): (X, Y)) -> Alignment {
+    fn from<X: Into<Factor> + Clone, Y: Into<Factor> + Clone>((x, y): (X, Y)) -> Alignment {
         Alignment { x: x.into(), y: y.into() }
     }
 
-    fn from(xy: FactorNormal) -> Alignment {
+    fn from(xy: Factor) -> Alignment {
         Alignment { x: xy, y: xy }
     }
 
@@ -2777,7 +2781,7 @@ macro_rules! named_aligns {
     ( $([$doc:expr] $NAME:ident = ($x:expr, $y:expr);)+ ) => {
         $(
         #[doc=$doc]
-        pub const $NAME: Alignment = Alignment { x: FactorNormal($x), y: FactorNormal($y) };
+        pub const $NAME: Alignment = Alignment { x: Factor($x), y: Factor($y) };
         )+
 
         /// Returns the alignment `const` name if `self` is equal to one of then.
@@ -2917,16 +2921,16 @@ impl Alignment {
 #[derive(Clone, Copy, Debug)]
 pub struct Scale2d {
     /// Scale applied in the ***x*** dimension.
-    pub x: FactorNormal,
+    pub x: Factor,
     /// Scale applied in the ***y*** dimension.
-    pub y: FactorNormal,
+    pub y: Factor,
 }
 impl_from_and_into_var! {
-    fn from<X: Into<FactorNormal> + Clone, Y: Into<FactorNormal> + Clone>((x, y): (X, Y)) -> Scale2d {
+    fn from<X: Into<Factor> + Clone, Y: Into<Factor> + Clone>((x, y): (X, Y)) -> Scale2d {
         Scale2d { x: x.into(), y: y.into() }
     }
 
-    fn from(xy: FactorNormal) -> Scale2d {
+    fn from(xy: Factor) -> Scale2d {
         Scale2d { x: xy, y: xy }
     }
 
@@ -2944,12 +2948,12 @@ impl_from_and_into_var! {
 }
 impl Scale2d {
     /// New scale with different scales for each dimension.
-    pub fn new(x: impl Into<FactorNormal>, y: impl Into<FactorNormal>) -> Self {
+    pub fn new(x: impl Into<Factor>, y: impl Into<Factor>) -> Self {
         Scale2d { x: x.into(), y: y.into() }
     }
 
     /// Uniform scale applied to both ***x*** and ***y***.
-    pub fn uniform(xy: impl Into<FactorNormal>) -> Self {
+    pub fn uniform(xy: impl Into<Factor>) -> Self {
         let xy = xy.into();
         xy.into()
     }
@@ -3134,7 +3138,7 @@ impl_from_and_into_var! {
         LineHeight::Length(percent.into())
     }
     /// Relative to font size.
-    fn from(norm: FactorNormal) -> LineHeight {
+    fn from(norm: Factor) -> LineHeight {
         LineHeight::Length(norm.into())
     }
 
@@ -3193,7 +3197,7 @@ impl_from_and_into_var! {
         LetterSpacing::Length(percent.into())
     }
     /// Relative to font size.
-    fn from(norm: FactorNormal) -> LetterSpacing {
+    fn from(norm: Factor) -> LetterSpacing {
         LetterSpacing::Length(norm.into())
     }
 
@@ -3254,7 +3258,7 @@ impl_from_and_into_var! {
         WordSpacing::Length(percent.into())
     }
     /// Relative to the space advance (width).
-    fn from(norm: FactorNormal) -> WordSpacing {
+    fn from(norm: Factor) -> WordSpacing {
         WordSpacing::Length(norm.into())
     }
 
@@ -3376,20 +3380,20 @@ impl Transform {
     }
 
     /// Append a 2d scale transform.
-    pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(mut self, x: X, y: Y) -> Self {
+    pub fn scale_xy<X: Into<Factor>, Y: Into<Factor>>(mut self, x: X, y: Y) -> Self {
         self.push_transform(RenderTransform::scale(x.into().0, y.into().0, 1.0));
         self
     }
     /// Append a 2d scale transform in the X dimension.
-    pub fn scale_x<X: Into<FactorNormal>>(self, x: X) -> Self {
+    pub fn scale_x<X: Into<Factor>>(self, x: X) -> Self {
         self.scale_xy(x, 1.0)
     }
     /// Append a 2d scale transform in the Y dimension.
-    pub fn scale_y<Y: Into<FactorNormal>>(self, y: Y) -> Self {
+    pub fn scale_y<Y: Into<Factor>>(self, y: Y) -> Self {
         self.scale_xy(1.0, y)
     }
     /// Append a 2d uniform scale transform.
-    pub fn scale<S: Into<FactorNormal>>(self, scale: S) -> Self {
+    pub fn scale<S: Into<Factor>>(self, scale: S) -> Self {
         let s = scale.into();
         self.scale_xy(s, s)
     }
@@ -3472,23 +3476,23 @@ pub fn skew_y<Y: Into<AngleRadian>>(y: Y) -> Transform {
 /// Create a 2d scale transform.
 ///
 /// The same `scale` is applied to both dimensions.
-pub fn scale<S: Into<FactorNormal>>(scale: S) -> Transform {
+pub fn scale<S: Into<Factor>>(scale: S) -> Transform {
     let scale = scale.into();
     scale_xy(scale, scale)
 }
 
 /// Create a 2d scale transform on the X dimension.
-pub fn scale_x<X: Into<FactorNormal>>(x: X) -> Transform {
+pub fn scale_x<X: Into<Factor>>(x: X) -> Transform {
     scale_xy(x, 1.0)
 }
 
 /// Create a 2d scale transform on the Y dimension.
-pub fn scale_y<Y: Into<FactorNormal>>(y: Y) -> Transform {
+pub fn scale_y<Y: Into<Factor>>(y: Y) -> Transform {
     scale_xy(1.0, y)
 }
 
 /// Create a 2d scale transform.
-pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(x: X, y: Y) -> Transform {
+pub fn scale_xy<X: Into<Factor>, Y: Into<Factor>>(x: X, y: Y) -> Transform {
     Transform::default().scale_xy(x, y)
 }
 

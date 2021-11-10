@@ -156,7 +156,7 @@ impl Rgba {
     /// colors::DARK_RED.lighten(10.pct())
     /// # ;
     /// ```
-    pub fn lighten<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
         self.to_hsla().lighten(amount).to_rgba()
     }
 
@@ -164,7 +164,7 @@ impl Rgba {
     ///
     /// This method converts to [`Hsla`] to darken and then converts back to `Rgba`.
     #[inline]
-    pub fn darken<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
         self.to_hsla().darken(amount).to_rgba()
     }
 
@@ -262,7 +262,7 @@ impl Hsla {
     /// ```
     ///
     /// Adds `10%` more light to the `DARK_RED` color.
-    pub fn lighten<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
         let mut lighter = self;
         lighter.lightness = clamp_normal(lighter.lightness + amount.into().0);
         lighter
@@ -271,7 +271,7 @@ impl Hsla {
     /// Subtracts the `amount` from the [`lightness`](Self::lightness).
     ///
     /// The `lightness` is clamped to the `[0.0..=1.0]` range.
-    pub fn darken<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
         let mut darker = self;
         darker.lightness = clamp_normal(darker.lightness - amount.into().0);
         darker
@@ -285,17 +285,17 @@ impl Hsla {
     }
 
     /// Sets the [`lightness`](Self::lightness) value.
-    pub fn set_lightness<L: Into<FactorNormal>>(&mut self, lightness: L) {
+    pub fn set_lightness<L: Into<Factor>>(&mut self, lightness: L) {
         self.lightness = lightness.into().0;
     }
 
     /// Sets the [`saturation`](Self::saturation) value.
-    pub fn set_saturation<S: Into<FactorNormal>>(&mut self, saturation: S) {
+    pub fn set_saturation<S: Into<Factor>>(&mut self, saturation: S) {
         self.saturation = saturation.into().0;
     }
 
     /// Sets the [`alpha`](Self::alpha) value.
-    pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
+    pub fn set_alpha<A: Into<Factor>>(&mut self, alpha: A) {
         self.alpha = alpha.into().0
     }
 
@@ -306,19 +306,19 @@ impl Hsla {
     }
 
     /// Returns a copy of this color with a new `lightness`.
-    pub fn with_lightness<L: Into<FactorNormal>>(mut self, lightness: L) -> Self {
+    pub fn with_lightness<L: Into<Factor>>(mut self, lightness: L) -> Self {
         self.set_lightness(lightness);
         self
     }
 
     /// Returns a copy of this color with a new `saturation`.
-    pub fn with_saturation<S: Into<FactorNormal>>(mut self, saturation: S) -> Self {
+    pub fn with_saturation<S: Into<Factor>>(mut self, saturation: S) -> Self {
         self.set_saturation(saturation);
         self
     }
 
     /// Returns a copy of this color with a new `alpha`.
-    pub fn with_alpha<A: Into<FactorNormal>>(mut self, alpha: A) -> Self {
+    pub fn with_alpha<A: Into<Factor>>(mut self, alpha: A) -> Self {
         self.set_alpha(alpha);
         self
     }
@@ -414,17 +414,17 @@ impl Hsva {
     }
 
     /// Sets the [`value`](Self::value).
-    pub fn set_value<L: Into<FactorNormal>>(&mut self, value: L) {
+    pub fn set_value<L: Into<Factor>>(&mut self, value: L) {
         self.value = value.into().0;
     }
 
     /// Sets the [`saturation`](Self::saturation) value.
-    pub fn set_saturation<L: Into<FactorNormal>>(&mut self, saturation: L) {
+    pub fn set_saturation<L: Into<Factor>>(&mut self, saturation: L) {
         self.saturation = saturation.into().0;
     }
 
     /// Sets the [`alpha`](Self::alpha) value.
-    pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
+    pub fn set_alpha<A: Into<Factor>>(&mut self, alpha: A) {
         self.alpha = alpha.into().0
     }
 
@@ -435,19 +435,19 @@ impl Hsva {
     }
 
     /// Returns a copy of this color with a new `value`.
-    pub fn with_value<V: Into<FactorNormal>>(mut self, value: V) -> Self {
+    pub fn with_value<V: Into<Factor>>(mut self, value: V) -> Self {
         self.set_value(value);
         self
     }
 
     /// Returns a copy of this color with a new `saturation`.
-    pub fn with_saturation<S: Into<FactorNormal>>(mut self, saturation: S) -> Self {
+    pub fn with_saturation<S: Into<Factor>>(mut self, saturation: S) -> Self {
         self.set_saturation(saturation);
         self
     }
 
     /// Returns a copy of this color with a new `alpha`.
-    pub fn with_alpha<A: Into<FactorNormal>>(mut self, alpha: A) -> Self {
+    pub fn with_alpha<A: Into<Factor>>(mut self, alpha: A) -> Self {
         self.set_alpha(alpha);
         self
     }
@@ -791,7 +791,7 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 /// let red = hsl(0.deg(), 100.pct(), 50.pct());
 /// let green = hsl(115.deg(), 1.0, 0.5);
 /// ```
-pub fn hsl<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, lightness: N) -> Hsla {
+pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightness: N) -> Hsla {
     hsla(hue, saturation, lightness, 1.0)
 }
 
@@ -814,7 +814,7 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, l
 /// let green = hsla(115.deg(), 1.0, 0.5, 100.pct());
 /// let transparent = hsla(0.deg(), 1.0, 0.5, 0.0);
 /// ```
-pub fn hsla<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(hue: H, saturation: N, lightness: N, alpha: A) -> Hsla {
+pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, lightness: N, alpha: A) -> Hsla {
     Hsla {
         hue: hue.into().0,
         saturation: saturation.into().0,
@@ -841,7 +841,7 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(
 /// let red = hsv(0.deg(), 100.pct(), 50.pct());
 /// let green = hsv(115.deg(), 1.0, 0.5);
 /// ```
-pub fn hsv<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, value: N) -> Hsva {
+pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: N) -> Hsva {
     hsva(hue, saturation, value, 1.0)
 }
 
@@ -864,7 +864,7 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, v
 /// let green = hsva(115.deg(), 1.0, 0.5, 100.pct());
 /// let transparent = hsva(0.deg(), 1.0, 0.5, 0.0);
 /// ```
-pub fn hsva<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
+pub fn hsva<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
     Hsva {
         hue: hue.into().0,
         saturation: saturation.into().0,
@@ -964,7 +964,7 @@ mod tests {
 /// Don't use this value directly, if a function takes `Into<RgbaComponent>` you can use one of the
 /// types this converts from:
 ///
-/// * [`f32`], [`f64`] and [`FactorNormal`] for a value in the `0.0` to `1.0` range.
+/// * [`f32`], [`f64`] and [`Factor`] for a value in the `0.0` to `1.0` range.
 /// * [`u8`] for a value in the `0` to `255` range.
 /// * [`FactorPercent`] for a percentage value.
 #[derive(Clone, Copy)]
@@ -994,8 +994,8 @@ impl From<FactorPercent> for RgbaComponent {
     }
 }
 /// Color channel value is in the [0..=1] range.
-impl From<FactorNormal> for RgbaComponent {
-    fn from(f: FactorNormal) -> Self {
+impl From<Factor> for RgbaComponent {
+    fn from(f: Factor) -> Self {
         RgbaComponent(f.0)
     }
 }
@@ -1082,13 +1082,13 @@ impl Filter {
     }
 
     /// Add an opacity adjustment to the filter, zero is fully transparent, one is the input transparency.
-    pub fn opacity<A: Into<FactorNormal>>(self, alpha: A) -> Self {
+    pub fn opacity<A: Into<Factor>>(self, alpha: A) -> Self {
         let alpha_value = alpha.into().0;
         self.op(FilterOp::Opacity(FrameBinding::Value(alpha_value), alpha_value))
     }
 
     /// Add a color inversion filter, zero does not invert, one fully inverts.
-    pub fn invert<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn invert<A: Into<Factor>>(self, amount: A) -> Self {
         self.op(FilterOp::Invert(amount.into().0))
     }
 
@@ -1102,12 +1102,12 @@ impl Filter {
     }
 
     /// Add a sepia color effect to the filter, zero is the input color, one is the full desaturated brown look.
-    pub fn sepia<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn sepia<A: Into<Factor>>(self, amount: A) -> Self {
         self.op(FilterOp::Sepia(amount.into().0))
     }
 
     /// Add a grayscale color effect to the filter, zero is the input color, one if the full grayscale.
-    pub fn grayscale<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn grayscale<A: Into<Factor>>(self, amount: A) -> Self {
         self.op(FilterOp::Grayscale(amount.into().0))
     }
 
@@ -1123,17 +1123,17 @@ impl Filter {
     }
 
     /// Add a brightness adjustment to the filter, zero removes all brightness, one is the input brightness.
-    pub fn brightness<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn brightness<A: Into<Factor>>(self, amount: A) -> Self {
         self.op(FilterOp::Brightness(amount.into().0))
     }
 
     /// Add a contrast adjustment to the filter, zero removes all contrast, one is the input contrast.
-    pub fn contrast<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn contrast<A: Into<Factor>>(self, amount: A) -> Self {
         self.op(FilterOp::Contrast(amount.into().0))
     }
 
     /// Add a saturation adjustment to the filter, zero fully desaturates, one is the input saturation.
-    pub fn saturate<A: Into<FactorNormal>>(self, amount: A) -> Self {
+    pub fn saturate<A: Into<Factor>>(self, amount: A) -> Self {
         self.op(FilterOp::Saturate(amount.into().0))
     }
 
@@ -1237,11 +1237,11 @@ impl fmt::Debug for FilterData {
 }
 
 /// New [`Filter::opacity`].
-pub fn opacity<A: Into<FactorNormal>>(alpha: A) -> Filter {
+pub fn opacity<A: Into<Factor>>(alpha: A) -> Filter {
     Filter::default().opacity(alpha)
 }
 /// New [`Filter::invert`].
-pub fn invert<A: Into<FactorNormal>>(amount: A) -> Filter {
+pub fn invert<A: Into<Factor>>(amount: A) -> Filter {
     Filter::default().invert(amount)
 }
 /// New [`Filter::blur`].
@@ -1249,11 +1249,11 @@ pub fn blur<R: Into<Length>>(radius: R) -> Filter {
     Filter::default().blur(radius)
 }
 /// New [`Filter::sepia`].
-pub fn sepia<A: Into<FactorNormal>>(amount: A) -> Filter {
+pub fn sepia<A: Into<Factor>>(amount: A) -> Filter {
     Filter::default().sepia(amount)
 }
 /// New [`Filter::grayscale`].
-pub fn grayscale<A: Into<FactorNormal>>(amount: A) -> Filter {
+pub fn grayscale<A: Into<Factor>>(amount: A) -> Filter {
     Filter::default().grayscale(amount)
 }
 /// New [`Filter::drop_shadow`].
@@ -1261,15 +1261,15 @@ pub fn drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(offset: O, bl
     Filter::default().drop_shadow(offset, blur_radius, color)
 }
 /// New [`Filter::brightness`].
-pub fn brightness<A: Into<FactorNormal>>(amount: A) -> Filter {
+pub fn brightness<A: Into<Factor>>(amount: A) -> Filter {
     Filter::default().brightness(amount)
 }
 /// New [`Filter::contrast`].
-pub fn contrast<A: Into<FactorNormal>>(amount: A) -> Filter {
+pub fn contrast<A: Into<Factor>>(amount: A) -> Filter {
     Filter::default().contrast(amount)
 }
 /// New [`Filter::saturate`].
-pub fn saturate<A: Into<FactorNormal>>(amount: A) -> Filter {
+pub fn saturate<A: Into<Factor>>(amount: A) -> Filter {
     Filter::default().saturate(amount)
 }
 /// New [`Filter::hue_rotate`].
