@@ -917,6 +917,13 @@ pub mod image {
         /// * [`ImageAlignVar`]: Defines the image alignment in the presenter final size.
         /// * [`ImageRenderingVar`]: Defines the image resize algorithm used in the GPU.
         pub fn image_presenter() -> impl UiNode {
+            enum State {
+                //
+                Measure,
+                Arrange,
+                Render,
+            }
+
             struct ImagePresenterNode {
                 measured_image_size: PxSize,
 
