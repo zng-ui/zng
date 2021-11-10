@@ -353,6 +353,7 @@ pub mod text {
             struct FontSizeNode<C, S> {
                 child: C,
                 size: S,
+                size_new: bool,
             }
             impl<C: UiNode, S: Var<Length>> UiNode for FontSizeNode<C, S> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
@@ -372,6 +373,7 @@ pub mod text {
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     let child = &mut self.child;
+                    self.size_new |= self.size.is_new(ctx);
                     ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.update(ctx));
                 }
 
@@ -382,7 +384,7 @@ pub mod text {
                         .to_layout(ctx, available_size.height, ctx.metrics.root_font_size);
                     let child = &mut self.child;
                     ctx.vars.with_context_bind(FontSizeVar, &self.size, || {
-                        ctx.with_font_size(font_size, |ctx| child.measure(ctx, available_size))
+                        ctx.with_font_size(font_size, self.size_new, |ctx| child.measure(ctx, available_size))
                     })
                 }
 
@@ -393,8 +395,9 @@ pub mod text {
                             .to_layout(ctx, AvailablePx::Finite(final_size.height), ctx.metrics.root_font_size);
                     let child = &mut self.child;
                     ctx.vars.with_context_bind(FontSizeVar, &self.size, || {
-                        ctx.with_font_size(font_size, |ctx| child.arrange(ctx, final_size))
+                        ctx.with_font_size(font_size, self.size_new, |ctx| child.arrange(ctx, final_size))
                     });
+                    self.size_new = false;
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -410,6 +413,7 @@ pub mod text {
             FontSizeNode {
                 child,
                 size: size.into_var(),
+                size_new: true,
             }
         }
 

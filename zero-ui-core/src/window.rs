@@ -1847,6 +1847,7 @@ impl AppWindow {
             state: wn_state,
             root,
             update: WindowUpdates::all(),
+            prev_metrics: None,
         };
 
         // we want the window content to init, update, layout & render to get
@@ -2358,9 +2359,15 @@ impl AppWindow {
         if pos.x.is_default() || pos.y.is_default() {
             None
         } else {
-            let pos = ctx.outer_layout_context(scr_size.to_px(scr_factor.0), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
-                pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size), PxPoint::zero())
-            });
+            let pos = ctx.outer_layout_context(
+                scr_size.to_px(scr_factor.0),
+                scr_factor,
+                scr_ppi,
+                LayoutMask::all(),
+                self.id,
+                self.root_id,
+                |ctx| pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size), PxPoint::zero()),
+            );
             Some(pos.to_dip(scr_factor.0))
         }
     }
@@ -2371,8 +2378,14 @@ impl AppWindow {
     fn layout_size(&mut self, ctx: &mut AppContext, use_system_size: bool) -> (DipSize, DipSize, DipSize) {
         let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
 
-        let (available_size, min_size, max_size, auto_size) =
-            ctx.outer_layout_context(scr_size.to_px(scr_factor.0), scr_factor, scr_ppi, self.id, self.root_id, |ctx| {
+        let (available_size, min_size, max_size, auto_size) = ctx.outer_layout_context(
+            scr_size.to_px(scr_factor.0),
+            scr_factor,
+            scr_ppi,
+            LayoutMask::all(),
+            self.id,
+            self.root_id,
+            |ctx| {
                 let scr_size = AvailableSize::finite(ctx.viewport_size);
 
                 let default_size = Size::new(800, 600).to_layout(ctx, scr_size, PxSize::zero());
@@ -2400,7 +2413,8 @@ impl AppWindow {
                 }
 
                 (size, min_size, max_size, auto_size)
-            });
+            },
+        );
 
         let root_font_size = Length::pt_to_px(14.0, scr_factor);
 
@@ -2588,6 +2602,8 @@ struct OwnedWindowContext {
     state: OwnedStateMap,
     root: Window,
     update: WindowUpdates,
+
+    prev_metrics: Option<(Px, Factor, f32, PxSize)>,
 }
 impl OwnedWindowContext {
     fn init(&mut self, ctx: &mut AppContext) {
@@ -2626,6 +2642,25 @@ impl OwnedWindowContext {
     ) -> DipSize {
         self.update.layout = false;
 
+        let mut changes = LayoutMask::NONE;
+        if let Some((prev_font_size, prev_scale_factor, prev_screen_ppi, prev_viewport_size)) = self.prev_metrics {
+            if prev_font_size != font_size {
+                changes |= LayoutMask::FONT_SIZE;
+            }
+            if prev_scale_factor != scale_factor {
+                changes |= LayoutMask::SCALE_FACTOR;
+            }
+            if !about_eq(prev_screen_ppi, screen_ppi, 0.001) {
+                changes |= LayoutMask::SCREEN_PPI;
+            }
+            if prev_viewport_size != available_size {
+                changes |= LayoutMask::VIEWPORT_SIZE;
+            }
+        } else {
+            changes = LayoutMask::FONT_SIZE | LayoutMask::SCALE_FACTOR | LayoutMask::SCREEN_PPI;
+        }
+        self.prev_metrics = Some((font_size, scale_factor, screen_ppi, available_size));
+
         let root = &mut self.root;
         let (final_size, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let child = &mut root.child;
@@ -2634,6 +2669,7 @@ impl OwnedWindowContext {
                 scale_factor,
                 screen_ppi,
                 available_size,
+                changes,
                 root.id,
                 &mut root.state,
                 |ctx| {

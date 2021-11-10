@@ -421,7 +421,7 @@ pub trait Widget: UiNode {
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_measure(&mut self, ctx: &mut TestWidgetContext, available_size: AvailableSize) -> PxSize {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
-        ctx.layout_context(font_size, font_size, self.size(), 1.0.fct(), 96.0, |ctx| {
+        ctx.layout_context(font_size, font_size, self.size(), 1.0.fct(), 96.0, LayoutMask::all(), |ctx| {
             self.measure(ctx, available_size)
         })
     }
@@ -430,7 +430,7 @@ pub trait Widget: UiNode {
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_arrange(&mut self, ctx: &mut TestWidgetContext, final_size: PxSize) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
-        ctx.layout_context(font_size, font_size, self.size(), 1.0.fct(), 96.0, |ctx| {
+        ctx.layout_context(font_size, font_size, self.size(), 1.0.fct(), 96.0, LayoutMask::all(), |ctx| {
             self.arrange(ctx, final_size)
         })
     }

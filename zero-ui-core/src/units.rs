@@ -1307,7 +1307,6 @@ impl Length {
     }
 
     /// Returns a length that computes the absolute layout length of `self`.
-    #[inline]
     pub fn abs(&self) -> Length {
         use Length::*;
         match self {
@@ -1342,6 +1341,27 @@ impl Length {
             ViewportMin(p) => ctx.viewport_min() * *p,
             ViewportMax(p) => ctx.viewport_max() * *p,
             Expr(e) => e.to_layout(ctx, available_size, default_value),
+        }
+    }
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    pub fn affect_mask(&self) -> LayoutMask {
+        use Length::*;
+        match self {
+            Default => LayoutMask::DEFAULT_VALUE,
+            Dip(_) => LayoutMask::SCALE_FACTOR,
+            Px(_) => LayoutMask::NONE,
+            Pt(_) => LayoutMask::SCALE_FACTOR,
+            Relative(_) => LayoutMask::AVAILABLE_SIZE,
+            Em(_) => LayoutMask::FONT_SIZE,
+            RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
+            ViewportWidth(_) => LayoutMask::VIEWPORT_SIZE,
+            ViewportHeight(_) => LayoutMask::VIEWPORT_SIZE,
+            ViewportMin(_) => LayoutMask::VIEWPORT_SIZE,
+            ViewportMax(_) => LayoutMask::VIEWPORT_SIZE,
+            Expr(e) => e.affect_mask(),
         }
     }
 
@@ -1400,6 +1420,37 @@ impl Length {
     const PT_TO_DIP: f32 = 96.0 / 72.0; // 1.3333..;
 }
 
+bitflags! {
+    /// Mask of values that can affect the [`Length::to_layout`] operation.
+    pub struct LayoutMask: u32 {
+        /// Represents no value dependency or change.
+        const NONE = 0b_0000_0000_0000_0000_0000_0000_0000_0000;
+
+        /// The `default_value`.
+        const DEFAULT_VALUE = 0b_1000_0000_0000_0000_0000_0000_0000_0000;
+        /// The `available_size`.
+        const AVAILABLE_SIZE = 0b_0100_0000_0000_0000_0000_0000_0000_0000;
+
+        /// The [`LayoutMetrics::font_size`].
+        const FONT_SIZE = 0b_0000_0000_0000_0000_0000_0000_0000_0001;
+        /// The [`LayoutMetrics::root_font_size`].
+        const ROOT_FONT_SIZE = 0b_0000_0000_0000_0000_0000_0000_0000_0010;
+        /// The [`LayoutMetrics::scale_factor`].
+        const SCALE_FACTOR = 0b_0000_0000_0000_0000_0000_0000_0000_0100;
+        /// The [`LayoutMetrics::viewport_size`].
+        const VIEWPORT_SIZE = 0b_0000_0000_0000_0000_0000_0000_0000_1000;
+        /// The [`LayoutMetrics::screen_ppi`].
+        const SCREEN_PPI = 0b_0000_0000_0000_0000_0000_0000_0001_0000;
+
+        /// All the [`LayoutMetrics`] values.
+        const LAYOUT_METRICS = Self::FONT_SIZE.bits
+                             | Self::ROOT_FONT_SIZE.bits
+                             | Self::SCALE_FACTOR.bits
+                             | Self::VIEWPORT_SIZE.bits
+                             | Self::SCREEN_PPI.bits;
+    }
+}
+
 /// Represents an unresolved [`Length`] expression.
 #[derive(Clone, PartialEq)]
 pub enum LengthExpr {
@@ -1441,6 +1492,24 @@ impl LengthExpr {
             }
             Abs(e) => e.to_layout(ctx, available_size, default_value).abs(),
             AbsDefault => default_value.abs(),
+        }
+    }
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result
+    /// of [`to_layout`] called for this length.
+    ///
+    /// [`to_layout`]: Self::to_layout
+    pub fn affect_mask(&self) -> LayoutMask {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.affect_mask() | b.affect_mask(),
+            Sub(a, b) => a.affect_mask() | b.affect_mask(),
+            Mul(a, _) => a.affect_mask(),
+            Div(a, _) => a.affect_mask(),
+            Max(a, b) => a.affect_mask() | b.affect_mask(),
+            Min(a, b) => a.affect_mask() | b.affect_mask(),
+            Abs(a) => a.affect_mask(),
+            AbsDefault => LayoutMask::DEFAULT_VALUE,
         }
     }
 }
@@ -1734,6 +1803,14 @@ impl Vector {
         )
     }
 
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    #[inline]
+    pub fn affect_mask(&self) -> LayoutMask {
+        self.x.affect_mask() | self.y.affect_mask()
+    }
+
     /// Returns `true` if all values are [`Length::Default`].
     pub fn is_default(&self) -> bool {
         self.x.is_default() && self.y.is_default()
@@ -1895,6 +1972,14 @@ impl Point {
         )
     }
 
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    #[inline]
+    pub fn affect_mask(&self) -> LayoutMask {
+        self.x.affect_mask() | self.y.affect_mask()
+    }
+
     /// Returns `true` if all values are [`Length::Default`].
     pub fn is_default(&self) -> bool {
         self.x.is_default() && self.y.is_default()
@@ -1990,6 +2075,14 @@ impl Size {
             self.width.to_layout(ctx, available_size.width, default_value.width),
             self.height.to_layout(ctx, available_size.height, default_value.height),
         )
+    }
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    #[inline]
+    pub fn affect_mask(&self) -> LayoutMask {
+        self.width.affect_mask() | self.height.affect_mask()
     }
 
     /// Returns `true` if all values are [`Length::Default`].
@@ -2103,6 +2196,14 @@ impl Ellipse {
         )
     }
 
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    #[inline]
+    pub fn affect_mask(&self) -> LayoutMask {
+        self.width.affect_mask() | self.height.affect_mask()
+    }
+
     /// If the [`width`](Self::width) and [`height`](Self::height) are equal.
     ///
     /// Note that if the values are relative may still not be a perfect circle.
@@ -2184,6 +2285,14 @@ impl GridSpacing {
             column: self.column.to_layout(ctx, available_size.width, default_value.column),
             row: self.row.to_layout(ctx, available_size.height, default_value.row),
         }
+    }
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    #[inline]
+    pub fn affect_mask(&self) -> LayoutMask {
+        self.column.affect_mask() | self.row.affect_mask()
     }
 }
 impl_length_comp_conversions! {
@@ -2315,6 +2424,14 @@ impl Rect {
             self.origin.to_layout(ctx, available_size, default_value.origin),
             self.size.to_layout(ctx, available_size, default_value.size),
         )
+    }
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    #[inline]
+    pub fn affect_mask(&self) -> LayoutMask {
+        self.origin.affect_mask() | self.size.affect_mask()
     }
 
     /// Returns `true` if all values are [`Length::Default`].
@@ -2499,6 +2616,14 @@ impl Line {
             end: self.end.to_layout(ctx, available_size, default_value.end),
         }
     }
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    #[inline]
+    pub fn affect_mask(&self) -> LayoutMask {
+        self.start.affect_mask() | self.end.affect_mask()
+    }
 }
 impl_from_and_into_var! {
     /// From exact lengths.
@@ -2676,6 +2801,14 @@ impl SideOffsets {
             self.bottom.to_layout(ctx, height, default_value.bottom),
             self.left.to_layout(ctx, width, default_value.left),
         )
+    }
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    ///
+    /// [`to_layout`]: Self::to_layout
+    #[inline]
+    pub fn affect_mask(&self) -> LayoutMask {
+        self.top.affect_mask() | self.right.affect_mask() | self.bottom.affect_mask() | self.left.affect_mask()
     }
 }
 

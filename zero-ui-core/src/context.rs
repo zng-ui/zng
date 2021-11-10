@@ -515,17 +515,19 @@ impl<'a> AppContext<'a> {
 
     /// Run a function `f` in the layout context of the monitor that contains a window.
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     pub fn outer_layout_context<R>(
         &mut self,
         screen_size: PxSize,
         scale_factor: Factor,
         screen_ppi: f32,
+        metrics_diff: LayoutMask,
         window_id: WindowId,
         root_id: WidgetId,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(14.0, scale_factor)).with_screen_ppi(screen_ppi),
+            metrics: &LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(14.0, scale_factor)).with_screen_ppi(screen_ppi).with_diff(metrics_diff),
             path: &mut WidgetContextPath::new(window_id, root_id),
             app_state: self.app_state,
             window_state: &mut StateMap::new(),
@@ -615,12 +617,13 @@ impl<'a> WindowContext<'a> {
         scale_factor: Factor,
         screen_ppi: f32,
         viewport_size: PxSize,
+        metrics_diff: LayoutMask,
         widget_id: WidgetId,
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi),
+            metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi).with_diff(metrics_diff),
 
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -772,6 +775,7 @@ impl TestWidgetContext {
     }
 
     /// Calls `action` in a fake layout context.
+    #[allow(clippy::too_many_arguments)]
     pub fn layout_context<R>(
         &mut self,
         root_font_size: Px,
@@ -779,12 +783,14 @@ impl TestWidgetContext {
         viewport_size: PxSize,
         scale_factor: Factor,
         screen_ppi: f32,
+        metrics_diff: LayoutMask,
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         action(&mut LayoutContext {
             metrics: &LayoutMetrics::new(scale_factor, viewport_size, root_font_size)
                 .with_font_size(font_size)
-                .with_screen_ppi(screen_ppi),
+                .with_screen_ppi(screen_ppi)
+                .with_diff(metrics_diff),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             app_state: &mut self.app_state.0,
@@ -1177,6 +1183,9 @@ pub struct LayoutMetrics {
     /// [`Monitors`]: crate::window::Monitors
     /// [`scale_factor`]: LayoutMetrics::scale_factor
     pub screen_ppi: f32,
+
+    /// What metrics changed from the last layout in the same context.
+    pub diff: LayoutMask,
 }
 impl LayoutMetrics {
     /// New root [`LayoutMetrics`].
@@ -1192,6 +1201,7 @@ impl LayoutMetrics {
             scale_factor,
             viewport_size,
             screen_ppi: 96.0,
+            diff: LayoutMask::all(),
         }
     }
 
@@ -1209,6 +1219,41 @@ impl LayoutMetrics {
     #[inline]
     pub fn viewport_max(&self) -> Px {
         self.viewport_size.width.max(self.viewport_size.height)
+    }
+
+    /// Computes the full diff mask of changes in a [`UiNode::measure`].
+    /// 
+    /// Note that the node owner must store the previous available size, this
+    /// method updates the `prev_available_size` to the new `available_size` after the comparison.
+    #[inline]
+    pub fn measure_diff(&self, prev_available_size: &mut Option<AvailableSize>, available_size: AvailableSize, default_is_new: bool) -> LayoutMask {
+        self.node_diff(prev_available_size, available_size, default_is_new)
+    }
+
+    /// Computes the full diff mask of changes in a [`UiNode::arrange`].
+    /// 
+    /// Note that the node owner must store the previous final size, this method
+    /// updates the `prev_final_size` to the new `final_size` after the comparison.
+    #[inline]
+    pub fn arrange_diff(&self, prev_final_size: &mut Option<PxSize>, final_size: PxSize, default_is_new: bool) -> LayoutMask {
+        self.node_diff(prev_final_size, final_size, default_is_new)
+    }
+
+    fn node_diff<A: PartialEq>(&self, prev: &mut Option<A>, new: A, default_is_new: bool) -> LayoutMask {
+        let mut diff = self.diff;
+        if let Some(p) = prev {
+            if *p != new {
+                diff |= LayoutMask::AVAILABLE_SIZE;
+                *p = new;
+            }            
+        } else {
+            diff |= LayoutMask::AVAILABLE_SIZE;
+            *prev = Some(new);
+        }
+        if default_is_new {
+            diff |= LayoutMask::DEFAULT_VALUE;
+        }
+        diff
     }
 
     /// Sets the [`font_size`].
@@ -1235,6 +1280,15 @@ impl LayoutMetrics {
     #[inline]
     pub fn with_screen_ppi(mut self, screen_ppi: f32) -> Self {
         self.screen_ppi = screen_ppi;
+        self
+    }
+
+    /// Sets the [`diff`].
+    /// 
+    /// [`diff`]: Self::diff
+    #[inline]
+    pub fn with_diff(mut self, diff: LayoutMask) -> Self {
+        self.diff = diff;
         self
     }
 }
@@ -1285,10 +1339,14 @@ impl<'a> Deref for LayoutContext<'a> {
 }
 impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.
+    ///
+    /// The `font_size_new` flag indicates if the `font_size` value changed from the previous layout call.
     #[inline(always)]
-    pub fn with_font_size<R>(&mut self, new_font_size: Px, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_font_size<R>(&mut self, font_size: Px, font_size_new: bool, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        let mut diff = self.metrics.diff;
+        diff.set(LayoutMask::FONT_SIZE, font_size_new);
         f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_font_size(new_font_size),
+            metrics: &self.metrics.clone().with_font_size(font_size).with_diff(diff),
 
             path: self.path,
 
