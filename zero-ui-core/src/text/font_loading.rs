@@ -322,14 +322,14 @@ impl FontInstanceKey {
 struct ParsedFace {
     /// `'static` is a lie here, it actually references memory in the heap held by `bytes`.
     /// use `.face()` to get the correct lifetime.
-    face: ttf_parser::Face<'static>,
+    face: rustybuzz::Face<'static>,
     bytes: Arc<Vec<u8>>,
     index: u32,
 }
 impl ParsedFace {
     /// Parse font face at the index.
-    pub fn parse(font_bytes: Arc<Vec<u8>>, index: u32) -> Result<Self, ttf_parser::FaceParsingError> {
-        let face = ttf_parser::Face::from_slice(&font_bytes[..], index)?;
+    pub fn parse(font_bytes: Arc<Vec<u8>>, index: u32) -> Result<Self, FontLoadingError> {
+        let face = rustybuzz::Face::from_slice(&font_bytes[..], index).ok_or(FontLoadingError::Parse)?;
         let face = ParsedFace {
             bytes: font_bytes.clone(),
             index,
@@ -342,7 +342,7 @@ impl ParsedFace {
 
     /// Reference the parsed face.
     #[inline]
-    pub fn face(&self) -> &ttf_parser::Face {
+    pub fn face(&self) -> &rustybuzz::Face {
         // SAFETY: this is safe because `face` reference memory in the heap held
         // by `bytes`, the heap memory does not move.
         unsafe { std::mem::transmute(&self.face) }
@@ -516,14 +516,8 @@ impl FontFace {
 
     /// Reference the parsed font face.
     #[inline]
-    pub fn face(&self) -> &ttf_parser::Face {
+    pub fn face(&self) -> &rustybuzz::Face {
         self.face.face()
-    }
-
-    /// New `rustybuzz` font face from the parsed font face.
-    #[inline]
-    pub fn rusty_face(&self) -> rustybuzz::Face {
-        rustybuzz::Face::from_face(self.face.face().clone()).unwrap()
     }
 
     /// Reference the font file bytes.

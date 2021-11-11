@@ -165,7 +165,7 @@ impl Font {
         let mut max_line_x = 0.0;
         let ppem = self.size().0 as u16;
 
-        let mut face = self.face().rusty_face();
+        let mut face = self.face().face().clone();
         face.set_pixels_per_em(Some((ppem, ppem)));
         face.set_points_per_em(None); // TODO?
         face.set_variations(self.variations());

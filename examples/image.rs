@@ -11,7 +11,7 @@ fn main() {
 
     zero_ui_view::init();
 
-    let rec = examples_util::record_profile("profile-image-pos-text.json", &[("example", "image")]);
+    let rec = examples_util::record_profile("profile-image.json", &[("example", "image")]);
     app_main();
     rec.finish();
 }

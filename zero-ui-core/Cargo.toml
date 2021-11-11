@@ -39,7 +39,6 @@ font-kit = "0.10"
 unicode-script = "0.5"
 unicase = "2"
 rustybuzz = "0.4"
-ttf-parser = "0.12" # must match rustybuzz
 xi-unicode = "0.3"
 
 # task
