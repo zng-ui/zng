@@ -477,9 +477,10 @@ impl WidgetInstanceInfoNode {
         }
     }
 }
-#[impl_ui_node(child)]
 impl UiNode for WidgetInstanceInfoNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
+        let _scope = tracing::trace_span!("widget.init", name = self.info.borrow().widget_name).entered();
+
         {
             let child = &mut self.child;
             ctx.vars.with_context_var(ParentPropertyName, &"new(..)", false, 0, || {
@@ -508,7 +509,21 @@ impl UiNode for WidgetInstanceInfoNode {
         info.parent_property = ParentPropertyName::get(ctx);
     }
 
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        let _scope = tracing::trace_span!("widget.deinit", name = self.info.borrow().widget_name).entered();
+
+        self.child.deinit(ctx);
+    }
+
+    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        let _scope = tracing::trace_span!("widget.event", name = self.info.borrow().widget_name).entered();
+
+        self.child.event(ctx, args);
+    }
+
     fn update(&mut self, ctx: &mut WidgetContext) {
+        let _scope = tracing::trace_span!("widget.update", name = self.info.borrow().widget_name).entered();
+
         self.child.update(ctx);
 
         let mut info_borrow = self.info.borrow_mut();
@@ -532,9 +547,27 @@ impl UiNode for WidgetInstanceInfoNode {
         }
     }
 
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+        let _scope = tracing::trace_span!("widget.measure", name = self.info.borrow().widget_name).entered();
+        self.child.measure(ctx, available_size)
+    }
+
+    fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        let _scope = tracing::trace_span!("widget.arrange", name = self.info.borrow().widget_name).entered();
+        self.child.arrange(ctx, final_size)
+    }
+
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        let _scope = tracing::trace_span!("widget.render", name = self.info.borrow().widget_name).entered();
+
         frame.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
         self.child.render(ctx, frame);
+    }
+
+    fn render_update(&self, ctx: &mut RenderContext, updates: &mut FrameUpdate) {
+        let _scope = tracing::trace_span!("widget.render_update", name = self.info.borrow().widget_name).entered();
+
+        self.child.render_update(ctx, updates);
     }
 }
 
@@ -613,6 +646,8 @@ macro_rules! ctx_mtd {
 }
 impl UiNode for PropertyInfoNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
+        let _scope = tracing::trace_span!("property.init", name = self.info.borrow().property_name).entered();
+
         let mut info = self.info.borrow_mut();
         let child = &mut self.child;
         let property_name = info.property_name;
@@ -632,10 +667,14 @@ impl UiNode for PropertyInfoNode {
         }
     }
     fn deinit(&mut self, ctx: &mut WidgetContext) {
+        let _scope = tracing::trace_span!("property.deinit", name = self.info.borrow().property_name).entered();
+
         ctx_mtd!(self.deinit, ctx, mut info);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
+        let _scope = tracing::trace_span!("property.update", name = self.info.borrow().property_name).entered();
+
         ctx_mtd!(self.update, ctx, mut info);
 
         for (var, arg) in self.arg_debug_vars.iter_mut().zip(info.args.iter_mut()) {
@@ -650,11 +689,15 @@ impl UiNode for PropertyInfoNode {
     where
         Self: Sized,
     {
+        let _scope = tracing::trace_span!("property.event", name = self.info.borrow().property_name).entered();
+
         // TODO measure time and count
         self.child.event(ctx, args);
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+        let _scope = tracing::trace_span!("property.measure", name = self.info.borrow().property_name).entered();
+
         let t = Instant::now();
         let r = self.child.measure(ctx, available_size);
         let d = t.elapsed();
@@ -664,6 +707,8 @@ impl UiNode for PropertyInfoNode {
         r
     }
     fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        let _scope = tracing::trace_span!("property.arrange", name = self.info.borrow().property_name).entered();
+
         let t = Instant::now();
         self.child.arrange(ctx, final_size);
         let d = t.elapsed();

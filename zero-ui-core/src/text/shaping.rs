@@ -155,6 +155,8 @@ impl Font {
     /// Calculates a [`ShapedText`].
     // see https://raphlinus.github.io/text/2020/10/26/text-layout.html
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+        let _scope = tracing::trace_span!("shape_text").entered();
+
         let mut out = ShapedText::default();
         let metrics = self.metrics();
         let line_height = config.line_height(metrics).0 as f32;
@@ -163,7 +165,7 @@ impl Font {
         let mut max_line_x = 0.0;
         let ppem = self.size().0 as u16;
 
-        let mut face = rustybuzz::Face::from_slice(self.face().bytes(), self.face().index()).unwrap();
+        let mut face = self.face().rusty_face();
         face.set_pixels_per_em(Some((ppem, ppem)));
         face.set_points_per_em(None); // TODO?
         face.set_variations(self.variations());

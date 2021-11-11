@@ -318,13 +318,43 @@ impl FontInstanceKey {
     }
 }
 
+#[derive(Clone)]
+struct ParsedFace {
+    /// `'static` is a lie here, it actually references memory in the heap held by `bytes`.
+    /// use `.face()` to get the correct lifetime.
+    face: ttf_parser::Face<'static>,
+    bytes: Arc<Vec<u8>>,
+    index: u32,
+}
+impl ParsedFace {
+    /// Parse font face at the index.
+    pub fn parse(font_bytes: Arc<Vec<u8>>, index: u32) -> Result<Self, ttf_parser::FaceParsingError> {
+        let face = ttf_parser::Face::from_slice(&font_bytes[..], index)?;
+        let face = ParsedFace {
+            bytes: font_bytes.clone(),
+            index,
+            // SAFETY: this is safe because `face` references memory in the heap
+            // held by `bytes`, the heap memory does not move.
+            face: unsafe { std::mem::transmute(face) },
+        };
+        Ok(face)
+    }
+
+    /// Reference the parsed face.
+    #[inline]
+    pub fn face(&self) -> &ttf_parser::Face {
+        // SAFETY: this is safe because `face` reference memory in the heap held
+        // by `bytes`, the heap memory does not move.
+        unsafe { std::mem::transmute(&self.face) }
+    }
+}
+
 /// A font face selected from a font family.
 ///
 /// Usually this is part of a [`FontList`] that can be requested from
 /// the [`Fonts`] service.
 pub struct FontFace {
-    bytes: Arc<Vec<u8>>,
-    face_index: u32,
+    face: ParsedFace,
     display_name: FontName,
     family_name: FontName,
     postscript_name: Option<String>,
@@ -350,7 +380,7 @@ impl fmt::Debug for FontFace {
             .field("instances.len()", &self.instances.borrow().len())
             .field("render_keys.len()", &self.render_keys.borrow().len())
             .field("unregistered", &self.unregistered.get())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 impl FontFace {
@@ -372,8 +402,7 @@ impl FontFace {
                     .get(&other_font, custom_font.style, custom_font.weight, custom_font.stretch)
                     .ok_or(FontLoadingError::NoSuchFontInCollection)?;
                 return Ok(FontFace {
-                    bytes: Arc::clone(&other_font.bytes),
-                    face_index: other_font.face_index,
+                    face: other_font.face.clone(),
                     display_name: custom_font.name.clone(),
                     family_name: custom_font.name,
                     postscript_name: None,
@@ -393,13 +422,10 @@ impl FontFace {
         }
         .load()?;
 
-        if rustybuzz::Face::from_slice(&bytes, face_index).is_none() {
-            return Err(FontLoadingError::Parse);
-        }
+        let face = ParsedFace::parse(bytes, face_index).map_err(|_| FontLoadingError::Parse)?;
 
         Ok(FontFace {
-            bytes,
-            face_index,
+            face,
             display_name: custom_font.name.clone(),
             family_name: custom_font.name,
             postscript_name: None,
@@ -437,13 +463,10 @@ impl FontFace {
         }
         .load()?;
 
-        if rustybuzz::Face::from_slice(&bytes, face_index).is_none() {
-            return Err(FontLoadingError::Parse);
-        }
+        let face = ParsedFace::parse(bytes, face_index).map_err(|_| FontLoadingError::Parse)?;
 
         Ok(FontFace {
-            bytes,
-            face_index,
+            face,
             display_name: kit_font.full_name().into(),
             family_name: kit_font.family_name().into(),
             postscript_name: kit_font.postscript_name(),
@@ -454,33 +477,6 @@ impl FontFace {
             render_keys: Default::default(),
             unregistered: Cell::new(false),
         })
-    }
-
-    fn empty() -> Self {
-        FontFace {
-            bytes: Arc::new(vec![]),
-            face_index: 0,
-            display_name: "<empty>".into(),
-            family_name: "<empty>".into(),
-            postscript_name: None,
-            properties: font_kit::properties::Properties::default(),
-            is_monospace: true,
-            // copied from the default Windows "monospace".
-            metrics: FontFaceMetrics {
-                units_per_em: 2048,
-                ascent: 1705.0,
-                descent: -615.0,
-                line_gap: 0.0,
-                underline_position: -477.0,
-                underline_thickness: 84.0,
-                cap_height: 1170.0,
-                x_height: 866.0,
-                bounding_box: euclid::rect(1524.0, 3483.0, -249.0, -1392.0),
-            },
-            instances: Default::default(),
-            render_keys: Default::default(),
-            unregistered: Cell::new(false),
-        }
     }
 
     fn on_unregistered(&self) {
@@ -505,7 +501,7 @@ impl FontFace {
             }
         }
 
-        let key = match renderer.add_font((*self.bytes).clone(), self.face_index) {
+        let key = match renderer.add_font((*self.face.bytes).clone(), self.face.index) {
             Ok(k) => k,
             Err(Respawned) => {
                 tracing::debug!("respawned calling `add_font`, will return dummy font key");
@@ -518,16 +514,22 @@ impl FontFace {
         key
     }
 
-    /// Reference the underlying font bytes.
+    /// Reference the parsed font face.
     #[inline]
-    pub fn bytes(&self) -> &Arc<Vec<u8>> {
-        &self.bytes
+    pub fn face(&self) -> &ttf_parser::Face {
+        self.face.face()
     }
 
-    /// The font face index in the [font file](Self::bytes).
+    /// New `rustybuzz` font face from the parsed font face.
     #[inline]
-    pub fn face_index(&self) -> u32 {
-        self.face_index
+    pub fn rusty_face(&self) -> rustybuzz::Face {
+        rustybuzz::Face::from_face(self.face.face().clone()).unwrap()
+    }
+
+    /// Reference the font file bytes.
+    #[inline]
+    pub fn bytes(&self) -> &Arc<Vec<u8>> {
+        &self.face.bytes
     }
 
     /// Font full name.
@@ -551,7 +553,7 @@ impl FontFace {
     /// Index of the font face in the [font file](Self::bytes).
     #[inline]
     pub fn index(&self) -> u32 {
-        self.face_index
+        self.face.index
     }
 
     /// Font style.
@@ -1060,8 +1062,7 @@ impl FontFaceLoader {
         }
 
         if r.is_empty() {
-            tracing::error!(target: "font_loading", "failed to load fallback font");
-            r.push(Rc::new(FontFace::empty()));
+            panic!("failed to load fallback font");
         }
 
         FontFaceList {
@@ -1513,15 +1514,5 @@ impl From<FontName> for font_kit::family_name::FamilyName {
             "fantasy" => font_kit::family_name::FamilyName::Fantasy,
             _ => font_kit::family_name::FamilyName::Title(font_name.text.into()),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn empty_font() {
-        let _empty = FontFace::empty();
     }
 }

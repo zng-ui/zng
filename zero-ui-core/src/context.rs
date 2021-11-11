@@ -527,7 +527,9 @@ impl<'a> AppContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(14.0, scale_factor)).with_screen_ppi(screen_ppi).with_diff(metrics_diff),
+            metrics: &LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(14.0, scale_factor))
+                .with_screen_ppi(screen_ppi)
+                .with_diff(metrics_diff),
             path: &mut WidgetContextPath::new(window_id, root_id),
             app_state: self.app_state,
             window_state: &mut StateMap::new(),
@@ -623,7 +625,9 @@ impl<'a> WindowContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi).with_diff(metrics_diff),
+            metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size)
+                .with_screen_ppi(screen_ppi)
+                .with_diff(metrics_diff),
 
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -1222,16 +1226,21 @@ impl LayoutMetrics {
     }
 
     /// Computes the full diff mask of changes in a [`UiNode::measure`].
-    /// 
+    ///
     /// Note that the node owner must store the previous available size, this
     /// method updates the `prev_available_size` to the new `available_size` after the comparison.
     #[inline]
-    pub fn measure_diff(&self, prev_available_size: &mut Option<AvailableSize>, available_size: AvailableSize, default_is_new: bool) -> LayoutMask {
+    pub fn measure_diff(
+        &self,
+        prev_available_size: &mut Option<AvailableSize>,
+        available_size: AvailableSize,
+        default_is_new: bool,
+    ) -> LayoutMask {
         self.node_diff(prev_available_size, available_size, default_is_new)
     }
 
     /// Computes the full diff mask of changes in a [`UiNode::arrange`].
-    /// 
+    ///
     /// Note that the node owner must store the previous final size, this method
     /// updates the `prev_final_size` to the new `final_size` after the comparison.
     #[inline]
@@ -1245,7 +1254,7 @@ impl LayoutMetrics {
             if *p != new {
                 diff |= LayoutMask::AVAILABLE_SIZE;
                 *p = new;
-            }            
+            }
         } else {
             diff |= LayoutMask::AVAILABLE_SIZE;
             *prev = Some(new);
@@ -1284,7 +1293,7 @@ impl LayoutMetrics {
     }
 
     /// Sets the [`diff`].
-    /// 
+    ///
     /// [`diff`]: Self::diff
     #[inline]
     pub fn with_diff(mut self, diff: LayoutMask) -> Self {
