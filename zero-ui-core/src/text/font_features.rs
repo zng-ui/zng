@@ -123,7 +123,7 @@ impl FontFeatures {
     pub fn finalize(&self) -> RFontFeatures {
         self.0
             .iter()
-            .map(|(&n, &s)| rustybuzz::Feature::new(rustybuzz::Tag::from_bytes(n), s, 0..usize::MAX))
+            .map(|(&n, &s)| harfbuzz_rs::Feature::new(harfbuzz_rs::Tag::from(n), s, 0..usize::MAX))
             .collect()
     }
 }
@@ -140,7 +140,7 @@ impl fmt::Debug for FontFeatures {
 /// Finalized [`FontFeatures`].
 ///
 /// This is a vec of [rustybuzz features](rustybuzz::Feature).
-pub type RFontFeatures = Vec<rustybuzz::Feature>;
+pub type RFontFeatures = Vec<harfbuzz_rs::Feature>;
 
 fn name_to_str(name: &[u8; 4]) -> &str {
     std::str::from_utf8(name).unwrap_or_default()
@@ -1686,7 +1686,7 @@ pub type FontVariationName = &'static [u8; 4];
 ///
 /// Use [`font_variations!`] to manually initialize.
 #[derive(Default, Clone)]
-pub struct FontVariations(Vec<rustybuzz::Variation>);
+pub struct FontVariations(Vec<(FontVariationName, f32)>);
 impl FontVariations {
     /// New empty.
     #[inline]
@@ -1713,13 +1713,12 @@ impl FontVariations {
     /// Insert the font variation, returns the previous value if the variation was already set.
     #[inline]
     pub fn insert(&mut self, name: FontVariationName, value: f32) -> Option<f32> {
-        let name = rustybuzz::Tag::from_bytes(name);
-        if let Some(entry) = self.0.iter_mut().find(|v| v.tag == name) {
-            let prev = Some(entry.value);
-            entry.value = value;
+        if let Some(entry) = self.0.iter_mut().find(|v| v.0 == name) {
+            let prev = Some(entry.1);
+            entry.1 = value;
             prev
         } else {
-            self.0.push(rustybuzz::Variation { tag: name, value });
+            self.0.push((name, value));
             None
         }
     }
@@ -1727,9 +1726,8 @@ impl FontVariations {
     /// Remove the font variation, returns the value if the variation was set.
     #[inline]
     pub fn remove(&mut self, name: FontVariationName) -> Option<f32> {
-        let name = rustybuzz::Tag::from_bytes(name);
-        if let Some(i) = self.0.iter().position(|v| v.tag == name) {
-            Some(self.0.swap_remove(i).value)
+        if let Some(i) = self.0.iter().position(|v| v.0 == name) {
+            Some(self.0.swap_remove(i).1)
         } else {
             None
         }
@@ -1738,22 +1736,19 @@ impl FontVariations {
     /// If the variation is set.
     #[inline]
     pub fn contains(&self, name: FontVariationName) -> bool {
-        let name = rustybuzz::Tag::from_bytes(name);
-        self.0.iter().any(|v| v.tag == name)
+        self.0.iter().any(|v| v.0 == name)
     }
 
     /// Gets a copy of the variation value if it is set.
     #[inline]
     pub fn get(&self, name: FontVariationName) -> Option<f32> {
-        let name = rustybuzz::Tag::from_bytes(name);
-        self.0.iter().find(|v| v.tag == name).map(|v| v.value)
+        self.0.iter().find(|v| v.0 == name).map(|v| v.1)
     }
 
     /// Exclusive borrow the variation value if it is set.
     #[inline]
     pub fn get_mut(&mut self, name: FontVariationName) -> Option<&mut f32> {
-        let name = rustybuzz::Tag::from_bytes(name);
-        self.0.iter_mut().find(|v| v.tag == name).map(|v| &mut v.value)
+        self.0.iter_mut().find(|v| v.0 == name).map(|v| &mut v.1)
     }
 
     /// Count of font variations set.
@@ -1771,9 +1766,10 @@ impl FontVariations {
     /// Finalize variations config for use in a font.
     #[inline]
     pub fn finalize(&self) -> RFontVariations {
-        let mut r = self.0.clone();
-        r.shrink_to_fit();
-        r
+        self.0
+            .iter()
+            .map(|(name, value)| harfbuzz_rs::Variation::new(*name, *value))
+            .collect()
     }
 }
 impl fmt::Debug for FontVariations {
@@ -1789,7 +1785,7 @@ impl fmt::Debug for FontVariations {
                 } else {
                     write!(f, ", ")?;
                 }
-                write!(f, r#", b"{}": {}"#, name_to_str(&entry.tag.to_bytes()), entry.value)?;
+                write!(f, r#", b"{}": {}"#, name_to_str(entry.0), entry.1)?;
             }
             write!(f, "]")
         }
@@ -1827,4 +1823,4 @@ pub use font_variations;
 /// Finalized [`FontVariations`].
 ///
 /// This is a vec of [rustybuzz variations](rustybuzz::Variation).
-pub type RFontVariations = Vec<rustybuzz::Variation>;
+pub type RFontVariations = Vec<harfbuzz_rs::Variation>;

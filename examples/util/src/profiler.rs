@@ -46,9 +46,10 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
 
     write!(
         &mut file,
-        r#"{{"recorder":"{}-{}","about":{{"#,
+        r#"{{"recorder":"{}-{}", "debug":{},"about":{{"#,
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
+        cfg!(debug_assertions),
     )
     .unwrap();
     let mut comma = "";

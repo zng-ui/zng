@@ -135,21 +135,17 @@ impl ShapedText {
 }
 
 impl Font {
-    fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> rustybuzz::UnicodeBuffer {
-        let mut buffer = rustybuzz::UnicodeBuffer::new();
-        buffer.set_direction(if config.right_to_left {
-            rustybuzz::Direction::RightToLeft
+    fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
+        let buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
+            harfbuzz_rs::Direction::Rtl
         } else {
-            rustybuzz::Direction::LeftToRight
+            harfbuzz_rs::Direction::Ltr
         });
         if config.script != Script::Unknown {
-            buffer.set_script(to_rustybuzz_script(config.script));
-            buffer.push_str(segment);
+            buffer.set_script(to_buzz_script(config.script)).add_str(segment)
         } else {
-            buffer.push_str(segment);
-            buffer.guess_segment_properties();
+            buffer.add_str(segment).guess_segment_properties()
         }
-        buffer
     }
 
     /// Calculates a [`ShapedText`].
@@ -163,28 +159,22 @@ impl Font {
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
         let mut origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32);
         let mut max_line_x = 0.0;
-        let ppem = self.size().0 as u16;
-
-        let mut face = self.face().face().clone();
-        face.set_pixels_per_em(Some((ppem, ppem)));
-        face.set_points_per_em(None); // TODO?
-        face.set_variations(self.variations());
 
         let to_layout = |p: i32| p as f32 * metrics.size_scale;
 
         // space metrics used for Tab
         let space_buff = self.buffer_segment(" ", config);
-        let space_buff = rustybuzz::shape(&face, &config.font_features, space_buff);
-        let space_index = space_buff.glyph_infos()[0].glyph_id;
-        let space_advance = to_layout(space_buff.glyph_positions()[0].x_advance);
+        let space_buff = harfbuzz_rs::shape(self.harfbuzz_font(), space_buff, &config.font_features);
+        let space_index = space_buff.get_glyph_infos()[0].codepoint;
+        let space_advance = to_layout(space_buff.get_glyph_positions()[0].x_advance);
 
         for (seg, kind) in text.iter() {
             let mut shape_seg = |cluster_spacing: f32| {
                 let buffer = self.buffer_segment(seg, config);
-                let buffer = rustybuzz::shape(&face, &config.font_features, buffer);
+                let buffer = harfbuzz_rs::shape(self.harfbuzz_font(), buffer, &config.font_features);
 
                 let mut prev_cluster = u32::MAX;
-                let glyphs = buffer.glyph_infos().iter().zip(buffer.glyph_positions()).map(|(i, p)| {
+                let glyphs = buffer.get_glyph_infos().iter().zip(buffer.get_glyph_positions()).map(|(i, p)| {
                     let x_offset = to_layout(p.x_offset);
                     let y_offset = to_layout(p.y_offset);
                     let x_advance = to_layout(p.x_advance);
@@ -199,7 +189,7 @@ impl Font {
                         prev_cluster = i.cluster;
                     }
 
-                    GlyphInstance { index: i.glyph_id, point }
+                    GlyphInstance { index: i.codepoint, point }
                 });
 
                 out.glyphs.extend(glyphs);
@@ -254,7 +244,7 @@ impl FontList {
     }
 }
 
-fn to_rustybuzz_script(script: Script) -> rustybuzz::Script {
+fn to_buzz_script(script: Script) -> harfbuzz_rs::Tag {
     let t: Vec<_> = script.short_name().bytes().collect();
-    rustybuzz::Script::from_iso15924_tag(rustybuzz::Tag::from_bytes(&[t[0], t[1], t[2], t[3]])).unwrap()
+    harfbuzz_rs::Tag::from(&[t[0], t[1], t[2], t[3]])
 }
