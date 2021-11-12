@@ -11,9 +11,58 @@ use std::{
 use rustc_hash::FxHashMap;
 use tracing::{
     field::{Field, Visit},
-    span, Level, Subscriber,
+    span, Subscriber,
 };
 use v_jsonescape::escape;
+
+pub use tracing::Level;
+
+/// Arguments for the filter closure of [`record_profile`].
+pub struct FilterArgs<'a> {
+    /// If entry represents a tracing span. If false it is a log event.
+    pub is_span: bool,
+
+    /// Verbosity level.
+    pub level: Level,
+    /// Event or span name.
+    pub name: &'static str,
+    /// Event or span  target.
+    pub target: &'static str,
+    /// File where the event or span where declared.
+    pub file: Option<&'static str>,
+    /// Line of declaration in [`file`].
+    ///
+    /// [`file`]: FilterArgs::file
+    pub line: Option<u32>,
+    /// Arguments for the span or event.
+    pub args: &'a FxHashMap<&'static str, String>,
+}
+impl<'a> FilterArgs<'a> {
+    /// If is [`Level::TRACE`].
+    pub fn is_trace(&self) -> bool {
+        self.level == Level::TRACE
+    }
+
+    /// If is [`Level::DEBUG`].
+    pub fn is_debug(&self) -> bool {
+        self.level == Level::DEBUG
+    }
+
+    /// If is [`Level::INFO`].
+    pub fn is_info(&self) -> bool {
+        self.level == Level::INFO
+    }
+
+    /// If is [`Level::WARN`].
+    pub fn is_warn(&self) -> bool {
+        self.level == Level::WARN
+    }
+
+    /// If is [`Level::ERROR`].
+    pub fn is_error(&self) -> bool {
+        self.level == Level::ERROR
+    }
+}
 
 /// Start recording trace level spans and events.
 ///
@@ -33,13 +82,24 @@ use v_jsonescape::escape;
 ///
 /// The `about` array is a list of any key-value metadata to be included in the output.
 ///
+/// # Filter
+///
+/// The `filter` closure takes a [`FilterArgs`] and returns `true` if the event or span is to be included in the profile.
+///
 /// # Special Attributes
 ///
 /// If a span or event has an attribute `"name"` the value will be included in the trace entry title,
 /// you can use this to dynamically generate a name.
 ///
 /// If a span has an attribute `"thread"` the span will be recorded as the *virtual thread* named.
-pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recording {
+pub fn record_profile(
+    path: impl AsRef<Path>,
+    about: &[(&str, &str)],
+    filter: impl FnMut(FilterArgs) -> bool + Send + 'static,
+) -> Recording {
+    record_profile_impl(path.as_ref(), about, Box::new(filter))
+}
+fn record_profile_impl(path: &Path, about: &[(&str, &str)], mut filter: Box<dyn FnMut(FilterArgs) -> bool + Send>) -> Recording {
     let file = BufWriter::new(File::create(path).unwrap());
     let mut file = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
 
@@ -68,6 +128,7 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
             let mut spans = FxHashMap::<span::Id, Span>::default();
 
             struct Span {
+                count: usize,
                 name: &'static str,
                 level: Level,
                 target: &'static str,
@@ -93,6 +154,18 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
                         args,
                         ts,
                     } => {
+                        if !filter(FilterArgs {
+                            is_span: false,
+                            level,
+                            name,
+                            target,
+                            file: c_file,
+                            line,
+                            args: &args,
+                        }) {
+                            continue;
+                        }
+
                         write!(
                             &mut file,
                             r#"{}{{"pid":{},"tid":{},"ts":{},"ph":"i","name":"{}","cat":"{}","args":{{"target":"{}""#,
@@ -126,6 +199,18 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
 
                         let enter = span.open.iter().rposition(|(t, _)| *t == tid).unwrap();
                         let (_, start_ts) = span.open.remove(enter);
+
+                        if !filter(FilterArgs {
+                            is_span: true,
+                            level: span.level,
+                            name: span.name,
+                            target: span.target,
+                            file: span.file,
+                            line: span.line,
+                            args: &span.args,
+                        }) {
+                            continue;
+                        }
 
                         write!(
                             &mut file,
@@ -164,6 +249,7 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
                         spans.insert(
                             id,
                             Span {
+                                count: 1,
                                 level,
                                 name,
                                 target,
@@ -173,6 +259,22 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
                                 open: vec![],
                             },
                         );
+                    }
+                    Msg::ExtendArgs { id, args } => {
+                        spans.get_mut(&id).unwrap().args.extend(args);
+                    }
+                    Msg::CloneSpan { id } => {
+                        spans.get_mut(&id).unwrap().count += 1;
+                    }
+                    Msg::DropSpan { id } => {
+                        if let std::collections::hash_map::Entry::Occupied(mut s) = spans.entry(id) {
+                            s.get_mut().count -= 1;
+                            if s.get_mut().count == 0 {
+                                s.remove();
+                            }
+                        } else {
+                            unreachable!()
+                        }
                     }
                     Msg::ThreadInfo { id, name } => {
                         write!(
@@ -224,6 +326,16 @@ enum Msg {
         file: Option<&'static str>,
         line: Option<u32>,
         args: FxHashMap<&'static str, String>,
+    },
+    ExtendArgs {
+        id: span::Id,
+        args: FxHashMap<&'static str, String>,
+    },
+    CloneSpan {
+        id: span::Id,
+    },
+    DropSpan {
+        id: span::Id,
     },
 
     Event {
@@ -310,8 +422,20 @@ impl Subscriber for Profiler {
         id
     }
 
-    fn record(&self, span: &span::Id, values: &span::Record<'_>) {
-        let _ = (span, values);
+    fn clone_span(&self, id: &span::Id) -> span::Id {
+        let _ = self.sender.send(Msg::CloneSpan { id: id.clone() });
+        id.clone()
+    }
+
+    fn try_close(&self, id: span::Id) -> bool {
+        let _ = self.sender.send(Msg::DropSpan { id });
+        true
+    }
+
+    fn record(&self, id: &span::Id, values: &span::Record<'_>) {
+        let mut args = FxHashMap::default();
+        values.record(&mut RecordVisitor(&mut args));
+        let _ = self.sender.send(Msg::ExtendArgs { id: id.clone(), args });
     }
 
     fn record_follows_from(&self, span: &span::Id, follows: &span::Id) {

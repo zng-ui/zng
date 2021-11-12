@@ -6,7 +6,7 @@ use zero_ui::prelude::*;
 
 fn main() {
     //examples_util::print_info();
-    let rec = examples_util::record_profile("profile-gradient.json.gz", &[("example", "gradient")]);
+    let rec = examples_util::record_profile("profile-gradient.json.gz", &[("example", "gradient")], |_| true);
     zero_ui_view::run_same_process(|| app_main(rec));
 }
 
