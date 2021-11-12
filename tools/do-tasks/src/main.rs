@@ -352,7 +352,7 @@ fn fmt(args: Vec<&str>) {
 // do check, c
 //    Runs clippy on the workspace.
 fn check(args: Vec<&str>) {
-    cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace"], &args);
+    cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
 }
 
 // do build, b [-e, --example] [--all] [-t, --timing] [<cargo-build-args>]
@@ -545,12 +545,9 @@ fn rust_analyzer_run(args: Vec<&str>) {
     }
 }
 
-fn rust_analyzer_check(args: Vec<&str>) {
-    cmd(
-        "cargo",
-        &["clippy", "--no-deps", "--tests", "--workspace", "--message-format=json"],
-        &args,
-    )
+fn rust_analyzer_check(mut args: Vec<&str>) {
+    args.push("--message-format=json");
+    check(args);
 }
 
 // do help, --help [task]

@@ -1,4 +1,3 @@
-* Image, maybe race condition, image presenter never leaves the loading state.
 * Detect frame sent when another is still rendering (block/log?)
 * Implement `rust_analyzer_check` cancellation.
 * Implement event coalesce for high-pressure events, see
