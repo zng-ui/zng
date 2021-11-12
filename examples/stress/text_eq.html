@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>stress - text_eq</title>
+
+    <style>
+        body {
+            background-color: rgb(49, 49, 49);
+            color: white;
+            font-family: sans-serif;
+        }
+        .text {
+            width: 80px;
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+
+</body>
+
+<script type="text/javascript">
+    for (var i = 0; i < 2000; i++) {
+        let t = document.createElement("div");
+        t.innerHTML = "loading.....";
+        t.classList.add("text");
+        document.body.appendChild(t);
+    }
+
+    dot_count = 0;
+    setInterval(function() {
+        dot_count += 1;
+        if (dot_count == 8) {
+            dot_count = 0;
+        }
+        let txt = "loading";
+        for (let j = 0; j < dot_count; j++) {
+            txt += ".";
+        }
+        document.querySelectorAll(".text").forEach(function(t) {
+            t.innerHTML = txt;
+        });
+    }, 300);
+</script>
+
+</html>
