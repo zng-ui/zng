@@ -31,7 +31,7 @@ Things that must be done first because they influence the core API design that i
 * App state serialization.
 * Scrolling.
   * Virtualization.
-* Images.
+* Vector Images, see https://github.com/servo/pathfinder.
 * Sound.
 * Video.
 * Raw OpenGL textures.
@@ -43,9 +43,7 @@ Things that must be done first because they influence the core API design that i
 * Other DisplayListBuilder (iframe).
 * Drag-drop.
 * Support for external input methods (IMEs).
-* Integrate thread_profiler.
 * Diagnostics.
-* State-of-art Text layout.
 
 ## Basic Events
 

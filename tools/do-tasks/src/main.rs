@@ -7,6 +7,7 @@ fn main() {
     let (task, args) = args();
 
     match task {
+        "rust_analyzer_check" => rust_analyzer_check(args),
         "fmt" | "f" => fmt(args),
         "test" | "t" => test(args),
         "run" | "r" => run(args),
@@ -18,9 +19,33 @@ fn main() {
         "clean" => clean(args),
         "asm" => asm(args),
         "rust_analyzer_run" => rust_analyzer_run(args),
-        "rust_analyzer_check" => rust_analyzer_check(args),
+        "install" => install(args),
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, do_cmd())),
+    }
+}
+
+// do install [-a, --accept]
+//    Install `do` dependencies after confirmation.
+// USAGE:
+//     install
+//       Shows what commands will run and asks for confirmation.
+//     install --accept
+//       Runs the installation commands.
+fn install(mut args: Vec<&str>) {
+    if take_flag(&mut args, &["-a", "--accept"]) {
+        cmd("rustup", &["toolchain", "install", "nightly"], &[]);
+        cmd("rustup", &["component", "add", "rustfmt"], &[]);
+        cmd("rustup", &["component", "add", "clippy"], &[]);
+        cmd("cargo", &["install", "cargo-expand"], &[]);
+        cmd("cargo", &["install", "cargo-asm"], &[]);
+    } else {
+        println(f!("Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:", do_cmd()));
+        println("   rustup toolchain install nightly");
+        println("   rustup component add rustfmt");
+        println("   rustup component add clippy");
+        println("   cargo install cargo-expand");
+        println("   cargo install cargo-asm");
     }
 }
 
