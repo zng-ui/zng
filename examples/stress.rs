@@ -1,4 +1,4 @@
-use zero_ui::core::{context::WindowContext, window::Window, app::ShutdownRequestedEvent};
+use zero_ui::core::{app::ShutdownRequestedEvent, context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
 const PROFILE: bool = true;

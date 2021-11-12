@@ -74,6 +74,8 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
                 file: Option<&'static str>,
                 line: Option<u32>,
                 args: FxHashMap<&'static str, String>,
+
+                open: Vec<(u64, u64)>,
             }
 
             let pid = std::process::id();
@@ -116,16 +118,25 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
                         comma = ",";
                     }
                     Msg::Enter { id, tid, ts } => {
-                        let span = spans.get(&id).unwrap();
+                        let span = spans.get_mut(&id).unwrap();
+                        span.open.push((tid, ts));
+                    }
+                    Msg::Exit { id, tid, ts } => {
+                        let span = spans.get_mut(&id).unwrap();
+
+                        let enter = span.open.iter().rposition(|(t, _)| *t == tid).unwrap();
+                        let (_, start_ts) = span.open.remove(enter);
+
                         write!(
                             &mut file,
-                            r#"{}{{"pid":{},"tid":{},"name":"{}","cat":"{}","ph":"B","ts":{},"args":{{"target":"{}""#,
+                            r#"{}{{"pid":{},"tid":{},"name":"{}", "cat":"{}","ph":"X","ts":{},"dur":{},"args":{{"target":"{}""#,
                             comma,
                             pid,
                             ThreadIdDisplay(tid, &span.args),
                             NameDisplay(span.name, &span.args),
                             span.level,
-                            ts,
+                            start_ts,
+                            ts - start_ts,
                             escape(span.target)
                         )
                         .unwrap();
@@ -139,19 +150,6 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
                             write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
                         }
                         write!(&mut file, "}}}}").unwrap();
-                        comma = ",";
-                    }
-                    Msg::Exit { id, tid, ts } => {
-                        let span = spans.get(&id).unwrap();
-                        write!(
-                            &mut file,
-                            r#"{}{{"pid":{},"tid":{},"ph":"E","ts":{}}}"#,
-                            comma,
-                            pid,
-                            ThreadIdDisplay(tid, &span.args),
-                            ts
-                        )
-                        .unwrap();
                         comma = ",";
                     }
                     Msg::NewSpan {
@@ -172,6 +170,7 @@ pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recordi
                                 file,
                                 line,
                                 args,
+                                open: vec![],
                             },
                         );
                     }
