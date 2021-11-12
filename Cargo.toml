@@ -32,6 +32,11 @@ retain_mut = "0.1"
 tracing = "0.1"
 bitflags = "1"
 
+[profile.dev.package."*"]
+opt-level = 3
+[profile.dev.build-override]
+opt-level = 3
+
 [dev-dependencies]
 bencher = "0.1"
 meval = "0.2"

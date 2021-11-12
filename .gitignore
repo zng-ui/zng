@@ -2,6 +2,7 @@
 **/*.rs.bk
 **/Cargo.lock
 profile*.json
+profile*.json.gz
 **/*.expanded.rs
 dump.*
 dump*.*

@@ -446,7 +446,15 @@ fn clean(mut args: Vec<&str>) {
         }
 
         // external because it will delete self.
-        let manifest_path = format!("{}/Cargo.toml", file!().strip_prefix("/src/main.rs").unwrap());
+        let manifest_path = std::env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("../../Cargo.toml")
+            .canonicalize()
+            .unwrap()
+            .display()
+            .to_string();
         cmd_external("cargo", &["clean", "--manifest-path", &manifest_path], &args);
     }
 }
