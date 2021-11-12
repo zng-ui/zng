@@ -1289,6 +1289,7 @@ impl<E: AppExtension> RunningApp<E> {
             self.maybe_has_updates = false;
 
             let mut update = false;
+            let mut events = Vec::with_capacity(100);
             let mut layout = false;
             let mut render = false;
 
@@ -1304,29 +1305,11 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.wake_time = u.wake_time;
                 update |= u.update;
+                events.extend(u.events);
                 layout |= u.layout;
                 render |= u.render;
 
-                if !u.events.is_empty() {
-                    // does events raised by extensions.
-
-                    let _s = tracing::trace_span!("events").entered();
-
-                    for event in u.events {
-                        let _s = tracing::debug_span!("event", ?event).entered();
-
-                        self.extensions.event_preview(&mut ctx, &event);
-                        observer.event_preview(&mut ctx, &event);
-                        Events::on_pre_events(&mut ctx, &event);
-
-                        self.extensions.event_ui(&mut ctx, &event);
-                        observer.event_ui(&mut ctx, &event);
-
-                        self.extensions.event(&mut ctx, &event);
-                        observer.event(&mut ctx, &event);
-                        Events::on_events(&mut ctx, &event);
-                    }
-                } else if update {
+                if update {
                     // check shutdown.
                     if let Some(r) = ctx.services.app_process().take_requests() {
                         let _s = tracing::debug_span!("shutdown_requested").entered();
@@ -1364,6 +1347,25 @@ impl<E: AppExtension> RunningApp<E> {
                     }
 
                     update = false;
+                } else if !events.is_empty() {
+                    // does events raised by extensions.
+
+                    let _s = tracing::trace_span!("events").entered();
+
+                    for event in events.drain(..) {
+                        let _s = tracing::debug_span!("event", ?event).entered();
+
+                        self.extensions.event_preview(&mut ctx, &event);
+                        observer.event_preview(&mut ctx, &event);
+                        Events::on_pre_events(&mut ctx, &event);
+
+                        self.extensions.event_ui(&mut ctx, &event);
+                        observer.event_ui(&mut ctx, &event);
+
+                        self.extensions.event(&mut ctx, &event);
+                        observer.event(&mut ctx, &event);
+                        Events::on_events(&mut ctx, &event);
+                    }
                 } else if layout {
                     let _s = tracing::trace_span!("layout").entered();
 

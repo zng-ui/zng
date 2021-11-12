@@ -75,13 +75,29 @@ impl AppExtension for ImageManager {
             {
                 var.touch(ctx.vars);
             }
-        } else if let Some(image) = RawImageLoadedEvent
-            .update(args)
-            .map(|a| &a.image)
-            .or_else(|| RawImageLoadErrorEvent.update(args).map(|a| &a.image))
-        {
-            // image is ready for use or failed to decode, remove from `decoding`
-            // and notify the ViewImage inner state update.
+        } else if let Some(args) = RawImageLoadedEvent.update(args) {
+            let image = &args.image;
+
+            // image finished decoding, remove from `decoding`
+            // and notify image var value update.
+            let images = ctx.services.images();
+            let vars = ctx.vars;
+
+            if let Some(i) = images
+                .decoding
+                .iter()
+                .position(|(_, _, v)| v.get(vars).view.get().unwrap() == image)
+            {
+                let (_, _, var) = images.decoding.swap_remove(i);
+                var.touch(ctx.vars);
+                let img = var.get(ctx.vars);
+                img.done_signal.set();
+            }
+        } else if let Some(args) = RawImageLoadErrorEvent.update(args) {
+            let image = &args.image;
+
+            // image failed to decode, remove from `decoding`
+            // and notify image var value update.
             let images = ctx.services.images();
             let vars = ctx.vars;
 
@@ -96,9 +112,11 @@ impl AppExtension for ImageManager {
                 img.done_signal.set();
                 if let Some(k) = &img.cache_key {
                     if let Some(e) = images.cache.get(k) {
-                        e.error.set(img.is_error())
+                        e.error.set(true);
                     }
                 }
+
+                tracing::error!("decode error: {:?}", img.error().unwrap());
             }
         } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
             let images = ctx.services.images();
@@ -200,6 +218,7 @@ impl AppExtension for ImageManager {
                             }
                         }
                         Err(e) => {
+                            tracing::error!("load error: {:?}", e);
                             // load error.
                             let img = ViewImage::dummy(Some(e));
                             var.modify(vars, move |v| {

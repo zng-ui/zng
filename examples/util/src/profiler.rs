@@ -41,7 +41,7 @@ use v_jsonescape::escape;
 /// If a span has an attribute `"thread"` the span will be recorded as the *virtual thread* named.
 pub fn record_profile(path: impl AsRef<Path>, about: &[(&str, &str)]) -> Recording {
     let file = BufWriter::new(File::create(path).unwrap());
-    let mut file = flate2::write::GzEncoder::new(file, flate2::Compression::best());
+    let mut file = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
 
     // specs: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lpfof2aylapb
 

@@ -924,7 +924,7 @@ impl fmt::Debug for Factor {
         if f.alternate() {
             f.debug_tuple("Factor").field(&self.0).finish()
         } else {
-            write!(f, "{}.normal()", self.0)
+            write!(f, "{}.fct()", self.0)
         }
     }
 }
@@ -1424,23 +1424,23 @@ bitflags! {
     /// Mask of values that can affect the [`Length::to_layout`] operation.
     pub struct LayoutMask: u32 {
         /// Represents no value dependency or change.
-        const NONE = 0b_0000_0000_0000_0000_0000_0000_0000_0000;
+        const NONE = 0;
 
         /// The `default_value`.
-        const DEFAULT_VALUE = 0b_1000_0000_0000_0000_0000_0000_0000_0000;
+        const DEFAULT_VALUE = 1 << 31;
         /// The `available_size`.
-        const AVAILABLE_SIZE = 0b_0100_0000_0000_0000_0000_0000_0000_0000;
+        const AVAILABLE_SIZE = 1 << 30;
 
         /// The [`LayoutMetrics::font_size`].
-        const FONT_SIZE = 0b_0000_0000_0000_0000_0000_0000_0000_0001;
+        const FONT_SIZE = 1;
         /// The [`LayoutMetrics::root_font_size`].
-        const ROOT_FONT_SIZE = 0b_0000_0000_0000_0000_0000_0000_0000_0010;
+        const ROOT_FONT_SIZE = 1 << 1;
         /// The [`LayoutMetrics::scale_factor`].
-        const SCALE_FACTOR = 0b_0000_0000_0000_0000_0000_0000_0000_0100;
+        const SCALE_FACTOR = 1 << 2;
         /// The [`LayoutMetrics::viewport_size`].
-        const VIEWPORT_SIZE = 0b_0000_0000_0000_0000_0000_0000_0000_1000;
+        const VIEWPORT_SIZE = 1 << 3;
         /// The [`LayoutMetrics::screen_ppi`].
-        const SCREEN_PPI = 0b_0000_0000_0000_0000_0000_0000_0001_0000;
+        const SCREEN_PPI = 1 << 4;
 
         /// All the [`LayoutMetrics`] values.
         const LAYOUT_METRICS = Self::FONT_SIZE.bits
@@ -1576,7 +1576,7 @@ impl fmt::Display for LengthExpr {
 ///
 /// let exact_size: Length = 500.into();
 /// let available_size: Length = 100.pct().into();// FactorUnits
-/// let available_size: Length = 1.0.normal().into();// FactorUnits
+/// let available_size: Length = 1.0.fct().into();// FactorUnits
 /// ```
 pub trait LengthUnits {
     /// Exact size in device independent pixels.

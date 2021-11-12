@@ -967,8 +967,9 @@ pub mod image {
                                 self.prev_img_size = img_size;
                                 ctx.updates.layout();
                                 self.requested_layout = true;
+                            } else if img.is_loaded() {
+                                ctx.updates.render();
                             }
-                            ctx.updates.render();
                         }
                     }
 

@@ -40,7 +40,10 @@ fn install(mut args: Vec<&str>) {
         cmd("cargo", &["install", "cargo-expand"], &[]);
         cmd("cargo", &["install", "cargo-asm"], &[]);
     } else {
-        println(f!("Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:", do_cmd()));
+        println(f!(
+            "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:",
+            do_cmd()
+        ));
         println("   rustup toolchain install nightly");
         println("   rustup component add rustfmt");
         println("   rustup component add clippy");

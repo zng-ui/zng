@@ -131,14 +131,12 @@ pub mod uniform_grid {
                     columns = rows;
                 } else {
                     // only columns is 0=AUTO
-                    columns = self.cells_count() / rows;
+                    columns = (self.cells_count() as f32 / rows as f32).ceil() as i32;
                 }
             } else if rows == 0 {
                 // only rows is 0=AUTO
-                rows = self.cells_count() / columns;
+                rows = (self.cells_count() as f32 / columns as f32).ceil() as i32;
             }
-
-            debug_assert!(columns > 0 && rows > 0);
 
             (columns, rows)
         }
