@@ -599,28 +599,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
     // properties that are only introduced in user when conditions.
-    for (p, (cfg, i)) in user_when_properties {
-        let args_ident = ident!("__ud{}_{}", i, util::path_to_ident_str(&p));
+    for (property, (cfg, i)) in user_when_properties {
+        let args_ident = ident!("__ud{}_{}", i, util::path_to_ident_str(&property));
 
-        let p = match p.get_ident() {
+        let property_path = match property.get_ident() {
             Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
                 let p_ident = ident!("__p_{}", maybe_inherited);
                 parse_quote! { #module::#p_ident }
             }
-            _ => p,
+            _ => property.clone(),
         };
 
         property_inits.extend(quote! {
             #cfg
-            #p::code_gen! {
+            #property_path::code_gen! {
                 if default=>
 
                 #cfg
                 #[allow(non_snake_case)]
-                let #args_ident = #p::default_args();
+                let #args_ident = #property_path::default_args();
             }
             #cfg
-            #p::code_gen!{
+            #property_path::code_gen!{
                 if !default=>
 
                 #cfg
@@ -633,14 +633,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
         });
-        let p_span = p.span();
+        let p_span = property_path.span();
 
         // register data for the set call generation.
         #[cfg(debug_assertions)]
         prop_set_calls.push((
-            p.to_token_stream(),
+            property_path.to_token_stream(),
             args_ident.clone(),
-            util::display_path(&p),
+            util::display_path(&property_path),
             {
                 quote_spanned! {p_span=>
                     #module::__core::source_location!()
@@ -653,15 +653,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         ));
         #[cfg(not(debug_assertions))]
         prop_set_calls.push((
-            p.to_token_stream(),
+            property_path.to_token_stream(),
             args_ident.clone(),
-            util::display_path(&p),
+            util::display_path(&property_path),
             cfg.to_token_stream(),
             p_span,
             call_site,
         ));
 
-        wgt_properties.insert(p, (args_ident, cfg.unwrap_or_default()));
+        wgt_properties.insert(property, (args_ident, cfg.unwrap_or_default()));
     }
 
     // generate property assigns.
@@ -797,7 +797,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let (default, cfg) = wgt_properties
             .get(&property)
-            .unwrap_or_else(|| non_user_error!("property(introduced in when?) not found"));
+            .unwrap_or_else(|| non_user_error!("property `{}` (introduced in when?) not found", quote!(#property)));
         when_inits.extend(quote! {
             #property_path::code_gen! { if allowed_in_when=>
                 #cfg
