@@ -1294,11 +1294,39 @@ pub fn inherit_override() {
 */
 
 #[test]
-pub fn allowed_in_when_without_wgt_assign() {
+pub fn allowed_in_when_without_wgt_assign1() {
     let mut wgt = empty_wgt! {
         // util::live_trace_default = "default-trace";
         when self.util::is_state {
             util::live_trace_default = "when-trace";
+        }
+    };
+
+    let mut ctx = TestWidgetContext::new();
+    wgt.test_init(&mut ctx);
+    assert!(util::traced(&wgt, "default-trace"));
+    assert!(!util::traced(&wgt, "when-trace"));
+
+    util::set_state(&mut wgt, true);
+    wgt.test_update(&mut ctx);
+    ctx.apply_updates();
+    wgt.test_update(&mut ctx);
+    assert!(util::traced(&wgt, "when-trace"));
+}
+
+#[widget($crate::tests::widget::declare_prop_with_default_wgt)]
+pub mod declare_prop_with_default_wgt {
+    properties! {
+        super::util::live_trace_default as trace;
+    }
+}
+
+#[test]
+pub fn allowed_in_when_without_wgt_assign2() {
+    let mut wgt = declare_prop_with_default_wgt! {
+        // live_trace_default = "default-trace";
+        when self.util::is_state {
+            trace = "when-trace";
         }
     };
 

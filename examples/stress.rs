@@ -2,7 +2,7 @@ use examples_util::FilterArgs;
 use zero_ui::core::{app::ShutdownRequestedEvent, context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
-const PROFILE: bool = true;
+const PROFILE: bool = false;
 
 static TESTS: &[(&str, TestFn, FilterFn)] = &[("text_eq", text_eq, all_trace)];
 
@@ -27,6 +27,9 @@ fn text_eq(ctx: &mut WindowContext) -> Window {
         texts.push(text! {
             text = msg.clone();
             width = 80;
+            when self.is_hovered {
+                color = colors::RED;
+            }
         });
     }
 
