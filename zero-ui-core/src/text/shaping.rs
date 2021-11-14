@@ -1,5 +1,11 @@
+use std::{
+    hash::{BuildHasher, Hash, Hasher},
+    mem,
+};
+
 use super::{
-    font_features::RFontFeatures, Font, FontList, FontMetrics, GlyphInstance, Script, SegmentedText, TextSegment, TextSegmentKind,
+    font_features::RFontFeatures, Font, FontList, FontMetrics, GlyphInstance, InternedStr, Script, SegmentedText, TextSegment,
+    TextSegmentKind,
 };
 use crate::units::*;
 
@@ -134,17 +140,193 @@ impl ShapedText {
     }
 }
 
+const WORD_CACHE_MAX_LEN: usize = 32;
+const WORD_CACHE_MAX_ENTRIES: usize = 10_000;
+
+#[derive(Hash, PartialEq, Eq)]
+pub(super) struct WordCacheKey<S> {
+    string: S,
+    ctx_key: WordContextKey,
+}
+#[derive(Hash)]
+struct WordCacheKeyRef<'a, S> {
+    string: &'a S,
+    ctx_key: &'a WordContextKey,
+}
+
+#[derive(Hash, PartialEq, Eq, Clone)]
+pub(super) struct WordContextKey {
+    right_to_left: bool,
+    script: Script,
+    font_features: Option<Box<[usize]>>,
+}
+impl WordContextKey {
+    pub fn new(config: &TextShapingArgs) -> Self {
+        let is_64 = mem::size_of::<usize>() == mem::size_of::<u64>();
+
+        let mut font_features = None;
+
+        if !config.font_features.is_empty() {
+            let mut features: Vec<_> = Vec::with_capacity(config.font_features.len() * if is_64 { 3 } else { 4 });
+            for feature in &config.font_features {
+                if is_64 {
+                    let mut h = feature.tag().0 as usize;
+                    h |= (feature.value() as usize) << 32;
+                    features.push(h);
+                } else {
+                    features.push(feature.tag().0 as usize);
+                    features.push(feature.value() as usize);
+                }
+
+                features.push(feature.start());
+                features.push(feature.end());
+            }
+
+            font_features = Some(features.into_boxed_slice());
+        }
+
+        WordContextKey {
+            right_to_left: config.right_to_left,
+            script: config.script,
+            font_features,
+        }
+    }
+}
+
+pub(super) struct ShapedSegment {
+    glyphs: Vec<ShapedGlyph>,
+    x_advance: f32,
+    y_advance: f32,
+}
+#[derive(Clone, Copy)]
+struct ShapedGlyph {
+    index: u32,
+    //cluster: u32,
+    point: (f32, f32),
+}
+
 impl Font {
-    fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
-        let buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
+    fn buffer_segment(&self, segment: &str, right_to_left: bool, script: Script) -> harfbuzz_rs::UnicodeBuffer {
+        let buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if right_to_left {
             harfbuzz_rs::Direction::Rtl
         } else {
             harfbuzz_rs::Direction::Ltr
         });
-        if config.script != Script::Unknown {
-            buffer.set_script(to_buzz_script(config.script)).add_str(segment)
+        if script != Script::Unknown {
+            buffer.set_script(to_buzz_script(script)).add_str(segment)
         } else {
             buffer.add_str(segment).guess_segment_properties()
+        }
+    }
+
+    fn shape_segment_no_cache(&self, seg: &str, right_to_left: bool, script: Script, features: &[harfbuzz_rs::Feature]) -> ShapedSegment {
+        let size_scale = self.metrics().size_scale;
+        let to_layout = |p: i32| p as f32 * size_scale;
+
+        let buffer = self.buffer_segment(seg, right_to_left, script);
+        let buffer = harfbuzz_rs::shape(self.harfbuzz_font(), buffer, features);
+
+        let mut w_x_advance = 0.0;
+        let mut w_y_advance = 0.0;
+        let glyphs: Vec<_> = buffer
+            .get_glyph_infos()
+            .iter()
+            .zip(buffer.get_glyph_positions())
+            .map(|(i, p)| {
+                let x_offset = to_layout(p.x_offset);
+                let y_offset = to_layout(p.y_offset);
+                let x_advance = to_layout(p.x_advance);
+                let y_advance = to_layout(p.y_advance);
+
+                let point = (w_x_advance + x_offset, w_y_advance + y_offset);
+                w_x_advance += x_advance;
+                w_y_advance += y_advance;
+
+                ShapedGlyph {
+                    index: i.codepoint,
+                    // cluster: i.cluster,
+                    point,
+                }
+            })
+            .collect();
+
+        ShapedSegment {
+            glyphs,
+            x_advance: w_x_advance,
+            y_advance: w_y_advance,
+        }
+    }
+
+    fn shape_segment(
+        &self,
+        seg: &str,
+        word_ctx_key: &WordContextKey,
+        right_to_left: bool,
+        script: Script,
+        features: &[harfbuzz_rs::Feature],
+        out: impl FnOnce(&ShapedSegment),
+    ) {
+        if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) {
+            let seg = self.shape_segment_no_cache(seg, right_to_left, script, features);
+            out(&seg);
+        } else if let Some(small) = Self::to_small_word(seg) {
+            let mut cache = self.small_word_cache.borrow_mut();
+
+            if cache.len() > WORD_CACHE_MAX_ENTRIES {
+                cache.clear();
+            }
+
+            let mut hasher = cache.hasher().build_hasher();
+            WordCacheKeyRef {
+                string: &small,
+                ctx_key: word_ctx_key,
+            }
+            .hash(&mut hasher);
+            let hash = hasher.finish();
+
+            let seg = cache
+                .raw_entry_mut()
+                .from_hash(hash, |e| e.string == small && &e.ctx_key == word_ctx_key)
+                .or_insert_with(|| {
+                    let key = WordCacheKey {
+                        string: small,
+                        ctx_key: word_ctx_key.clone(),
+                    };
+                    let value = self.shape_segment_no_cache(seg, right_to_left, script, features);
+                    (key, value)
+                })
+                .1;
+
+            out(seg)
+        } else {
+            let mut cache = self.word_cache.borrow_mut();
+
+            if cache.len() > WORD_CACHE_MAX_ENTRIES {
+                cache.clear();
+            }
+
+            let mut hasher = cache.hasher().build_hasher();
+            WordCacheKeyRef {
+                string: &seg,
+                ctx_key: word_ctx_key,
+            }
+            .hash(&mut hasher);
+            let hash = hasher.finish();
+
+            let seg = cache
+                .raw_entry_mut()
+                .from_hash(hash, |e| e.string.as_str() == seg && &e.ctx_key == word_ctx_key)
+                .or_insert_with(|| {
+                    let key = WordCacheKey {
+                        string: InternedStr::get_or_insert(seg),
+                        ctx_key: word_ctx_key.clone(),
+                    };
+                    let value = self.shape_segment_no_cache(seg, right_to_left, script, features);
+                    (key, value)
+                })
+                .1;
+
+            out(seg)
         }
     }
 
@@ -160,53 +342,66 @@ impl Font {
         let mut origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32);
         let mut max_line_x = 0.0;
 
-        let to_layout = |p: i32| p as f32 * metrics.size_scale;
-
-        // space metrics used for Tab
-        let space_buff = self.buffer_segment(" ", config);
-        let space_buff = harfbuzz_rs::shape(self.harfbuzz_font(), space_buff, &config.font_features);
-        let space_index = space_buff.get_glyph_infos()[0].codepoint;
-        let space_advance = to_layout(space_buff.get_glyph_positions()[0].x_advance);
+        let word_ctx_key = WordContextKey::new(config);
 
         for (seg, kind) in text.iter() {
-            let mut shape_seg = |cluster_spacing: f32| {
-                let buffer = self.buffer_segment(seg, config);
-                let buffer = harfbuzz_rs::shape(self.harfbuzz_font(), buffer, &config.font_features);
-
-                let mut prev_cluster = u32::MAX;
-                let glyphs = buffer.get_glyph_infos().iter().zip(buffer.get_glyph_positions()).map(|(i, p)| {
-                    let x_offset = to_layout(p.x_offset);
-                    let y_offset = to_layout(p.y_offset);
-                    let x_advance = to_layout(p.x_advance);
-                    let y_advance = to_layout(p.y_advance);
-
-                    let point = euclid::point2(origin.x + x_offset, origin.y + y_offset);
-                    origin.x += x_advance + config.letter_spacing;
-                    origin.y += y_advance;
-
-                    if prev_cluster != i.cluster {
-                        origin.x += cluster_spacing;
-                        prev_cluster = i.cluster;
-                    }
-
-                    GlyphInstance { index: i.codepoint, point }
-                });
-
-                out.glyphs.extend(glyphs);
-            };
-
             match kind {
                 TextSegmentKind::Word => {
-                    shape_seg(config.letter_spacing);
+                    self.shape_segment(
+                        seg,
+                        &word_ctx_key,
+                        config.right_to_left,
+                        config.script,
+                        &config.font_features,
+                        |shaped_seg| {
+                            out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
+                                let r = GlyphInstance {
+                                    index: gi.index,
+                                    point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
+                                };
+                                origin.x += config.letter_spacing;
+                                r
+                            }));
+                            origin.x += shaped_seg.x_advance;
+                            origin.y += shaped_seg.y_advance;
+                        },
+                    );
                 }
                 TextSegmentKind::Space => {
-                    shape_seg(config.word_spacing);
+                    self.shape_segment(
+                        seg,
+                        &word_ctx_key,
+                        config.right_to_left,
+                        config.script,
+                        &config.font_features,
+                        |shaped_seg| {
+                            out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
+                                let r = GlyphInstance {
+                                    index: gi.index,
+                                    point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
+                                };
+                                origin.x += config.word_spacing;
+                                r
+                            }));
+                            origin.x += shaped_seg.x_advance;
+                            origin.y += shaped_seg.y_advance;
+                        },
+                    );
                 }
                 TextSegmentKind::Tab => {
-                    let point = euclid::point2(origin.x, origin.y);
-                    origin.x += config.tab_size(space_advance);
-
-                    out.glyphs.push(GlyphInstance { index: space_index, point });
+                    self.shape_segment(
+                        " ",
+                        &word_ctx_key,
+                        config.right_to_left,
+                        config.script,
+                        &config.font_features,
+                        |s| {
+                            let space = s.glyphs[0];
+                            let point = euclid::point2(origin.x, origin.y);
+                            origin.x += config.tab_size(s.x_advance);
+                            out.glyphs.push(GlyphInstance { index: space.index, point });
+                        },
+                    );
                 }
                 TextSegmentKind::LineBreak => {
                     max_line_x = origin.x.max(max_line_x);

@@ -3,7 +3,7 @@
 use rand::Rng;
 use rustc_hash::FxHasher;
 use std::{
-    collections::{hash_map, HashMap, HashSet},
+    collections::{hash_map, HashMap},
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hasher},
     num::{NonZeroU32, NonZeroU64},
@@ -479,7 +479,7 @@ pub type PanicPayload = Box<dyn std::any::Any + Send + 'static>;
 /// The result that is returned by [`std::panic::catch_unwind`].
 pub type PanicResult<R> = std::thread::Result<R>;
 
-// this is the FxHashMap with a patch that fixes slow deserialization.
+// this is the FxHasher with a patch that fixes slow deserialization.
 // see https://github.com/rust-lang/rustc-hash/issues/15 for details.
 #[derive(Clone)]
 pub struct BuildFxHasher(usize);
@@ -498,10 +498,13 @@ impl Default for BuildFxHasher {
     }
 }
 
-/// Patched [`rustc_hash::FxHashMap`].
-pub type FxHashMap<K, V> = HashMap<K, V, BuildFxHasher>;
-/// Patched [`rustc_hash::FxHashSet`].
-pub type FxHashSet<V> = HashSet<V, BuildFxHasher>;
+/// Like [`rustc_hash::FxHashMap`] but faster deserialization and access to the raw_entry API.
+pub type FxHashMap<K, V> = hashbrown::HashMap<K, V, BuildFxHasher>;
+/// Like [`rustc_hash::FxHashSet`] but faster deserialization.
+pub type FxHashSet<V> = hashbrown::HashSet<V, BuildFxHasher>;
+
+/// Entry in [`FxHashMap`].
+pub type FxEntry<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, BuildFxHasher>;
 
 /// Bidirectional map between a `&'static str` and a [`unique_id!`] generated id type.
 pub struct NameIdMap<I> {
@@ -522,14 +525,14 @@ impl<I: Copy + PartialEq + Eq + std::hash::Hash + fmt::Debug> NameIdMap<I> {
         }
 
         match self.id_to_name.entry(id) {
-            hash_map::Entry::Occupied(e) => {
+            FxEntry::Occupied(e) => {
                 if *e.get() == name {
                     Ok(())
                 } else {
                     Err(IdNameError::AlreadyNamed(*e.get()))
                 }
             }
-            hash_map::Entry::Vacant(e) => match self.name_to_id.entry(name) {
+            FxEntry::Vacant(e) => match self.name_to_id.entry(name) {
                 hash_map::Entry::Occupied(ne) => Err(IdNameError::NameUsed(*ne.get())),
                 hash_map::Entry::Vacant(ne) => {
                     e.insert(name);

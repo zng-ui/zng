@@ -4,11 +4,15 @@ pub use crate::render::webrender_api::GlyphInstance;
 use crate::units::*;
 use crate::var::impl_from_and_into_var;
 use derive_more as dm;
+use parking_lot::Mutex;
+use std::collections::HashSet;
+use std::hash::Hash;
 use std::{
     borrow::Cow,
-    fmt,
+    fmt, mem,
     ops::{Deref, DerefMut},
     rc::Rc,
+    sync::Arc,
 };
 
 pub use unicode_script::{self, Script};
@@ -443,9 +447,9 @@ impl PartialEq for FontName {
     }
 }
 impl Eq for FontName {}
-impl std::hash::Hash for FontName {
+impl Hash for FontName {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::hash::Hash::hash(&self.unicase(), state)
+        Hash::hash(&self.unicase(), state)
     }
 }
 impl FontName {
@@ -730,69 +734,239 @@ impl<const N: usize> IntoVar<FontNames> for [Text; N] {
     }
 }
 
-/// Text string type, can be either a `&'static str` or a `String`.
+static INTERN_POOL: Mutex<Option<HashSet<InternedStr>>> = parking_lot::const_mutex(None);
+
+/// A reference-counted shared string.
 ///
-/// Note that this type dereferences to [`str`] so you can use all methods
-/// of that type also. For mutation you can call [`to_mut`](Text::to_mut)
-/// to access all mutating methods of [`String`]. The mutations that can be
-/// implemented using only a borrowed `str` are provided as methods in this type.
-#[derive(Clone, dm::Display, dm::Add, dm::AddAssign, PartialEq, Eq, Hash)]
-pub struct Text(pub Cow<'static, str>);
-impl Text {
-    /// New text that is a static str.
-    pub const fn borrowed(s: &'static str) -> Text {
-        Text(Cow::Borrowed(s))
+/// # Equality
+///
+/// Equality is defined by the string buffer, a [`InternedStr`] has the same hash as a `&str`.
+#[derive(Clone)]
+pub struct InternedStr(Arc<String>);
+impl InternedStr {
+    /// Gets a reference to the string `s` in the interning pool.
+    /// The string is inserted only if it is not present.
+    pub fn get_or_insert(s: impl AsRef<str> + Into<String>) -> Self {
+        let mut map = INTERN_POOL.lock();
+        let map = map.get_or_insert_with(HashSet::default);
+        if let Some(r) = map.get(s.as_ref()) {
+            r.clone()
+        } else {
+            let s = InternedStr(Arc::new(s.into()));
+            let r = s.clone();
+            map.insert(s);
+            r
+        }
     }
 
-    /// New text that is an owned string.
+    /// Reference the string.
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Intern the string for the duration of the process.
+    pub fn permanent(&self) {
+        let leak = Arc::clone(&self.0);
+        let _ = Arc::into_raw(leak);
+    }
+}
+impl Hash for InternedStr {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
+    }
+}
+impl PartialEq for InternedStr {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for InternedStr {}
+impl AsRef<str> for InternedStr {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+impl std::borrow::Borrow<str> for InternedStr {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+impl Drop for InternedStr {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.0) == 2 {
+            INTERN_POOL.lock().as_mut().unwrap().remove(self);
+        }
+    }
+}
+
+const INLINE_MAX: usize = mem::size_of::<usize>() * 3;
+
+fn inline_to_str(d: &[u8; INLINE_MAX]) -> &str {
+    let utf8 = if let Some(i) = d.iter().position(|&b| b == b'\0') {
+        &d[..i]
+    } else {
+        &d[..]
+    };
+    unsafe { std::str::from_utf8_unchecked(utf8) }
+}
+fn str_to_inline(s: &str) -> [u8; INLINE_MAX] {
+    let mut inline = [b'\0'; INLINE_MAX];
+    (&mut inline[..s.len()]).copy_from_slice(s.as_bytes());
+    inline
+}
+
+#[derive(Clone)]
+enum TextData {
+    Static(&'static str),
+    Inline([u8; INLINE_MAX]),
+    Interned(InternedStr, usize, usize),
+    Owned(String),
+}
+impl fmt::Debug for TextData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Static(s) => write!(f, "Static({})", s),
+            Self::Inline(d) => write!(f, "Inline({})", inline_to_str(d)),
+            Self::Interned(s, _, _) => write!(f, "Interned({})", s.as_ref()),
+            Self::Owned(s) => write!(f, "Owned({})", s),
+        }
+    }
+}
+impl fmt::Display for TextData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.deref())
+    }
+}
+impl PartialEq for TextData {
+    fn eq(&self, other: &Self) -> bool {
+        self.deref() == other.deref()
+    }
+}
+impl Eq for TextData {}
+impl Hash for TextData {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Hash::hash(&self.deref(), state)
+    }
+}
+impl Deref for TextData {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        match self {
+            TextData::Static(s) => s,
+            TextData::Inline(d) => inline_to_str(d),
+            TextData::Interned(entry, start, len) => &entry.as_ref()[*start..*len],
+            TextData::Owned(s) => s,
+        }
+    }
+}
+
+/// Text string type, can be owned, static, inlined or interned.
+///
+/// Note that this type dereferences to [`str`] so you can use all methods
+/// of that type also. For mutation you can call [`to_mut`]
+/// to access all mutating methods of [`String`]. The mutations that can be
+/// implemented using only a borrowed `str` are provided as methods in this type.
+///
+/// [`to_mut`]: Text::to_mut
+#[derive(Clone, dm::Display, PartialEq, Eq, Hash)]
+pub struct Text(TextData);
+impl Text {
+    /// New text that is a `&'static str`.
+    pub const fn from_static(s: &'static str) -> Text {
+        Text(TextData::Static(s))
+    }
+
+    /// New text that is an owned [`String`].
     pub const fn owned(s: String) -> Text {
-        Text(Cow::Owned(s))
+        Text(TextData::Owned(s))
+    }
+
+    /// New text that is a interned string or a more efficient representation.
+    ///
+    /// If `s` byte length is larger then the `size_of::<String>()` the string is lookup
+    /// or inserted into the interned string cache.
+    pub fn get_interned(s: impl AsRef<str> + Into<String>) -> Text {
+        let len = s.as_ref().len();
+        if len == 0 {
+            Text(TextData::Static(""))
+        } else if len <= INLINE_MAX {
+            Text(TextData::Inline(str_to_inline(s.as_ref())))
+        } else {
+            Text(TextData::Interned(InternedStr::get_or_insert(s), 0, len))
+        }
     }
 
     /// New empty text.
     pub const fn empty() -> Text {
-        Self::borrowed("")
+        Self::from_static("")
     }
 
-    /// If the text is a `&'static str`.
-    pub const fn is_borrowed(&self) -> bool {
-        match &self.0 {
-            Cow::Borrowed(_) => true,
-            Cow::Owned(_) => false,
-        }
+    /// Returns a clone of `self` that is not owned.
+    pub fn to_interned(&self) -> Text {
+        self.clone().into_intern()
+    }
+
+    /// Returns a clone of `self` that is not owned.
+    pub fn into_intern(self) -> Text {
+        let data = match self.0 {
+            TextData::Owned(s) => {
+                let len = s.len();
+                if len == 0 {
+                    TextData::Static("")
+                } else if len <= INLINE_MAX {
+                    TextData::Inline(str_to_inline(&s))
+                } else {
+                    TextData::Interned(InternedStr::get_or_insert(s), 0, len)
+                }
+            }
+            d => d,
+        };
+        Text(data)
     }
 
     /// If the text is an owned [`String`].
     pub const fn is_owned(&self) -> bool {
-        !self.is_borrowed()
+        matches!(&self.0, TextData::Owned(_))
     }
 
     /// Acquires a mutable reference to a [`String`] buffer.
     ///
     /// Turns the text to owned if it was borrowed.
     pub fn to_mut(&mut self) -> &mut String {
-        self.0.to_mut()
+        self.0 = match mem::replace(&mut self.0, TextData::Static("")) {
+            TextData::Owned(s) => TextData::Owned(s),
+            TextData::Static(s) => TextData::Owned(s.to_owned()),
+            TextData::Inline(d) => TextData::Owned(inline_to_str(&d).to_owned()),
+            TextData::Interned(a, s, l) => TextData::Owned(a.as_ref()[s..l].to_owned()),
+        };
+
+        if let TextData::Owned(s) = &mut self.0 {
+            s
+        } else {
+            unreachable!()
+        }
     }
 
     /// Extracts the owned string.
     ///
     /// Turns the text to owned if it was borrowed.
     pub fn into_owned(self) -> String {
-        self.0.into_owned()
+        match self.0 {
+            TextData::Owned(s) => s,
+            TextData::Static(s) => s.to_owned(),
+            TextData::Inline(d) => inline_to_str(&d).to_owned(),
+            TextData::Interned(a, s, l) => a.as_ref()[s..l].to_owned(),
+        }
     }
 
-    /// Truncates this String, removing all contents.
-    ///
-    /// This method calls [`String::clear`] if the text is owned, otherwise
+    /// Calls [`String::clear`] if the text is owned, otherwise
     /// replaces `self` with an empty str (`""`).
     pub fn clear(&mut self) {
         match &mut self.0 {
-            Cow::Borrowed(s) => {
-                *s = "";
-            }
-            Cow::Owned(s) => {
-                s.clear();
-            }
+            TextData::Owned(s) => s.clear(),
+            d => *d = TextData::Static(""),
         }
     }
 
@@ -804,7 +978,8 @@ impl Text {
     /// reborrows a slice of the `str` without the last character.
     pub fn pop(&mut self) -> Option<char> {
         match &mut self.0 {
-            Cow::Borrowed(s) => {
+            TextData::Owned(s) => s.pop(),
+            TextData::Static(s) => {
                 if let Some((i, c)) = s.char_indices().last() {
                     *s = &s[..i];
                     Some(c)
@@ -812,7 +987,31 @@ impl Text {
                     None
                 }
             }
-            Cow::Owned(s) => s.pop(),
+            TextData::Inline(d) => {
+                let s = inline_to_str(d);
+                if let Some((i, c)) = s.char_indices().last() {
+                    if !s.is_empty() {
+                        *d = str_to_inline(&s[..i]);
+                    } else {
+                        self.0 = TextData::Static("");
+                    }
+                    Some(c)
+                } else {
+                    None
+                }
+            }
+            TextData::Interned(a, s, l) => {
+                let s = &a.as_ref()[*s..*l];
+                if let Some((i, c)) = s.char_indices().last() {
+                    *l = i;
+                    if i <= INLINE_MAX {
+                        self.0 = TextData::Inline(str_to_inline(&s[..i]));
+                    }
+                    Some(c)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -825,13 +1024,38 @@ impl Text {
     /// reborrows a slice of the text.
     pub fn truncate(&mut self, new_len: usize) {
         match &mut self.0 {
-            Cow::Borrowed(s) => {
+            TextData::Owned(s) => s.truncate(new_len),
+            TextData::Static(s) => {
                 if new_len <= s.len() {
                     assert!(s.is_char_boundary(new_len));
                     *s = &s[..new_len];
                 }
             }
-            Cow::Owned(s) => s.truncate(new_len),
+            TextData::Inline(d) => {
+                if new_len == 0 {
+                    self.0 = TextData::Static("");
+                } else {
+                    let s = inline_to_str(d);
+                    if new_len < s.len() {
+                        assert!(s.is_char_boundary(new_len));
+                        d[new_len..].iter_mut().for_each(|b| *b = b'\0');
+                    }
+                }
+            }
+            TextData::Interned(a, s, l) => {
+                if new_len == 0 {
+                    self.0 = TextData::Static("")
+                } else {
+                    let s = &a.as_ref()[*s..*l];
+                    assert!(s.is_char_boundary(new_len));
+
+                    if new_len > INLINE_MAX {
+                        *l = new_len;
+                    } else {
+                        self.0 = TextData::Inline(str_to_inline(&s[..new_len]));
+                    }
+                }
+            }
         }
     }
 
@@ -845,13 +1069,58 @@ impl Text {
     /// reborrows slices of the text.
     pub fn split_off(&mut self, at: usize) -> Text {
         match &mut self.0 {
-            Cow::Borrowed(s) => {
+            TextData::Owned(s) => Text::owned(s.split_off(at)),
+            TextData::Static(s) => {
                 assert!(s.is_char_boundary(at));
                 let other = &s[at..];
                 *s = &s[at..];
-                Text::borrowed(other)
+                Text(TextData::Static(other))
             }
-            Cow::Owned(s) => Text::owned(s.split_off(at)),
+            TextData::Inline(d) => {
+                let s = inline_to_str(d);
+                assert!(s.is_char_boundary(at));
+                let a_len = at;
+                let b_len = s.len() - at;
+
+                let r = Text(if b_len == 0 {
+                    TextData::Static("")
+                } else {
+                    TextData::Inline(str_to_inline(&s[at..]))
+                });
+
+                if a_len == 0 {
+                    self.0 = TextData::Static("");
+                } else {
+                    *d = str_to_inline(&s[..at]);
+                }
+
+                r
+            }
+            TextData::Interned(a, s, l) => {
+                let s = &a.as_ref()[*s..*l];
+                assert!(s.is_char_boundary(at));
+
+                let a_len = at;
+                let b_len = s.len() - at;
+
+                let r = Text(if b_len == 0 {
+                    TextData::Static("")
+                } else if b_len <= INLINE_MAX {
+                    TextData::Inline(str_to_inline(&s[at..]))
+                } else {
+                    TextData::Interned(a.clone(), at, b_len)
+                });
+
+                if a_len == 0 {
+                    self.0 = TextData::Static("");
+                } else if a_len <= INLINE_MAX {
+                    self.0 = TextData::Inline(str_to_inline(&s[..at]));
+                } else {
+                    *l = a_len;
+                }
+
+                r
+            }
         }
     }
 
@@ -873,19 +1142,27 @@ impl Default for Text {
 }
 impl_from_and_into_var! {
     fn from(s: &'static str) -> Text {
-        Text::borrowed(s)
+        Text(TextData::Static(s))
     }
     fn from(s: String) -> Text {
-        Text::owned(s)
+        Text(TextData::Owned(s))
     }
     fn from(s: Cow<'static, str>) -> Text {
-        Text(s)
+        match s {
+            Cow::Borrowed(s) => Text(TextData::Static(s)),
+            Cow::Owned(s) => Text(TextData::Owned(s))
+        }
     }
     fn from(t: Text) -> String {
         t.into_owned()
     }
     fn from(t: Text) -> Cow<'static, str> {
-        t.0
+        match t.0 {
+            TextData::Static(s) => Cow::Borrowed(s),
+            TextData::Owned(s) => Cow::Owned(s),
+            TextData::Inline(d) => Cow::Owned(inline_to_str(&d).to_owned()),
+            TextData::Interned(a, s, l) => Cow::Owned(a.as_ref()[s..l].to_owned()),
+        }
     }
     fn from(t: Text) -> std::path::PathBuf {
         t.into_owned().into()
@@ -928,37 +1205,37 @@ impl<'a> std::ops::Add<&'a str> for Text {
 }
 impl std::ops::AddAssign<&str> for Text {
     fn add_assign(&mut self, rhs: &str) {
-        self.0.to_mut().push_str(rhs);
+        self.to_mut().push_str(rhs);
     }
 }
 impl PartialEq<&str> for Text {
     fn eq(&self, other: &&str) -> bool {
-        self.0.eq(other)
+        self.as_str().eq(*other)
     }
 }
 impl PartialEq<str> for Text {
     fn eq(&self, other: &str) -> bool {
-        self.0.eq(other)
+        self.as_str().eq(other)
     }
 }
 impl PartialEq<String> for Text {
     fn eq(&self, other: &String) -> bool {
-        self.0.eq(other)
+        self.as_str().eq(other)
     }
 }
 impl PartialEq<Text> for &str {
     fn eq(&self, other: &Text) -> bool {
-        other.0.eq(self)
+        other.as_str().eq(*self)
     }
 }
 impl PartialEq<Text> for str {
     fn eq(&self, other: &Text) -> bool {
-        other.0.eq(self)
+        other.as_str().eq(self)
     }
 }
 impl PartialEq<Text> for String {
     fn eq(&self, other: &Text) -> bool {
-        other.0.eq(self)
+        other.as_str().eq(self)
     }
 }
 

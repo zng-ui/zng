@@ -10,7 +10,8 @@ use std::{
 use font_kit::properties::Weight;
 
 use super::{
-    font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script,
+    font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, InternedStr,
+    Script, ShapedSegment, WordCacheKey,
 };
 use crate::{
     app::{
@@ -622,6 +623,9 @@ pub struct Font {
     variations: RFontVariations,
     metrics: FontMetrics,
     render_keys: RefCell<Vec<RenderFont>>,
+
+    pub(super) small_word_cache: RefCell<FxHashMap<WordCacheKey<[u8; Self::SMALL_WORD_LEN]>, ShapedSegment>>,
+    pub(super) word_cache: RefCell<hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegment>>,
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -630,10 +634,24 @@ impl fmt::Debug for Font {
             .field("size", &self.size)
             .field("metrics", &self.metrics)
             .field("render_keys.len()", &self.render_keys.borrow().len())
+            .field("small_word_cache.len()", &self.small_word_cache.borrow().len())
+            .field("word_cache.len()", &self.word_cache.borrow().len())
             .finish()
     }
 }
 impl Font {
+    pub(super) const SMALL_WORD_LEN: usize = 8;
+
+    pub(super) fn to_small_word(s: &str) -> Option<[u8; Self::SMALL_WORD_LEN]> {
+        if s.len() <= Self::SMALL_WORD_LEN {
+            let mut a = [b'\0'; Self::SMALL_WORD_LEN];
+            (&mut a[..s.len()]).copy_from_slice(s.as_bytes());
+            Some(a)
+        } else {
+            None
+        }
+    }
+
     fn new(face: FontFaceRef, size: Px, variations: RFontVariations) -> Self {
         let ppem = size.0 as u32;
 
@@ -648,6 +666,8 @@ impl Font {
             size,
             variations,
             render_keys: Default::default(),
+            small_word_cache: RefCell::default(),
+            word_cache: RefCell::default(),
         }
     }
 

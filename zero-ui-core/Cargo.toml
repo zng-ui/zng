@@ -68,6 +68,7 @@ linear-map = "1"
 rand = "0.8"
 hashers = "1"
 base64 = "0.13"
+hashbrown = "0.11"
 
 # serde
 serde = "1"

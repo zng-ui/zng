@@ -119,7 +119,7 @@ struct Calculator {
 impl Calculator {
     pub fn text(&self) -> &Text {
         if self.buffer.is_empty() {
-            static ZERO: Text = Text::borrowed("0");
+            static ZERO: Text = Text::from_static("0");
             &ZERO
         } else {
             &self.buffer

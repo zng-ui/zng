@@ -1,10 +1,10 @@
 //! Font features and variation types.
 
 use crate::{
-    crate_util::{FxHashMap, FxHashSet},
+    crate_util::{FxEntry, FxHashMap, FxHashSet},
     var::impl_from_and_into_var,
 };
-use std::{collections::hash_map::Entry as HEntry, fmt, marker::PhantomData, mem, num::NonZeroU32};
+use std::{fmt, marker::PhantomData, mem, num::NonZeroU32};
 
 // TODO
 // main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
@@ -423,7 +423,7 @@ font_features! {
 }
 
 /// Represents a feature in a [`FontFeatures`] configuration.
-pub struct FontFeature<'a>(HEntry<'a, FontFeatureName, u32>);
+pub struct FontFeature<'a>(FxEntry<'a, FontFeatureName, u32>);
 impl<'a> FontFeature<'a> {
     /// Gets the OpenType name of the feature.
     #[inline]
@@ -434,8 +434,8 @@ impl<'a> FontFeature<'a> {
     /// Gets the current state of the feature.
     pub fn state(&self) -> FontFeatureState {
         match &self.0 {
-            HEntry::Occupied(e) => FontFeatureState(Some(*e.get())),
-            HEntry::Vacant(_) => FontFeatureState::auto(),
+            FxEntry::Occupied(e) => FontFeatureState(Some(*e.get())),
+            FxEntry::Vacant(_) => FontFeatureState::auto(),
         }
     }
 
@@ -471,10 +471,10 @@ impl<'a> FontFeature<'a> {
 
     fn set_explicit(self, state: u32) {
         match self.0 {
-            HEntry::Occupied(mut e) => {
+            FxEntry::Occupied(mut e) => {
                 e.insert(state);
             }
-            HEntry::Vacant(e) => {
+            FxEntry::Vacant(e) => {
                 e.insert(state);
             }
         }
@@ -501,7 +501,7 @@ impl<'a> FontFeature<'a> {
     /// Set the feature to auto.
     #[inline]
     pub fn auto(self) {
-        if let HEntry::Occupied(e) = self.0 {
+        if let FxEntry::Occupied(e) = self.0 {
             e.remove();
         }
     }

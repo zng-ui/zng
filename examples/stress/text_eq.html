@@ -31,25 +31,25 @@
 <script type="text/javascript">
     for (let i = 0; i < 2000; i++) {
         let t = document.createElement("div");
-        t.innerHTML = "loading.....";
+        t.innerText = "loading.....";
         t.classList.add("text");
         document.body.appendChild(t);
     }
 
-    dot_count = 0;
+    dots_count = 0;
     setInterval(function() {
-        dot_count += 1;
-        if (dot_count == 8) {
-            dot_count = 0;
+        dots_count += 1;
+        if (dots_count == 8) {
+            dots_count = 0;
         }
         let txt = "loading";
-        for (let j = 0; j < dot_count; j++) {
+        for (let j = 0; j < dots_count; j++) {
             txt += ".";
         }
         document.querySelectorAll(".text").forEach(function(t) {
-            t.innerHTML = txt;
+            t.innerText = txt;
         });
-    }, 300);
+    }, 1000 / 60);
 </script>
 
 </html>

@@ -2,7 +2,7 @@ use examples_util::FilterArgs;
 use zero_ui::core::{app::ShutdownRequestedEvent, context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
-const PROFILE: bool = false;
+const PROFILE: bool = true;
 
 static TESTS: &[(&str, TestFn, FilterFn)] = &[("text_eq", text_eq, all_trace)];
 
@@ -13,7 +13,7 @@ fn shape_text_filter(args: FilterArgs) -> bool {
 
 fn text_eq(ctx: &mut WindowContext) -> Window {
     let mut dots_count = 3;
-    let msg = ctx.timers.interval(300.ms(), true).map(move |_| {
+    let msg = ctx.timers.interval(1.secs() / 60, true).map(move |_| {
         dots_count += 1;
         if dots_count == 8 {
             dots_count = 0;
