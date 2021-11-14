@@ -118,7 +118,7 @@ impl FontFeatures {
         }
     }
 
-    /// Generate the rustybuzz font features.
+    /// Generate the harfbuzz font features.
     #[inline]
     pub fn finalize(&self) -> RFontFeatures {
         self.0
@@ -139,7 +139,7 @@ impl fmt::Debug for FontFeatures {
 
 /// Finalized [`FontFeatures`].
 ///
-/// This is a vec of [rustybuzz features](rustybuzz::Feature).
+/// This is a vec of [harfbuzz features](harfbuzz_rs::Feature).
 pub type RFontFeatures = Vec<harfbuzz_rs::Feature>;
 
 fn name_to_str(name: &[u8; 4]) -> &str {
@@ -1822,5 +1822,5 @@ pub use font_variations;
 
 /// Finalized [`FontVariations`].
 ///
-/// This is a vec of [rustybuzz variations](rustybuzz::Variation).
+/// This is a vec of [harfbuzz variations](harfbuzz_rs::Variation).
 pub type RFontVariations = Vec<harfbuzz_rs::Variation>;

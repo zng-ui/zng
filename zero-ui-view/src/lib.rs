@@ -444,8 +444,6 @@ impl<S: AppEventSender> App<S> {
             return;
         };
 
-        let _s = tracing::trace_span!("on_window_event", ?event).entered();
-
         let id = self.windows[i].id();
         let scale_factor = self.windows[i].scale_factor();
 

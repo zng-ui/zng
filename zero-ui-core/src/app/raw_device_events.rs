@@ -3,7 +3,8 @@
 //! These events get emitted only if the app [`enable_device_events`]. When enabled they
 //! can be used like [`raw_events`].
 //!
-//! [`enable_device_events`]: AppExtended::enable_device_events
+//! [`enable_device_events`]: crate::app::AppExtended::enable_device_events
+//! [`raw_events`]: crate::app::raw_events
 
 use super::DeviceId;
 use crate::{

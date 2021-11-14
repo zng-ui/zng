@@ -1229,6 +1229,8 @@ impl LayoutMetrics {
     ///
     /// Note that the node owner must store the previous available size, this
     /// method updates the `prev_available_size` to the new `available_size` after the comparison.
+    /// 
+    /// [`UiNode::measure`]: crate::UiNode::measure
     #[inline]
     pub fn measure_diff(
         &self,
@@ -1243,6 +1245,8 @@ impl LayoutMetrics {
     ///
     /// Note that the node owner must store the previous final size, this method
     /// updates the `prev_final_size` to the new `final_size` after the comparison.
+    /// 
+    /// [`UiNode::arrange`]: crate::UiNode::arrange
     #[inline]
     pub fn arrange_diff(&self, prev_final_size: &mut Option<PxSize>, final_size: PxSize, default_is_new: bool) -> LayoutMask {
         self.node_diff(prev_final_size, final_size, default_is_new)

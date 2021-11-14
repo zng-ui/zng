@@ -1,14 +1,7 @@
-use std::{
-    cell::Cell,
-    collections::VecDeque,
-    fmt,
-    rc::Rc,
-    sync::{
+use std::{cell::Cell, collections::VecDeque, fmt, mem, rc::Rc, sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    },
-    time::{Duration, Instant},
-};
+    }, time::{Duration, Instant}};
 
 use gleam::gl;
 use glutin::{
@@ -18,13 +11,7 @@ use glutin::{
     ContextBuilder, CreationError, GlRequest,
 };
 use tracing::span::EnteredSpan;
-use webrender::{
-    api::{
-        BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey,
-        FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier, ScrollClamping,
-    },
-    RenderApi, Renderer, RendererOptions, Transaction,
-};
+use webrender::{RenderApi, Renderer, RendererOptions, Transaction, api::{ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId, RenderNotifier, ScrollClamping}};
 use zero_ui_view_api::{
     units::{PxToDip, *},
     Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key, KeyState, ScanCode,
@@ -37,6 +24,34 @@ use crate::{
     util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
     AppEvent, AppEventSender, FrameReadyMsg,
 };
+
+enum HitTester {
+    Ready(Arc<dyn ApiHitTester>),
+    Request(HitTesterRequest),
+    Busy,
+}
+impl HitTester {
+    pub fn new(api: &RenderApi, document_id: DocumentId) -> Self {
+        HitTester::Request(api.request_hit_tester(document_id))
+    }
+
+    pub fn hit_test(&mut self, pipeline_id: Option<PipelineId>, point: PxPoint) -> HitTestResult {
+        match mem::replace(self, HitTester::Busy) {
+            HitTester::Ready(tester) => {
+                let result = tester.hit_test(pipeline_id, point.to_wr_world());
+                *self = HitTester::Ready(tester);
+                result
+            },
+            HitTester::Request(request) => {
+                let tester = request.resolve();
+                let result = tester.hit_test(pipeline_id, point.to_wr_world());
+                *self = HitTester::Ready(tester);
+                result
+            },
+            HitTester::Busy => panic!("hit-test must be synchronous"),
+        }
+    }    
+}
 
 /// A headed window.
 pub(crate) struct Window {
@@ -75,6 +90,7 @@ pub(crate) struct Window {
     movable: bool, // TODO
 
     cursor_pos: PxPoint,
+    hit_tester: HitTester,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -236,6 +252,8 @@ impl Window {
 
         let scale_factor = winit_window.scale_factor() as f32;
 
+        let hit_tester = HitTester::new(&api, document_id);
+
         let mut win = Self {
             id,
             image_use: ImageUseMap::default(),
@@ -262,6 +280,7 @@ impl Window {
             rendered_frame_id: FrameId::INVALID,
             state: cfg.state,
             cursor_pos: PxPoint::zero(),
+            hit_tester,
         };
 
         // Maximized/Fullscreen Flickering Workaround Part 2
@@ -861,15 +880,18 @@ impl Window {
     /// Does a hit-test on the current frame.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, point: PxPoint) -> (FrameId, HitTestResult) {
+    pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
+        let _s = tracing::info_span!("hit_test").entered();
         (
             self.rendered_frame_id,
-            self.api.hit_test(self.document_id, Some(self.pipeline_id), point.to_wr_world()),
+            self.hit_tester.hit_test(Some(self.pipeline_id), point),
         )
     }
 }
 impl Drop for Window {
     fn drop(&mut self) {
+        self.api.stop_render_backend();
+
         // webrender deinit panics if the context is not current.
         let _ctx = self.context.make_current();
         self.renderer.take().unwrap().deinit();
