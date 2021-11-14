@@ -1,7 +1,14 @@
-use std::{cell::Cell, collections::VecDeque, fmt, mem, rc::Rc, sync::{
+use std::{
+    cell::Cell,
+    collections::VecDeque,
+    fmt, mem,
+    rc::Rc,
+    sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    }, time::{Duration, Instant}};
+    },
+    time::{Duration, Instant},
+};
 
 use gleam::gl;
 use glutin::{
@@ -11,7 +18,13 @@ use glutin::{
     ContextBuilder, CreationError, GlRequest,
 };
 use tracing::span::EnteredSpan;
-use webrender::{RenderApi, Renderer, RendererOptions, Transaction, api::{ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId, RenderNotifier, ScrollClamping}};
+use webrender::{
+    api::{
+        ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions,
+        FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId, RenderNotifier, ScrollClamping,
+    },
+    RenderApi, Renderer, RendererOptions, Transaction,
+};
 use zero_ui_view_api::{
     units::{PxToDip, *},
     Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key, KeyState, ScanCode,
@@ -41,16 +54,16 @@ impl HitTester {
                 let result = tester.hit_test(pipeline_id, point.to_wr_world());
                 *self = HitTester::Ready(tester);
                 result
-            },
+            }
             HitTester::Request(request) => {
                 let tester = request.resolve();
                 let result = tester.hit_test(pipeline_id, point.to_wr_world());
                 *self = HitTester::Ready(tester);
                 result
-            },
+            }
             HitTester::Busy => panic!("hit-test must be synchronous"),
         }
-    }    
+    }
 }
 
 /// A headed window.
@@ -882,10 +895,7 @@ impl Window {
     /// Returns all hits from front-to-back.
     pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
         // let _s = tracing::info_span!("hit_test").entered();
-        (
-            self.rendered_frame_id,
-            self.hit_tester.hit_test(Some(self.pipeline_id), point),
-        )
+        (self.rendered_frame_id, self.hit_tester.hit_test(Some(self.pipeline_id), point))
     }
 }
 impl Drop for Window {
