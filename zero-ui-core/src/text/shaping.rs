@@ -109,11 +109,13 @@ impl From<FactorPercent> for TextShapingUnit {
     }
 }
 
-/// Output of [text layout](Font::shape_text).
+/// Output of [text layout].
 
 /// Contains a sequence of glyphs positioned in straight [segments](TextSegment).
 /// This means that further text wrapping layout can be calculated from this `ShapedText`
 /// without needing font information.
+///
+/// [text layout]: Font::shape_text
 #[derive(Clone, Debug, Default)]
 pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
@@ -333,7 +335,7 @@ impl Font {
     /// Calculates a [`ShapedText`].
     // see https://raphlinus.github.io/text/2020/10/26/text-layout.html
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
-        let _scope = tracing::trace_span!("shape_text").entered();
+        // let _scope = tracing::trace_span!("shape_text").entered();
 
         let mut out = ShapedText::default();
         let metrics = self.metrics();

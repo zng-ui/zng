@@ -8,6 +8,7 @@ static TESTS: &[(&str, TestFn, FilterFn)] = &[("text_eq", text_eq, all_trace)];
 
 #[allow(unused)]
 fn shape_text_filter(args: FilterArgs) -> bool {
+    // uncomment in "zero-ui-core\src\text\shaping.rs"
     args.name == "shape_text"
 }
 
