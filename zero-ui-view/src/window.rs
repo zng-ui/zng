@@ -881,7 +881,7 @@ impl Window {
     ///
     /// Returns all hits from front-to-back.
     pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
-        let _s = tracing::info_span!("hit_test").entered();
+        // let _s = tracing::info_span!("hit_test").entered();
         (
             self.rendered_frame_id,
             self.hit_tester.hit_test(Some(self.pipeline_id), point),
@@ -891,6 +891,7 @@ impl Window {
 impl Drop for Window {
     fn drop(&mut self) {
         self.api.stop_render_backend();
+        self.api.shut_down(true);
 
         // webrender deinit panics if the context is not current.
         let _ctx = self.context.make_current();
