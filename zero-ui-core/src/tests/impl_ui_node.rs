@@ -8,7 +8,7 @@ use crate::{
     color::RenderColor,
     context::{TestWidgetContext, WidgetContext},
     impl_ui_node, node_vec, nodes,
-    render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
+    render::{FrameBuilder, FrameId, FrameUpdate, NextFrameHint, WidgetTransformKey},
     units::*,
     widget_base::implicit_base,
     window::WindowId,
@@ -107,7 +107,15 @@ fn test_trace(node: impl UiNode) {
 
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, l_size.to_px(), 1.0.fct());
+    let mut frame = FrameBuilder::new_renderless(
+        FrameId::INVALID,
+        window_id,
+        wgt.id(),
+        root_transform_key,
+        l_size.to_px(),
+        1.0.fct(),
+        NextFrameHint::default(),
+    );
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
@@ -199,10 +207,18 @@ pub fn default_no_child() {
     // we expect default to not render anything.
     let window_id = WindowId::new_unique();
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, desired_size, 1.0.fct());
+    let mut frame = FrameBuilder::new_renderless(
+        FrameId::INVALID,
+        window_id,
+        wgt.id(),
+        root_transform_key,
+        desired_size,
+        1.0.fct(),
+        NextFrameHint::default(),
+    );
     wgt.test_render(&mut ctx, &mut frame);
-    let (_, _, frame_info) = frame.finalize();
-    let wgt_info = frame_info.find(wgt.id()).unwrap();
+    let build_frame = frame.finalize();
+    let wgt_info = build_frame.info.find(wgt.id()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
 

@@ -29,8 +29,8 @@ use crate::{
     image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
     impl_from_and_into_var,
     render::{
-        webrender_api::{BuiltDisplayList, DynamicProperties, ExternalScrollId, PipelineId},
-        FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, WidgetTransformKey,
+        webrender_api::{DynamicProperties, ExternalScrollId},
+        BuiltFrame, FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, NextFrameHint, WidgetTransformKey,
     },
     service::Service,
     state::OwnedStateMap,
@@ -1848,6 +1848,7 @@ impl AppWindow {
             root,
             update: WindowUpdates::all(),
             prev_metrics: None,
+            next_frame_hint: NextFrameHint::default(),
         };
 
         // we want the window content to init, update, layout & render to get
@@ -2447,20 +2448,22 @@ impl AppWindow {
         let scale_factor = self.monitor_metrics(ctx).1;
         let next_frame_id = self.frame_id.next();
 
+        let _s = tracing::info_span!("BUILD_TIME").entered();
         // `UiNode::render`
-        let ((pipeline_id, display_list), clear_color, frame_info) =
-            self.context
-                .render(ctx, next_frame_id, self.size.to_px(scale_factor.0), scale_factor, &self.renderer);
+        let frame = self
+            .context
+            .render(ctx, next_frame_id, self.size.to_px(scale_factor.0), scale_factor, &self.renderer);
+        drop(_s);
 
-        self.clear_color = clear_color;
+        self.clear_color = frame.clear_color;
 
         // update frame info.
-        self.frame_id = frame_info.frame_id();
+        self.frame_id = frame.info.frame_id();
         let w_info = ctx.services.windows().windows_info.get_mut(&self.id).unwrap();
 
-        w_info.frame_info = frame_info;
+        w_info.frame_info = frame.info;
 
-        let (payload, descriptor) = display_list.into_data();
+        let (payload, descriptor) = frame.display_list;
 
         let capture_image = self.take_capture_image(ctx.vars);
 
@@ -2468,9 +2471,9 @@ impl AppWindow {
         if let Some(r) = &self.renderer {
             Some(view_process::FrameRequest {
                 id: self.frame_id,
-                pipeline_id,
+                pipeline_id: frame.pipeline_id,
                 document_id: r.document_id().unwrap(),
-                clear_color,
+                clear_color: frame.clear_color,
                 display_list: (ByteBuf::from(payload.data), descriptor),
                 capture_image,
             })
@@ -2604,6 +2607,7 @@ struct OwnedWindowContext {
     update: WindowUpdates,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
+    next_frame_hint: NextFrameHint,
 }
 impl OwnedWindowContext {
     fn init(&mut self, ctx: &mut AppContext) {
@@ -2691,13 +2695,13 @@ impl OwnedWindowContext {
         root_size: PxSize,
         scale_factor: Factor,
         renderer: &Option<ViewRenderer>,
-    ) -> ((PipelineId, BuiltDisplayList), RenderColor, FrameInfo) {
+    ) -> BuiltFrame {
         self.update.render = WindowRenderUpdate::None;
 
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (frame, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
+        let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
             let child = &mut root.child;
             let mut builder = FrameBuilder::new(
                 frame_id,
@@ -2707,6 +2711,7 @@ impl OwnedWindowContext {
                 root_transform_key,
                 root_size,
                 scale_factor,
+                self.next_frame_hint,
             );
             ctx.render_context(root.id, &root.state, |ctx| {
                 child.render(ctx, &mut builder);
@@ -2714,7 +2719,10 @@ impl OwnedWindowContext {
 
             builder
         });
-        frame.finalize()
+
+        let frame = builder.finalize();
+        self.next_frame_hint = frame.next_frame_hint;
+        frame
     }
 
     fn render_update(
