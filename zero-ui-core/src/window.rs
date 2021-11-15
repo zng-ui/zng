@@ -1054,6 +1054,21 @@ impl AppExtension for WindowManager {
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawFrameRenderedEvent.update(args) {
             let wns = ctx.services.windows();
+            if let Some(window) = wns.windows.get_mut(&args.window_id) {
+                if let Some(pending) = window.pending_render.take() {
+                    match pending {
+                        WindowRenderUpdate::None => {}
+                        WindowRenderUpdate::Render => {
+                            window.context.update = WindowUpdates::render();
+                            ctx.updates.render();
+                        }
+                        WindowRenderUpdate::RenderUpdate => {
+                            window.context.update = WindowUpdates::render_update();
+                            ctx.updates.render_update();
+                        }
+                    }
+                }
+            }
             if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
                 window.frame_pixels_id = args.frame_id;
                 let image = args.frame_image.as_ref().cloned().map(Image::new);
@@ -1089,11 +1104,13 @@ impl AppExtension for WindowManager {
                     if matches!(args.cause, EventCause::System) {
                         // the view process is waiting a new frame or update, this will send one.
                         window.context.update = WindowUpdates::all();
+                        window.pending_render = None;
                         ctx.updates.layout_and_render();
                     }
                 } else if matches!(args.cause, EventCause::System) {
                     tracing::warn!("received `RawWindowResizedEvent` with the same size, caused by system");
                     // view process is waiting a frame.
+                    window.pending_render = None;
                     window.render_empty_update();
                 }
                 ctx.services.windows().windows.insert(args.window_id, window);
@@ -1796,6 +1813,8 @@ struct AppWindow {
 
     // latest frame.
     frame_id: FrameId,
+    // request for after the current frame finishes rendering in the view-process.
+    pending_render: Option<WindowRenderUpdate>,
 
     position: Option<DipPoint>,
     size: DipSize,
@@ -1877,6 +1896,7 @@ impl AppWindow {
             first_layout: true,
 
             frame_id: frame_info.frame_id(),
+            pending_render: None,
             position: None,
             size: DipSize::zero(),
             min_size: DipSize::zero(),
@@ -2504,13 +2524,19 @@ impl AppWindow {
             return;
         }
 
+        if let Some(pending) = &mut self.pending_render {
+            *pending = WindowRenderUpdate::Render;
+            return;
+        }
+
         let _s = tracing::trace_span!("window.on_render", window = %self.id.sequential()).entered();
 
         let frame = self.render_frame(ctx);
 
         if let Some(renderer) = &mut self.renderer {
             // we re-render and re-open the window on respawn event.
-            let _: Result<(), Respawned> = renderer.render(frame.unwrap());
+            let _: Result<(), Respawned> = renderer.render(frame.unwrap());    
+            self.pending_render = Some(WindowRenderUpdate::None);        
         }
     }
 
@@ -2519,6 +2545,11 @@ impl AppWindow {
     /// If there is a pending request we collect updates and send.
     fn on_render_update(&mut self, ctx: &mut AppContext) {
         if !self.context.update.render.is_render_update() {
+            return;
+        }
+
+        if let Some(pending) = &mut self.pending_render {
+            *pending |= WindowRenderUpdate::RenderUpdate;
             return;
         }
 
@@ -2550,6 +2581,7 @@ impl AppWindow {
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
             let _: Result<(), Respawned> = renderer.render_update(request);
+            self.pending_render = Some(WindowRenderUpdate::None);
         }
     }
 
@@ -2561,6 +2593,7 @@ impl AppWindow {
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
             let _: Result<(), Respawned> = renderer.render_update(FrameUpdateRequest::empty(self.frame_id));
+            self.pending_render = Some(WindowRenderUpdate::None);
         }
     }
 
@@ -2573,6 +2606,7 @@ impl AppWindow {
             }
         }
 
+        self.pending_render = None;
         self.first_layout = true;
         self.headed = None;
         self.renderer = None;

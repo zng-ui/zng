@@ -948,6 +948,14 @@ impl WindowUpdates {
             render: WindowRenderUpdate::Render,
         }
     }
+
+    /// Update render-update only.
+    pub fn render_update() -> Self {
+        WindowUpdates {
+            layout: false,
+            render: WindowRenderUpdate::RenderUpdate,
+        }
+    }
 }
 impl std::ops::BitOrAssign for WindowUpdates {
     #[inline]
