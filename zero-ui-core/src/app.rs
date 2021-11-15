@@ -958,11 +958,11 @@ impl<E: AppExtension> RunningApp<E> {
                 frame_image,
                 cursor_hits,
             } => {
-                let image = frame_image.map(|img| {
-                    let view = self.ctx().services.view_process();
-                    view.on_frame_image(img)
-                });
-                let args = RawFrameRenderedArgs::now(window_id(w_id), frame_id, image, cursor_hits);
+                let window_id = window_id(w_id);
+                let view = self.ctx().services.view_process();
+                view.on_frame_rendered(window_id);
+                let image = frame_image.map(|img| view.on_frame_image(img));
+                let args = RawFrameRenderedArgs::now(window_id, frame_id, image, cursor_hits);
                 self.notify_event(RawFrameRenderedEvent, args, observer);
             }
             Event::WindowResized { window: w_id, size, cause } => {
@@ -1231,6 +1231,9 @@ impl<E: AppExtension> RunningApp<E> {
 
             // Other
             Event::Respawned(g) => {
+                let view = self.ctx().services.view_process();
+                view.on_respawed(g);
+
                 let args = view_process::ViewProcessRespawnedArgs::now(g);
                 self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
             }
@@ -1247,7 +1250,15 @@ impl<E: AppExtension> RunningApp<E> {
     pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         let _s = tracing::debug_span!("update-cycle").entered();
 
-        let u = self.owned_ctx.apply_updates(false);
+        let skip_timers = self
+            .owned_ctx
+            .borrow()
+            .services
+            .get::<view_process::ViewProcess>()
+            .map(|vp| vp.pending_frames() > 0)
+            .unwrap_or(false);
+
+        let u = self.owned_ctx.apply_updates(skip_timers);
 
         self.wake_time = u.wake_time;
         self.update_events.extend(u.events);

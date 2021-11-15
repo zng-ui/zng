@@ -57,6 +57,8 @@ struct ViewApp {
     loading_images: Vec<rc::Weak<ImageConnection>>,
     frame_images: Vec<rc::Weak<ImageConnection>>,
     encoding_images: Vec<EncodeRequest>,
+
+    pending_frames: usize,
 }
 impl ViewApp {
     #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
@@ -88,6 +90,7 @@ impl ViewProcess {
             loading_images: vec![],
             encoding_images: vec![],
             frame_images: vec![],
+            pending_frames: 0,
         })))
     }
 
@@ -295,6 +298,13 @@ impl ViewProcess {
         self.0.borrow_mut().process.image_encoders()
     }
 
+    /// Number of frame send that have not finished rendering.
+    ///
+    /// This is the sum of pending frames for all renderers.
+    pub fn pending_frames(&self) -> usize {
+        self.0.borrow().pending_frames
+    }
+
     fn loading_image_index(&self, id: ImageId) -> Option<usize> {
         let mut app = self.0.borrow_mut();
 
@@ -366,6 +376,11 @@ impl ViewProcess {
         }
     }
 
+    pub(crate) fn on_frame_rendered(&self, _id: WindowId) {
+        let mut vp = self.0.borrow_mut();
+        vp.pending_frames = vp.pending_frames.saturating_sub(1);
+    }
+
     pub(crate) fn on_frame_image(&self, data: ImageLoadedData) -> ViewImage {
         let bgra8 = OnceCell::new();
         let _ = bgra8.set(Ok(data.bgra8));
@@ -415,6 +430,11 @@ impl ViewProcess {
             }
             !done
         })
+    }
+
+    pub(super) fn on_respawed(&self, _gen: ViewProcessGen) {
+        let mut vp = self.0.borrow_mut();
+        vp.pending_frames = 0;
     }
 }
 
@@ -1149,13 +1169,27 @@ impl ViewRenderer {
     /// Render a new frame.
     pub fn render(&self, frame: FrameRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewRenderer.render").entered();
-        self.call(|id, p| p.render(id, frame))
+
+        if let Some(w) = self.0.upgrade() {
+            w.call(|id, p| p.render(id, frame))?;
+            w.app.borrow_mut().pending_frames += 1;
+            Ok(())
+        } else {
+            Err(Respawned)
+        }
     }
 
     /// Update the current frame and re-render it.
     pub fn render_update(&self, frame: FrameUpdateRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewRenderer.render_update").entered();
-        self.call(|id, p| p.render_update(id, frame))
+
+        if let Some(w) = self.0.upgrade() {
+            w.call(|id, p| p.render_update(id, frame))?;
+            w.app.borrow_mut().pending_frames += 1;
+            Ok(())
+        } else {
+            Err(Respawned)
+        }
     }
 }
 

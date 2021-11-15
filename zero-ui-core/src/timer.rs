@@ -57,7 +57,7 @@ struct TimerVarEntry {
 /// # Precision
 ///
 /// Timers elapse at the specified time or a little later, depending on how busy the app main loop is. High frequency
-/// timers can also have an effective lower frequency of updates because timers only elapse once per update/layout/render cycle.
+/// timers can also have an effective lower frequency of updates because timers only elapse once per frame cycle.
 ///
 /// [variable]: Var
 /// [`task`]: crate::task
