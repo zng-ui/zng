@@ -2535,8 +2535,8 @@ impl AppWindow {
 
         if let Some(renderer) = &mut self.renderer {
             // we re-render and re-open the window on respawn event.
-            let _: Result<(), Respawned> = renderer.render(frame.unwrap());    
-            self.pending_render = Some(WindowRenderUpdate::None);        
+            let _: Result<(), Respawned> = renderer.render(frame.unwrap());
+            self.pending_render = Some(WindowRenderUpdate::None);
         }
     }
 

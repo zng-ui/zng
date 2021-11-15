@@ -92,6 +92,8 @@ impl<'a> FilterArgs<'a> {
 /// you can use this to dynamically generate a name.
 ///
 /// If a span has an attribute `"thread"` the span will be recorded as the *virtual thread* named.
+///
+/// If a event has an attribute `"message"` the message is taken as a name.
 pub fn record_profile(
     path: impl AsRef<Path>,
     about: &[(&str, &str)],
@@ -173,7 +175,7 @@ fn record_profile_impl(path: &Path, about: &[(&str, &str)], mut filter: Box<dyn 
                             pid,
                             tid,
                             ts,
-                            NameDisplay(name, &args),
+                            NameDisplay(name, &["name", "message"], &args),
                             level,
                             escape(target)
                         )
@@ -184,7 +186,7 @@ fn record_profile_impl(path: &Path, about: &[(&str, &str)], mut filter: Box<dyn 
                         if let Some(l) = line {
                             write!(&mut file, r#","line":{}"#, l).unwrap();
                         }
-                        for (arg_name, arg_value) in args {
+                        for (arg_name, arg_value) in &args {
                             write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
                         }
                         write!(&mut file, "}}}}").unwrap();
@@ -218,7 +220,7 @@ fn record_profile_impl(path: &Path, about: &[(&str, &str)], mut filter: Box<dyn 
                             comma,
                             pid,
                             ThreadIdDisplay(tid, &span.args),
-                            NameDisplay(span.name, &span.args),
+                            NameDisplay(span.name, &["name"], &span.args),
                             span.level,
                             start_ts,
                             ts - start_ts,
@@ -521,17 +523,21 @@ impl<'a> Visit for RecordVisitor<'a> {
     }
 }
 
-struct NameDisplay<'a>(&'static str, &'a FxHashMap<&'static str, String>);
+struct NameDisplay<'a>(&'static str, &'a [&'static str], &'a FxHashMap<&'static str, String>);
 impl<'a> fmt::Display for NameDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(dyn_name) = self.1.get("name") {
-            let dyn_name = dyn_name.trim_matches('"');
-            if self.0.is_empty() {
-                write!(f, "{}", dyn_name)
-            } else {
-                write!(f, "{} ({})", escape(self.0), dyn_name)
+        for dyn_name_key in self.1 {
+            if let Some(dyn_name) = self.2.get(dyn_name_key) {
+                let dyn_name = dyn_name.trim_matches('"');
+                return if self.0.is_empty() || self.0.contains(".rs:") {
+                    write!(f, "{}", dyn_name)
+                } else {
+                    write!(f, "{} ({})", escape(self.0), dyn_name)
+                };
             }
-        } else if self.0.is_empty() {
+        }
+
+        if self.0.is_empty() {
             write!(f, "<unnamed>")
         } else {
             write!(f, "{}", escape(self.0))
