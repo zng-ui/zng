@@ -189,7 +189,7 @@ pub fn default_no_child() {
     wgt.test_init(&mut ctx);
     wgt.test_update(&mut ctx);
     wgt.test_deinit(&mut ctx);
-    let u = ctx.apply_updates();
+    let u = ctx.apply_updates(false);
     assert!(u.events.is_empty());
     assert!(!u.update);
     assert!(!u.layout);

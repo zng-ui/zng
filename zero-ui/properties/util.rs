@@ -155,7 +155,7 @@ mod tests {
         wgt.test_init(&mut ctx);
         assert_eq!(Some(&2), wgt.state().get(TestKey));
         value.set(&ctx.vars, 4);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
         wgt.test_update(&mut ctx);
         assert_eq!(Some(&4), wgt.state().get(TestKey));
     }
@@ -208,14 +208,14 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         assert_eq!(&2, probe.get(&ctx.vars));
 
         value.set(&ctx.vars, 3);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
         wgt.test_update(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         assert_eq!(&3, probe.get(&ctx.vars));
     }
@@ -235,14 +235,14 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         assert_eq!(&2, probe.get(&ctx.vars));
 
         value.set(&ctx.vars, 3);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
         wgt.test_update(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         assert_eq!(&3, probe.get(&ctx.vars));
     }
@@ -265,15 +265,15 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         // `1` is the default value.
         assert_eq!(&1, probe.get(&ctx.vars));
 
         value.set(&ctx.vars, 3);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
         wgt.test_update(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         assert_eq!(&1, probe.get(&ctx.vars));
     }
@@ -289,14 +289,14 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         assert_eq!(&2, probe.get(&ctx.vars));
 
         value.set(&ctx.vars, 3);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
         wgt.test_update(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         assert_eq!(&3, probe.get(&ctx.vars));
     }
@@ -316,15 +316,15 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         // `1` is the default value.
         assert_eq!(&1, probe.get(&ctx.vars));
 
         value.set(&ctx.vars, 3);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
         wgt.test_update(&mut ctx);
-        ctx.apply_updates();
+        ctx.apply_updates(false);
 
         assert_eq!(&1, probe.get(&ctx.vars));
     }

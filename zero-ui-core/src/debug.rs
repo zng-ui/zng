@@ -949,7 +949,7 @@ pub mod debug_var_util {
 
             value.set(&ctx.vars, false);
 
-            ctx.apply_updates();
+            ctx.apply_updates(false);
 
             assert_eq!("false", r.get(&ctx.vars).debug);
         }

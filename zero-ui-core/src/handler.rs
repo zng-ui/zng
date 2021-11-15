@@ -1530,7 +1530,7 @@ impl crate::context::TestWidgetContext {
     {
         self.widget_context(|ctx| handlers.retain_mut(|h| h.event(ctx, args)));
         if !handlers.is_empty() {
-            if !self.apply_updates().has_updates() {
+            if !self.apply_updates(false).has_updates() {
                 thread::yield_now();
             }
             let start_time = Instant::now();
@@ -1546,7 +1546,7 @@ impl crate::context::TestWidgetContext {
                     ));
                 }
 
-                if !self.apply_updates().has_updates() {
+                if !self.apply_updates(false).has_updates() {
                     thread::yield_now();
                 }
             }

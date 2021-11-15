@@ -2449,12 +2449,10 @@ impl AppWindow {
         let scale_factor = self.monitor_metrics(ctx).1;
         let next_frame_id = self.frame_id.next();
 
-        let _s = tracing::info_span!("BUILD_TIME").entered();
         // `UiNode::render`
         let frame = self
             .context
             .render(ctx, next_frame_id, self.size.to_px(scale_factor.0), scale_factor, &self.renderer);
-        drop(_s);
 
         self.clear_color = frame.clear_color;
 

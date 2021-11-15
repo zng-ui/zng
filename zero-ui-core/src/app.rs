@@ -1304,7 +1304,8 @@ impl<E: AppExtension> RunningApp<E> {
                     panic!("update loop polled 100,000 times, probably stuck in an infinite loop");
                 }
 
-                let u = self.owned_ctx.apply_updates();
+                let skip_timers =  update || !events.is_empty() || layout || render;
+                let u = self.owned_ctx.apply_updates(skip_timers);
                 let mut ctx = self.owned_ctx.borrow();
 
                 self.wake_time = u.wake_time;

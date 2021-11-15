@@ -437,14 +437,14 @@ pub fn wgt_when() {
 
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "ok."));
 
     util::set_state(&mut wgt, false);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "boo!"));
@@ -465,14 +465,14 @@ pub fn widget_user_when() {
 
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "B"));
 
     util::set_state(&mut wgt, false);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "A"));
@@ -504,14 +504,14 @@ pub fn wgt_multi_when() {
 
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "state_1"));
 
     util::set_state(&mut wgt, false);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "default"));
@@ -609,14 +609,14 @@ pub fn wgt_cfg_when() {
 
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "is_state"));
 
     util::set_state(&mut wgt, false);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "trace"));
@@ -649,14 +649,14 @@ pub fn user_cfg_when() {
 
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "is_state"));
 
     util::set_state(&mut wgt, false);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "trace"));
@@ -1309,7 +1309,7 @@ pub fn allowed_in_when_without_wgt_assign1() {
 
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
     assert!(util::traced(&wgt, "when-trace"));
 }
@@ -1337,7 +1337,7 @@ pub fn allowed_in_when_without_wgt_assign2() {
 
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
     assert!(util::traced(&wgt, "when-trace"));
 }
@@ -1381,7 +1381,7 @@ pub fn generated_name_collision_in_when() {
     wgt.test_init(&mut ctx);
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "3"));
@@ -1404,7 +1404,7 @@ pub fn generated_name_collision_in_when_assign() {
     wgt.test_init(&mut ctx);
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "1"));
@@ -1434,7 +1434,7 @@ pub fn name_collision_wgt_when() {
     wgt.test_init(&mut ctx);
     util::set_state(&mut wgt, true);
     wgt.test_update(&mut ctx);
-    ctx.apply_updates();
+    ctx.apply_updates(false);
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "3"));
