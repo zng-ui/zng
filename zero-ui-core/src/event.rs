@@ -853,6 +853,10 @@ impl Events {
         handle
     }
 
+    pub(crate) fn has_pending_updates(&mut self) -> bool {
+        !self.updates.is_empty()
+    }
+
     #[must_use]
     pub(super) fn apply_updates(&mut self, vars: &Vars) -> Vec<BoxedEventUpdate> {
         for command in &self.commands {

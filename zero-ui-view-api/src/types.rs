@@ -582,11 +582,6 @@ pub enum Event {
     ///
     /// [`Controller::handle_disconnect`]: crate::Controller::handle_disconnect
     Disconnected(ViewProcessGen),
-    /// A sequence of events that happened at the *same time* finished sending.
-    ///
-    /// The same device action can generate multiple events, this event is send after
-    /// each such sequence of window and device events, even if it only one event.
-    EventsCleared,
 
     /// A frame finished rendering.
     ///

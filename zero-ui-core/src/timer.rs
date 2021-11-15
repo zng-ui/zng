@@ -246,7 +246,7 @@ impl Timers {
     }
 
     /// Update timer vars, flag handlers to be called in [`Self::notify`], returns new app wake time.
-    pub(crate) fn apply_updates(&mut self, vars: &Vars, skip: bool) -> Option<Instant> {
+    pub(crate) fn apply_updates(&mut self, vars: &Vars) -> Option<Instant> {
         let now = Instant::now();
 
         let mut min_next_some = false;
@@ -263,9 +263,7 @@ impl Timers {
                     return true; // retain
                 }
 
-                if !skip {
-                    var.modify(vars, |t| t.elapsed = true);
-                }
+                var.modify(vars, |t| t.elapsed = true);
             }
             false // don't retain
         });
@@ -277,7 +275,7 @@ impl Timers {
                     let timer = var.get(vars);
                     let mut deadline = timer.0 .0.data().deadline.lock();
 
-                    if !skip && deadline.current_deadline() <= now {
+                    if deadline.current_deadline() <= now {
                         // timer elapses, but only update if is enabled:
                         if timer.is_enabled() {
                             timer.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
@@ -303,12 +301,9 @@ impl Timers {
             }
 
             let deadline = e.handle.data().deadline;
+            e.pending = deadline <= now;
 
-            if !skip {
-                e.pending = deadline <= now;
-            }
-
-            if skip || e.pending {
+            if e.pending {
                 min_next_some = true;
                 min_next = min_next.min(deadline);
             }
@@ -325,7 +320,7 @@ impl Timers {
             let state = e.handle.data();
             let mut deadline = state.deadline.lock();
 
-            if !skip && deadline.current_deadline() <= now {
+            if deadline.current_deadline() <= now {
                 // timer elapsed, but only flag for handler call if is enabled:
                 if state.enabled.load(Ordering::Relaxed) {
                     // this is wrapping_add

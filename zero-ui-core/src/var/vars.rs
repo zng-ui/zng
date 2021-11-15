@@ -485,6 +485,10 @@ impl Vars {
         self.pending.borrow_mut().push(change);
     }
 
+    pub(crate) fn has_pending_updates(&mut self) -> bool {
+        !self.pending.get_mut().is_empty()
+    }
+
     /// Apply scheduled set/modify.
     pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
         self.read.update_id = self.update_id.wrapping_add(1);

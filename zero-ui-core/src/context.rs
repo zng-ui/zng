@@ -428,10 +428,10 @@ impl OwnedAppContext {
     /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
     /// requests and a time for the loop to awake and update.
     ///
-    /// If `skip_timers` is `true` only the next wake time is computed without generating events or var updates.
+    /// If `skip_timers` is `true` no wake time is returned but the previous wake time is still pending.
     #[must_use]
     pub fn apply_updates(&mut self, skip_timers: bool) -> ContextUpdates {
-        let wake_time = self.timers.apply_updates(&self.vars, skip_timers);
+        let wake_time = if skip_timers { None } else { self.timers.apply_updates(&self.vars) };
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
 
@@ -444,6 +444,16 @@ impl OwnedAppContext {
             render,
             wake_time,
         }
+    }
+
+    /// If a call to `apply_updates` will generate updates (ignoring timers).
+    #[must_use]
+    pub fn has_pending_updates(&mut self) -> bool {
+        self.updates.update_requested()
+            || self.updates.layout_requested()
+            || self.updates.render_requested()
+            || self.vars.has_pending_updates()
+            || self.events.has_pending_updates()
     }
 }
 
@@ -833,7 +843,7 @@ impl TestWidgetContext {
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }
-        let wake_time = self.timers.apply_updates(&self.vars, skip_timers);
+        let wake_time = if skip_timers { None } else { self.timers.apply_updates(&self.vars) };
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
         let (update, layout, render) = self.updates.take_updates();

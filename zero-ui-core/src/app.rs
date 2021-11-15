@@ -6,7 +6,7 @@ pub mod view_process;
 
 use crate::context::*;
 use crate::crate_util::PanicPayload;
-use crate::event::{cancelable_event_args, event, AnyEventUpdate, EventUpdate, EventUpdateArgs, Events};
+use crate::event::{cancelable_event_args, event, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::timer::Timers;
 use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
@@ -746,8 +746,8 @@ struct RunningApp<E: AppExtension> {
     owned_ctx: OwnedAppContext,
     receiver: flume::Receiver<AppEvent>,
 
-    // need to probe context to see if there are updates.
-    maybe_has_updates: bool,
+    // events generated during an `update` cycle.
+    update_events: Vec<BoxedEventUpdate>,
     // WaitUntil time.
     wake_time: Option<Instant>,
 
@@ -801,23 +801,70 @@ impl<E: AppExtension> RunningApp<E> {
             extensions,
             owned_ctx,
             receiver,
-            maybe_has_updates: true,
+            update_events: Vec::with_capacity(100),
             wake_time: None,
             exiting: false,
         }
     }
 
     fn run_headed(mut self) {
-        if let ControlFlow::Exit = self.update(&mut ()) {
-            return;
-        }
+        let mut wait = match self.update(&mut ()) {
+            ControlFlow::Poll => false,
+            ControlFlow::Wait => true,
+            ControlFlow::Exit => return,
+        };
         loop {
-            match self.poll(&mut ()) {
-                ControlFlow::Wait => {} // poll waits
-                ControlFlow::Exit => break,
-                ControlFlow::Poll => unreachable!(),
+            wait = match self.poll(wait, &mut ()) {
+                ControlFlow::Poll => false,
+                ControlFlow::Wait => true,
+                ControlFlow::Exit => return,
+            };
+        }
+    }
+
+    fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
+        let mut app_event = None;
+        let mut disconnected = false;
+
+        if wait_app_event {
+            let _idle = tracing::debug_span!("<idle>").entered();
+            if let Some(time) = self.wake_time {
+                match self.receiver.recv_deadline(time) {
+                    Ok(ev) => app_event = Some(ev),
+                    Err(e) => match e {
+                        flume::RecvTimeoutError::Timeout => {
+                            tracing::debug!("TIMER-ELAPSED");
+                        }
+                        flume::RecvTimeoutError::Disconnected => disconnected = true,
+                    },
+                }
+            } else {
+                match self.receiver.recv() {
+                    Ok(ev) => app_event = Some(ev),
+                    Err(e) => match e {
+                        flume::RecvError::Disconnected => disconnected = true,
+                    },
+                }
+            }
+        } else {
+            match self.receiver.try_recv() {
+                Ok(ev) => app_event = Some(ev),
+                Err(e) => match e {
+                    flume::TryRecvError::Empty => {}
+                    flume::TryRecvError::Disconnected => disconnected = true,
+                },
             }
         }
+
+        if disconnected {
+            panic!("app events channel disconnected");
+        }
+
+        if let Some(ev) = app_event {
+            self.app_event(ev, observer);
+        }
+
+        self.update(observer)
     }
 
     /// If device events are enabled in this app.
@@ -828,7 +875,6 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Exclusive borrow the app context.
     pub fn ctx(&mut self) -> AppContext {
-        self.maybe_has_updates = true;
         self.owned_ctx.borrow()
     }
 
@@ -840,7 +886,6 @@ impl<E: AppExtension> RunningApp<E> {
     /// Notify an event directly to the app extensions.
     pub fn notify_event<Ev: crate::event::Event, O: AppEventObserver>(&mut self, event: Ev, args: Ev::Args, observer: &mut O) {
         Self::notify_event_(&mut self.owned_ctx.borrow(), &mut self.extensions, event, args, observer);
-        self.maybe_has_updates = true;
     }
     fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
         ctx: &mut AppContext,
@@ -871,66 +916,6 @@ impl<E: AppExtension> RunningApp<E> {
         self.ctx().services.req::<view_process::ViewProcess>().device_id(id)
     }
 
-    /// Repeatedly sleeps-waits for app events until the control flow changes to something other than [`Poll`].
-    ///
-    /// This method also manages timers, awaking when a timer deadline elapses and causing an update cycle.
-    ///
-    /// [`Poll`]: ControlFlow::Poll
-    #[inline]
-    pub fn poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
-        let mut flow = ControlFlow::Poll;
-
-        while let ControlFlow::Poll = flow {
-            let idle = tracing::trace_span!("<poll-idle>").entered();
-
-            let ev = if let Some(timer) = self.wake_time {
-                match self.receiver.recv_deadline(timer) {
-                    Ok(ev) => ev,
-                    Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => {
-                            // update timers
-                            self.maybe_has_updates = true;
-                            flow = self.update(observer);
-                            continue;
-                        }
-                        flume::RecvTimeoutError::Disconnected => panic!("app events channel disconnected"),
-                    },
-                }
-            } else {
-                self.receiver.recv().expect("app events channel disconnected")
-            };
-
-            drop(idle);
-
-            flow = if !matches!(ev, AppEvent::ViewEvent(view_process::Event::EventsCleared)) || self.receiver.is_empty() {
-                // notify event, ignores `EventsCleared` if there is already more events in the channel.
-                self.app_event(ev, observer)
-            } else {
-                ControlFlow::Poll
-            };
-        }
-        flow
-    }
-
-    /// Try to receive app events until the control flow changes to something other the [`Poll`], if
-    /// there is no app event in the channel returns tries an update cycle.
-    ///
-    /// This method does not manages timers, you can probe [`wake_time`] to get the next timer deadline.
-    ///
-    /// [`Poll`]: ControlFlow::Poll
-    /// [`wake_time`]: RunningApp::wake_time
-    pub fn try_poll<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
-        let mut flow = ControlFlow::Poll;
-        while let ControlFlow::Poll = flow {
-            flow = match self.receiver.try_recv() {
-                Ok(ev) => self.app_event(ev, observer),
-                Err(flume::TryRecvError::Empty) => self.update(observer),
-                Err(e) => panic!("{:?}", e),
-            }
-        }
-        flow
-    }
-
     /// Next timer deadline.
     #[inline]
     pub fn wake_time(&self) -> Option<Instant> {
@@ -938,15 +923,11 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Process an [`AppEvent`].
-    fn app_event<O: AppEventObserver>(&mut self, app_event: AppEvent, observer: &mut O) -> ControlFlow {
+    fn app_event<O: AppEventObserver>(&mut self, app_event: AppEvent, observer: &mut O) {
         let _s = tracing::trace_span!("app_event").entered();
 
-        self.maybe_has_updates = true;
-
         match app_event {
-            AppEvent::ViewEvent(ev) => {
-                return self.view_event(ev, observer);
-            }
+            AppEvent::ViewEvent(ev) => self.view_event(ev, observer),
             AppEvent::Update => self.owned_ctx.borrow().updates.update(),
             AppEvent::Event(e) => {
                 self.owned_ctx.borrow().events.notify_app_event(e);
@@ -956,14 +937,10 @@ impl<E: AppExtension> RunningApp<E> {
             }
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
-
-        self.update(observer)
     }
 
     /// Process a View Process event.
-    ///
-    /// Does `update` on `EventsCleared`.
-    fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) -> ControlFlow {
+    fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) {
         let _s = tracing::debug_span!("view_event", ?ev).entered();
 
         use raw_device_events::*;
@@ -975,9 +952,6 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         match ev {
-            Event::EventsCleared => {
-                return self.update(observer);
-            }
             Event::FrameRendered {
                 window: w_id,
                 frame: frame_id,
@@ -990,15 +964,10 @@ impl<E: AppExtension> RunningApp<E> {
                 });
                 let args = RawFrameRenderedArgs::now(window_id(w_id), frame_id, image, cursor_hits);
                 self.notify_event(RawFrameRenderedEvent, args, observer);
-                // `FrameRendered` is not followed by a `EventsCleared`.
-                return self.update(observer);
             }
             Event::WindowResized { window: w_id, size, cause } => {
                 let args = RawWindowResizedArgs::now(window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args, observer);
-                // view-process blocks waiting for a frame on resize, so update as early
-                // as possible to generate this frame
-                return self.update(observer);
             }
             Event::WindowMoved {
                 window: w_id,
@@ -1264,135 +1233,140 @@ impl<E: AppExtension> RunningApp<E> {
             Event::Respawned(g) => {
                 let args = view_process::ViewProcessRespawnedArgs::now(g);
                 self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
-                // `FrameRendered` is not followed by a `EventsCleared`.
-                return self.update(observer);
             }
 
             Event::Disconnected(gen) => {
                 self.ctx().services.view_process().handle_disconnect(gen);
             }
         }
-
-        self.maybe_has_updates = true;
-        ControlFlow::Poll
     }
 
-    /// Does pending event and updates until there is no more updates generated, then returns
-    /// [`Wait`] or [`Exit`]. If [`Wait`] is returned you must check [`wake_time`] for a timeout that
-    /// must be used, when the timeout elapses update must be called again, to advance timers.
+    /// Does pending updates, app events, layouts and frame until there is no more updates or a frame was generated.
     ///
-    /// You can use an [`AppEventObserver`] to watch all of these actions or pass `&mut ()` as a NOP observer.
-    ///
-    /// [`Wait`]: ControlFlow::Wait
-    /// [`Exit`]: ControlFlow::Exit
-    /// [`wake_time`]: RunningApp::wake_time
+    /// You can use an [`AppEventObserver`] to watch all of these actions.
     pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
-        if self.maybe_has_updates {
-            let _s = tracing::debug_span!("update-cycle").entered();
+        let _s = tracing::debug_span!("update-cycle").entered();
 
-            self.maybe_has_updates = false;
+        let u = self.owned_ctx.apply_updates(false);
 
-            let mut update = false;
-            let mut events = Vec::with_capacity(100);
-            let mut layout = false;
-            let mut render = false;
+        self.wake_time = u.wake_time;
+        self.update_events.extend(u.events);
+        let mut update = u.update;
+        let mut layout = u.layout;
+        let mut render = u.render;
 
-            let mut limit = 100_000;
-            loop {
-                limit -= 1;
-                if limit == 0 {
-                    panic!("update loop polled 100,000 times, probably stuck in an infinite loop");
-                }
+        // does pending app events.
+        if !self.update_events.is_empty() {
+            let _s = tracing::trace_span!("events").entered();
 
-                let skip_timers =  update || !events.is_empty() || layout || render;
-                let u = self.owned_ctx.apply_updates(skip_timers);
+            let mut ctx = self.owned_ctx.borrow();
+
+            for event in self.update_events.drain(..) {
+                let _s = tracing::debug_span!("event", ?event).entered();
+
+                self.extensions.event_preview(&mut ctx, &event);
+                observer.event_preview(&mut ctx, &event);
+                Events::on_pre_events(&mut ctx, &event);
+
+                self.extensions.event_ui(&mut ctx, &event);
+                observer.event_ui(&mut ctx, &event);
+
+                self.extensions.event(&mut ctx, &event);
+                observer.event(&mut ctx, &event);
+                Events::on_events(&mut ctx, &event);
+            }
+        }
+
+        {
+            // does `Timers::on_*` notifications.
+            Timers::notify(&mut self.owned_ctx.borrow());
+        }
+
+        let mut limit = 100_000;
+        loop {
+            limit -= 1;
+            if limit == 0 {
+                panic!("update loop polled 100,000 times, probably stuck in an infinite loop");
+            }
+
+            if update {
                 let mut ctx = self.owned_ctx.borrow();
 
-                self.wake_time = u.wake_time;
-                update |= u.update;
-                events.extend(u.events);
+                // check shutdown.
+                if let Some(r) = ctx.services.app_process().take_requests() {
+                    let _s = tracing::debug_span!("shutdown_requested").entered();
+
+                    let args = ShutdownRequestedArgs::now();
+
+                    Self::notify_event_(&mut ctx, &mut self.extensions, ShutdownRequestedEvent, args.clone(), observer);
+
+                    if args.cancel_requested() {
+                        r.respond(ctx.vars, ShutdownCancelled);
+                    }
+                    self.exiting = !args.cancel_requested();
+                    if self.exiting {
+                        return ControlFlow::Exit;
+                    }
+                }
+
+                // does general updates.
+                {
+                    let _s = tracing::trace_span!("update").entered();
+
+                    self.extensions.update_preview(&mut ctx);
+                    observer.update_preview(&mut ctx);
+                    Updates::on_pre_updates(&mut ctx);
+
+                    self.extensions.update_ui(&mut ctx);
+                    observer.update_ui(&mut ctx);
+
+                    self.extensions.update(&mut ctx);
+                    observer.update(&mut ctx);
+                    Updates::on_updates(&mut ctx);
+                }
+
+                let u = self.owned_ctx.apply_updates(true);
+                self.update_events.extend(u.events);
+                update = u.update;
                 layout |= u.layout;
                 render |= u.render;
 
-                if update {
-                    // check shutdown.
-                    if let Some(r) = ctx.services.app_process().take_requests() {
-                        let _s = tracing::debug_span!("shutdown_requested").entered();
+                continue;
+            } else if layout {
+                let _s = tracing::trace_span!("layout").entered();
 
-                        let args = ShutdownRequestedArgs::now();
-
-                        Self::notify_event_(&mut ctx, &mut self.extensions, ShutdownRequestedEvent, args.clone(), observer);
-
-                        if args.cancel_requested() {
-                            r.respond(ctx.vars, ShutdownCancelled);
-                        }
-                        self.exiting = !args.cancel_requested();
-                        if self.exiting {
-                            return ControlFlow::Exit;
-                        }
-                    }
-
-                    // does `Timers::on_*` notifications.
-                    Timers::notify(&mut ctx);
-
-                    // does general updates.
-                    {
-                        let _s = tracing::trace_span!("update").entered();
-
-                        self.extensions.update_preview(&mut ctx);
-                        observer.update_preview(&mut ctx);
-                        Updates::on_pre_updates(&mut ctx);
-
-                        self.extensions.update_ui(&mut ctx);
-                        observer.update_ui(&mut ctx);
-
-                        self.extensions.update(&mut ctx);
-                        observer.update(&mut ctx);
-                        Updates::on_updates(&mut ctx);
-                    }
-
-                    update = false;
-                } else if !events.is_empty() {
-                    // does events raised by extensions.
-
-                    let _s = tracing::trace_span!("events").entered();
-
-                    for event in events.drain(..) {
-                        let _s = tracing::debug_span!("event", ?event).entered();
-
-                        self.extensions.event_preview(&mut ctx, &event);
-                        observer.event_preview(&mut ctx, &event);
-                        Events::on_pre_events(&mut ctx, &event);
-
-                        self.extensions.event_ui(&mut ctx, &event);
-                        observer.event_ui(&mut ctx, &event);
-
-                        self.extensions.event(&mut ctx, &event);
-                        observer.event(&mut ctx, &event);
-                        Events::on_events(&mut ctx, &event);
-                    }
-                } else if layout {
-                    let _s = tracing::trace_span!("layout").entered();
+                {
+                    let mut ctx = self.owned_ctx.borrow();
 
                     self.extensions.layout(&mut ctx);
                     observer.layout(&mut ctx);
-
-                    layout = false;
-                } else if render {
-                    let _s = tracing::trace_span!("render").entered();
-
-                    self.extensions.render(&mut ctx);
-                    observer.render(&mut ctx);
-
-                    render = false;
-                } else {
-                    break;
                 }
+
+                let u = self.owned_ctx.apply_updates(true);
+                self.update_events.extend(u.events);
+                update = u.update;
+                layout = u.layout;
+                render |= u.render;
+
+                continue;
+            } else if render {
+                let _s = tracing::trace_span!("render").entered();
+
+                let mut ctx = self.owned_ctx.borrow();
+
+                self.extensions.render(&mut ctx);
+                observer.render(&mut ctx);
+
+                break;
+            } else {
+                break;
             }
         }
 
         if self.exiting {
             ControlFlow::Exit
+        } else if !self.update_events.is_empty() || self.owned_ctx.has_pending_updates() {
+            ControlFlow::Poll
         } else {
             ControlFlow::Wait
         }
@@ -1524,11 +1498,15 @@ impl HeadlessApp {
     /// if it is `false` only responds to app events already in the buffer.
     ///
     /// [`wake_time`]: Self::wake_time
-    pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, wait_app_event: bool) -> ControlFlow {
-        if wait_app_event {
-            self.app.poll(observer)
-        } else {
-            self.app.try_poll(observer)
+    pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> ControlFlow {
+        loop {
+            match self.app.poll(wait_app_event, observer) {
+                ControlFlow::Poll => {
+                    wait_app_event = false;
+                    continue;
+                }
+                flow => return flow,
+            }
         }
     }
 

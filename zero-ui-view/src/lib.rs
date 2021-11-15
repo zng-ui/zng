@@ -225,9 +225,6 @@ pub(crate) struct App<S> {
     device_id_gen: DeviceId,
     devices: Vec<(DeviceId, glutin::event::DeviceId)>,
 
-    // if one or more events where send after the last on_events_cleared.
-    pending_clear: bool,
-
     exited: bool,
 }
 impl<S> fmt::Debug for App<S> {
@@ -379,7 +376,7 @@ impl App<()> {
                     },
                     GEvent::Suspended => {}
                     GEvent::Resumed => {}
-                    GEvent::MainEventsCleared => app.on_events_cleared(),
+                    GEvent::MainEventsCleared => {}
                     GEvent::RedrawRequested(w_id) => app.on_redraw(w_id),
                     GEvent::RedrawEventsCleared => {}
                     GEvent::LoopDestroyed => {}
@@ -415,7 +412,6 @@ impl<S: AppEventSender> App<S> {
             monitor_id_gen: 0,
             devices: vec![],
             device_id_gen: 0,
-            pending_clear: false,
             exited: false,
         }
     }
@@ -709,7 +705,6 @@ impl<S: AppEventSender> App<S> {
     }
 
     pub(crate) fn notify(&mut self, event: Event) {
-        self.pending_clear = true;
         if self.event_sender.send(event).is_err() {
             let _ = self.app_sender.send(AppEvent::ParentProcessExited);
         }
@@ -740,13 +735,6 @@ impl<S: AppEventSender> App<S> {
                 }),
                 DeviceEvent::Text { codepoint } => self.notify(Event::DeviceText(d_id, codepoint)),
             }
-        }
-    }
-
-    fn on_events_cleared(&mut self) {
-        if self.pending_clear {
-            self.notify(Event::EventsCleared);
-            self.pending_clear = false;
         }
     }
 
