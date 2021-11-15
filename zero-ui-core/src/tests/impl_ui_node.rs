@@ -8,7 +8,7 @@ use crate::{
     color::RenderColor,
     context::{TestWidgetContext, WidgetContext},
     impl_ui_node, node_vec, nodes,
-    render::{FrameBuilder, FrameId, FrameUpdate, NextFrameHint, WidgetTransformKey},
+    render::{FrameBuilder, FrameId, FrameUpdate, NextFrameHint, NextFrameUpdateHint, WidgetTransformKey},
     units::*,
     widget_base::implicit_base,
     window::WindowId,
@@ -119,7 +119,14 @@ fn test_trace(node: impl UiNode) {
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
-    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK);
+    let mut update = FrameUpdate::new(
+        window_id,
+        wgt.id(),
+        root_transform_key,
+        FrameId::INVALID,
+        RenderColor::BLACK,
+        NextFrameUpdateHint::default(),
+    );
     wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
 
@@ -223,14 +230,21 @@ pub fn default_no_child() {
     assert!(wgt_info.meta().is_empty());
 
     // and not update render..
-    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK);
+    let mut update = FrameUpdate::new(
+        window_id,
+        wgt.id(),
+        root_transform_key,
+        FrameId::INVALID,
+        RenderColor::BLACK,
+        NextFrameUpdateHint::default(),
+    );
     wgt.test_render_update(&mut ctx, &mut update);
-    let (update, scroll_update, render_color) = update.finalize();
-    assert!(update.transforms.is_empty());
-    assert!(update.floats.is_empty());
-    assert!(update.colors.is_empty());
-    assert!(scroll_update.is_empty());
-    assert!(render_color.is_none());
+    let update = update.finalize();
+    assert!(update.bindings.transforms.is_empty());
+    assert!(update.bindings.floats.is_empty());
+    assert!(update.bindings.colors.is_empty());
+    assert!(update.scrolls.is_empty());
+    assert!(update.clear_color.is_none());
 }
 
 mod util {

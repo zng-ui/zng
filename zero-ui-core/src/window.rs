@@ -29,8 +29,8 @@ use crate::{
     image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
     impl_from_and_into_var,
     render::{
-        webrender_api::{DynamicProperties, ExternalScrollId},
-        BuiltFrame, FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, NextFrameHint, WidgetTransformKey,
+        BuiltFrame, BuiltFrameUpdate, FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, NextFrameHint, NextFrameUpdateHint,
+        WidgetTransformKey,
     },
     service::Service,
     state::OwnedStateMap,
@@ -1849,6 +1849,7 @@ impl AppWindow {
             update: WindowUpdates::all(),
             prev_metrics: None,
             next_frame_hint: NextFrameHint::default(),
+            next_frame_update_hint: NextFrameUpdateHint::default(),
         };
 
         // we want the window content to init, update, layout & render to get
@@ -2529,17 +2530,17 @@ impl AppWindow {
 
         let next_frame_id = self.frame_id.next_update();
 
-        let (updates, scroll_updates, clear_color) = self.context.render_update(ctx, next_frame_id, self.clear_color);
+        let updates = self.context.render_update(ctx, next_frame_id, self.clear_color);
 
-        if let Some(c) = clear_color {
+        if let Some(c) = updates.clear_color {
             self.clear_color = c;
         }
 
         let request = FrameUpdateRequest {
             id: next_frame_id,
-            updates,
-            scroll_updates,
-            clear_color,
+            updates: updates.bindings,
+            scroll_updates: updates.scrolls,
+            clear_color: updates.clear_color,
             capture_image,
         };
         if request.is_empty() {
@@ -2608,6 +2609,7 @@ struct OwnedWindowContext {
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
     next_frame_hint: NextFrameHint,
+    next_frame_update_hint: NextFrameUpdateHint,
 }
 impl OwnedWindowContext {
     fn init(&mut self, ctx: &mut AppContext) {
@@ -2725,12 +2727,7 @@ impl OwnedWindowContext {
         frame
     }
 
-    fn render_update(
-        &mut self,
-        ctx: &mut AppContext,
-        frame_id: FrameId,
-        clear_color: RenderColor,
-    ) -> (DynamicProperties, Vec<(ExternalScrollId, PxVector)>, Option<RenderColor>) {
+    fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId, clear_color: RenderColor) -> BuiltFrameUpdate {
         debug_assert!(self.update.render.is_render_update());
         self.update.render = WindowRenderUpdate::None;
 
@@ -2740,11 +2737,20 @@ impl OwnedWindowContext {
         let (updates, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
             let window_id = *ctx.window_id;
             ctx.render_context(root.id, &root.state, |ctx| {
-                let mut update = FrameUpdate::new(window_id, root.id, root_transform_key, frame_id, clear_color);
+                let mut update = FrameUpdate::new(
+                    window_id,
+                    root.id,
+                    root_transform_key,
+                    frame_id,
+                    clear_color,
+                    self.next_frame_update_hint,
+                );
                 root.child.render_update(ctx, &mut update);
                 update.finalize()
             })
         });
+
+        self.next_frame_update_hint = updates.next_update_hint;
 
         updates
     }
