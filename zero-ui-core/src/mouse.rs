@@ -679,7 +679,7 @@ impl MouseManager {
 
             // mouse_enter/mouse_leave.
             self.update_hovered(window_id, Some(device_id), hits, Some(target), ctx.events, ctx.services.mouse());
-        } else {
+        } else if coalesced_pos.is_empty() {
             tracing::warn!("RawCursorMoved did not actually move")
         }
     }

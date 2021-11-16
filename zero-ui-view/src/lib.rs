@@ -690,7 +690,7 @@ impl<S: AppEventSender> App<S> {
         let _s = tracing::trace_span!("on_frame_ready").entered();
 
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
-            let ((frame_id, image, cursor_hits), focused) = w.on_frame_ready(msg, &mut self.image_cache);
+            let ((frame_id, image, cursor_hits), first) = w.on_frame_ready(msg, &mut self.image_cache);
 
             let _ = self.event_sender.send(Event::FrameRendered {
                 window: window_id,
@@ -699,10 +699,22 @@ impl<S: AppEventSender> App<S> {
                 cursor_hits,
             });
 
-            if let Some(focused) = focused {
-                self.notify(Event::Focused {
+            if first {
+                let size = w.size();
+
+                // Windows not notifying this one.
+                #[cfg(windows)]
+                if w.is_maximized() && w.is_active_window() {
+                    self.notify(Event::Focused {
+                        window: window_id,
+                        focused: true,
+                    });
+                }
+
+                self.notify(Event::WindowResized {
                     window: window_id,
-                    focused,
+                    size,
+                    cause: EventCause::App,
                 });
             }
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
