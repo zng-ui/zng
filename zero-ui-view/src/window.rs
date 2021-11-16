@@ -754,13 +754,13 @@ impl Window {
         self.api.send_transaction(self.document_id, txn);
     }
 
-    /// Returns if it is the first frame.
-    #[must_use = "if `true` must notify the initial Resized event"]
+    /// Returns info for `FrameRendered` and `Focused`.
+    #[must_use = "events must be generated from the result"]
     pub fn on_frame_ready<S: AppEventSender>(
         &mut self,
         msg: FrameReadyMsg,
         images: &mut ImageCache<S>,
-    ) -> (FrameId, Option<ImageLoadedData>, HitTestResult) {
+    ) -> ((FrameId, Option<ImageLoadedData>, HitTestResult), Option<bool>) {
         debug_assert!(self.document_id == msg.document_id || self.documents.contains(&msg.document_id));
 
         //println!("{:#?}", msg);
@@ -772,6 +772,9 @@ impl Window {
         let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
         self.rendered_frame_id = frame_id;
 
+        #[allow(unused_mut)]
+        let mut send_focused = None;
+
         if self.waiting_first_frame {
             let _s = tracing::trace_span!("Window.first-draw").entered();
             debug_assert!(msg.composite_needed);
@@ -780,6 +783,15 @@ impl Window {
             self.redraw();
             if self.visible {
                 self.set_visible(true);
+
+                // Windows not sending a Focused when starting maximized.
+                #[cfg(windows)]
+                if self.state == WindowState::Maximized {
+                    let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
+                    // SAFETY: `GetActiveWindow` does not have an error state.
+                    let focused = unsafe { winapi::um::winuser::GetActiveWindow() == hwnd as _ };
+                    send_focused = Some(focused);
+                }
             }
         } else if msg.composite_needed {
             self.window.request_redraw();
@@ -800,7 +812,7 @@ impl Window {
         let (_hits_frame_id, hits) = self.hit_test(self.cursor_pos);
         debug_assert_eq!(_hits_frame_id, frame_id);
 
-        (frame_id, data, hits)
+        ((frame_id, data, hits), send_focused)
     }
 
     pub fn redraw(&mut self) {
@@ -831,7 +843,7 @@ impl Window {
         drop(stop_redirect);
 
         if let Ok(msg) = received {
-            Some(self.on_frame_ready(msg, images))
+            Some(self.on_frame_ready(msg, images).0)
         } else {
             None
         }

@@ -684,7 +684,7 @@ impl<S: AppEventSender> App<S> {
 
     fn on_frame_ready(&mut self, window_id: WindowId, msg: FrameReadyMsg) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
-            let (frame_id, image, cursor_hits) = w.on_frame_ready(msg, &mut self.image_cache);
+            let ((frame_id, image, cursor_hits), focused) = w.on_frame_ready(msg, &mut self.image_cache);
 
             self.notify(Event::FrameRendered {
                 window: window_id,
@@ -692,6 +692,13 @@ impl<S: AppEventSender> App<S> {
                 frame_image: image,
                 cursor_hits,
             });
+
+            if let Some(focused) = focused {
+                self.notify(Event::Focused {
+                    window: window_id,
+                    focused,
+                });
+            }
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
 
