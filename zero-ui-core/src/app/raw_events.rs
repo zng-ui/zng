@@ -267,6 +267,11 @@ event_args! {
         /// Device that generated this event.
         pub device_id: DeviceId,
 
+        /// Positions of the cursor in between the previous event and this one.
+        ///
+        /// Cursor move events can be coalesced, i.e. multiple cursor moves packed into a single event.
+        pub coalesced_pos: Vec<DipPoint>,
+
         /// Position of the cursor over the window, (0, 0) is the top-left.
         pub position: DipPoint,
 

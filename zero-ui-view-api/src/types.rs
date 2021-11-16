@@ -686,12 +686,18 @@ pub enum Event {
     },
     /// The cursor has moved on the window.
     ///
-    /// Contains a hit-test of the point and the frame epoch that was hit.
+    /// This event can be coalesced, i.e. multiple cursor moves packed into the same event.
+    ///
+    /// Contains a hit-test of the point and the frame that was hit.
     CursorMoved {
         /// Window that received the cursor move.
         window: WindowId,
         /// Device that generated the cursor move.
         device: DeviceId,
+
+        /// Cursor positions in between the previous event and this one.
+        coalesced_pos: Vec<DipPoint>,
+
         /// Cursor position, relative to the window top-left in device independent pixels.
         position: DipPoint,
         /// Hit-test result at the new position of the cursor.

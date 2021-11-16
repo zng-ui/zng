@@ -225,6 +225,8 @@ pub(crate) struct App<S> {
     device_id_gen: DeviceId,
     devices: Vec<(DeviceId, glutin::event::DeviceId)>,
 
+    cursor_move_buffer: Option<(DeviceId, WindowId, Vec<DipPoint>)>,
+
     exited: bool,
 }
 impl<S> fmt::Debug for App<S> {
@@ -331,8 +333,6 @@ impl App<()> {
         event_loop.run(move |event, target, flow| {
             idle.exit();
 
-            let _s = tracing::trace_span!("winit-event", ?event).entered();
-
             app.window_target = target;
 
             *flow = ControlFlow::Wait;
@@ -376,7 +376,7 @@ impl App<()> {
                     },
                     GEvent::Suspended => {}
                     GEvent::Resumed => {}
-                    GEvent::MainEventsCleared => {}
+                    GEvent::MainEventsCleared => app.flush_coalesced_all(),
                     GEvent::RedrawRequested(w_id) => app.on_redraw(w_id),
                     GEvent::RedrawEventsCleared => {}
                     GEvent::LoopDestroyed => {}
@@ -384,8 +384,6 @@ impl App<()> {
             }
 
             app.window_target = std::ptr::null();
-
-            drop(_s);
 
             idle.enter();
         })
@@ -412,6 +410,7 @@ impl<S: AppEventSender> App<S> {
             monitor_id_gen: 0,
             devices: vec![],
             device_id_gen: 0,
+            cursor_move_buffer: None,
             exited: false,
         }
     }
@@ -439,6 +438,8 @@ impl<S: AppEventSender> App<S> {
         } else {
             return;
         };
+
+        let _s = tracing::trace_span!("on_window_event", ?event).entered();
 
         let id = self.windows[i].id();
         let scale_factor = self.windows[i].scale_factor();
@@ -565,15 +566,18 @@ impl<S: AppEventSender> App<S> {
                 let px_p = position.to_px();
                 let p = px_p.to_dip(scale_factor);
                 let d_id = self.device_id(device_id);
-                let (f_id, ht) = self.windows[i].hit_test(px_p);
+
                 self.windows[i].set_cursor_pos(px_p);
-                self.notify(Event::CursorMoved {
-                    window: id,
-                    device: d_id,
-                    position: p,
-                    hit_test: ht,
-                    frame: f_id,
-                });
+
+                if let Some((d, w, _)) = &mut self.cursor_move_buffer {
+                    if d_id != *d || id != *w {
+                        self.flush_coalesced_cursor();
+                    }
+                } else {
+                    self.flush_coalesced_not_cursor();
+                }
+
+                self.cursor_move_buffer.get_or_insert((d_id, id, Vec::with_capacity(20))).2.push(p);
             }
             WindowEvent::CursorEntered { device_id } => {
                 let d_id = self.device_id(device_id);
@@ -683,10 +687,12 @@ impl<S: AppEventSender> App<S> {
     }
 
     fn on_frame_ready(&mut self, window_id: WindowId, msg: FrameReadyMsg) {
+        let _s = tracing::trace_span!("on_frame_ready").entered();
+
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
             let ((frame_id, image, cursor_hits), focused) = w.on_frame_ready(msg, &mut self.image_cache);
 
-            self.notify(Event::FrameRendered {
+            let _ = self.event_sender.send(Event::FrameRendered {
                 window: window_id,
                 frame: frame_id,
                 frame_image: image,
@@ -711,7 +717,34 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
+    fn flush_coalesced_cursor(&mut self) {
+        if let Some((device, window, mut coalesced_pos)) = self.cursor_move_buffer.take() {
+            if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window) {
+                let position = coalesced_pos.pop().unwrap();
+                let pos_px = position.to_px(w.scale_factor());
+                let (frame, hit_test) = w.hit_test(pos_px);
+
+                let _ = self.event_sender.send(Event::CursorMoved {
+                    window,
+                    device,
+                    coalesced_pos,
+                    position,
+                    hit_test,
+                    frame,
+                });
+            }
+        }
+    }
+
+    fn flush_coalesced_not_cursor(&mut self) {}
+
+    fn flush_coalesced_all(&mut self) {
+        self.flush_coalesced_cursor();
+    }
+
     pub(crate) fn notify(&mut self, event: Event) {
+        self.flush_coalesced_all();
+
         if self.event_sender.send(event).is_err() {
             let _ = self.app_sender.send(AppEvent::ParentProcessExited);
         }
@@ -719,6 +752,8 @@ impl<S: AppEventSender> App<S> {
 
     fn on_device_event(&mut self, device_id: glutin::event::DeviceId, event: DeviceEvent) {
         if self.device_events {
+            let _s = tracing::trace_span!("on_device_event", ?event);
+
             let d_id = self.device_id(device_id);
             match event {
                 DeviceEvent::Added => self.notify(Event::DeviceAdded(d_id)),

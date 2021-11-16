@@ -8,6 +8,7 @@
    the event can be coalesced?
 * Slow frame upload (2ms for 2mb)?
 * Crash respawn deadlocking.
+* Initial window size not updated.
 
 # DO
 

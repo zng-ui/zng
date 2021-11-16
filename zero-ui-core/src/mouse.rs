@@ -34,6 +34,11 @@ event_args! {
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
+        /// Positions of the cursor in between the previous event and this one.
+        ///
+        /// Mouse move events can be coalesced, i.e. multiple moves packed into a single event.
+        pub coalesced_pos: Vec<DipPoint>,
+
         /// Position of the mouse in the coordinates of [`target`](MouseMoveArgs::target).
         pub position: DipPoint,
 
@@ -603,7 +608,15 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, position: DipPoint, hits: FrameHitInfo, ctx: &mut AppContext) {
+    fn on_cursor_moved(
+        &mut self,
+        window_id: WindowId,
+        device_id: DeviceId,
+        coalesced_pos: Vec<DipPoint>,
+        position: DipPoint,
+        hits: FrameHitInfo,
+        ctx: &mut AppContext,
+    ) {
         let mut moved = Some(window_id) != self.pos_window || Some(device_id) != self.pos_device;
 
         if moved {
@@ -656,6 +669,7 @@ impl MouseManager {
                 window_id,
                 device_id,
                 self.modifiers,
+                coalesced_pos,
                 position,
                 hits.clone(),
                 target.clone(),
@@ -812,6 +826,7 @@ impl AppExtension for MouseManager {
             self.on_cursor_moved(
                 args.window_id,
                 args.device_id,
+                args.coalesced_pos.clone(),
                 args.position,
                 FrameHitInfo::new(
                     args.window_id,

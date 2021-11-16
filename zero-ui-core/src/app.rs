@@ -823,35 +823,42 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
-        let mut app_event = None;
+        // 1 - Receive events.
+
+        let mut buffer = Vec::with_capacity(20);
         let mut disconnected = false;
 
         if wait_app_event {
             let _idle = tracing::debug_span!("<idle>").entered();
             if let Some(time) = self.wake_time {
                 match self.receiver.recv_deadline(time) {
-                    Ok(ev) => app_event = Some(ev),
+                    Ok(ev) => buffer.push(ev),
                     Err(e) => match e {
                         flume::RecvTimeoutError::Timeout => {
-                            tracing::debug!("TIMER-ELAPSED");
+                            tracing::debug!("timer elapsed");
                         }
                         flume::RecvTimeoutError::Disconnected => disconnected = true,
                     },
                 }
             } else {
                 match self.receiver.recv() {
-                    Ok(ev) => app_event = Some(ev),
+                    Ok(ev) => buffer.push(ev),
                     Err(e) => match e {
                         flume::RecvError::Disconnected => disconnected = true,
                     },
                 }
             }
-        } else {
+        }
+
+        loop {
             match self.receiver.try_recv() {
-                Ok(ev) => app_event = Some(ev),
+                Ok(ev) => buffer.push(ev),
                 Err(e) => match e {
-                    flume::TryRecvError::Empty => {}
-                    flume::TryRecvError::Disconnected => disconnected = true,
+                    flume::TryRecvError::Empty => break,
+                    flume::TryRecvError::Disconnected => {
+                        disconnected = true;
+                        break;
+                    }
                 },
             }
         }
@@ -860,10 +867,15 @@ impl<E: AppExtension> RunningApp<E> {
             panic!("app events channel disconnected");
         }
 
-        if let Some(ev) = app_event {
+        // 2 - Process events.
+        //
+        // Note: we buffer first so that we don't get in a state where a slow event processor
+        // permanently blocks the update cycle from happening.
+        for ev in buffer {
             self.app_event(ev, observer);
         }
 
+        // 3 - Do update cycle.
         self.update(observer)
     }
 
@@ -1022,11 +1034,12 @@ impl<E: AppExtension> RunningApp<E> {
             Event::CursorMoved {
                 window: w_id,
                 device: d_id,
+                coalesced_pos,
                 position,
                 hit_test,
                 frame,
             } => {
-                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), position, hit_test, frame);
+                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position, hit_test, frame);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
             Event::CursorEntered {
@@ -1250,13 +1263,11 @@ impl<E: AppExtension> RunningApp<E> {
     pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
         let _s = tracing::debug_span!("update-cycle").entered();
 
-        let skip_timers = self
-            .owned_ctx
-            .borrow()
-            .services
-            .get::<view_process::ViewProcess>()
-            .map(|vp| vp.pending_frames() > 0)
-            .unwrap_or(false);
+        let mut skip_timers = false;
+
+        if let Some(vp) = self.owned_ctx.borrow().services.get::<view_process::ViewProcess>() {
+            skip_timers = vp.pending_frames() > 0;
+        }
 
         let u = self.owned_ctx.apply_updates(skip_timers);
 
