@@ -528,7 +528,7 @@ impl<'a> fmt::Display for NameDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for dyn_name_key in self.1 {
             if let Some(dyn_name) = self.2.get(dyn_name_key) {
-                let dyn_name = dyn_name.trim_matches('"');
+                let dyn_name = &dyn_name[1..dyn_name.len() - 1]; // remove quotes
                 return if self.0.is_empty() || self.0.contains(".rs:") {
                     write!(f, "{}", dyn_name)
                 } else {

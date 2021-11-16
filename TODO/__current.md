@@ -1,5 +1,6 @@
 # CORE
 
+* Timer and resize updates are causing problems.
 * Implement event coalesce for high-pressure events, see
    Chrome: https://developers.google.com/web/updates/2017/06/aligning-input-events
    Firefox: https://bugzilla.mozilla.org/show_bug.cgi?id=1361067
@@ -7,7 +8,6 @@
    the event can be coalesced?
 * Slow frame upload (2ms for 2mb)?
 * Crash respawn deadlocking.
-* Timer and resize updates are causing problems.
 
 # DO
 
