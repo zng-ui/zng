@@ -18,9 +18,8 @@ fn main() {
     // the offset of the first '[' character in the comment block.
     let mut details_arg_offset = 0;
     for line in rs.lines() {
-        if line.starts_with("// do ") {
+        if let Some(task_line) = line.strip_prefix("// do ") {
             expect_details = true;
-            let task_line = &line["// do ".len()..];
             let (names, options) = parse_task_line(task_line);
             let mut names = names.into_iter();
 

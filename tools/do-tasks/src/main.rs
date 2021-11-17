@@ -7,6 +7,7 @@ fn main() {
     let (task, args) = args();
 
     match task {
+        "ra_check" => ra_check(args),
         "rust_analyzer_check" => rust_analyzer_check(args),
         "fmt" | "f" => fmt(args),
         "test" | "t" => test(args),
@@ -181,7 +182,6 @@ fn test(mut args: Vec<&str>) {
         if all_patterns.iter().any(|a| build_tests.contains(a)) {
             // all build tests.
             cmd_env("cargo", &build_tests_args, &args, &[("TRYBUILD", overwrite)]);
-            return;
         } else {
             // specific test files.
             let mut args = build_tests_args;
@@ -546,8 +546,43 @@ fn rust_analyzer_run(args: Vec<&str>) {
 }
 
 fn rust_analyzer_check(mut args: Vec<&str>) {
-    args.push("--message-format=json");
-    check(args);
+    if !settings_path().join(".rust_analyzer_disabled").exists() {
+        args.push("--message-format=json");
+        check(args);
+    }
+}
+
+// do ra_check [--on,--off]
+//    Enables or disables rust-analyzer check.
+// USAGE:
+//    ra_check --on
+//        Enables rust-analyzer check.
+//    ra_check --off
+//        Disables rust-analyzer check.
+//    ra_check
+//        Toggles rust-analyzer check.
+fn ra_check(mut args: Vec<&str>) {
+    let path = settings_path().join(".rust_analyzer_disabled");
+
+    let enable = if take_flag(&mut args, &["--on"]) {
+        true
+    } else if take_flag(&mut args, &["--off"]) {
+        false
+    } else {
+        path.exists()
+    };
+
+    if enable {
+        if let Err(e) = std::fs::remove_file(path) {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                panic!("{:?}", e)
+            }
+        }
+        println("rust-analyzer check is enabled");
+    } else {
+        let _ = std::fs::File::create(path).unwrap();
+        println("rust-analyzer check is disabled");
+    }
 }
 
 // do help, --help [task]

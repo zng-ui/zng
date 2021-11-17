@@ -1,6 +1,7 @@
 use std::env;
 use std::format_args as f;
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
 
 // Command line to run `do`
@@ -30,7 +31,7 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
 
     let mut cmd = Command::new(cmd);
     cmd.args(&args[..]);
-    cmd.envs(envs.iter().filter(|t| !t.0.is_empty() && !t.1.is_empty()).map(|&t| t));
+    cmd.envs(envs.iter().filter(|t| !t.0.is_empty() && !t.1.is_empty()).copied());
 
     for (remove, _) in envs.iter().filter(|t| !t.0.is_empty() && t.1.is_empty()) {
         cmd.env_remove(remove);
@@ -372,3 +373,7 @@ fn color(color: &str) -> &str {
     }
 }
 static mut ANSI_ENABLED: bool = false;
+
+pub fn settings_path() -> PathBuf {
+    std::env::current_exe().unwrap().parent().unwrap().to_owned()
+}

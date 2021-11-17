@@ -11,7 +11,7 @@ pub fn version_in_sync() {
     let check_file = |path| {
         let file = read_to_string(path).unwrap();
         let caps = rgx.captures(&file).unwrap_or_else(|| panic!("expected usage help in `{}`", path));
-        if caps.get(1).map(|c| c.as_str()).unwrap_or_default() != &version {
+        if caps.get(1).map(|c| c.as_str()).unwrap_or_default() != version {
             error(format_args!(
                 "usage example is outdated in `{}`\n   expected `zero-ui = \"{}\"'`\n   found    `{}`",
                 path,

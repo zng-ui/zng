@@ -9,7 +9,3 @@
 * Timer and resize updates are causing problems.
 * Slow frame upload (2ms for 2mb)?
 * Crash respawn deadlocking.
-
-# DO
-
-* Implement `rust_analyzer_check` cancellation.
