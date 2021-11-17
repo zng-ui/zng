@@ -703,10 +703,6 @@ impl Window {
     ///
     /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
     pub fn render(&mut self, frame: FrameRequest) {
-        let frame_scope =
-            tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
-
-        self.pending_frames.push_back((frame.id, frame.capture_image, Some(frame_scope)));
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let size = self.window.inner_size();
@@ -719,7 +715,10 @@ impl Window {
 
         let display_list = BuiltDisplayList::from_data(
             DisplayListPayload {
-                data: frame.display_list.0.to_vec(),
+                data: {
+                    let _s = tracing::trace_span!("IPC->Vec").entered();
+                    frame.display_list.0.to_vec()
+                },
             },
             frame.display_list.1,
         );
@@ -730,6 +729,11 @@ impl Window {
             (frame.pipeline_id, display_list),
             true,
         );
+
+        let frame_scope =
+            tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
+
+        self.pending_frames.push_back((frame.id, frame.capture_image, Some(frame_scope)));
 
         self.api.send_transaction(self.document_id, txn);
     }

@@ -2493,7 +2493,13 @@ impl AppWindow {
                 pipeline_id: frame.pipeline_id,
                 document_id: r.document_id().unwrap(),
                 clear_color: frame.clear_color,
-                display_list: (IpcSharedMemory::from_bytes(&payload.data), descriptor),
+                display_list: (
+                    {
+                        let _s = tracing::trace_span!("Vec->IPC").entered();
+                        IpcSharedMemory::from_bytes(&payload.data)
+                    },
+                    descriptor,
+                ),
                 capture_image,
             })
         } else {
@@ -2731,6 +2737,7 @@ impl OwnedWindowContext {
         renderer: &Option<ViewRenderer>,
     ) -> BuiltFrame {
         self.update.render = WindowRenderUpdate::None;
+        let _s = tracing::trace_span!("RENDER").entered();
 
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
@@ -2748,12 +2755,14 @@ impl OwnedWindowContext {
                 self.next_frame_hint,
             );
             ctx.render_context(root.id, &root.state, |ctx| {
+                let _s = tracing::trace_span!("UiNode::render").entered();
                 child.render(ctx, &mut builder);
             });
 
             builder
         });
 
+        let _s = tracing::trace_span!("FINALIZE").entered();
         let frame = builder.finalize();
         self.next_frame_hint = frame.next_frame_hint;
         frame
