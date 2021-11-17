@@ -713,6 +713,10 @@ impl Window {
         let viewport_size = size.to_px().to_wr();
 
         let mut txn = Transaction::new();
+        txn.set_root_pipeline(self.pipeline_id);
+        self.push_resize(&mut txn);
+        txn.generate_frame(frame.id.get());
+
         let display_list = BuiltDisplayList::from_data(
             DisplayListPayload {
                 data: frame.display_list.0.to_vec(),
@@ -726,11 +730,7 @@ impl Window {
             (frame.pipeline_id, display_list),
             true,
         );
-        txn.set_root_pipeline(self.pipeline_id);
 
-        self.push_resize(&mut txn);
-
-        txn.generate_frame(frame.id.get());
         self.api.send_transaction(self.document_id, txn);
     }
 

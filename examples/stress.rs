@@ -3,6 +3,7 @@ use zero_ui::core::{app::ShutdownRequestedEvent, context::WindowContext, window:
 use zero_ui::prelude::*;
 
 const PROFILE: bool = true;
+const SAME_PROCESS: bool = true;
 
 static TESTS: &[(&str, TestFn, FilterFn)] = &[("text_eq", text_eq, all_trace)];
 
@@ -45,6 +46,10 @@ fn text_eq(ctx: &mut WindowContext) -> Window {
 }
 
 fn main() {
+    if !SAME_PROCESS {
+        zero_ui_view::init();
+    }
+
     let name;
     let test;
     let filter;
@@ -72,32 +77,44 @@ fn main() {
     if PROFILE {
         let rec = examples_util::record_profile(
             format!(
-                "profile-stress-{}{}.json.gz",
+                "profile-stress-{}{}{}.json.gz",
                 name,
-                if cfg!(debug_assertions) { "-dbg" } else { "" }
+                if cfg!(debug_assertions) { "-dbg" } else { "" },
+                if SAME_PROCESS { "" } else { "-no_vp" }
             ),
             &[("stress-test", name)],
             filter,
         );
-        zero_ui_view::run_same_process(move || {
-            App::default().run_window(move |ctx| {
-                ctx.events
-                    .on_event(
-                        ShutdownRequestedEvent,
-                        app_hn_once!(|_, _| {
-                            rec.finish();
-                        }),
-                    )
-                    .permanent();
 
-                test(ctx)
+        if SAME_PROCESS {
+            zero_ui_view::run_same_process(move || {
+                App::default().run_window(move |ctx| {
+                    ctx.events
+                        .on_event(
+                            ShutdownRequestedEvent,
+                            app_hn_once!(|_, _| {
+                                rec.finish();
+                            }),
+                        )
+                        .permanent();
+
+                    test(ctx)
+                });
             });
-        });
+        } else {
+            App::default().run_window(test);
+            rec.finish();
+        }
     } else {
         examples_util::print_info();
-        zero_ui_view::run_same_process(move || {
+
+        if SAME_PROCESS {
+            zero_ui_view::run_same_process(move || {
+                App::default().run_window(test);
+            });
+        } else {
             App::default().run_window(test);
-        });
+        }
     }
 }
 
