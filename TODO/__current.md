@@ -7,5 +7,4 @@
    Let widgets tag their interest and then use the hit-test in view-process to decide if
    the event can be coalesced?
 * Timer and resize updates are causing problems.
-* Slow frame upload (2ms for 2mb)?
 * Crash respawn deadlocking.

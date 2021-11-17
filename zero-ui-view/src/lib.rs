@@ -259,7 +259,7 @@ impl App<()> {
                 Ok(app_ev) => match app_ev {
                     AppEvent::Request(request) => {
                         let response = app.respond(request);
-                        if app.response_sender.send(response).is_err() {
+                        if response.must_be_send() && app.response_sender.send(response).is_err() {
                             app.exited = true;
                             break;
                         }
@@ -357,7 +357,7 @@ impl App<()> {
                     GEvent::UserEvent(ev) => match ev {
                         AppEvent::Request(req) => {
                             let rsp = app.respond(req);
-                            if app.response_sender.send(rsp).is_err() {
+                            if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
                                 // lost connection to app-process
                                 app.exited = true;
                                 *flow = ControlFlow::Exit;
@@ -484,11 +484,15 @@ impl<S: AppEventSender> App<S> {
                                 drop(stop_redirect);
                                 self.windows[i].on_resized();
                                 let rsp = self.respond(req);
-                                let _ = self.response_sender.send(rsp);
+                                if rsp.must_be_send() {
+                                    let _ = self.response_sender.send(rsp);
+                                }
                                 break;
                             } else {
                                 let rsp = self.respond(req);
-                                let _ = self.response_sender.send(rsp);
+                                if rsp.must_be_send() {
+                                    let _ = self.response_sender.send(rsp);
+                                }
                             }
                         }
 

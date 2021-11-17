@@ -70,11 +70,24 @@ impl Request {
             if *id == window_id
         )
     }
+
+    /// Returns `true` if this request will receive a response. Only [`Api`] methods
+    /// that have a return value send back a response.
+    pub fn expect_response(&self) -> bool {
+        self.0.expect_response()
+    }
 }
 
 /// Packaged API response.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Response(ResponseData);
+impl Response {
+    /// If this response must be send back to the app process. Only [`Api`] methods
+    /// that have a return value send back a response.
+    pub fn must_be_send(&self) -> bool {
+        self.0.must_be_send()
+    }
+}
 
 macro_rules! TypeOrNil {
     ($T:ty) => {
@@ -82,6 +95,15 @@ macro_rules! TypeOrNil {
     };
     () => {
         ()
+    };
+}
+
+macro_rules! type_is_some {
+    (if $T:ty { $($t_true:tt)* } else { $($t_false:tt)* }) => {
+        $($t_true)*
+    };
+    (if { $($t_true:tt)* } else { $($t_false:tt)* }) => {
+        $($t_false)*
     };
 }
 
@@ -107,6 +129,23 @@ macro_rules! declare_api {
                 $(#[$meta])*
                 $method { $($input: $RequestType),* },
             )*
+        }
+        impl RequestData {
+            #[allow(unused_doc_comments)]
+            pub fn expect_response(&self) -> bool {
+                match self {
+                    $(
+                        $(#[$meta])*
+                        Self::$method { .. } => type_is_some! {
+                            if $($ResponseType)? {
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                    )*
+                }
+            }
         }
         impl fmt::Debug for RequestData {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -138,6 +177,23 @@ macro_rules! declare_api {
                 $method(TypeOrNil![$($ResponseType)?]),
             )*
         }
+        impl ResponseData {
+            #[allow(unused_doc_comments)]
+            pub fn must_be_send(&self) -> bool {
+                match self {
+                    $(
+                        $(#[$meta])*
+                        Self::$method(_) => type_is_some! {
+                            if $($ResponseType)? {
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                    )*
+                }
+            }
+        }
 
         #[allow(unused_parens)]
         impl Controller {
@@ -145,9 +201,16 @@ macro_rules! declare_api {
                 $(#[$meta])*
                 #[allow(clippy::too_many_arguments)]
                 $vis fn $method(&mut self $(, $input: $RequestType)*) -> VpResult<TypeOrNil![$($ResponseType)?]> {
-                    match self.talk(Request(RequestData::$method { $($input),* }))?.0 {
-                        ResponseData::$method(r) => Ok(r),
-                        _ => panic!("view-process did not respond correctly")
+                    let req = Request(RequestData::$method { $($input),* });
+                    type_is_some! {
+                        if $($ResponseType)? {
+                            match self.talk(req)?.0 {
+                                ResponseData::$method(r) => Ok(r),
+                                r => panic!("view-process did not respond correctly for `{}`, {:?}", stringify!($method), r)
+                            }
+                        } else {
+                            self.command(req)
+                        }
                     }
                 }
             )*

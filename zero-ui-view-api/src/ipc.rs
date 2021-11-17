@@ -130,7 +130,14 @@ impl RequestReceiver {
 pub struct ResponseSender(IpcSender<Response>);
 impl ResponseSender {
     /// Send a response.
+    ///
+    /// # Panics
+    ///
+    /// If the `rsp` is not [`must_be_send`].
+    ///
+    /// [`must_be_send`]: Response::must_be_send
     pub fn send(&mut self, rsp: Response) -> IpcResult<()> {
+        assert!(rsp.must_be_send());
         self.0.send(rsp).map_err(handle_send_error)
     }
 }

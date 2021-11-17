@@ -132,15 +132,28 @@ impl Controller {
         self.request_sender.send(req)?;
         self.response_receiver.recv()
     }
-
     pub(crate) fn talk(&mut self, req: Request) -> VpResult<Response> {
+        debug_assert!(req.expect_response());
+
         match self.try_talk(req) {
-            Ok(r) => return Ok(r),
+            Ok(r) => Ok(r),
             Err(ipc::Disconnected) => {
                 self.handle_disconnect(self.generation);
+                Err(Respawned)
             }
         }
-        Err(Respawned)
+    }
+
+    pub(crate) fn command(&mut self, req: Request) -> VpResult<()> {
+        debug_assert!(!req.expect_response());
+
+        match self.request_sender.send(req) {
+            Ok(_) => Ok(()),
+            Err(ipc::Disconnected) => {
+                self.handle_disconnect(self.generation);
+                Err(Respawned)
+            }
+        }
     }
 
     fn spawn_view_process(
