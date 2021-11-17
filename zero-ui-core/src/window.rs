@@ -10,9 +10,9 @@ use std::{
 };
 
 use linear_map::LinearMap;
-use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest};
+use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest, IpcSharedMemory};
 
-pub use crate::app::view_process::{ByteBuf, CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
+pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
 
 use crate::{
     app::{
@@ -2493,7 +2493,7 @@ impl AppWindow {
                 pipeline_id: frame.pipeline_id,
                 document_id: r.document_id().unwrap(),
                 clear_color: frame.clear_color,
-                display_list: (ByteBuf::from(payload.data), descriptor),
+                display_list: (IpcSharedMemory::from_bytes(&payload.data), descriptor),
                 capture_image,
             })
         } else {

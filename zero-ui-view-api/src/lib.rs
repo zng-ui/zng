@@ -386,7 +386,7 @@ declare_api! {
     /// Add a raw font resource to the window renderer.
     ///
     /// Returns the new font key.
-    pub fn add_font(&mut self, id: WindowId, bytes: ByteBuf, index: u32) -> FontKey;
+    pub fn add_font(&mut self, id: WindowId, bytes: IpcSharedMemory, index: u32) -> FontKey;
 
     /// Delete the font resource in the window renderer.
     pub fn delete_font(&mut self, id: WindowId, key: FontKey);

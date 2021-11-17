@@ -1203,7 +1203,7 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
     }
 
-    fn add_font(&mut self, id: WindowId, bytes: ByteBuf, index: u32) -> FontKey {
+    fn add_font(&mut self, id: WindowId, bytes: IpcSharedMemory, index: u32) -> FontKey {
         with_window_or_surface!(self, id, |w| w.add_font(bytes.to_vec(), index), || FontKey(IdNamespace(0), 0))
     }
 

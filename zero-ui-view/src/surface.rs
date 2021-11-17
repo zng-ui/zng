@@ -286,7 +286,7 @@ impl Surface {
         let mut txn = Transaction::new();
         let display_list = BuiltDisplayList::from_data(
             DisplayListPayload {
-                data: frame.display_list.0.into_vec(),
+                data: frame.display_list.0.to_vec(),
             },
             frame.display_list.1,
         );

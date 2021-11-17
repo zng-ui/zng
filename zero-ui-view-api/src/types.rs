@@ -2,7 +2,6 @@ use crate::units::*;
 use crate::IpcSharedMemory;
 use bitflags::*;
 use serde::{Deserialize, Serialize};
-pub use serde_bytes::ByteBuf;
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
 use webrender_api::*;
@@ -1016,7 +1015,7 @@ pub struct FrameRequest {
     pub clear_color: ColorF,
 
     /// Display list, split in serializable parts.
-    pub display_list: (ByteBuf, BuiltDisplayListDescriptor),
+    pub display_list: (IpcSharedMemory, BuiltDisplayListDescriptor),
 
     /// Automatically create an image from this rendered frame.
     ///

@@ -23,7 +23,7 @@ use zero_ui_view_api::webrender_api::{
     ImageKey, PipelineId,
 };
 pub use zero_ui_view_api::{
-    bytes_channel, ByteBuf, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat, ImagePpi,
+    bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat, ImagePpi,
     IpcBytesReceiver, IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowOpenData,
     WindowRequest, WindowState, WindowTheme,
 };
@@ -1072,7 +1072,7 @@ impl ViewRenderer {
     ///
     /// Returns the new font key.
     pub fn add_font(&self, bytes: Vec<u8>, index: u32) -> Result<FontKey> {
-        self.call(|id, p| p.add_font(id, ByteBuf::from(bytes), index))
+        self.call(|id, p| p.add_font(id, IpcSharedMemory::from_bytes(&bytes), index))
     }
 
     /// Delete the font resource in the window renderer.
