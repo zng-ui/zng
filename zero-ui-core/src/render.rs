@@ -180,7 +180,10 @@ impl FrameBuilder {
             pipeline_id,
             renderer,
             scale_factor,
-            display_list: DisplayListBuilder::with_capacity(pipeline_id, hint.data_capacity),
+            display_list: {
+                let _s = tracing::trace_span!("ALLOC").entered();
+                DisplayListBuilder::with_capacity(pipeline_id, hint.data_capacity)
+            },
             clear_color: None,
             info_id: info.root_id(),
             info,

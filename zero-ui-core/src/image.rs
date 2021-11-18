@@ -14,7 +14,7 @@ use std::{
 
 use hashers::jenkins::spooky_hash::SpookyHasher;
 use once_cell::unsync::OnceCell;
-use zero_ui_view_api::{webrender_api::ImageKey, IpcSharedMemory};
+use zero_ui_view_api::{webrender_api::ImageKey, IpcBytes};
 
 use crate::{
     app::{
@@ -273,7 +273,7 @@ pub struct Images {
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
     loading: Vec<(UiTask<ImageData>, RcVar<Image>, ByteLength)>,
-    decoding: Vec<(ImageDataFormat, IpcSharedMemory, RcVar<Image>)>,
+    decoding: Vec<(ImageDataFormat, IpcBytes, RcVar<Image>)>,
     cache: IdMap<Hash128, CacheEntry>,
     not_cached: Vec<(WeakVar<Image>, ByteLength)>,
 }
@@ -583,7 +583,7 @@ impl Images {
 
                 let mut data = vec![0; len]; // TODO can we trust the metadata length?
                 r.r = match file.read_exact(&mut data).await {
-                    Ok(_) => Ok(IpcSharedMemory::from_bytes(&data)),
+                    Ok(_) => Ok(IpcBytes::from_vec(data)),
                     Err(e) => Err(e.to_string()),
                 };
 
@@ -623,7 +623,7 @@ impl Images {
                                     if d.len().bytes() > limits.max_encoded_size {
                                         r.r = Err(format!("download exceeded the limit of `{}`", limits.max_encoded_size));
                                     } else {
-                                        r.r = Ok(IpcSharedMemory::from_bytes(&d))
+                                        r.r = Ok(IpcBytes::from_vec(d))
                                     }
                                 }
                                 Err(e) => {
@@ -644,14 +644,14 @@ impl Images {
             ImageSource::Static(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
-                    r: Ok(IpcSharedMemory::from_bytes(bytes)),
+                    r: Ok(IpcBytes::from_slice(bytes)),
                 };
                 self.load_task(key, mode, limits, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
-                    r: Ok(IpcSharedMemory::from_bytes(&bytes)),
+                    r: Ok(IpcBytes::from_slice(&bytes)),
                 };
                 self.load_task(key, mode, limits, async { r })
             }
@@ -766,7 +766,7 @@ impl Default for ImageLimits {
 
 struct ImageData {
     format: ImageDataFormat,
-    r: std::result::Result<IpcSharedMemory, String>,
+    r: std::result::Result<IpcBytes, String>,
 }
 
 /// A custom proxy in [`Images`].

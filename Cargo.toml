@@ -10,6 +10,12 @@ readme = "README.md"
 path = "zero-ui/lib.rs"
 
 [features]
+default = ["ipc"]
+
+# Enables pre-build views and connecting to views running in another process.
+# 
+# Enabled by default.
+ipc = ["zero-ui-core/ipc", "zero-ui-view/ipc"]
 # # Other Features
 #
 # ## `doc_nightly`
@@ -24,7 +30,7 @@ path = "zero-ui/lib.rs"
 
 [dependencies]
 # local
-zero-ui-core = { path = "zero-ui-core" }
+zero-ui-core = { path = "zero-ui-core", default-features = false }
 
 # util
 paste = "1"
@@ -42,8 +48,8 @@ meval = "0.2"
 trybuild = "1"
 image = "0.23"
 # enable test util
-zero-ui-core = { path = "zero-ui-core", features = ["test_util"] }
-zero-ui-view = { path = "zero-ui-view" }
+zero-ui-core = { path = "zero-ui-core", default-features = false, features = ["test_util"] }
+zero-ui-view = { path = "zero-ui-view", default-features = false }
 zero-ui-view-prebuilt = { path = "zero-ui-view-prebuilt" }
 examples-util = { path = "examples/util" }
 

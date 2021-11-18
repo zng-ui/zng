@@ -1,5 +1,5 @@
 use crate::units::*;
-use crate::IpcSharedMemory;
+use crate::IpcBytes;
 use bitflags::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -798,7 +798,7 @@ pub enum Event {
         opaque: bool,
         /// Updated BGRA8 pre-multiplied pixel buffer. This includes all the pixels
         /// decoded so-far.
-        partial_bgra8: IpcSharedMemory,
+        partial_bgra8: IpcBytes,
     },
     /// An image resource failed to decode, the image ID is not valid.
     ImageLoadError {
@@ -1015,7 +1015,7 @@ pub struct FrameRequest {
     pub clear_color: ColorF,
 
     /// Display list, split in serializable parts.
-    pub display_list: (IpcSharedMemory, BuiltDisplayListDescriptor),
+    pub display_list: (IpcBytes, BuiltDisplayListDescriptor),
 
     /// Automatically create an image from this rendered frame.
     ///
@@ -1343,7 +1343,7 @@ pub struct ImageLoadedData {
     /// If all pixels have an alpha value of 255.
     pub opaque: bool,
     /// Reference to the BGRA8 pre-multiplied image pixels.
-    pub bgra8: IpcSharedMemory,
+    pub bgra8: IpcBytes,
 }
 impl fmt::Debug for ImageLoadedData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -28,6 +28,7 @@ use units::{DipPoint, DipSize, Px, PxPoint, PxRect};
 #[doc(inline)]
 pub use webrender_api;
 
+#[cfg(feature = "ipc")]
 use serde::{Deserialize, Serialize};
 
 /// The *App Process* and *View Process* must be build using the same exact version and this is
@@ -51,7 +52,8 @@ pub use view_process::*;
 use webrender_api::{DocumentId, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
 
 /// Packaged API request.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", derive(Serialize, Deserialize))]
 pub struct Request(RequestData);
 impl Request {
     /// Returns `true` if the request represents a new frame or frame update for the window.
@@ -79,7 +81,8 @@ impl Request {
 }
 
 /// Packaged API response.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", derive(Serialize, Deserialize))]
 pub struct Response(ResponseData);
 impl Response {
     /// If this response must be send back to the app process. Only [`Api`] methods
@@ -120,7 +123,7 @@ macro_rules! declare_api {
             ) $(-> $ResponseType:ty)?;
         )*
     ) => {
-        #[derive(Serialize, Deserialize)]
+        #[cfg_attr(feature="ipc", derive(Serialize, Deserialize))]
         #[allow(non_camel_case_types)]
         #[allow(clippy::large_enum_variant)]
         #[repr(u32)]
@@ -168,7 +171,8 @@ macro_rules! declare_api {
             }
         }
 
-        #[derive(Debug, Serialize, Deserialize)]
+        #[derive(Debug)]
+        #[cfg_attr(feature="ipc", derive(Serialize, Deserialize))]
         #[allow(non_camel_case_types)]
         #[repr(u32)]
         enum ResponseData {
@@ -384,7 +388,7 @@ declare_api! {
     /// this will register the image data with the renderer.
     ///
     /// [`use_image`]: Api::use_image
-    pub fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory, max_decoded_size: u64) -> ImageId;
+    pub fn add_image(&mut self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> ImageId;
 
     /// Cache an image from data that has not fully loaded.
     ///
@@ -449,7 +453,7 @@ declare_api! {
     /// Add a raw font resource to the window renderer.
     ///
     /// Returns the new font key.
-    pub fn add_font(&mut self, id: WindowId, bytes: IpcSharedMemory, index: u32) -> FontKey;
+    pub fn add_font(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontKey;
 
     /// Delete the font resource in the window renderer.
     pub fn delete_font(&mut self, id: WindowId, key: FontKey);

@@ -5,11 +5,20 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+default = ["ipc"]
+
+# Enables creation of separate or pre-build view, enabled by default.
+#
+# When this is enabled communication with the view is (de)serialized which can add a 
+# minor cost, something like a 1ms per 3MB frame request.
+ipc = ["ipc-channel", "duct"]
+
 [dependencies]
 webrender_api = { path = "../dependencies/webrender/webrender_api" }
 serde = { version = "1.0", features = ["derive"] }
-ipc-channel = "0.15"
-duct = "0.13"
+ipc-channel = { version = "0.15", optional = true }
+duct = { version = "0.13", optional = true }
 
 tracing = "0.1"
 flume = { version = "0.10", default-features  = false }

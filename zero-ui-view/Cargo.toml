@@ -5,11 +5,19 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+default = ["ipc"]
+
+# Enables pre-build and init as view-process.
+#
+# Enabled by default.
+ipc = ["zero-ui-view-api/ipc"]
+
 [lib]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-zero-ui-view-api = { path = "../zero-ui-view-api" }
+zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 webrender = { path = "../dependencies/webrender/webrender" }
 tracing = "0.1"
 gleam = "0.13.1"

@@ -1,3 +1,5 @@
+#![cfg_attr(doc_nightly, feature(doc_cfg))]
+
 //! View-Process implementation using [`glutin`].
 //!
 //! This backend supports both headed and headless apps
@@ -109,6 +111,8 @@ use zero_ui_view_api::{units::*, *};
 /// Panics if not called in the main thread, this is a requirement of OpenGL.
 ///
 /// If there was an error connecting with the app-process.
+#[cfg(feature = "ipc")]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "ipc")))]
 pub fn init() {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("only call `init` in the main thread, this is a requirement of OpenGL");
@@ -127,6 +131,7 @@ pub fn init() {
     }
 }
 
+#[cfg(feature = "ipc")]
 #[doc(hidden)]
 #[no_mangle]
 pub extern "C" fn extern_init() {
@@ -191,6 +196,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     }
 }
 
+#[cfg(feature = "ipc")]
 #[doc(hidden)]
 #[no_mangle]
 pub extern "C" fn extern_run_same_process(run_app: extern "C" fn()) -> ! {
@@ -1173,7 +1179,7 @@ impl<S: AppEventSender> Api for App<S> {
         image_cache::ENCODERS.iter().map(|&s| s.to_owned()).collect()
     }
 
-    fn add_image(&mut self, format: ImageDataFormat, data: IpcSharedMemory, max_decoded_size: u64) -> ImageId {
+    fn add_image(&mut self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> ImageId {
         self.image_cache.add(format, data, max_decoded_size)
     }
 
@@ -1207,7 +1213,7 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
     }
 
-    fn add_font(&mut self, id: WindowId, bytes: IpcSharedMemory, index: u32) -> FontKey {
+    fn add_font(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontKey {
         with_window_or_surface!(self, id, |w| w.add_font(bytes.to_vec(), index), || FontKey(IdNamespace(0), 0))
     }
 

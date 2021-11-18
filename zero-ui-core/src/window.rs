@@ -10,7 +10,7 @@ use std::{
 };
 
 use linear_map::LinearMap;
-use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest, IpcSharedMemory};
+use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest, IpcBytes};
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
 
@@ -2495,8 +2495,8 @@ impl AppWindow {
                 clear_color: frame.clear_color,
                 display_list: (
                     {
-                        let _s = tracing::trace_span!("Vec->IPC").entered();
-                        IpcSharedMemory::from_bytes(&payload.data)
+                        let _s = tracing::trace_span!("Vec->IPC", ipc = cfg!(feature = "ipc")).entered();
+                        IpcBytes::from_vec(payload.data)
                     },
                     descriptor,
                 ),

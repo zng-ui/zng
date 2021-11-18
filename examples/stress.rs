@@ -47,7 +47,13 @@ fn text_eq(ctx: &mut WindowContext) -> Window {
 
 fn main() {
     if !SAME_PROCESS {
+        #[cfg(feature = "ipc")]
         zero_ui_view::init();
+
+        #[cfg(not(feature = "ipc"))]
+        {
+            panic!("only `SAME_PROCESS` supported with feature `ipc` disabled");
+        }
     }
 
     let name;
@@ -77,10 +83,11 @@ fn main() {
     if PROFILE {
         let rec = examples_util::record_profile(
             format!(
-                "profile-stress-{}{}{}.json.gz",
+                "profile-stress-{}{}{}{}.json.gz",
                 name,
                 if cfg!(debug_assertions) { "-dbg" } else { "" },
-                if SAME_PROCESS { "" } else { "-no_vp" }
+                if SAME_PROCESS { "" } else { "-no_vp" },
+                if cfg!(feature = "ipc") { "-ipc" } else { "" },
             ),
             &[("stress-test", name)],
             filter,

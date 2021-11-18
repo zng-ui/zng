@@ -23,9 +23,9 @@ use zero_ui_view_api::webrender_api::{
     ImageKey, PipelineId,
 };
 pub use zero_ui_view_api::{
-    bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat, ImagePpi,
-    IpcBytesReceiver, IpcBytesSender, IpcSharedMemory, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowOpenData,
-    WindowRequest, WindowState, WindowTheme,
+    bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat, ImagePpi, IpcBytes,
+    IpcBytesReceiver, IpcBytesSender, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowOpenData, WindowRequest,
+    WindowState, WindowTheme,
 };
 use zero_ui_view_api::{
     Controller, DeviceId as ApiDeviceId, DocumentRequest, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
@@ -241,7 +241,7 @@ impl ViewProcess {
     ///
     /// This function returns immediately, the [`ViewImage`] will update when
     /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
-    pub fn add_image(&self, format: ImageDataFormat, data: IpcSharedMemory, max_decoded_size: u64) -> Result<ViewImage> {
+    pub fn add_image(&self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> Result<ViewImage> {
         let mut app = self.0.borrow_mut();
         let id = app.process.add_image(format, data, max_decoded_size)?;
         let img = ViewImage(Rc::new(ImageConnection {
@@ -332,7 +332,7 @@ impl ViewProcess {
         partial_size: PxSize,
         ppi: ImagePpi,
         opaque: bool,
-        partial_bgra8: IpcSharedMemory,
+        partial_bgra8: IpcBytes,
     ) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
             let app = self.0.borrow();
@@ -448,8 +448,8 @@ struct ImageConnection {
     ppi: Cell<ImagePpi>,
     opaque: Cell<bool>,
 
-    partial_bgra8: RefCell<Option<IpcSharedMemory>>,
-    bgra8: OnceCell<std::result::Result<IpcSharedMemory, String>>,
+    partial_bgra8: RefCell<Option<IpcBytes>>,
+    bgra8: OnceCell<std::result::Result<IpcBytes, String>>,
 
     done_signal: SignalOnce,
 }
@@ -582,7 +582,7 @@ impl ViewImage {
 
     /// Clone the reference to the inter-process shared memory that contains
     /// the image BGRA8 pixel buffer.
-    pub fn shared_bgra8(&self) -> Option<IpcSharedMemory> {
+    pub fn shared_bgra8(&self) -> Option<IpcBytes> {
         self.0.bgra8.get().and_then(|r| r.as_ref().ok()).cloned()
     }
 
@@ -615,8 +615,7 @@ impl ViewImage {
         if let Some(e) = error {
             bgra8.set(Err(e)).unwrap();
         } else {
-            // not zero-sized due to issue: TODO
-            bgra8.set(Ok(IpcSharedMemory::from_byte(0, 1))).unwrap();
+            bgra8.set(Ok(IpcBytes::from_slice(&[]))).unwrap();
         }
 
         ViewImage(Rc::new(ImageConnection {
@@ -1072,7 +1071,7 @@ impl ViewRenderer {
     ///
     /// Returns the new font key.
     pub fn add_font(&self, bytes: Vec<u8>, index: u32) -> Result<FontKey> {
-        self.call(|id, p| p.add_font(id, IpcSharedMemory::from_bytes(&bytes), index))
+        self.call(|id, p| p.add_font(id, IpcBytes::from_vec(bytes), index))
     }
 
     /// Delete the font resource in the window renderer.

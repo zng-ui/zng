@@ -4,7 +4,7 @@ use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use zero_ui_view_api::{
     units::{Px, PxSize},
-    Event, ImageDataFormat, ImageId, ImageLoadedData, ImagePpi, IpcBytesReceiver, IpcSharedMemory,
+    Event, ImageDataFormat, ImageId, ImageLoadedData, ImagePpi, IpcBytes, IpcBytesReceiver,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -28,7 +28,7 @@ impl<S: AppEventSender> ImageCache<S> {
         }
     }
 
-    pub fn add(&mut self, format: ImageDataFormat, data: IpcSharedMemory, max_decoded_size: u64) -> ImageId {
+    pub fn add(&mut self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> ImageId {
         let id = self.generate_image_id();
 
         let app_sender = self.app_sender.clone();
@@ -169,7 +169,7 @@ impl<S: AppEventSender> ImageCache<S> {
                     }
                 }
             } else if !is_encoded {
-                let bgra8 = IpcSharedMemory::from_bytes(&full);
+                let bgra8 = IpcBytes::from_vec(full);
                 let opaque = bgra8.chunks_exact(4).all(|c| c[3] == 255);
                 let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
                     id,
@@ -378,7 +378,7 @@ impl<S: AppEventSender> ImageCache<S> {
         };
 
         (
-            IpcSharedMemory::from_bytes(&bgra),
+            IpcBytes::from_vec(bgra),
             PxSize::new(Px(size.0 as i32), Px(size.1 as i32)),
             None,
             opaque,
@@ -421,10 +421,10 @@ impl<S: AppEventSender> ImageCache<S> {
     }
 }
 
-type RawLoadedImg = (IpcSharedMemory, PxSize, ImagePpi, bool);
+type RawLoadedImg = (IpcBytes, PxSize, ImagePpi, bool);
 struct ImageData {
     size: PxSize,
-    bgra8: IpcSharedMemory,
+    bgra8: IpcBytes,
     descriptor: ImageDescriptor,
     ppi: ImagePpi,
 }
@@ -458,7 +458,7 @@ impl Image {
             None
         } else if width > 255 || height > 255 {
             // resize to max 255
-            let img = image::ImageBuffer::from_raw(width, height, self.0.bgra8.to_vec()).unwrap();
+            let img = image::ImageBuffer::from_raw(width, height, self.0.bgra8.as_ref().to_vec()).unwrap();
             let img = image::DynamicImage::ImageBgra8(img);
             img.resize(255, 255, image::imageops::FilterType::Triangle);
 
@@ -467,7 +467,7 @@ impl Image {
             let buf = img.to_rgba8().into_raw();
             glutin::window::Icon::from_rgba(buf, width, height).ok()
         } else {
-            let mut buf = self.0.bgra8.to_vec();
+            let mut buf = self.0.bgra8.as_ref().to_vec();
             // BGRA to RGBA
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
             glutin::window::Icon::from_rgba(buf, width, height).ok()
@@ -746,7 +746,7 @@ mod capture {
     };
     use zero_ui_view_api::{
         units::{Px, PxRect, PxSize, PxToWr, WrToPx},
-        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, IpcSharedMemory, WindowId,
+        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, IpcBytes, WindowId,
     };
 
     use crate::{
@@ -842,7 +842,9 @@ mod capture {
                     renderer.release_profiler_structures();
                 }
 
-                let data = IpcSharedMemory::from_bytes(&buf);
+                let opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
+
+                let data = IpcBytes::from_vec(buf);
                 let ppi = 96.0 * scale_factor;
                 let ppi = Some((ppi, ppi));
                 let id = self.add(
@@ -853,7 +855,7 @@ mod capture {
                     data.clone(),
                     u64::MAX,
                 );
-                let opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
+
                 let size = s.to_px();
 
                 ImageLoadedData {

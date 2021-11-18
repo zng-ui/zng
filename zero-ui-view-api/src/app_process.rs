@@ -2,13 +2,21 @@ use std::{
     panic,
     path::{Path, PathBuf},
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::Instant,
 };
+
+#[cfg(feature = "ipc")]
+use std::time::Duration;
 
 use crate::{ipc, AnyResult, Event, Request, Respawned, Response, ViewConfig, ViewProcessGen, VpResult};
 
 /// The listener returns the closure on join for reuse in respawn.
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Event) + Send>>;
+
+#[cfg(feature = "ipc")]
+type DuctHandle = duct::Handle;
+#[cfg(not(feature = "ipc"))]
+struct DuctHandle;
 
 pub(crate) const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
 pub(crate) const MODE_VAR: &str = "ZERO_UI_WR_MODE";
@@ -22,8 +30,9 @@ pub(crate) const MODE_VAR: &str = "ZERO_UI_WR_MODE";
 ///
 /// [killed]: std::process::Child::kill
 /// [exits]: std::process::exit
+#[cfg_attr(not(feature = "ipc"), allow(unused))]
 pub struct Controller {
-    process: Option<duct::Handle>,
+    process: Option<DuctHandle>,
     generation: ViewProcessGen,
     view_process_exe: PathBuf,
     request_sender: ipc::RequestSender,
@@ -159,7 +168,7 @@ impl Controller {
     fn spawn_view_process(
         view_process_exe: &Path,
         headless: bool,
-    ) -> AnyResult<(Option<duct::Handle>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EventReceiver)> {
+    ) -> AnyResult<(Option<DuctHandle>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EventReceiver)> {
         let init = ipc::AppInit::new();
 
         // create process and spawn it, unless is running in same process mode.
@@ -170,20 +179,30 @@ impl Controller {
             });
             None
         } else {
-            let process = duct::cmd!(view_process_exe)
-                .env(SERVER_NAME_VAR, init.name())
-                .env(MODE_VAR, if headless { "headless" } else { "headed" })
-                .env("RUST_BACKTRACE", "full")
-                .stdout_capture()
-                .stderr_capture()
-                .unchecked()
-                .start()?;
-            Some(process)
+            #[cfg(not(feature = "ipc"))]
+            {
+                let _ = view_process_exe;
+                panic!("expected only same_process mode with `ipc` feature disabled");
+            }
+
+            #[cfg(feature = "ipc")]
+            {
+                let process = duct::cmd!(view_process_exe)
+                    .env(SERVER_NAME_VAR, init.name())
+                    .env(MODE_VAR, if headless { "headless" } else { "headed" })
+                    .env("RUST_BACKTRACE", "full")
+                    .stdout_capture()
+                    .stderr_capture()
+                    .unchecked()
+                    .start()?;
+                Some(process)
+            }
         };
 
         let (req, rsp, ev) = match init.connect() {
             Ok(r) => r,
             Err(e) => {
+                #[cfg(feature = "ipc")]
                 if let Some(p) = process {
                     if let Err(ke) = p.kill() {
                         tracing::error!(
@@ -221,8 +240,16 @@ impl Controller {
     /// If another disconnect happens during the view-process startup dialog.
     pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
         if gen == self.generation {
-            tracing::error!(target: "vp_respawn", "channel disconnect, will try respawn");
-            self.respawn_impl(false)
+            #[cfg(not(feature = "ipc"))]
+            {
+                tracing::error!(target: "vp_respawn", "cannot recover in same_process mode (no ipc)");
+            }
+
+            #[cfg(feature = "ipc")]
+            {
+                tracing::error!(target: "vp_respawn", "channel disconnect, will try respawn");
+                self.respawn_impl(false)
+            }
         }
     }
 
@@ -233,8 +260,15 @@ impl Controller {
     ///
     /// [`handle_disconnect`]: Controller::handle_disconnect
     pub fn respawn(&mut self) {
+        #[cfg(not(feature = "ipc"))]
+        {
+            tracing::error!(target: "vp_respawn", "cannot recover in same_process mode (no ipc)");
+        }
+
+        #[cfg(feature = "ipc")]
         self.respawn_impl(true);
     }
+    #[cfg(feature = "ipc")]
     fn respawn_impl(&mut self, is_respawn: bool) {
         let process = if let Some(p) = self.process.take() {
             p
@@ -385,6 +419,7 @@ impl Drop for Controller {
     /// Kills the View Process, unless it is running in the same process.
     fn drop(&mut self) {
         let _ = self.exit();
+        #[cfg(feature = "ipc")]
         if let Some(process) = self.process.take() {
             let _ = process.kill();
         }

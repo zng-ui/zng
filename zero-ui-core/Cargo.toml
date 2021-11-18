@@ -6,6 +6,13 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
+default = ["ipc"]
+
+# Enables pre-build views and connecting to views running in another process.
+# 
+# Enabled by default.
+ipc = ["zero-ui-view-api/ipc"]
+
 # like cfg(test) but also visible in docs and integration tests.
 #
 # USAGE:
@@ -32,7 +39,7 @@ test_util = []
 [dependencies]
 # local
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
-zero-ui-view-api = { path = "../zero-ui-view-api" }
+zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 
 # text
 font-kit = "0.10"
