@@ -4,8 +4,9 @@ use gleam::gl;
 use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, Api as GApi, ContextBuilder, GlRequest};
 use webrender::{
     api::{
-        BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey,
-        FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier, ScrollClamping,
+        BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
+        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier,
+        ScrollClamping,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
@@ -284,6 +285,13 @@ impl Surface {
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let mut txn = Transaction::new();
+        txn.reset_dynamic_properties();
+        txn.append_dynamic_properties(DynamicProperties {
+            transforms: vec![],
+            floats: vec![],
+            colors: vec![],
+        });
+
         let display_list = BuiltDisplayList::from_data(
             DisplayListPayload {
                 items_data: frame.display_list.0.to_vec(),
@@ -315,6 +323,7 @@ impl Surface {
 
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
+        txn.reset_dynamic_properties();
         txn.append_dynamic_properties(frame.updates);
         for (scroll_id, offset) in frame.scroll_updates {
             txn.scroll_node_with_id(offset.to_point().to_wr(), scroll_id, ScrollClamping::NoClamping);

@@ -2531,6 +2531,7 @@ impl AppWindow {
 
         if let Some(pending) = &mut self.pending_render {
             *pending = WindowRenderUpdate::Render;
+            self.context.update.render = WindowRenderUpdate::None;
             return;
         }
 
@@ -2555,6 +2556,7 @@ impl AppWindow {
 
         if let Some(pending) = &mut self.pending_render {
             *pending |= WindowRenderUpdate::RenderUpdate;
+            self.context.update.render = WindowRenderUpdate::None;
             return;
         }
 
@@ -2735,6 +2737,7 @@ impl OwnedWindowContext {
         scale_factor: Factor,
         renderer: &Option<ViewRenderer>,
     ) -> BuiltFrame {
+        debug_assert!(self.update.render.is_render());
         self.update.render = WindowRenderUpdate::None;
         let _s = tracing::trace_span!("RENDER").entered();
 
@@ -2769,6 +2772,7 @@ impl OwnedWindowContext {
 
     fn render_update(&mut self, ctx: &mut AppContext, frame_id: FrameId, clear_color: RenderColor) -> BuiltFrameUpdate {
         debug_assert!(self.update.render.is_render_update());
+
         self.update.render = WindowRenderUpdate::None;
 
         let root = &self.root;

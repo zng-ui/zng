@@ -20,8 +20,9 @@ use glutin::{
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{
-        ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions,
-        FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId, RenderNotifier, ScrollClamping,
+        ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
+        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
+        RenderNotifier, ScrollClamping,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
@@ -721,6 +722,13 @@ impl Window {
             },
             frame.display_list.3,
         );
+        txn.reset_dynamic_properties();
+        txn.append_dynamic_properties(DynamicProperties {
+            transforms: vec![],
+            floats: vec![],
+            colors: vec![],
+        });
+
         txn.set_display_list(
             frame.id.epoch(),
             Some(frame.clear_color),
@@ -744,6 +752,8 @@ impl Window {
         }
 
         let mut txn = Transaction::new();
+
+        txn.reset_dynamic_properties();
 
         txn.set_root_pipeline(self.pipeline_id);
         txn.append_dynamic_properties(frame.updates);
