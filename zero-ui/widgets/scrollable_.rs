@@ -558,7 +558,7 @@ pub mod scrollbar {
 #[widget($crate::widgets::scrollable::scrollbar::thumb)]
 pub mod thumb {
     use super::*;
-    use crate::core::render::webrender_api::PrimitiveFlags;
+    use crate::core::{mouse::*, render::webrender_api::PrimitiveFlags};
 
     properties! {
         /// Scrollbar orientation.
@@ -612,6 +612,57 @@ pub mod thumb {
                 }
             ),
         )
+    }
+
+    fn new_outer(child: impl UiNode) -> impl UiNode {
+        struct DragNode<C> {
+            child: C,
+            start: Option<DipPoint>,
+            offset: DipVector,
+            spatial_id: SpatialFrameId,
+        }
+        #[impl_ui_node(child)]
+        impl<C: UiNode> UiNode for DragNode<C> {
+            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                if let Some(start) = self.start {
+                    if let Some(args) = MouseMoveEvent.update(args) {
+                        self.offset = args.position - start;
+                        ctx.updates.render();
+                        self.child.event(ctx, args);
+                    } else if let Some(args) = MouseUpEvent.update(args) {
+                        self.start = None;
+                        self.offset = DipVector::zero();
+                        ctx.updates.render();
+                        self.child.event(ctx, args);
+                    } else {
+                        self.child.event(ctx, args);
+                    }
+                } else if let Some(args) = MouseDownEvent.update(args) {
+                    if args.concerns_widget(ctx) {
+                        self.start = Some(args.position);
+                    }
+                    self.child.event(ctx, args);
+                } else {
+                    self.child.event(ctx, args);
+                }
+            }
+
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                let offset = self.offset.to_px(frame.scale_factor().0);
+                if offset != PxVector::zero() {
+                    frame.push_reference_frame(self.spatial_id, offset.to_point(), |f| self.child.render(ctx, f));
+                } else {
+                    self.child.render(ctx, frame);
+                }
+            }
+        }
+
+        DragNode {
+            child,
+            start: None,
+            offset: DipVector::zero(),
+            spatial_id: SpatialFrameId::new_unique(),
+        }
     }
 
     fn new_context(child: impl UiNode) -> impl UiNode {

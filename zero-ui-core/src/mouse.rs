@@ -39,7 +39,7 @@ event_args! {
         /// Mouse move events can be coalesced, i.e. multiple moves packed into a single event.
         pub coalesced_pos: Vec<DipPoint>,
 
-        /// Position of the mouse in the coordinates of [`target`](MouseMoveArgs::target).
+        /// Position of the mouse in the window's content area.
         pub position: DipPoint,
 
         /// Hit-test result for the mouse point in the window.
@@ -72,7 +72,7 @@ event_args! {
         /// Which mouse button generated the event.
         pub button: MouseButton,
 
-        /// Position of the mouse in the coordinates of [`target`](MouseInputArgs::target).
+        /// Position of the mouse in the window's content area.
         pub position: DipPoint,
 
         /// What modifier keys where pressed when this event happened.
@@ -425,13 +425,10 @@ impl MouseManager {
         let hits = windows.hit_test(window_id, position).unwrap();
         let frame_info = windows.frame_info(window_id).unwrap();
 
-        let (target, position) = if let Some(t) = hits.target() {
-            (
-                frame_info.find(t.widget_id).unwrap().path(),
-                t.point.to_dip(windows.scale_factor(window_id).unwrap().0),
-            )
+        let target = if let Some(t) = hits.target() {
+            frame_info.find(t.widget_id).unwrap().path()
         } else {
-            (frame_info.root().path(), position)
+            frame_info.root().path()
         };
 
         if state == ButtonState::Pressed {
@@ -639,18 +636,15 @@ impl MouseManager {
                 Ok(f) => f,
                 Err(_) => return, // window closed
             };
-            let (target, position) = if let Some(t) = hits.target() {
-                (
-                    frame_info
-                        .find(t.widget_id)
-                        .unwrap_or_else(|| {
-                            panic!("did not find cursor hit in frame_info, position: {:?}", position);
-                        })
-                        .path(),
-                    t.point.to_dip(windows.scale_factor(window_id).unwrap().0),
-                )
+            let target = if let Some(t) = hits.target() {
+                frame_info
+                    .find(t.widget_id)
+                    .unwrap_or_else(|| {
+                        panic!("did not find cursor hit in frame_info, position: {:?}", position);
+                    })
+                    .path()
             } else {
-                (frame_info.root().path(), position)
+                frame_info.root().path()
             };
 
             let mouse = ctx.services.mouse();
