@@ -8,7 +8,7 @@ use crate::{
     color::RenderColor,
     context::{TestWidgetContext, WidgetContext},
     impl_ui_node, node_vec, nodes,
-    render::{FrameBuilder, FrameId, FrameUpdate, NextFrameHint, NextFrameUpdateHint, WidgetTransformKey},
+    render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
     units::*,
     widget_base::implicit_base,
     window::WindowId,
@@ -114,19 +114,12 @@ fn test_trace(node: impl UiNode) {
         root_transform_key,
         l_size.to_px(),
         1.0.fct(),
-        NextFrameHint::default(),
+        None,
     );
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
-    let mut update = FrameUpdate::new(
-        window_id,
-        wgt.id(),
-        root_transform_key,
-        FrameId::INVALID,
-        RenderColor::BLACK,
-        NextFrameUpdateHint::default(),
-    );
+    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK, None);
     wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
 
@@ -221,25 +214,18 @@ pub fn default_no_child() {
         root_transform_key,
         desired_size,
         1.0.fct(),
-        NextFrameHint::default(),
+        None,
     );
     wgt.test_render(&mut ctx, &mut frame);
-    let build_frame = frame.finalize();
+    let (build_frame, _) = frame.finalize();
     let wgt_info = build_frame.info.find(wgt.id()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
 
     // and not update render..
-    let mut update = FrameUpdate::new(
-        window_id,
-        wgt.id(),
-        root_transform_key,
-        FrameId::INVALID,
-        RenderColor::BLACK,
-        NextFrameUpdateHint::default(),
-    );
+    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK, None);
     wgt.test_render_update(&mut ctx, &mut update);
-    let update = update.finalize();
+    let (update, _) = update.finalize();
     assert!(update.bindings.transforms.is_empty());
     assert!(update.bindings.floats.is_empty());
     assert!(update.bindings.colors.is_empty());

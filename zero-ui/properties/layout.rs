@@ -38,6 +38,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
     struct MarginNode<T, M> {
         child: T,
         margin: M,
+        spatial_id: SpatialFrameId,
         size_increment: PxSize,
         child_origin: PxPoint,
     }
@@ -70,12 +71,13 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.child_origin, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.spatial_id, self.child_origin, |frame| self.child.render(ctx, frame));
         }
     }
     MarginNode {
         child,
         margin: margin.into_var(),
+        spatial_id: SpatialFrameId::new_unique(),
         size_increment: PxSize::zero(),
         child_origin: PxPoint::zero(),
     }
@@ -104,6 +106,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
     struct AlignNode<T, A> {
         child: T,
         alignment: A,
+        spatial_id: SpatialFrameId,
         child_rect: PxRect,
     }
     #[impl_ui_node(child)]
@@ -135,13 +138,14 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.spatial_id, self.child_rect.origin, |frame| self.child.render(ctx, frame));
         }
     }
 
     AlignNode {
         child,
         alignment: alignment.into_var(),
+        spatial_id: SpatialFrameId::new_unique(),
         child_rect: PxRect::zero(),
     }
 }
@@ -173,6 +177,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
     struct PositionNode<T: UiNode, P: Var<Point>> {
         child: T,
         position: P,
+        spatial_id: SpatialFrameId,
         final_position: PxPoint,
     }
     #[impl_ui_node(child)]
@@ -199,12 +204,13 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(self.final_position, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.spatial_id, self.final_position, |frame| self.child.render(ctx, frame));
         }
     }
     PositionNode {
         child,
         position: position.into_var(),
+        spatial_id: SpatialFrameId::new_unique(),
         final_position: PxPoint::zero(),
     }
 }
@@ -235,6 +241,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     struct XNode<T: UiNode, X: Var<Length>> {
         child: T,
         x: X,
+        spatial_id: SpatialFrameId,
         final_x: Px,
     }
     #[impl_ui_node(child)]
@@ -257,12 +264,15 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(PxPoint::new(self.final_x, Px(0)), |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.spatial_id, PxPoint::new(self.final_x, Px(0)), |frame| {
+                self.child.render(ctx, frame)
+            });
         }
     }
     XNode {
         child,
         x: x.into_var(),
+        spatial_id: SpatialFrameId::new_unique(),
         final_x: Px(0),
     }
 }
@@ -293,6 +303,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     struct YNode<T: UiNode, Y: Var<Length>> {
         child: T,
         y: Y,
+        spatial_id: SpatialFrameId,
         final_y: Px,
     }
     #[impl_ui_node(child)]
@@ -316,12 +327,15 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(PxPoint::new(Px(0), self.final_y), |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.spatial_id, PxPoint::new(Px(0), self.final_y), |frame| {
+                self.child.render(ctx, frame)
+            });
         }
     }
     YNode {
         child,
         y: y.into_var(),
+        spatial_id: SpatialFrameId::new_unique(),
         final_y: Px(0),
     }
 }

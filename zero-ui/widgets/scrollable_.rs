@@ -66,6 +66,7 @@ pub mod scrollable {
             children: N,
             viewport: PxSize,
             joiner: PxSize,
+            spatial_id: SpatialFrameId,
         }
         #[impl_ui_node(children)]
         impl<N: UiNodeList> UiNode for ScrollableNode<N> {
@@ -120,19 +121,19 @@ pub mod scrollable {
                 self.children.widget_render(0, ctx, frame);
 
                 if self.joiner.width > Px(0) {
-                    frame.push_reference_frame(PxPoint::new(self.viewport.width, Px(0)), |frame| {
+                    frame.push_reference_frame_item(self.spatial_id, 1, PxPoint::new(self.viewport.width, Px(0)), |frame| {
                         self.children.widget_render(1, ctx, frame);
                     });
                 }
 
                 if self.joiner.height > Px(0) {
-                    frame.push_reference_frame(PxPoint::new(Px(0), self.viewport.height), |frame| {
+                    frame.push_reference_frame_item(self.spatial_id, 2, PxPoint::new(Px(0), self.viewport.height), |frame| {
                         self.children.widget_render(2, ctx, frame);
                     });
                 }
 
                 if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
-                    frame.push_reference_frame(self.viewport.to_vector().to_point(), |frame| {
+                    frame.push_reference_frame_item(self.spatial_id, 3, self.viewport.to_vector().to_point(), |frame| {
                         self.children.widget_render(3, ctx, frame);
                     });
                 }
@@ -147,6 +148,7 @@ pub mod scrollable {
             ],
             viewport: PxSize::zero(),
             joiner: PxSize::zero(),
+            spatial_id: SpatialFrameId::new_unique(),
         }
     }
 

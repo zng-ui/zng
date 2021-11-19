@@ -715,12 +715,11 @@ impl Window {
 
         let display_list = BuiltDisplayList::from_data(
             DisplayListPayload {
-                data: {
-                    let _s = tracing::trace_span!("IPC->Vec").entered();
-                    frame.display_list.0.to_vec()
-                },
+                items_data: frame.display_list.0.to_vec(),
+                cache_data: frame.display_list.1.to_vec(),
+                spatial_tree: frame.display_list.2.to_vec(),
             },
-            frame.display_list.1,
+            frame.display_list.3,
         );
         txn.set_display_list(
             frame.id.epoch(),
@@ -747,7 +746,7 @@ impl Window {
         let mut txn = Transaction::new();
 
         txn.set_root_pipeline(self.pipeline_id);
-        txn.update_dynamic_properties(frame.updates);
+        txn.append_dynamic_properties(frame.updates);
         for (scroll_id, offset) in frame.scroll_updates {
             txn.scroll_node_with_id(offset.to_point().to_wr(), scroll_id, ScrollClamping::NoClamping);
         }

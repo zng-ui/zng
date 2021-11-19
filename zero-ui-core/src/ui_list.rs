@@ -3,13 +3,12 @@ use super::units::{AvailableSize, PxPoint, PxSize};
 use super::UiNode;
 use super::{
     context::{LayoutContext, StateMap, WidgetContext},
-    render::{FrameBuilder, FrameUpdate},
+    render::{FrameBuilder, FrameUpdate, SpatialFrameId},
     Widget, WidgetId,
 };
 use std::{
-    any::Any,
+    cell::Cell,
     iter::FromIterator,
-    mem,
     ops::{Deref, DerefMut},
 };
 
@@ -178,30 +177,61 @@ pub trait WidgetList: UiNodeList {
 ///     println!("{:?}", widget.size());
 /// }
 /// ```
-#[derive(Default)]
-pub struct WidgetVec(pub Vec<BoxedWidget>);
+pub struct WidgetVec {
+    vec: Vec<BoxedWidget>,
+    id: SpatialIdGen,
+}
 impl WidgetVec {
     /// New empty (default).
     #[inline]
-    pub fn new() -> WidgetVec {
-        Self::default()
+    pub fn new() -> Self {
+        WidgetVec {
+            vec: vec![],
+            id: SpatialIdGen::default(),
+        }
+    }
+
+    /// New empty with pre-allocated capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        WidgetVec {
+            vec: Vec::with_capacity(capacity),
+            id: SpatialIdGen::default(),
+        }
     }
 
     /// Appends the widget, automatically calls [`Widget::boxed_widget`].
     pub fn push<W: Widget>(&mut self, widget: W) {
-        self.0.push(widget.boxed_widget());
+        self.vec.push(widget.boxed_widget());
+    }
+}
+impl From<Vec<BoxedWidget>> for WidgetVec {
+    fn from(vec: Vec<BoxedWidget>) -> Self {
+        WidgetVec {
+            vec,
+            id: SpatialIdGen::default(),
+        }
+    }
+}
+impl From<WidgetVec> for Vec<BoxedWidget> {
+    fn from(s: WidgetVec) -> Self {
+        s.vec
+    }
+}
+impl Default for WidgetVec {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl Deref for WidgetVec {
     type Target = Vec<BoxedWidget>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.vec
     }
 }
 impl DerefMut for WidgetVec {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.vec
     }
 }
 impl<'a> IntoIterator for &'a WidgetVec {
@@ -210,7 +240,7 @@ impl<'a> IntoIterator for &'a WidgetVec {
     type IntoIter = std::slice::Iter<'a, BoxedWidget>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+        self.vec.iter()
     }
 }
 impl<'a> IntoIterator for &'a mut WidgetVec {
@@ -219,7 +249,7 @@ impl<'a> IntoIterator for &'a mut WidgetVec {
     type IntoIter = std::slice::IterMut<'a, BoxedWidget>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter_mut()
+        self.vec.iter_mut()
     }
 }
 impl IntoIterator for WidgetVec {
@@ -228,52 +258,51 @@ impl IntoIterator for WidgetVec {
     type IntoIter = std::vec::IntoIter<BoxedWidget>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.vec.into_iter()
     }
 }
 impl FromIterator<BoxedWidget> for WidgetVec {
     fn from_iter<T: IntoIterator<Item = BoxedWidget>>(iter: T) -> Self {
-        WidgetVec(Vec::from_iter(iter))
+        Vec::from_iter(iter).into()
     }
 }
-impl<U: UiNode> UiNodeList for Vec<U> {
+impl UiNodeList for WidgetVec {
     fn len(&self) -> usize {
-        self.len()
+        self.vec.len()
     }
 
     fn is_empty(&self) -> bool {
-        self.is_empty()
+        self.vec.is_empty()
     }
 
-    fn boxed_all(mut self) -> UiNodeVec {
-        if let Some(done) = <dyn Any>::downcast_mut(&mut self) {
-            UiNodeVec(mem::take(done))
-        } else {
-            UiNodeVec(self.into_iter().map(|u| u.boxed()).collect())
+    fn boxed_all(self) -> UiNodeVec {
+        UiNodeVec {
+            vec: self.vec.into_iter().map(|w| w.boxed()).collect(),
+            id: SpatialIdGen::default(),
         }
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
-        for node in self {
-            node.init(ctx);
+        for widget in &mut self.vec {
+            widget.init(ctx);
         }
     }
 
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        for node in self {
-            node.deinit(ctx);
+        for widget in &mut self.vec {
+            widget.deinit(ctx);
         }
     }
 
     fn update_all(&mut self, ctx: &mut WidgetContext) {
-        for node in self {
-            node.update(ctx);
+        for widget in &mut self.vec {
+            widget.update(ctx);
         }
     }
 
     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-        for node in self {
-            node.event(ctx, args);
+        for widget in &mut self.vec {
+            widget.event(ctx, args);
         }
     }
 
@@ -290,7 +319,7 @@ impl<U: UiNode> UiNodeList for Vec<U> {
     }
 
     fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        self[index].measure(ctx, available_size)
+        self.vec[index].measure(ctx, available_size)
     }
 
     fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
@@ -298,144 +327,40 @@ impl<U: UiNode> UiNodeList for Vec<U> {
         F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
         for (i, w) in self.iter_mut().enumerate() {
-            let final_size = final_size(i, ctx);
-            w.arrange(ctx, final_size);
+            let fs = final_size(i, ctx);
+            w.arrange(ctx, fs)
         }
     }
 
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
-        self[index].arrange(ctx, final_size)
+        self.vec[index].arrange(ctx, final_size)
     }
 
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
+        let id = self.id.get();
         for (i, w) in self.iter().enumerate() {
             let origin = origin(i);
-            frame.push_reference_frame(origin, |frame| w.render(ctx, frame));
+            frame.push_reference_frame_item(id, i, origin, |frame| {
+                w.render(ctx, frame);
+            });
         }
     }
 
     fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self[index].render(ctx, frame)
+        self.vec[index].render(ctx, frame);
     }
 
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        for w in self {
+        for w in self.iter() {
             w.render_update(ctx, update);
         }
     }
 
     fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self[index].render_update(ctx, update)
-    }
-}
-impl<W: Widget> WidgetList for Vec<W> {
-    fn boxed_widget_all(mut self) -> WidgetVec {
-        if let Some(done) = <dyn Any>::downcast_mut(&mut self) {
-            WidgetVec(mem::take(done))
-        } else {
-            WidgetVec(self.into_iter().map(|w| w.boxed_widget()).collect())
-        }
-    }
-
-    fn widget_id(&self, index: usize) -> WidgetId {
-        self[index].id()
-    }
-
-    fn widget_state(&self, index: usize) -> &StateMap {
-        self[index].state()
-    }
-
-    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
-        self[index].state_mut()
-    }
-
-    fn widget_size(&self, index: usize) -> PxSize {
-        self[index].size()
-    }
-
-    fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-    where
-        O: FnMut(usize, &StateMap) -> Option<PxPoint>,
-    {
-        for (i, w) in self.iter().enumerate() {
-            if let Some(origin) = origin(i, w.state()) {
-                frame.push_reference_frame(origin, |frame| w.render(ctx, frame));
-            }
-        }
-    }
-}
-impl UiNodeList for WidgetVec {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    fn boxed_all(self) -> UiNodeVec {
-        self.0.boxed_all()
-    }
-
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.init_all(ctx)
-    }
-
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.deinit_all(ctx)
-    }
-
-    fn update_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.update_all(ctx)
-    }
-
-    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-        self.0.event_all(ctx, args);
-    }
-
-    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
-    where
-        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-        D: FnMut(usize, PxSize, &mut LayoutContext),
-    {
-        self.0.measure_all(ctx, available_size, desired_size)
-    }
-
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        self.0.widget_measure(index, ctx, available_size)
-    }
-
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
-    where
-        F: FnMut(usize, &mut LayoutContext) -> PxSize,
-    {
-        self.0.arrange_all(ctx, final_size)
-    }
-
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
-        self.0.widget_arrange(index, ctx, final_size)
-    }
-
-    fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        self.0.render_all(origin, ctx, frame)
-    }
-
-    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.0.widget_render(index, ctx, frame)
-    }
-
-    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.0.render_update_all(ctx, update)
-    }
-
-    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.0.widget_render_update(index, ctx, update)
+        self.vec[index].render_update(ctx, update);
     }
 }
 impl WidgetList for WidgetVec {
@@ -444,26 +369,33 @@ impl WidgetList for WidgetVec {
     }
 
     fn widget_id(&self, index: usize) -> WidgetId {
-        self.0.widget_id(index)
+        self.vec[index].id()
     }
 
     fn widget_state(&self, index: usize) -> &StateMap {
-        self.0.widget_state(index)
+        self.vec[index].state()
     }
 
     fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
-        self.0.widget_state_mut(index)
+        self.vec[index].state_mut()
     }
 
     fn widget_size(&self, index: usize) -> PxSize {
-        self.0.widget_size(index)
+        self.vec[index].size()
     }
 
-    fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize, &StateMap) -> Option<PxPoint>,
     {
-        self.0.render_filtered(origin, ctx, frame)
+        let id = self.id.get();
+        for (i, w) in self.iter().enumerate() {
+            if let Some(origin) = origin(i, w.state()) {
+                frame.push_reference_frame_item(id, i, origin, |frame| {
+                    w.render(ctx, frame);
+                });
+            }
+        }
     }
 }
 
@@ -484,48 +416,49 @@ impl WidgetList for WidgetVec {
 /// nodes.push(foo("Hello"));
 /// nodes.push(bar("Dynamic!"));
 /// ```
-#[derive(Default)]
-pub struct UiNodeVec(pub Vec<BoxedUiNode>);
+pub struct UiNodeVec {
+    vec: Vec<BoxedUiNode>,
+    id: SpatialIdGen,
+}
 impl UiNodeVec {
     /// New empty (default).
     #[inline]
-    pub fn new() -> UiNodeVec {
-        Self::default()
+    pub fn new() -> Self {
+        UiNodeVec {
+            vec: vec![],
+            id: SpatialIdGen::default(),
+        }
+    }
+
+    /// New empty with pre-allocated capacity.
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        UiNodeVec {
+            vec: Vec::with_capacity(capacity),
+            id: SpatialIdGen::default(),
+        }
     }
 
     /// Appends the node, automatically calls [`UiNode::boxed`].
     pub fn push<N: UiNode>(&mut self, node: N) {
-        self.0.push(node.boxed());
+        self.vec.push(node.boxed());
+    }
+}
+impl Default for UiNodeVec {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl Deref for UiNodeVec {
     type Target = Vec<BoxedUiNode>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.vec
     }
 }
 impl DerefMut for UiNodeVec {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-impl<'a> IntoIterator for &'a UiNodeVec {
-    type Item = &'a BoxedUiNode;
-
-    type IntoIter = std::slice::Iter<'a, BoxedUiNode>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
-    }
-}
-impl<'a> IntoIterator for &'a mut UiNodeVec {
-    type Item = &'a mut BoxedUiNode;
-
-    type IntoIter = std::slice::IterMut<'a, BoxedUiNode>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter_mut()
+        &mut self.vec
     }
 }
 impl IntoIterator for UiNodeVec {
@@ -534,77 +467,116 @@ impl IntoIterator for UiNodeVec {
     type IntoIter = std::vec::IntoIter<BoxedUiNode>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.vec.into_iter()
     }
 }
 impl FromIterator<BoxedUiNode> for UiNodeVec {
     fn from_iter<T: IntoIterator<Item = BoxedUiNode>>(iter: T) -> Self {
-        UiNodeVec(Vec::from_iter(iter))
+        UiNodeVec {
+            vec: Vec::from_iter(iter),
+            id: SpatialIdGen::default(),
+        }
+    }
+}
+impl From<Vec<BoxedUiNode>> for UiNodeVec {
+    fn from(vec: Vec<BoxedUiNode>) -> Self {
+        UiNodeVec {
+            vec,
+            id: SpatialIdGen::default(),
+        }
+    }
+}
+impl From<UiNodeVec> for Vec<BoxedUiNode> {
+    fn from(s: UiNodeVec) -> Self {
+        s.vec
     }
 }
 impl UiNodeList for UiNodeVec {
     fn len(&self) -> usize {
-        self.0.len()
+        self.vec.len()
     }
     fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.vec.is_empty()
     }
     fn boxed_all(self) -> UiNodeVec {
         self
     }
     fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.init_all(ctx)
+        for node in self.iter_mut() {
+            node.init(ctx);
+        }
     }
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.deinit_all(ctx)
+        for node in self.iter_mut() {
+            node.deinit(ctx);
+        }
     }
     fn update_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.update_all(ctx)
+        for node in self.iter_mut() {
+            node.update(ctx);
+        }
     }
     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-        self.0.event_all(ctx, args)
+        for node in self.iter_mut() {
+            node.event(ctx, args);
+        }
     }
 
-    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
+    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
     where
         A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
         D: FnMut(usize, PxSize, &mut LayoutContext),
     {
-        self.0.measure_all(ctx, available_size, desired_size)
+        for (i, node) in self.iter_mut().enumerate() {
+            let av = available_size(i, ctx);
+            let d = node.measure(ctx, av);
+            desired_size(i, d, ctx);
+        }
     }
 
     fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        self.0.widget_measure(index, ctx, available_size)
+        self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
-        self.0.arrange_all(ctx, final_size)
+        for (i, node) in self.iter_mut().enumerate() {
+            let fs = final_size(i, ctx);
+            node.arrange(ctx, fs);
+        }
     }
 
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
-        self.0.widget_arrange(index, ctx, final_size)
+        self.vec[index].arrange(ctx, final_size);
     }
 
-    fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
-        self.0.render_all(origin, ctx, frame)
+        let id = self.id.get();
+        for (i, w) in self.iter().enumerate() {
+            let origin = origin(i);
+            frame.push_reference_frame_item(id, i, origin, |frame| {
+                w.render(ctx, frame);
+            });
+        }
     }
 
     fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.0.widget_render(index, ctx, frame)
+        self.vec[index].render(ctx, frame);
     }
 
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.0.render_update_all(ctx, update)
+        for w in self.iter() {
+            w.render_update(ctx, update)
+        }
     }
 
     fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.0.widget_render_update(index, ctx, update)
+        self.vec[index].render_update(ctx, update);
     }
 }
 
@@ -629,7 +601,7 @@ impl UiNodeList for UiNodeVec {
 macro_rules! widget_vec {
     () => { $crate::WidgetVec::new() };
     ($($widget:expr),+ $(,)?) => {
-        $crate::WidgetVec(vec![
+        $crate::WidgetVec::from(vec![
             $($crate::Widget::boxed_widget($widget)),*
         ])
     };
@@ -659,7 +631,7 @@ use crate::{context::RenderContext, event::EventUpdateArgs, BoxedUiNode, BoxedWi
 macro_rules! node_vec {
     () => { $crate::UiNodeVec::new() };
     ($($node:expr),+ $(,)?) => {
-        $crate::UiNodeVec(vec![
+        $crate::UiNodeVec::from(vec![
             $($crate::UiNode::boxed($node)),*
         ])
     };
@@ -1119,7 +1091,7 @@ macro_rules! impl_tuples {
         impl<$($W: Widget),+> WidgetList for $WidgetList<$($W,)+> {
             #[inline]
             fn boxed_widget_all(self) -> WidgetVec {
-                widget_vec![$(self.$n),+]
+                widget_vec![$(self.items.$n),+]
             }
 
             #[inline(always)]
@@ -1127,9 +1099,10 @@ macro_rules! impl_tuples {
             where
                 O: FnMut(usize, &StateMap) -> Option<PxPoint>,
             {
+                let id = self.id.get();
                 $(
-                if let Some(o) = origin($n, self.$n.state()) {
-                    frame.push_reference_frame(o, |frame| self.$n.render(ctx, frame));
+                if let Some(o) = origin($n, self.items.$n.state()) {
+                    frame.push_reference_frame_item(id, $n, o, |frame| self.items.$n.render(ctx, frame));
                 }
                 )+
             }
@@ -1137,7 +1110,7 @@ macro_rules! impl_tuples {
             #[inline]
             fn widget_id(&self, index: usize) -> WidgetId {
                 match index {
-                    $($n => self.$n.id(),)+
+                    $($n => self.items.$n.id(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
@@ -1145,7 +1118,7 @@ macro_rules! impl_tuples {
             #[inline]
             fn widget_state(&self, index: usize) -> &StateMap {
                 match index {
-                    $($n => self.$n.state(),)+
+                    $($n => self.items.$n.state(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
@@ -1153,7 +1126,7 @@ macro_rules! impl_tuples {
             #[inline]
             fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
                 match index {
-                    $($n => self.$n.state_mut(),)+
+                    $($n => self.items.$n.state_mut(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
@@ -1161,7 +1134,7 @@ macro_rules! impl_tuples {
             #[inline]
             fn widget_size(&self, index: usize) -> PxSize {
                 match index {
-                    $($n => self.$n.size(),)+
+                    $($n => self.items.$n.size(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
@@ -1170,15 +1143,21 @@ macro_rules! impl_tuples {
 
     (impl_node => $NodeList:ident <$Bound:ident> -> $NodeListNext:ident => $L:tt => $($n:tt = $W:ident),+) => {
         #[doc(hidden)]
-        pub struct $NodeList<$($W: $Bound),+>($(pub $W),+);
+        pub struct $NodeList<$($W: $Bound),+> {
+            items: ($($W,)+),
+            id: SpatialIdGen,
+        }
 
         impl<$($W: $Bound),+> $NodeList<$($W,)+> {
             #[doc(hidden)]
             pub fn push<I: $Bound>(self, item: I) -> $NodeListNext<$($W),+ , I> {
-                $NodeListNext(
-                    $(self.$n,)+
-                    item
-                )
+                $NodeListNext {
+                    items: (
+                        $(self.items.$n,)+
+                        item
+                    ),
+                    id: SpatialIdGen::default()
+                }
             }
         }
 
@@ -1196,28 +1175,28 @@ macro_rules! impl_tuples {
             #[inline]
             fn boxed_all(self) -> UiNodeVec {
                 node_vec![
-                    $(self.$n),+
+                    $(self.items.$n),+
                 ]
             }
 
             #[inline(always)]
             fn init_all(&mut self, ctx: &mut WidgetContext) {
-                $(self.$n.init(ctx);)+
+                $(self.items.$n.init(ctx);)+
             }
 
             #[inline(always)]
             fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-                $(self.$n.deinit(ctx);)+
+                $(self.items.$n.deinit(ctx);)+
             }
 
             #[inline(always)]
             fn update_all(&mut self, ctx: &mut WidgetContext) {
-                $(self.$n.update(ctx);)+
+                $(self.items.$n.update(ctx);)+
             }
 
             #[inline(always)]
             fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-                $(self.$n.event(ctx, args);)+
+                $(self.items.$n.event(ctx, args);)+
             }
 
             #[inline(always)]
@@ -1228,7 +1207,7 @@ macro_rules! impl_tuples {
             {
                 $(
                 let av_sz = available_size($n, ctx);
-                let r = self.$n.measure(ctx, av_sz);
+                let r = self.items.$n.measure(ctx, av_sz);
                 desired_size($n, r, ctx);
                 )+
             }
@@ -1237,7 +1216,7 @@ macro_rules! impl_tuples {
             fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 match index {
                     $(
-                        $n => self.$n.measure(ctx, available_size),
+                        $n => self.items.$n.measure(ctx, available_size),
                     )+
                     _ => panic!("index {} out of range for length {}", index, self.len()),
                 }
@@ -1250,7 +1229,7 @@ macro_rules! impl_tuples {
             {
                 $(
                 let fi_sz = final_size($n, ctx);
-                self.$n.arrange(ctx, fi_sz);
+                self.items.$n.arrange(ctx, fi_sz);
                 )+
             }
 
@@ -1258,7 +1237,7 @@ macro_rules! impl_tuples {
             fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
                 match index {
                     $(
-                        $n => self.$n.arrange(ctx, final_size),
+                        $n => self.items.$n.arrange(ctx, final_size),
                     )+
                     _ => panic!("index {} out of range for length {}", index, self.len()),
                 }
@@ -1269,9 +1248,10 @@ macro_rules! impl_tuples {
             where
                 O: FnMut(usize) -> PxPoint,
             {
+                let id = self.id.get();
                 $(
                 let o = origin($n);
-                frame.push_reference_frame(o, |frame| self.$n.render(ctx, frame));
+                frame.push_reference_frame_item(id, $n, o, |frame| self.items.$n.render(ctx, frame));
                 )+
             }
 
@@ -1279,7 +1259,7 @@ macro_rules! impl_tuples {
             fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 match index {
                     $(
-                        $n => self.$n.render(ctx, frame),
+                        $n => self.items.$n.render(ctx, frame),
                     )+
                     _ => panic!("index {} out of range for length {}", index, self.len()),
                 }
@@ -1287,14 +1267,14 @@ macro_rules! impl_tuples {
 
             #[inline(always)]
             fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                $(self.$n.render_update(ctx, update);)+
+                $(self.items.$n.render_update(ctx, update);)+
             }
 
             #[inline]
             fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 match index {
                     $(
-                        $n => self.$n.render_update(ctx, update),
+                        $n => self.items.$n.render_update(ctx, update),
                     )+
                     _ => panic!("index {} out of range for length {}", index, self.len()),
                 }
@@ -1315,9 +1295,17 @@ impl_tuples! {
 
 // we need this types due to limitation in macro_rules.
 #[doc(hidden)]
-pub struct UiNodeList9<T0, T1, T2, T3, T4, T5, T6, T7, T8>(pub T0, pub T1, pub T2, pub T3, pub T4, pub T5, T6, pub T7, pub T8);
+#[allow(dead_code)]
+pub struct UiNodeList9<T0, T1, T2, T3, T4, T5, T6, T7, T8> {
+    items: (T0, T1, T2, T3, T4, T5, T6, T7, T8),
+    id: SpatialIdGen,
+}
 #[doc(hidden)]
-pub struct WidgetList9<T0, T1, T2, T3, T4, T5, T6, T7, T8>(pub T0, pub T1, pub T2, pub T3, pub T4, pub T5, T6, pub T7, pub T8);
+#[allow(dead_code)]
+pub struct WidgetList9<T0, T1, T2, T3, T4, T5, T6, T7, T8> {
+    items: (T0, T1, T2, T3, T4, T5, T6, T7, T8),
+    id: SpatialIdGen,
+}
 
 macro_rules! empty_node_list {
     ($($ident:ident -> $ident_one:ident<$bounds:ident>),+) => {$(
@@ -1327,7 +1315,10 @@ macro_rules! empty_node_list {
         impl $ident {
             #[doc(hidden)]
             pub fn push<N: $bounds>(self, node: N) -> $ident_one<N> {
-                $ident_one(node)
+                $ident_one {
+                    items: (node,),
+                    id: SpatialIdGen::default()
+                }
             }
         }
 
@@ -1434,5 +1425,19 @@ impl WidgetList for WidgetList0 {
 
     fn widget_size(&self, index: usize) -> PxSize {
         panic!("index {} out of range for length 0", index)
+    }
+}
+
+#[derive(Default)]
+struct SpatialIdGen(Cell<Option<SpatialFrameId>>);
+impl SpatialIdGen {
+    pub fn get(&self) -> SpatialFrameId {
+        if let Some(id) = self.0.get() {
+            id
+        } else {
+            let id = SpatialFrameId::new_unique();
+            self.0.set(Some(id));
+            id
+        }
     }
 }

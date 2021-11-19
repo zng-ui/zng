@@ -29,7 +29,7 @@ use crate::{
     image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
     impl_from_and_into_var,
     render::{
-        BuiltFrame, BuiltFrameUpdate, FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, NextFrameHint, NextFrameUpdateHint,
+        BuiltFrame, BuiltFrameUpdate, FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate,
         WidgetTransformKey,
     },
     service::Service,
@@ -1867,8 +1867,8 @@ impl AppWindow {
             root,
             update: WindowUpdates::all(),
             prev_metrics: None,
-            next_frame_hint: NextFrameHint::default(),
-            next_frame_update_hint: NextFrameUpdateHint::default(),
+            used_frame_builder: None,
+            used_frame_update: None,
         };
 
         // we want the window content to init, update, layout & render to get
@@ -2494,10 +2494,9 @@ impl AppWindow {
                 document_id: r.document_id().unwrap(),
                 clear_color: frame.clear_color,
                 display_list: (
-                    {
-                        let _s = tracing::trace_span!("Vec->IPC", ipc = cfg!(feature = "ipc")).entered();
-                        IpcBytes::from_vec(payload.data)
-                    },
+                    IpcBytes::from_vec(payload.items_data),
+                    IpcBytes::from_vec(payload.cache_data),
+                    IpcBytes::from_vec(payload.spatial_tree),
                     descriptor,
                 ),
                 capture_image,
@@ -2646,8 +2645,8 @@ struct OwnedWindowContext {
     update: WindowUpdates,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
-    next_frame_hint: NextFrameHint,
-    next_frame_update_hint: NextFrameUpdateHint,
+    used_frame_builder: Option<UsedFrameBuilder>,
+    used_frame_update: Option<UsedFrameUpdate>,
 }
 impl OwnedWindowContext {
     fn init(&mut self, ctx: &mut AppContext) {
@@ -2752,7 +2751,7 @@ impl OwnedWindowContext {
                 root_transform_key,
                 root_size,
                 scale_factor,
-                self.next_frame_hint,
+                self.used_frame_builder.take(),
             );
             ctx.render_context(root.id, &root.state, |ctx| {
                 let _s = tracing::trace_span!("UiNode::render").entered();
@@ -2763,8 +2762,8 @@ impl OwnedWindowContext {
         });
 
         let _s = tracing::trace_span!("FINALIZE").entered();
-        let frame = builder.finalize();
-        self.next_frame_hint = frame.next_frame_hint;
+        let (frame, used) = builder.finalize();
+        self.used_frame_builder = Some(used);
         frame
     }
 
@@ -2784,16 +2783,18 @@ impl OwnedWindowContext {
                     root_transform_key,
                     frame_id,
                     clear_color,
-                    self.next_frame_update_hint,
+                    self.used_frame_update.take(),
                 );
                 root.child.render_update(ctx, &mut update);
-                update.finalize()
+                update
             })
         });
 
-        self.next_frame_update_hint = updates.next_update_hint;
+        let (update, used) = updates.finalize();
 
-        updates
+        self.used_frame_update = Some(used);
+
+        update
     }
 }
 

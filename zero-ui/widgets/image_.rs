@@ -935,6 +935,8 @@ pub mod image {
                 render_clip_rect: PxRect,
                 render_img_size: PxSize,
                 render_offset: PxPoint,
+
+                spatial_id: SpatialFrameId,
             }
             #[impl_ui_node(none)]
             impl UiNode for ImagePresenterNode {
@@ -1107,7 +1109,7 @@ pub mod image {
                         let img = var.get(ctx.vars);
                         if img.is_loaded() && !self.prev_img_size.is_empty() && !self.render_clip_rect.is_empty() {
                             if self.render_offset != PxPoint::zero() {
-                                frame.push_reference_frame(self.render_offset, |frame| {
+                                frame.push_reference_frame(self.spatial_id, self.render_offset, |frame| {
                                     frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
                                 });
                             } else {
@@ -1131,6 +1133,8 @@ pub mod image {
                 render_clip_rect: PxRect::zero(),
                 render_img_size: PxSize::zero(),
                 render_offset: PxPoint::zero(),
+
+                spatial_id: SpatialFrameId::new_unique(),
             }
         }
     }

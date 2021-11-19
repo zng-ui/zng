@@ -16,6 +16,8 @@ pub fn border(
     struct BorderNode<T, L, S, R> {
         child: T,
 
+        spatial_id: SpatialFrameId,
+
         widths: L,
         sides: S,
         radius: R,
@@ -94,12 +96,14 @@ pub fn border(
                 self.final_sides,
                 self.final_radius,
             );
-            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(ctx, frame));
+            frame.push_reference_frame(self.spatial_id, self.child_rect.origin, |frame| self.child.render(ctx, frame));
         }
     }
 
     BorderNode {
         child,
+
+        spatial_id: SpatialFrameId::new_unique(),
 
         widths: widths.into_var(),
         sides: sides.into_var(),

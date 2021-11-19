@@ -81,7 +81,9 @@ pub mod grid {
         struct GridNode<I, S> {
             items: I,
             columns: Vec<column::Definition>,
+            columns_spatial_id: SpatialFrameId,
             rows: Vec<row::Definition>,
+            rows_spatial_id: SpatialFrameId,
             spacing: S,
             column_origins: Vec<PxPoint>,
             row_origins: Vec<PxPoint>,
@@ -255,11 +257,11 @@ pub mod grid {
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                for (column, origin) in self.columns.iter().zip(&self.column_origins) {
-                    frame.push_reference_frame(*origin, |frame| column.widget().render(ctx, frame));
+                for (i, (column, origin)) in self.columns.iter().zip(&self.column_origins).enumerate() {
+                    frame.push_reference_frame_item(self.columns_spatial_id, i, *origin, |frame| column.widget().render(ctx, frame));
                 }
-                for (row, origin) in self.rows.iter().zip(&self.row_origins) {
-                    frame.push_reference_frame(*origin, |frame| row.widget().render(ctx, frame));
+                for (i, (row, origin)) in self.rows.iter().zip(&self.row_origins).enumerate() {
+                    frame.push_reference_frame_item(self.rows_spatial_id, i, *origin, |frame| row.widget().render(ctx, frame));
                 }
                 self.items.render_filtered(
                     |i, _| {
@@ -292,8 +294,10 @@ pub mod grid {
         GridNode {
             column_origins: vec![PxPoint::zero(); columns.len()],
             columns,
+            columns_spatial_id: SpatialFrameId::new_unique(),
             row_origins: vec![PxPoint::zero(); rows.len()],
             rows,
+            rows_spatial_id: SpatialFrameId::new_unique(),
             item_rects: vec![PxRect::zero(); items.len()],
             items,
             spacing: spacing.into_var(),

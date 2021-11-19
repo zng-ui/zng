@@ -1015,7 +1015,7 @@ pub struct FrameRequest {
     pub clear_color: ColorF,
 
     /// Display list, split in serializable parts.
-    pub display_list: (IpcBytes, BuiltDisplayListDescriptor),
+    pub display_list: (IpcBytes, IpcBytes, IpcBytes, BuiltDisplayListDescriptor),
 
     /// Automatically create an image from this rendered frame.
     ///
