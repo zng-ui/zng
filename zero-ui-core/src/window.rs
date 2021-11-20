@@ -2107,6 +2107,7 @@ impl AppWindow {
         let (size, min_size, max_size) = self.layout_size(ctx, use_system_size);
 
         if self.size != size {
+            let _s = tracing::trace_span!("resize/render-vars").entered();
             let frame = self.render_frame(ctx);
 
             // resize view
@@ -2157,6 +2158,7 @@ impl AppWindow {
         let (size, _, _) = self.layout_size(ctx, true);
 
         if self.size != size {
+            let _s = tracing::trace_span!("resize/render-lyt").entered();
             let frame = self.render_frame(ctx);
 
             self.size = size;
@@ -2739,7 +2741,6 @@ impl OwnedWindowContext {
     ) -> BuiltFrame {
         debug_assert!(self.update.render.is_render());
         self.update.render = WindowRenderUpdate::None;
-        let _s = tracing::trace_span!("RENDER").entered();
 
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
@@ -2757,7 +2758,6 @@ impl OwnedWindowContext {
                 self.used_frame_builder.take(),
             );
             ctx.render_context(root.id, &root.state, |ctx| {
-                let _s = tracing::trace_span!("UiNode::render").entered();
                 child.render(ctx, &mut builder);
             });
 

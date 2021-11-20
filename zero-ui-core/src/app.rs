@@ -1337,6 +1337,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                     self.extensions.update_preview(&mut ctx);
                     observer.update_preview(&mut ctx);
+                    Vars::on_pre_vars(&mut ctx);
                     Updates::on_pre_updates(&mut ctx);
 
                     self.extensions.update_ui(&mut ctx);
@@ -1344,6 +1345,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                     self.extensions.update(&mut ctx);
                     observer.update(&mut ctx);
+                    Vars::on_vars(&mut ctx);
                     Updates::on_updates(&mut ctx);
                 }
 

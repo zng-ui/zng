@@ -4,9 +4,10 @@ use zero_ui_proc_macros::impl_ui_node;
 use super::*;
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
-    context::{LayoutContext, RenderContext, Updates, WidgetContext},
+    context::{AppContext, LayoutContext, RenderContext, Updates, WidgetContext},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
     event::EventUpdateArgs,
+    handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     render::{FrameBuilder, FrameUpdate},
     units::*,
     UiNode,
@@ -390,6 +391,9 @@ pub struct Vars {
 
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
+
+    pre_handlers: RefCell<Vec<OnVarHandler>>,
+    pos_handlers: RefCell<Vec<OnVarHandler>>,
 }
 impl fmt::Debug for Vars {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -420,6 +424,8 @@ impl Vars {
             binding_update_id: 0u32.wrapping_sub(13),
             bindings: RefCell::default(),
             pending: Default::default(),
+            pre_handlers: RefCell::default(),
+            pos_handlers: RefCell::default(),
         }
     }
 
@@ -685,12 +691,207 @@ impl Vars {
     pub fn update_requested(&self) -> bool {
         !self.pending.borrow().is_empty()
     }
+
+    /// Create a variable update preview handler.
+    ///
+    /// The `handler` is called every time the `var` value is set, modified or touched. The handler is called before
+    /// the UI update that notified the variable update, and after all other previous registered handlers.
+    ///
+    /// Returns a [`OnVarHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    ///
+    /// The handler also auto-unsubscribes if the variable [`strong_count`] becomes `1`.
+    ///
+    /// If the `var` cannot update it and the `handler` are immediately dropped and the [`dummy`] handle is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zero_ui_core::var::*;
+    /// # use zero_ui_core::handler::app_hn;
+    /// fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
+    ///     let mut prev_value = format!("{:?}", var.get(vars));
+    ///     vars.on_pre_var(var.clone(), app_hn!(|_ctx, new_value, _subscription| {
+    ///         let new_value = format!("{:?}", new_value);
+    ///         println!("{} -> {}", prev_value, new_value);
+    ///         prev_value = new_value;
+    ///     })).permanent();
+    /// }
+    /// ```
+    ///
+    /// The example traces the value changes of a variable.
+    ///
+    /// # Handlers
+    ///
+    /// the handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
+    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
+    /// [`app_hn_once!`] and [`async_app_hn_once!`].
+    ///
+    /// [`dummy`]: OnVarHandle::dummy
+    /// [`app_hn!`]: crate::handler::app_hn!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn!
+    /// [`app_hn_once!`]: crate::handler::app_hn_once!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
+    /// [`strong_count`]: Var::strong_count
+    pub fn on_pre_var<T, V, H>(&self, var: V, handler: H) -> OnVarHandle
+    where
+        T: VarValue,
+        V: Var<T>,
+        H: AppHandler<T>,
+    {
+        if !var.can_update() {
+            return OnVarHandle::dummy();
+        }
+
+        Self::push_var_handler(&self.pre_handlers, true, var, handler)
+    }
+
+    /// Create a variable update handler.
+    ///
+    /// The `handler` is called every time the `var` value is set, modified or touched, the call happens after
+    /// all other app components where notified.
+    ///
+    /// Returns a [`OnVarHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    ///
+    /// The handler also auto-unsubscribes if the variable [`strong_count`] becomes `1`.
+    ///
+    /// If the `var` cannot update it and the `handler` are immediately dropped and the [`dummy`] handle is returned.
+    ///
+    /// # Handlers
+    ///
+    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
+    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
+    /// [`app_hn_once!`] and [`async_app_hn_once!`].
+    ///
+    /// [`dummy`]: OnVarHandle::dummy
+    /// [`app_hn!`]: crate::handler::app_hn!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn!
+    /// [`app_hn_once!`]: crate::handler::app_hn_once!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
+    pub fn on_var<T, V, H>(&self, var: V, handler: H) -> OnVarHandle
+    where
+        T: VarValue,
+        V: Var<T>,
+        H: AppHandler<T>,
+    {
+        if !var.can_update() {
+            return OnVarHandle::dummy();
+        }
+
+        Self::push_var_handler(&self.pos_handlers, false, var, handler)
+    }
+
+    fn push_var_handler<T, V, H>(handlers: &RefCell<Vec<OnVarHandler>>, is_preview: bool, var: V, mut handler: H) -> OnVarHandle
+    where
+        T: VarValue,
+        V: Var<T>,
+        H: AppHandler<T>,
+    {
+        if !var.can_update() {
+            return OnVarHandle::dummy();
+        }
+
+        let (handle_owner, handle) = OnVarHandle::new();
+        let handler = move |ctx: &mut AppContext, handle: &dyn AppWeakHandle| {
+            if let Some(new_value) = var.get_new(ctx.vars) {
+                handler.event(ctx, new_value, &AppHandlerArgs { handle, is_preview });
+            }
+            if var.strong_count() == 1 {
+                handle.unsubscribe();
+            }
+        };
+
+        handlers.borrow_mut().push(OnVarHandler {
+            handle: handle_owner,
+            handler: Box::new(handler),
+        });
+
+        handle
+    }
+
+    pub(crate) fn on_pre_vars(ctx: &mut AppContext) {
+        Self::on_vars_impl(&ctx.vars.pre_handlers, ctx)
+    }
+
+    pub(crate) fn on_vars(ctx: &mut AppContext) {
+        Self::on_vars_impl(&ctx.vars.pos_handlers, ctx)
+    }
+
+    fn on_vars_impl(handlers: &RefCell<Vec<OnVarHandler>>, ctx: &mut AppContext) {
+        let mut current = std::mem::take(&mut *handlers.borrow_mut());
+
+        current.retain_mut(|e| {
+            !e.handle.is_dropped() && {
+                (e.handler)(ctx, &e.handle.weak_handle());
+                !e.handle.is_dropped()
+            }
+        });
+
+        let mut new = handlers.borrow_mut();
+        current.extend(std::mem::take(&mut *new));
+        *new = current;
+    }
 }
 impl Deref for Vars {
     type Target = VarsRead;
 
     fn deref(&self) -> &Self::Target {
         &self.read
+    }
+}
+
+struct OnVarHandler {
+    handle: HandleOwner<()>,
+    handler: Box<dyn FnMut(&mut AppContext, &dyn AppWeakHandle)>,
+}
+
+/// Represents an app context handler created by [`Vars::on_var`] or [`Vars::on_pre_var`].
+///
+/// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
+/// without dropping the handler.
+#[derive(Clone)]
+#[must_use = "the handler unsubscribes if the handle is dropped"]
+pub struct OnVarHandle(Handle<()>);
+impl OnVarHandle {
+    fn new() -> (HandleOwner<()>, OnVarHandle) {
+        let (owner, handle) = Handle::new(());
+        (owner, OnVarHandle(handle))
+    }
+
+    /// Create a handle to nothing, the handle always in the *unsubscribed* state.
+    #[inline]
+    pub fn dummy() -> Self {
+        OnVarHandle(Handle::dummy(()))
+    }
+
+    /// Drop the handle but does **not** unsubscribe.
+    ///
+    /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
+    #[inline]
+    pub fn permanent(self) {
+        self.0.permanent();
+    }
+
+    /// If another handle has called [`permanent`](Self::permanent).
+    /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
+    #[inline]
+    pub fn is_permanent(&self) -> bool {
+        self.0.is_permanent()
+    }
+
+    /// Drops the handle and forces the handler to drop.
+    #[inline]
+    pub fn unsubscribe(self) {
+        self.0.force_drop()
+    }
+
+    /// If another handle has called [`unsubscribe`](Self::unsubscribe).
+    ///
+    /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
+    #[inline]
+    pub fn is_unsubscribed(&self) -> bool {
+        self.0.is_dropped()
     }
 }
 

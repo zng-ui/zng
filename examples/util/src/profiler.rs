@@ -91,7 +91,7 @@ impl<'a> FilterArgs<'a> {
 /// If a span or event has an attribute `"name"` the value will be included in the trace entry title,
 /// you can use this to dynamically generate a name.
 ///
-/// If a span has an attribute `"thread"` the span will be recorded as the *virtual thread* named.
+/// If a span has an attribute `"thread"` or `"track"` the span will be recorded as the *virtual thread* named.
 ///
 /// If a event has an attribute `"message"` the message is taken as a name.
 pub fn record_profile(
@@ -549,6 +549,8 @@ struct ThreadIdDisplay<'a>(u64, &'a FxHashMap<&'static str, String>);
 impl<'a> fmt::Display for ThreadIdDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(v_thread) = self.1.get("thread") {
+            write!(f, "{}", v_thread)
+        } else if let Some(v_thread) = self.1.get("track") {
             write!(f, "{}", v_thread)
         } else {
             write!(f, "{}", self.0)

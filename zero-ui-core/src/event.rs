@@ -748,7 +748,7 @@ impl Events {
     /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use zero_ui_core::event::*;

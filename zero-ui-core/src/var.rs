@@ -1167,6 +1167,88 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     {
         self.bind_filter_bidi(vars, other_var, |_, t| t.as_ref().parse().ok(), |_, o| Some(o.to_text().into()))
     }
+
+    /// Add a preview `handler` that is called every time this variable value is set, modified or touched,
+    /// the handler is called before all other UI updates.
+    ///
+    /// See [`Vars::on_pre_var`] for more details.
+    #[inline]
+    fn on_pre_new<Vw, H>(&self, vars: &Vw, handler: H) -> OnVarHandle
+    where
+        Vw: WithVars,
+        H: AppHandler<T>,
+    {
+        if self.can_update() {
+            vars.with_vars(|vars| vars.on_pre_var(self.clone(), handler))
+        } else {
+            OnVarHandle::dummy()
+        }
+    }
+
+    /// Add a `handler` that is called every time this variable value is set, modified or touched,
+    /// the handler is called after all other UI updates.
+    ///
+    /// See [`Vars::on_var`] for more details.
+    #[inline]
+    fn on_new<Vw, H>(&self, vars: &Vw, handler: H) -> OnVarHandle
+    where
+        Vw: WithVars,
+        H: AppHandler<T>,
+    {
+        if self.can_update() {
+            vars.with_vars(|vars| vars.on_var(self.clone(), handler))
+        } else {
+            OnVarHandle::dummy()
+        }
+    }
+
+    /// Debug helper for tracing the lifetime of a value in this variable.
+    ///
+    /// The `enter_value` closure is called every time the variable value is set, modified or touched, it can return
+    /// an implementation agnostic *scope* or *span* `S` that is only dropped when the variable updates again.
+    ///
+    /// The `enter_value` is also called immediately when this method is called to start tracking the first value.
+    ///
+    /// Returns a [`OnVarHandle`] that can be used to stop tracing.
+    ///
+    /// If this variable can never update the span is immediately dropped and a dummy handle is returned.
+    ///
+    /// # Examples
+    ///
+    /// Using the [`tracing`] crate to trace value spans:
+    ///
+    /// ```
+    /// # use zero_ui_core::var::*;
+    /// # macro_rules! info_span { ($($tt:tt)*) => { }; }
+    /// # mod tracing {  pub use crate::info_span; }
+    /// fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
+    ///     let handle = var.trace_value(vars, |value| {
+    ///         tracing::info_span!("my_var", ?value, track = "<vars>")
+    ///     }).entered());
+    ///     handle.permanent();
+    /// }
+    /// ```
+    ///
+    /// Making the handle permanent means that the tracing will happen for the duration of the variable or app.
+    ///
+    /// [`tracing`]: https://docs.rs/tracing/
+    fn trace_value<Vw, S, E>(&self, vars: &Vw, mut enter_value: E) -> OnVarHandle
+    where
+        Vw: WithVars,
+        E: FnMut(&T) -> S + 'static,
+        S: 'static,
+    {
+        vars.with_vars(|vars| {
+            let mut span = Some(enter_value(self.get(vars)));
+            self.on_pre_new(
+                vars,
+                app_hn!(|_, value, _| {
+                    let _ = span.take();
+                    span = Some(enter_value(value));
+                }),
+            )
+        })
+    }
 }
 
 #[doc(hidden)]
@@ -1351,7 +1433,10 @@ macro_rules! expr_var {
 }
 #[doc(inline)]
 pub use crate::expr_var;
-use crate::text::{Text, ToText};
+use crate::{
+    handler::AppHandler,
+    text::{Text, ToText},
+};
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::expr_var as __expr_var;
