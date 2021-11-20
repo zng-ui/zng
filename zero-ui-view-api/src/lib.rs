@@ -354,7 +354,7 @@ declare_api! {
     pub fn set_position(&mut self, id: WindowId, pos: DipPoint);
 
     /// Set the window content area size (inner-size).
-    pub fn set_size(&mut self, id: WindowId, size: DipSize, frame: FrameRequest);
+    pub fn set_size(&mut self, id: WindowId, size: DipSize);
 
     /// Set the window state.
     pub fn set_state(&mut self, id: WindowId, state: WindowState);

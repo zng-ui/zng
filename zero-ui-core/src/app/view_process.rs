@@ -862,8 +862,8 @@ impl ViewWindow {
 
     /// Set the window size.
     #[inline]
-    pub fn set_size(&self, size: DipSize, frame: FrameRequest) -> Result<()> {
-        self.0.call(|id, p| p.set_size(id, size, frame))
+    pub fn set_size(&self, size: DipSize) -> Result<()> {
+        self.0.call(|id, p| p.set_size(id, size))
     }
 
     /// Set the window state.

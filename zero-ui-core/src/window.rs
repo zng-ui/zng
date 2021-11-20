@@ -2108,12 +2108,11 @@ impl AppWindow {
 
         if self.size != size {
             let _s = tracing::trace_span!("resize/render-vars").entered();
-            let frame = self.render_frame(ctx);
 
             // resize view
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(size, frame.unwrap());
+                let _ = w.set_size(size);
             } else if let Some(s) = &self.headless_surface {
                 let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(Factor(1.0)));
             } else {
@@ -2158,15 +2157,12 @@ impl AppWindow {
         let (size, _, _) = self.layout_size(ctx, true);
 
         if self.size != size {
-            let _s = tracing::trace_span!("resize/render-lyt").entered();
-            let frame = self.render_frame(ctx);
-
+            let _s = tracing::trace_span!("resize/layout").entered();
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(size, frame.unwrap());
-            } else if let Some(_r) = &self.renderer {
-                // TODO resize headless renderer.
-                todo!()
+                let _ = w.set_size(size);
+            } else if let Some(s) = &self.headless_surface {
+                let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(Factor(1.0)));
             } else {
                 // headless "resize"
                 RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));

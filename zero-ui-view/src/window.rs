@@ -7,7 +7,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use gleam::gl;
@@ -429,30 +429,11 @@ impl Window {
         moved
     }
 
-    /// Resize window, returns `Some(new_size)` if actually resized and `Some(<frame>)` if the frame rendered within 300m.
-    #[must_use = "must send an event if the return is `Some(_)`"]
-    #[allow(clippy::type_complexity)]
-    pub fn set_inner_size<S: AppEventSender>(
-        &mut self,
-        size: DipSize,
-        frame: FrameRequest,
-        images: &mut ImageCache<S>,
-    ) -> Option<(DipSize, Option<(FrameId, Option<ImageLoadedData>, HitTestResult)>)> {
-        if self.resized(size) {
-            let new_size = size.to_winit();
-            self.render(frame);
-            let render = self.wait_frame_ready(Instant::now() + Duration::from_millis(300), images);
-
-            self.window.set_inner_size(new_size);
-            self.on_resized();
-
-            if render.is_some() {
-                self.redraw();
-            }
-            Some((self.size(), render))
-        } else {
-            None
-        }
+    /// Resize window, returns `true` if actually resized
+    #[must_use = "must send a resized event if the return true"]
+    pub fn set_inner_size(&mut self, size: DipSize) -> bool {
+        self.window.set_inner_size(size.to_winit());
+        self.resized(size)
     }
 
     pub fn set_document_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {

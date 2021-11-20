@@ -1104,23 +1104,14 @@ impl<S: AppEventSender> Api for App<S> {
         }
     }
 
-    fn set_size(&mut self, id: WindowId, size: DipSize, frame: FrameRequest) {
+    fn set_size(&mut self, id: WindowId, size: DipSize) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            if let Some((size, frame)) = w.set_inner_size(size, frame, &mut self.image_cache) {
+            if w.set_inner_size(size) {
                 let _ = self.app_sender.send(AppEvent::Notify(Event::WindowResized {
                     window: id,
                     size,
                     cause: EventCause::App,
                 }));
-
-                if let Some((frame_id, image, cursor_hits)) = frame {
-                    self.notify(Event::FrameRendered {
-                        window: id,
-                        frame: frame_id,
-                        frame_image: image,
-                        cursor_hits,
-                    });
-                }
             }
         } else {
             tracing::error!("headed window `{}` not found, will return fallback result", id);
