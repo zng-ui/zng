@@ -557,3 +557,21 @@ impl<'a> fmt::Display for ThreadIdDisplay<'a> {
         }
     }
 }
+
+/// Quick trace variable value spans with the variable as a thread and the value as spans.
+///
+/// # Syntax
+///
+/// ```
+/// # macro_rules! trace_var { ($($tt:tt)*) => {} }
+/// trace_var!(ctx.vars, ?var); // debug
+/// trace_var!(ctx.vars, %var); // display
+/// ```
+#[macro_export]
+macro_rules! trace_var {
+    ($vars:expr, $tracing_display_or_debug:tt $var:ident) => {
+        $var.trace_value($vars, |value| {
+            tracing::trace_span!("", name = $tracing_display_or_debug value, track = stringify!($var)).entered()
+        }).permanent();
+    };
+}

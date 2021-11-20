@@ -1284,7 +1284,7 @@ impl<E: AppExtension> RunningApp<E> {
             let mut ctx = self.owned_ctx.borrow();
 
             for event in self.update_events.drain(..) {
-                let _s = tracing::debug_span!("event", ?event).entered();
+                let _s = tracing::debug_span!("event", ?event).entered(); // TODO print args
 
                 self.extensions.event_preview(&mut ctx, &event);
                 observer.event_preview(&mut ctx, &event);

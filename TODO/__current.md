@@ -9,3 +9,32 @@
    the event can be coalesced?
 * Timer and resize updates are causing problems.
 * Crash respawn deadlocking.
+
+# Loop
+
+:poll-raw:
+  key_input
+  char_input
+  -> :update-cycle:
+
+:update-cycle:
+  ::update_events::
+     key_input
+     key_down
+     char_input
+  ::timers::
+  ::update::
+  ::layout::
+  ::render::
+
+  -> :poll-raw:
+
+
+# Loop Idea
+
++:poll-raw:
+|:update_events:
++:update:
+ :layout:
+
+:render:
