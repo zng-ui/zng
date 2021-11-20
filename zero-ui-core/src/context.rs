@@ -427,11 +427,9 @@ impl OwnedAppContext {
 
     /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
     /// requests and a time for the loop to awake and update.
-    ///
-    /// If `skip_timers` is `true` no wake time is returned but the previous wake time is still pending.
     #[must_use]
-    pub fn apply_updates(&mut self, skip_timers: bool) -> ContextUpdates {
-        let wake_time = if skip_timers { None } else { self.timers.apply_updates(&self.vars) };
+    pub fn apply_updates(&mut self) -> ContextUpdates {
+        let wake_time = self.timers.apply_updates(&self.vars);
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
 

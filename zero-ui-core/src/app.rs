@@ -22,6 +22,7 @@ use crate::{
 
 use once_cell::sync::Lazy;
 use std::future::Future;
+use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::task::Waker;
@@ -751,6 +752,10 @@ struct RunningApp<E: AppExtension> {
     // WaitUntil time.
     wake_time: Option<Instant>,
 
+    app_events: Vec<AppEvent>,
+    pending_layout: bool,
+    pending_render: bool,
+
     // shutdown was requested.
     exiting: bool,
 }
@@ -801,18 +806,19 @@ impl<E: AppExtension> RunningApp<E> {
             extensions,
             owned_ctx,
             receiver,
+            app_events: Vec::with_capacity(100),
             update_events: Vec::with_capacity(100),
+            pending_layout: false,
+            pending_render: false,
             wake_time: None,
             exiting: false,
         }
     }
 
     fn run_headed(mut self) {
-        let mut wait = match self.update(&mut ()) {
-            ControlFlow::Poll => false,
-            ControlFlow::Wait => true,
-            ControlFlow::Exit => return,
-        };
+        self.apply_updates(&mut ());
+        self.apply_update_events(&mut ());
+        let mut wait = false;
         loop {
             wait = match self.poll(wait, &mut ()) {
                 ControlFlow::Poll => false,
@@ -823,18 +829,16 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
-        // 1 - Receive events.
-
-        let mut buffer = Vec::with_capacity(20);
         let mut disconnected = false;
 
         if wait_app_event {
             let _idle = tracing::debug_span!("<idle>").entered();
             if let Some(time) = self.wake_time {
                 match self.receiver.recv_deadline(time) {
-                    Ok(ev) => buffer.push(ev),
+                    Ok(ev) => self.app_events.push(ev),
                     Err(e) => match e {
                         flume::RecvTimeoutError::Timeout => {
+                            self.app_events.push(AppEvent::Update);
                             tracing::debug!("timer elapsed");
                         }
                         flume::RecvTimeoutError::Disconnected => disconnected = true,
@@ -842,17 +846,16 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             } else {
                 match self.receiver.recv() {
-                    Ok(ev) => buffer.push(ev),
+                    Ok(ev) => self.app_events.push(ev),
                     Err(e) => match e {
                         flume::RecvError::Disconnected => disconnected = true,
                     },
                 }
             }
         }
-
         loop {
             match self.receiver.try_recv() {
-                Ok(ev) => buffer.push(ev),
+                Ok(ev) => self.app_events.push(ev),
                 Err(e) => match e {
                     flume::TryRecvError::Empty => break,
                     flume::TryRecvError::Disconnected => {
@@ -862,21 +865,50 @@ impl<E: AppExtension> RunningApp<E> {
                 },
             }
         }
-
         if disconnected {
             panic!("app events channel disconnected");
         }
 
-        // 2 - Process events.
-        //
-        // Note: we buffer first so that we don't get in a state where a slow event processor
-        // permanently blocks the update cycle from happening.
-        for ev in buffer {
-            self.app_event(ev, observer);
+        let mut pending_update = !self.update_events.is_empty() || self.owned_ctx.has_pending_updates();
+
+        let events: Vec<_> = self.app_events.drain(..).collect();
+        for ev in events {
+            match ev {
+                AppEvent::ViewEvent(ev) => {
+                    if pending_update {
+                        self.apply_updates(observer);
+                        self.apply_update_events(observer);
+                    }
+                    self.view_event(ev, observer);
+                }
+                AppEvent::Update => {
+                    self.owned_ctx.borrow().updates.update();
+                }
+                AppEvent::Event(e) => {
+                    self.owned_ctx.borrow().events.notify_app_event(e);
+                }
+                AppEvent::Var => {
+                    self.owned_ctx.borrow().vars.receive_sended_modify();
+                }
+                AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
+            }
+            pending_update = true;
         }
 
-        // 3 - Do update cycle.
-        self.update(observer)
+        if pending_update {
+            self.apply_updates(observer);
+            self.apply_update_events(observer);
+        }
+
+        self.apply_render(observer);
+
+        if self.exiting {
+            ControlFlow::Exit
+        } else if !self.update_events.is_empty() || self.owned_ctx.has_pending_updates() {
+            ControlFlow::Poll
+        } else {
+            ControlFlow::Wait
+        }
     }
 
     /// If device events are enabled in this app.
@@ -932,23 +964,6 @@ impl<E: AppExtension> RunningApp<E> {
     #[inline]
     pub fn wake_time(&self) -> Option<Instant> {
         self.wake_time
-    }
-
-    /// Process an [`AppEvent`].
-    fn app_event<O: AppEventObserver>(&mut self, app_event: AppEvent, observer: &mut O) {
-        let _s = tracing::trace_span!("app_event").entered();
-
-        match app_event {
-            AppEvent::ViewEvent(ev) => self.view_event(ev, observer),
-            AppEvent::Update => self.owned_ctx.borrow().updates.update(),
-            AppEvent::Event(e) => {
-                self.owned_ctx.borrow().events.notify_app_event(e);
-            }
-            AppEvent::Var => {
-                self.owned_ctx.borrow().vars.receive_sended_modify();
-            }
-            AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
-        }
     }
 
     /// Process a View Process event.
@@ -1257,52 +1272,9 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    /// Does pending updates, app events, layouts and frame until there is no more updates or a frame was generated.
-    ///
-    /// You can use an [`AppEventObserver`] to watch all of these actions.
-    pub fn update<O: AppEventObserver>(&mut self, observer: &mut O) -> ControlFlow {
-        let _s = tracing::debug_span!("update-cycle").entered();
-
-        let mut skip_timers = false;
-
-        if let Some(vp) = self.owned_ctx.borrow().services.get::<view_process::ViewProcess>() {
-            skip_timers = vp.pending_frames() > 0;
-        }
-
-        let u = self.owned_ctx.apply_updates(skip_timers);
-
-        self.wake_time = u.wake_time;
-        self.update_events.extend(u.events);
-        let mut update = u.update;
-        let mut layout = u.layout;
-        let mut render = u.render;
-
-        // does pending app events.
-        if !self.update_events.is_empty() {
-            let _s = tracing::trace_span!("events").entered();
-
-            let mut ctx = self.owned_ctx.borrow();
-
-            for event in self.update_events.drain(..) {
-                let _s = tracing::debug_span!("event", ?event).entered(); // TODO print args
-
-                self.extensions.event_preview(&mut ctx, &event);
-                observer.event_preview(&mut ctx, &event);
-                Events::on_pre_events(&mut ctx, &event);
-
-                self.extensions.event_ui(&mut ctx, &event);
-                observer.event_ui(&mut ctx, &event);
-
-                self.extensions.event(&mut ctx, &event);
-                observer.event(&mut ctx, &event);
-                Events::on_events(&mut ctx, &event);
-            }
-        }
-
-        {
-            // does `Timers::on_*` notifications.
-            Timers::notify(&mut self.owned_ctx.borrow());
-        }
+    /// Does updates, collects pending update generated events and layout + render.
+    fn apply_updates<O: AppEventObserver>(&mut self, observer: &mut O) {
+        let _s = tracing::debug_span!("apply_updates").entered();
 
         let mut limit = 100_000;
         loop {
@@ -1311,89 +1283,115 @@ impl<E: AppExtension> RunningApp<E> {
                 panic!("update loop polled 100,000 times, probably stuck in an infinite loop");
             }
 
-            if update {
-                let mut ctx = self.owned_ctx.borrow();
+            let u = self.owned_ctx.apply_updates();
 
-                // check shutdown.
-                if let Some(r) = ctx.services.app_process().take_requests() {
-                    let _s = tracing::debug_span!("shutdown_requested").entered();
+            {
+                let _s = tracing::debug_span!("Timers::notify").entered();
+                Timers::notify(&mut self.owned_ctx.borrow());
+            }
 
-                    let args = ShutdownRequestedArgs::now();
+            self.wake_time = u.wake_time;
+            self.update_events.extend(u.events);
+            self.pending_layout |= u.layout;
+            self.pending_render |= u.render;
 
-                    Self::notify_event_(&mut ctx, &mut self.extensions, ShutdownRequestedEvent, args.clone(), observer);
+            if !u.update {
+                if mem::take(&mut self.pending_layout) {
+                    let _s = tracing::debug_span!("apply_layout").entered();
 
-                    if args.cancel_requested() {
-                        r.respond(ctx.vars, ShutdownCancelled);
-                    }
-                    self.exiting = !args.cancel_requested();
-                    if self.exiting {
-                        return ControlFlow::Exit;
-                    }
+                    let ctx = &mut self.owned_ctx.borrow();
+                    self.extensions.layout(ctx);
+                    observer.layout(ctx);
+
+                    continue;
                 }
-
-                // does general updates.
-                {
-                    let _s = tracing::trace_span!("update").entered();
-
-                    self.extensions.update_preview(&mut ctx);
-                    observer.update_preview(&mut ctx);
-                    Vars::on_pre_vars(&mut ctx);
-                    Updates::on_pre_updates(&mut ctx);
-
-                    self.extensions.update_ui(&mut ctx);
-                    observer.update_ui(&mut ctx);
-
-                    self.extensions.update(&mut ctx);
-                    observer.update(&mut ctx);
-                    Vars::on_vars(&mut ctx);
-                    Updates::on_updates(&mut ctx);
-                }
-
-                let u = self.owned_ctx.apply_updates(true);
-                self.update_events.extend(u.events);
-                update = u.update;
-                layout |= u.layout;
-                render |= u.render;
-
-                continue;
-            } else if layout {
-                let _s = tracing::trace_span!("layout").entered();
-
-                {
-                    let mut ctx = self.owned_ctx.borrow();
-
-                    self.extensions.layout(&mut ctx);
-                    observer.layout(&mut ctx);
-                }
-
-                let u = self.owned_ctx.apply_updates(true);
-                self.update_events.extend(u.events);
-                update = u.update;
-                layout = u.layout;
-                render |= u.render;
-
-                continue;
-            } else if render {
-                let _s = tracing::trace_span!("render").entered();
-
-                let mut ctx = self.owned_ctx.borrow();
-
-                self.extensions.render(&mut ctx);
-                observer.render(&mut ctx);
 
                 break;
-            } else {
-                break;
+            }
+
+            let _s = tracing::debug_span!("apply_update").entered();
+
+            let ctx = &mut self.owned_ctx.borrow();
+
+            self.extensions.update_preview(ctx);
+            observer.update_preview(ctx);
+            Vars::on_pre_vars(ctx);
+            Updates::on_pre_updates(ctx);
+
+            self.extensions.update_ui(ctx);
+            observer.update_ui(ctx);
+
+            self.extensions.update(ctx);
+            observer.update(ctx);
+            Vars::on_vars(ctx);
+            Updates::on_updates(ctx);
+        }
+
+        // check shutdown.
+        if !self.exiting {
+            let ctx = &mut self.owned_ctx.borrow();
+
+            if let Some(r) = ctx.services.app_process().take_requests() {
+                let _s = tracing::debug_span!("shutdown_requested").entered();
+
+                let args = ShutdownRequestedArgs::now();
+
+                Self::notify_event_(ctx, &mut self.extensions, ShutdownRequestedEvent, args.clone(), observer);
+
+                if args.cancel_requested() {
+                    r.respond(ctx.vars, ShutdownCancelled);
+                }
+                self.exiting = !args.cancel_requested();
+            }
+        }
+    }
+
+    // apply the current pending update generated events.
+    fn apply_update_events<O: AppEventObserver>(&mut self, observer: &mut O) {
+        let _s = tracing::debug_span!("apply_update_events").entered();
+
+        let events: Vec<_> = self.update_events.drain(..).collect();
+
+        for event in events {
+            let _s = tracing::debug_span!("update_event", ?event).entered();
+
+            let ctx = &mut self.owned_ctx.borrow();
+
+            self.extensions.event_preview(ctx, &event);
+            observer.event_preview(ctx, &event);
+            Events::on_pre_events(ctx, &event);
+
+            self.extensions.event_ui(ctx, &event);
+            observer.event_ui(ctx, &event);
+
+            self.extensions.event(ctx, &event);
+            observer.event(ctx, &event);
+            Events::on_events(ctx, &event);
+
+            self.apply_updates(observer);
+        }
+    }
+
+    // apply pending render if the view-process is not already rendering.
+    fn apply_render<O: AppEventObserver>(&mut self, observer: &mut O) {
+        if !mem::take(&mut self.pending_render) {
+            return;
+        }
+
+        if let Some(vp) = self.owned_ctx.borrow().services.get::<view_process::ViewProcess>() {
+            if vp.pending_frames() > 0 {
+                tracing::debug_span!("delayed render, view-process is rendering");
+                self.pending_render = true;
+                return;
             }
         }
 
-        if self.exiting {
-            ControlFlow::Exit
-        } else if !self.update_events.is_empty() || self.owned_ctx.has_pending_updates() {
-            ControlFlow::Poll
-        } else {
-            ControlFlow::Wait
-        }
+        let _s = tracing::debug_span!("apply_render").entered();
+
+        let ctx = &mut self.owned_ctx.borrow();
+
+        self.extensions.render(ctx);
+        observer.render(ctx);
     }
 }
 impl<E: AppExtension> Drop for RunningApp<E> {

@@ -2764,7 +2764,6 @@ impl OwnedWindowContext {
             builder
         });
 
-        let _s = tracing::trace_span!("FINALIZE").entered();
         let (frame, used) = builder.finalize();
         self.used_frame_builder = Some(used);
         frame
