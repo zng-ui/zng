@@ -900,7 +900,7 @@ impl<E: AppExtension> RunningApp<E> {
             self.apply_update_events(observer);
         }
 
-        self.apply_render(observer);
+        self.finish_frame(observer);
 
         if self.exiting {
             ControlFlow::Exit
@@ -1296,16 +1296,6 @@ impl<E: AppExtension> RunningApp<E> {
             self.pending_render |= u.render;
 
             if !u.update {
-                if mem::take(&mut self.pending_layout) {
-                    let _s = tracing::debug_span!("apply_layout").entered();
-
-                    let ctx = &mut self.owned_ctx.borrow();
-                    self.extensions.layout(ctx);
-                    observer.layout(ctx);
-
-                    continue;
-                }
-
                 break;
             }
 
@@ -1372,12 +1362,8 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    // apply pending render if the view-process is not already rendering.
-    fn apply_render<O: AppEventObserver>(&mut self, observer: &mut O) {
-        if !mem::take(&mut self.pending_render) {
-            return;
-        }
-
+    // apply pending layout & render if the view-process is not already rendering.
+    fn finish_frame<O: AppEventObserver>(&mut self, observer: &mut O) {
         if let Some(vp) = self.owned_ctx.borrow().services.get::<view_process::ViewProcess>() {
             if vp.pending_frames() > 0 {
                 tracing::debug_span!("delayed render, view-process is rendering");
@@ -1386,12 +1372,24 @@ impl<E: AppExtension> RunningApp<E> {
             }
         }
 
-        let _s = tracing::debug_span!("apply_render").entered();
+        if mem::take(&mut self.pending_layout) {
+            let _s = tracing::debug_span!("apply_layout").entered();
 
-        let ctx = &mut self.owned_ctx.borrow();
+            let ctx = &mut self.owned_ctx.borrow();
+            self.extensions.layout(ctx);
+            observer.layout(ctx);
 
-        self.extensions.render(ctx);
-        observer.render(ctx);
+            return;
+        }
+
+        if mem::take(&mut self.pending_render) {
+            let _s = tracing::debug_span!("apply_render").entered();
+
+            let ctx = &mut self.owned_ctx.borrow();
+
+            self.extensions.render(ctx);
+            observer.render(ctx);
+        }
     }
 }
 impl<E: AppExtension> Drop for RunningApp<E> {

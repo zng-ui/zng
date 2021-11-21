@@ -516,10 +516,10 @@ impl AppExtension for FocusManager {
                 self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
             }
 
-            for args in focus.cleanup_returns(FrameFocusInfo::new(
-                windows.frame_info(args.window_id).expect("window in on_new_frame"),
-            )) {
-                ReturnFocusChangedEvent.notify(ctx.events, args);
+            if let Ok(frame) = windows.frame_info(args.window_id) {
+                for args in focus.cleanup_returns(FrameFocusInfo::new(frame)) {
+                    ReturnFocusChangedEvent.notify(ctx.events, args);
+                }
             }
         }
     }

@@ -9,20 +9,20 @@ fn main() {
 
     zero_ui_view::init();
 
-    let rec = examples_util::record_profile("profile-shortcuts.json.gz", &[("example", "shortcuts")], |_| true);
+    // let rec = examples_util::record_profile("profile-shortcuts.json.gz", &[("example", "shortcuts")], |_| true);
     app_main();
-    rec.finish();
+    // rec.finish();
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
+    App::default().run_window(|_| {
         let shortcut_text = var(Text::empty());
         let keypress_text = var(Text::empty());
         let shortcut_color = var(TextColorVar::default_value());
 
-        examples_util::trace_var!(ctx, ?shortcut_text);
-        examples_util::trace_var!(ctx, ?keypress_text);
-        examples_util::trace_var!(ctx, %shortcut_color);
+        // examples_util::trace_var!(ctx, ?shortcut_text);
+        // examples_util::trace_var!(ctx, ?keypress_text);
+        // examples_util::trace_var!(ctx, %shortcut_color);
 
         window! {
             title = "Shortcuts Example";
@@ -30,12 +30,10 @@ fn app_main() {
             padding = 50;
             start_position = StartPosition::CenterMonitor;
             on_shortcut = hn!(shortcut_text, shortcut_color, |ctx, args: &ShortcutArgs| {
-                println!("on_shortcut {}", args.shortcut);
                 shortcut_text.set(ctx.vars, args.shortcut.to_text());
                 shortcut_color.set(ctx.vars, TextColorVar::default_value());
             });
             on_key_down = hn!(keypress_text, shortcut_text, shortcut_color, |ctx, args: &KeyInputArgs| {
-                println!("on_key_down {:?}", args.key);
                 let mut new_shortcut_text = "not supported";
                 if let Some(key) = args.key {
                     if key.is_modifier() {
