@@ -1361,24 +1361,35 @@ impl<E: AppExtension> RunningApp<E> {
     fn apply_update_events<O: AppEventObserver>(&mut self, observer: &mut O) {
         let _s = tracing::debug_span!("apply_update_events").entered();
 
-        let events: Vec<_> = self.pending_app_events.drain(..).collect();
-        for event in events {
-            let _s = tracing::debug_span!("update_event", ?event).entered();
+        let mut limit = 100_000;
+        loop {
+            limit -= 1;
+            if limit == 0 {
+                panic!("update_events loop polled 100,000 times, probably stuck in an infinite loop");
+            }
 
-            let ctx = &mut self.owned_ctx.borrow();
+            let events: Vec<_> = self.pending_app_events.drain(..).collect();
+            if events.is_empty() {
+                break;
+            }
+            for event in events {
+                let _s = tracing::debug_span!("update_event", ?event).entered();
 
-            self.extensions.event_preview(ctx, &event);
-            observer.event_preview(ctx, &event);
-            Events::on_pre_events(ctx, &event);
+                let ctx = &mut self.owned_ctx.borrow();
 
-            self.extensions.event_ui(ctx, &event);
-            observer.event_ui(ctx, &event);
+                self.extensions.event_preview(ctx, &event);
+                observer.event_preview(ctx, &event);
+                Events::on_pre_events(ctx, &event);
 
-            self.extensions.event(ctx, &event);
-            observer.event(ctx, &event);
-            Events::on_events(ctx, &event);
+                self.extensions.event_ui(ctx, &event);
+                observer.event_ui(ctx, &event);
 
-            self.apply_updates(observer);
+                self.extensions.event(ctx, &event);
+                observer.event(ctx, &event);
+                Events::on_events(ctx, &event);
+
+                self.apply_updates(observer);
+            }
         }
     }
 

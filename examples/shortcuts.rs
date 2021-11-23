@@ -30,10 +30,16 @@ fn app_main() {
             padding = 50;
             start_position = StartPosition::CenterMonitor;
             on_shortcut = hn!(shortcut_text, shortcut_color, |ctx, args: &ShortcutArgs| {
+                if args.is_repeat {
+                    return;
+                }
                 shortcut_text.set(ctx.vars, args.shortcut.to_text());
                 shortcut_color.set(ctx.vars, TextColorVar::default_value());
             });
             on_key_down = hn!(keypress_text, shortcut_text, shortcut_color, |ctx, args: &KeyInputArgs| {
+                if args.is_repeat {
+                    return;
+                }
                 let mut new_shortcut_text = "not supported";
                 if let Some(key) = args.key {
                     if key.is_modifier() {
