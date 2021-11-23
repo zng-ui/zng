@@ -816,20 +816,9 @@ impl AppExtension for MouseManager {
             }
         }
         if let Some(args) = RawCursorMovedEvent.update(args) {
-            let windows = ctx.services.windows();
-            self.on_cursor_moved(
-                args.window_id,
-                args.device_id,
-                args.coalesced_pos.clone(),
-                args.position,
-                FrameHitInfo::new(
-                    args.window_id,
-                    args.frame_id,
-                    args.position.to_px(windows.scale_factor(args.window_id).unwrap().0),
-                    &args.hit_test,
-                ),
-                ctx,
-            );
+            if let Ok(hits) = ctx.services.windows().hit_test(args.window_id, args.position) {
+                self.on_cursor_moved(args.window_id, args.device_id, args.coalesced_pos.clone(), args.position, hits, ctx);
+            }
         } else if let Some(args) = RawMouseInputEvent.update(args) {
             self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
         } else if let Some(args) = RawModifiersChangedEvent.update(args) {

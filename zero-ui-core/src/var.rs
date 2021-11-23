@@ -1710,13 +1710,13 @@ mod tests {
 
         o.set(&ctx, "30").unwrap();
 
-        ctx.apply_updates(false);
+        ctx.apply_updates();
 
         assert_eq!(30, i.copy(&ctx));
 
         i.set(&ctx, 10).unwrap();
 
-        ctx.apply_updates(false);
+        ctx.apply_updates();
 
         assert_eq!("10", o.get(&ctx));
     }
@@ -1737,13 +1737,13 @@ mod tests {
 
         o.set(&ctx, 30).unwrap();
 
-        ctx.apply_updates(false);
+        ctx.apply_updates();
 
         assert_eq!("30", i.get(&ctx));
 
         i.set(&ctx, "10").unwrap();
 
-        ctx.apply_updates(false);
+        ctx.apply_updates();
 
         assert_eq!(10, o.copy(&ctx));
     }

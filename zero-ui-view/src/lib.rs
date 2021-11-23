@@ -231,7 +231,7 @@ pub(crate) struct App<S> {
     device_id_gen: DeviceId,
     devices: Vec<(DeviceId, glutin::event::DeviceId)>,
 
-    cursor_move_buffer: Option<(DeviceId, WindowId, Vec<DipPoint>)>,
+    coalescing_event: Option<Event>,
 
     exited: bool,
 }
@@ -382,7 +382,7 @@ impl App<()> {
                     },
                     GEvent::Suspended => {}
                     GEvent::Resumed => {}
-                    GEvent::MainEventsCleared => app.flush_coalesced_all(),
+                    GEvent::MainEventsCleared => app.flush_coalesced(),
                     GEvent::RedrawRequested(w_id) => app.on_redraw(w_id),
                     GEvent::RedrawEventsCleared => {}
                     GEvent::LoopDestroyed => {}
@@ -416,7 +416,7 @@ impl<S: AppEventSender> App<S> {
             monitor_id_gen: 0,
             devices: vec![],
             device_id_gen: 0,
-            cursor_move_buffer: None,
+            coalescing_event: None,
             exited: false,
         }
     }
@@ -579,15 +579,12 @@ impl<S: AppEventSender> App<S> {
 
                 self.windows[i].set_cursor_pos(px_p);
 
-                if let Some((d, w, _)) = &mut self.cursor_move_buffer {
-                    if d_id != *d || id != *w {
-                        self.flush_coalesced_cursor();
-                    }
-                } else {
-                    self.flush_coalesced_not_cursor();
-                }
-
-                self.cursor_move_buffer.get_or_insert((d_id, id, Vec::with_capacity(20))).2.push(p);
+                self.notify(Event::CursorMoved {
+                    window: id,
+                    device: d_id,
+                    coalesced_pos: vec![],
+                    position: p,
+                });
             }
             WindowEvent::CursorEntered { device_id } => {
                 let d_id = self.device_id(device_id);
@@ -739,36 +736,33 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
-    fn flush_coalesced_cursor(&mut self) {
-        if let Some((device, window, mut coalesced_pos)) = self.cursor_move_buffer.take() {
-            if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window) {
-                let position = coalesced_pos.pop().unwrap();
-                let pos_px = position.to_px(w.scale_factor());
-                let (frame, hit_test) = w.hit_test(pos_px);
+    pub(crate) fn notify(&mut self, event: Event) {
+        if let Some(mut coal) = self.coalescing_event.take() {
+            match coal.coalesce(event) {
+                Ok(()) => self.coalescing_event = Some(coal),
+                Err(event) => {
+                    let mut error = self.event_sender.send(coal).is_err();
+                    error |= self.event_sender.send(event).is_err();
 
-                let _ = self.event_sender.send(Event::CursorMoved {
-                    window,
-                    device,
-                    coalesced_pos,
-                    position,
-                    hit_test,
-                    frame,
-                });
+                    if error {
+                        let _ = self.app_sender.send(AppEvent::ParentProcessExited);
+                    }
+                }
             }
+        } else {
+            self.coalescing_event = Some(event);
+        }
+
+        if self.headless {
+            self.flush_coalesced();
         }
     }
 
-    fn flush_coalesced_not_cursor(&mut self) {}
-
-    fn flush_coalesced_all(&mut self) {
-        self.flush_coalesced_cursor();
-    }
-
-    pub(crate) fn notify(&mut self, event: Event) {
-        self.flush_coalesced_all();
-
-        if self.event_sender.send(event).is_err() {
-            let _ = self.app_sender.send(AppEvent::ParentProcessExited);
+    pub(crate) fn flush_coalesced(&mut self) {
+        if let Some(coal) = self.coalescing_event.take() {
+            if self.event_sender.send(coal).is_err() {
+                let _ = self.app_sender.send(AppEvent::ParentProcessExited);
+            }
         }
     }
 

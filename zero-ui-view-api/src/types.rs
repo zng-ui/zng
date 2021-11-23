@@ -686,8 +686,6 @@ pub enum Event {
     /// The cursor has moved on the window.
     ///
     /// This event can be coalesced, i.e. multiple cursor moves packed into the same event.
-    ///
-    /// Contains a hit-test of the point and the frame that was hit.
     CursorMoved {
         /// Window that received the cursor move.
         window: WindowId,
@@ -699,10 +697,6 @@ pub enum Event {
 
         /// Cursor position, relative to the window top-left in device independent pixels.
         position: DipPoint,
-        /// Hit-test result at the new position of the cursor.
-        hit_test: HitTestResult,
-        /// Frame that was hit-tested.
-        frame: FrameId,
     },
 
     /// The cursor has entered the window.
@@ -904,6 +898,71 @@ pub enum Event {
     },
     /// Device Unicode character input.
     DeviceText(DeviceId, char),
+}
+impl Event {
+    /// Change `self` to incorporate `other` or returns `other` if both events cannot be coalesced.
+    pub fn coalesce(&mut self, other: Event) -> Result<(), Event> {
+        use Event::*;
+
+        match (self, other) {
+            (
+                CursorMoved {
+                    window,
+                    device,
+                    coalesced_pos,
+                    position,
+                },
+                CursorMoved {
+                    window: n_window,
+                    device: n_device,
+                    coalesced_pos: n_coal_pos,
+                    position: n_pos,
+                },
+            ) if *window == n_window && *device == n_device => {
+                coalesced_pos.push(*position);
+                coalesced_pos.extend(n_coal_pos);
+                *position = n_pos;
+            }
+            // wheel scroll.
+            (
+                MouseWheel {
+                    window,
+                    device,
+                    delta: MouseScrollDelta::LineDelta(delta_x, delta_y),
+                    phase,
+                },
+                MouseWheel {
+                    window: n_window,
+                    device: n_device,
+                    delta: MouseScrollDelta::LineDelta(n_delta_x, n_delta_y),
+                    phase: n_phase,
+                },
+            ) if *window == n_window && *device == n_device && *phase == n_phase => {
+                *delta_x += n_delta_x;
+                *delta_y += n_delta_y;
+            }
+            // trackpad scroll-move.
+            (
+                MouseWheel {
+                    window,
+                    device,
+                    delta: MouseScrollDelta::PixelDelta(delta_x, delta_y),
+                    phase,
+                },
+                MouseWheel {
+                    window: n_window,
+                    device: n_device,
+                    delta: MouseScrollDelta::PixelDelta(n_delta_x, n_delta_y),
+                    phase: n_phase,
+                },
+            ) if *window == n_window && *device == n_device && *phase == n_phase => {
+                *delta_x += n_delta_x;
+                *delta_y += n_delta_y;
+            }
+            (_, e) => return Err(e),
+        }
+        Ok(())
+    }
 }
 
 /// Cause of a window state change.

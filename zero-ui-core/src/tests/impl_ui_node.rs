@@ -182,12 +182,11 @@ pub fn default_no_child() {
     wgt.test_init(&mut ctx);
     wgt.test_update(&mut ctx);
     wgt.test_deinit(&mut ctx);
-    let u = ctx.apply_updates(false);
+    let u = ctx.apply_updates();
     assert!(u.events.is_empty());
     assert!(!u.update);
     assert!(!u.layout);
     assert!(!u.render);
-    assert!(u.wake_time.is_none());
 
     wgt.test_init(&mut ctx);
 

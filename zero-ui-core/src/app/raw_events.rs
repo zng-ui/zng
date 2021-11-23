@@ -275,12 +275,6 @@ event_args! {
         /// Position of the cursor over the window, (0, 0) is the top-left.
         pub position: DipPoint,
 
-        /// Raw hit-test.
-        pub hit_test: crate::render::webrender_api::HitTestResult,
-
-        /// Frame that was hit-test.
-        pub frame_id: FrameId,
-
         ..
 
         /// Returns `true` for all widgets in the [window](Self::window_id).

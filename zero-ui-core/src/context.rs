@@ -429,7 +429,6 @@ impl OwnedAppContext {
     /// requests and a time for the loop to awake and update.
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
-        let wake_time = self.timers.apply_updates(&self.vars);
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
 
@@ -440,8 +439,13 @@ impl OwnedAppContext {
             update,
             layout,
             render,
-            wake_time,
         }
+    }
+
+    /// Update timers, returns next timer tick time.
+    #[must_use]
+    pub fn update_timers(&mut self) -> Option<Instant> {
+        self.timers.apply_updates(&self.vars)
     }
 
     /// If a call to `apply_updates` will generate updates (ignoring timers).
@@ -831,7 +835,7 @@ impl TestWidgetContext {
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
     ///
     /// Returns the [`ContextUpdates`] a full app would use to update the application.
-    pub fn apply_updates(&mut self, skip_timers: bool) -> ContextUpdates {
+    pub fn apply_updates(&mut self) -> ContextUpdates {
         for ev in self.receiver.try_iter() {
             match ev {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
@@ -841,7 +845,6 @@ impl TestWidgetContext {
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }
-        let wake_time = if skip_timers { None } else { self.timers.apply_updates(&self.vars) };
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
         let (update, layout, render) = self.updates.take_updates();
@@ -850,8 +853,12 @@ impl TestWidgetContext {
             update,
             layout,
             render,
-            wake_time,
         }
+    }
+
+    /// Update timers, returns next timer tick time.
+    pub fn update_timers(&mut self) -> Option<Instant> {
+        self.timers.apply_updates(&self.vars)
     }
 }
 
@@ -871,9 +878,6 @@ pub struct ContextUpdates {
 
     /// Full frame or frame update requested.
     pub render: bool,
-
-    /// Time for the loop to awake and update.
-    pub wake_time: Option<Instant>,
 }
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.
@@ -889,11 +893,6 @@ impl std::ops::BitOrAssign for ContextUpdates {
         self.update |= rhs.update;
         self.layout |= rhs.layout;
         self.render |= rhs.render;
-        self.wake_time = match (self.wake_time, rhs.wake_time) {
-            (None, None) => None,
-            (None, Some(t)) | (Some(t), None) => Some(t),
-            (Some(a), Some(b)) => Some(a.min(b)),
-        };
     }
 }
 impl std::ops::BitOr for ContextUpdates {

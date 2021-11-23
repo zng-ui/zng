@@ -31,7 +31,7 @@ use std::{
     fmt,
     time::Instant,
 };
-use view_process::ViewProcessExt;
+use view_process::{ViewProcess, ViewProcessExt, ViewProcessRespawnedArgs, ViewProcessRespawnedEvent};
 
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///
@@ -747,14 +747,14 @@ struct RunningApp<E: AppExtension> {
     owned_ctx: OwnedAppContext,
     receiver: flume::Receiver<AppEvent>,
 
-    // events generated during an `update` cycle.
-    update_events: Vec<BoxedEventUpdate>,
-    // WaitUntil time.
     wake_time: Option<Instant>,
 
-    app_events: Vec<AppEvent>,
+    pending_view_events: Vec<zero_ui_view_api::Event>,
+    pending_app_events: Vec<BoxedEventUpdate>,
+    pending_timers: bool,
     pending_layout: bool,
     pending_render: bool,
+    last_render: Instant,
 
     // shutdown was requested.
     exiting: bool,
@@ -784,13 +784,13 @@ impl<E: AppExtension> RunningApp<E> {
             debug_assert!(with_renderer);
 
             let view_evs_sender = ctx.updates.sender();
-            let view_app = view_process::ViewProcess::start(view_process_exe, device_events, false, move |ev| {
+            let view_app = ViewProcess::start(view_process_exe, device_events, false, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
             ctx.services.register(view_app);
         } else if with_renderer {
             let view_evs_sender = ctx.updates.sender();
-            let renderer = view_process::ViewProcess::start(view_process_exe, false, true, move |ev| {
+            let renderer = ViewProcess::start(view_process_exe, false, true, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
             ctx.services.register(renderer);
@@ -806,108 +806,15 @@ impl<E: AppExtension> RunningApp<E> {
             extensions,
             owned_ctx,
             receiver,
-            app_events: Vec::with_capacity(100),
-            update_events: Vec::with_capacity(100),
+
+            pending_view_events: Vec::with_capacity(100),
+            pending_app_events: Vec::with_capacity(100),
+            pending_timers: false,
             pending_layout: false,
             pending_render: false,
+            last_render: Instant::now(),
             wake_time: None,
             exiting: false,
-        }
-    }
-
-    fn run_headed(mut self) {
-        self.apply_updates(&mut ());
-        self.apply_update_events(&mut ());
-        let mut wait = false;
-        loop {
-            wait = match self.poll(wait, &mut ()) {
-                ControlFlow::Poll => false,
-                ControlFlow::Wait => true,
-                ControlFlow::Exit => return,
-            };
-        }
-    }
-
-    fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
-        let mut disconnected = false;
-
-        if wait_app_event {
-            let _idle = tracing::debug_span!("<idle>").entered();
-            if let Some(time) = self.wake_time {
-                match self.receiver.recv_deadline(time) {
-                    Ok(ev) => self.app_events.push(ev),
-                    Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => {
-                            self.app_events.push(AppEvent::Update);
-                            tracing::debug!("timer elapsed");
-                        }
-                        flume::RecvTimeoutError::Disconnected => disconnected = true,
-                    },
-                }
-            } else {
-                match self.receiver.recv() {
-                    Ok(ev) => self.app_events.push(ev),
-                    Err(e) => match e {
-                        flume::RecvError::Disconnected => disconnected = true,
-                    },
-                }
-            }
-        }
-        loop {
-            match self.receiver.try_recv() {
-                Ok(ev) => self.app_events.push(ev),
-                Err(e) => match e {
-                    flume::TryRecvError::Empty => break,
-                    flume::TryRecvError::Disconnected => {
-                        disconnected = true;
-                        break;
-                    }
-                },
-            }
-        }
-        if disconnected {
-            panic!("app events channel disconnected");
-        }
-
-        let mut pending_update = !self.update_events.is_empty() || self.owned_ctx.has_pending_updates();
-
-        let events: Vec<_> = self.app_events.drain(..).collect();
-        for ev in events {
-            match ev {
-                AppEvent::ViewEvent(ev) => {
-                    if pending_update {
-                        self.apply_updates(observer);
-                        self.apply_update_events(observer);
-                    }
-                    self.view_event(ev, observer);
-                }
-                AppEvent::Update => {
-                    self.owned_ctx.borrow().updates.update();
-                }
-                AppEvent::Event(e) => {
-                    self.owned_ctx.borrow().events.notify_app_event(e);
-                }
-                AppEvent::Var => {
-                    self.owned_ctx.borrow().vars.receive_sended_modify();
-                }
-                AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
-            }
-            pending_update = true;
-        }
-
-        if pending_update {
-            self.apply_updates(observer);
-            self.apply_update_events(observer);
-        }
-
-        self.finish_frame(observer);
-
-        if self.exiting {
-            ControlFlow::Exit
-        } else if !self.update_events.is_empty() || self.owned_ctx.has_pending_updates() {
-            ControlFlow::Poll
-        } else {
-            ControlFlow::Wait
         }
     }
 
@@ -957,7 +864,7 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
-        self.ctx().services.req::<view_process::ViewProcess>().device_id(id)
+        self.ctx().services.req::<ViewProcess>().device_id(id)
     }
 
     /// Next timer deadline.
@@ -987,7 +894,7 @@ impl<E: AppExtension> RunningApp<E> {
             } => {
                 let window_id = window_id(w_id);
                 let view = self.ctx().services.view_process();
-                view.on_frame_rendered(window_id);
+                // view.on_frame_rendered(window_id); // already called in push_coalesce
                 let image = frame_image.map(|img| view.on_frame_image(img));
                 let args = RawFrameRenderedArgs::now(window_id, frame_id, image, cursor_hits);
                 self.notify_event(RawFrameRenderedEvent, args, observer);
@@ -1051,10 +958,8 @@ impl<E: AppExtension> RunningApp<E> {
                 device: d_id,
                 coalesced_pos,
                 position,
-                hit_test,
-                frame,
             } => {
-                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position, hit_test, frame);
+                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
             Event::CursorEntered {
@@ -1120,7 +1025,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawWindowScaleFactorChangedEvent, args, observer);
             }
             Event::MonitorsChanged(monitors) => {
-                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let view = self.ctx().services.req::<ViewProcess>();
                 let monitors: Vec<_> = monitors.into_iter().map(|(id, info)| (view.monitor_id(id), info)).collect();
                 let args = RawMonitorsChangedArgs::now(monitors);
                 self.notify_event(RawMonitorsChangedEvent, args, observer);
@@ -1138,7 +1043,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
             Event::ImageMetadataLoaded { image: id, size, ppi } => {
-                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let view = self.ctx().services.req::<ViewProcess>();
                 if let Some(img) = view.on_image_metadata_loaded(id, size, ppi) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageMetadataLoadedEvent, args, observer);
@@ -1151,32 +1056,32 @@ impl<E: AppExtension> RunningApp<E> {
                 opaque,
                 partial_bgra8,
             } => {
-                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let view = self.ctx().services.req::<ViewProcess>();
                 if let Some(img) = view.on_image_partially_loaded(id, partial_size, ppi, opaque, partial_bgra8) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImagePartiallyLoadedEvent, args, observer);
                 }
             }
             Event::ImageLoaded(image) => {
-                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let view = self.ctx().services.req::<ViewProcess>();
                 if let Some(img) = view.on_image_loaded(image) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadedEvent, args, observer);
                 }
             }
             Event::ImageLoadError { image: id, error } => {
-                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let view = self.ctx().services.req::<ViewProcess>();
                 if let Some(img) = view.on_image_error(id, error) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadErrorEvent, args, observer);
                 }
             }
             Event::ImageEncoded { image: id, format, data } => {
-                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let view = self.ctx().services.req::<ViewProcess>();
                 view.on_image_encoded(id, format, data)
             }
             Event::ImageEncodeError { image: id, format, error } => {
-                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let view = self.ctx().services.req::<ViewProcess>();
                 view.on_image_encode_error(id, format, error);
             }
             Event::FrameImageReady {
@@ -1185,7 +1090,7 @@ impl<E: AppExtension> RunningApp<E> {
                 image: image_id,
                 selection,
             } => {
-                let view = self.ctx().services.req::<view_process::ViewProcess>();
+                let view = self.ctx().services.req::<ViewProcess>();
                 if let Some(img) = view.on_frame_image_ready(image_id) {
                     let args = RawFrameImageReadyArgs::now(img, window_id(w_id), frame_id, selection);
                     self.notify_event(RawFrameImageReadyEvent, args, observer);
@@ -1262,13 +1167,133 @@ impl<E: AppExtension> RunningApp<E> {
                 let view = self.ctx().services.view_process();
                 view.on_respawed(g);
 
-                let args = view_process::ViewProcessRespawnedArgs::now(g);
-                self.notify_event(view_process::ViewProcessRespawnedEvent, args, observer);
+                let args = ViewProcessRespawnedArgs::now(g);
+                self.notify_event(ViewProcessRespawnedEvent, args, observer);
             }
 
             Event::Disconnected(gen) => {
                 self.ctx().services.view_process().handle_disconnect(gen);
             }
+        }
+    }
+
+    fn run_headed(mut self) {
+        self.apply_updates(&mut ());
+        self.apply_update_events(&mut ());
+        let mut wait = false;
+        loop {
+            wait = match self.poll(wait, &mut ()) {
+                ControlFlow::Poll => false,
+                ControlFlow::Wait => true,
+                ControlFlow::Exit => return,
+            };
+        }
+    }
+
+    fn push_coalesce(&mut self, ev: AppEvent) {
+        match ev {
+            AppEvent::ViewEvent(ev) => {
+                if let zero_ui_view_api::Event::FrameRendered { window, .. } = &ev {
+                    if let Some(vp) = self.ctx().services.get::<ViewProcess>() {
+                        vp.on_frame_rendered(unsafe { WindowId::from_raw(*window) });
+                        self.last_render = Instant::now();
+                    }
+
+                    self.pending_view_events.push(ev);
+                } else if let Some(last) = self.pending_view_events.last_mut() {
+                    match last.coalesce(ev) {
+                        Ok(()) => {}
+                        Err(ev) => self.pending_view_events.push(ev),
+                    }
+                } else {
+                    self.pending_view_events.push(ev);
+                }
+            }
+            AppEvent::Event(ev) => self.ctx().events.notify_app_event(ev),
+            AppEvent::Var => self.ctx().vars.receive_sended_modify(),
+            AppEvent::Update => self.ctx().updates.update(),
+            AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
+        }
+    }
+
+    fn has_pending_updates(&mut self) -> bool {
+        !self.pending_view_events.is_empty()
+            || !self.pending_app_events.is_empty()
+            || self.pending_timers
+            || self.owned_ctx.has_pending_updates()
+    }
+
+    fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
+        let mut disconnected = false;
+
+        if wait_app_event {
+            let _idle = tracing::debug_span!("<idle>").entered();
+            if let Some(time) = self.wake_time.take() {
+                match self.receiver.recv_deadline(time) {
+                    Ok(ev) => self.push_coalesce(ev),
+                    Err(e) => match e {
+                        flume::RecvTimeoutError::Timeout => {
+                            self.pending_timers = true;
+                        }
+                        flume::RecvTimeoutError::Disconnected => disconnected = true,
+                    },
+                }
+            } else {
+                match self.receiver.recv() {
+                    Ok(ev) => self.push_coalesce(ev),
+                    Err(e) => match e {
+                        flume::RecvError::Disconnected => disconnected = true,
+                    },
+                }
+            }
+        }
+        loop {
+            match self.receiver.try_recv() {
+                Ok(ev) => self.push_coalesce(ev),
+                Err(e) => match e {
+                    flume::TryRecvError::Empty => break,
+                    flume::TryRecvError::Disconnected => {
+                        disconnected = true;
+                        break;
+                    }
+                },
+            }
+        }
+        if disconnected {
+            panic!("app events channel disconnected");
+        }
+
+        if self.view_is_rendering() {
+            return ControlFlow::Wait;
+        }
+
+        let pending_update = self.has_pending_updates();
+
+        let mut events = mem::take(&mut self.pending_view_events);
+        for ev in events.drain(..) {
+            self.view_event(ev, observer);
+            self.apply_updates(observer);
+        }
+        debug_assert!(self.pending_view_events.is_empty());
+        self.pending_view_events = events; // reuse capacity
+
+        if mem::take(&mut self.pending_timers) {
+            self.wake_time = self.owned_ctx.update_timers();
+        }
+
+        if pending_update {
+            self.apply_updates(observer);
+            self.apply_update_events(observer);
+        }
+
+        self.finish_frame(observer);
+
+        if self.exiting {
+            ControlFlow::Exit
+        } else if self.has_pending_updates() {
+            ControlFlow::Poll
+        } else {
+            ControlFlow::Wait
         }
     }
 
@@ -1285,13 +1310,9 @@ impl<E: AppExtension> RunningApp<E> {
 
             let u = self.owned_ctx.apply_updates();
 
-            {
-                let _s = tracing::debug_span!("Timers::notify").entered();
-                Timers::notify(&mut self.owned_ctx.borrow());
-            }
+            Timers::notify(&mut self.owned_ctx.borrow());
 
-            self.wake_time = u.wake_time;
-            self.update_events.extend(u.events);
+            self.pending_app_events.extend(u.events);
             self.pending_layout |= u.layout;
             self.pending_render |= u.render;
 
@@ -1340,8 +1361,7 @@ impl<E: AppExtension> RunningApp<E> {
     fn apply_update_events<O: AppEventObserver>(&mut self, observer: &mut O) {
         let _s = tracing::debug_span!("apply_update_events").entered();
 
-        let events: Vec<_> = self.update_events.drain(..).collect();
-
+        let events: Vec<_> = self.pending_app_events.drain(..).collect();
         for event in events {
             let _s = tracing::debug_span!("update_event", ?event).entered();
 
@@ -1362,24 +1382,27 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
+    fn view_is_rendering(&mut self) -> bool {
+        self.owned_ctx
+            .borrow()
+            .services
+            .get::<ViewProcess>()
+            .map(|vp| vp.pending_frames() > 0)
+            .unwrap_or(false)
+    }
+
     // apply pending layout & render if the view-process is not already rendering.
     fn finish_frame<O: AppEventObserver>(&mut self, observer: &mut O) {
-        if let Some(vp) = self.owned_ctx.borrow().services.get::<view_process::ViewProcess>() {
-            if vp.pending_frames() > 0 {
-                tracing::debug_span!("delayed render, view-process is rendering");
-                self.pending_render = true;
-                return;
-            }
-        }
+        debug_assert!(!self.view_is_rendering());
 
-        if mem::take(&mut self.pending_layout) {
+        while mem::take(&mut self.pending_layout) {
             let _s = tracing::debug_span!("apply_layout").entered();
 
             let ctx = &mut self.owned_ctx.borrow();
             self.extensions.layout(ctx);
             observer.layout(ctx);
 
-            return;
+            self.apply_updates(observer);
         }
 
         if mem::take(&mut self.pending_render) {
@@ -1449,7 +1472,7 @@ impl HeadlessApp {
     /// [`UiNode::render`]: crate::UiNode::render
     /// [`Windows::frame_info`]: crate::window::Windows::frame_info
     pub fn renderer_enabled(&mut self) -> bool {
-        self.ctx().services.get::<view_process::ViewProcess>().is_some()
+        self.ctx().services.get::<ViewProcess>().is_some()
     }
 
     /// Borrows the app context.
