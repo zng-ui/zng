@@ -16,7 +16,7 @@ use crate::{
     context::AppContext,
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
-    var::{var, RcVar, ReadOnlyVar, Var, Vars, WeakVar},
+    var::{var, RcVar, ReadOnlyVar, Var, Vars, VarsRead, WeakVar},
 };
 
 struct DeadlineHandlerEntry {
@@ -243,6 +243,55 @@ impl Timers {
             pending: None,
         });
         handle
+    }
+
+    pub(crate) fn next_deadline(&self, vars: &VarsRead) -> Option<Instant> {
+        let now = Instant::now();
+
+        let mut min_next_some = false;
+        let mut min_next = now + Duration::from_secs(60 * 60 * 60);
+
+        for wk in &self.deadlines {
+            if let Some(var) = wk.upgrade() {
+                let deadline = var.get(vars).deadline;
+                if deadline > now {
+                    min_next_some = true;
+                    min_next = min_next.min(deadline);
+                }
+            }
+        }
+
+        for t in &self.timers {
+            if let Some(var) = t.weak_var.upgrade() {
+                if !t.handle.is_dropped() {
+                    let timer = var.get(vars);
+                    let deadline = timer.0 .0.data().deadline.lock();
+
+                    min_next_some = true;
+                    min_next = min_next.min(deadline.current_deadline());
+                }
+            }
+        }
+
+        for e in &self.deadline_handlers {
+            let deadline = e.handle.data().deadline;
+            min_next_some = true;
+            min_next = min_next.min(deadline);
+        }
+
+        for e in &self.timer_handlers {
+            let state = e.handle.data();
+            let deadline = state.deadline.lock();
+
+            min_next_some = true;
+            min_next = min_next.min(deadline.current_deadline());
+        }
+
+        if min_next_some {
+            Some(min_next)
+        } else {
+            None
+        }
     }
 
     /// Update timer vars, flag handlers to be called in [`Self::notify`], returns new app wake time.

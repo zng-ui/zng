@@ -1279,6 +1279,8 @@ impl<E: AppExtension> RunningApp<E> {
 
         if mem::take(&mut self.pending_timers) {
             self.wake_time = self.owned_ctx.update_timers();
+        } else {
+            self.wake_time = self.owned_ctx.next_deadline();
         }
 
         if pending_update {

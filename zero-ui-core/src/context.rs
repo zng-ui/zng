@@ -442,6 +442,12 @@ impl OwnedAppContext {
         }
     }
 
+    /// Returns next timer tick time.
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Instant> {
+        self.timers.next_deadline(&self.vars)
+    }
+
     /// Update timers, returns next timer tick time.
     #[must_use]
     pub fn update_timers(&mut self) -> Option<Instant> {
