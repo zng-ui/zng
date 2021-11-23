@@ -433,7 +433,11 @@ impl Window {
     #[must_use = "must send a resized event if the return true"]
     pub fn set_inner_size(&mut self, size: DipSize) -> bool {
         self.window.set_inner_size(size.to_winit());
-        self.resized(size)
+        let r = self.resized(size);
+        if r {
+            self.on_resized();
+        }
+        r
     }
 
     pub fn set_document_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {

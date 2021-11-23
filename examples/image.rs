@@ -1,29 +1,21 @@
-//#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::{image::ImageLimits, timer::Timers};
 use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs, ImageLoadingArgs};
-use zero_ui_core::app::ShutdownRequestedEvent;
-
-// use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    //examples_util::print_info();
-    let rec = examples_util::record_profile("profile-image.json.gz", &[("example", "image")], |_| true);
+    //zero_ui_view::run_same_process(app_main);
 
-    zero_ui_view::run_same_process(|| app_main(rec));
+    examples_util::print_info();
+
+    zero_ui_view::init();
+
+    app_main();
 }
 
-fn app_main(rec: examples_util::Recording) {
+fn app_main() {
     App::default().run_window(|ctx| {
-        ctx.events
-            .on_event(
-                ShutdownRequestedEvent,
-                app_hn_once!(|_, _| {
-                    rec.finish();
-                }),
-            )
-            .permanent();
-
         window! {
             title = "Image Example";
             state = WindowState::Maximized;
