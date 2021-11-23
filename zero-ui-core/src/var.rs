@@ -1218,13 +1218,14 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Using the [`tracing`] crate to trace value spans:
     ///
     /// ```
+    /// # fn main() { }
     /// # use zero_ui_core::var::*;
     /// # macro_rules! info_span { ($($tt:tt)*) => { }; }
     /// # mod tracing {  pub use crate::info_span; }
     /// fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
     ///     let handle = var.trace_value(vars, |value| {
     ///         tracing::info_span!("my_var", ?value, track = "<vars>")
-    ///     }).entered());
+    ///     }).entered();
     ///     handle.permanent();
     /// }
     /// ```

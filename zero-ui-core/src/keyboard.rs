@@ -330,9 +330,9 @@ impl Keyboard {
     ///
     /// This delay is roughly the time the user must hold a key pressed to generate a new key
     /// press event. When a second key press happens without any other keyboard event and within twice this
-    /// value if is marked [`repeat`] by the [`KeyboardManager`].
+    /// value if is marked [`is_repeat`] by the [`KeyboardManager`].
     ///
-    /// [`repeat`]: KeyInputArgs::repeat
+    /// [`is_repeat`]: KeyInputArgs::is_repeat
     #[inline]
     pub fn repeat_delay(&self) -> ReadOnlyRcVar<Duration> {
         self.repeat_delay.clone().into_read_only()

@@ -769,6 +769,7 @@ impl Vars {
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
+    /// [`strong_count`]: Var::strong_count
     pub fn on_var<T, V, H>(&self, var: V, handler: H) -> OnVarHandle
     where
         T: VarValue,
