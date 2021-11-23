@@ -751,10 +751,9 @@ struct RunningApp<E: AppExtension> {
 
     pending_view_events: Vec<zero_ui_view_api::Event>,
     pending_app_events: Vec<BoxedEventUpdate>,
-    pending_timers: bool,
     pending_layout: bool,
     pending_render: bool,
-    last_render: Instant,
+    tick_timers: bool,
 
     // shutdown was requested.
     exiting: bool,
@@ -809,10 +808,9 @@ impl<E: AppExtension> RunningApp<E> {
 
             pending_view_events: Vec::with_capacity(100),
             pending_app_events: Vec::with_capacity(100),
-            pending_timers: false,
             pending_layout: false,
             pending_render: false,
-            last_render: Instant::now(),
+            tick_timers: true,
             wake_time: None,
             exiting: false,
         }
@@ -1196,7 +1194,7 @@ impl<E: AppExtension> RunningApp<E> {
                 if let zero_ui_view_api::Event::FrameRendered { window, .. } = &ev {
                     if let Some(vp) = self.ctx().services.get::<ViewProcess>() {
                         vp.on_frame_rendered(unsafe { WindowId::from_raw(*window) });
-                        self.last_render = Instant::now();
+                        self.tick_timers = true;
                     }
 
                     self.pending_view_events.push(ev);
@@ -1219,12 +1217,13 @@ impl<E: AppExtension> RunningApp<E> {
     fn has_pending_updates(&mut self) -> bool {
         !self.pending_view_events.is_empty()
             || !self.pending_app_events.is_empty()
-            || self.pending_timers
             || self.owned_ctx.has_pending_updates()
     }
 
     fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
         let mut disconnected = false;
+
+        let mut timer_elapsed = false;
 
         if wait_app_event {
             let _idle = tracing::debug_span!("<idle>").entered();
@@ -1232,9 +1231,7 @@ impl<E: AppExtension> RunningApp<E> {
                 match self.receiver.recv_deadline(time) {
                     Ok(ev) => self.push_coalesce(ev),
                     Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => {
-                            self.pending_timers = true;
-                        }
+                        flume::RecvTimeoutError::Timeout => timer_elapsed = true,
                         flume::RecvTimeoutError::Disconnected => disconnected = true,
                     },
                 }
@@ -1267,7 +1264,7 @@ impl<E: AppExtension> RunningApp<E> {
             return ControlFlow::Wait;
         }
 
-        let pending_update = self.has_pending_updates();
+        let pending_update = timer_elapsed || self.has_pending_updates();
 
         let mut events = mem::take(&mut self.pending_view_events);
         for ev in events.drain(..) {
@@ -1277,7 +1274,7 @@ impl<E: AppExtension> RunningApp<E> {
         debug_assert!(self.pending_view_events.is_empty());
         self.pending_view_events = events; // reuse capacity
 
-        if mem::take(&mut self.pending_timers) {
+        if mem::take(&mut self.tick_timers) {
             self.wake_time = self.owned_ctx.update_timers();
         } else {
             self.wake_time = self.owned_ctx.next_deadline();
@@ -1425,6 +1422,8 @@ impl<E: AppExtension> RunningApp<E> {
 
             self.extensions.render(ctx);
             observer.render(ctx);
+        } else {
+            self.tick_timers = true;
         }
     }
 }
