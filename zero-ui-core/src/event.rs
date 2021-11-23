@@ -1412,18 +1412,18 @@ macro_rules! __event_property {
 /// # use zero_ui_core::event::{event_property, EventArgs};
 /// # use zero_ui_core::keyboard::*;
 /// event_property! {
-///     /// on_key_down docs.
-///     pub fn key_down {
-///         event: KeyDownEvent,
+///     /// on_key_input docs.
+///     pub fn key_input {
+///         event: KeyInputEvent,
 ///         args: KeyInputArgs,
 ///         // default filter is |ctx, args| args.concerns_widget(ctx)
 ///     }
 ///
-///     pub(crate) fn space_down {
-///         event: KeyDownEvent,
+///     pub(crate) fn key_down {
+///         event: KeyInputEvent,
 ///         args: KeyInputArgs,
 ///         // optional filter:
-///         filter: |ctx, args| args.concerns_widget(ctx) && args.key == Some(Key::Space),
+///         filter: |ctx, args| args.state == KeyState::Pressed && args.concerns_widget(ctx),
 ///     }
 /// }
 /// ```

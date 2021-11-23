@@ -97,20 +97,6 @@ event! {
     /// This event is provided by the [`KeyboardManager`] extension.
     pub KeyInputEvent: KeyInputArgs;
 
-    /// Key pressed or repeat pressed event.
-    ///
-    /// # Provider
-    ///
-    /// This event is provided by the [`KeyboardManager`] extension.
-    pub KeyDownEvent: KeyInputArgs;
-
-    /// Key released event.
-    ///
-    /// # Provider
-    ///
-    /// This event is provided by the [`KeyboardManager`] extension.
-    pub KeyUpEvent: KeyInputArgs;
-
     /// Modifiers key state changed event.
     ///
     /// # Provider
@@ -135,8 +121,6 @@ event! {
 /// Events this extension provides.
 ///
 /// * [KeyInputEvent]
-/// * [KeyDownEvent]
-/// * [KeyUpEvent]
 /// * [ModifiersChangedEvent]
 /// * [CharInputEvent]
 ///
@@ -319,12 +303,7 @@ impl Keyboard {
                     repeat,
                     target,
                 );
-                KeyInputEvent.notify(events, args.clone());
-
-                match args.state {
-                    KeyState::Pressed => KeyDownEvent.notify(events, args),
-                    KeyState::Released => KeyUpEvent.notify(events, args),
-                }
+                KeyInputEvent.notify(events, args);
             }
         }
     }

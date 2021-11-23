@@ -50,10 +50,11 @@ event_property! {
     ///
     /// # Underlying Event
     ///
-    /// This event property uses the [`KeyDownEvent`] that is included in the default app.
+    /// This event property uses the [`KeyInputEvent`] that is included in the default app.
     pub fn key_down {
-        event: KeyDownEvent,
+        event: KeyInputEvent,
         args: KeyInputArgs,
+        filter: |ctx, args| args.state == KeyState::Pressed && args.concerns_widget(ctx),
     }
 
     /// Event fired when a keyboard key is released.
@@ -74,10 +75,11 @@ event_property! {
     ///
     /// # Underlying Event
     ///
-    /// This event property uses the [`KeyUpEvent`] that is included in the default app.
+    /// This event property uses the [`KeyInputEvent`] that is included in the default app.
     pub fn key_up {
-        event: KeyUpEvent,
+        event: KeyInputEvent,
         args: KeyInputArgs,
+        filter: |ctx, args| args.state == KeyState::Released && args.concerns_widget(ctx),
     }
 
     pub fn char_input {
