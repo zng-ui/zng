@@ -734,7 +734,7 @@ impl Default for GestureManager {
 }
 impl AppExtension for GestureManager {
     fn init(&mut self, r: &mut AppContext) {
-        r.services.register(Gestures::new());
+        r.services.register(Gestures::new(r.updates.sender()));
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, _: &mut AppContext, args: &EV) {
@@ -895,14 +895,16 @@ pub struct Gestures {
     pub shortcut_pressed_duration: Duration,
 
     click_shortcut: Vec<(WindowId, WidgetId, ShortcutClick, ShortcutArgs)>,
+    app_event_sender: AppEventSender,
 }
 impl Gestures {
-    fn new() -> Self {
+    fn new(app_event_sender: AppEventSender) -> Self {
         Gestures {
             click_focused: [shortcut!(Enter), shortcut!(Space)].into(),
             context_click_focused: [shortcut!(Apps)].into(),
             shortcut_pressed_duration: Duration::from_millis(50),
             click_shortcut: vec![],
+            app_event_sender,
         }
     }
 
@@ -910,6 +912,7 @@ impl Gestures {
     /// click origin is the shortcut press.
     pub fn click_shortcut(&mut self, window_id: WindowId, widget_id: WidgetId, click_kind: ShortcutClick, args: ShortcutArgs) {
         self.click_shortcut.push((window_id, widget_id, click_kind, args));
+        let _ = self.app_event_sender.send_update();
     }
 }
 

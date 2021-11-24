@@ -10,7 +10,9 @@ fn main() {
     // zero_ui_view::run_same_process(app_main);
 
     zero_ui_view::init();
+    //let rec = examples_util::record_profile("profile-calculator.json.gz", &[("example", "calculator")], |_| true);
     app_main();
+    //rec.finish();
 }
 
 fn app_main() {

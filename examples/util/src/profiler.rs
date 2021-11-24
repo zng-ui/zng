@@ -296,7 +296,8 @@ fn record_profile_impl(path: &Path, about: &[(&str, &str)], mut filter: Box<dyn 
         })
         .unwrap();
 
-    tracing::dispatcher::set_global_default(tracing::Dispatch::new(Profiler::new(sender.clone()))).unwrap();
+    tracing::dispatcher::set_global_default(tracing::Dispatch::new(Profiler::new(sender.clone())))
+        .unwrap_or_else(|_| panic!("tracing consumer already set, cannot log and profile at the same time"));
 
     Recording { sender, worker }
 }
