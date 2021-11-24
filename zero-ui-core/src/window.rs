@@ -2489,7 +2489,7 @@ impl AppWindow {
             Some(view_process::FrameRequest {
                 id: self.frame_id,
                 pipeline_id: frame.pipeline_id,
-                document_id: r.document_id().unwrap(),
+                document_id: r.document_id().unwrap_or(zero_ui_view_api::webrender_api::DocumentId::INVALID),
                 clear_color: frame.clear_color,
                 display_list: (
                     IpcBytes::from_vec(payload.items_data),

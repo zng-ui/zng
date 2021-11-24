@@ -1161,16 +1161,12 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Other
-            Event::Respawned(g) => {
-                let view = self.ctx().services.view_process();
-                view.on_respawed(g);
-
-                let args = ViewProcessRespawnedArgs::now(g);
-                self.notify_event(ViewProcessRespawnedEvent, args, observer);
+            Event::Respawned(_) => {
+                // handled in push_coalesce.
             }
 
-            Event::Disconnected(gen) => {
-                self.ctx().services.view_process().handle_disconnect(gen);
+            Event::Disconnected(_) => {
+                // handled in push_coalesce.
             }
         }
     }
@@ -1188,25 +1184,46 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    fn push_coalesce(&mut self, ev: AppEvent) {
+    fn push_coalesce<O: AppEventObserver>(&mut self, ev: AppEvent, observer: &mut O) {
         match ev {
-            AppEvent::ViewEvent(ev) => {
-                if let zero_ui_view_api::Event::FrameRendered { window, .. } = &ev {
+            AppEvent::ViewEvent(ev) => match &ev {
+                zero_ui_view_api::Event::FrameRendered { window, .. } => {
+                    // update ViewProcess immediately.
                     if let Some(vp) = self.ctx().services.get::<ViewProcess>() {
                         vp.on_frame_rendered(unsafe { WindowId::from_raw(*window) });
                         self.tick_timers = true;
                     }
 
-                    self.pending_view_events.push(ev);
-                } else if let Some(last) = self.pending_view_events.last_mut() {
-                    match last.coalesce(ev) {
-                        Ok(()) => {}
-                        Err(ev) => self.pending_view_events.push(ev),
-                    }
-                } else {
+                    // but leave the notification to run in `view_event`.
                     self.pending_view_events.push(ev);
                 }
-            }
+                zero_ui_view_api::Event::Respawned(g) => {
+                    // update ViewProcess immediately.
+                    let view = self.ctx().services.view_process();
+                    view.on_respawed(*g);
+
+                    // discard pending events.
+                    self.pending_app_events.clear();
+
+                    // notify immediately.
+                    let args = ViewProcessRespawnedArgs::now(*g);
+                    self.notify_event(ViewProcessRespawnedEvent, args, observer);
+                }
+                zero_ui_view_api::Event::Disconnected(gen) => {
+                    // update ViewProcess immediately.
+                    self.ctx().services.view_process().handle_disconnect(*gen);
+                }
+                _ => {
+                    if let Some(last) = self.pending_view_events.last_mut() {
+                        match last.coalesce(ev) {
+                            Ok(()) => {}
+                            Err(ev) => self.pending_view_events.push(ev),
+                        }
+                    } else {
+                        self.pending_view_events.push(ev);
+                    }
+                }
+            },
             AppEvent::Event(ev) => self.ctx().events.notify_app_event(ev),
             AppEvent::Var => self.ctx().vars.receive_sended_modify(),
             AppEvent::Update => self.ctx().updates.update(),
@@ -1227,7 +1244,7 @@ impl<E: AppExtension> RunningApp<E> {
             let _idle = tracing::debug_span!("<idle>").entered();
             if let Some(time) = self.wake_time.take() {
                 match self.receiver.recv_deadline(time) {
-                    Ok(ev) => self.push_coalesce(ev),
+                    Ok(ev) => self.push_coalesce(ev, observer),
                     Err(e) => match e {
                         flume::RecvTimeoutError::Timeout => timer_elapsed = true,
                         flume::RecvTimeoutError::Disconnected => disconnected = true,
@@ -1235,7 +1252,7 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             } else {
                 match self.receiver.recv() {
-                    Ok(ev) => self.push_coalesce(ev),
+                    Ok(ev) => self.push_coalesce(ev, observer),
                     Err(e) => match e {
                         flume::RecvError::Disconnected => disconnected = true,
                     },
@@ -1244,7 +1261,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
         loop {
             match self.receiver.try_recv() {
-                Ok(ev) => self.push_coalesce(ev),
+                Ok(ev) => self.push_coalesce(ev, observer),
                 Err(e) => match e {
                     flume::TryRecvError::Empty => break,
                     flume::TryRecvError::Disconnected => {

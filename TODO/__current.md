@@ -1,6 +1,6 @@
-# CORE
+# Core
 
-* Crash respawn deadlocking.
+* Resize is slow again.
 
 # Update Mask
 
@@ -28,6 +28,43 @@ impl<C: UiNode> UiNode for MyNode<C> {
             } else let Some(new) = if self.var1.get_new(ctx) {
                   println!("{}", new);
             }
+      }
+}
+```
+
+# Separate Meta Creation from Frame
+
+```rust
+trait UiNode {
+      fn frame_info(&self, ctx: &mut RenderContext, frame: &mut FrameInfoBuilder);
+}
+```
+
+# Implement Event Matcher Macro
+
+```rust
+fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+      event_match! {
+            pre/*|pos*/ args => self.child.event(ctx, args),
+            KeyInputEvent => {
+
+            }
+      }
+}
+```
+
+Expands to:
+
+```rust
+fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+      if let Some(args) = KeyInputEvent.update(args) {
+             self.child.event(ctx, args); // pre
+             {
+
+             }
+             // self.child.event(ctx, args); // pos
+      } else {
+             self.child.event(ctx, args);
       }
 }
 ```

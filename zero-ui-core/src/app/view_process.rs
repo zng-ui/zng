@@ -222,7 +222,7 @@ impl ViewProcess {
     /// Causes a panic in the view-process to test respawn.
     #[cfg(debug_assertions)]
     pub fn crash_view_process(&self) {
-        self.0.borrow_mut().process.crash().expect_err("expected Respawn error");
+        self.0.borrow_mut().process.crash();
     }
 
     /// Handle an [`Event::Disconnected`].

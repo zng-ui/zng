@@ -325,7 +325,7 @@ impl Controller {
 
                 #[cfg(windows)]
                 if code == Some(1) {
-                    tracing::warn!(target: "vp_respawn", "view-process exit code is `1`, probably killed by the Task Manager, \
+                    tracing::warn!(target: "vp_respawn", "view-process exit code is `1`, probably killed by the system, \
                                         will exit app-process with the same code");
                     std::process::exit(1);
                 }

@@ -135,6 +135,7 @@ pub fn init() {
 #[doc(hidden)]
 #[no_mangle]
 pub extern "C" fn extern_init() {
+    std::panic::set_hook(Box::new(ffi_abort));
     init()
 }
 
@@ -200,8 +201,33 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 #[doc(hidden)]
 #[no_mangle]
 pub extern "C" fn extern_run_same_process(run_app: extern "C" fn()) -> ! {
+    std::panic::set_hook(Box::new(ffi_abort));
+
     #[allow(clippy::redundant_closure)]
     run_same_process(move || run_app())
+}
+
+fn ffi_abort(info: &std::panic::PanicInfo) {
+    // see `default_hook` in https://doc.rust-lang.org/src/std/panicking.rs.html#182
+
+    let current_thread = std::thread::current();
+    let name = current_thread.name().unwrap_or("<unnamed>");
+
+    let location = info.location().unwrap();
+
+    let msg = match info.payload().downcast_ref::<&'static str>() {
+        Some(s) => *s,
+        None => match info.payload().downcast_ref::<String>() {
+            Some(s) => &s[..],
+            None => "Box<dyn Any>",
+        },
+    };
+
+    eprintln!(
+        "thread '{}' panicked at '{}', {}\nnote: aborting to avoid unwind across FFI",
+        name, msg, location
+    );
+    std::process::exit(101) // Rust panic exit code.
 }
 
 /// The backend implementation.
