@@ -856,7 +856,7 @@ pub enum Event {
         /// Device that generated the event.
         device: DeviceId,
         /// Delta of change in the cursor position.
-        delta: (f64, f64),
+        delta: euclid::Vector2D<f64, ()>,
     },
     /// Mouse scroll wheel turn.
     DeviceMouseWheel {
@@ -923,6 +923,17 @@ impl Event {
                 coalesced_pos.extend(n_coal_pos);
                 *position = n_pos;
             }
+            // raw mouse motion.
+            (
+                DeviceMouseMotion { device, delta },
+                DeviceMouseMotion {
+                    device: n_device,
+                    delta: n_delta,
+                },
+            ) if *device == n_device => {
+                *delta += n_delta;
+            }
+
             // wheel scroll.
             (
                 MouseWheel {
@@ -941,6 +952,7 @@ impl Event {
                 *delta_x += n_delta_x;
                 *delta_y += n_delta_y;
             }
+
             // trackpad scroll-move.
             (
                 MouseWheel {
@@ -958,6 +970,87 @@ impl Event {
             ) if *window == n_window && *device == n_device && *phase == n_phase => {
                 *delta_x += n_delta_x;
                 *delta_y += n_delta_y;
+            }
+
+            // raw wheel scroll.
+            (
+                DeviceMouseWheel {
+                    device,
+                    delta: MouseScrollDelta::LineDelta(delta_x, delta_y),
+                },
+                DeviceMouseWheel {
+                    device: n_device,
+                    delta: MouseScrollDelta::LineDelta(n_delta_x, n_delta_y),
+                },
+            ) if *device == n_device => {
+                *delta_x += n_delta_x;
+                *delta_y += n_delta_y;
+            }
+
+            // raw trackpad scroll-move.
+            (
+                DeviceMouseWheel {
+                    device,
+                    delta: MouseScrollDelta::PixelDelta(delta_x, delta_y),
+                },
+                DeviceMouseWheel {
+                    device: n_device,
+                    delta: MouseScrollDelta::PixelDelta(n_delta_x, n_delta_y),
+                },
+            ) if *device == n_device => {
+                *delta_x += n_delta_x;
+                *delta_y += n_delta_y;
+            }
+
+            // window resize.
+            (
+                WindowResized { window, size, cause },
+                WindowResized {
+                    window: n_window,
+                    size: n_size,
+                    cause: n_cause,
+                },
+            ) if *window == n_window && *cause == n_cause => {
+                *size = n_size;
+            }
+            // window move.
+            (
+                WindowMoved { window, position, cause },
+                WindowMoved {
+                    window: n_window,
+                    position: n_position,
+                    cause: n_cause,
+                },
+            ) if *window == n_window && *cause == n_cause => {
+                *position = n_position;
+            }
+            // scale factor.
+            (
+                ScaleFactorChanged { window, scale_factor },
+                ScaleFactorChanged {
+                    window: n_window,
+                    scale_factor: n_scale_factor,
+                },
+            ) if *window == n_window => {
+                *scale_factor = n_scale_factor;
+            }
+            // fonts changed.
+            (FontsChanged, FontsChanged) => {}
+            // text aa.
+            (TextAaChanged(config), TextAaChanged(n_config)) => {
+                *config = n_config;
+            }
+            // double-click timeout.
+            (MultiClickConfigChanged(config), MultiClickConfigChanged(n_config)) => {
+                *config = n_config;
+            }
+            // animation enabled.
+            (AnimationEnabledChanged(config), AnimationEnabledChanged(n_config)) => {
+                *config = n_config;
+            }
+            // key repeat delay timeout.
+            (KeyRepeatDelayChanged(config), KeyRepeatDelayChanged(n_config)) => {
+                *config = n_config;
             }
             (_, e) => return Err(e),
         }

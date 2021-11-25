@@ -800,7 +800,10 @@ impl<S: AppEventSender> App<S> {
             match event {
                 DeviceEvent::Added => self.notify(Event::DeviceAdded(d_id)),
                 DeviceEvent::Removed => self.notify(Event::DeviceRemoved(d_id)),
-                DeviceEvent::MouseMotion { delta } => self.notify(Event::DeviceMouseMotion { device: d_id, delta }),
+                DeviceEvent::MouseMotion { delta } => self.notify(Event::DeviceMouseMotion {
+                    device: d_id,
+                    delta: euclid::vec2(delta.0, delta.1),
+                }),
                 DeviceEvent::MouseWheel { delta } => self.notify(Event::DeviceMouseWheel {
                     device: d_id,
                     delta: util::winit_mouse_wheel_delta_to_zui(delta),

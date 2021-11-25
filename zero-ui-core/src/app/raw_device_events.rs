@@ -13,6 +13,7 @@ use crate::{
     mouse::ButtonState,
 };
 
+use zero_ui_view_api::webrender_api::euclid;
 pub use zero_ui_view_api::{AxisId, ButtonId, MouseScrollDelta};
 
 event_args! {
@@ -35,7 +36,7 @@ event_args! {
         pub device_id: DeviceId,
 
         /// Motion (x, y) delta.
-        pub delta: (f64, f64),
+        pub delta: euclid::Vector2D<f64, ()>,
 
         ..
 
