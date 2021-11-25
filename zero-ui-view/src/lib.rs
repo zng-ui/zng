@@ -503,6 +503,8 @@ impl<S: AppEventSender> App<S> {
                     size,
                     cause: EventCause::System,
                 });
+                
+                self.flush_coalesced();
 
                 let deadline = Instant::now() + Duration::from_millis(300);
 
@@ -784,6 +786,7 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
+    /// Send pending coalesced events.
     pub(crate) fn flush_coalesced(&mut self) {
         if let Some(coal) = self.coalescing_event.take() {
             if self.event_sender.send(coal).is_err() {
