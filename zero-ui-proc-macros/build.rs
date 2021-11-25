@@ -30,5 +30,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    if cfg!(debug_assertions) {
+        println!(r#"cargo:rustc-cfg=feature="inspector""#)
+    }
+
     Ok(())
 }

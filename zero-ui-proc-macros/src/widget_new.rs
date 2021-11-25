@@ -186,6 +186,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let p_mod_ident = ident!("__p_{}", ident);
         // register data for the set call generation.
         let prop_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
+        
         #[cfg(debug_assertions)]
         prop_set_calls.push((
             quote! { #module::#p_mod_ident },

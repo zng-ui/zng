@@ -1,14 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 
-//use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    examples_util::print_info();
+    // examples_util::print_info();
     // zero_ui_view::run_same_process(app_main);
-
+    
     zero_ui_view::init();
+
+    // let rec = examples_util::record_profile("profile-button.json.gz", &[("example", "button")], |_| true);
     app_main();
+    // rec.finish();
 }
 
 fn app_main() {

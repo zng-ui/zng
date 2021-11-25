@@ -1,6 +1,12 @@
-# Core
+# Build Time
 
-* Resize is slow again.
+* Very slow build time in release mode (window example up-to 18m).
+* Very large memory use in release mode build (window example up-to 25GB).
+    Might be related to https://github.com/rust-lang/rust/issues/75992
+
+# Mouse Move Interest
+
+* Let widgets define what sort of mouse event they want, use the hit-test tag, filter events in the view-process.
 
 # Update Mask
 

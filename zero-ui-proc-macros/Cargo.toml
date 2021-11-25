@@ -5,6 +5,21 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+# Box each property node in a `BoxedUiNode`, this reduces the number of 
+# generic types generated speeding-up compilation, but slows down execution time slightly.
+dyn_property = []
+
+# Box each widget node in a `BoxedWidget`, enabling this and not `box_property` is a good trade-off
+# for release builds, `rustc` compilation time of deeply nested generics grows exponentially.
+dyn_widget = []
+
+# Instrument each property and widget instance with "Inspector" nodes.
+#
+# This has the effect of `box_widget` and `box_property` also, `debug_assertions` enable 
+# this feature by default also.
+inspector = []
+
 [lib]
 proc-macro = true
 

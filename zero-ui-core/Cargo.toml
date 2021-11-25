@@ -13,6 +13,20 @@ default = ["ipc"]
 # Enabled by default.
 ipc = ["zero-ui-view-api/ipc"]
 
+# Box each property node in a `BoxedUiNode`, this reduces the number of 
+# generic types generated speeding-up compilation, but slows down execution time slightly.
+dyn_property = ["zero-ui-proc-macros/dyn_property"]
+
+# Box each widget node in a `BoxedWidget`, enabling this and not `box_property` is a good trade-off
+# for release builds, `rustc` compilation time of deeply nested generics grows exponentially.
+dyn_widget = ["zero-ui-proc-macros/dyn_widget"]
+
+# Instrument each property and widget instance with "Inspector" nodes.
+#
+# This has the effect of `box_widget` and `box_property` also, `debug_assertions` enable 
+# this feature by default also.
+inspector = ["zero-ui-proc-macros/inspector"]
+
 # like cfg(test) but also visible in docs and integration tests.
 #
 # USAGE:
