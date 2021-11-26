@@ -503,7 +503,7 @@ impl<S: AppEventSender> App<S> {
                     size,
                     cause: EventCause::System,
                 });
-                
+
                 self.flush_coalesced();
 
                 let deadline = Instant::now() + Duration::from_millis(300);

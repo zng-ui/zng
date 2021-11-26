@@ -186,8 +186,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let p_mod_ident = ident!("__p_{}", ident);
         // register data for the set call generation.
         let prop_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
-        
-        #[cfg(debug_assertions)]
+
         prop_set_calls.push((
             quote! { #module::#p_mod_ident },
             p_var_ident,
@@ -198,15 +197,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             },
             cfg.clone(),
             /*user_assigned: */ false,
-            call_site,
-            call_site,
-        ));
-        #[cfg(not(debug_assertions))]
-        prop_set_calls.push((
-            quote! { #module::#p_mod_ident },
-            p_var_ident,
-            ip.ident.to_string(),
-            cfg.clone(),
             call_site,
             call_site,
         ));
@@ -250,7 +240,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             _ => &mut prop_set_calls,
         };
         // register data for the set call generation.
-        #[cfg(debug_assertions)]
         prop_set_calls.push((
             p_mod.to_token_stream(),
             p_var_ident,
@@ -260,15 +249,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             },
             cfg.to_token_stream(),
             /*user_assigned: */ true,
-            up.path.span(),
-            up.value_span,
-        ));
-        #[cfg(not(debug_assertions))]
-        prop_set_calls.push((
-            p_mod.to_token_stream(),
-            p_var_ident,
-            p_name,
-            cfg.to_token_stream(),
             up.path.span(),
             up.value_span,
         ));
@@ -287,11 +267,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // generate whens.
     let mut when_inits = TokenStream::default();
 
-    #[cfg(debug_assertions)]
-    when_inits.extend(quote! {
-        #[allow(unused_mut)]
-        let mut when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
-    });
+    if cfg!(inspector) {
+        when_inits.extend(quote! {
+            #[allow(unused_mut)]
+            let mut when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
+        });
+    }
 
     // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
     let mut when_assigns: HashMap<Path, Vec<(TokenStream, Ident, Ident, TokenStream)>> = HashMap::new();
@@ -308,7 +289,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         let ident = iw.ident;
-        #[cfg(debug_assertions)]
         let dbg_ident = iw.dbg_ident;
         let cfg = iw.cfg;
 
@@ -331,13 +311,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
         let c_ident = ident!("__c_{}", ident);
 
-        #[cfg(debug_assertions)]
-        let condition_call = quote! {
-            #module::#dbg_ident(#(&#inputs),* , &mut when_infos__)
-        };
-        #[cfg(not(debug_assertions))]
-        let condition_call = quote! {
-            #module::#ident(#(&#inputs),*)
+        let condition_call = if cfg!(inspector) {
+            quote! {
+                #module::#dbg_ident(#(&#inputs),* , &mut when_infos__)
+            }
+        } else {
+            quote! {
+                #module::#ident(#(&#inputs),*)
+            }
         };
 
         when_inits.extend(quote! {
@@ -508,8 +489,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 };
             }
         });
-        #[cfg(debug_assertions)]
-        {
+        if cfg!(inspector) {
             let expr_str = util::format_rust_expr(w.condition_expr.to_string());
             let assign_names = w.assigns.iter().map(|a| util::display_path(&a.path));
             when_inits.extend(quote! {
@@ -637,7 +617,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let p_span = property_path.span();
 
         // register data for the set call generation.
-        #[cfg(debug_assertions)]
         prop_set_calls.push((
             property_path.to_token_stream(),
             args_ident.clone(),
@@ -651,15 +630,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             /*user_assigned: */ true,
             p_span,
             /*val_span: */ call_site,
-        ));
-        #[cfg(not(debug_assertions))]
-        prop_set_calls.push((
-            property_path.to_token_stream(),
-            args_ident.clone(),
-            util::display_path(&property_path),
-            cfg.to_token_stream(),
-            p_span,
-            call_site,
         ));
 
         wgt_properties.insert(property, (args_ident, cfg.unwrap_or_default()));
@@ -687,15 +657,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .collect();
 
     for (set_calls, child_priority) in vec![(child_prop_set_calls, true), (prop_set_calls, false)] {
-        #[cfg(not(debug_assertions))]
-        let _ = child_priority;
-
         // generate capture_only asserts.
-        for set_call in &set_calls {
-            #[cfg(debug_assertions)]
-            let (p_mod, _, p_name, _, cfg, _, p_span, _) = set_call;
-            #[cfg(not(debug_assertions))]
-            let (p_mod, _, p_name, cfg, p_span, _) = set_call;
+        for (p_mod, _, p_name, _, cfg, _, p_span, _) in &set_calls {
             let capture_only_error = format!(
                 "property `{}` cannot be set because it is capture-only, but is not captured by the widget",
                 p_name
@@ -709,44 +672,33 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         for (i, priority) in crate::property::Priority::all_settable().iter().enumerate() {
-            #[cfg(debug_assertions)]
             for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in set_calls.iter().rev() {
                 // __set @ value span
-                let set = ident_spanned!(*val_span=> "__set");
-                property_set_calls.extend(quote_spanned! {*p_span=>
-                    #cfg
-                    #p_mod::code_gen! {
-                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #child_priority, #user_assigned, #set
-                    }
-                });
-            }
-            #[cfg(not(debug_assertions))]
-            for (p_mod, p_var_ident, _, cfg, p_span, val_span) in set_calls.iter().rev() {
-                // __set @ value span
-                let set = ident_spanned!(*val_span=> "__set");
-                property_set_calls.extend(quote_spanned! {*p_span=>
-                    #cfg
-                    #p_mod::code_gen! {
-                        set #priority, #node__, #p_mod, #p_var_ident, #set
-                    }
-                });
-            }
 
+                let set = ident_spanned!(*val_span=> "__set");
+                if cfg!(inspector) {
+                    property_set_calls.extend(quote_spanned! {*p_span=>
+                        #cfg
+                        #p_mod::code_gen! {
+                            set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #child_priority, #user_assigned, #set
+                        }
+                    });
+                } else {
+                    property_set_calls.extend(quote_spanned! {*p_span=>
+                        #cfg
+                        #p_mod::code_gen! {
+                            set #priority, #node__, #p_mod, #p_var_ident, #set
+                        }
+                    });
+                }
+            }
             let cap_i = i + if child_priority { 1 } else { 6 };
             let caps = &caps[cap_i];
             let cap_idents = caps.iter().map(|(i, _)| i);
             let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();
-            #[cfg(not(debug_assertions))]
-            {
-                let new_fn_ident = ident!("__new_{}{}", if child_priority { "child_" } else { "" }, priority);
-                property_set_calls.extend(quote! {
-                    #[allow(unreachable_code)]
-                    let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents),*);
-                })
-            }
-            #[cfg(debug_assertions)]
-            {
-                let new_fn_ident = ident!("__new_{}{}_debug", if child_priority { "child_" } else { "" }, priority);
+
+            if cfg!(inspector) {
+                let new_fn_ident = ident!("__new_{}{}_inspect", if child_priority { "child_" } else { "" }, priority);
                 let new_variant_ident = ident!("New{}{:#}", if child_priority { "Child" } else { "" }, priority);
                 let cap_user_set = widget_data.new_captures[cap_i]
                     .iter()
@@ -757,6 +709,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #[allow(unreachable_code)]
                     let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents,)* #(#cap_cfgs #cap_user_set,)* &mut capture_infos__);
                     captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, capture_infos__));
+                })                
+            } else {
+                let new_fn_ident = ident!("__new_{}{}", if child_priority { "child_" } else { "" }, priority);
+                property_set_calls.extend(quote! {
+                    #[allow(unreachable_code)]
+                    let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents),*);
                 })
             }
         }
@@ -826,8 +784,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let nc_idents = new_caps.iter().map(|(i, _)| i);
     let nc_cfgs: Vec<_> = new_caps.iter().map(|(_, c)| c).collect();
 
-    #[cfg(debug_assertions)]
-    let new_child_call = {
+    let new_child_call = if cfg!(inspector) {
         let cap_user_set = widget_data.new_captures[0].iter().map(|c| overriden_properties.contains(&c.ident));
         quote! {
             #[allow(unused_mut)]
@@ -835,17 +792,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #[allow(unused_mut)]
             let mut captured_new_child__ = std::vec![];
             #[allow(unreachable_code)]
-            let node__ = #module::__new_child_debug(#(#ncc_cfgs #ncc_idents,)* #(#ncc_cfgs #cap_user_set,)* &mut captured_new_child__);
+            let node__ = #module::__new_child_inspect(#(#ncc_cfgs #ncc_idents,)* #(#ncc_cfgs #cap_user_set,)* &mut captured_new_child__);
             captures__.push((#module::__core::WidgetNewFnV1::NewChild, captured_new_child__));
         }
+    } else {
+        quote! {
+            #[allow(unreachable_code)]
+            let node__ = #module::__new_child(#(#ncc_cfgs #ncc_idents),*);
+        }
     };
-    #[cfg(not(debug_assertions))]
-    let new_child_call = quote! {
-        #[allow(unreachable_code)]
-        let node__ = #module::__new_child(#(#ncc_cfgs #ncc_idents),*);
-    };
-    #[cfg(debug_assertions)]
-    let new_call = {
+
+    let new_call = if cfg!(inspector) {
         let cap_user_set = widget_data
             .new_captures
             .last()
@@ -854,7 +811,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .map(|c| overriden_properties.contains(&c.ident));
         quote! {
             #[allow(unreachable_code)]
-            #module::__new_debug(
+            #module::__new_inspect(
                 node__,
                 #(#nc_cfgs #nc_idents,)*
                 #(#nc_cfgs #cap_user_set,)*
@@ -865,11 +822,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #module::__core::source_location!()
             )
         }
-    };
-    #[cfg(not(debug_assertions))]
-    let new_call = quote! {
-        #[allow(unreachable_code)]
-        #module::__new(node__, #(#nc_cfgs #nc_idents),*)
+    } else if cfg!(dyn_widget) {
+        quote! {
+            fn box_fix(node: impl #module::__core::UiNode) -> #module::__core::BoxedUiNode {
+                #module::__core::UiNode::boxed(node)
+            }
+            #[allow(unreachable_code)]
+            #module::__new(box_fix(node__), #(#nc_cfgs #nc_idents),*)
+        }
+    } else {
+        quote! {
+            #[allow(unreachable_code)]
+            #module::__new(node__, #(#nc_cfgs #nc_idents),*)
+        }
     };
 
     let r = quote! {
@@ -976,7 +941,6 @@ impl Parse for PropertyCapture {
 
 pub struct BuiltWhen {
     pub ident: Ident,
-    #[cfg(debug_assertions)]
     pub dbg_ident: TokenStream,
     pub docs: TokenStream,
     pub cfg: TokenStream,
@@ -991,7 +955,6 @@ impl Parse for BuiltWhen {
 
         let r = Ok(BuiltWhen {
             ident,
-            #[cfg(debug_assertions)]
             dbg_ident: non_user_braced!(&input, "dbg_ident").parse().unwrap(),
             docs: non_user_braced!(&input, "docs").parse().unwrap(),
             cfg: non_user_braced!(&input, "cfg").parse().unwrap(),

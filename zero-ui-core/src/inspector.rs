@@ -1,4 +1,6 @@
-#![cfg(debug_assertions)]
+#![cfg(any(doc, inspector))]
+#![cfg_attr(doc_nightly, doc(cfg(any(debug_assertions, inspector))))]
+
 //! Helper types for debugging an UI tree.
 
 use linear_map::LinearMap;
@@ -42,7 +44,7 @@ impl fmt::Display for SourceLocation {
 #[macro_export]
 macro_rules! source_location {
     () => {
-        $crate::debug::SourceLocation {
+        $crate::inspector::SourceLocation {
             file: std::file!(),
             line: std::line!(),
             column: std::column!(),
@@ -904,7 +906,7 @@ pub mod debug_var_util {
 
         macro_rules! debug_var_util_trick {
             ($value:expr) => {{
-                use $crate::debug::debug_var_util::*;
+                use $crate::inspector::debug_var_util::*;
                 (&&&&Wrap($value)).debug_var()
             }};
         }
@@ -960,7 +962,7 @@ pub mod debug_var_util {
 
             #[allow(clippy::needless_borrow)]
             let r = {
-                use crate::debug::debug_var_util::*;
+                use crate::inspector::debug_var_util::*;
                 (&&&&&&Wrap(&value)).debug_var()
             };
             //let r = debug_var_util_trick!(&value);

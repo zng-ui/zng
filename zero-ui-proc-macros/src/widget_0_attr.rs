@@ -117,7 +117,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     }
 
     if is_base {
-        #[cfg(debug_assertions)]
+        #[cfg(inspector)]
         for priority in FnPriority::all() {
             assert!(new_fns.iter().any(|(k, _)| k == priority));
         }
@@ -239,8 +239,14 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     syn::ReturnType::Default => fn_.block.span(),
                     syn::ReturnType::Type(_, t) => t.span(),
                 };
-                let ty = quote_spanned! {out_span=>
-                    impl #crate_core::UiNode
+                let ty = if cfg!(dyn_property) {
+                    quote! {
+                        #crate_core::BoxedUiNode
+                    }
+                } else {
+                    quote_spanned! {out_span=>
+                        impl #crate_core::UiNode
+                    }
                 };
                 quote! { -> #ty }
             };
@@ -248,23 +254,50 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             // declare `__new_*`
             let new_id = ident!("{}", priority);
             let new__ = ident!("__{}", priority);
-            #[allow(unused_mut)]
-            let mut r = quote! {
-                #[doc(hidden)]
-                #[allow(clippy::too_many_arguments)]
-                pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
-                    self::#new_id(#child_pass #(#spanned_unwrap),*)
-                }
-            };
 
-            // declare `__new_*_debug`
-            #[cfg(debug_assertions)]
-            {
-                let new_debug__ = ident!("__{}_debug", priority);
+            let mut r = TokenStream::new();
+
+            if cfg!(dyn_property) && *priority != FnPriority::New {
+                // box intermediary new_* result if is boxing properties.
+                r.extend(quote! {
+                    #[doc(hidden)]
+                    #[allow(clippy::too_many_arguments)]
+                    pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
+                        fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
+                            #crate_core::UiNode::boxed(node)
+                        }
+                        let out = self::#new_id(#child_pass #(#spanned_unwrap),*);
+                        box_fix(out)
+                    }
+                });
+            } else if cfg!(dyn_widget) && *priority == FnPriority::New {
+                r.extend(quote! {
+                    #[doc(hidden)]
+                    #[allow(clippy::too_many_arguments)]
+                    pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
+                        fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
+                            #crate_core::UiNode::boxed(node)
+                        }
+                        self::#new_id(box_fix(#child_pass), #(#spanned_unwrap),*)
+                    }
+                });
+            } else {
+                r.extend(quote! {
+                    #[doc(hidden)]
+                    #[allow(clippy::too_many_arguments)]
+                    pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
+                        self::#new_id(#child_pass #(#spanned_unwrap),*)
+                    }
+                });
+            }
+
+            // declare `__new_*_inspect`
+            if cfg!(inspector) {
+                let new_inspect__ = ident!("__{}_inspect", priority);
                 let names = caps.iter().map(|id| id.to_string());
                 let locations = caps.iter().map(|id| {
                     quote_spanned! {id.span()=>
-                        #crate_core::debug::source_location!()
+                        #crate_core::inspector::source_location!()
                     }
                 });
                 let assigned_flags: Vec<_> = caps.iter().enumerate().map(|(i, id)| ident!("__{}_{}_user_set", i, id)).collect();
@@ -273,25 +306,25 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     r.extend(quote! {
                         #[doc(hidden)]
                         #[allow(clippy::too_many_arguments)]
-                        pub fn #new_debug__(
+                        pub fn #new_inspect__(
                             __child: impl #crate_core::UiNode,
                             #(#cfgs #caps : impl self::#prop_idents::Args,)*
                             #(#cfgs #assigned_flags: bool,)*
                             __widget_name: &'static str,
-                            mut __captures: std::vec::Vec<(#crate_core::debug::WidgetNewFnV1, Vec<#crate_core::debug::CapturedPropertyV1>)>,
-                            __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
-                            __decl_location: #crate_core::debug::SourceLocation,
-                            __instance_location: #crate_core::debug::SourceLocation,
+                            mut __captures: std::vec::Vec<(#crate_core::inspector::WidgetNewFnV1, Vec<#crate_core::inspector::CapturedPropertyV1>)>,
+                            __whens: std::vec::Vec<#crate_core::inspector::WhenInfoV1>,
+                            __decl_location: #crate_core::inspector::SourceLocation,
+                            __instance_location: #crate_core::inspector::SourceLocation,
                         ) #output {
                             let __child = #crate_core::UiNode::boxed(__child);
                             __captures.push((
-                                #crate_core::debug::WidgetNewFnV1::New,
+                                #crate_core::inspector::WidgetNewFnV1::New,
                                 std::vec![#(
                                     #cfgs
-                                    self::#prop_idents::captured_debug(&#caps, #names, #locations, #assigned_flags),
+                                    self::#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags),
                                 )*]
                             ));
-                            let __child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
+                            let __child = #crate_core::inspector::WidgetInstanceInfoNode::new_v1(
                                 __child,
                                 __widget_name,
                                 __decl_location,
@@ -302,19 +335,40 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             self::__new(__child, #(#cfgs #caps),*)
                         }
                     });
+                } else if cfg!(dyn_property) {
+                    r.extend(quote! {
+                        #[doc(hidden)]
+                        #[allow(clippy::too_many_arguments)]
+                        pub fn #new_inspect__(
+                            #child_decl
+                            #(#cfgs #caps : impl self::#prop_idents::Args,)*
+                            #(#cfgs #assigned_flags: bool,)*
+                            __captures_info: &mut std::vec::Vec<#crate_core::inspector::CapturedPropertyV1>
+                        ) #output {
+                            #(
+                                #cfgs
+                                __captures_info.push(#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
+                            )*
+                            let out = self::#new__(#child_pass #(#cfgs #caps),*);
+                            fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
+                                #crate_core::UiNode::boxed(node)
+                            }
+                            box_fix(out)
+                        }
+                    });
                 } else {
                     r.extend(quote! {
                         #[doc(hidden)]
                         #[allow(clippy::too_many_arguments)]
-                        pub fn #new_debug__(
+                        pub fn #new_inspect__(
                             #child_decl
                             #(#cfgs #caps : impl self::#prop_idents::Args,)*
                             #(#cfgs #assigned_flags: bool,)*
-                            __captures_info: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>
+                            __captures_info: &mut std::vec::Vec<#crate_core::inspector::CapturedPropertyV1>
                         ) #output {
                             #(
                                 #cfgs
-                                __captures_info.push(#prop_idents::captured_debug(&#caps, #names, #locations, #assigned_flags));
+                                __captures_info.push(#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
                             )*
                             self::#new__(#child_pass #(#cfgs #caps),*)
                         }
@@ -328,9 +382,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         }
     }
 
-    #[cfg(debug_assertions)]
-    let debug_info = {
-        let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+    let debug_info = if cfg!(inspector) {
+        let decl_location = quote_spanned!(ident.span()=> #crate_core::inspector::source_location!());
         let wgt_name = ident.to_string();
         quote! {
             #[doc(hidden)]
@@ -339,13 +392,13 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             }
 
             #[doc(hidden)]
-            pub fn __decl_location() -> #crate_core::debug::SourceLocation {
+            pub fn __decl_location() -> #crate_core::inspector::SourceLocation {
                 #decl_location
             }
         }
+    } else {
+        TokenStream::new()
     };
-    #[cfg(not(debug_assertions))]
-    let debug_info = TokenStream::new();
 
     // captured property existence validation happens "widget_2_declare.rs"
 
@@ -504,13 +557,12 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     }
                 });
 
-                #[cfg(debug_assertions)]
-                {
+                if cfg!(inspector) {
                     let loc_ident = ident!("__loc_{}", p_ident);
                     property_defaults.extend(quote_spanned! {p_ident.span()=>
                         #[doc(hidden)]
-                        pub fn #loc_ident() -> #crate_core::debug::SourceLocation {
-                            #crate_core::debug::source_location!()
+                        pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
+                            #crate_core::inspector::source_location!()
                         }
                     });
                 }
@@ -550,7 +602,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         // when ident, `__w{i}_{condition_expr_to_str}`
         let ident = when.make_ident("w", i, Span::call_site());
 
-        #[cfg(debug_assertions)]
         let dbg_ident = when.make_ident("wd", i, Span::call_site());
 
         let attrs = Attributes::new(when.attrs);
@@ -598,8 +649,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             continue;
         }
 
-        #[cfg(debug_assertions)]
-        let mut assign_names = vec![];
+        #[allow(unused_mut)]
+        let mut assign_names: Vec<String> = vec![];
         let mut assigns = HashSet::new();
         let mut assigns_tokens = TokenStream::default();
         for assign in when.assigns {
@@ -636,7 +687,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     continue;
                 }
 
-                #[cfg(debug_assertions)]
+                #[cfg(inspector)]
                 assign_names.push(property.to_string());
 
                 // ident of property module in the widget.
@@ -719,39 +770,33 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             }
         });
 
-        #[cfg(debug_assertions)]
-        when_conditions.extend(quote! {
-            #cfg
-            #[doc(hidden)]
-            pub fn #dbg_ident(
-                #(#input_idents : &(impl self::#prop_idents::Args + 'static),)*
-                when_infos: &mut std::vec::Vec<#crate_core::debug::WhenInfoV1>
-            ) -> impl #crate_core::var::Var<bool> + 'static {
-                let var = self::#ident(#(#input_idents),*);
-                when_infos.push(#crate_core::debug::WhenInfoV1 {
-                    condition_expr: #expr_str,
-                    condition_var: Some(#crate_core::var::Var::boxed(std::clone::Clone::clone(&var))),
-                    properties: std::vec![
-                        #(#assign_names),*
-                    ],
-                    decl_location: #crate_core::debug::source_location!(),
-                    user_declared: false,
-                });
-                var
-            }
-        });
-
-        #[cfg(debug_assertions)]
-        let dbg_ident = quote! {
-            dbg_ident { #dbg_ident }
-        };
-        #[cfg(not(debug_assertions))]
-        let dbg_ident = TokenStream::default();
+        if cfg!(inspector) {
+            when_conditions.extend(quote! {
+                #cfg
+                #[doc(hidden)]
+                pub fn #dbg_ident(
+                    #(#input_idents : &(impl self::#prop_idents::Args + 'static),)*
+                    when_infos: &mut std::vec::Vec<#crate_core::inspector::WhenInfoV1>
+                ) -> impl #crate_core::var::Var<bool> + 'static {
+                    let var = self::#ident(#(#input_idents),*);
+                    when_infos.push(#crate_core::inspector::WhenInfoV1 {
+                        condition_expr: #expr_str,
+                        condition_var: Some(#crate_core::var::Var::boxed(std::clone::Clone::clone(&var))),
+                        properties: std::vec![
+                            #(#assign_names),*
+                        ],
+                        decl_location: #crate_core::inspector::source_location!(),
+                        user_declared: false,
+                    });
+                    var
+                }
+            });
+        }
 
         let inputs = inputs.iter();
         built_whens.extend(quote! {
             #ident {
-                #dbg_ident
+                dbg_ident { #dbg_ident }
                 docs { #(#docs)* }
                 cfg { #cfg }
                 inputs {
@@ -823,10 +868,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         };
     }
 
-    #[cfg(debug_assertions)]
-    let debug_reexport = quote! {debug::{source_location, WhenInfoV1, WidgetNewFnV1}};
-    #[cfg(not(debug_assertions))]
-    let debug_reexport = TokenStream::default();
+    let inspector_reexport = if cfg!(inspector) {
+        quote! {inspector::{source_location, WhenInfoV1, WidgetNewFnV1}}
+    } else {
+        TokenStream::new()
+    };
 
     let errors_mod = ident!("__{}_stage0_errors_{}", ident, util::uuid());
 
@@ -865,7 +911,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             #[doc(hidden)]
             pub mod __core {
-                pub use #crate_core::{widget_inherit, widget_new, var, #debug_reexport};
+                pub use #crate_core::{UiNode, BoxedUiNode, widget_inherit, widget_new, var, #inspector_reexport};
             }
 
             // inherit=> will include an `inherited { .. }` block with the widget data after the

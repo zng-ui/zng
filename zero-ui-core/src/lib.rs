@@ -44,8 +44,8 @@ pub mod border;
 pub mod color;
 pub mod command;
 pub mod context;
-pub mod debug;
 pub mod event;
+pub mod inspector;
 #[macro_use]
 pub mod handler;
 pub mod focus;

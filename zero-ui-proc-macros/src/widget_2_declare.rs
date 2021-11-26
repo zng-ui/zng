@@ -132,9 +132,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #[doc(hidden)]
                     pub use #source_mod::#new_ident;
                 });
-                #[cfg(debug_assertions)]
-                {
-                    let new_ident = ident!("__{}_debug", priority);
+                if cfg!(inspector) {
+                    let new_ident = ident!("__{}_inspect", priority);
                     new_reexports.extend(quote! {
                         #[doc(hidden)]
                         pub use #source_mod::#new_ident;
@@ -386,8 +385,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             });
 
             // source location reexport.
-            #[cfg(debug_assertions)]
-            {
+            if cfg!(inspector) {
                 let loc_ident = ident!("__loc_{}", ip.ident);
                 property_reexports.extend(quote! {
                     #cfg
@@ -522,7 +520,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for inherited in &inherits {
         //inherited.module
         for bw in &inherited.whens {
-            #[cfg(debug_assertions)]
             let dbg_ident = &bw.dbg_ident;
             let BuiltWhen {
                 ident,
@@ -538,7 +535,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let module_id_str = util::tokens_to_ident_str(module);
             let new_ident = ident!("__{}{}", module_id_str, ident);
 
-            #[cfg(debug_assertions)]
             let new_dbg_ident = ident!("__{}{}", module_id_str, dbg_ident);
 
             let mut assigns_tt = TokenStream::default();
@@ -570,12 +566,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue; // all properties removed, remove when block.
             }
 
-            #[cfg(debug_assertions)]
             let dbg_ident_value = quote! {
                 dbg_ident { #new_dbg_ident }
             };
-            #[cfg(not(debug_assertions))]
-            let dbg_ident_value = TokenStream::default();
 
             wgt_whens.extend(quote! {
                 #new_ident {
@@ -593,12 +586,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 pub use #module::#ident as #new_ident;
                 #defaults_tt
             });
-            #[cfg(debug_assertions)]
-            when_reexports.extend(quote! {
-                #[doc(hidden)]
-                #cfg
-                pub use #module::#dbg_ident as #new_dbg_ident;
-            });
+            if cfg!(inspector) {
+                when_reexports.extend(quote! {
+                    #[doc(hidden)]
+                    #cfg
+                    pub use #module::#dbg_ident as #new_dbg_ident;
+                });
+            }
         }
     }
 
@@ -671,7 +665,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut wgt_when_properties: HashMap<Ident, Option<TokenStream>> = HashMap::new();
 
     for bw in whens {
-        #[cfg(debug_assertions)]
         let dbg_ident = &bw.dbg_ident;
         let BuiltWhen {
             ident,
@@ -725,12 +718,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             });
         }
 
-        #[cfg(debug_assertions)]
         let dbg_ident = quote! {
             dbg_ident { #dbg_ident }
         };
-        #[cfg(not(debug_assertions))]
-        let dbg_ident = TokenStream::default();
 
         wgt_whens.extend(quote! {
             #ident {
@@ -785,8 +775,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
         });
-        #[cfg(debug_assertions)]
-        {
+        if cfg!(inspector) {
             let crate_core = util::crate_core();
             let loc_ident = ident!("__loc_{}", w_prop);
             when_condition_default_props.extend(quote_spanned! {p_ident.span()=>
@@ -794,8 +783,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     if default=>
 
                     #[doc(hidden)]
-                    pub fn #loc_ident() -> #crate_core::debug::SourceLocation {
-                        #crate_core::debug::source_location!()
+                    pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
+                        #crate_core::inspector::source_location!()
                     }
                 }
             });

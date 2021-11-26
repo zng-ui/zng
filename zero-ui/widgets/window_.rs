@@ -663,7 +663,7 @@ pub mod window {
         #[cfg(debug_assertions)]
         pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl var::IntoVar<bool>) -> impl UiNode {
             use crate::core::{
-                debug::{write_frame, WriteFrameState},
+                inspector::{write_frame, WriteFrameState},
                 var::Var,
             };
 

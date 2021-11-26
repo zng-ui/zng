@@ -6,7 +6,7 @@ use zero_ui_view_prebuilt as zero_ui_view;
 fn main() {
     // examples_util::print_info();
     // zero_ui_view::run_same_process(app_main);
-    
+
     zero_ui_view::init();
 
     // let rec = examples_util::record_profile("profile-button.json.gz", &[("example", "button")], |_| true);

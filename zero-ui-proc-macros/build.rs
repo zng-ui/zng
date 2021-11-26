@@ -30,8 +30,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    if cfg!(debug_assertions) {
-        println!(r#"cargo:rustc-cfg=feature="inspector""#)
+    if cfg!(debug_assertions) || cfg!(feature = "inspector") {
+        println!("cargo:rustc-cfg=inspector")
+    } else {
+        if cfg!(feature = "dyn_property") {
+            println!("cargo:rustc-cfg=dyn_property")
+        }
+        if cfg!(feature = "dyn_widget") {
+            println!("cargo:rustc-cfg=dyn_widget")
+        }
     }
 
     Ok(())

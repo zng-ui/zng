@@ -487,7 +487,7 @@ fn assert_not_view_process() {
 
 // In release mode we use generics tricks to compile all app extensions with
 // static dispatch optimized to a direct call to the extension handle.
-#[cfg(not(debug_assertions))]
+#[cfg(not(dyn_app_extension))]
 impl App {
     /// Application without any extension.
     #[inline]
@@ -525,9 +525,9 @@ impl App {
     }
 }
 
-// In debug mode we use dynamic dispatch to reduce the number of types
+// In "dyn_app_extension" mode we use dynamic dispatch to reduce the number of types
 // in the stack-trace and compile more quickly.
-#[cfg(debug_assertions)]
+#[cfg(dyn_app_extension)]
 impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
@@ -618,7 +618,7 @@ impl AppProcess {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(dyn_app_extension)]
 impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     /// Includes an application extension.
     ///
@@ -653,7 +653,7 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     }
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(dyn_app_extension))]
 impl<E: AppExtension> AppExtended<E> {
     /// Includes an application extension.
     ///
@@ -836,6 +836,7 @@ impl<E: AppExtension> RunningApp<E> {
     pub fn notify_event<Ev: crate::event::Event, O: AppEventObserver>(&mut self, event: Ev, args: Ev::Args, observer: &mut O) {
         Self::notify_event_(&mut self.owned_ctx.borrow(), &mut self.extensions, event, args, observer);
     }
+
     fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
         ctx: &mut AppContext,
         extensions: &mut E,
@@ -1717,7 +1718,7 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(dyn_app_extension)]
 impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
     fn init(&mut self, ctx: &mut AppContext) {
         for ext in self {
