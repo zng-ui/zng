@@ -113,6 +113,8 @@ impl From<ImageRendering> for webrender_api::ImageRendering {
 
 /// A full frame builder.
 pub struct FrameBuilder {
+    frame_id: FrameId,
+    window_id: WindowId,
     pipeline_id: PipelineId,
 
     clear_color: Option<RenderColor>,
@@ -122,16 +124,12 @@ pub struct FrameBuilder {
     scale_factor: Factor,
     display_list: DisplayListBuilder,
 
-    info: FrameInfoBuilder,
-    info_id: WidgetInfoId,
-
     widget_id: WidgetId,
     widget_transform_key: WidgetTransformKey,
     widget_stack_ctx_data: Option<(RenderTransform, Vec<FilterOp>, PrimitiveFlags)>,
     cancel_widget: bool,
     widget_display_mode: WidgetDisplayMode,
 
-    meta: OwnedStateMap,
     cursor: CursorIcon,
 
     clip_id: ClipId,
@@ -183,33 +181,29 @@ impl FrameBuilder {
         }
 
         let mut display_list;
-        let info;
 
         if let Some(reuse) = reuse {
             display_list = reuse.display_list;
-            info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size, reuse.info_capacity);
         } else {
             display_list = DisplayListBuilder::new(pipeline_id);
-            info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size, 1000);
         }
 
         display_list.begin();
 
         let spatial_id = SpatialId::root_reference_frame(pipeline_id);
         let mut new = FrameBuilder {
+            frame_id,
+            window_id,
             pipeline_id,
             renderer,
             scale_factor,
             display_list,
             clear_color: None,
-            info_id: info.root_id(),
-            info,
             widget_id: root_id,
             widget_transform_key: root_transform_key,
             widget_stack_ctx_data: None,
             cancel_widget: false,
             widget_display_mode: WidgetDisplayMode::empty(),
-            meta: OwnedStateMap::new(),
             cursor: CursorIcon::default(),
             clip_id: ClipId::root(pipeline_id),
             spatial_id,
@@ -312,6 +306,12 @@ impl FrameBuilder {
         self.renderer.as_ref()
     }
 
+    /// Id of the frame being build.
+    #[inline]
+    pub fn frame_id(&self) -> FrameId {
+        self.frame_id
+    }
+
     /// Renderer pipeline ID or [`dummy`].
     ///
     /// [`dummy`]: PipelineId::dummy
@@ -323,19 +323,13 @@ impl FrameBuilder {
     /// Window that owns the frame.
     #[inline]
     pub fn window_id(&self) -> WindowId {
-        self.info.window_id
+        self.window_id
     }
 
     /// Current widget.
     #[inline]
     pub fn widget_id(&self) -> WidgetId {
         self.widget_id
-    }
-
-    /// Current widget metadata.
-    #[inline]
-    pub fn meta(&mut self) -> &mut StateMap {
-        &mut self.meta.0
     }
 
     /// Current cursor.
@@ -558,15 +552,8 @@ impl FrameBuilder {
         self.cancel_widget
     }
 
-    /// Calls [`render`](UiNode::render) for `child` inside a new widget context.
-    pub fn push_widget(
-        &mut self,
-        id: WidgetId,
-        transform_key: WidgetTransformKey,
-        area: PxSize,
-        child: &impl UiNode,
-        ctx: &mut RenderContext,
-    ) {
+    /// Calls `f` inside a new widget context.
+    pub fn push_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, area: PxSize, f: impl FnOnce(&mut Self)) {
         if self.cancel_widget {
             return;
         }
@@ -582,28 +569,17 @@ impl FrameBuilder {
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
         let parent_display_mode = mem::replace(&mut self.widget_display_mode, WidgetDisplayMode::empty());
 
-        let parent_meta = mem::take(&mut self.meta);
-
-        let bounds = PxRect::new(self.offset, area);
-
-        let node = self.info.push(self.info_id, id, bounds);
-        let parent_node = mem::replace(&mut self.info_id, node);
-
-        child.render(ctx, self);
+        f(self);
 
         if self.cancel_widget {
             self.cancel_widget = false;
-            self.info.cancel(node);
-            self.meta = parent_meta;
         } else {
             self.close_widget_display();
-            self.info.set_meta(node, mem::replace(&mut self.meta, parent_meta));
         }
 
         self.widget_id = parent_id;
         self.widget_transform_key = parent_transform_key;
         self.widget_display_mode = parent_display_mode;
-        self.info_id = parent_node;
     }
 
     /// Push a hit-test `rect` using [`common_item_ps`].
@@ -1101,23 +1077,19 @@ impl FrameBuilder {
     pub fn finalize(mut self) -> (BuiltFrame, UsedFrameBuilder) {
         self.close_widget_display();
 
-        self.info.set_meta(self.info_id, self.meta);
-
         let (pipeline_id, display_list) = self.display_list.end();
         let (payload, descriptor) = display_list.into_data();
         let clear_color = self.clear_color.unwrap_or(RenderColor::WHITE);
-        let info = self.info.build();
 
         let reuse = UsedFrameBuilder {
             display_list: self.display_list,
-            info_capacity: info.lookup.len(),
         };
 
         let frame = BuiltFrame {
+            id: self.frame_id,
             pipeline_id,
             display_list: (payload, descriptor),
             clear_color,
-            info,
         };
 
         (frame, reuse)
@@ -1126,26 +1098,30 @@ impl FrameBuilder {
 
 /// Output of a [`FrameBuilder`].
 pub struct BuiltFrame {
+    /// Frame id.
+    pub id: FrameId,
     /// Pipeline.
     pub pipeline_id: PipelineId,
     /// Built display list.
     pub display_list: (DisplayListPayload, BuiltDisplayListDescriptor),
     /// Clear color selected for the frame.
     pub clear_color: RenderColor,
-    /// Frame metadata.
-    pub info: FrameInfo,
 }
 
 /// Data from a previous [`FrameBuilder`], can be reuse in the next frame for a performance boost.
 pub struct UsedFrameBuilder {
     display_list: DisplayListBuilder,
-    info_capacity: usize,
 }
 impl UsedFrameBuilder {
     /// Pipeline where this frame builder can be reused.
     pub fn pipeline_id(&self) -> PipelineId {
         self.display_list.pipeline_id
     }
+}
+
+/// Data from a previous [`FrameInfoBuilder`], can be reused in the nest frame for a performance boost.
+pub struct UsedFrameInfoBuilder {
+    capacity: usize,
 }
 
 enum RenderLineCommand {
@@ -1668,74 +1644,93 @@ impl FrameHitInfo {
 pub struct FrameInfoBuilder {
     window_id: WindowId,
     frame_id: FrameId,
+
+    node: ego_tree::NodeId,
+    widget_id: WidgetId,
+    meta: OwnedStateMap,
+
     tree: Tree<WidgetInfoInner>,
 }
 
 impl FrameInfoBuilder {
     /// Starts building a frame info with the frame root information.
     #[inline]
-    pub fn new(window_id: WindowId, frame_id: FrameId, root_id: WidgetId, size: PxSize, capacity: usize) -> Self {
+    pub fn new(window_id: WindowId, frame_id: FrameId, root_id: WidgetId, size: PxSize, used_data: Option<UsedFrameInfoBuilder>) -> Self {
         let tree = Tree::with_capacity(
             WidgetInfoInner {
                 widget_id: root_id,
                 bounds: PxRect::from_size(size),
+                outer_bounds: PxRect::from_size(size),
                 meta: OwnedStateMap::new(),
             },
-            capacity,
+            used_data.map(|d| d.capacity).unwrap_or(100),
         );
 
-        FrameInfoBuilder { window_id, frame_id, tree }
+        let root_node = tree.root().id();
+        FrameInfoBuilder {
+            window_id,
+            frame_id,
+            node: root_node,
+            tree,
+            meta: OwnedStateMap::new(),
+            widget_id: root_id,
+        }
     }
 
-    /// Gets the root widget info id.
     #[inline]
-    pub fn root_id(&self) -> WidgetInfoId {
-        WidgetInfoId(self.tree.root().id())
+    fn node(&mut self, id: ego_tree::NodeId) -> ego_tree::NodeMut<WidgetInfoInner> {
+        self.tree.get_mut(id).unwrap()
     }
 
+    /// Current widget id.
     #[inline]
-    fn node(&mut self, id: WidgetInfoId) -> ego_tree::NodeMut<WidgetInfoInner> {
-        self.tree
-            .get_mut(id.0)
-            .ok_or_else(|| format!("`{:?}` not found in this builder", id))
-            .unwrap()
+    pub fn widget_id(&mut self) -> WidgetId {
+        self.widget_id
     }
 
-    /// Takes the widget metadata already set for `id`.
+    /// Current widget metadata.
     #[inline]
-    pub fn take_meta(&mut self, id: WidgetInfoId) -> OwnedStateMap {
-        mem::take(&mut self.node(id).value().meta)
+    pub fn meta(&mut self) -> &mut StateMap {
+        &mut self.meta.0
     }
 
-    /// Sets the widget metadata for `id`.
+    /// Calls `f` with an extra offset.
+    ///
+    /// Offsets apply to the widget boundary rectangles.
     #[inline]
-    pub fn set_meta(&mut self, id: WidgetInfoId, meta: OwnedStateMap) {
-        self.node(id).value().meta = meta;
+    pub fn offset(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
+        let _ = offset; // TODO
+        f(self);
     }
 
-    /// Appends a widget child.
+    /// Calls `f` in a new widget context.
     #[inline]
-    pub fn push(&mut self, parent: WidgetInfoId, widget_id: WidgetId, bounds: PxRect) -> WidgetInfoId {
-        WidgetInfoId(
-            self.node(parent)
-                .append(WidgetInfoInner {
-                    widget_id,
-                    bounds,
-                    meta: OwnedStateMap::new(),
-                })
-                .id(),
-        )
-    }
+    pub fn push_widget(&mut self, id: WidgetId, outer_bounds: PxSize, f: impl FnOnce(&mut Self)) {
+        let parent_node = self.node;
+        let parent_widget_id = self.widget_id;
+        let parent_meta = mem::take(&mut self.meta);
 
-    /// Detaches the widget node.
-    #[inline]
-    pub fn cancel(&mut self, widget: WidgetInfoId) {
-        self.node(widget).detach();
+        self.widget_id = id;
+        self.node = self
+            .node(parent_node)
+            .append(WidgetInfoInner {
+                widget_id: id,
+                bounds: PxRect::from(outer_bounds),
+                outer_bounds: PxRect::from(outer_bounds),
+                meta: OwnedStateMap::new(),
+            })
+            .id();
+
+        f(self);
+
+        self.node(self.node).value().meta = mem::replace(&mut self.meta, parent_meta);
+        self.node = parent_node;
+        self.widget_id = parent_widget_id;
     }
 
     /// Builds the final frame info.
     #[inline]
-    pub fn build(self) -> FrameInfo {
+    pub fn finalize(self) -> (FrameInfo, UsedFrameInfoBuilder) {
         let root_id = self.tree.root().id();
 
         // we build a WidgetId => NodeId lookup
@@ -1786,13 +1781,13 @@ impl FrameInfoBuilder {
             });
         }
 
-        r
+        let cap = UsedFrameInfoBuilder {
+            capacity: r.lookup.capacity(),
+        };
+
+        (r, cap)
     }
 }
-
-/// Id of a *building* widget info.
-#[derive(Clone, Debug, Copy, Eq, PartialEq, Hash)]
-pub struct WidgetInfoId(ego_tree::NodeId);
 
 /// Information about a rendered frame.
 ///
@@ -1808,7 +1803,9 @@ impl FrameInfo {
     /// Blank window frame that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        FrameInfoBuilder::new(window_id, FrameId::INVALID, root_id, PxSize::zero(), 0).build()
+        FrameInfoBuilder::new(window_id, FrameId::INVALID, root_id, PxSize::zero(), None)
+            .finalize()
+            .0
     }
 
     /// Moment the frame info was finalized.
@@ -2017,6 +2014,7 @@ impl WidgetPath {
 
 struct WidgetInfoInner {
     widget_id: WidgetId,
+    outer_bounds: PxRect,
     bounds: PxRect,
     meta: OwnedStateMap,
 }
@@ -2104,6 +2102,12 @@ impl<'a> WidgetInfo<'a> {
         } else {
             None
         }
+    }
+
+    /// Widget rectangle in the frame, including the "margin" spaces.
+    #[inline]
+    pub fn outer_bounds(self) -> &'a PxRect {
+        &self.info().outer_bounds
     }
 
     /// Widget rectangle in the frame.

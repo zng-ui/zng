@@ -2,16 +2,7 @@ use retain_mut::RetainMut;
 use zero_ui_proc_macros::impl_ui_node;
 
 use super::*;
-use crate::{
-    app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
-    context::{AppContext, LayoutContext, RenderContext, Updates, WidgetContext},
-    crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
-    event::EventUpdateArgs,
-    handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
-    render::{FrameBuilder, FrameUpdate},
-    units::*,
-    UiNode,
-};
+use crate::{UiNode, app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown}, context::{AppContext, LayoutContext, RenderContext, Updates, WidgetContext}, crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop}, event::EventUpdateArgs, handler::{AppHandler, AppHandlerArgs, AppWeakHandle}, render::{FrameBuilder, FrameInfoBuilder, FrameUpdate}, units::*};
 use std::{
     any::type_name,
     cell::{Cell, RefCell},
@@ -1535,6 +1526,11 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
         fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.arrange(ctx, final_size));
+        }
+        #[inline(always)]
+        fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+            let child = &self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.frame_info(ctx, info));
         }
         #[inline(always)]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

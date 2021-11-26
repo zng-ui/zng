@@ -87,6 +87,7 @@ pub struct Updates {
     event_sender: AppEventSender,
     update: bool,
     layout: bool,
+    frame_info: bool,
     l_updates: LayoutUpdates,
 
     pre_handlers: Vec<UpdateHandler>,
@@ -102,6 +103,7 @@ impl Updates {
                 render: false,
                 window_updates: WindowUpdates::default(),
             },
+            frame_info: false,
 
             pre_handlers: vec![],
             pos_handlers: vec![],
@@ -144,6 +146,18 @@ impl Updates {
     #[inline]
     pub fn layout_requested(&self) -> bool {
         self.layout
+    }
+
+    /// Schedules a new full frame info update for the parent window.
+    #[inline]
+    pub fn frame_info(&mut self) {
+        self.frame_info = true;
+    }
+
+    /// Gets `true` if a frame-info rebuild is scheduled.
+    #[inline]
+    pub fn frame_info_requested(&self) -> bool {
+        self.frame_info
     }
 
     /// Schedules a new full frame for the parent window.
@@ -254,12 +268,13 @@ impl Updates {
         mem::take(&mut self.l_updates.window_updates)
     }
 
-    fn take_updates(&mut self) -> (bool, bool, bool) {
-        (
-            mem::take(&mut self.update),
-            mem::take(&mut self.layout),
-            mem::take(&mut self.l_updates.render),
-        )
+    fn take_updates(&mut self) -> AppUpdates {
+        AppUpdates {
+            update: mem::take(&mut self.update),
+            layout: mem::take(&mut self.layout),
+            frame_info: mem::take(&mut self.frame_info),
+            render: mem::take(&mut self.l_updates.render),
+        }
     }
 }
 /// crate::app::HeadlessApp::block_on
@@ -291,6 +306,19 @@ impl DerefMut for Updates {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.l_updates
     }
+}
+
+/// Requested updates at the app level.
+#[derive(Clone, Copy)]
+pub struct AppUpdates {
+    /// Update again.
+    pub update: bool,
+    /// Re-layout some windows.
+    pub layout: bool,
+    /// Rebuild frame info for some windows.
+    pub frame_info: bool,
+    /// Re-render some windows.
+    pub render: bool,
 }
 
 /// Subsect of [`Updates`] that is accessible in [`LayoutContext`].

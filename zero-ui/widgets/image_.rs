@@ -774,6 +774,12 @@ pub mod image {
                     );
                 }
 
+                fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
+                        self.child.frame_info(ctx, info);
+                    });
+                }
+
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     ctx.vars
                         .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {

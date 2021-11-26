@@ -1,7 +1,7 @@
 use crate::core::{
     context::{LayoutContext, RenderContext, WidgetContext},
     event::EventUpdateArgs,
-    render::{FrameBuilder, FrameUpdate},
+    render::{FrameInfoBuilder, FrameBuilder, FrameUpdate},
     units::*,
     UiNode,
 };
@@ -50,15 +50,21 @@ macro_rules! ui_n {
                 }
             }
 
-            fn render(&self, ctx: &mut RenderContext, f: &mut FrameBuilder) {
+            fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.render(ctx, f),)+
+                    $($UiEnum::$UiNode(ui) => ui.frame_info(ctx, info),)+
                 }
             }
 
-            fn render_update(&self, ctx: &mut RenderContext, u: &mut FrameUpdate) {
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.render_update(ctx, u),)+
+                    $($UiEnum::$UiNode(ui) => ui.render(ctx, frame),)+
+                }
+            }
+
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                match self {
+                    $($UiEnum::$UiNode(ui) => ui.render_update(ctx, update),)+
                 }
             }
         }

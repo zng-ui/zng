@@ -253,7 +253,18 @@ pub mod grid {
             }
 
             fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                let _ = (ctx, final_size);
                 todo!()
+            }
+
+            fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+                for (column, origin) in self.columns.iter().zip(&self.column_origins) {
+                    info.offset(origin.to_vector(), |info| column.widget().frame_info(ctx, info));
+                }
+                for (row, origin) in self.rows.iter().zip(&self.row_origins) {
+                    info.offset(origin.to_vector(), |info| row.widget().frame_info(ctx, info));
+                }
+                self.items.frame_info_all(|i|self.item_rects[i].origin, ctx, info);
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

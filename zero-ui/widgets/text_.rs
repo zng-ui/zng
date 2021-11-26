@@ -400,6 +400,10 @@ pub mod text {
                     self.size_new = false;
                 }
 
+                fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+                    ctx.vars.with_context_bind(FontSizeVar, &self.size, || self.child.frame_info(ctx, info));
+                }
+
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     ctx.vars
                         .with_context_bind(FontSizeVar, &self.size, || self.child.render(ctx, frame));
@@ -588,6 +592,13 @@ pub mod text {
                         });
                 }
 
+                fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+                    let child = &self.child;
+                    ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
+                        child.frame_info(ctx, info);
+                    });
+                }
+
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let child = &self.child;
                     ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
@@ -707,6 +718,13 @@ pub mod text {
                     let child = &mut self.child;
                     ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
                         child.arrange(ctx, final_size);
+                    });
+                }
+
+                fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+                    let child = &self.child;
+                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
+                        child.frame_info(ctx, info);
                     });
                 }
 
