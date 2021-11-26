@@ -83,13 +83,23 @@ fn main() {
     if PROFILE {
         let rec = examples_util::record_profile(
             format!(
-                "profile-stress-{}{}{}{}.json.gz",
+                "profile-stress-{}{}{}{}{}{}{}.json.gz",
                 name,
                 if cfg!(debug_assertions) { "-dbg" } else { "" },
                 if SAME_PROCESS { "" } else { "-no_vp" },
                 if cfg!(feature = "ipc") { "-ipc" } else { "" },
+                if cfg!(feature = "dyn_widget") { "-dynw" } else { "" },
+                if cfg!(feature = "dyn_property") { "-dynp" } else { "" },
+                if cfg!(feature = "dyn_app_extension") { "-dyna" } else { "" },
             ),
-            &[("stress-test", name)],
+            &[
+                ("stress-test", name),
+                ("SAME_PROCESS", &SAME_PROCESS),
+                ("ipc", &cfg!(feature = "ipc")),
+                ("dyn_app_extension", &cfg!(feature = "dyn_app_extension")),
+                ("dyn_widget", &cfg!(feature = "dyn_widget")),
+                ("dyn_property", &cfg!(feature = "dyn_property")),
+            ],
             filter,
         );
 

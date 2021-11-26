@@ -709,7 +709,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #[allow(unreachable_code)]
                     let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents,)* #(#cap_cfgs #cap_user_set,)* &mut capture_infos__);
                     captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, capture_infos__));
-                })                
+                })
             } else {
                 let new_fn_ident = ident!("__new_{}{}", if child_priority { "child_" } else { "" }, priority);
                 property_set_calls.extend(quote! {

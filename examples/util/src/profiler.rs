@@ -96,12 +96,16 @@ impl<'a> FilterArgs<'a> {
 /// If a event has an attribute `"message"` the message is taken as a name.
 pub fn record_profile(
     path: impl AsRef<Path>,
-    about: &[(&str, &str)],
+    about: &[(&str, &dyn std::fmt::Display)],
     filter: impl FnMut(FilterArgs) -> bool + Send + 'static,
 ) -> Recording {
     record_profile_impl(path.as_ref(), about, Box::new(filter))
 }
-fn record_profile_impl(path: &Path, about: &[(&str, &str)], mut filter: Box<dyn FnMut(FilterArgs) -> bool + Send>) -> Recording {
+fn record_profile_impl(
+    path: &Path,
+    about: &[(&str, &dyn std::fmt::Display)],
+    mut filter: Box<dyn FnMut(FilterArgs) -> bool + Send>,
+) -> Recording {
     let file = BufWriter::new(File::create(path).unwrap());
     let mut file = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
 
@@ -117,7 +121,7 @@ fn record_profile_impl(path: &Path, about: &[(&str, &str)], mut filter: Box<dyn 
     .unwrap();
     let mut comma = "";
     for (key, value) in about {
-        write!(&mut file, r#"{}"{}":"{}""#, comma, escape(key), escape(value)).unwrap();
+        write!(&mut file, r#"{}"{}":"{}""#, comma, escape(key), escape(&format!("{}", value))).unwrap();
         comma = ",";
     }
     write!(&mut file, r#"}},"traceEvents":["#).unwrap();
