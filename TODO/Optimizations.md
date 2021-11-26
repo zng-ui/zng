@@ -1,7 +1,6 @@
 # Build Time
 
-* Very slow build time in release mode (window example up-to 18m).
-* Very large memory use in release mode build (window example up-to 25GB).
+* Very slow build time in release mode without `dyn_widget` (window example up-to 18 minutes compile time and 25GB memory usage).
     Might be related to https://github.com/rust-lang/rust/issues/75992
 
 # Mouse Move Interest
@@ -54,7 +53,10 @@ fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             pre/*|pos*/ args => self.child.event(ctx, args),
             KeyInputEvent => {
 
-            }
+            },
+            MouseMoveEvent => {
+
+            },
       }
 }
 ```
