@@ -264,17 +264,19 @@ impl Updates {
         self.l_updates.window_updates = WindowUpdates::default();
     }
 
-    fn take_win_updates(&mut self) -> WindowUpdates {
-        mem::take(&mut self.l_updates.window_updates)
+    fn take_win_updates(&mut self) -> (WindowUpdates, bool) {
+        (
+            mem::take(&mut self.l_updates.window_updates),
+            mem::take(&mut self.frame_info)
+        )
     }
 
-    fn take_updates(&mut self) -> AppUpdates {
-        AppUpdates {
-            update: mem::take(&mut self.update),
-            layout: mem::take(&mut self.layout),
-            frame_info: mem::take(&mut self.frame_info),
-            render: mem::take(&mut self.l_updates.render),
-        }
+    fn take_updates(&mut self) -> (bool, bool, bool) {
+        (
+            mem::take(&mut self.update),
+            mem::take(&mut self.layout),
+            mem::take(&mut self.l_updates.render),
+        )
     }
 }
 /// crate::app::HeadlessApp::block_on
@@ -306,19 +308,6 @@ impl DerefMut for Updates {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.l_updates
     }
-}
-
-/// Requested updates at the app level.
-#[derive(Clone, Copy)]
-pub struct AppUpdates {
-    /// Update again.
-    pub update: bool,
-    /// Re-layout some windows.
-    pub layout: bool,
-    /// Rebuild frame info for some windows.
-    pub frame_info: bool,
-    /// Re-render some windows.
-    pub render: bool,
 }
 
 /// Subsect of [`Updates`] that is accessible in [`LayoutContext`].

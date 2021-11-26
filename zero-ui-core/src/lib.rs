@@ -72,6 +72,9 @@ pub use ui_node::*;
 mod ui_list;
 pub use ui_list::*;
 
+mod ui_info;
+pub use ui_info::*;
+
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
 pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_inherit, widget_new};

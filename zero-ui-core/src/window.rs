@@ -2504,7 +2504,7 @@ impl AppWindow {
         let _s = tracing::trace_span!("window.on_render", window = %self.id.sequential()).entered();
 
         let scale_factor = self.monitor_metrics(ctx).1;
-        let info = self.context.frame_info(ctx, self.frame_id, self.size.to_px(scale_factor.0));
+        let info = self.context.frame_info(ctx, self.frame_id, self.size.to_px(scale_factor.0), &self.renderer);
 
         let w_info = ctx.services.windows().windows_info.get_mut(&self.id).unwrap();
         w_info.frame_info = info;
@@ -2725,10 +2725,11 @@ impl OwnedWindowContext {
         self.frame_info = false;
 
         let root = &self.root;
+        let frame_id = self.frame_id;
 
         let (builder, _) =  ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
             let child = &root.child;
-            let mut builder = FrameInfoBuilder::new(frame_id, *ctx.window_id, root.id, root_size, self.used_frame_info_builder.take());
+            let mut builder = FrameInfoBuilder::new(*ctx.window_id, frame_id, root.id, root_size, self.used_frame_info_builder.take());
             ctx.render_context(root.id, &root.state, |ctx| {
                 child.frame_info(ctx, &mut builder);
             });
@@ -2736,7 +2737,7 @@ impl OwnedWindowContext {
         });
 
         let (info, used) = builder.finalize();
-        self.used_frame_info_builder = used;
+        self.used_frame_info_builder = Some(used);
         info
     }
 
