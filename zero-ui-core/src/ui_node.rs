@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use crate::{
     context::*,
     event::{AnyEventUpdate, Event},
-    render::FrameInfoBuilder,
+    widget_info::WidgetInfoBuilder,
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -215,7 +215,7 @@ pub trait UiNode: 'static {
     /// # Arguments
     ///
     /// * `info`:
-    fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder);
+    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder);
 
     /// Called every time a new frame must be rendered.
     ///
@@ -245,7 +245,7 @@ pub trait UiNodeBoxed: 'static {
     fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &AnyEventUpdate);
     fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
     fn arrange_boxed(&mut self, ctx: &mut LayoutContext, final_size: PxSize);
-    fn frame_info_boxed(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder);
+    fn info_boxed(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder);
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
@@ -275,8 +275,8 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.arrange(ctx, final_size);
     }
 
-    fn frame_info_boxed(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
-        self.frame_info(ctx, info);
+    fn info_boxed(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        self.info(ctx, info);
     }
 
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -320,8 +320,8 @@ impl UiNode for BoxedUiNode {
         self.as_mut().arrange_boxed(ctx, final_size);
     }
 
-    fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
-        self.as_ref().frame_info_boxed(ctx, info);
+    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        self.as_ref().info_boxed(ctx, info);
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -379,9 +379,9 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
         if let Some(node) = self {
-            node.frame_info(ctx, info);
+            node.info(ctx, info);
         }
     }
 
@@ -462,11 +462,11 @@ pub trait Widget: UiNode {
 
     // TODO don't require user to init frame?
 
-    /// Run [`UiNode::frame_info`] using the [`TestWidgetContext`].
+    /// Run [`UiNode::info`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_frame_info(&self, ctx: &mut TestWidgetContext, info: &mut FrameInfoBuilder) {
-        ctx.render_context(|ctx| self.frame_info(ctx, info));
+    fn test_info(&self, ctx: &mut TestWidgetContext, info: &mut WidgetInfoBuilder) {
+        ctx.render_context(|ctx| self.info(ctx, info));
     }
 
     /// Run [`UiNode::render`] using the [`TestWidgetContext`].
@@ -541,8 +541,8 @@ impl UiNode for BoxedWidget {
         self.as_mut().arrange_boxed(ctx, final_size)
     }
 
-    fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
-        self.as_ref().frame_info_boxed(ctx, info);
+    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        self.as_ref().info_boxed(ctx, info);
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -591,8 +591,9 @@ pub mod impl_ui_node_util {
     use crate::{
         context::{LayoutContext, RenderContext, WidgetContext},
         event::EventUpdateArgs,
-        render::{FrameBuilder, FrameInfoBuilder, FrameUpdate},
+        render::{FrameBuilder, FrameUpdate},
         units::{AvailableSize, PxSize},
+        widget_info::WidgetInfoBuilder,
         UiNode, UiNodeList,
     };
 
@@ -632,7 +633,7 @@ pub mod impl_ui_node_util {
         fn arrange_all(self, ctx: &mut LayoutContext, final_size: PxSize);
     }
     pub trait IterImpl {
-        fn frame_info_all(self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder);
+        fn info_all(self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder);
         fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
         fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate);
     }
@@ -678,9 +679,9 @@ pub mod impl_ui_node_util {
     }
 
     impl<'u, U: UiNode, I: IntoIterator<Item = &'u U>> IterImpl for I {
-        fn frame_info_all(self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+        fn info_all(self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
             for child in self {
-                child.frame_info(ctx, info);
+                child.info(ctx, info);
             }
         }
 
@@ -1050,9 +1051,9 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().as_ref().unwrap().frame_info(ctx, info);
+            rc.node.borrow().as_ref().unwrap().info(ctx, info);
         }
     }
 

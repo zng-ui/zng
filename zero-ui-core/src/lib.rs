@@ -72,8 +72,8 @@ pub use ui_node::*;
 mod ui_list;
 pub use ui_list::*;
 
-mod ui_info;
-pub use ui_info::*;
+pub mod widget_info;
+pub use widget_info::WidgetPath;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]

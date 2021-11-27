@@ -5,15 +5,26 @@
 
 use linear_map::LinearMap;
 
-use super::{
+use crate::{
     context::LayoutContext,
     context::{state_key, WidgetContext},
     impl_ui_node,
-    render::{FrameBuilder, FrameInfo, FrameUpdate, WidgetInfo},
+    render::{FrameBuilder, FrameUpdate},
     units::*,
     var::{context_var, BoxedVar, Var},
+    widget_info::{FrameInfo, WidgetInfo},
     UiNode,
 };
+use crate::{
+    context::RenderContext,
+    crate_util::IdMap,
+    event::EventUpdateArgs,
+    formatx,
+    text::{Text, ToText},
+    widget_info::WidgetInfoBuilder,
+    BoxedUiNode,
+};
+
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
@@ -53,7 +64,6 @@ macro_rules! source_location {
 }
 #[doc(inline)]
 pub use crate::source_location;
-use crate::{BoxedUiNode, context::RenderContext, crate_util::IdMap, event::EventUpdateArgs, formatx, render::FrameInfoBuilder, text::{Text, ToText}};
 
 /// Debug information about a property of a widget instance.
 #[derive(Debug, Clone)]
@@ -170,8 +180,8 @@ pub struct UiNodeDurations {
     pub measure: Duration,
     /// Duration of [`UiNode::arrange`] call.
     pub arrange: Duration,
-    /// Duration of [`UiNode::frame_info`] call.
-    pub frame_info: Duration,
+    /// Duration of [`UiNode::info`] call.
+    pub info: Duration,
     /// Duration of [`UiNode::render`] call.
     pub render: Duration,
     /// Duration of [`UiNode::render_update`] call.
@@ -193,8 +203,8 @@ pub struct UiNodeCounts {
     pub measure: usize,
     /// Count of calls to [`UiNode::arrange`].
     pub arrange: usize,
-    /// Count of calls to [`UiNode::frame_info`].
-    pub frame_info: usize,
+    /// Count of calls to [`UiNode::info`].
+    pub info: usize,
     /// Count of calls to [`UiNode::render`].
     pub render: usize,
     /// Count of calls to [`UiNode::render_update`].
@@ -556,11 +566,11 @@ impl UiNode for WidgetInstanceInfoNode {
         self.child.arrange(ctx, final_size)
     }
 
-    fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
-        let _scope = tracing::trace_span!("widget.frame_info", name = self.info.borrow().widget_name).entered();
+    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        let _scope = tracing::trace_span!("widget.info", name = self.info.borrow().widget_name).entered();
 
         info.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
-        self.child.frame_info(ctx, info);
+        self.child.info(ctx, info);
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -722,17 +732,17 @@ impl UiNode for PropertyInfoNode {
         info.count.arrange += 1;
     }
 
-    fn frame_info(&self, ctx: &mut RenderContext, frame_info: &mut FrameInfoBuilder) {
-        let _scope = tracing::trace_span!("property.frame_info", name = self.info.borrow().property_name).entered();
+    fn info(&self, ctx: &mut RenderContext, wgt_info: &mut WidgetInfoBuilder) {
+        let _scope = tracing::trace_span!("property.info", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
-        self.child.frame_info(ctx, frame_info);
+        self.child.info(ctx, wgt_info);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
-        info.duration.frame_info = d;
-        info.count.frame_info += 1;
+        info.duration.info = d;
+        info.count.info += 1;
 
-        frame_info.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
+        wgt_info.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -743,7 +753,7 @@ impl UiNode for PropertyInfoNode {
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.render = d;
-        info.count.render += 1;        
+        info.count.render += 1;
     }
 
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {

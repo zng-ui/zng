@@ -910,7 +910,6 @@ pub mod prelude {
         keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
         mouse::{ButtonState, MouseButton, MouseMoveArgs},
         node_vec, nodes,
-        render::WidgetPath,
         service::Services,
         take_if, take_on, take_on_init,
         task::{self, http::Uri, rayon::prelude::*},
@@ -934,7 +933,7 @@ pub mod prelude {
             WindowCloseRequestedArgs, WindowIcon, WindowId, WindowMoveArgs, WindowOpenArgs, WindowResizeArgs, WindowState, WindowVarsKey,
             Windows, WindowsExt,
         },
-        RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
+        RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath, WidgetVec,
     };
 
     #[doc(no_inline)]
@@ -1029,6 +1028,7 @@ pub mod prelude {
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,
             widget_base::{Visibility, VisibilityContext, WidgetListVisibilityExt, WidgetVisibilityExt},
+            widget_info::WidgetInfoBuilder,
             widget_vec, widgets, BoxedUiNode, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
         };
         #[doc(no_inline)]
@@ -1083,6 +1083,7 @@ pub mod prelude {
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property, widget,
             widget_base::{Visibility, VisibilityContext, WidgetListVisibilityExt, WidgetVisibilityExt},
+            widget_info::WidgetInfoBuilder,
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList,
             WidgetVec,
         };

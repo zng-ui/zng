@@ -4,7 +4,17 @@
 
 use util::{assert_did_not_trace, assert_only_traced, TraceNode};
 
-use crate::{UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, color::RenderColor, context::{TestWidgetContext, WidgetContext}, impl_ui_node, node_vec, nodes, render::{FrameBuilder, FrameId, FrameInfoBuilder, FrameUpdate, WidgetTransformKey}, units::*, widget_base::implicit_base, window::WindowId};
+use crate::{
+    color::RenderColor,
+    context::{TestWidgetContext, WidgetContext},
+    impl_ui_node, node_vec, nodes,
+    render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
+    units::*,
+    widget_base::implicit_base,
+    widget_info::WidgetInfoBuilder,
+    window::WindowId,
+    UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
+};
 
 #[test]
 pub fn default_child() {
@@ -97,8 +107,8 @@ fn test_trace(node: impl UiNode) {
     assert_only_traced!(wgt.state(), "arrange");
 
     let window_id = WindowId::new_unique();
-    let mut info = FrameInfoBuilder::new(window_id, FrameId::INVALID, wgt.id(), l_size.to_px(), None);
-    wgt.test_frame_info(&mut ctx, &mut info);
+    let mut info = WidgetInfoBuilder::new(window_id, wgt.id(), l_size.to_px(), None);
+    wgt.test_info(&mut ctx, &mut info);
     assert_only_traced!(wgt.state(), "frame_info");
 
     let root_transform_key = WidgetTransformKey::new_unique();
@@ -198,16 +208,16 @@ pub fn default_no_child() {
     // arrange does nothing, not really anything to test.
     wgt.test_arrange(&mut ctx, desired_size);
 
-     // we expect default to not render anything.
+    // we expect default to not render anything.
     let window_id = WindowId::new_unique();
-    
-    let mut info = FrameInfoBuilder::new(window_id, FrameId::INVALID, wgt.id(), desired_size, None);
-    wgt.test_frame_info(&mut ctx, &mut info);
+
+    let mut info = WidgetInfoBuilder::new(window_id, wgt.id(), desired_size, None);
+    wgt.test_info(&mut ctx, &mut info);
     let (build_info, _) = info.finalize();
     let wgt_info = build_info.find(wgt.id()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
-   
+
     let root_transform_key = WidgetTransformKey::new_unique();
     let mut frame = FrameBuilder::new_renderless(
         FrameId::INVALID,
@@ -243,6 +253,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::*,
+        widget_info::WidgetInfoBuilder,
         UiNode,
     };
 
@@ -333,8 +344,8 @@ mod util {
             self.trace("arrange");
         }
 
-        fn frame_info(&self, _: &mut RenderContext, _: &mut crate::render::FrameInfoBuilder) {
-            self.trace("frame_info");
+        fn info(&self, _: &mut RenderContext, _: &mut WidgetInfoBuilder) {
+            self.trace("info");
         }
 
         fn render(&self, _: &mut RenderContext, _: &mut FrameBuilder) {

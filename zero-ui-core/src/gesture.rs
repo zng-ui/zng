@@ -12,6 +12,7 @@ use crate::{
     service::Service,
     units::DipPoint,
     var::impl_from_and_into_var,
+    widget_info::WidgetPath,
     window::{WindowId, Windows},
     WidgetId,
 };

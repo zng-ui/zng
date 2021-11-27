@@ -15,6 +15,7 @@ use crate::{
     service::*,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
+    widget_info::{FrameInfo, WidgetPath},
     window::{WindowId, Windows, WindowsExt},
     WidgetId,
 };

@@ -79,13 +79,13 @@ pub trait UiNodeList: 'static {
     /// Calls [`UiNode::arrange`] in only the `index` widget.
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize);
 
-    /// Calls [`UiNode::frame_info`] in all widgets in the list, sequentially.
-    fn frame_info_all<O>(&self, origin: O, ctx: &mut RenderContext, info: &mut FrameInfoBuilder)
+    /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
+    fn info_all<O>(&self, origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint;
 
-    /// Calls [`UiNode::frame_info`] in only the `index` widget.
-    fn widget_frame_info(&self, index: usize, ctx: &mut RenderContext, info: &mut FrameInfoBuilder);
+    /// Calls [`UiNode::info`] in only the `index` widget.
+    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder);
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially. Uses a reference frame
     /// to offset each widget.
@@ -344,17 +344,17 @@ impl UiNodeList for WidgetVec {
         self.vec[index].arrange(ctx, final_size)
     }
 
-    fn frame_info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut FrameInfoBuilder)
+    fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
         for (i, w) in self.iter().enumerate() {
-            info.offset(origin(i).to_vector(), |info| w.frame_info(ctx, info));
+            info.offset(origin(i).to_vector(), |info| w.info(ctx, info));
         }
     }
 
-    fn widget_frame_info(&self, index: usize, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
-        self.vec[index].frame_info(ctx, info);
+    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        self.vec[index].info(ctx, info);
     }
 
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -573,17 +573,17 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].arrange(ctx, final_size);
     }
 
-    fn frame_info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut FrameInfoBuilder)
+    fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
         for (i, w) in self.iter().enumerate() {
-            info.offset(origin(i).to_vector(), |info| w.frame_info(ctx, info));
+            info.offset(origin(i).to_vector(), |info| w.info(ctx, info));
         }
     }
 
-    fn widget_frame_info(&self, index: usize, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
-        self.vec[index].frame_info(ctx, info);
+    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        self.vec[index].info(ctx, info);
     }
 
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -642,7 +642,7 @@ macro_rules! widget_vec {
 }
 #[doc(inline)]
 pub use crate::widget_vec;
-use crate::{context::RenderContext, event::EventUpdateArgs, render::FrameInfoBuilder, BoxedUiNode, BoxedWidget};
+use crate::{context::RenderContext, event::EventUpdateArgs, widget_info::WidgetInfoBuilder, BoxedUiNode, BoxedWidget};
 
 /// Creates a [`UiNodeVec`](crate::UiNodeVec) containing the arguments.
 ///
@@ -890,21 +890,21 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline]
-    fn frame_info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut FrameInfoBuilder)
+    fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
-        self.0.frame_info_all(|i| origin(i), ctx, info);
+        self.0.info_all(|i| origin(i), ctx, info);
         let offset = self.0.len();
-        self.1.frame_info_all(|i| origin(i + offset), ctx, info);
+        self.1.info_all(|i| origin(i + offset), ctx, info);
     }
 
-    fn widget_frame_info(&self, index: usize, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_frame_info(index, ctx, info)
+            self.0.widget_info(index, ctx, info)
         } else {
-            self.1.widget_frame_info(index - a_len, ctx, info)
+            self.1.widget_info(index - a_len, ctx, info)
         }
     }
 
@@ -1095,21 +1095,21 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline]
-    fn frame_info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut FrameInfoBuilder)
+    fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
-        self.0.frame_info_all(|i| origin(i), ctx, info);
+        self.0.info_all(|i| origin(i), ctx, info);
         let offset = self.0.len();
-        self.1.frame_info_all(|i| origin(i + offset), ctx, info);
+        self.1.info_all(|i| origin(i + offset), ctx, info);
     }
 
-    fn widget_frame_info(&self, index: usize, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_frame_info(index, ctx, info)
+            self.0.widget_info(index, ctx, info)
         } else {
-            self.1.widget_frame_info(index - a_len, ctx, info)
+            self.1.widget_info(index - a_len, ctx, info)
         }
     }
 
@@ -1316,20 +1316,20 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn frame_info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut FrameInfoBuilder)
+            fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
             where
                 O: FnMut(usize) -> PxPoint,
             {
                 $(
-                info.offset(origin($n).to_vector(), |info| self.items.$n.frame_info(ctx, info));
+                info.offset(origin($n).to_vector(), |info| self.items.$n.info(ctx, info));
                 )+
             }
 
             #[inline]
-            fn widget_frame_info(&self, index: usize, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+            fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
                 match index {
                     $(
-                        $n => self.items.$n.frame_info(ctx, info),
+                        $n => self.items.$n.info(ctx, info),
                     )+
                     _ => panic!("index {} out of range for length {}", index, self.len()),
                 }
@@ -1466,14 +1466,14 @@ macro_rules! empty_node_list {
                 panic!("index {} out of range for length 0", index)
             }
 
-            fn frame_info_all<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameInfoBuilder)
+            fn info_all<O>(&self, _: O, _: &mut RenderContext, _: &mut WidgetInfoBuilder)
             where
                 O: FnMut(usize) -> PxPoint,
             {
             }
 
             #[inline]
-            fn widget_frame_info(&self, index: usize, _: &mut RenderContext, _: &mut FrameInfoBuilder) {
+            fn widget_info(&self, index: usize, _: &mut RenderContext, _: &mut WidgetInfoBuilder) {
                 panic!("index {} out of range for length 0", index)
             }
 

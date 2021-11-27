@@ -83,11 +83,11 @@ use crate::{
     event::*,
     gesture::{shortcut, ShortcutEvent},
     mouse::MouseDownEvent,
-    render::{DescendantFilter, FrameInfo, WidgetInfo, WidgetPath},
     service::Service,
     units::*,
     var::impl_from_and_into_var,
     widget_base::WidgetEnabledExt,
+    widget_info::{DescendantFilter, FrameInfo, WidgetInfo, WidgetPath},
     window::{WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };

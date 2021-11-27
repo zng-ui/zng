@@ -11,9 +11,9 @@ use crate::app::{raw_events::*, *};
 use crate::context::*;
 use crate::event::*;
 use crate::focus::FocusExt;
-use crate::render::WidgetPath;
 use crate::service::*;
 use crate::var::{var, RcVar, ReadOnlyRcVar, Var, Vars};
+use crate::widget_info::WidgetPath;
 use crate::window::WindowId;
 
 pub use zero_ui_view_api::{Key, KeyState, ModifiersState, ScanCode};

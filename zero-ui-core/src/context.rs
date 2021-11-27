@@ -87,7 +87,6 @@ pub struct Updates {
     event_sender: AppEventSender,
     update: bool,
     layout: bool,
-    frame_info: bool,
     l_updates: LayoutUpdates,
 
     pre_handlers: Vec<UpdateHandler>,
@@ -103,7 +102,6 @@ impl Updates {
                 render: false,
                 window_updates: WindowUpdates::default(),
             },
-            frame_info: false,
 
             pre_handlers: vec![],
             pos_handlers: vec![],
@@ -148,16 +146,16 @@ impl Updates {
         self.layout
     }
 
-    /// Schedules a new full frame info update for the parent window.
+    /// Schedules a new full widget tree info update for the parent window.
     #[inline]
-    pub fn frame_info(&mut self) {
-        self.frame_info = true;
+    pub fn info(&mut self) {
+        self.l_updates.window_updates.info = true;
     }
 
-    /// Gets `true` if a frame-info rebuild is scheduled.
+    /// Gets `true` if a widget info rebuild is scheduled.
     #[inline]
-    pub fn frame_info_requested(&self) -> bool {
-        self.frame_info
+    pub fn info_requested(&self) -> bool {
+        self.l_updates.window_updates.info
     }
 
     /// Schedules a new full frame for the parent window.
@@ -264,11 +262,8 @@ impl Updates {
         self.l_updates.window_updates = WindowUpdates::default();
     }
 
-    fn take_win_updates(&mut self) -> (WindowUpdates, bool) {
-        (
-            mem::take(&mut self.l_updates.window_updates),
-            mem::take(&mut self.frame_info)
-        )
+    fn take_win_updates(&mut self) -> WindowUpdates {
+        mem::take(&mut self.l_updates.window_updates)
     }
 
     fn take_updates(&mut self) -> (bool, bool, bool) {
@@ -934,6 +929,8 @@ impl std::ops::BitOr for ContextUpdates {
 /// the window content requested it.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WindowUpdates {
+    /// Info tree rebuild requested.
+    pub info: bool,
     /// Layout requested.
     pub layout: bool,
     /// Full frame or frame update requested.
@@ -948,14 +945,25 @@ impl WindowUpdates {
     /// Update layout and render frame.
     pub fn all() -> Self {
         WindowUpdates {
+            info: true,
             layout: true,
             render: WindowRenderUpdate::Render,
+        }
+    }
+
+    /// Info tree rebuild only.
+    pub fn info() -> Self {
+        WindowUpdates {
+            info: true,
+            layout: false,
+            render: WindowRenderUpdate::None,
         }
     }
 
     /// Update layout only.
     pub fn layout() -> Self {
         WindowUpdates {
+            info: false,
             layout: true,
             render: WindowRenderUpdate::None,
         }
@@ -964,6 +972,7 @@ impl WindowUpdates {
     /// Update render only.
     pub fn render() -> Self {
         WindowUpdates {
+            info: false,
             layout: false,
             render: WindowRenderUpdate::Render,
         }
@@ -972,6 +981,7 @@ impl WindowUpdates {
     /// Update render-update only.
     pub fn render_update() -> Self {
         WindowUpdates {
+            info: false,
             layout: false,
             render: WindowRenderUpdate::RenderUpdate,
         }
@@ -980,6 +990,7 @@ impl WindowUpdates {
 impl std::ops::BitOrAssign for WindowUpdates {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
+        self.info |= rhs.info;
         self.layout |= rhs.layout;
         self.render |= rhs.render;
     }

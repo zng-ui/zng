@@ -14,12 +14,35 @@ use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest, IpcByte
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
 
-use crate::{BoxedUiNode, UiNode, WidgetId, app::{
+use crate::{
+    app::{
         self,
         raw_events::*,
         view_process::{self, Respawned, ViewHeadless, ViewProcess, ViewProcessGen, ViewProcessRespawnedEvent, ViewRenderer, ViewWindow},
         AppEventSender, AppExtended, AppExtension, AppProcessExt, ControlFlow,
-    }, cancelable_event_args, color::RenderColor, context::{AppContext, WidgetContext, WindowContext, WindowRenderUpdate, WindowUpdates}, event::{event, EventUpdateArgs}, event_args, image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt}, impl_from_and_into_var, render::{BuiltFrame, BuiltFrameUpdate, FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameInfoBuilder, FrameUpdate, UsedFrameBuilder, UsedFrameInfoBuilder, UsedFrameUpdate, WidgetTransformKey}, service::Service, state::OwnedStateMap, state_key, task::http::Uri, text::{Text, TextAntiAliasing, ToText}, units::*, var::Vars, var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var}};
+    },
+    cancelable_event_args,
+    color::RenderColor,
+    context::{AppContext, WidgetContext, WindowContext, WindowRenderUpdate, WindowUpdates},
+    event::{event, EventUpdateArgs},
+    event_args,
+    image::{Image, ImageDataFormat, ImageSource, ImageVar, ImagesExt},
+    impl_from_and_into_var,
+    render::{
+        BuiltFrame, BuiltFrameUpdate, FrameBuilder, FrameHitInfo, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate,
+        WidgetTransformKey,
+    },
+    service::Service,
+    state::OwnedStateMap,
+    state_key,
+    task::http::Uri,
+    text::{Text, TextAntiAliasing, ToText},
+    units::*,
+    var::Vars,
+    var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
+    widget_info::{FrameInfo, UsedWidgetInfoBuilder, WidgetInfoBuilder},
+    BoxedUiNode, UiNode, WidgetId,
+};
 
 unique_id_32! {
     /// Unique identifier of an open window.
@@ -2453,7 +2476,7 @@ impl AppWindow {
             .render(ctx, next_frame_id, self.size.to_px(scale_factor.0), scale_factor, &self.renderer);
 
         self.clear_color = frame.clear_color;
-        self.frame_id = frame.frame_id();       
+        self.frame_id = frame.id;
 
         let (payload, descriptor) = frame.display_list;
 
@@ -2495,7 +2518,7 @@ impl AppWindow {
     }
 
     /// On frame-info request.
-    /// 
+    ///
     /// If there is a pending request we rebuild the frame info.
     fn on_frame_info(&mut self, ctx: &mut AppContext) {
         if !self.context.frame_info {
@@ -2504,7 +2527,9 @@ impl AppWindow {
         let _s = tracing::trace_span!("window.on_render", window = %self.id.sequential()).entered();
 
         let scale_factor = self.monitor_metrics(ctx).1;
-        let info = self.context.frame_info(ctx, self.frame_id, self.size.to_px(scale_factor.0), &self.renderer);
+        let info = self
+            .context
+            .info(ctx, self.frame_id, self.size.to_px(scale_factor.0), &self.renderer);
 
         let w_info = ctx.services.windows().windows_info.get_mut(&self.id).unwrap();
         w_info.frame_info = info;
@@ -2637,7 +2662,7 @@ struct OwnedWindowContext {
     frame_info: bool,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
-    used_frame_info_builder: Option<UsedFrameInfoBuilder>,
+    used_frame_info_builder: Option<UsedWidgetInfoBuilder>,
     used_frame_builder: Option<UsedFrameBuilder>,
     used_frame_update: Option<UsedFrameUpdate>,
 }
@@ -2720,18 +2745,17 @@ impl OwnedWindowContext {
         final_size.to_dip(scale_factor.0)
     }
 
-    fn frame_info(&mut self, ctx: &mut AppContext, frame_id: FrameId, root_size: PxSize, renderer: &Option<ViewRenderer>) -> FrameInfo {
+    fn info(&mut self, ctx: &mut AppContext, frame_id: FrameId, root_size: PxSize, renderer: &Option<ViewRenderer>) -> FrameInfo {
         debug_assert!(self.frame_info);
         self.frame_info = false;
 
         let root = &self.root;
-        let frame_id = self.frame_id;
 
-        let (builder, _) =  ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
+        let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
             let child = &root.child;
-            let mut builder = FrameInfoBuilder::new(*ctx.window_id, frame_id, root.id, root_size, self.used_frame_info_builder.take());
+            let mut builder = WidgetInfoBuilder::new(*ctx.window_id, root.id, root_size, self.used_frame_info_builder.take());
             ctx.render_context(root.id, &root.state, |ctx| {
-                child.frame_info(ctx, &mut builder);
+                child.info(ctx, &mut builder);
             });
             builder
         });

@@ -257,14 +257,14 @@ pub mod grid {
                 todo!()
             }
 
-            fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+            fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
                 for (column, origin) in self.columns.iter().zip(&self.column_origins) {
-                    info.offset(origin.to_vector(), |info| column.widget().frame_info(ctx, info));
+                    info.offset(origin.to_vector(), |info| column.widget().info(ctx, info));
                 }
                 for (row, origin) in self.rows.iter().zip(&self.row_origins) {
-                    info.offset(origin.to_vector(), |info| row.widget().frame_info(ctx, info));
+                    info.offset(origin.to_vector(), |info| row.widget().info(ctx, info));
                 }
-                self.items.frame_info_all(|i|self.item_rects[i].origin, ctx, info);
+                self.items.info_all(|i| self.item_rects[i].origin, ctx, info);
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

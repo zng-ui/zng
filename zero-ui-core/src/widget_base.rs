@@ -3,12 +3,12 @@
 use std::{fmt, ops};
 
 use crate::event::EventUpdateArgs;
-use crate::render::FrameInfoBuilder;
 use crate::var::{context_var, impl_from_and_into_var, IntoVar, WithVars, WithVarsRead};
 use crate::var::{Var, VarsRead};
+use crate::widget_info::{WidgetInfo, WidgetInfoBuilder};
 use crate::{
     context::RenderContext,
-    render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey},
+    render::{FrameBuilder, FrameUpdate, WidgetTransformKey},
 };
 use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
@@ -208,14 +208,14 @@ pub mod implicit_base {
                     child.arrange(ctx, final_size);
                 });
             }
-            fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+            fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::frame_info` called in not inited widget {:?}", self.id);
+                    tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", self.id);
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    info.push_widget(self.id, self.size, |info| self.child.frame_info(ctx, info));
+                    info.push_widget(self.id, self.size, |info| self.child.info(ctx, info));
                 });
             }
             #[inline(always)]
@@ -226,7 +226,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    frame.push_widget(self.id, self.transform_key, self.size, |frame|self.child.render(ctx, frame));
+                    frame.push_widget(self.id, self.transform_key, self.size, |frame| self.child.render(ctx, frame));
                 });
             }
             #[inline(always)]
@@ -383,7 +383,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(&state) = self.enabled.get_new(ctx) {
                 ctx.widget_state.set(EnabledState, state);
-                ctx.updates.frame_info();
+                ctx.updates.info();
             }
             self.with_context(ctx.vars, |c| c.update(ctx));
         }
@@ -395,11 +395,11 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
-        fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
+        fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
             if !self.enabled.copy(ctx) {
                 info.meta().set(EnabledState, false);
             }
-            self.child.frame_info(ctx, info);
+            self.child.info(ctx, info);
         }
     }
     EnabledNode {
@@ -486,8 +486,8 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
-        fn frame_info(&self, ctx: &mut RenderContext, info: &mut FrameInfoBuilder) {
-            self.child.frame_info(ctx, info);
+        fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, info);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
