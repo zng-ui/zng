@@ -2,32 +2,24 @@
 
 use std::fmt;
 use std::mem;
-use std::time::Instant;
 
 use ego_tree::Tree;
 
 use crate::crate_util::IdMap;
-use crate::render::FrameId;
 use crate::state::OwnedStateMap;
 use crate::state::StateMap;
 use crate::units::*;
 use crate::window::WindowId;
 use crate::WidgetId;
 
-// TODO,
-//
-// 1 - FrameInfo -> UiTreeInfo
-// 2 - Rebuild UiTree just after update that requested it.
-// 3 - Use shared reference to update outer/inner sizes so we don't need to rebuild after every layout.
-//
-// Extensions that query the Ui tree must check a flag on the `AppExtension::update` to response to UiTree changes
-// in the same update pass, windows must rebuild info when an update requests it and set this flag in the `AppExtension::update_ui` pass.
-//
-// Alternatively could be an event?
+unique_id_64! {
+    /// Identifies a [`WidgetInfoTree`] snapshot, can be use for more speedy [`WidgetPath`] resolution.
+    struct WidgetInfoTreeId;
+}
 
-/// [`FrameInfo`] builder.
+
+/// [`WidgetInfoTree`] builder.
 pub struct WidgetInfoBuilder {
-    frame_id: FrameId,
     window_id: WindowId,
 
     node: ego_tree::NodeId,
@@ -36,7 +28,6 @@ pub struct WidgetInfoBuilder {
 
     tree: Tree<WidgetInfoInner>,
 }
-
 impl WidgetInfoBuilder {
     /// Starts building a frame info with the frame root information.
     #[inline]
@@ -54,7 +45,6 @@ impl WidgetInfoBuilder {
         let root_node = tree.root().id();
         WidgetInfoBuilder {
             window_id,
-            frame_id: FrameId::INVALID, // TODO replace
             node: root_node,
             tree,
             meta: OwnedStateMap::new(),
@@ -115,7 +105,7 @@ impl WidgetInfoBuilder {
 
     /// Builds the final frame info.
     #[inline]
-    pub fn finalize(self) -> (FrameInfo, UsedWidgetInfoBuilder) {
+    pub fn finalize(self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         let root_id = self.tree.root().id();
 
         // we build a WidgetId => NodeId lookup
@@ -144,18 +134,17 @@ impl WidgetInfoBuilder {
         #[cfg(not(debug_assertions))]
         let lookup = valid_nodes.collect();
 
-        let r = FrameInfo {
-            timestamp: Instant::now(),
+        let r = WidgetInfoTree {
+            id: WidgetInfoTreeId::new_unique(),
             window_id: self.window_id,
-            frame_id: self.frame_id,
             lookup,
             tree: self.tree,
         };
 
         #[cfg(debug_assertions)]
         for (widget_id, repeats) in repeats {
-            tracing::error!(target: "render", "widget id `{:?}` appears more then once in {:?}:FrameId({}){}",
-            widget_id, self.window_id, self.frame_id.get(), {
+            tracing::error!(target: "render", "widget id `{:?}` appears more then once in {:?}{}",
+            widget_id, self.window_id, {
                 let mut places = String::new();
                 use std::fmt::Write;
                 for node in &repeats {
@@ -174,32 +163,23 @@ impl WidgetInfoBuilder {
     }
 }
 
-/// Information about a rendered frame.
+/// Owned tree of [`WidgetInfo`].
 ///
 /// Instantiated using [`WidgetInfoBuilder`].
-pub struct FrameInfo {
-    timestamp: Instant,
+pub struct WidgetInfoTree {
+    id: WidgetInfoTreeId,
     window_id: WindowId,
-    frame_id: FrameId,
     tree: Tree<WidgetInfoInner>,
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
 }
-impl FrameInfo {
+impl WidgetInfoTree {
     /// Blank window frame that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
         WidgetInfoBuilder::new(window_id, root_id, PxSize::zero(), None).finalize().0
     }
 
-    /// Moment the frame info was finalized.
-    ///
-    /// Note that the frame may not be rendered on screen yet.
-    #[inline]
-    pub fn timestamp(&self) -> Instant {
-        self.timestamp
-    }
-
-    /// Reference to the root widget in the frame.
+    /// Reference to the root widget in the tree.
     #[inline]
     pub fn root(&self) -> WidgetInfo {
         WidgetInfo::new(self, self.tree.root().id())
@@ -211,19 +191,13 @@ impl FrameInfo {
         self.tree.root().descendants().map(move |n| WidgetInfo::new(self, n.id()))
     }
 
-    /// ID of the window that rendered the frame.
+    /// Id of the window that owns all widgets represented in the tree.
     #[inline]
     pub fn window_id(&self) -> WindowId {
         self.window_id
     }
 
-    /// ID of the rendered frame.
-    #[inline]
-    pub fn frame_id(&self) -> FrameId {
-        self.frame_id
-    }
-
-    /// Reference to the widget in the frame, if it is present.
+    /// Reference to the widget in the tree, if it is present.
     #[inline]
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
         self.lookup
@@ -231,23 +205,24 @@ impl FrameInfo {
             .and_then(|i| self.tree.get(*i).map(|n| WidgetInfo::new(self, n.id())))
     }
 
-    /// If the frame contains the widget.
+    /// If the tree contains the widget.
     #[inline]
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.lookup.contains_key(&widget_id)
     }
 
-    /// Reference to the widget in the frame, if it is present.
+    /// Reference to the widget in the tree, if it is present.
     ///
-    /// Faster then [`find`](Self::find) if the widget path was generated by the same frame.
+    /// Faster then [`find`](Self::find) if the widget path was generated by `self`.
     #[inline]
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetInfo> {
-        if path.window_id() == self.window_id() && path.frame_id() == self.frame_id() {
-            if let Some(id) = path.node_id {
-                return self.tree.get(id).map(|n| WidgetInfo::new(self, n.id()));
+        if let Some((tree_id, id)) = path.node_id {
+            if tree_id == self.id {
+                return self.tree.get(id).map(|n| WidgetInfo::new(self, n.id()))
             }
         }
-        self.find(path.widget_id())
+
+        self.find(path.widget_id())        
     }
 
     /// Reference to the widget or first parent that is present.
@@ -258,12 +233,11 @@ impl FrameInfo {
     }
 }
 
-/// Full address of a widget in a specific [`FrameInfo`].
+/// Full address of a widget in a specific [`WidgetInfoTree`].
 #[derive(Clone)]
 pub struct WidgetPath {
-    node_id: Option<ego_tree::NodeId>,
+    node_id: Option<(WidgetInfoTreeId, ego_tree::NodeId)>,
     window_id: WindowId,
-    frame_id: FrameId,
     path: Box<[WidgetId]>,
 }
 impl PartialEq for WidgetPath {
@@ -279,9 +253,7 @@ impl fmt::Debug for WidgetPath {
             f.debug_struct("WidgetPath")
                 .field("window_id", &self.window_id)
                 .field("path", &self.path)
-                .field("frame_id", &format_args!("FrameId({})", self.frame_id.get()))
-                .field("node_id", &self.node_id)
-                .finish()
+                .finish_non_exhaustive()
         } else {
             write!(f, "{}", self)
         }
@@ -304,7 +276,6 @@ impl WidgetPath {
         WidgetPath {
             node_id: None,
             window_id,
-            frame_id: FrameId::INVALID,
             path: path.into(),
         }
     }
@@ -313,12 +284,6 @@ impl WidgetPath {
     #[inline]
     pub fn window_id(&self) -> WindowId {
         self.window_id
-    }
-
-    /// Id of the frame from which this path was taken.
-    #[inline]
-    pub fn frame_id(&self) -> FrameId {
-        self.frame_id
     }
 
     /// Widgets that contain [`widget_id`](WidgetPath::widget_id), root first.
@@ -351,7 +316,6 @@ impl WidgetPath {
         self.path.iter().position(|&id| id == ancestor_id).map(|i| WidgetPath {
             node_id: None,
             window_id: self.window_id,
-            frame_id: self.frame_id,
             path: self.path[..i].iter().copied().collect(),
         })
     }
@@ -375,7 +339,6 @@ impl WidgetPath {
                 return Some(WidgetPath {
                     node_id: None,
                     window_id: self.window_id,
-                    frame_id: self.frame_id,
                     path: path.into(),
                 });
             }
@@ -389,7 +352,6 @@ impl WidgetPath {
         WidgetPath {
             node_id: None,
             window_id: self.window_id,
-            frame_id: self.frame_id,
             path: Box::new([self.path[0]]),
         }
     }
@@ -405,7 +367,7 @@ struct WidgetInfoInner {
 /// Reference to a widget info in a [`FrameInfo`].
 #[derive(Clone, Copy)]
 pub struct WidgetInfo<'a> {
-    frame: &'a FrameInfo,
+    tree: &'a WidgetInfoTree,
     node_id: ego_tree::NodeId,
 }
 impl<'a> PartialEq for WidgetInfo<'a> {
@@ -422,7 +384,6 @@ impl<'a> std::hash::Hash for WidgetInfo<'a> {
 impl<'a> std::fmt::Debug for WidgetInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WidgetInfo")
-            .field("[frame_id]", &self.frame.frame_id.get())
             .field("[path]", &self.path().to_string())
             .field("[meta]", self.meta())
             .finish()
@@ -431,13 +392,13 @@ impl<'a> std::fmt::Debug for WidgetInfo<'a> {
 
 impl<'a> WidgetInfo<'a> {
     #[inline]
-    fn new(frame: &'a FrameInfo, node_id: ego_tree::NodeId) -> Self {
-        Self { frame, node_id }
+    fn new(frame: &'a WidgetInfoTree, node_id: ego_tree::NodeId) -> Self {
+        Self { tree: frame, node_id }
     }
 
     #[inline]
     fn node(&self) -> ego_tree::NodeRef<'a, WidgetInfoInner> {
-        unsafe { self.frame.tree.get_unchecked(self.node_id) }
+        unsafe { self.tree.tree.get_unchecked(self.node_id) }
     }
 
     #[inline]
@@ -459,9 +420,8 @@ impl<'a> WidgetInfo<'a> {
         path.push(self.widget_id());
 
         WidgetPath {
-            frame_id: self.frame.frame_id,
-            window_id: self.frame.window_id,
-            node_id: Some(self.node_id),
+            window_id: self.tree.window_id,
+            node_id: Some((self.tree.id, self.node_id)),
             path: path.into(),
         }
     }
@@ -513,8 +473,8 @@ impl<'a> WidgetInfo<'a> {
 
     /// Reference the [`FrameInfo`] that owns `self`.
     #[inline]
-    pub fn frame(self) -> &'a FrameInfo {
-        self.frame
+    pub fn frame(self) -> &'a WidgetInfoTree {
+        self.tree
     }
 
     /// Reference to the frame root widget.
@@ -528,31 +488,31 @@ impl<'a> WidgetInfo<'a> {
     /// Is `None` only for [`root`](FrameInfo::root).
     #[inline]
     pub fn parent(self) -> Option<Self> {
-        self.node().parent().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().parent().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the previous widget within the same parent.
     #[inline]
     pub fn prev_sibling(self) -> Option<Self> {
-        self.node().prev_sibling().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().prev_sibling().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the next widget within the same parent.
     #[inline]
     pub fn next_sibling(self) -> Option<Self> {
-        self.node().next_sibling().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().next_sibling().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the first widget within this widget.
     #[inline]
     pub fn first_child(self) -> Option<Self> {
-        self.node().first_child().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().first_child().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the last widget within this widget.
     #[inline]
     pub fn last_child(self) -> Option<Self> {
-        self.node().last_child().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().last_child().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// If the parent widget has multiple children.
@@ -576,14 +536,14 @@ impl<'a> WidgetInfo<'a> {
     /// Iterator over the widgets directly contained by this widget.
     #[inline]
     pub fn children(self) -> impl DoubleEndedIterator<Item = WidgetInfo<'a>> {
-        self.node().children().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().children().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Iterator over all widgets contained by this widget.
     #[inline]
     pub fn descendants(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         //skip(1) due to ego_tree's descendants() including the node in the descendants
-        self.node().descendants().skip(1).map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().descendants().skip(1).map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Iterator over all widgets contained by this widget filtered by the `filter` closure.
@@ -594,26 +554,26 @@ impl<'a> WidgetInfo<'a> {
         FilterDescendants {
             traverse,
             filter,
-            frame: self.frame,
+            frame: self.tree,
         }
     }
 
     /// Iterator over parent -> grandparent -> .. -> root.
     #[inline]
     pub fn ancestors(self) -> impl Iterator<Item = WidgetInfo<'a>> {
-        self.node().ancestors().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().ancestors().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Iterator over all previous widgets within the same parent.
     #[inline]
     pub fn prev_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
-        self.node().prev_siblings().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().prev_siblings().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Iterator over all next widgets within the same parent.
     #[inline]
     pub fn next_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
-        self.node().next_siblings().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        self.node().next_siblings().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// This widgets [`center`](Self::center) orientation in relation to a `origin`.
@@ -756,7 +716,7 @@ pub enum DescendantFilter {
 pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> {
     traverse: ego_tree::iter::Traverse<'a, WidgetInfoInner>,
     filter: F,
-    frame: &'a FrameInfo,
+    frame: &'a WidgetInfoTree,
 }
 impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescendants<'a, F> {
     type Item = WidgetInfo<'a>;

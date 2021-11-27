@@ -15,7 +15,7 @@ use crate::{
     service::*,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
-    widget_info::{FrameInfo, WidgetPath},
+    widget_info::{WidgetInfoTree, WidgetPath},
     window::{WindowId, Windows, WindowsExt},
     WidgetId,
 };
@@ -640,10 +640,11 @@ impl MouseManager {
             let target = if let Some(t) = hits.target() {
                 frame_info
                     .find(t.widget_id)
+                    .map(|w| w.path())
                     .unwrap_or_else(|| {
-                        panic!("did not find cursor hit in frame_info, position: {:?}", position);
+                        tracing::error!("hits target `{}` not found", t.widget_id);
+                        frame_info.root().path()
                     })
-                    .path()
             } else {
                 frame_info.root().path()
             };
@@ -1128,7 +1129,7 @@ impl Mouse {
     }
 
     /// Call after a frame is generated.
-    fn continue_capture(&mut self, frame: &FrameInfo, events: &mut Events) {
+    fn continue_capture(&mut self, frame: &WidgetInfoTree, events: &mut Events) {
         if let Some((target, mode)) = &self.current_capture {
             if frame.window_id() == target.window_id() {
                 // is a frame from the capturing window.

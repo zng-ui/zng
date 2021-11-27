@@ -12,7 +12,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::*,
     var::{context_var, BoxedVar, Var},
-    widget_info::{FrameInfo, WidgetInfo},
+    widget_info::{WidgetInfoTree, WidgetInfo},
     UiNode,
 };
 use crate::{
@@ -1075,7 +1075,7 @@ impl WriteFrameState {
     }
 
     /// State from `frame` that can be compared to future frames.
-    pub fn new(frame: &FrameInfo) -> Self {
+    pub fn new(frame: &WidgetInfoTree) -> Self {
         let mut widgets = IdMap::default();
 
         for w in frame.all_widgets() {
@@ -1151,7 +1151,7 @@ pub enum WriteArgDiff {
 /// can be configured using environment variables, see [colored](https://github.com/mackwic/colored#features)
 /// for details.
 #[inline]
-pub fn write_frame<W: std::io::Write>(frame: &FrameInfo, updates_from: &WriteFrameState, out: &mut W) {
+pub fn write_frame<W: std::io::Write>(frame: &WidgetInfoTree, updates_from: &WriteFrameState, out: &mut W) {
     let mut fmt = print_fmt::Fmt::new(out);
     write_tree(updates_from, frame.root(), "", &mut fmt);
     fmt.write_legend();

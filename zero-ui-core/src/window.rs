@@ -40,7 +40,7 @@ use crate::{
     units::*,
     var::Vars,
     var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    widget_info::{FrameInfo, UsedWidgetInfoBuilder, WidgetInfoBuilder},
+    widget_info::{WidgetInfoTree, UsedWidgetInfoBuilder, WidgetInfoBuilder},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -1615,7 +1615,7 @@ impl Windows {
     }
 
     /// Reference the metadata about the window's latest frame.
-    pub fn frame_info(&self, window_id: WindowId) -> Result<&FrameInfo, WindowNotFound> {
+    pub fn frame_info(&self, window_id: WindowId) -> Result<&WidgetInfoTree, WindowNotFound> {
         self.windows_info
             .get(&window_id)
             .map(|w| &w.frame_info)
@@ -1694,7 +1694,7 @@ impl Windows {
     }
 
     /// Iterate over the latest frames of each open window.
-    pub fn frames(&self) -> impl Iterator<Item = &FrameInfo> {
+    pub fn frames(&self) -> impl Iterator<Item = &WidgetInfoTree> {
         self.windows_info.values().map(|w| &w.frame_info)
     }
 
@@ -1712,7 +1712,7 @@ impl Windows {
     }
 
     /// Gets the latest frame for the focused window.
-    pub fn focused_frame(&self) -> Option<&FrameInfo> {
+    pub fn focused_frame(&self) -> Option<&WidgetInfoTree> {
         self.windows_info.values().find(|w| w.is_focused).map(|w| &w.frame_info)
     }
 
@@ -1763,7 +1763,7 @@ struct AppWindowInfo {
     scale_factor: Factor,
 
     // latest frame.
-    frame_info: FrameInfo,
+    frame_info: WidgetInfoTree,
     // latest frame rendered.
     frame_pixels_id: FrameId,
     // focus tracked by the raw focus events.
@@ -1880,7 +1880,7 @@ impl AppWindow {
         ctx.updates.update();
         ctx.updates.layout_and_render();
 
-        let frame_info = FrameInfo::blank(id, root_id);
+        let frame_info = WidgetInfoTree::blank(id, root_id);
 
         let win = AppWindow {
             headed: None, // headed & renderer will initialize on first render.
@@ -2745,7 +2745,7 @@ impl OwnedWindowContext {
         final_size.to_dip(scale_factor.0)
     }
 
-    fn info(&mut self, ctx: &mut AppContext, frame_id: FrameId, root_size: PxSize, renderer: &Option<ViewRenderer>) -> FrameInfo {
+    fn info(&mut self, ctx: &mut AppContext, frame_id: FrameId, root_size: PxSize, renderer: &Option<ViewRenderer>) -> WidgetInfoTree {
         debug_assert!(self.frame_info);
         self.frame_info = false;
 

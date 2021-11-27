@@ -87,7 +87,7 @@ use crate::{
     units::*,
     var::impl_from_and_into_var,
     widget_base::WidgetEnabledExt,
-    widget_info::{DescendantFilter, FrameInfo, WidgetInfo, WidgetPath},
+    widget_info::{DescendantFilter, WidgetInfoTree, WidgetInfo, WidgetPath},
     window::{WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
@@ -1401,12 +1401,12 @@ pub enum FocusTarget {
 #[derive(Copy, Clone)]
 pub struct FrameFocusInfo<'a> {
     /// Full frame info.
-    pub info: &'a FrameInfo,
+    pub info: &'a WidgetInfoTree,
 }
 impl<'a> FrameFocusInfo<'a> {
     /// Wrap a `frame_info` reference to enable focus info querying.
     #[inline]
-    pub fn new(frame_info: &'a FrameInfo) -> Self {
+    pub fn new(frame_info: &'a WidgetInfoTree) -> Self {
         FrameFocusInfo { info: frame_info }
     }
 
