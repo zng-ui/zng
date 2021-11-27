@@ -12,7 +12,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::*,
     var::{context_var, BoxedVar, Var},
-    widget_info::{WidgetInfoTree, WidgetInfo},
+    widget_info::{WidgetInfo, WidgetInfoTree},
     UiNode,
 };
 use crate::{

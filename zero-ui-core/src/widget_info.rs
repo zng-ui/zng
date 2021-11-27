@@ -17,7 +17,6 @@ unique_id_64! {
     struct WidgetInfoTreeId;
 }
 
-
 /// [`WidgetInfoTree`] builder.
 pub struct WidgetInfoBuilder {
     window_id: WindowId,
@@ -29,7 +28,7 @@ pub struct WidgetInfoBuilder {
     tree: Tree<WidgetInfoInner>,
 }
 impl WidgetInfoBuilder {
-    /// Starts building a frame info with the frame root information.
+    /// Starts building a info tree with the root information.
     #[inline]
     pub fn new(window_id: WindowId, root_id: WidgetId, size: PxSize, used_data: Option<UsedWidgetInfoBuilder>) -> Self {
         let tree = Tree::with_capacity(
@@ -103,7 +102,7 @@ impl WidgetInfoBuilder {
         self.widget_id = parent_widget_id;
     }
 
-    /// Builds the final frame info.
+    /// Build the info tree.
     #[inline]
     pub fn finalize(self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         let root_id = self.tree.root().id();
@@ -173,7 +172,7 @@ pub struct WidgetInfoTree {
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
 }
 impl WidgetInfoTree {
-    /// Blank window frame that contains only the root widget taking no space.
+    /// Blank window that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
         WidgetInfoBuilder::new(window_id, root_id, PxSize::zero(), None).finalize().0
@@ -218,11 +217,11 @@ impl WidgetInfoTree {
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetInfo> {
         if let Some((tree_id, id)) = path.node_id {
             if tree_id == self.id {
-                return self.tree.get(id).map(|n| WidgetInfo::new(self, n.id()))
+                return self.tree.get(id).map(|n| WidgetInfo::new(self, n.id()));
             }
         }
 
-        self.find(path.widget_id())        
+        self.find(path.widget_id())
     }
 
     /// Reference to the widget or first parent that is present.
@@ -271,7 +270,7 @@ impl fmt::Display for WidgetPath {
 impl WidgetPath {
     /// New custom widget path.
     ///
-    /// The path is not guaranteed to have ever existed, the [`frame_id`](Self::frame_id) is `FrameId::invalid`.
+    /// The path is not guaranteed to have ever existed.
     pub fn new<P: Into<Box<[WidgetId]>>>(window_id: WindowId, path: P) -> WidgetPath {
         WidgetPath {
             node_id: None,
@@ -321,8 +320,6 @@ impl WidgetPath {
     }
 
     /// Get the inner most widget parent shared by both `self` and `other`.
-    ///
-    /// The [`frame_id`](WidgetPath::frame_id) of `self` is used in the result.
     #[inline]
     pub fn shared_ancestor(&self, other: &WidgetPath) -> Option<WidgetPath> {
         if self.window_id == other.window_id {
@@ -392,8 +389,8 @@ impl<'a> std::fmt::Debug for WidgetInfo<'a> {
 
 impl<'a> WidgetInfo<'a> {
     #[inline]
-    fn new(frame: &'a WidgetInfoTree, node_id: ego_tree::NodeId) -> Self {
-        Self { tree: frame, node_id }
+    fn new(tree: &'a WidgetInfoTree, node_id: ego_tree::NodeId) -> Self {
+        Self { tree, node_id }
     }
 
     #[inline]
@@ -447,13 +444,13 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Widget rectangle in the frame, including the "margin" spaces.
+    /// Widget rectangle in the window space, including "outer" properties like margin.
     #[inline]
     pub fn outer_bounds(self) -> &'a PxRect {
         &self.info().outer_bounds
     }
 
-    /// Widget rectangle in the frame.
+    /// Widget rectangle in the window space, excluding "outer" properties like margin.
     #[inline]
     pub fn bounds(self) -> &'a PxRect {
         &self.info().bounds
@@ -471,13 +468,13 @@ impl<'a> WidgetInfo<'a> {
         &self.info().meta.0
     }
 
-    /// Reference the [`FrameInfo`] that owns `self`.
+    /// Reference the [`WidgetInfoTree`] that owns `self`.
     #[inline]
-    pub fn frame(self) -> &'a WidgetInfoTree {
+    pub fn tree(self) -> &'a WidgetInfoTree {
         self.tree
     }
 
-    /// Reference to the frame root widget.
+    /// Reference to the root widget.
     #[inline]
     pub fn root(self) -> Self {
         self.ancestors().last().unwrap_or(self)
@@ -485,7 +482,7 @@ impl<'a> WidgetInfo<'a> {
 
     /// Reference to the widget that contains this widget.
     ///
-    /// Is `None` only for [`root`](FrameInfo::root).
+    /// Is `None` only for [`root`](WidgetInfoTree::root).
     #[inline]
     pub fn parent(self) -> Option<Self> {
         self.node().parent().map(move |n| WidgetInfo::new(self.tree, n.id()))
@@ -554,7 +551,7 @@ impl<'a> WidgetInfo<'a> {
         FilterDescendants {
             traverse,
             filter,
-            frame: self.tree,
+            tree: self.tree,
         }
     }
 
@@ -716,7 +713,7 @@ pub enum DescendantFilter {
 pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> {
     traverse: ego_tree::iter::Traverse<'a, WidgetInfoInner>,
     filter: F,
-    frame: &'a WidgetInfoTree,
+    tree: &'a WidgetInfoTree,
 }
 impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescendants<'a, F> {
     type Item = WidgetInfo<'a>;
@@ -726,7 +723,7 @@ impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescen
         #[allow(clippy::while_let_on_iterator)] // false positive https://github.com/rust-lang/rust-clippy/issues/7510
         while let Some(edge) = self.traverse.next() {
             if let Edge::Open(node) = edge {
-                let widget = WidgetInfo::new(self.frame, node.id());
+                let widget = WidgetInfo::new(self.tree, node.id());
                 match (self.filter)(widget) {
                     DescendantFilter::Include => return Some(widget),
                     DescendantFilter::Skip => continue,
@@ -792,7 +789,7 @@ pub enum WidgetOrientation {
     Below,
 }
 
-/// Data from a previous [`WidgetInfoBuilder`], can be reused in the nest frame for a performance boost.
+/// Data from a previous [`WidgetInfoBuilder`], can be reused in the next rebuild for a performance boost.
 pub struct UsedWidgetInfoBuilder {
     capacity: usize,
 }

@@ -40,7 +40,7 @@ use crate::{
     units::*,
     var::Vars,
     var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    widget_info::{WidgetInfoTree, UsedWidgetInfoBuilder, WidgetInfoBuilder},
+    widget_info::{UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -892,13 +892,6 @@ event_args! {
         /// This is *probably* the ID of frame pixels if they are requested immediately.
         pub frame_id: FrameId,
 
-        /// Latest window frame metadata.
-        ///
-        /// The window can have newer frames while a previous frame is rendering, the
-        /// frame metadata is available immediately and is also sent to the view-process
-        /// for rendering.
-        pub latest_frame_id: FrameId,
-
         /// The frame pixels if it was requested when the frame request was sent to the view process.
         pub frame_image: Option<Image>,
 
@@ -908,21 +901,6 @@ event_args! {
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             ctx.path.window_id() == self.window_id
         }
-    }
-}
-impl FrameImageReadyArgs {
-    /// If [`frame_id`] and [`latest_frame_id`] are equal.
-    ///
-    /// Returns `true` if there where no newer frames rendering at the [`timestamp`] moment.
-    /// This means that if [`Windows::frame_image`] are requested they will probably be the same frame.
-    ///
-    /// You can request a copy of the pixels using [`Windows::frame_image`].
-    ///
-    /// [`frame_id`]: FrameImageReadyArgs::frame_id
-    /// [`latest_frame_id`]: FrameImageReadyArgs::latest_frame_id
-    /// [`timestamp`]: FrameImageReadyArgs::timestamp
-    pub fn is_latest(&self) -> bool {
-        self.frame_id == self.latest_frame_id
     }
 }
 impl WindowStateChangedArgs {
@@ -1071,9 +1049,8 @@ impl AppExtension for WindowManager {
                 }
             }
             if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
-                window.frame_pixels_id = args.frame_id;
                 let image = args.frame_image.as_ref().cloned().map(Image::new);
-                let args = FrameImageReadyArgs::new(args.timestamp, args.window_id, args.frame_id, window.frame_info.frame_id(), image);
+                let args = FrameImageReadyArgs::new(args.timestamp, args.window_id, args.frame_id, image);
                 FrameImageReadyEvent.notify(ctx.events, args);
             }
         }
@@ -1614,19 +1591,11 @@ impl Windows {
         self.windows_info.get(&window_id).map(|w| w.mode).ok_or(WindowNotFound(window_id))
     }
 
-    /// Reference the metadata about the window's latest frame.
-    pub fn frame_info(&self, window_id: WindowId) -> Result<&WidgetInfoTree, WindowNotFound> {
+    /// Reference the metadata about the window's widgets.
+    pub fn widget_tree(&self, window_id: WindowId) -> Result<&WidgetInfoTree, WindowNotFound> {
         self.windows_info
             .get(&window_id)
             .map(|w| &w.frame_info)
-            .ok_or(WindowNotFound(window_id))
-    }
-
-    /// Returns IDs of the latest frame generated and the latest frame rendered.
-    pub fn latest_frame_ids(&self, window_id: WindowId) -> Result<(FrameId, FrameId), WindowNotFound> {
-        self.windows_info
-            .get(&window_id)
-            .map(|w| (w.frame_info.frame_id(), w.frame_pixels_id))
             .ok_or(WindowNotFound(window_id))
     }
 
@@ -1693,8 +1662,8 @@ impl Windows {
             .ok_or(WindowNotFound(window_id))
     }
 
-    /// Iterate over the latest frames of each open window.
-    pub fn frames(&self) -> impl Iterator<Item = &WidgetInfoTree> {
+    /// Iterate over the widget trees of each open window.
+    pub fn widget_trees(&self) -> impl Iterator<Item = &WidgetInfoTree> {
         self.windows_info.values().map(|w| &w.frame_info)
     }
 
@@ -1712,7 +1681,7 @@ impl Windows {
     }
 
     /// Gets the latest frame for the focused window.
-    pub fn focused_frame(&self) -> Option<&WidgetInfoTree> {
+    pub fn focused_info(&self) -> Option<&WidgetInfoTree> {
         self.windows_info.values().find(|w| w.is_focused).map(|w| &w.frame_info)
     }
 
@@ -1764,8 +1733,6 @@ struct AppWindowInfo {
 
     // latest frame.
     frame_info: WidgetInfoTree,
-    // latest frame rendered.
-    frame_pixels_id: FrameId,
     // focus tracked by the raw focus events.
     is_focused: bool,
 }
@@ -1898,7 +1865,7 @@ impl AppWindow {
             first_update: true,
             first_layout: true,
 
-            frame_id: frame_info.frame_id(),
+            frame_id: FrameId::INVALID,
             pending_render: None,
             position: None,
             size: DipSize::zero(),
@@ -1913,7 +1880,6 @@ impl AppWindow {
             mode,
             renderer: None, // will be set on the first render
             vars,
-            frame_pixels_id: frame_info.frame_id(),
             scale_factor: 1.0.fct(), // will be set on the first layout
             frame_info,
             is_focused: false, // will be set by listening to RawWindowFocusEvent

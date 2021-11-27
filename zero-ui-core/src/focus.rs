@@ -24,7 +24,7 @@
 //!
 //! ## Tab Navigation
 //!
-//! Tab navigation follows a logical order, the position of the widget in the [widget tree](FrameFocusInfo),
+//! Tab navigation follows a logical order, the position of the widget in the [widget tree](FocusInfoTree),
 //! optionally overridden with a [custom index](TabIndex).
 //!
 //! Focus is moved forward by pressing `TAB` or calling [`focus_next`](Focus::focus_next) and backward by pressing `SHIFT+TAB` or
@@ -73,8 +73,8 @@
 //!
 //! # Querying
 //!
-//! Focus information exists as metadata associated with a window frame. This metadata can be manually queried by
-//! creating a [`FrameFocusInfo`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
+//! Focus information exists as metadata associated with a window widget tree. This metadata can be manually queried by
+//! creating a [`FocusInfoTree`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
 
 use crate::{
     app::{raw_events::RawFrameRenderedEvent, AppEventSender, AppExtension},
@@ -87,7 +87,7 @@ use crate::{
     units::*,
     var::impl_from_and_into_var,
     widget_base::WidgetEnabledExt,
-    widget_info::{DescendantFilter, WidgetInfoTree, WidgetInfo, WidgetPath},
+    widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::{WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
@@ -274,7 +274,7 @@ impl FocusChangedCause {
 }
 
 state_key! {
-    /// Reference to the [`FocusInfoBuilder`] in the widget state of a frame.
+    /// Reference to the [`FocusInfoBuilder`] in the widget state.
     pub struct FocusInfoKey: FocusInfoBuilder;
 }
 
@@ -516,8 +516,8 @@ impl AppExtension for FocusManager {
                 self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
             }
 
-            if let Ok(frame) = windows.frame_info(args.window_id) {
-                for args in focus.cleanup_returns(FrameFocusInfo::new(frame)) {
+            if let Ok(frame) = windows.widget_tree(args.window_id) {
+                for args in focus.cleanup_returns(FocusInfoTree::new(frame)) {
                     ReturnFocusChangedEvent.notify(ctx.events, args);
                 }
             }
@@ -845,9 +845,9 @@ impl Focus {
             (_, FocusTarget::DirectOrEnder(widget_id)) => self.focus_direct(widget_id, request.highlight, true, false, windows, request),
             (_, FocusTarget::DirectOrRelated(widget_id)) => self.focus_direct(widget_id, request.highlight, true, true, windows, request),
             (Some(prev), move_) => {
-                if let Ok(frame) = windows.frame_info(prev.window_id()) {
-                    let frame = FrameFocusInfo::new(frame);
-                    if let Some(w) = frame.find(prev.widget_id()) {
+                if let Ok(info) = windows.widget_tree(prev.window_id()) {
+                    let info = FocusInfoTree::new(info);
+                    if let Some(w) = info.find(prev.widget_id()) {
                         let mut can_only_highlight = true;
                         if let Some(new_focus) = match move_ {
                             // tabular
@@ -874,7 +874,7 @@ impl Focus {
                             FocusTarget::EscapeAlt => {
                                 // Esc does not enable highlight without moving focus.
                                 can_only_highlight = false;
-                                self.alt_return.as_ref().and_then(|(_, p)| frame.get_or_parent(p))
+                                self.alt_return.as_ref().and_then(|(_, p)| info.get_or_parent(p))
                             }
                             // cases covered by parent match
                             FocusTarget::Direct { .. }
@@ -915,8 +915,8 @@ impl Focus {
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Ok(true) = windows.is_focused(focused.window_id()) {
-                let frame = windows.frame_info(focused.window_id()).unwrap();
-                if let Some(widget) = frame.find(focused.widget_id()).map(|w| w.as_focus_info()) {
+                let info = windows.widget_tree(focused.window_id()).unwrap();
+                if let Some(widget) = info.find(focused.widget_id()).map(|w| w.as_focus_info()) {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
                         return self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
@@ -933,7 +933,7 @@ impl Focus {
                 } else {
                     // widget not found, move to focusable known parent
                     for &parent in focused.ancestors().iter().rev() {
-                        if let Some(parent) = frame.find(parent).and_then(|w| w.as_focusable()) {
+                        if let Some(parent) = info.find(parent).and_then(|w| w.as_focusable()) {
                             // move to focusable parent
                             return self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
                         }
@@ -973,8 +973,8 @@ impl Focus {
         windows: &Windows,
         request: FocusRequest,
     ) -> Option<FocusChangedArgs> {
-        for frame in windows.frames() {
-            if let Some(w) = frame.find(widget_id).map(|w| w.as_focus_info()) {
+        for info in windows.widget_trees() {
+            if let Some(w) = info.find(widget_id).map(|w| w.as_focus_info()) {
                 if w.is_focusable() {
                     return self.move_focus(Some(w.info.path()), highlight, FocusChangedCause::Request(request));
                 } else if fallback_to_childs {
@@ -1010,9 +1010,9 @@ impl Focus {
 
     #[must_use]
     fn focus_focused_window(&mut self, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
-        if let Some(frame) = windows.focused_frame() {
-            let frame = FrameFocusInfo::new(frame);
-            let root = frame.root();
+        if let Some(info) = windows.focused_info() {
+            let info = FocusInfoTree::new(info);
+            let root = info.root();
             if root.is_focusable() {
                 // found focused window and it is focusable.
                 self.move_focus(Some(root.info.path()), highlight, FocusChangedCause::Recovery)
@@ -1044,8 +1044,8 @@ impl Focus {
     #[must_use]
     fn move_after_focus(&mut self, windows: &Windows, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
-            if let Some(frame) = windows.focused_frame() {
-                if let Some(widget) = FrameFocusInfo::new(frame).get(focused) {
+            if let Some(info) = windows.focused_info() {
+                if let Some(widget) = FocusInfoTree::new(info).get(focused) {
                     if widget.is_scope() {
                         if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused(id), reverse) {
                             return self.move_focus(
@@ -1086,8 +1086,8 @@ impl Focus {
             // if we don't have an `alt_return` but focused something, check if focus
             // moved inside an ALT.
 
-            if let Ok(frame) = windows.frame_info(new_focus.window_id()) {
-                if let Some(widget) = FrameFocusInfo::new(frame).get(new_focus) {
+            if let Ok(info) = windows.widget_tree(new_focus.window_id()) {
+                if let Some(widget) = FocusInfoTree::new(info).get(new_focus) {
                     let alt_scope = if widget.is_alt_scope() {
                         Some(widget)
                     } else {
@@ -1117,8 +1117,8 @@ impl Focus {
          */
 
         if let Some(new_focus) = &self.focused {
-            if let Ok(frame) = windows.frame_info(new_focus.window_id()) {
-                if let Some(widget) = FrameFocusInfo::new(frame).get(new_focus) {
+            if let Ok(info) = windows.widget_tree(new_focus.window_id()) {
+                if let Some(widget) = FocusInfoTree::new(info).get(new_focus) {
                     if widget.scopes().all(|s| !s.is_alt_scope()) {
                         // if not inside ALT, update return for each LastFocused parent scopes.
 
@@ -1146,19 +1146,19 @@ impl Focus {
         r
     }
 
-    /// Cleanup `return_focused` and `alt_return` after new `frame`.
+    /// Cleanup `return_focused` and `alt_return` after new widget tree.
     #[must_use]
-    fn cleanup_returns(&mut self, frame: FrameFocusInfo) -> Vec<ReturnFocusChangedArgs> {
+    fn cleanup_returns(&mut self, info: FocusInfoTree) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
         self.return_focused.retain(|&scope_id, widget_path| {
-            if widget_path.window_id() != frame.info.window_id() {
+            if widget_path.window_id() != info.tree.window_id() {
                 return true; // retain, not same window.
             }
 
             let mut retain = false;
 
-            if let Some(widget) = frame.get(widget_path) {
+            if let Some(widget) = info.get(widget_path) {
                 if let Some(scope) = widget.scopes().find(|s| s.info.widget_id() == scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         retain = true; // retain, widget still exists in same scope and scope still is LastFocused.
@@ -1170,7 +1170,7 @@ impl Focus {
                             *widget_path = path;
                         }
                     }
-                } else if let Some(scope) = frame.find(scope_id) {
+                } else if let Some(scope) = info.find(scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         // widget not inside scope anymore, but scope still exists and is valid.
                         if let Some(first) = scope.first_tab_descendant() {
@@ -1183,7 +1183,7 @@ impl Focus {
                         }
                     }
                 }
-            } else if let Some(parent) = frame.get_or_parent(widget_path) {
+            } else if let Some(parent) = info.get_or_parent(widget_path) {
                 // widget not in window anymore, but a focusable parent is..
                 if let Some(scope) = parent.scopes().find(|s| s.info.widget_id() == scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
@@ -1206,12 +1206,12 @@ impl Focus {
         let mut retain_alt = true;
         if let Some((scope_id, widget_path)) = &mut self.alt_return {
             let scope_id = *scope_id;
-            if widget_path.window_id() == frame.info.window_id() {
+            if widget_path.window_id() == info.tree.window_id() {
                 // we needs to update alt_return
 
                 retain_alt = false; // will retain only if still valid
 
-                if let Some(widget) = frame.get(widget_path) {
+                if let Some(widget) = info.get(widget_path) {
                     if !widget.scopes().any(|s| s.info.widget_id() == scope_id) {
                         retain_alt = true; // retain, widget still exists outside of the ALT scope.
 
@@ -1221,7 +1221,7 @@ impl Focus {
                             r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path)));
                         }
                     }
-                } else if let Some(parent) = frame.get_or_parent(widget_path) {
+                } else if let Some(parent) = info.get_or_parent(widget_path) {
                     // widget not in window anymore, but a focusable parent is..
                     if parent.scopes().any(|s| s.info.widget_id() == scope_id) {
                         // ..and the parent is not inside the ALT scope.
@@ -1397,50 +1397,50 @@ pub enum FocusTarget {
     EscapeAlt,
 }
 
-/// A [`FrameInfo`] wrapper for querying focus info out of the widget tree.
+/// A [`WidgetInfoTree`] wrapper for querying focus info out of the widget tree.
 #[derive(Copy, Clone)]
-pub struct FrameFocusInfo<'a> {
-    /// Full frame info.
-    pub info: &'a WidgetInfoTree,
+pub struct FocusInfoTree<'a> {
+    /// Full widget info.
+    pub tree: &'a WidgetInfoTree,
 }
-impl<'a> FrameFocusInfo<'a> {
-    /// Wrap a `frame_info` reference to enable focus info querying.
+impl<'a> FocusInfoTree<'a> {
+    /// Wrap a `widget_info` reference to enable focus info querying.
     #[inline]
-    pub fn new(frame_info: &'a WidgetInfoTree) -> Self {
-        FrameFocusInfo { info: frame_info }
+    pub fn new(tree: &'a WidgetInfoTree) -> Self {
+        FocusInfoTree { tree }
     }
 
-    /// Reference to the root widget in the frame.
+    /// Reference to the root widget in the tree.
     ///
     /// The root is usually a focusable focus scope but it may not be. This
     /// is the only method that returns a [`WidgetFocusInfo`] that may not be focusable.
     #[inline]
     pub fn root(&self) -> WidgetFocusInfo {
-        WidgetFocusInfo::new(self.info.root())
+        WidgetFocusInfo::new(self.tree.root())
     }
 
-    /// Reference to the widget in the frame, if it is present and is focusable.
+    /// Reference to the widget in the tree, if it is present and is focusable.
     #[inline]
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetFocusInfo> {
-        self.info.find(widget_id).and_then(|i| i.as_focusable())
+        self.tree.find(widget_id).and_then(|i| i.as_focusable())
     }
 
-    /// Reference to the widget in the frame, if it is present and is focusable.
+    /// Reference to the widget in the tree, if it is present and is focusable.
     ///
-    /// Faster then [`find`](Self::find) if the widget path was generated by the same frame.
+    /// Faster then [`find`](Self::find) if the widget path was generated by the same tree.
     #[inline]
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
-        self.info.get(path).and_then(|i| i.as_focusable())
+        self.tree.get(path).and_then(|i| i.as_focusable())
     }
 
-    /// Reference to the first focusable widget or parent in the frame.
+    /// Reference to the first focusable widget or parent in the tree.
     #[inline]
     pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
         self.get(path)
             .or_else(|| path.ancestors().iter().rev().find_map(|&id| self.find(id)))
     }
 
-    /// If the frame info contains the widget and it is focusable.
+    /// If the tree info contains the widget and it is focusable.
     #[inline]
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.find(widget_id).is_some()
@@ -1657,7 +1657,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     }
                 }
                 FocusScopeOnFocus::LastFocused => last_focused(self.info.widget_id())
-                    .and_then(|path| self.info.frame().get(path))
+                    .and_then(|path| self.info.tree().get(path))
                     .and_then(|w| w.as_focusable())
                     .and_then(|f| {
                         if f.ancestors().any(|a| a == self) {
@@ -2190,7 +2190,7 @@ impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
     }
 }
 
-/// Focus metadata associated with a widget in a frame.
+/// Focus metadata associated with a widget info tree.
 #[derive(Debug, Clone, Copy)]
 pub enum FocusInfo {
     /// The widget is not focusable.
@@ -2351,9 +2351,11 @@ impl FocusInfo {
     }
 }
 
-/// Builder for [`FocusInfo`] accessible in a [`FrameBuilder`](crate::render::FrameBuilder).
+/// Builder for [`FocusInfo`] accessible in a [`WidgetInfoBuilder`].
 ///
-/// Use the [`FocusInfoKey`] to access the builder for the widget state in a frame.
+/// Use the [`FocusInfoKey`] to access the builder for the widget state in a widget info.
+/// 
+/// [`WidgetInfoBuilder`]: crate::widget_info::WidgetInfoBuilder
 #[derive(Default)]
 pub struct FocusInfoBuilder {
     /// If the widget is focusable and the value was explicitly set.

@@ -157,7 +157,7 @@ mod inspect {
     pub fn focus(path: &Option<WidgetPath>, services: &mut Services) -> String {
         path.as_ref()
             .map(|p| {
-                let frame = if let Ok(w) = services.windows().frame_info(p.window_id()) {
+                let frame = if let Ok(w) = services.windows().widget_tree(p.window_id()) {
                     w
                 } else {
                     return format!("<{}>", p);

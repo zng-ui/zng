@@ -845,7 +845,7 @@ impl AppExtension for GestureManager {
         // Generate click event for special shortcut.
         for (window_id, widget_id, kind, args) in gestures.click_shortcut.drain(..) {
             if let Ok(true) = windows.is_focused(window_id) {
-                if let Some(widget) = windows.frame_info(window_id).unwrap().find(widget_id) {
+                if let Some(widget) = windows.widget_tree(window_id).unwrap().find(widget_id) {
                     // click target exists, in focused window.
                     ClickEvent.notify(
                         ctx.events,

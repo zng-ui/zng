@@ -678,7 +678,7 @@ pub mod window {
                 hn!(|ctx, args: &CommandArgs| {
                     args.stop_propagation();
 
-                    let frame = ctx.services.windows().frame_info(ctx.path.window_id()).unwrap();
+                    let frame = ctx.services.windows().widget_tree(ctx.path.window_id()).unwrap();
 
                     let mut buffer = vec![];
                     write_frame(frame, &state, &mut buffer);
