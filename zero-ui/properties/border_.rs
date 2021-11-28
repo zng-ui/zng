@@ -68,7 +68,7 @@ pub fn border(
         }
 
         #[UiNode]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let origin = PxPoint::new(self.final_widths.left, self.final_widths.top);
             let child_size = final_size - self.size_increment();
             let child_rect = PxRect::new(origin, child_size);
@@ -80,7 +80,7 @@ pub fn border(
                 ctx.updates.render();
             }
 
-            self.child.arrange(ctx, child_size);
+            widget_offset.with_offset(origin.to_vector(), |wo| self.child.arrange(ctx, wo, final_size));
         }
 
         fn size_increment(&self) -> PxSize {

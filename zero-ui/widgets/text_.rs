@@ -228,7 +228,7 @@ pub mod text {
                 self.size
             }
 
-            fn arrange(&mut self, _ctx: &mut LayoutContext, _final_size: PxSize) {
+            fn arrange(&mut self, _ctx: &mut LayoutContext, _: &mut WidgetOffset, _final_size: PxSize) {
                 // TODO use final size for wrapping?
                 // http://www.unicode.org/reports/tr14/tr14-45.html
             }
@@ -388,14 +388,14 @@ pub mod text {
                     })
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let font_size =
                         self.size
                             .get(ctx.vars)
                             .to_layout(ctx, AvailablePx::Finite(final_size.height), ctx.metrics.root_font_size);
                     let child = &mut self.child;
                     ctx.vars.with_context_bind(FontSizeVar, &self.size, || {
-                        ctx.with_font_size(font_size, self.size_new, |ctx| child.arrange(ctx, final_size))
+                        ctx.with_font_size(font_size, self.size_new, |ctx| child.arrange(ctx, widget_offset, final_size))
                     });
                     self.size_new = false;
                 }
@@ -584,11 +584,11 @@ pub mod text {
                         })
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let child = &mut self.child;
                     ctx.vars
                         .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
-                            child.arrange(ctx, final_size);
+                            child.arrange(ctx, widget_offset, final_size);
                         });
                 }
 
@@ -714,10 +714,10 @@ pub mod text {
                     })
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let child = &mut self.child;
                     ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
-                        child.arrange(ctx, final_size);
+                        child.arrange(ctx, widget_offset, final_size);
                     });
                 }
 

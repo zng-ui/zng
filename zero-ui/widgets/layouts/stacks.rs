@@ -107,7 +107,7 @@ pub mod h_stack {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let spacing = self
                 .spacing
                 .get(ctx.vars)
@@ -266,7 +266,7 @@ pub mod v_stack {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let spacing = self
                 .spacing
                 .get(ctx.vars)
@@ -441,7 +441,7 @@ pub mod z_stack {
             ds
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let align = self.align.copy(ctx);
 
             let rectangles = &mut self.rectangles;

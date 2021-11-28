@@ -252,7 +252,7 @@ pub mod grid {
                 desired_size
             }
 
-            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                 let _ = (ctx, final_size);
                 todo!()
             }

@@ -65,9 +65,9 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
             self.child.measure(ctx, available_size.sub_px(self.size_increment)) + self.size_increment
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: PxSize) {
             final_size -= self.size_increment;
-            self.child.arrange(ctx, final_size);
+            self.child.arrange(ctx, widget_offset, final_size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -125,7 +125,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
             size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let child_rect = self.alignment.get(ctx.vars).solve(self.child_rect.size, final_size);
 
             if self.child_rect.origin != child_rect.origin {
@@ -134,7 +134,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
 
             self.child_rect = child_rect;
 
-            self.child.arrange(ctx, child_rect.size);
+            widget_offset.with_offset(child_rect.origin.to_vector(), |wo| self.child.arrange(ctx, wo, child_rect.size));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -189,9 +189,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.child.arrange(ctx, final_size);
-
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let final_pos = self
                 .position
                 .get(ctx)
@@ -201,6 +199,8 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
                 self.final_position = final_pos;
                 ctx.updates.render();
             }
+
+            widget_offset.with_offset(self.final_position.to_vector(), |wo| self.child.arrange(ctx, wo, final_size));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -253,14 +253,14 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.child.arrange(ctx, final_size);
-
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let x = self.x.get(ctx).to_layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
             if self.final_x != x {
                 self.final_x = x;
                 ctx.updates.render();
             }
+
+            widget_offset.with_offset(PxVector::new(self.final_x, Px(0)), |wo| self.child.arrange(ctx, wo, final_size));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -315,15 +315,15 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.child.arrange(ctx, final_size);
-
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let y = self.y.get(ctx).to_layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
 
             if self.final_y != y {
                 self.final_y = y;
                 ctx.updates.render();
             }
+
+            widget_offset.with_offset(PxVector::new(Px(0), self.final_y), |wo| self.child.arrange(ctx, wo, final_size));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -389,12 +389,13 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
             desired_size.max(min_size)
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let min_size = self
                 .min_size
                 .get(ctx)
                 .to_layout(ctx, AvailableSize::finite(final_size), PxSize::zero());
-            self.child.arrange(ctx, min_size.max(final_size));
+
+            self.child.arrange(ctx, widget_offset, min_size.max(final_size));
         }
     }
     MinSizeNode {
@@ -452,11 +453,11 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
             desired_size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: PxSize) {
             let min_width = self.min_width.get(ctx).to_layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
             final_size.width = min_width.max(final_size.width);
 
-            self.child.arrange(ctx, final_size);
+            self.child.arrange(ctx, widget_offset, final_size);
         }
     }
     MinWidthNode {
@@ -514,14 +515,14 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
             desired_size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: PxSize) {
             let min_height = self
                 .min_height
                 .get(ctx)
                 .to_layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
             final_size.height = min_height.max(final_size.height);
 
-            self.child.arrange(ctx, final_size);
+            self.child.arrange(ctx, widget_offset, final_size);
         }
     }
     MinHeightNode {
@@ -575,14 +576,14 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
             self.child.measure(ctx, available_size.min_px(max_size)).min(max_size)
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let final_size = self
                 .max_size
                 .get(ctx)
                 .to_layout(ctx, AvailableSize::finite(final_size), final_size)
                 .min(final_size);
 
-            self.child.arrange(ctx, final_size);
+            self.child.arrange(ctx, widget_offset, final_size);
         }
     }
     MaxSizeNode {
@@ -643,14 +644,14 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
             desired_size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: PxSize) {
             final_size.width = self
                 .max_width
                 .get(ctx)
                 .to_layout(ctx, AvailablePx::Finite(final_size.width), final_size.width)
                 .min(final_size.width);
 
-            self.child.arrange(ctx, final_size);
+            self.child.arrange(ctx, widget_offset, final_size);
         }
     }
     MaxWidthNode {
@@ -711,14 +712,14 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
             desired_size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: PxSize) {
             final_size.height = self
                 .max_height
                 .get(ctx)
                 .to_layout(ctx, AvailablePx::Finite(final_size.height), final_size.height)
                 .min(final_size.height);
 
-            self.child.arrange(ctx, final_size);
+            self.child.arrange(ctx, widget_offset, final_size);
         }
     }
     MaxHeightNode {
@@ -772,9 +773,9 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let size = self.size.get(ctx).to_layout(ctx, AvailableSize::finite(final_size), final_size);
-            self.child.arrange(ctx, size);
+            self.child.arrange(ctx, widget_offset, size);
         }
     }
     SizeNode {
@@ -832,13 +833,13 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             desired_size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: PxSize) {
             let width = self
                 .width
                 .get(ctx)
                 .to_layout(ctx, AvailablePx::Finite(final_size.width), final_size.width);
             final_size.width = width;
-            self.child.arrange(ctx, final_size);
+            self.child.arrange(ctx, widget_offset, final_size);
         }
     }
     WidthNode {
@@ -896,13 +897,13 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             desired_size
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, mut final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: PxSize) {
             let height = self
                 .height
                 .get(ctx)
                 .to_layout(ctx, AvailablePx::Finite(final_size.height), final_size.height);
             final_size.height = height;
-            self.child.arrange(ctx, final_size)
+            self.child.arrange(ctx, widget_offset, final_size)
         }
     }
     HeightNode {

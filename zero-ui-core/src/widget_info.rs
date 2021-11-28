@@ -19,38 +19,68 @@ unique_id_64! {
     struct WidgetInfoTreeId;
 }
 
-#[derive(Default)]
+/// Helper for computing widget bounds during [`UiNode::arrange`].
+///
+/// Widget bounds are kept up-to-date in [`WidgetInfo`], properties that offset their child nodes must
+/// use [`with_offset`] to note this offset, custom widget implementers use [`with_widget`] and [`with_inner`] to
+/// mark the widget bounds.
+///
+/// [`UiNode::arrange`]: crate::UiNode::arrange
+/// [`with_widget`]: WidgetOffset::with_widget
+/// [`with_offset`]: WidgetOffset::with_offset
+/// [`with_inner`]: WidgetOffset::with_inner
 pub struct WidgetOffset {
     offset: PxPoint,
-    bounds_offset: PxPoint,
+    bounds: PxRect,
 }
 impl WidgetOffset {
-    pub fn new() -> Self {
-        Self::default()
+    /// New default.
+    pub(crate) fn new() -> Self {
+        WidgetOffset {
+            offset: PxPoint::zero(),
+            bounds: PxRect::zero(),
+        }
     }
 
-    pub fn with_widget(&mut self, /*offset: impl Into<PxVector>,*/ f: impl FnOnce(&mut Self)) -> PxPoint {
-        // let offset = offset.into();
-        let parent_bounds = self.bounds_offset;
-        // self.offset += offset;
+    /// Calls `f` within the scope of a new widget outer bounds, both widget bounds are updated,
+    /// the [`implicit_base::new`] function calls this method, custom implementation of `new` must
+    /// either wrap its result on the implicit implementation or call this method directly.
+    ///
+    /// [`implicit_base::new`]: crate::implicit_base::new
+    pub fn with_widget(&mut self, outer_bounds: &BoundsRect, inner_bounds: &BoundsRect, final_size: PxSize, f: impl FnOnce(&mut Self)) {
+        let parent_bounds = self.bounds;
+
+        self.bounds = PxRect::new(self.offset, final_size);
+        outer_bounds.set(self.bounds);
 
         f(self);
 
-        let r = self.bounds_offset;
-        self.bounds_offset = parent_bounds;
-        // self.offset -= offset;
-        r
+        inner_bounds.set(self.bounds);
+        self.bounds = parent_bounds;
     }
 
-    pub fn with_offset(&mut self, offset: impl Into<PxVector>, f: impl FnOnce(&mut Self)) {
-        let offset = offset.into();
+    /// Calls `f` with an added offset, every property that offsets its child node must
+    /// call [`UiNode::arrange`] on the child inside `f`.
+    pub fn with_offset(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
         self.offset += offset;
         f(self);
         self.offset -= offset;
     }
 
-    pub fn with_bounds(&mut self, f: impl FnOnce(&mut Self)) {
-        self.bounds_offset = self.offset;
+    /// Calls `f` within a [`RenderTransform`] that modifies all inner widgets.
+    pub fn with_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
+        // TODO incorporate all transforms to calculate child bounds.
+        let offset = transform.transform_vector2d(euclid::vec2(0.0, 0.0));
+        self.with_offset(PxVector::new(Px(offset.x as i32), Px(offset.y as i32)), f)
+    }
+
+    /// Marks the widget *size* bounds, the [`implicit_base::new_inner`] function calls this method, custom implementations
+    /// of `new_inner` must either wrap its result on the implicit implementation or call this method directly.
+    ///
+    /// [`implicit_base::new_inner`]: crate::implicit_base::new_inner
+    pub fn with_inner(&mut self, final_size: PxSize, f: impl FnOnce(&mut Self)) {
+        self.bounds.origin = self.offset;
+        self.bounds.size = final_size;
         f(self);
     }
 }
@@ -75,7 +105,7 @@ impl WidgetInfoBuilder {
         let tree = Tree::with_capacity(
             WidgetInfoInner {
                 widget_id: root_id,
-                bounds: root_bounds.clone(),
+                inner_bounds: root_bounds.clone(),
                 outer_bounds: root_bounds,
                 meta: OwnedStateMap::new(),
             },
@@ -122,7 +152,7 @@ impl WidgetInfoBuilder {
     ///
     /// Both `outer_bounds` and `bounds` must be a shared reference to rectangles that are updated every layout.
     #[inline]
-    pub fn push_widget(&mut self, id: WidgetId, outer_bounds: BoundsRect, bounds: BoundsRect, f: impl FnOnce(&mut Self)) {
+    pub fn push_widget(&mut self, id: WidgetId, outer_bounds: BoundsRect, inner_bounds: BoundsRect, f: impl FnOnce(&mut Self)) {
         let parent_node = self.node;
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
@@ -132,7 +162,7 @@ impl WidgetInfoBuilder {
             .node(parent_node)
             .append(WidgetInfoInner {
                 widget_id: id,
-                bounds,
+                inner_bounds,
                 outer_bounds,
                 meta: OwnedStateMap::new(),
             })
@@ -447,7 +477,7 @@ impl BoundsRect {
 struct WidgetInfoInner {
     widget_id: WidgetId,
     outer_bounds: BoundsRect,
-    bounds: BoundsRect,
+    inner_bounds: BoundsRect,
     meta: OwnedStateMap,
 }
 
@@ -534,7 +564,7 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Widget rectangle in the window space, including "outer" properties like margin.
+    /// Widget rectangle in the window space, including *outer* properties like margin.
     ///
     /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
     #[inline]
@@ -542,19 +572,19 @@ impl<'a> WidgetInfo<'a> {
         self.info().outer_bounds.get()
     }
 
-    /// Widget rectangle in the window space, excluding "outer" properties like margin.
+    /// Widget rectangle in the window space, but only the visible *inner* properties.
     ///
     /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
     #[inline]
-    pub fn bounds(self) -> PxRect {
-        self.info().bounds.get()
+    pub fn inner_bounds(self) -> PxRect {
+        self.info().inner_bounds.get()
     }
 
     /// Calculate the offsets from `outer_bounds` to `bounds`.
     pub fn outer_offsets(self) -> PxSideOffsets {
         let info = self.info();
         let outer_bounds = info.outer_bounds.get();
-        let bounds = info.bounds.get();
+        let bounds = info.inner_bounds.get();
 
         Self::calc_offsets(outer_bounds, bounds)
     }
@@ -562,7 +592,7 @@ impl<'a> WidgetInfo<'a> {
     /// Calculate the offsets from root's `outer_bounds` to this widget's `bounds`.
     pub fn root_offsets(self) -> PxSideOffsets {
         let outer = self.root().outer_bounds();
-        let inner = self.bounds();
+        let inner = self.inner_bounds();
 
         Self::calc_offsets(outer, inner)
     }
@@ -576,10 +606,10 @@ impl<'a> WidgetInfo<'a> {
         PxSideOffsets::new(top, right, bottom, left)
     }
 
-    /// Widget bounds center.
+    /// Widget inner bounds center.
     #[inline]
     pub fn center(self) -> PxPoint {
-        self.bounds().center()
+        self.inner_bounds().center()
     }
 
     /// Metadata associated with the widget during render.

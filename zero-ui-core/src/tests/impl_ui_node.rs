@@ -4,7 +4,17 @@
 
 use util::{assert_did_not_trace, assert_only_traced, TraceNode};
 
-use crate::{UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, color::RenderColor, context::{TestWidgetContext, WidgetContext}, impl_ui_node, node_vec, nodes, render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey}, units::*, widget_base::implicit_base, widget_info::{BoundsRect, WidgetInfoBuilder, WidgetOffset}, window::WindowId};
+use crate::{
+    color::RenderColor,
+    context::{TestWidgetContext, WidgetContext},
+    impl_ui_node, node_vec, nodes,
+    render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
+    units::*,
+    widget_base::implicit_base,
+    widget_info::{BoundsRect, WidgetInfoBuilder, WidgetOffset},
+    window::WindowId,
+    UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
+};
 
 #[test]
 pub fn default_child() {
@@ -237,7 +247,15 @@ pub fn default_no_child() {
 mod util {
     use std::{cell::RefCell, rc::Rc};
 
-    use crate::{UiNode, context::{LayoutContext, RenderContext, WidgetContext}, event::EventUpdateArgs, render::{FrameBuilder, FrameUpdate}, state_key, units::*, widget_info::{WidgetInfoBuilder, WidgetOffset}};
+    use crate::{
+        context::{LayoutContext, RenderContext, WidgetContext},
+        event::EventUpdateArgs,
+        render::{FrameBuilder, FrameUpdate},
+        state_key,
+        units::*,
+        widget_info::{WidgetInfoBuilder, WidgetOffset},
+        UiNode,
+    };
 
     state_key! {
         pub struct TraceKey: Vec<TraceRef>;

@@ -2096,7 +2096,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     self.focusable_up().or_else(|| {
                         // next up from the same X but from the bottom segment of scope.
                         let mut from_pt = point;
-                        from_pt.y = scope.info.bounds().max().y;
+                        from_pt.y = scope.info.inner_bounds().max().y;
                         self.directional_from_pt(scope, from_pt, DirectionFn![up], false)
                     })
                 }
@@ -2121,7 +2121,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 DirectionalNav::Cycle => self.focusable_right().or_else(|| {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = point;
-                    from_pt.x = scope.info.bounds().min().x;
+                    from_pt.x = scope.info.inner_bounds().min().x;
                     self.directional_from_pt(scope, from_pt, DirectionFn![right], false)
                 }),
             }
@@ -2145,7 +2145,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 DirectionalNav::Cycle => self.focusable_down().or_else(|| {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = point;
-                    from_pt.y = scope.info.bounds().min().y;
+                    from_pt.y = scope.info.inner_bounds().min().y;
                     self.directional_from_pt(scope, from_pt, DirectionFn![down], false)
                 }),
             }
@@ -2169,7 +2169,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 DirectionalNav::Cycle => self.focusable_left().or_else(|| {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = point;
-                    from_pt.x = scope.info.bounds().max().x;
+                    from_pt.x = scope.info.inner_bounds().max().x;
                     self.directional_from_pt(scope, from_pt, DirectionFn![left], false)
                 }),
             }

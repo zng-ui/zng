@@ -761,7 +761,7 @@ pub mod image {
                     )
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let child = &mut self.child;
                     ctx.vars.with_context_var(
                         ContextImageVar,
@@ -769,7 +769,7 @@ pub mod image {
                         self.source.is_new(ctx.vars),
                         self.source.version(ctx.vars),
                         || {
-                            child.arrange(ctx, final_size);
+                            child.arrange(ctx, widget_offset, final_size);
                         },
                     );
                 }
@@ -1020,7 +1020,7 @@ pub mod image {
                     }
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetOffset, final_size: PxSize) {
                     self.requested_layout |= final_size != self.prev_final_size;
 
                     if !self.requested_layout {

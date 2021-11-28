@@ -18,7 +18,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
                 self.requested_update.set(true);
             }
         }
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetOffset, final_size: PxSize) {
             if self.final_size != final_size {
                 self.final_size = final_size;
                 ctx.updates.render();

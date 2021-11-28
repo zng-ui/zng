@@ -90,7 +90,7 @@ pub mod scrollable {
                 available_size.clip(viewport + self.joiner)
             }
 
-            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                 let mut viewport = final_size - self.joiner;
 
                 if viewport.width < self.joiner.width * 3.0.fct() {
@@ -107,14 +107,19 @@ pub mod scrollable {
                     ctx.updates.render();
                 }
 
-                self.children.widget_arrange(0, ctx, self.viewport);
+                self.children.widget_arrange(0, ctx, widget_offset, self.viewport);
 
-                self.children
-                    .widget_arrange(1, ctx, PxSize::new(self.joiner.width, self.viewport.height));
-                self.children
-                    .widget_arrange(2, ctx, PxSize::new(self.viewport.width, self.joiner.height));
+                let joiner_offset = self.viewport.to_vector();
+                widget_offset.with_offset(PxVector::new(joiner_offset.x, Px(0)), |wo| {
+                    self.children
+                        .widget_arrange(1, ctx, wo, PxSize::new(self.joiner.width, self.viewport.height))
+                });
+                widget_offset.with_offset(PxVector::new(Px(0), joiner_offset.y), |wo| {
+                    self.children
+                        .widget_arrange(2, ctx, wo, PxSize::new(self.viewport.width, self.joiner.height))
+                });
 
-                self.children.widget_arrange(3, ctx, self.joiner);
+                widget_offset.with_offset(joiner_offset, |wo| self.children.widget_arrange(3, ctx, wo, self.joiner));
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -300,7 +305,7 @@ pub mod scrollable {
                     ct_size
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     if self.viewport_size != final_size {
                         self.viewport_size = final_size;
                         ctx.updates.render();
@@ -314,7 +319,7 @@ pub mod scrollable {
                         self.content_size.width = final_size.width;
                     }
 
-                    self.child.arrange(ctx, self.content_size);
+                    self.child.arrange(ctx, widget_offset, self.content_size);
 
                     let cell_ctx = ScrollContextVar::get(ctx.vars).as_ref().unwrap();
                     let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;

@@ -9,7 +9,7 @@ pub fn switch<I: Var<usize>, W: UiNodeList>(index: I, options: W) -> impl Widget
 
 /// Switch between children nodes using an index variable.
 ///
-/// All children nodes are kept up-to-date, but only the indexed child is layout and rendered.
+/// All children nodes are kept up-to-date, but only the indexed child is in the widget info, layout and render.
 ///
 /// If the index is out of range no node is rendered and this widget takes no space.
 #[widget($crate::widgets::switch)]
@@ -28,7 +28,15 @@ pub mod switch {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.options.update_all(ctx);
             if self.index.is_new(ctx) {
+                ctx.updates.info();
                 ctx.updates.layout_and_render();
+            }
+        }
+
+        fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+            let index = self.index.copy(ctx);
+            if index < self.options.len() {
+                self.options.widget_info(index, ctx, info);
             }
         }
 
@@ -41,10 +49,10 @@ pub mod switch {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.widget_arrange(index, ctx, final_size)
+                self.options.widget_arrange(index, ctx, widget_offset, final_size)
             }
         }
 

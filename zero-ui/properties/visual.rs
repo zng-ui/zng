@@ -291,7 +291,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             if self.bounds != final_size {
                 self.bounds = final_size;
 
@@ -299,7 +299,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                     ctx.updates.render();
                 }
             }
-            self.child.arrange(ctx, final_size)
+            self.child.arrange(ctx, widget_offset, final_size)
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
