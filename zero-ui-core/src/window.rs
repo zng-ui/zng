@@ -40,7 +40,7 @@ use crate::{
     units::*,
     var::Vars,
     var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    widget_info::{UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree},
+    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -882,6 +882,19 @@ event_args! {
         }
     }
 
+    /// [`WidgetInfoChangedEvent`] args.
+    pub struct WidgetInfoChangedArgs {
+        /// Window ID.
+        pub window_id: WindowId,
+
+        ..
+
+        /// If the widget is in the same window.
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            ctx.path.window_id() == self.window_id
+        }
+    }
+
     /// [`FrameImageReadyEvent`] args.
     pub struct FrameImageReadyArgs {
         /// Window ID.
@@ -981,6 +994,11 @@ event! {
     /// Monitors added or removed event.
     pub MonitorsChangedEvent: MonitorsChangedArgs;
 
+    /// A window widget tree was rebuild.
+    ///
+    /// You can request the widget info tree using [`Windows::widget_tree`].
+    pub WidgetInfoChangedEvent: WidgetInfoChangedArgs;
+
     /// A window frame has finished rendering.
     ///
     /// You can request a copy of the pixels using [`Windows::frame_image`] or by setting the [`WindowVars::frame_capture_mode`].
@@ -1047,8 +1065,7 @@ impl AppExtension for WindowManager {
                         }
                     }
                 }
-            }
-            if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
+
                 let image = args.frame_image.as_ref().cloned().map(Image::new);
                 let args = FrameImageReadyArgs::new(args.timestamp, args.window_id, args.frame_id, image);
                 FrameImageReadyEvent.notify(ctx.events, args);
@@ -1595,7 +1612,7 @@ impl Windows {
     pub fn widget_tree(&self, window_id: WindowId) -> Result<&WidgetInfoTree, WindowNotFound> {
         self.windows_info
             .get(&window_id)
-            .map(|w| &w.frame_info)
+            .map(|w| &w.widget_tree)
             .ok_or(WindowNotFound(window_id))
     }
 
@@ -1664,7 +1681,7 @@ impl Windows {
 
     /// Iterate over the widget trees of each open window.
     pub fn widget_trees(&self) -> impl Iterator<Item = &WidgetInfoTree> {
-        self.windows_info.values().map(|w| &w.frame_info)
+        self.windows_info.values().map(|w| &w.widget_tree)
     }
 
     /// Gets the current window scale factor.
@@ -1682,7 +1699,7 @@ impl Windows {
 
     /// Gets the latest frame for the focused window.
     pub fn focused_info(&self) -> Option<&WidgetInfoTree> {
-        self.windows_info.values().find(|w| w.is_focused).map(|w| &w.frame_info)
+        self.windows_info.values().find(|w| w.is_focused).map(|w| &w.widget_tree)
     }
 
     fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, LinearMap<WindowId, CloseWindowRequest>) {
@@ -1731,8 +1748,7 @@ struct AppWindowInfo {
     vars: WindowVars,
     scale_factor: Factor,
 
-    // latest frame.
-    frame_info: WidgetInfoTree,
+    widget_tree: WidgetInfoTree,
     // focus tracked by the raw focus events.
     is_focused: bool,
 }
@@ -1815,7 +1831,7 @@ impl AppWindow {
 
         // init root.
         let id = WindowId::new_unique();
-        let root = ctx.window_context(id, mode, &mut wn_state, &None, new_window).0;
+        let root = ctx.window_context(id, mode, &mut wn_state, new_window).0;
         let root_id = root.id;
 
         let headless_monitor = if mode.is_headless() {
@@ -1833,8 +1849,8 @@ impl AppWindow {
             root_transform_key: WidgetTransformKey::new_unique(),
             state: wn_state,
             root,
+            root_bounds: BoundsRect::default(),
             update: WindowUpdates::all(),
-            frame_info: true,
             prev_metrics: None,
             used_frame_info_builder: None,
             used_frame_builder: None,
@@ -1881,7 +1897,7 @@ impl AppWindow {
             renderer: None, // will be set on the first render
             vars,
             scale_factor: 1.0.fct(), // will be set on the first layout
-            frame_info,
+            widget_tree: frame_info,
             is_focused: false, // will be set by listening to RawWindowFocusEvent
         };
 
@@ -1897,11 +1913,20 @@ impl AppWindow {
             let _s = tracing::trace_span!("window.on_update#first", window = %self.id.sequential()).entered();
 
             self.context.init(ctx);
+            let tree = self.context.info(ctx);
+            ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree;
             self.first_update = false;
         } else {
             let _s = tracing::trace_span!("window.on_update", window = %self.id.sequential()).entered();
 
             self.context.update(ctx);
+
+            if mem::take(&mut self.context.update.info) {
+                let _s = tracing::trace_span!("window.info", window = %self.id.sequential()).entered();
+                let tree = self.context.info(ctx);
+                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree;
+                WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id));
+            }
 
             if self.vars.size().is_new(ctx)
                 || self.vars.auto_size().is_new(ctx)
@@ -2437,9 +2462,13 @@ impl AppWindow {
         let next_frame_id = self.frame_id.next();
 
         // `UiNode::render`
-        let frame = self
-            .context
-            .render(ctx, next_frame_id, self.size.to_px(scale_factor.0), scale_factor, &self.renderer);
+        let frame = self.context.render(
+            ctx,
+            next_frame_id,
+            self.size.to_px(scale_factor.0),
+            scale_factor,
+            self.renderer.clone(),
+        );
 
         self.clear_color = frame.clear_color;
         self.frame_id = frame.id;
@@ -2481,24 +2510,6 @@ impl AppWindow {
             }
             FrameCaptureMode::All => true,
         }
-    }
-
-    /// On frame-info request.
-    ///
-    /// If there is a pending request we rebuild the frame info.
-    fn on_frame_info(&mut self, ctx: &mut AppContext) {
-        if !self.context.frame_info {
-            return;
-        }
-        let _s = tracing::trace_span!("window.on_render", window = %self.id.sequential()).entered();
-
-        let scale_factor = self.monitor_metrics(ctx).1;
-        let info = self
-            .context
-            .info(ctx, self.frame_id, self.size.to_px(scale_factor.0), &self.renderer);
-
-        let w_info = ctx.services.windows().windows_info.get_mut(&self.id).unwrap();
-        w_info.frame_info = info;
     }
 
     /// On render request.
@@ -2624,8 +2635,8 @@ struct OwnedWindowContext {
     root_transform_key: WidgetTransformKey,
     state: OwnedStateMap,
     root: Window,
+    root_bounds: BoundsRect,
     update: WindowUpdates,
-    frame_info: bool,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
     used_frame_info_builder: Option<UsedWidgetInfoBuilder>,
@@ -2634,7 +2645,7 @@ struct OwnedWindowContext {
 }
 impl OwnedWindowContext {
     fn init(&mut self, ctx: &mut AppContext) {
-        self.widget_ctx(ctx, |ctx, child| child.init(ctx))
+        self.widget_ctx(ctx, |ctx, child| child.init(ctx));
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -2645,13 +2656,34 @@ impl OwnedWindowContext {
         self.widget_ctx(ctx, |ctx, child| child.update(ctx))
     }
 
+    #[must_use]
+    fn info(&mut self, ctx: &mut AppContext) -> WidgetInfoTree {
+        debug_assert!(self.update.info);
+        self.update.info = false;
+
+        let root = &self.root;
+        let root_bounds = self.root_bounds.clone();
+        let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+            let child = &root.child;
+            let mut builder = WidgetInfoBuilder::new(*ctx.window_id, root.id, root_bounds, self.used_frame_info_builder.take());
+            ctx.render_context(root.id, &root.state, |ctx| {
+                child.info(ctx, &mut builder);
+            });
+            builder
+        });
+
+        let (info, used) = builder.finalize();
+        self.used_frame_info_builder = Some(used);
+        info
+    }
+
     fn deinit(&mut self, ctx: &mut AppContext) {
         self.widget_ctx(ctx, |ctx, child| child.deinit(ctx))
     }
 
     fn widget_ctx(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut WidgetContext, &mut BoxedUiNode)) {
         let root = &mut self.root;
-        let ((), update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
+        let ((), update) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
             let child = &mut root.child;
             ctx.widget_context(root.id, &mut root.state, |ctx| f(ctx, child))
         });
@@ -2667,6 +2699,7 @@ impl OwnedWindowContext {
         available_size: PxSize,
         calc_final_size: impl FnOnce(PxSize) -> PxSize,
     ) -> DipSize {
+        debug_assert!(self.update.layout);
         self.update.layout = false;
 
         let mut changes = LayoutMask::NONE;
@@ -2689,7 +2722,7 @@ impl OwnedWindowContext {
         self.prev_metrics = Some((font_size, scale_factor, screen_ppi, available_size));
 
         let root = &mut self.root;
-        let (final_size, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
+        let (final_size, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
             let child = &mut root.child;
             ctx.layout_context(
                 font_size,
@@ -2711,33 +2744,13 @@ impl OwnedWindowContext {
         final_size.to_dip(scale_factor.0)
     }
 
-    fn info(&mut self, ctx: &mut AppContext, frame_id: FrameId, root_size: PxSize, renderer: &Option<ViewRenderer>) -> WidgetInfoTree {
-        debug_assert!(self.frame_info);
-        self.frame_info = false;
-
-        let root = &self.root;
-
-        let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
-            let child = &root.child;
-            let mut builder = WidgetInfoBuilder::new(*ctx.window_id, root.id, root_size, self.used_frame_info_builder.take());
-            ctx.render_context(root.id, &root.state, |ctx| {
-                child.info(ctx, &mut builder);
-            });
-            builder
-        });
-
-        let (info, used) = builder.finalize();
-        self.used_frame_info_builder = Some(used);
-        info
-    }
-
     fn render(
         &mut self,
         ctx: &mut AppContext,
         frame_id: FrameId,
         root_size: PxSize,
         scale_factor: Factor,
-        renderer: &Option<ViewRenderer>,
+        renderer: Option<ViewRenderer>,
     ) -> BuiltFrame {
         debug_assert!(self.update.render.is_render());
         self.update.render = WindowRenderUpdate::None;
@@ -2745,12 +2758,12 @@ impl OwnedWindowContext {
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, renderer, |ctx| {
+        let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
             let child = &root.child;
             let mut builder = FrameBuilder::new(
                 frame_id,
                 *ctx.window_id,
-                ctx.renderer.clone(),
+                renderer,
                 root.id,
                 root_transform_key,
                 root_size,
@@ -2777,7 +2790,7 @@ impl OwnedWindowContext {
         let root = &self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (updates, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, &None, |ctx| {
+        let (updates, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
             let window_id = *ctx.window_id;
             ctx.render_context(root.id, &root.state, |ctx| {
                 let mut update = FrameUpdate::new(

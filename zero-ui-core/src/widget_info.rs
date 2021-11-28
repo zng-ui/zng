@@ -1,7 +1,9 @@
 //! Widget info tree.
 
+use std::cell::Cell;
 use std::fmt;
 use std::mem;
+use std::rc::Rc;
 
 use ego_tree::Tree;
 
@@ -28,14 +30,17 @@ pub struct WidgetInfoBuilder {
     tree: Tree<WidgetInfoInner>,
 }
 impl WidgetInfoBuilder {
-    /// Starts building a info tree with the root information.
+    /// Starts building a info tree with the root information, the `root_bounds` must be a shared reference
+    /// to the size of the window content that is always kept up-to-date, the origin must be always zero.
     #[inline]
-    pub fn new(window_id: WindowId, root_id: WidgetId, size: PxSize, used_data: Option<UsedWidgetInfoBuilder>) -> Self {
+    pub fn new(window_id: WindowId, root_id: WidgetId, root_bounds: BoundsRect, used_data: Option<UsedWidgetInfoBuilder>) -> Self {
+        debug_assert_eq!(PxPoint::zero(), root_bounds.get().origin);
+
         let tree = Tree::with_capacity(
             WidgetInfoInner {
                 widget_id: root_id,
-                bounds: PxRect::from_size(size),
-                outer_bounds: PxRect::from_size(size),
+                bounds: root_bounds.clone(),
+                outer_bounds: root_bounds,
                 meta: OwnedStateMap::new(),
             },
             used_data.map(|d| d.capacity).unwrap_or(100),
@@ -78,8 +83,10 @@ impl WidgetInfoBuilder {
     }
 
     /// Calls `f` in a new widget context.
+    ///
+    /// Both `outer_bounds` and `bounds` must be a shared reference to rectangles that are updated every layout.
     #[inline]
-    pub fn push_widget(&mut self, id: WidgetId, outer_bounds: PxSize, f: impl FnOnce(&mut Self)) {
+    pub fn push_widget(&mut self, id: WidgetId, outer_bounds: BoundsRect, bounds: BoundsRect, f: impl FnOnce(&mut Self)) {
         let parent_node = self.node;
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
@@ -89,8 +96,8 @@ impl WidgetInfoBuilder {
             .node(parent_node)
             .append(WidgetInfoInner {
                 widget_id: id,
-                bounds: PxRect::from(outer_bounds),
-                outer_bounds: PxRect::from(outer_bounds),
+                bounds,
+                outer_bounds,
                 meta: OwnedStateMap::new(),
             })
             .id();
@@ -175,7 +182,7 @@ impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(window_id, root_id, PxSize::zero(), None).finalize().0
+        WidgetInfoBuilder::new(window_id, root_id, BoundsRect::default(), None).finalize().0
     }
 
     /// Reference to the root widget in the tree.
@@ -354,10 +361,57 @@ impl WidgetPath {
     }
 }
 
+/// Shared reference to the bounds of a [`WidgetInfo`].
+///
+/// Widget bounds are updated every layout without causing a tree rebuild.
+#[derive(Default, Clone, Debug)]
+pub struct BoundsRect(Rc<Cell<PxRect>>);
+impl BoundsRect {
+    /// New default.
+    #[inline]
+    pub fn new() -> Self {
+        BoundsRect::default()
+    }
+
+    /// New with `size` and origin zero.
+    #[inline]
+    pub fn from_size(size: PxSize) -> Self {
+        BoundsRect(Rc::new(Cell::new(PxRect::from_size(size))))
+    }
+
+    /// Get a copy of the current bounds.
+    #[inline]
+    pub fn get(&self) -> PxRect {
+        self.0.get()
+    }
+
+    /// Replace the current bounds.
+    #[inline]
+    pub fn set(&self, bounds: PxRect) {
+        self.0.set(bounds);
+    }
+
+    /// Replace the current origin.
+    #[inline]
+    pub fn set_origin(&self, origin: PxPoint) {
+        let mut rect = self.0.get();
+        rect.origin = origin;
+        self.0.set(rect);
+    }
+
+    /// Replace the current size.
+    #[inline]
+    pub fn set_size(&self, size: PxSize) {
+        let mut rect = self.0.get();
+        rect.size = size;
+        self.0.set(rect);
+    }
+}
+
 struct WidgetInfoInner {
     widget_id: WidgetId,
-    outer_bounds: PxRect,
-    bounds: PxRect,
+    outer_bounds: BoundsRect,
+    bounds: BoundsRect,
     meta: OwnedStateMap,
 }
 
@@ -445,15 +499,45 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Widget rectangle in the window space, including "outer" properties like margin.
+    ///
+    /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
     #[inline]
-    pub fn outer_bounds(self) -> &'a PxRect {
-        &self.info().outer_bounds
+    pub fn outer_bounds(self) -> PxRect {
+        self.info().outer_bounds.get()
     }
 
     /// Widget rectangle in the window space, excluding "outer" properties like margin.
+    ///
+    /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
     #[inline]
-    pub fn bounds(self) -> &'a PxRect {
-        &self.info().bounds
+    pub fn bounds(self) -> PxRect {
+        self.info().bounds.get()
+    }
+
+    /// Calculate the offsets from `outer_bounds` to `bounds`.
+    pub fn outer_offsets(self) -> PxSideOffsets {
+        let info = self.info();
+        let outer_bounds = info.outer_bounds.get();
+        let bounds = info.bounds.get();
+
+        Self::calc_offsets(outer_bounds, bounds)
+    }
+
+    /// Calculate the offsets from root's `outer_bounds` to this widget's `bounds`.
+    pub fn root_offsets(self) -> PxSideOffsets {
+        let outer = self.root().outer_bounds();
+        let inner = self.bounds();
+
+        Self::calc_offsets(outer, inner)
+    }
+
+    fn calc_offsets(outer: PxRect, inner: PxRect) -> PxSideOffsets {
+        let top = outer.origin.y - inner.origin.y;
+        let left = outer.origin.x - inner.origin.x;
+        let right = outer.size.width - inner.size.width;
+        let bottom = outer.size.height - inner.size.height;
+
+        PxSideOffsets::new(top, right, bottom, left)
     }
 
     /// Widget bounds center.

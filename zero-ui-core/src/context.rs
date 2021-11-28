@@ -1,6 +1,6 @@
 //! Context information for app extensions, windows and widgets.
 
-use crate::{app::view_process::ViewRenderer, event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
+use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
 use retain_mut::RetainMut;
 use std::ops::DerefMut;
 use std::{cell::Cell, fmt, mem, ops::Deref, ptr, rc::Rc, time::Instant};
@@ -521,7 +521,6 @@ impl<'a> AppContext<'a> {
         window_id: WindowId,
         mode: WindowMode,
         window_state: &mut OwnedStateMap,
-        renderer: &Option<ViewRenderer>,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, WindowUpdates) {
         self.updates.enter_window_ctx();
@@ -533,7 +532,6 @@ impl<'a> AppContext<'a> {
             mode: &mode,
             app_state: self.app_state,
             window_state: &mut window_state.0,
-            renderer,
             update_state: &mut update_state,
             vars: self.vars,
             events: self.events,
@@ -586,13 +584,6 @@ pub struct WindowContext<'a> {
 
     /// State that lives for the duration of the window.
     pub window_state: &'a mut StateMap,
-
-    /// Connection to the window renderer.
-    ///
-    /// This is only available after the first render call and if the [`mode`] is not headless. TODO rethink this
-    ///
-    /// [`mode`]: WindowContext::mode
-    pub renderer: &'a Option<ViewRenderer>,
 
     /// State that lives for the duration of the node tree method call in the window.
     ///

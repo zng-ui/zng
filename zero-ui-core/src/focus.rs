@@ -77,7 +77,7 @@
 //! creating a [`FocusInfoTree`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
 
 use crate::{
-    app::{raw_events::RawFrameRenderedEvent, AppEventSender, AppExtension},
+    app::{AppEventSender, AppExtension},
     context::*,
     crate_util::IdMap,
     event::*,
@@ -88,7 +88,7 @@ use crate::{
     var::impl_from_and_into_var,
     widget_base::WidgetEnabledExt,
     widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
-    window::{WindowFocusChangedEvent, WindowId, Windows},
+    window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
 use std::{
@@ -508,11 +508,11 @@ impl AppExtension for FocusManager {
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = RawFrameRenderedEvent.update(args) {
+        if let Some(args) = WidgetInfoChangedEvent.update(args) {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
 
             if self.focused.as_ref().map(|f| f.window_id() == args.window_id).unwrap_or_default() {
-                // new window frame, check if focus is still valid
+                // widget tree rebuilt, check if focus is still valid
                 self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
             }
 
@@ -2354,7 +2354,7 @@ impl FocusInfo {
 /// Builder for [`FocusInfo`] accessible in a [`WidgetInfoBuilder`].
 ///
 /// Use the [`FocusInfoKey`] to access the builder for the widget state in a widget info.
-/// 
+///
 /// [`WidgetInfoBuilder`]: crate::widget_info::WidgetInfoBuilder
 #[derive(Default)]
 pub struct FocusInfoBuilder {

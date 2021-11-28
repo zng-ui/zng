@@ -21,7 +21,10 @@ use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
-    use crate::context::{OwnedStateMap, RenderContext};
+    use crate::{
+        context::{OwnedStateMap, RenderContext},
+        widget_info::BoundsRect,
+    };
 
     use super::*;
 
@@ -119,7 +122,8 @@ pub mod implicit_base {
             transform_key: WidgetTransformKey,
             state: OwnedStateMap,
             child: T,
-            size: PxSize,
+            outer_bounds: BoundsRect,
+            bounds: BoundsRect,
             #[cfg(debug_assertions)]
             inited: bool,
         }
@@ -193,7 +197,7 @@ pub mod implicit_base {
             }
             #[inline(always)]
             fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-                self.size = final_size;
+                self.outer_bounds.set_size(final_size);
 
                 #[cfg(debug_assertions)]
                 {
@@ -202,7 +206,6 @@ pub mod implicit_base {
                     }
                 }
 
-                let final_size = self.size;
                 let child = &mut self.child;
                 ctx.with_widget(self.id, &mut self.state, |ctx| {
                     child.arrange(ctx, final_size);
@@ -215,7 +218,9 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    info.push_widget(self.id, self.size, |info| self.child.info(ctx, info));
+                    info.push_widget(self.id, self.outer_bounds.clone(), self.bounds.clone(), |info| {
+                        self.child.info(ctx, info)
+                    });
                 });
             }
             #[inline(always)]
@@ -226,7 +231,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    frame.push_widget(self.id, self.transform_key, self.size, |frame| self.child.render(ctx, frame));
+                    frame.push_widget(self.id, self.transform_key, self.outer_bounds.get().size, |frame| self.child.render(ctx, frame));
                 });
             }
             #[inline(always)]
@@ -256,7 +261,7 @@ pub mod implicit_base {
             }
             #[inline]
             fn size(&self) -> PxSize {
-                self.size
+                self.outer_bounds.get().size
             }
         }
 
@@ -265,7 +270,8 @@ pub mod implicit_base {
             transform_key: WidgetTransformKey::new_unique(),
             state: OwnedStateMap::default(),
             child,
-            size: PxSize::zero(),
+            outer_bounds: BoundsRect::new(),
+            bounds: BoundsRect::new(),
             #[cfg(debug_assertions)]
             inited: false,
         }
