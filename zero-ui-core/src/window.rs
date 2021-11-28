@@ -40,7 +40,7 @@ use crate::{
     units::*,
     var::Vars,
     var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree},
+    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetOffset},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -2735,7 +2735,7 @@ impl OwnedWindowContext {
                 |ctx| {
                     let desired_size = child.measure(ctx, AvailableSize::finite(available_size));
                     let final_size = calc_final_size(desired_size);
-                    child.arrange(ctx, final_size);
+                    child.arrange(ctx, &mut WidgetOffset::new(), final_size);
                     final_size
                 },
             )

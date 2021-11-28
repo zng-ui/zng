@@ -12,6 +12,7 @@ use crate::core::{
     render::FrameUpdate,
 };
 use zero_ui_core::context::RenderContext;
+use zero_ui_core::widget_info::WidgetOffset;
 
 /// Arguments for the [`on_init`](fn@on_init) event.
 #[derive(Clone, Debug, Copy)]
@@ -352,8 +353,8 @@ pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, Px
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: FnMut(&mut LayoutContext, PxSize) + 'static> UiNode for OnArrangeNode<C, F> {
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            self.child.arrange(ctx, final_size);
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            self.child.arrange(ctx, widget_offset, final_size);
             (self.handler)(ctx, final_size);
         }
     }
@@ -373,9 +374,9 @@ pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: FnMut(&mut LayoutContext, PxSize) + 'static> UiNode for OnPreviewArrangeNode<C, F> {
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             (self.handler)(ctx, final_size);
-            self.child.arrange(ctx, final_size);
+            self.child.arrange(ctx, widget_offset, final_size);
         }
     }
     OnPreviewArrangeNode { child, handler }

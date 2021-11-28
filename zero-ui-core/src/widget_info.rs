@@ -19,6 +19,42 @@ unique_id_64! {
     struct WidgetInfoTreeId;
 }
 
+#[derive(Default)]
+pub struct WidgetOffset {
+    offset: PxPoint,
+    bounds_offset: PxPoint,
+}
+impl WidgetOffset {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_widget(&mut self, /*offset: impl Into<PxVector>,*/ f: impl FnOnce(&mut Self)) -> PxPoint {
+        // let offset = offset.into();
+        let parent_bounds = self.bounds_offset;
+        // self.offset += offset;
+
+        f(self);
+
+        let r = self.bounds_offset;
+        self.bounds_offset = parent_bounds;
+        // self.offset -= offset;
+        r
+    }
+
+    pub fn with_offset(&mut self, offset: impl Into<PxVector>, f: impl FnOnce(&mut Self)) {
+        let offset = offset.into();
+        self.offset += offset;
+        f(self);
+        self.offset -= offset;
+    }
+
+    pub fn with_bounds(&mut self, f: impl FnOnce(&mut Self)) {
+        self.bounds_offset = self.offset;
+        f(self);
+    }
+}
+
 /// [`WidgetInfoTree`] builder.
 pub struct WidgetInfoBuilder {
     window_id: WindowId,

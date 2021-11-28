@@ -72,12 +72,12 @@ pub trait UiNodeList: 'static {
     ///
     /// The `final size` parameter is a function that takes a widget index and the `ctx` and returns the
     /// final size the widget must use.
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxSize;
 
     /// Calls [`UiNode::arrange`] in only the `index` widget.
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize);
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
 
     /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
     fn info_all<O>(&self, origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
@@ -330,18 +330,18 @@ impl UiNodeList for WidgetVec {
         self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
         for (i, w) in self.iter_mut().enumerate() {
             let fs = final_size(i, ctx);
-            w.arrange(ctx, fs)
+            w.arrange(ctx, widget_offset, fs)
         }
     }
 
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
-        self.vec[index].arrange(ctx, final_size)
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        self.vec[index].arrange(ctx, widget_offset, final_size)
     }
 
     fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
@@ -559,18 +559,18 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
         for (i, node) in self.iter_mut().enumerate() {
             let fs = final_size(i, ctx);
-            node.arrange(ctx, fs);
+            node.arrange(ctx, widget_offset, fs);
         }
     }
 
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
-        self.vec[index].arrange(ctx, final_size);
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        self.vec[index].arrange(ctx, widget_offset, final_size);
     }
 
     fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
@@ -642,7 +642,12 @@ macro_rules! widget_vec {
 }
 #[doc(inline)]
 pub use crate::widget_vec;
-use crate::{context::RenderContext, event::EventUpdateArgs, widget_info::WidgetInfoBuilder, BoxedUiNode, BoxedWidget};
+use crate::{
+    context::RenderContext,
+    event::EventUpdateArgs,
+    widget_info::{WidgetInfoBuilder, WidgetOffset},
+    BoxedUiNode, BoxedWidget,
+};
 
 /// Creates a [`UiNodeVec`](crate::UiNodeVec) containing the arguments.
 ///
@@ -870,22 +875,22 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline(always)]
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
-        self.0.arrange_all(ctx, |i, c| final_size(i, c));
+        self.0.arrange_all(ctx, widget_offset, |i, c| final_size(i, c));
         let offset = self.0.len();
-        self.1.arrange_all(ctx, |i, c| final_size(i + offset, c));
+        self.1.arrange_all(ctx, widget_offset, |i, c| final_size(i + offset, c));
     }
 
     #[inline]
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_arrange(index, ctx, final_size)
+            self.0.widget_arrange(index, ctx, widget_offset, final_size)
         } else {
-            self.1.widget_arrange(index - a_len, ctx, final_size)
+            self.1.widget_arrange(index - a_len, ctx, widget_offset, final_size)
         }
     }
 
@@ -1075,22 +1080,22 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline(always)]
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxSize,
     {
-        self.0.arrange_all(ctx, |i, c| final_size(i, c));
+        self.0.arrange_all(ctx, widget_offset, |i, c| final_size(i, c));
         let offset = self.0.len();
-        self.1.arrange_all(ctx, |i, c| final_size(i + offset, c));
+        self.1.arrange_all(ctx, widget_offset, |i, c| final_size(i + offset, c));
     }
 
     #[inline]
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_arrange(index, ctx, final_size)
+            self.0.widget_arrange(index, ctx, widget_offset, final_size)
         } else {
-            self.1.widget_arrange(index - a_len, ctx, final_size)
+            self.1.widget_arrange(index - a_len, ctx, widget_offset, final_size)
         }
     }
 
@@ -1295,21 +1300,21 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, mut final_size: F)
+            fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
             where
                 F: FnMut(usize, &mut LayoutContext) -> PxSize,
             {
                 $(
                 let fi_sz = final_size($n, ctx);
-                self.items.$n.arrange(ctx, fi_sz);
+                self.items.$n.arrange(ctx, widget_offset, fi_sz);
                 )+
             }
 
             #[inline]
-            fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, final_size: PxSize) {
+            fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                 match index {
                     $(
-                        $n => self.items.$n.arrange(ctx, final_size),
+                        $n => self.items.$n.arrange(ctx, widget_offset, final_size),
                     )+
                     _ => panic!("index {} out of range for length {}", index, self.len()),
                 }
@@ -1455,14 +1460,14 @@ macro_rules! empty_node_list {
             }
 
             #[inline]
-            fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: F)
+            fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: &mut WidgetOffset, _: F)
             where
                 F: FnMut(usize, &mut LayoutContext) -> PxSize,
             {
             }
 
             #[inline]
-            fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: PxSize) {
+            fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetOffset, _: PxSize) {
                 panic!("index {} out of range for length 0", index)
             }
 

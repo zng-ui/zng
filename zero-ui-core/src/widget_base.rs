@@ -5,7 +5,7 @@ use std::{fmt, ops};
 use crate::event::EventUpdateArgs;
 use crate::var::{context_var, impl_from_and_into_var, IntoVar, WithVars, WithVarsRead};
 use crate::var::{Var, VarsRead};
-use crate::widget_info::{WidgetInfo, WidgetInfoBuilder};
+use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetOffset};
 use crate::{
     context::RenderContext,
     render::{FrameBuilder, FrameUpdate, WidgetTransformKey},
@@ -23,7 +23,7 @@ use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 pub mod implicit_base {
     use crate::{
         context::{OwnedStateMap, RenderContext},
-        widget_info::BoundsRect,
+        widget_info::{BoundsRect, WidgetOffset},
     };
 
     use super::*;
@@ -196,7 +196,7 @@ pub mod implicit_base {
                 child_size
             }
             #[inline(always)]
-            fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                 self.outer_bounds.set_size(final_size);
 
                 #[cfg(debug_assertions)]
@@ -208,9 +208,10 @@ pub mod implicit_base {
 
                 let child = &mut self.child;
                 ctx.with_widget(self.id, &mut self.state, |ctx| {
-                    child.arrange(ctx, final_size);
+                    child.arrange(ctx, widget_offset, final_size);
                 });
             }
+            #[inline(always)]
             fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
@@ -231,7 +232,9 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    frame.push_widget(self.id, self.transform_key, self.outer_bounds.get().size, |frame| self.child.render(ctx, frame));
+                    frame.push_widget(self.id, self.transform_key, self.outer_bounds.get().size, |frame| {
+                        self.child.render(ctx, frame)
+                    });
                 });
             }
             #[inline(always)]
@@ -479,9 +482,9 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             if let Visibility::Visible = self.visibility.get(ctx) {
-                self.child.arrange(ctx, final_size)
+                self.child.arrange(ctx, widget_offset, final_size)
             }
         }
 

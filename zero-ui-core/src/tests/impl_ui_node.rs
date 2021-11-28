@@ -4,17 +4,7 @@
 
 use util::{assert_did_not_trace, assert_only_traced, TraceNode};
 
-use crate::{
-    color::RenderColor,
-    context::{TestWidgetContext, WidgetContext},
-    impl_ui_node, node_vec, nodes,
-    render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
-    units::*,
-    widget_base::implicit_base,
-    widget_info::{BoundsRect, WidgetInfoBuilder},
-    window::WindowId,
-    UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
-};
+use crate::{UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, color::RenderColor, context::{TestWidgetContext, WidgetContext}, impl_ui_node, node_vec, nodes, render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey}, units::*, widget_base::implicit_base, widget_info::{BoundsRect, WidgetInfoBuilder, WidgetOffset}, window::WindowId};
 
 #[test]
 pub fn default_child() {
@@ -103,7 +93,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_measure(&mut ctx, l_size);
     assert_only_traced!(wgt.state(), "measure");
 
-    wgt.test_arrange(&mut ctx, l_size.to_px());
+    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), l_size.to_px());
     assert_only_traced!(wgt.state(), "arrange");
 
     let window_id = WindowId::new_unique();
@@ -206,7 +196,7 @@ pub fn default_no_child() {
     assert_eq!(desired_size, PxSize::zero());
 
     // arrange does nothing, not really anything to test.
-    wgt.test_arrange(&mut ctx, desired_size);
+    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), desired_size);
 
     // we expect default to not render anything.
     let window_id = WindowId::new_unique();
@@ -247,15 +237,7 @@ pub fn default_no_child() {
 mod util {
     use std::{cell::RefCell, rc::Rc};
 
-    use crate::{
-        context::{LayoutContext, RenderContext, WidgetContext},
-        event::EventUpdateArgs,
-        render::{FrameBuilder, FrameUpdate},
-        state_key,
-        units::*,
-        widget_info::WidgetInfoBuilder,
-        UiNode,
-    };
+    use crate::{UiNode, context::{LayoutContext, RenderContext, WidgetContext}, event::EventUpdateArgs, render::{FrameBuilder, FrameUpdate}, state_key, units::*, widget_info::{WidgetInfoBuilder, WidgetOffset}};
 
     state_key! {
         pub struct TraceKey: Vec<TraceRef>;
@@ -340,7 +322,7 @@ mod util {
             PxSize::zero()
         }
 
-        fn arrange(&mut self, _: &mut LayoutContext, _: PxSize) {
+        fn arrange(&mut self, _: &mut LayoutContext, _: &mut WidgetOffset, _: PxSize) {
             self.trace("arrange");
         }
 

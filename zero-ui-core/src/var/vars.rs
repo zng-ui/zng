@@ -10,7 +10,7 @@ use crate::{
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    widget_info::WidgetInfoBuilder,
+    widget_info::{WidgetInfoBuilder, WidgetOffset},
     UiNode,
 };
 use std::{
@@ -1533,9 +1533,10 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
                 .with_context_bind(self.var, &self.value, || child.measure(ctx, available_size))
         }
         #[inline(always)]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.arrange(ctx, final_size));
+            ctx.vars
+                .with_context_bind(self.var, &self.value, || child.arrange(ctx, widget_offset, final_size));
         }
         #[inline(always)]
         fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
@@ -1623,10 +1624,10 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
                 .with_context_bind_wgt_only(self.var, &self.value, || child.measure(ctx, available_size))
         }
         #[inline(always)]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars
-                .with_context_bind_wgt_only(self.var, &self.value, || child.arrange(ctx, final_size))
+                .with_context_bind_wgt_only(self.var, &self.value, || child.arrange(ctx, widget_offset, final_size))
         }
         #[inline(always)]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -1722,10 +1723,10 @@ pub fn with_context_var_expr<T: VarValue>(
         }
 
         #[inline(always)]
-        fn arrange(&mut self, ctx: &mut crate::context::LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut crate::context::LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars.with_context_var(self.var, &self.value, false, self.version, || {
-                child.arrange(ctx, final_size);
+                child.arrange(ctx, widget_offset, final_size);
             });
         }
 
@@ -1824,10 +1825,10 @@ pub fn with_context_var_wgt_only_expr<T: VarValue>(
         }
 
         #[inline(always)]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars.with_context_var_wgt_only(self.var, &self.value, false, self.version, || {
-                child.arrange(ctx, final_size);
+                child.arrange(ctx, widget_offset, final_size);
             });
         }
 
