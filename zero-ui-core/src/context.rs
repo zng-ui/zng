@@ -126,6 +126,14 @@ impl Updates {
         self.update
     }
 
+    /// Schedules a info tree rebuild, layout and render.
+    #[inline]
+    pub fn info_layout_and_render(&mut self) {
+        self.info();
+        self.layout();
+        self.render();
+    }
+
     /// Schedules a layout and render update.
     #[inline]
     pub fn layout_and_render(&mut self) {

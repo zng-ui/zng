@@ -1921,9 +1921,8 @@ impl AppWindow {
 
             self.context.update(ctx);
 
-            if mem::take(&mut self.context.update.info) {
+            if self.context.update.info {
                 let _s = tracing::trace_span!("window.info", window = %self.id.sequential()).entered();
-                tracing::info!("REBUILD");
                 let tree = self.context.info(ctx);
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree;
                 WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id));
