@@ -177,7 +177,8 @@ impl WidgetInfoBuilder {
 
     /// Build the info tree.
     #[inline]
-    pub fn finalize(self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
+    pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
+        self.tree.root_mut().value().meta = self.meta;
         let root_id = self.tree.root().id();
 
         // we build a WidgetId => NodeId lookup
