@@ -370,7 +370,7 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
 
         [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_offset: &mut #crate_::widget_info::WidgetOffset, final_size: #crate_::units::PxSize) {
             let #children = {#borrow_mut};
-            #crate_::UiNodeList::arrange_all(#children, ctx, widget_offset, |_, _|final_size)
+            #crate_::UiNodeList::arrange_all(#children, ctx, widget_offset, |_, _|#crate_::units::PxRect::from_size(final_size))
         }]
 
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {

@@ -135,7 +135,7 @@ pub mod h_stack {
             let rectangles = &mut self.rectangles;
             let fill_height = align.fill_height();
 
-            self.children.arrange_all(ctx, |i, _| {
+            self.children.arrange_all(ctx, widget_offset, |i, _| {
                 let r = &mut rectangles[i];
 
                 let spacing = if r.size.width > Px(0) { spacing } else { Px(0) };
@@ -153,7 +153,7 @@ pub mod h_stack {
                     r.origin.y = (final_size.height - r.size.height) * align.y.0;
                 };
 
-                r.size
+                *r
             });
         }
 
@@ -294,7 +294,7 @@ pub mod v_stack {
             let rectangles = &mut self.rectangles;
             let fill_width = align.fill_width();
 
-            self.children.arrange_all(ctx, |i, _| {
+            self.children.arrange_all(ctx, widget_offset, |i, _| {
                 let r = &mut rectangles[i];
 
                 let spacing = if r.size.height > Px(0) { spacing } else { Px(0) };
@@ -311,7 +311,7 @@ pub mod v_stack {
                     r.origin.x = (final_size.width - r.size.width) * align.x.0;
                 };
 
-                r.size
+                *r
             });
         }
 
@@ -445,9 +445,9 @@ pub mod z_stack {
             let align = self.align.copy(ctx);
 
             let rectangles = &mut self.rectangles;
-            self.children.arrange_all(ctx, |i, _| {
+            self.children.arrange_all(ctx, widget_offset, |i, _| {
                 rectangles[i] = align.solve(rectangles[i].size, final_size);
-                rectangles[i].size
+                rectangles[i]
             });
         }
 

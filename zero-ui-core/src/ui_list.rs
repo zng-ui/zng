@@ -1,3 +1,5 @@
+use zero_ui_view_api::units::PxRect;
+
 use super::units::{AvailableSize, PxPoint, PxSize};
 #[allow(unused)] // used in docs.
 use super::UiNode;
@@ -68,13 +70,13 @@ pub trait UiNodeList: 'static {
 
     /// Calls [`UiNode::arrange`] in all widgets in the list, sequentially.
     ///
-    /// # `final_size`
+    /// # `final_rect`
     ///
-    /// The `final size` parameter is a function that takes a widget index and the `ctx` and returns the
-    /// final size the widget must use.
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: F)
+    /// The `final_rect` parameter is a function that takes a widget index and the `ctx` and returns the
+    /// final size and widget offset for the indexed widget.
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_rect: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxSize;
+        F: FnMut(usize, &mut LayoutContext) -> PxRect;
 
     /// Calls [`UiNode::arrange`] in only the `index` widget.
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
@@ -115,11 +117,11 @@ pub trait WidgetList: UiNodeList {
     /// Count widgets that pass filter using the widget state.
     fn count<F>(&self, mut filter: F) -> usize
     where
-        F: FnMut(usize, &StateMap) -> bool,
+        F: FnMut(usize, PxSize, &StateMap) -> bool,
     {
         let mut count = 0;
         for i in 0..self.len() {
-            if filter(i, self.widget_state(i)) {
+            if filter(i, self.widget_size(i), self.widget_state(i)) {
                 count += 1;
             }
         }
@@ -157,11 +159,11 @@ pub trait WidgetList: UiNodeList {
     ///
     /// # `origin`
     ///
-    /// The `origin` parameter is a function that takes a widget index and state and returns the offset that must
+    /// The `origin` parameter is a function that takes a widget index, size and state and returns the offset that must
     /// be used to render it, if it must be rendered.
     fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<PxPoint>;
+        O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>;
 }
 
 /// A vector of boxed [`Widget`] items.
@@ -330,13 +332,13 @@ impl UiNodeList for WidgetVec {
         self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxRect,
     {
         for (i, w) in self.iter_mut().enumerate() {
-            let fs = final_size(i, ctx);
-            w.arrange(ctx, widget_offset, fs)
+            let r = final_rect(i, ctx);
+            widget_offset.with_offset(r.origin.to_vector(), |wo| w.arrange(ctx, wo, r.size))
         }
     }
 
@@ -407,11 +409,11 @@ impl WidgetList for WidgetVec {
 
     fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<PxPoint>,
+        O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>,
     {
         let id = self.id.get();
         for (i, w) in self.iter().enumerate() {
-            if let Some(origin) = origin(i, w.state()) {
+            if let Some(origin) = origin(i, w.size(), w.state()) {
                 frame.push_reference_frame_item(id, i, origin, |frame| {
                     w.render(ctx, frame);
                 });
@@ -559,13 +561,13 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxRect,
     {
         for (i, node) in self.iter_mut().enumerate() {
-            let fs = final_size(i, ctx);
-            node.arrange(ctx, widget_offset, fs);
+            let r = final_rect(i, ctx);
+            widget_offset.with_offset(r.origin.to_vector(), |wo| node.arrange(ctx, wo, r.size));
         }
     }
 
@@ -875,13 +877,13 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline(always)]
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxRect,
     {
-        self.0.arrange_all(ctx, widget_offset, |i, c| final_size(i, c));
+        self.0.arrange_all(ctx, widget_offset, |i, c| final_rect(i, c));
         let offset = self.0.len();
-        self.1.arrange_all(ctx, widget_offset, |i, c| final_size(i + offset, c));
+        self.1.arrange_all(ctx, widget_offset, |i, c| final_rect(i + offset, c));
     }
 
     #[inline]
@@ -961,11 +963,11 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
     #[inline(always)]
     fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<PxPoint>,
+        O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>,
     {
-        self.0.render_filtered(|i, s| origin(i, s), ctx, frame);
+        self.0.render_filtered(|i, b, s| origin(i, b, s), ctx, frame);
         let offset = self.0.len();
-        self.1.render_filtered(|i, s| origin(i + offset, s), ctx, frame);
+        self.1.render_filtered(|i, b, s| origin(i + offset, b, s), ctx, frame);
     }
 
     #[inline]
@@ -1080,13 +1082,13 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline(always)]
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxSize,
+        F: FnMut(usize, &mut LayoutContext) -> PxRect,
     {
-        self.0.arrange_all(ctx, widget_offset, |i, c| final_size(i, c));
+        self.0.arrange_all(ctx, widget_offset, |i, c| final_rect(i, c));
         let offset = self.0.len();
-        self.1.arrange_all(ctx, widget_offset, |i, c| final_size(i + offset, c));
+        self.1.arrange_all(ctx, widget_offset, |i, c| final_rect(i + offset, c));
     }
 
     #[inline]
@@ -1174,11 +1176,11 @@ macro_rules! impl_tuples {
             #[inline(always)]
             fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
-                O: FnMut(usize, &StateMap) -> Option<PxPoint>,
+                O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>,
             {
                 let id = self.id.get();
                 $(
-                if let Some(o) = origin($n, self.items.$n.state()) {
+                if let Some(o) = origin($n, self.items.$n.size(), self.items.$n.state()) {
                     frame.push_reference_frame_item(id, $n, o, |frame| self.items.$n.render(ctx, frame));
                 }
                 )+
@@ -1300,13 +1302,16 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: F)
+            fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
             where
-                F: FnMut(usize, &mut LayoutContext) -> PxSize,
+                F: FnMut(usize, &mut LayoutContext) -> PxRect,
             {
                 $(
-                let fi_sz = final_size($n, ctx);
-                self.items.$n.arrange(ctx, widget_offset, fi_sz);
+                let r = final_rect($n, ctx);
+                widget_offset.with_offset(r.origin.to_vector(), |wo| {
+                    self.items.$n.arrange(ctx, wo, r.size);
+                });
+
                 )+
             }
 
@@ -1462,7 +1467,7 @@ macro_rules! empty_node_list {
             #[inline]
             fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: &mut WidgetOffset, _: F)
             where
-                F: FnMut(usize, &mut LayoutContext) -> PxSize,
+                F: FnMut(usize, &mut LayoutContext) -> PxRect,
             {
             }
 
@@ -1515,7 +1520,7 @@ impl WidgetList for WidgetList0 {
 
     fn render_filtered<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
     where
-        O: FnMut(usize, &StateMap) -> Option<PxPoint>,
+        O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>,
     {
     }
 

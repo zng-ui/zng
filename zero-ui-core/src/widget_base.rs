@@ -12,8 +12,7 @@ use crate::{
 };
 use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
-    units::{AvailableSize, PxPoint, PxSize},
-    WidgetList,
+    units::{AvailableSize, PxSize},
 };
 use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 
@@ -628,35 +627,6 @@ pub trait WidgetVisibilityExt {
 impl WidgetVisibilityExt for StateMap {
     fn visibility(&self) -> Visibility {
         self.get(VisibilityState).copied().unwrap_or_default()
-    }
-}
-
-/// Extension methods for filtering an [`WidgetList`] by [`Visibility`].
-pub trait WidgetListVisibilityExt: WidgetList {
-    /// Counts the widgets that are not collapsed.
-    fn count_not_collapsed(&self) -> usize;
-
-    /// Render widgets, calls `origin` only for widgets that are not collapsed.
-    fn render_not_collapsed<O: FnMut(usize) -> PxPoint>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder);
-}
-
-impl<U: WidgetList> WidgetListVisibilityExt for U {
-    fn count_not_collapsed(&self) -> usize {
-        self.count(|_, s| s.visibility() != Visibility::Collapsed)
-    }
-
-    fn render_not_collapsed<O: FnMut(usize) -> PxPoint>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.render_filtered(
-            |i, s| {
-                if s.visibility() != Visibility::Collapsed {
-                    Some(origin(i))
-                } else {
-                    None
-                }
-            },
-            ctx,
-            frame,
-        )
     }
 }
 

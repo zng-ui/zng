@@ -275,7 +275,7 @@ pub mod grid {
                     frame.push_reference_frame_item(self.rows_spatial_id, i, *origin, |frame| row.widget().render(ctx, frame));
                 }
                 self.items.render_filtered(
-                    |i, _| {
+                    |i, _, _| {
                         let rect = self.item_rects[i];
                         if rect.size.width > Px(0) && rect.size.height > Px(0) {
                             Some(rect.origin)

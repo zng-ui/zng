@@ -83,24 +83,23 @@ pub mod uniform_grid {
         spacing: impl IntoVar<GridSpacing>,
     ) -> impl UiNode {
         UniformGridNode {
+            children_origin: vec![None; items.len()],
             children: items,
 
             columns: columns.into_var(),
             rows: rows.into_var(),
             first_column: first_column.into_var(),
             spacing: spacing.into_var(),
-
-            cells_iter: CellsIter::default(),
         }
     }
 
     struct UniformGridNode<U, C, R, FC, S> {
         children: U,
+        children_origin: Vec<Option<PxPoint>>,
         columns: C,
         rows: R,
         first_column: FC,
         spacing: S,
-        cells_iter: CellsIter,
     }
     #[impl_ui_node(children)]
     impl<U, C, R, FC, S> UniformGridNode<U, C, R, FC, S>
@@ -111,31 +110,23 @@ pub mod uniform_grid {
         FC: Var<u32>,
         S: Var<GridSpacing>,
     {
-        /// cells count for `grid_len`.
-        fn cells_count(&self) -> i32 {
-            match self.children.count_not_collapsed() {
-                0 => 1,
-                n => n as i32,
-            }
-        }
-
         /// (columns, rows)
-        fn grid_len(&self, vars: &VarsRead) -> (i32, i32) {
+        fn grid_len(&self, vars: &VarsRead, cells_count: usize) -> (i32, i32) {
             let mut columns = *self.columns.get(vars) as i32;
             let mut rows = *self.rows.get(vars) as i32;
 
             if columns == 0 {
                 if rows == 0 {
                     // columns and rows are 0=AUTO, make a square
-                    rows = (self.cells_count() as f32).sqrt().ceil() as i32;
+                    rows = (cells_count as f32).sqrt().ceil() as i32;
                     columns = rows;
                 } else {
                     // only columns is 0=AUTO
-                    columns = (self.cells_count() as f32 / rows as f32).ceil() as i32;
+                    columns = (cells_count as f32 / rows as f32).ceil() as i32;
                 }
             } else if rows == 0 {
                 // only rows is 0=AUTO
-                rows = (self.cells_count() as f32 / columns as f32).ceil() as i32;
+                rows = (cells_count as f32 / columns as f32).ceil() as i32;
             }
 
             (columns, rows)
@@ -151,9 +142,9 @@ pub mod uniform_grid {
         }
         #[UiNode]
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: AvailableSize) -> PxSize {
-            let (columns, rows) = self.grid_len(ctx.vars);
-
             let layout_spacing = self.spacing.get(ctx).to_layout(ctx, available_size, PxGridSpacing::zero());
+
+            let (columns, rows) = self.grid_len(ctx.vars, self.children.len());
 
             if let AvailablePx::Finite(f) = &mut available_size.width {
                 *f = (*f - layout_spacing.column / Px(2)) / Px(columns);
@@ -164,8 +155,14 @@ pub mod uniform_grid {
 
             let mut cell_size = PxSize::zero();
 
-            self.children
-                .measure_all(ctx, |_, _| available_size, |_, s, _| cell_size = cell_size.max(s));
+            self.children.measure_all(
+                ctx,
+                |_, _| available_size,
+                |i, s, _| {
+                    cell_size = cell_size.max(s);
+                    self.children_origin[i] = if s != PxSize::zero() { Some(PxPoint::zero()) } else { None };
+                },
+            );
 
             PxSize::new(
                 cell_size.width * columns + layout_spacing.column * (columns - 1),
@@ -173,8 +170,10 @@ pub mod uniform_grid {
             )
         }
         #[UiNode]
-        fn arrange(&mut self, ctx: &mut LayoutContext, final_size: PxSize) {
-            let (columns, rows) = self.grid_len(ctx.vars);
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            let cell_count = self.children_origin.iter().filter(|o| o.is_some()).count();
+
+            let (columns, rows) = self.grid_len(ctx.vars, cell_count);
 
             let layout_spacing = self
                 .spacing
@@ -186,20 +185,29 @@ pub mod uniform_grid {
                 (final_size.height - layout_spacing.row * Px(rows - 1)) / Px(rows),
             );
 
-            self.children.arrange_all(ctx, |_, _| cell_size);
-
             let mut first_column = self.first_column.copy(ctx);
             if first_column as i32 >= columns {
                 first_column = 0;
             }
 
-            self.cells_iter = CellsIter::new(cell_size, columns, first_column as i32, layout_spacing);
+            let mut cells = CellsIter::new(cell_size, columns, first_column as i32, layout_spacing);
+
+            let origins = &mut self.children_origin;
+            self.children.arrange_all(ctx, widget_offset, |i, _| {
+                let origin = if let Some(o) = &mut origins[i] {
+                    *o = cells.next().unwrap();
+                    *o
+                } else {
+                    PxPoint::zero()
+                };
+                PxRect::new(origin, cell_size)
+            });
         }
         #[UiNode]
         #[allow_(zero_ui::missing_delegate)] // false positive, TODO
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let mut cells = self.cells_iter.clone();
-            self.children.render_not_collapsed(move |_| cells.next().unwrap(), ctx, frame);
+            let origins = &self.children_origin;
+            self.children.render_filtered(move |i, _, _| origins[i], ctx, frame);
         }
     }
     #[derive(Clone, Default)]
