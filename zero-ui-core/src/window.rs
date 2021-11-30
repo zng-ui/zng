@@ -1059,11 +1059,11 @@ impl AppExtension for WindowManager {
                     match pending {
                         WindowRenderUpdate::None => {}
                         WindowRenderUpdate::Render => {
-                            window.context.update = WindowUpdates::render();
+                            window.context.update.render = WindowRenderUpdate::Render;
                             ctx.updates.render();
                         }
                         WindowRenderUpdate::RenderUpdate => {
-                            window.context.update = WindowUpdates::render_update();
+                            window.context.update.render |= WindowRenderUpdate::RenderUpdate;
                             ctx.updates.render_update();
                         }
                     }
@@ -1101,7 +1101,8 @@ impl AppExtension for WindowManager {
 
                     if matches!(args.cause, EventCause::System) {
                         // the view process is waiting a new frame or update, this will send one.
-                        window.context.update = WindowUpdates::all();
+                        window.context.update.layout = true;
+                        window.context.update.render = WindowRenderUpdate::Render;
                         window.pending_render = None;
                         ctx.updates.layout_and_render();
                     }
@@ -2210,7 +2211,7 @@ impl AppWindow {
             }
 
             // `on_render` will complete first_render.
-            self.context.update = WindowUpdates::render();
+            self.context.update.render = WindowRenderUpdate::Render;
             ctx.updates.render();
         } else if state.is_fullscreen() {
             // we already have the size, it is the monitor size (for Exclusive we are okay with a blink if the resolution does not match).
@@ -2227,18 +2228,20 @@ impl AppWindow {
             self.min_size = min_size;
             self.max_size = max_size;
 
-            self.context.update = WindowUpdates::render();
+            self.context.update.render = WindowRenderUpdate::Render;
             ctx.updates.render();
         } else {
             // we don't have the size, the maximized size needs to exclude window-chrome and non-client area.
-            self.context.update = WindowUpdates::all();
-            ctx.updates.layout();
-
-            // we do calculate the size as the "restore" size.
+            // but we do calculate the size as the "restore" size.
             let (size, min_size, max_size) = self.layout_size(ctx, false);
             self.size = size;
             self.min_size = min_size;
             self.max_size = max_size;
+
+            // and then will layout again once the window opens.
+            self.context.update.layout = true;
+            self.context.update.render = WindowRenderUpdate::Render;
+            ctx.updates.layout();
         }
 
         // open the view window, it will remain invisible until the first frame is rendered
@@ -2292,7 +2295,7 @@ impl AppWindow {
                 if self.size != data.size || self.context.update.layout {
                     self.size = data.size;
                     RawWindowResizedEvent.notify(ctx, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
-                    self.context.update = WindowUpdates::render();
+                    self.context.update.render = WindowRenderUpdate::Render;
                     ctx.updates.render();
 
                     let (size, min_size, max_size) = self.layout_size(ctx, true);
