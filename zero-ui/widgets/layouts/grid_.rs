@@ -418,7 +418,7 @@ pub mod row {
     }
 
     #[doc(hidden)]
-    pub fn new(child: impl UiNode, id: impl Into<WidgetId> + Clone) -> Definition {
+    pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> Definition {
         Definition {
             wgt: crate::core::widget_base::implicit_base::new(child, id).boxed_widget(),
         }
@@ -507,7 +507,7 @@ pub mod column {
     }
 
     #[doc(hidden)]
-    pub fn new(child: impl UiNode, id: impl Into<WidgetId> + Clone) -> Definition {
+    pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> Definition {
         Definition {
             wgt: crate::core::widget_base::implicit_base::new(child, id).boxed_widget(),
         }

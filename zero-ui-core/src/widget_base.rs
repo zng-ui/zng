@@ -3,8 +3,7 @@
 use std::{fmt, ops};
 
 use crate::event::EventUpdateArgs;
-use crate::var::{context_var, impl_from_and_into_var, IntoVar, WithVars, WithVarsRead};
-use crate::var::{Var, VarsRead};
+use crate::var::{context_var, impl_from_and_into_var, IntoValue, IntoVar, Var, VarsRead, WithVars, WithVarsRead};
 use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetOffset};
 use crate::{
     context::RenderContext,
@@ -32,7 +31,7 @@ pub mod implicit_base {
         ///
         /// Can also be set to an `&'static str` unique name.
         #[allowed_in_when = false]
-        id(impl Into<WidgetId> + Clone) = WidgetId::new_unique();
+        id(impl IntoValue<WidgetId>) = WidgetId::new_unique();
     }
 
     properties! {
@@ -124,7 +123,7 @@ pub mod implicit_base {
     /// [`WidgetContext::widget_context`]: crate::context::WidgetContext::widget_context
     /// [`LayoutContext::widget_context`]: crate::context::LayoutContext::widget_context
     /// [`FrameBuilder::push_widget`]: crate::render::FrameBuilder::push_widget
-    pub fn new(child: impl UiNode, id: impl Into<WidgetId>) -> impl Widget {
+    pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
         struct WidgetNode<T> {
             id: WidgetId,
             transform_key: WidgetTransformKey,

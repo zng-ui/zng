@@ -239,6 +239,52 @@ pub trait IntoVar<T: VarValue>: Clone {
     }
 }
 
+/// A property value that is not a variable but can be inspected.
+///
+/// Property inputs are usually of the type `impl IntoVar<T>` because most properties can handle input updates, some
+/// properties have a fixed value and can receive any other value type, a common pattern is receiving `impl Into<T>` in
+/// this case, but values of this type cannot be [inspected], only the type name will show in the inspector.
+///
+/// Implementers can instead use `impl IntoValue<T>`, it represents a type that can be cloned and converted into a [`Debug`]
+/// type that is the type expected by the property. In inspected builds this value is cloned and converted to the property type
+/// to collect the debug strings.
+///
+/// # Examples
+///
+/// The example property receives two flags `a` and `b`, the inspector will show the value of `a` but only the type of `b`.
+///
+/// ```
+/// # use zero_ui_core::*;
+/// #
+/// #[property(context, allowed_in_when = false)]
+/// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl Into<bool>) -> impl UiNode {
+///     struct FooNode<C> {
+///         child: C,
+///         a: bool,
+///         b: bool,
+///     }
+///
+/// # let _ =      
+///     FooNode {
+///         child,
+///         a: a.into(),
+///         b: b.into()
+///     }
+/// # ; child
+/// }
+/// ```
+///
+/// # Implementing
+///
+/// The trait is only auto-implemented for `T: Into<T> + Debug + Clone`, unfortunately actual type conversions
+/// must be manually implemented, note that the [`impl_from_and_into_var!`] macro auto-implements this conversion.
+///
+/// [inspected]: crate::inspector
+/// [`Debug`]: std::fmt::Debug
+/// [`impl_from_and_into_var`]: crate::var::impl_from_and_into_var
+pub trait IntoValue<T: fmt::Debug>: Into<T> + Clone {}
+impl<T: fmt::Debug + Clone> IntoValue<T> for T {}
+
 /// Represents an observable value.
 ///
 /// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
@@ -1442,13 +1488,13 @@ use crate::{
 #[doc(hidden)]
 pub use zero_ui_proc_macros::expr_var as __expr_var;
 
-///<span data-inline></span> Implements `U: From<T>` and `T: IntoVar<U>` without boilerplate.
+///<span data-inline></span> Implements `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` without boilerplate.
 ///
-/// Unfortunately we cannot provide a blanket impl of `IntoVar` for all `From` in Rust stable, because
+/// Unfortunately we cannot provide a blanket impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
 /// that would block all manual implementations of the trait, so you need to implement then manually to
 /// enable the easy-to-use properties that are expected.
 ///
-/// You can use this macro to implement both `U: From<T>` and `T: IntoVar<U>` at the same time.
+/// You can use this macro to implement both `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` at the same time.
 /// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`OwnedVar<U>`]
 /// type is selected for variables.
 ///
@@ -1678,6 +1724,8 @@ macro_rules! __impl_from_and_into_var {
                 $crate::var::OwnedVar(self.into())
             }
         }
+
+        impl $($generics)* $crate::var::IntoValue<$Output> for $Input { }
 
         // NEXT CONVERSION:
         $crate::__impl_from_and_into_var! {

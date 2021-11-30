@@ -119,9 +119,10 @@ impl fmt::Display for WidgetId {
         }
     }
 }
-impl From<&'static str> for WidgetId {
+
+crate::var::impl_from_and_into_var! {
     /// Calls [`WidgetId::named`].
-    fn from(name: &'static str) -> Self {
+    fn from(name: &'static str) -> WidgetId {
         WidgetId::named(name)
     }
 }

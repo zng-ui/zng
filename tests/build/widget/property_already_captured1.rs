@@ -2,14 +2,14 @@ use zero_ui::core::widget;
 
 #[widget($crate::test_widget)]
 pub mod test_widget {
-    use zero_ui::core::{NilUiNode, UiNode, WidgetId};
+    use zero_ui::core::{var::IntoValue, NilUiNode, UiNode, WidgetId};
 
-    fn new_child(id: impl Into<WidgetId>) -> NilUiNode {
+    fn new_child(id: impl IntoValue<WidgetId>) -> NilUiNode {
         let _ = id;
         NilUiNode
     }
 
-    fn new(child: impl UiNode, id: impl Into<WidgetId>) {
+    fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) {
         let _ = id;
     }
 }

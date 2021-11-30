@@ -856,7 +856,7 @@ impl PartialEq for ValueInfo {
 pub mod debug_var_util {
     use std::fmt::Debug;
 
-    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarValue};
+    use crate::var::{BoxedVar, IntoValue, IntoVar, OwnedVar, Var, VarValue};
 
     use super::ValueInfo;
 
@@ -873,16 +873,13 @@ pub mod debug_var_util {
         }
     }
 
-    pub trait IntoValue<T: VarValue>: Into<T> + Clone {}
-    impl<T: VarValue> IntoValue<T> for T {}
-
     //
-    // `&Wrap` - IntoValue<Debug>
+    // `&Wrap` - Into<Debug>
     //
-    pub trait FromIntoValue<T> {
+    pub trait FromIntoValueDebug<T> {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: VarValue, V: IntoValue<T>> FromIntoValue<T> for &Wrap<&V> {
+    impl<T: Debug, V: IntoValue<T>> FromIntoValueDebug<T> for &Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
             OwnedVar(ValueInfo::new(&self.0.clone().into())).boxed()
         }
@@ -926,7 +923,7 @@ pub mod debug_var_util {
 
     #[cfg(test)]
     mod tests {
-        use crate::var::Var;
+        use crate::var::{IntoValue, Var};
 
         macro_rules! debug_var_util_trick {
             ($value:expr) => {{
@@ -962,6 +959,20 @@ pub mod debug_var_util {
         }
 
         #[test]
+        pub fn from_into_value() {
+            fn value() -> impl IntoValue<bool> {
+                true
+            }
+            let value = value();
+
+            let r = debug_var_util_trick!(&value);
+
+            let ctx = TestWidgetContext::new();
+
+            assert_eq!("true", r.get(&ctx.vars).debug)
+        }
+
+        #[test]
         fn from_var() {
             use crate::var::var;
 
@@ -984,12 +995,7 @@ pub mod debug_var_util {
         fn from_debug() {
             let value = true;
 
-            #[allow(clippy::needless_borrow)]
-            let r = {
-                use crate::inspector::debug_var_util::*;
-                (&&&&&&Wrap(&value)).debug_var()
-            };
-            //let r = debug_var_util_trick!(&value);
+            let r = debug_var_util_trick!(&value);
 
             let ctx = TestWidgetContext::new();
 
@@ -1006,6 +1012,25 @@ pub mod debug_var_util {
             let ctx = TestWidgetContext::new();
 
             assert!(r.get(&ctx.vars).debug.contains("Foo"));
+        }
+
+        #[test]
+        pub fn from_into_problem() {
+            use crate::inspector::ValueInfo;
+            use crate::{NilUiNode, RcNode, UiNode};
+
+            // `RcNode` is not Debug but matches `<T: Debug, V: Into<V> + Clone>` anyway.
+            fn value() -> RcNode<impl UiNode> {
+                RcNode::new(NilUiNode)
+            }
+            let value = value();
+            let expected = ValueInfo::new_type_name_only(&value).debug;
+
+            let r = debug_var_util_trick!(&value);
+
+            let ctx = TestWidgetContext::new();
+
+            assert_eq!(expected, r.get(&ctx.vars).debug)
         }
     }
 }
