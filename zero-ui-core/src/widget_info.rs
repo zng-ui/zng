@@ -46,7 +46,7 @@ impl WidgetOffset {
     /// the [`implicit_base::new`] function calls this method, custom implementation of `new` must
     /// either wrap its result on the implicit implementation or call this method directly.
     ///
-    /// [`implicit_base::new`]: crate::implicit_base::new
+    /// [`implicit_base::new`]: crate::widget_base::implicit_base::new
     pub fn with_widget(&mut self, outer_bounds: &BoundsRect, inner_bounds: &BoundsRect, final_size: PxSize, f: impl FnOnce(&mut Self)) {
         let wgt_bounds = PxRect::new(self.offset, final_size);
         outer_bounds.set(wgt_bounds);
@@ -61,6 +61,8 @@ impl WidgetOffset {
 
     /// Calls `f` with an added offset, every property that offsets its child node must
     /// call [`UiNode::arrange`] on the child inside `f`.
+    /// 
+    /// [`UiNode::arrange`]: crate::UiNode::arrange
     pub fn with_offset(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
         self.offset += offset;
         f(self);
@@ -77,7 +79,7 @@ impl WidgetOffset {
     /// Marks the widget *size* bounds, the [`implicit_base::new_inner`] function calls this method, custom implementations
     /// of `new_inner` must either wrap its result on the implicit implementation or call this method directly.
     ///
-    /// [`implicit_base::new_inner`]: crate::implicit_base::new_inner
+    /// [`implicit_base::new_inner`]: crate::widget_base::implicit_base::new_inner
     pub fn with_inner(&mut self, final_size: PxSize, f: impl FnOnce(&mut Self)) {
         f(self);
         self.inner_bounds = PxRect::new(self.offset, final_size);
@@ -500,7 +502,7 @@ struct WidgetInfoInner {
     meta: OwnedStateMap,
 }
 
-/// Reference to a widget info in a [`FrameInfo`].
+/// Reference to a widget info in a [`WidgetInfoTree`].
 #[derive(Clone, Copy)]
 pub struct WidgetInfo<'a> {
     tree: &'a WidgetInfoTree,

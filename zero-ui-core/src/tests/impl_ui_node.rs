@@ -103,7 +103,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_measure(&mut ctx, l_size);
     assert_only_traced!(wgt.state(), "measure");
 
-    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(wgt.id()), l_size.to_px());
+    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), l_size.to_px());
     assert_only_traced!(wgt.state(), "arrange");
 
     let window_id = WindowId::new_unique();
@@ -206,7 +206,7 @@ pub fn default_no_child() {
     assert_eq!(desired_size, PxSize::zero());
 
     // arrange does nothing, not really anything to test.
-    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(wgt.id()), desired_size);
+    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), desired_size);
 
     // we expect default to not render anything.
     let window_id = WindowId::new_unique();

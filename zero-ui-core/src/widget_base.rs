@@ -80,7 +80,7 @@ pub mod implicit_base {
         child
     }
 
-    /// Returns a node that wraps `child` and marks the [`WidgetOffset::with_bounds`].
+    /// Returns a node that wraps `child` and marks the [`WidgetOffset::with_inner`].
     pub fn new_inner(child: impl UiNode) -> impl UiNode {
         struct WidgetInnerBoundsNode<T> {
             child: T,

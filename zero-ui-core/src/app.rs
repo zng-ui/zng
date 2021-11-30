@@ -1493,12 +1493,12 @@ impl HeadlessApp {
     /// a headless renderer in units tests.
     ///
     /// Note that [`UiNode::render`] is still called when a renderer is disabled and you can still
-    /// query the latest frame from [`Windows::frame_info`]. The only thing that
+    /// query the latest frame from [`Windows::widget_tree`]. The only thing that
     /// is disabled is WebRender and the generation of frame textures.
     ///
     /// [frame pixels]: crate::window::Windows::frame_image
     /// [`UiNode::render`]: crate::UiNode::render
-    /// [`Windows::frame_info`]: crate::window::Windows::frame_info
+    /// [`Windows::widget_tree`]: crate::window::Windows::widget_tree
     pub fn renderer_enabled(&mut self) -> bool {
         self.ctx().services.get::<ViewProcess>().is_some()
     }
