@@ -105,7 +105,7 @@ impl fmt::Debug for WidgetId {
         } else if !name.is_empty() {
             write!(f, "WidgetId({:?})", name)
         } else {
-            write!(f, "WidgetId({:x})", self.sequential())
+            write!(f, "WidgetId({})", self.sequential())
         }
     }
 }
