@@ -92,7 +92,7 @@ pub mod implicit_base {
                 widget_offset.with_inner(final_size, |wo| self.child.arrange(ctx, wo, final_size))
             }
         }
-        child
+        WidgetInnerBoundsNode { child }
     }
 
     /// No-op, returns `child`.
@@ -131,7 +131,7 @@ pub mod implicit_base {
             state: OwnedStateMap,
             child: T,
             outer_bounds: BoundsRect,
-            bounds: BoundsRect,
+            inner_bounds: BoundsRect,
             #[cfg(debug_assertions)]
             inited: bool,
         }
@@ -150,6 +150,19 @@ pub mod implicit_base {
                 {
                     self.inited = true;
                 }
+            }
+            #[inline(always)]
+            fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+                #[cfg(debug_assertions)]
+                if !self.inited {
+                    tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", self.id);
+                }
+
+                ctx.with_widget(self.id, &self.state, |ctx| {
+                    info.push_widget(self.id, self.outer_bounds.clone(), self.inner_bounds.clone(), |info| {
+                        self.child.info(ctx, info)
+                    });
+                });
             }
             #[inline(always)]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -205,8 +218,6 @@ pub mod implicit_base {
             }
             #[inline(always)]
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-                self.outer_bounds.set_size(final_size);
-
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
@@ -216,19 +227,8 @@ pub mod implicit_base {
 
                 let child = &mut self.child;
                 ctx.with_widget(self.id, &mut self.state, |ctx| {
-                    child.arrange(ctx, widget_offset, final_size);
-                });
-            }
-            #[inline(always)]
-            fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", self.id);
-                }
-
-                ctx.with_widget(self.id, &self.state, |ctx| {
-                    info.push_widget(self.id, self.outer_bounds.clone(), self.bounds.clone(), |info| {
-                        self.child.info(ctx, info)
+                    widget_offset.with_widget(self.id, &self.outer_bounds, &self.inner_bounds, final_size, |wo| {
+                        child.arrange(ctx, wo, final_size);
                     });
                 });
             }
@@ -282,7 +282,7 @@ pub mod implicit_base {
             state: OwnedStateMap::default(),
             child,
             outer_bounds: BoundsRect::new(),
-            bounds: BoundsRect::new(),
+            inner_bounds: BoundsRect::new(),
             #[cfg(debug_assertions)]
             inited: false,
         }

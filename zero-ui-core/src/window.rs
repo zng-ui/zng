@@ -887,6 +887,9 @@ event_args! {
         /// Window ID.
         pub window_id: WindowId,
 
+        /// New widget tree.
+        pub tree: WidgetInfoTree,
+
         ..
 
         /// If the widget is in the same window.
@@ -1914,7 +1917,8 @@ impl AppWindow {
 
             self.context.init(ctx);
             let tree = self.context.info(ctx);
-            ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree;
+            ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
+            WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id, tree));
             self.first_update = false;
         } else {
             let _s = tracing::trace_span!("window.on_update", window = %self.id.sequential()).entered();
@@ -1924,8 +1928,8 @@ impl AppWindow {
             if self.context.update.info {
                 let _s = tracing::trace_span!("window.info", window = %self.id.sequential()).entered();
                 let tree = self.context.info(ctx);
-                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree;
-                WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id));
+                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
+                WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id, tree));
             }
 
             if self.vars.size().is_new(ctx)
@@ -2432,13 +2436,9 @@ impl AppWindow {
 
         let root_font_size = Length::pt_to_px(14.0, scr_factor);
 
-        let final_size = self.context.layout(
-            ctx,
-            root_font_size,
-            scr_factor,
-            scr_ppi,
-            scr_size.to_px(scr_factor.0),
-            |desired_size| {
+        let final_size = self
+            .context
+            .layout(ctx, root_font_size, scr_factor, scr_ppi, available_size, |desired_size| {
                 let mut final_size = available_size;
                 if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                     final_size.width = desired_size.width.max(min_size.width).min(available_size.width);
@@ -2447,8 +2447,9 @@ impl AppWindow {
                     final_size.height = desired_size.height.max(min_size.height).min(available_size.height);
                 }
                 final_size
-            },
-        );
+            });
+
+        self.context.root_bounds.set_size(final_size.to_px(scr_factor.0));
 
         (final_size, min_size.to_dip(scr_factor.0), max_size.to_dip(scr_factor.0))
     }
@@ -2735,7 +2736,7 @@ impl OwnedWindowContext {
                 |ctx| {
                     let desired_size = child.measure(ctx, AvailableSize::finite(available_size));
                     let final_size = calc_final_size(desired_size);
-                    child.arrange(ctx, &mut WidgetOffset::new(), final_size);
+                    child.arrange(ctx, &mut WidgetOffset::new(root.id), final_size);
                     final_size
                 },
             )

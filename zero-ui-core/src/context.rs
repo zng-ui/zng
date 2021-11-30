@@ -1183,6 +1183,12 @@ impl WidgetContextPath {
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.widget_ids.iter().any(move |&w| w == widget_id)
     }
+
+    /// Returns `true` if the current widget is the window.
+    #[inline]
+    pub fn is_root(&self) -> bool {
+        self.widget_ids.len() == 1
+    }
 }
 impl fmt::Debug for WidgetContextPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

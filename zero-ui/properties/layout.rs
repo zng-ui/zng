@@ -67,7 +67,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_size: PxSize) {
             final_size -= self.size_increment;
-            self.child.arrange(ctx, widget_offset, final_size);
+            widget_offset.with_offset(self.child_origin.to_vector(), |wo| self.child.arrange(ctx, wo, final_size));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

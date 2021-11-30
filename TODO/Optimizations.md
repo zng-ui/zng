@@ -76,3 +76,9 @@ fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
       }
 }
 ```
+
+# Startup
+
+* NVIDIA OpenGL takes 200ms! to startup.
+* First render is also slow.
+* We block the app process waiting view-process startup.

@@ -1,5 +1,6 @@
 //! Common widgets.
 
+pub mod inspector;
 pub mod layouts;
 pub mod mixins;
 

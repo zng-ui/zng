@@ -19,6 +19,43 @@ unique_id_64! {
     struct WidgetInfoTreeId;
 }
 
+#[cfg(debug_assertions)]
+enum WidgetOffsetState {
+    Widget,
+    InnerOpen,
+    InnerClosed,
+}
+#[cfg(debug_assertions)]
+impl WidgetOffsetState {
+    fn enter_widget(&mut self, parent_id: WidgetId) {
+        if let Self::Widget = self {
+            tracing::error!(
+                "widget `{}` did not call `WidgetOffset::with_inner` before arranging child",
+                parent_id
+            );
+        }
+        *self = Self::Widget;
+    }
+
+    fn enter_inner(&mut self, widget_id: WidgetId) {
+        if !matches!(self, Self::Widget) {
+            tracing::error!(
+                "widget `{}` called `WidgetOffset::with_inner` more then once or a child widget did not call `WidgetOffset::with_widget`",
+                widget_id
+            )
+        }
+        *self = Self::InnerOpen;
+    }
+
+    fn exit_inner(&mut self) {
+        *self = Self::InnerClosed;
+    }
+
+    fn exit_widget(&mut self) {
+        *self = Self::Widget;
+    }
+}
+
 /// Helper for computing widget bounds during [`UiNode::arrange`].
 ///
 /// Widget bounds are kept up-to-date in [`WidgetInfo`], properties that offset their child nodes must
@@ -30,15 +67,21 @@ unique_id_64! {
 /// [`with_offset`]: WidgetOffset::with_offset
 /// [`with_inner`]: WidgetOffset::with_inner
 pub struct WidgetOffset {
+    id: WidgetId,
     offset: PxPoint,
-    bounds: PxRect,
+    inner_bounds: PxRect,
+    #[cfg(debug_assertions)]
+    state: WidgetOffsetState,
 }
 impl WidgetOffset {
-    /// New default.
-    pub(crate) fn new() -> Self {
+    /// New root.
+    pub(crate) fn new(root_id: WidgetId) -> Self {
         WidgetOffset {
+            id: root_id,
             offset: PxPoint::zero(),
-            bounds: PxRect::zero(),
+            inner_bounds: PxRect::zero(),
+            #[cfg(debug_assertions)]
+            state: WidgetOffsetState::Widget,
         }
     }
 
@@ -47,16 +90,35 @@ impl WidgetOffset {
     /// either wrap its result on the implicit implementation or call this method directly.
     ///
     /// [`implicit_base::new`]: crate::implicit_base::new
-    pub fn with_widget(&mut self, outer_bounds: &BoundsRect, inner_bounds: &BoundsRect, final_size: PxSize, f: impl FnOnce(&mut Self)) {
-        let parent_bounds = self.bounds;
+    pub fn with_widget(
+        &mut self,
+        id: WidgetId,
+        outer_bounds: &BoundsRect,
+        inner_bounds: &BoundsRect,
+        final_size: PxSize,
+        f: impl FnOnce(&mut Self),
+    ) {
+        let parent_id = self.id;
 
-        self.bounds = PxRect::new(self.offset, final_size);
-        outer_bounds.set(self.bounds);
+        #[cfg(debug_assertions)]
+        self.state.enter_widget(parent_id);
+
+        self.id = id;
+
+        let wgt_bounds = PxRect::new(self.offset, final_size);
+        outer_bounds.set(wgt_bounds);
 
         f(self);
 
-        inner_bounds.set(self.bounds);
-        self.bounds = parent_bounds;
+        inner_bounds.set(self.inner_bounds);
+
+        // we are the inner-bounds of parent too if it did not set one.
+        self.inner_bounds = wgt_bounds;
+
+        self.id = parent_id;
+
+        #[cfg(debug_assertions)]
+        self.state.exit_widget();
     }
 
     /// Calls `f` with an added offset, every property that offsets its child node must
@@ -79,9 +141,14 @@ impl WidgetOffset {
     ///
     /// [`implicit_base::new_inner`]: crate::implicit_base::new_inner
     pub fn with_inner(&mut self, final_size: PxSize, f: impl FnOnce(&mut Self)) {
-        self.bounds.origin = self.offset;
-        self.bounds.size = final_size;
+        #[cfg(debug_assertions)]
+        self.state.enter_inner(self.id);
+
         f(self);
+        self.inner_bounds = PxRect::new(self.offset, final_size);
+
+        #[cfg(debug_assertions)]
+        self.state.exit_inner();
     }
 }
 
@@ -207,12 +274,12 @@ impl WidgetInfoBuilder {
         #[cfg(not(debug_assertions))]
         let lookup = valid_nodes.collect();
 
-        let r = WidgetInfoTree {
+        let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
             id: WidgetInfoTreeId::new_unique(),
             window_id: self.window_id,
             lookup,
             tree: self.tree,
-        };
+        }));
 
         #[cfg(debug_assertions)]
         for (widget_id, repeats) in repeats {
@@ -229,17 +296,21 @@ impl WidgetInfoBuilder {
         }
 
         let cap = UsedWidgetInfoBuilder {
-            capacity: r.lookup.capacity(),
+            capacity: r.0.lookup.capacity(),
         };
 
         (r, cap)
     }
 }
 
-/// Owned tree of [`WidgetInfo`].
+/// A tree of [`WidgetInfo`].
+///
+/// The tree is behind an `Rc` pointer so cloning and storing this type is very cheap.
 ///
 /// Instantiated using [`WidgetInfoBuilder`].
-pub struct WidgetInfoTree {
+#[derive(Clone)]
+pub struct WidgetInfoTree(Rc<WidgetInfoTreeInner>);
+struct WidgetInfoTreeInner {
     id: WidgetInfoTreeId,
     window_id: WindowId,
     tree: Tree<WidgetInfoInner>,
@@ -255,33 +326,34 @@ impl WidgetInfoTree {
     /// Reference to the root widget in the tree.
     #[inline]
     pub fn root(&self) -> WidgetInfo {
-        WidgetInfo::new(self, self.tree.root().id())
+        WidgetInfo::new(self, self.0.tree.root().id())
     }
 
     /// All widgets including `root`.
     #[inline]
     pub fn all_widgets(&self) -> impl Iterator<Item = WidgetInfo> {
-        self.tree.root().descendants().map(move |n| WidgetInfo::new(self, n.id()))
+        self.0.tree.root().descendants().map(move |n| WidgetInfo::new(self, n.id()))
     }
 
     /// Id of the window that owns all widgets represented in the tree.
     #[inline]
     pub fn window_id(&self) -> WindowId {
-        self.window_id
+        self.0.window_id
     }
 
     /// Reference to the widget in the tree, if it is present.
     #[inline]
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
-        self.lookup
+        self.0
+            .lookup
             .get(&widget_id)
-            .and_then(|i| self.tree.get(*i).map(|n| WidgetInfo::new(self, n.id())))
+            .and_then(|i| self.0.tree.get(*i).map(|n| WidgetInfo::new(self, n.id())))
     }
 
     /// If the tree contains the widget.
     #[inline]
     pub fn contains(&self, widget_id: WidgetId) -> bool {
-        self.lookup.contains_key(&widget_id)
+        self.0.lookup.contains_key(&widget_id)
     }
 
     /// Reference to the widget in the tree, if it is present.
@@ -290,8 +362,8 @@ impl WidgetInfoTree {
     #[inline]
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetInfo> {
         if let Some((tree_id, id)) = path.node_id {
-            if tree_id == self.id {
-                return self.tree.get(id).map(|n| WidgetInfo::new(self, n.id()));
+            if tree_id == self.0.id {
+                return self.0.tree.get(id).map(|n| WidgetInfo::new(self, n.id()));
             }
         }
 
@@ -303,6 +375,20 @@ impl WidgetInfoTree {
     pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetInfo> {
         self.get(path)
             .or_else(|| path.ancestors().iter().rev().find_map(|&id| self.find(id)))
+    }
+}
+impl fmt::Debug for WidgetInfoTree {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let nl = if f.alternate() { "\n   " } else { " " };
+
+        write!(
+            f,
+            "WidgetInfoTree(Rc<{{{nl}id: {},{nl}window_id: {},{nl}widget_count: {},{nl}...}}>)",
+            self.0.id.sequential(),
+            self.0.window_id,
+            self.0.lookup.len(),
+            nl = nl
+        )
     }
 }
 
@@ -516,7 +602,7 @@ impl<'a> WidgetInfo<'a> {
 
     #[inline]
     fn node(&self) -> ego_tree::NodeRef<'a, WidgetInfoInner> {
-        unsafe { self.tree.tree.get_unchecked(self.node_id) }
+        unsafe { self.tree.0.tree.get_unchecked(self.node_id) }
     }
 
     #[inline]
@@ -538,8 +624,8 @@ impl<'a> WidgetInfo<'a> {
         path.push(self.widget_id());
 
         WidgetPath {
-            window_id: self.tree.window_id,
-            node_id: Some((self.tree.id, self.node_id)),
+            window_id: self.tree.0.window_id,
+            node_id: Some((self.tree.0.id, self.node_id)),
             path: path.into(),
         }
     }

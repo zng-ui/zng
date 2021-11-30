@@ -32,6 +32,8 @@ fn app_main() {
                     }
                 ];
             };
+            // zero_ui::widgets::inspector::show_center_points = true;
+            // zero_ui::widgets::inspector::show_bounds = true;
         }
     })
 }

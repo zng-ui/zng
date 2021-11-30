@@ -1057,7 +1057,8 @@ pub struct WriteFrameState {
     widgets: IdMap<WidgetInstanceId, WriteWidgetState>,
 }
 struct WriteWidgetState {
-    outer_size: PxSize,
+    outer_bounds: PxRect,
+    inner_bounds: PxRect,
     /// [(property_name, arg_name) => (value_version, value)]
     properties: HashMap<(&'static str, &'static str), (u32, ValueInfo)>,
 }
@@ -1096,7 +1097,8 @@ impl WriteFrameState {
                 widgets.insert(
                     info.instance_id,
                     WriteWidgetState {
-                        outer_size: w.inner_bounds().size,
+                        outer_bounds: w.outer_bounds(),
+                        inner_bounds: w.inner_bounds(),
                         properties,
                     },
                 );
@@ -1124,11 +1126,23 @@ impl WriteFrameState {
         None
     }
 
-    /// Gets the change in the widget outer size.
-    pub fn outer_size_diff(&self, widget_id: WidgetInstanceId, outer_size: PxSize) -> Option<WriteArgDiff> {
+    /// Gets the change in the widget outer-bounds.
+    pub fn outer_bounds_diff(&self, widget_id: WidgetInstanceId, outer_bounds: PxRect) -> Option<WriteArgDiff> {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
-                if wgt_state.outer_size != outer_size {
+                if wgt_state.outer_bounds != outer_bounds {
+                    return Some(WriteArgDiff::NewValue);
+                }
+            }
+        }
+        None
+    }
+
+    /// Gets the change in the widget inner-bounds.
+    pub fn inner_bounds_diff(&self, widget_id: WidgetInstanceId, inner_bounds: PxRect) -> Option<WriteArgDiff> {
+        if !self.is_none() {
+            if let Some(wgt_state) = self.widgets.get(&widget_id) {
+                if wgt_state.inner_bounds != inner_bounds {
                     return Some(WriteArgDiff::NewValue);
                 }
             }
@@ -1213,20 +1227,36 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
         }
 
         fmt.writeln();
+
         fmt.write_property(
             (".layout", false),
-            ".outer_size",
+            ".inner_bounds",
             {
-                let size = widget.inner_bounds().size;
+                let bounds = widget.inner_bounds();
                 &ValueInfo {
-                    debug: formatx!("({}, {})", size.width, size.height),
-                    debug_alt: formatx!("LayoutSize {{\n    width: {},\n     height: {}\n}}", size.width, size.height),
-                    type_name: std::any::type_name::<PxSize>().into(),
+                    debug: formatx!("{:?}", bounds),
+                    debug_alt: formatx!("{:#?}", bounds),
+                    type_name: std::any::type_name::<PxRect>().into(),
                 }
             },
             false,
             true,
-            updates_from.outer_size_diff(wgt.instance_id, widget.inner_bounds().size),
+            updates_from.inner_bounds_diff(wgt.instance_id, widget.inner_bounds()),
+        );
+        fmt.write_property(
+            (".layout", false),
+            ".outer_bounds",
+            {
+                let bounds = widget.outer_bounds();
+                &ValueInfo {
+                    debug: formatx!("{:?}", bounds),
+                    debug_alt: formatx!("{:#?}", bounds),
+                    type_name: std::any::type_name::<PxRect>().into(),
+                }
+            },
+            false,
+            true,
+            updates_from.outer_bounds_diff(wgt.instance_id, widget.outer_bounds()),
         );
 
         for child in widget.children() {
