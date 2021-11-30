@@ -19,43 +19,6 @@ unique_id_64! {
     struct WidgetInfoTreeId;
 }
 
-#[cfg(debug_assertions)]
-enum WidgetOffsetState {
-    Widget,
-    InnerOpen,
-    InnerClosed,
-}
-#[cfg(debug_assertions)]
-impl WidgetOffsetState {
-    fn enter_widget(&mut self, parent_id: WidgetId) {
-        if let Self::Widget = self {
-            tracing::error!(
-                "widget `{}` did not call `WidgetOffset::with_inner` before arranging child",
-                parent_id
-            );
-        }
-        *self = Self::Widget;
-    }
-
-    fn enter_inner(&mut self, widget_id: WidgetId) {
-        if !matches!(self, Self::Widget) {
-            tracing::error!(
-                "widget `{}` called `WidgetOffset::with_inner` more then once or a child widget did not call `WidgetOffset::with_widget`",
-                widget_id
-            )
-        }
-        *self = Self::InnerOpen;
-    }
-
-    fn exit_inner(&mut self) {
-        *self = Self::InnerClosed;
-    }
-
-    fn exit_widget(&mut self) {
-        *self = Self::Widget;
-    }
-}
-
 /// Helper for computing widget bounds during [`UiNode::arrange`].
 ///
 /// Widget bounds are kept up-to-date in [`WidgetInfo`], properties that offset their child nodes must
@@ -67,21 +30,15 @@ impl WidgetOffsetState {
 /// [`with_offset`]: WidgetOffset::with_offset
 /// [`with_inner`]: WidgetOffset::with_inner
 pub struct WidgetOffset {
-    id: WidgetId,
     offset: PxPoint,
     inner_bounds: PxRect,
-    #[cfg(debug_assertions)]
-    state: WidgetOffsetState,
 }
 impl WidgetOffset {
     /// New root.
-    pub(crate) fn new(root_id: WidgetId) -> Self {
+    pub(crate) fn new() -> Self {
         WidgetOffset {
-            id: root_id,
             offset: PxPoint::zero(),
             inner_bounds: PxRect::zero(),
-            #[cfg(debug_assertions)]
-            state: WidgetOffsetState::Widget,
         }
     }
 
@@ -90,21 +47,7 @@ impl WidgetOffset {
     /// either wrap its result on the implicit implementation or call this method directly.
     ///
     /// [`implicit_base::new`]: crate::implicit_base::new
-    pub fn with_widget(
-        &mut self,
-        id: WidgetId,
-        outer_bounds: &BoundsRect,
-        inner_bounds: &BoundsRect,
-        final_size: PxSize,
-        f: impl FnOnce(&mut Self),
-    ) {
-        let parent_id = self.id;
-
-        #[cfg(debug_assertions)]
-        self.state.enter_widget(parent_id);
-
-        self.id = id;
-
+    pub fn with_widget(&mut self, outer_bounds: &BoundsRect, inner_bounds: &BoundsRect, final_size: PxSize, f: impl FnOnce(&mut Self)) {
         let wgt_bounds = PxRect::new(self.offset, final_size);
         outer_bounds.set(wgt_bounds);
 
@@ -114,11 +57,6 @@ impl WidgetOffset {
 
         // we are the inner-bounds of parent too if it did not set one.
         self.inner_bounds = wgt_bounds;
-
-        self.id = parent_id;
-
-        #[cfg(debug_assertions)]
-        self.state.exit_widget();
     }
 
     /// Calls `f` with an added offset, every property that offsets its child node must
@@ -141,14 +79,8 @@ impl WidgetOffset {
     ///
     /// [`implicit_base::new_inner`]: crate::implicit_base::new_inner
     pub fn with_inner(&mut self, final_size: PxSize, f: impl FnOnce(&mut Self)) {
-        #[cfg(debug_assertions)]
-        self.state.enter_inner(self.id);
-
         f(self);
         self.inner_bounds = PxRect::new(self.offset, final_size);
-
-        #[cfg(debug_assertions)]
-        self.state.exit_inner();
     }
 }
 

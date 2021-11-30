@@ -145,7 +145,7 @@ pub mod window {
 
         /// Unique identifier of the window root widget.
         #[allowed_in_when = false]
-        root_id(WidgetId) = WidgetId::new_unique();
+        root_id(impl IntoValue<WidgetId>) = WidgetId::new_unique();
 
         /// Windows are focus scopes by default.
         focus_scope = true;
@@ -379,11 +379,11 @@ pub mod window {
     #[allow(clippy::too_many_arguments)]
     fn new(
         child: impl UiNode,
-        root_id: WidgetId,
-        start_position: impl Into<StartPosition>,
+        root_id: impl IntoValue<WidgetId>,
+        start_position: impl IntoValue<StartPosition>,
         kiosk: bool,
         allow_transparency: bool,
-        headless_monitor: impl Into<HeadlessMonitor>,
+        headless_monitor: impl IntoValue<HeadlessMonitor>,
     ) -> Window {
         Window::new(root_id, start_position, kiosk, allow_transparency, headless_monitor, child)
     }

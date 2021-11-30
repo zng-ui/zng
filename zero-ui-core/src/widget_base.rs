@@ -226,7 +226,7 @@ pub mod implicit_base {
 
                 let child = &mut self.child;
                 ctx.with_widget(self.id, &mut self.state, |ctx| {
-                    widget_offset.with_widget(self.id, &self.outer_bounds, &self.inner_bounds, final_size, |wo| {
+                    widget_offset.with_widget(&self.outer_bounds, &self.inner_bounds, final_size, |wo| {
                         child.arrange(ctx, wo, final_size);
                     });
                 });

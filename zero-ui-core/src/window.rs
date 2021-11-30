@@ -39,7 +39,7 @@ use crate::{
     text::{Text, TextAntiAliasing, ToText},
     units::*,
     var::Vars,
-    var::{response_var, var, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
+    var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
     widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetOffset},
     BoxedUiNode, UiNode, WidgetId,
 };
@@ -255,16 +255,16 @@ impl Window {
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        root_id: WidgetId,
-        start_position: impl Into<StartPosition>,
+        root_id: impl IntoValue<WidgetId>,
+        start_position: impl IntoValue<StartPosition>,
         kiosk: bool,
         transparent: bool,
-        headless_monitor: impl Into<HeadlessMonitor>,
+        headless_monitor: impl IntoValue<HeadlessMonitor>,
         child: impl UiNode,
     ) -> Self {
         Window {
             state: OwnedStateMap::default(),
-            id: root_id,
+            id: root_id.into(),
             kiosk,
             transparent,
             start_position: start_position.into(),
@@ -2736,7 +2736,7 @@ impl OwnedWindowContext {
                 |ctx| {
                     let desired_size = child.measure(ctx, AvailableSize::finite(available_size));
                     let final_size = calc_final_size(desired_size);
-                    child.arrange(ctx, &mut WidgetOffset::new(root.id), final_size);
+                    child.arrange(ctx, &mut WidgetOffset::new(), final_size);
                     final_size
                 },
             )
