@@ -109,7 +109,7 @@ fn test_trace(node: impl UiNode) {
     let window_id = WindowId::new_unique();
     let mut info = WidgetInfoBuilder::new(window_id, wgt.id(), BoundsRect::from_size(l_size.to_px()), None);
     wgt.test_info(&mut ctx, &mut info);
-    assert_only_traced!(wgt.state(), "frame_info");
+    assert_only_traced!(wgt.state(), "info");
 
     let root_transform_key = WidgetTransformKey::new_unique();
     let mut frame = FrameBuilder::new_renderless(
@@ -208,7 +208,7 @@ pub fn default_no_child() {
     // arrange does nothing, not really anything to test.
     wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), desired_size);
 
-    // we expect default to not render anything.
+    // we expect default to not render anything (except a hit-rect for the window).
     let window_id = WindowId::new_unique();
 
     let mut info = WidgetInfoBuilder::new(window_id, wgt.id(), BoundsRect::from_size(desired_size), None);
@@ -230,10 +230,9 @@ pub fn default_no_child() {
     );
 
     wgt.test_render(&mut ctx, &mut frame);
-    let (build_frame, _) = frame.finalize();
-    assert!(build_frame.display_list.0.items_data.is_empty());
+    let (_, _) = frame.finalize();
 
-    // and not update render..
+    // and not update render.
     let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK, None);
     wgt.test_render_update(&mut ctx, &mut update);
     let (update, _) = update.finalize();

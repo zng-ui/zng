@@ -134,8 +134,6 @@ pub struct FrameBuilder {
     clip_id: ClipId,
     spatial_id: SpatialId,
     parent_spatial_id: SpatialId,
-
-    offset: PxPoint,
 }
 bitflags! {
     struct WidgetDisplayMode: u8 {
@@ -207,7 +205,6 @@ impl FrameBuilder {
             clip_id: ClipId::root(pipeline_id),
             spatial_id,
             parent_spatial_id: spatial_id,
-            offset: PxPoint::zero(),
         };
         new.push_widget_hit_area(root_id, root_size);
         new.widget_stack_ctx_data = Some((RenderTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
@@ -691,14 +688,10 @@ impl FrameBuilder {
             key,
         );
 
-        let offset = origin.to_vector();
-        self.offset += offset;
-
         f(self);
 
         self.display_list.pop_reference_frame();
         self.spatial_id = parent_spatial_id;
-        self.offset -= offset;
     }
 
     /// Calls `f` inside a new reference frame transformed by `transform`.
