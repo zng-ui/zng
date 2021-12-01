@@ -2789,7 +2789,7 @@ impl OwnedWindowContext {
             builder
         });
 
-        let (frame, used) = builder.finalize();
+        let (frame, used) = builder.finalize(&self.root_rendered);
         self.used_frame_builder = Some(used);
         frame
     }

@@ -1101,8 +1101,10 @@ impl FrameBuilder {
     /// `(PipelineId, BuiltDisplayList)` : The display list finalize data.
     /// `RenderColor`: The clear color.
     /// `FrameInfo`: The built frame info.
-    pub fn finalize(mut self) -> (BuiltFrame, UsedFrameBuilder) {
+    pub fn finalize(mut self, root_rendered: &WidgetRendered) -> (BuiltFrame, UsedFrameBuilder) {
         self.close_widget_display();
+
+        root_rendered.set(self.widget_rendered);
 
         let (pipeline_id, display_list) = self.display_list.end();
         let (payload, descriptor) = display_list.into_data();

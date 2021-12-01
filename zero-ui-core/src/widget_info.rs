@@ -631,17 +631,28 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Returns true if the widget or the widget's descendents rendered in the last frame.
+    /// Returns `true` if the widget or the widget's descendants rendered in the last frame.
     ///
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
     /// [`render`]: crate::UiNode::render
     #[inline]
     pub fn rendered(self) -> bool {
-        self.info().rendered.get()
+        // widgets that don't render tend to not call `UiNode::render` on children,
+        // so we need to check all parents because our flag can be out-of-date.
+        self.info().rendered.get() && self.ancestors().all(|p| p.info().rendered.get())
     }
 
-    /// Compute the visibility of the widget or the widget's descendents.
+    /// Compute the visibility of the widget or the widget's descendants.
+    ///
+    /// If is [`rendered`] is [`Visible`], if not and the [`outer_bounds`] size is zero then is [`Collapsed`] else
+    /// is [`Hidden`].
+    /// 
+    /// [`rendered`]: Self::rendered
+    /// [`Visible`]: Visibility::Visible
+    /// [`outer_bounds`]: Self::outer_bounds
+    /// [`Collapsed`]: Visibility::Collapsed
+    /// [`Hidden`]: Visibility::Hidden
     #[inline]
     pub fn visibility(self) -> Visibility {
         if self.rendered() {
