@@ -21,7 +21,7 @@ use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 pub mod implicit_base {
     use crate::{
         context::{OwnedStateMap, RenderContext},
-        widget_info::{BoundsRect, WidgetOffset},
+        widget_info::{BoundsRect, WidgetOffset, WidgetRendered},
     };
 
     use super::*;
@@ -131,6 +131,7 @@ pub mod implicit_base {
             child: T,
             outer_bounds: BoundsRect,
             inner_bounds: BoundsRect,
+            rendered: WidgetRendered,
             #[cfg(debug_assertions)]
             inited: bool,
         }
@@ -158,9 +159,13 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    info.push_widget(self.id, self.outer_bounds.clone(), self.inner_bounds.clone(), |info| {
-                        self.child.info(ctx, info)
-                    });
+                    info.push_widget(
+                        self.id,
+                        self.outer_bounds.clone(),
+                        self.inner_bounds.clone(),
+                        self.rendered.clone(),
+                        |info| self.child.info(ctx, info),
+                    );
                 });
             }
             #[inline(always)]
@@ -239,7 +244,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    frame.push_widget(self.id, self.transform_key, self.outer_bounds.get().size, |frame| {
+                    frame.push_widget(self.id, self.transform_key, self.outer_bounds.get().size, &self.rendered, |frame| {
                         self.child.render(ctx, frame)
                     });
                 });
@@ -282,6 +287,7 @@ pub mod implicit_base {
             child,
             outer_bounds: BoundsRect::new(),
             inner_bounds: BoundsRect::new(),
+            rendered: WidgetRendered::new(),
             #[cfg(debug_assertions)]
             inited: false,
         }

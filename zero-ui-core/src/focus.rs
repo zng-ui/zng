@@ -86,7 +86,7 @@ use crate::{
     service::Service,
     units::*,
     var::impl_from_and_into_var,
-    widget_base::WidgetEnabledExt,
+    widget_base::{Visibility, WidgetEnabledExt},
     widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
@@ -1525,7 +1525,7 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget focus metadata.
     #[inline]
     pub fn focus_info(self) -> FocusInfo {
-        if !self.info.enabled() {
+        if self.info.visibility() != Visibility::Visible || !self.info.enabled() {
             FocusInfo::NotFocusable
         } else if let Some(builder) = self.info.meta().get(FocusInfoKey) {
             builder.build()

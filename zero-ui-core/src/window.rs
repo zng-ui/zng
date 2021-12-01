@@ -40,7 +40,7 @@ use crate::{
     units::*,
     var::Vars,
     var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetOffset},
+    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetOffset, WidgetRendered},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -1853,7 +1853,8 @@ impl AppWindow {
             root_transform_key: WidgetTransformKey::new_unique(),
             state: wn_state,
             root,
-            root_bounds: BoundsRect::default(),
+            root_bounds: BoundsRect::new(),
+            root_rendered: WidgetRendered::new(),
             update: WindowUpdates::all(),
             prev_metrics: None,
             used_frame_info_builder: None,
@@ -2640,6 +2641,7 @@ struct OwnedWindowContext {
     state: OwnedStateMap,
     root: Window,
     root_bounds: BoundsRect,
+    root_rendered: WidgetRendered,
     update: WindowUpdates,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
@@ -2669,7 +2671,13 @@ impl OwnedWindowContext {
         let root_bounds = self.root_bounds.clone();
         let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
             let child = &root.child;
-            let mut builder = WidgetInfoBuilder::new(*ctx.window_id, root.id, root_bounds, self.used_frame_info_builder.take());
+            let mut builder = WidgetInfoBuilder::new(
+                *ctx.window_id,
+                root.id,
+                root_bounds,
+                self.root_rendered.clone(),
+                self.used_frame_info_builder.take(),
+            );
             ctx.render_context(root.id, &root.state, |ctx| {
                 child.info(ctx, &mut builder);
             });

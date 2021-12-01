@@ -9,6 +9,7 @@ use crate::{
     gradient::{RenderExtendMode, RenderGradientStop},
     units::*,
     var::impl_from_and_into_var,
+    widget_info::WidgetRendered,
     window::{CursorIcon, WindowId},
     UiNode, WidgetId,
 };
@@ -124,6 +125,7 @@ pub struct FrameBuilder {
     display_list: DisplayListBuilder,
 
     widget_id: WidgetId,
+    widget_rendered: bool,
     widget_transform_key: WidgetTransformKey,
     widget_stack_ctx_data: Option<(RenderTransform, Vec<FilterOp>, PrimitiveFlags)>,
     cancel_widget: bool,
@@ -197,6 +199,7 @@ impl FrameBuilder {
             display_list,
             clear_color: None,
             widget_id: root_id,
+            widget_rendered: false,
             widget_transform_key: root_transform_key,
             widget_stack_ctx_data: None,
             cancel_widget: false,
@@ -259,6 +262,8 @@ impl FrameBuilder {
     /// If [`is_cancelling_widget`] don't modify the display list and try to
     /// early return pretending the operation worked.
     ///
+    /// Call [`widget_rendered`] if you push anything to the display list.
+    ///
     /// # WebRender
     ///
     /// The [`webrender`] crate used in the renderer is re-exported in `zero_ui_core::render::webrender`, and the
@@ -268,11 +273,22 @@ impl FrameBuilder {
     /// [`clip_id`]: Self::clip_id
     /// [`spatial_id`]: Self::spatial_id
     /// [`is_cancelling_widget`]: Self::is_cancelling_widget
+    /// [`widget_rendered`]: Self::widget_rendered
     /// [`webrender`]: https://docs.rs/webrender
     /// [`webrender_api`]: https://docs.rs/webrender_api
     #[inline]
     pub fn display_list(&mut self) -> &mut DisplayListBuilder {
         &mut self.display_list
+    }
+
+    /// Indicates that something was rendered to [`display_list`].
+    ///
+    /// Note that only direct modification of [`display_list`] requires this method being called,
+    /// the other rendering methods of this builder already flag this.
+    ///
+    /// [`display_list`]: Self::display_list
+    pub fn widget_rendered(&mut self) {
+        self.widget_rendered = true;
     }
 
     /// If is building a frame for a headless and renderless window.
@@ -357,9 +373,12 @@ impl FrameBuilder {
 
     /// Common item properties given a `clip_rect` and the current context.
     ///
-    /// This is a common case helper, the `clip_rect` is not snapped to pixels.
+    /// This is a common case helper, it also calls [`widget_rendered`].
+    ///
+    /// [`widget_rendered`]: Self::widget_rendered
     #[inline]
-    pub fn common_item_ps(&self, clip_rect: PxRect) -> CommonItemProperties {
+    pub fn common_item_ps(&mut self, clip_rect: PxRect) -> CommonItemProperties {
+        self.widget_rendered();
         CommonItemProperties {
             clip_rect: clip_rect.to_wr(),
             clip_id: self.clip_id,
@@ -387,8 +406,8 @@ impl FrameBuilder {
     fn push_widget_hit_area(&mut self, id: WidgetId, area: PxSize) {
         self.open_widget_display();
 
-        self.display_list
-            .push_hit_test(&self.common_item_ps(PxRect::from_size(area)), (id.get(), WIDGET_HIT_AREA));
+        let common_item_ps = self.common_item_ps(PxRect::from_size(area));
+        self.display_list.push_hit_test(&common_item_ps, (id.get(), WIDGET_HIT_AREA));
     }
 
     /// Includes a widget transform and continues the render build.
@@ -549,8 +568,16 @@ impl FrameBuilder {
     }
 
     /// Calls `f` inside a new widget context.
-    pub fn push_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, area: PxSize, f: impl FnOnce(&mut Self)) {
+    pub fn push_widget(
+        &mut self,
+        id: WidgetId,
+        transform_key: WidgetTransformKey,
+        area: PxSize,
+        rendered: &WidgetRendered,
+        f: impl FnOnce(&mut Self),
+    ) {
         if self.cancel_widget {
+            rendered.set(false);
             return;
         }
 
@@ -562,6 +589,7 @@ impl FrameBuilder {
         self.widget_stack_ctx_data = Some((RenderTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
 
         let parent_id = mem::replace(&mut self.widget_id, id);
+        let parent_rendered = mem::take(&mut self.widget_rendered);
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
         let parent_display_mode = mem::replace(&mut self.widget_display_mode, WidgetDisplayMode::empty());
 
@@ -569,11 +597,15 @@ impl FrameBuilder {
 
         if self.cancel_widget {
             self.cancel_widget = false;
+            self.widget_rendered = false;
         } else {
             self.close_widget_display();
         }
 
+        rendered.set(self.widget_rendered);
+
         self.widget_id = parent_id;
+        self.widget_rendered = parent_rendered;
         self.widget_transform_key = parent_transform_key;
         self.widget_display_mode = parent_display_mode;
     }
@@ -588,7 +620,9 @@ impl FrameBuilder {
         }
 
         self.open_widget_display();
-        self.display_list.push_hit_test(&self.common_item_ps(rect), self.item_tag());
+
+        let common_item_ps = self.common_item_ps(rect);
+        self.display_list.push_hit_test(&common_item_ps, self.item_tag());
     }
 
     /// Calls `f` with a new [`clip_id`] that clips to `bounds`.
@@ -1049,9 +1083,10 @@ impl FrameBuilder {
 
         let offset = offset - radius.to_vector();
 
+        let common_item_ps = self.common_item_ps(PxRect::new(offset, bounds));
         self.display_list.push_stops(&stops);
         self.display_list.push_radial_gradient(
-            &self.common_item_ps(PxRect::new(offset, bounds)),
+            &common_item_ps,
             PxRect::new(offset, bounds).to_wr(),
             gradient,
             bounds.to_wr(),

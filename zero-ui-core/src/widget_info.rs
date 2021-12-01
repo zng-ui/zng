@@ -11,6 +11,7 @@ use crate::crate_util::IdMap;
 use crate::state::OwnedStateMap;
 use crate::state::StateMap;
 use crate::units::*;
+use crate::widget_base::Visibility;
 use crate::window::WindowId;
 use crate::WidgetId;
 
@@ -100,7 +101,13 @@ impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information, the `root_bounds` must be a shared reference
     /// to the size of the window content that is always kept up-to-date, the origin must be always zero.
     #[inline]
-    pub fn new(window_id: WindowId, root_id: WidgetId, root_bounds: BoundsRect, used_data: Option<UsedWidgetInfoBuilder>) -> Self {
+    pub fn new(
+        window_id: WindowId,
+        root_id: WidgetId,
+        root_bounds: BoundsRect,
+        rendered: WidgetRendered,
+        used_data: Option<UsedWidgetInfoBuilder>,
+    ) -> Self {
         debug_assert_eq!(PxPoint::zero(), root_bounds.get().origin);
 
         let tree = Tree::with_capacity(
@@ -108,6 +115,7 @@ impl WidgetInfoBuilder {
                 widget_id: root_id,
                 inner_bounds: root_bounds.clone(),
                 outer_bounds: root_bounds,
+                rendered,
                 meta: OwnedStateMap::new(),
             },
             used_data.map(|d| d.capacity).unwrap_or(100),
@@ -153,7 +161,14 @@ impl WidgetInfoBuilder {
     ///
     /// Both `outer_bounds` and `bounds` must be a shared reference to rectangles that are updated every layout.
     #[inline]
-    pub fn push_widget(&mut self, id: WidgetId, outer_bounds: BoundsRect, inner_bounds: BoundsRect, f: impl FnOnce(&mut Self)) {
+    pub fn push_widget(
+        &mut self,
+        id: WidgetId,
+        outer_bounds: BoundsRect,
+        inner_bounds: BoundsRect,
+        rendered: WidgetRendered,
+        f: impl FnOnce(&mut Self),
+    ) {
         let parent_node = self.node;
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
@@ -165,6 +180,7 @@ impl WidgetInfoBuilder {
                 widget_id: id,
                 inner_bounds,
                 outer_bounds,
+                rendered,
                 meta: OwnedStateMap::new(),
             })
             .id();
@@ -254,7 +270,9 @@ impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(window_id, root_id, BoundsRect::default(), None).finalize().0
+        WidgetInfoBuilder::new(window_id, root_id, BoundsRect::new(), WidgetRendered::new(), None)
+            .finalize()
+            .0
     }
 
     /// Reference to the root widget in the tree.
@@ -457,7 +475,7 @@ impl BoundsRect {
     /// New default.
     #[inline]
     pub fn new() -> Self {
-        BoundsRect::default()
+        Self::default()
     }
 
     /// New with `size` and origin zero.
@@ -495,10 +513,38 @@ impl BoundsRect {
     }
 }
 
+/// Shared reference to the rendered status of a [`WidgetInfo`].
+///
+/// This status is updated every [`render`] without causing a tree rebuild.
+///
+/// [`render`]: crate::UiNode::render
+#[derive(Default, Clone, Debug)]
+pub struct WidgetRendered(Rc<Cell<bool>>);
+impl WidgetRendered {
+    /// New default.
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Get if the widget or child widgets rendered.
+    #[inline]
+    pub fn get(&self) -> bool {
+        self.0.get()
+    }
+
+    /// Set if the widget or child widgets rendered.
+    #[inline]
+    pub fn set(&self, rendered: bool) {
+        self.0.set(rendered);
+    }
+}
+
 struct WidgetInfoInner {
     widget_id: WidgetId,
     outer_bounds: BoundsRect,
     inner_bounds: BoundsRect,
+    rendered: WidgetRendered,
     meta: OwnedStateMap,
 }
 
@@ -582,6 +628,28 @@ impl<'a> WidgetInfo<'a> {
             Some(self.path())
         } else {
             None
+        }
+    }
+
+    /// Returns true if the widget or the widget's descendents rendered in the last frame.
+    ///
+    /// This value is updated every [`render`] without causing a tree rebuild.
+    ///
+    /// [`render`]: crate::UiNode::render
+    #[inline]
+    pub fn rendered(self) -> bool {
+        self.info().rendered.get()
+    }
+
+    /// Compute the visibility of the widget or the widget's descendents.
+    #[inline]
+    pub fn visibility(self) -> Visibility {
+        if self.rendered() {
+            Visibility::Visible
+        } else if self.outer_bounds().size == PxSize::zero() {
+            Visibility::Collapsed
+        } else {
+            Visibility::Hidden
         }
     }
 

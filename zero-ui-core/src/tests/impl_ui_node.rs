@@ -11,7 +11,7 @@ use crate::{
     render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
     units::*,
     widget_base::implicit_base,
-    widget_info::{BoundsRect, WidgetInfoBuilder, WidgetOffset},
+    widget_info::{BoundsRect, WidgetInfoBuilder, WidgetOffset, WidgetRendered},
     window::WindowId,
     UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
 };
@@ -107,7 +107,13 @@ fn test_trace(node: impl UiNode) {
     assert_only_traced!(wgt.state(), "arrange");
 
     let window_id = WindowId::new_unique();
-    let mut info = WidgetInfoBuilder::new(window_id, wgt.id(), BoundsRect::from_size(l_size.to_px()), None);
+    let mut info = WidgetInfoBuilder::new(
+        window_id,
+        wgt.id(),
+        BoundsRect::from_size(l_size.to_px()),
+        WidgetRendered::new(),
+        None,
+    );
     wgt.test_info(&mut ctx, &mut info);
     assert_only_traced!(wgt.state(), "info");
 
@@ -211,7 +217,13 @@ pub fn default_no_child() {
     // we expect default to not render anything (except a hit-rect for the window).
     let window_id = WindowId::new_unique();
 
-    let mut info = WidgetInfoBuilder::new(window_id, wgt.id(), BoundsRect::from_size(desired_size), None);
+    let mut info = WidgetInfoBuilder::new(
+        window_id,
+        wgt.id(),
+        BoundsRect::from_size(desired_size),
+        WidgetRendered::new(),
+        None,
+    );
     wgt.test_info(&mut ctx, &mut info);
     let (build_info, _) = info.finalize();
     let wgt_info = build_info.find(wgt.id()).unwrap();

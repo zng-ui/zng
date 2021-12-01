@@ -40,7 +40,7 @@ pub fn first_and_last_window_events() {
     let events = app.take_return_focus_changed();
     assert_eq!(1, events.len());
 
-    // the window remembers is previous focused descendant.
+    // the window remembers its previous focused descendant.
     assert!(events[0].prev_return.is_none());
     assert_eq!(root_id, events[0].scope_id);
     assert_eq!(Some(button_0_path.clone()), events[0].new_return);
