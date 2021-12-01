@@ -478,27 +478,36 @@ event! {
 ///
 /// # Default
 ///
-/// This extension is included in the [default app](crate::app::App::default).
+/// This extension is included in the [`App::default`].
 ///
 /// # Dependencies
 ///
-/// This extension requires the [`MouseDownEvent`],
-/// [`ShortcutEvent`] and [`WindowFocusChangedEvent`]
-///  events during initialization to function.
+/// This extension requires the [`Windows`] service.
+///
+/// This extension listens to the [`MouseDownEvent`], [`ShortcutEvent`], [`WindowFocusChangedEvent`]
+/// and [`WidgetInfoChangedEvent`] events.
+///
+/// To work properly it should be added to the app after the windows manager extension.
 ///
 /// # About Focus
 ///
 /// See the [module level](crate::focus) documentation for an overview of the keyboard
 /// focus concepts implemented by this app extension.
+///
+/// [App::default]: crate::app::App::default
 pub struct FocusManager {
     focused: Option<WidgetPath>,
     last_keyboard_event: Instant,
+    pending_layout: Option<WidgetInfoTree>,
+    pending_render: Option<WidgetInfoTree>,
 }
 impl Default for FocusManager {
     fn default() -> Self {
         Self {
             focused: None,
             last_keyboard_event: Instant::now() - Duration::from_secs(10),
+            pending_layout: None,
+            pending_render: None,
         }
     }
 }
@@ -509,18 +518,38 @@ impl AppExtension for FocusManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = WidgetInfoChangedEvent.update(args) {
-            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-
             if self.focused.as_ref().map(|f| f.window_id() == args.window_id).unwrap_or_default() {
-                // widget tree rebuilt, check if focus is still valid
-                self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
-            }
-
-            if let Ok(frame) = windows.widget_tree(args.window_id) {
-                for args in focus.cleanup_returns(FocusInfoTree::new(frame)) {
-                    ReturnFocusChangedEvent.notify(ctx.events, args);
+                // we need up-to-date visibility and that is affected by both layout and render.
+                // so we delay responding to the event if a render or layout was requested when
+                // the tree was invalidated.
+                if args.pending_render {
+                    self.pending_render = Some(args.tree.clone());
+                    self.pending_layout = None;
+                } else if args.pending_layout {
+                    self.pending_render = None;
+                    self.pending_layout = Some(args.tree.clone());
+                } else {
+                    self.pending_render = None;
+                    self.pending_layout = None;
+                    self.on_info_tree_update(&args.tree, ctx);
                 }
             }
+        }
+    }
+
+    fn layout(&mut self, ctx: &mut AppContext) {
+        if let Some(tree) = self.pending_layout.take() {
+            self.on_info_tree_update(&tree, ctx);
+        }
+    }
+    fn render(&mut self, ctx: &mut AppContext) {
+        if let Some(tree) = self.pending_render.take() {
+            self.on_info_tree_update(&tree, ctx);
+        } else {
+            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+
+            // widgets may have changed visibility.
+            self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
         }
     }
 
@@ -609,6 +638,18 @@ impl FocusManager {
             for return_args in focus.update_returns(prev_focus, windows) {
                 ReturnFocusChangedEvent.notify(events, return_args);
             }
+        }
+    }
+
+    fn on_info_tree_update(&mut self, tree: &WidgetInfoTree, ctx: &mut AppContext) {
+        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+
+        // widget tree rebuilt, check if focus is still valid
+        self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
+
+        // cleanup return focuses.
+        for args in focus.cleanup_returns(FocusInfoTree::new(tree)) {
+            ReturnFocusChangedEvent.notify(ctx.events, args);
         }
     }
 }

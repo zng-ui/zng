@@ -892,7 +892,7 @@ event_args! {
 
         /// If a layout was requested with this change.
         ///
-        /// If `true` the widget bounds may be out-of-date until after the next layout.
+        /// If `true` the widget bounds and visibility may be out-of-date until after the next layout.
         pub pending_layout: bool,
 
         /// If a frame rebuild was requested with this change.
@@ -1033,6 +1033,7 @@ event! {
 /// * [WindowCloseRequestedEvent]
 /// * [WindowCloseEvent]
 /// * [MonitorsChangedEvent]
+/// * [WidgetInfoChangedEvent]
 ///
 /// # Services
 ///
