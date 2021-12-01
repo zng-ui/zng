@@ -217,7 +217,7 @@ fn test(mut args: Vec<&str>) {
             );
         }
     } else if !args.is_empty() {
-        cmd("cargo", &[nightly, "test"], &args);
+        cmd("cargo", &[nightly, "test", "--no-fail-fast", "--all-features"], &args);
     } else {
         test(vec![nightly, "--workspace"]);
         test(vec![nightly, "--examples"]);

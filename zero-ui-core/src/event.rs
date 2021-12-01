@@ -983,8 +983,7 @@ type Retain = bool;
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::event::event_args;
-/// use zero_ui_core::render::WidgetPath;
+/// # use zero_ui_core::{event::event_args, WidgetPath};
 ///
 /// event_args! {
 ///     /// My event arguments.
@@ -1128,8 +1127,7 @@ pub use crate::event_args;
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::event::cancelable_event_args;
-/// # use zero_ui_core::render::WidgetPath;
+/// # use zero_ui_core::{event::cancelable_event_args, WidgetPath};
 /// cancelable_event_args! {
 ///     /// My event arguments.
 ///     pub struct MyEventArgs {

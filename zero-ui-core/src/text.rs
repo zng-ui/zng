@@ -1410,7 +1410,7 @@ mod tests {
 #[macro_export]
 macro_rules! formatx {
     ($str:tt) => {
-        $crate::text::Text::borrowed($str)
+        $crate::text::Text::from_static($str)
     };
     ($($tt:tt)*) => {
         $crate::text::Text::owned(format!($($tt)*))

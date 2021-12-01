@@ -254,7 +254,8 @@ pub trait IntoVar<T: VarValue>: Clone {
 /// The example property receives two flags `a` and `b`, the inspector will show the value of `a` but only the type of `b`.
 ///
 /// ```
-/// # use zero_ui_core::*;
+/// # fn main() { }
+/// # use zero_ui_core::{*, var::IntoValue};
 /// #
 /// #[property(context, allowed_in_when = false)]
 /// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl Into<bool>) -> impl UiNode {
@@ -263,14 +264,14 @@ pub trait IntoVar<T: VarValue>: Clone {
 ///         a: bool,
 ///         b: bool,
 ///     }
-///
-/// # let _ =      
+/// #    #[impl_ui_node(child)]
+/// #    impl<C: UiNode> UiNode for FooNode<C> { }
+/// 
 ///     FooNode {
 ///         child,
 ///         a: a.into(),
 ///         b: b.into()
 ///     }
-/// # ; child
 /// }
 /// ```
 ///
@@ -1266,12 +1267,14 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// ```
     /// # fn main() { }
     /// # use zero_ui_core::var::*;
-    /// # macro_rules! info_span { ($($tt:tt)*) => { }; }
+    /// # struct Fake; impl Fake { pub fn entered(self) { } }
+    /// # #[macro_export]
+    /// # macro_rules! info_span { ($($tt:tt)*) => { Fake }; }
     /// # mod tracing {  pub use crate::info_span; }
     /// fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
     ///     let handle = var.trace_value(vars, |value| {
-    ///         tracing::info_span!("my_var", ?value, track = "<vars>")
-    ///     }).entered();
+    ///         tracing::info_span!("my_var", ?value, track = "<vars>").entered()
+    ///     });
     ///     handle.permanent();
     /// }
     /// ```
