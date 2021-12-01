@@ -970,7 +970,7 @@ pub fn focused_removed_by_disabling() {
     })
 }
 #[test]
-pub fn focused_removed_by_hidding() {
+pub fn focused_removed_by_hiding() {
     let visibility = var(Visibility::Visible);
     focused_removed_test(button! { content = text("Button 1"); visibility = visibility.clone() }, |vars| {
         visibility.set(vars, Visibility::Hidden)
