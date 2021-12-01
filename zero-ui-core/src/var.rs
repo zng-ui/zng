@@ -266,7 +266,7 @@ pub trait IntoVar<T: VarValue>: Clone {
 ///     }
 /// #    #[impl_ui_node(child)]
 /// #    impl<C: UiNode> UiNode for FooNode<C> { }
-/// 
+///
 ///     FooNode {
 ///         child,
 ///         a: a.into(),

@@ -1233,7 +1233,10 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn has_pending_updates(&mut self) -> bool {
-        !self.pending_view_events.is_empty() || !self.pending_app_events.is_empty() || self.owned_ctx.has_pending_updates()
+        !self.pending_view_events.is_empty()
+            || !self.pending_app_events.is_empty()
+            || self.owned_ctx.has_pending_updates()
+            || !self.receiver.is_empty()
     }
 
     fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {

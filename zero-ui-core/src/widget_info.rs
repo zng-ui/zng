@@ -61,7 +61,7 @@ impl WidgetOffset {
 
     /// Calls `f` with an added offset, every property that offsets its child node must
     /// call [`UiNode::arrange`] on the child inside `f`.
-    /// 
+    ///
     /// [`UiNode::arrange`]: crate::UiNode::arrange
     pub fn with_offset(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
         self.offset += offset;
