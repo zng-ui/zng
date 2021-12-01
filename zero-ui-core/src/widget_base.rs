@@ -6,12 +6,12 @@ use crate::event::EventUpdateArgs;
 use crate::var::{context_var, impl_from_and_into_var, IntoValue, IntoVar, Var, VarsRead, WithVars, WithVarsRead};
 use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetOffset};
 use crate::{
-    context::RenderContext,
-    render::{FrameBuilder, FrameUpdate, WidgetTransformKey},
-};
-use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
     units::{AvailableSize, PxSize},
+};
+use crate::{
+    context::{InfoContext, RenderContext},
+    render::{FrameBuilder, FrameUpdate, WidgetTransformKey},
 };
 use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 
@@ -19,6 +19,8 @@ use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
+    use zero_ui_view_api::units::PxRect;
+
     use crate::{
         context::{OwnedStateMap, RenderContext},
         widget_info::{BoundsRect, WidgetOffset, WidgetRendered},
@@ -152,7 +154,7 @@ pub mod implicit_base {
                 }
             }
             #[inline(always)]
-            fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
                     tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", self.id);
@@ -275,8 +277,22 @@ pub mod implicit_base {
                 &mut self.state.0
             }
             #[inline]
-            fn size(&self) -> PxSize {
-                self.outer_bounds.get().size
+            fn outer_bounds(&self) -> PxRect {
+                self.outer_bounds.get()
+            }
+            #[inline]
+            fn inner_bounds(&self) -> PxRect {
+                self.inner_bounds.get()
+            }
+            #[inline]
+            fn visibility(&self) -> Visibility {
+                if self.rendered.get() {
+                    Visibility::Visible
+                } else if self.outer_bounds.get().size == PxSize::zero() {
+                    Visibility::Collapsed
+                } else {
+                    Visibility::Hidden
+                }
             }
         }
 
@@ -417,7 +433,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
-        fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if !self.enabled.copy(ctx) {
                 info.meta().set(EnabledState, false);
             }
@@ -508,7 +524,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.with_context(ctx.vars, |c| c.event(ctx, args));
         }
 
-        fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             self.child.info(ctx, info);
         }
 

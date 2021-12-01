@@ -207,7 +207,7 @@ pub mod uniform_grid {
         #[allow_(zero_ui::missing_delegate)] // false positive, TODO
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let origins = &self.children_origin;
-            self.children.render_filtered(move |i, _, _| origins[i], ctx, frame);
+            self.children.render_filtered(move |i, _| origins[i], ctx, frame);
         }
     }
     #[derive(Clone, Default)]

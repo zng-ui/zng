@@ -641,6 +641,19 @@ impl<'a> WindowContext<'a> {
         })
     }
 
+    /// Run a function `f` in the info context of a widget.
+    #[inline(always)]
+    pub fn info_context<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut InfoContext) -> R) -> R {
+        f(&mut InfoContext {
+            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: &widget_state.0,
+            update_state: self.update_state,
+            vars: self.vars,
+        })
+    }
+
     /// Runs a function `f` in the layout context of a widget.
     #[inline(always)]
     #[allow(clippy::too_many_arguments)]
@@ -806,6 +819,18 @@ impl TestWidgetContext {
             services: &mut self.services,
             timers: &mut self.timers,
             updates: &mut self.updates,
+        })
+    }
+
+    /// Calls `action` in a fake info context.
+    pub fn info_context<R>(&mut self, action: impl FnOnce(&mut InfoContext) -> R) -> R {
+        action(&mut InfoContext {
+            path: &mut WidgetContextPath::new(self.window_id, self.root_id),
+            app_state: &self.app_state.0,
+            window_state: &self.window_state.0,
+            widget_state: &self.widget_state.0,
+            update_state: &mut self.update_state.0,
+            vars: &self.vars,
         })
     }
 
@@ -1486,6 +1511,48 @@ impl<'a> RenderContext<'a> {
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         self.path.push(widget_id);
         let r = f(&mut RenderContext {
+            path: self.path,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: &widget_state.0,
+            update_state: self.update_state,
+            vars: self.vars,
+        });
+        self.path.pop();
+        r
+    }
+}
+
+/// A widget info context.
+pub struct InfoContext<'a> {
+    /// Current widget path.
+    pub path: &'a mut WidgetContextPath,
+
+    /// Read-only access to the state that lives for the duration of the application.
+    pub app_state: &'a StateMap,
+
+    /// Read-only access to the state that lives for the duration of the window.
+    pub window_state: &'a StateMap,
+
+    /// Read-only access to the state that lives for the duration of the widget.
+    pub widget_state: &'a StateMap,
+
+    /// State that lives for the duration of the node tree render or render update call in the window.
+    ///
+    /// This state lives only for the call to [`UiNode::render`](crate::UiNode::render) or
+    /// [`UiNode::render_update`](crate::UiNode::render_update) method call in all nodes of the window.
+    /// You can use this to signal nodes that have not rendered yet.
+    pub update_state: &'a mut StateMap,
+
+    /// Read-only access to variables.
+    pub vars: &'a VarsRead,
+}
+impl<'a> InfoContext<'a> {
+    /// Runs a function `f` in the info context of a widget.
+    #[inline(always)]
+    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut InfoContext) -> R) -> R {
+        self.path.push(widget_id);
+        let r = f(&mut InfoContext {
             path: self.path,
             app_state: self.app_state,
             window_state: self.window_state,

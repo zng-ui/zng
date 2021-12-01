@@ -4,7 +4,7 @@ use zero_ui_proc_macros::impl_ui_node;
 use super::*;
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
-    context::{AppContext, LayoutContext, RenderContext, Updates, WidgetContext},
+    context::{AppContext, InfoContext, LayoutContext, RenderContext, Updates, WidgetContext},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
     event::EventUpdateArgs,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
@@ -1083,6 +1083,14 @@ impl<'a> WithVarsRead for crate::context::RenderContext<'a> {
         action(self.vars)
     }
 }
+impl<'a> WithVarsRead for crate::context::InfoContext<'a> {
+    fn with_vars_read<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self.vars)
+    }
+}
 #[cfg(any(test, doc, feature = "test_util"))]
 impl WithVarsRead for crate::context::TestWidgetContext {
     fn with_vars_read<R, A>(&self, action: A) -> R
@@ -1132,6 +1140,11 @@ impl<'a> AsRef<VarsRead> for crate::context::LayoutContext<'a> {
     }
 }
 impl<'a> AsRef<VarsRead> for crate::context::RenderContext<'a> {
+    fn as_ref(&self) -> &VarsRead {
+        self.vars
+    }
+}
+impl<'a> AsRef<VarsRead> for crate::context::InfoContext<'a> {
     fn as_ref(&self) -> &VarsRead {
         self.vars
     }
@@ -1539,7 +1552,7 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
                 .with_context_bind(self.var, &self.value, || child.arrange(ctx, widget_offset, final_size));
         }
         #[inline(always)]
-        fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             let child = &self.child;
             ctx.vars.with_context_bind(self.var, &self.value, || child.info(ctx, info));
         }

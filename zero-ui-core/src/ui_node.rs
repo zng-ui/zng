@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use crate::{
     context::*,
     event::{AnyEventUpdate, Event},
+    widget_base::Visibility,
     widget_info::{WidgetInfoBuilder, WidgetOffset},
     IdNameError,
 };
@@ -215,8 +216,9 @@ pub trait UiNode: 'static {
     ///
     /// # Arguments
     ///
-    /// * `info`:
-    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder);
+    /// * `ctx`: Limited context access.
+    /// * `info`: Widget info tree builder.
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
     /// Called every time a new frame must be rendered.
     ///
@@ -246,7 +248,7 @@ pub trait UiNodeBoxed: 'static {
     fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &AnyEventUpdate);
     fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
     fn arrange_boxed(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
-    fn info_boxed(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder);
+    fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
@@ -276,7 +278,7 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.arrange(ctx, widget_offset, final_size);
     }
 
-    fn info_boxed(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         self.info(ctx, info);
     }
 
@@ -321,7 +323,7 @@ impl UiNode for BoxedUiNode {
         self.as_mut().arrange_boxed(ctx, widget_offset, final_size);
     }
 
-    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         self.as_ref().info_boxed(ctx, info);
     }
 
@@ -380,7 +382,7 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         if let Some(node) = self {
             node.info(ctx, info);
         }
@@ -427,8 +429,22 @@ pub trait Widget: UiNode {
     /// Exclusive borrow the widget lazy state.
     fn state_mut(&mut self) -> &mut StateMap;
 
-    /// Last arranged size.
-    fn size(&self) -> PxSize;
+    /// Last arranged outer-bounds.
+    ///
+    /// The origin is relative to the top-left corner of the window content area, the size if the arrange size
+    /// of the *outer* properties.
+    fn outer_bounds(&self) -> PxRect;
+
+    /// Last arranged inner-bounds.
+    ///
+    /// The origin is relative to the top-left corner of the window content area, the size if the arrange size
+    /// of the *inner* properties.
+    fn inner_bounds(&self) -> PxRect;
+
+    /// Last rendered visibility.
+    ///
+    /// If anything was rendered it is `Visible`, else if the outer-size is zero it is `Collapsed` else it is `Hidden`.
+    fn visibility(&self) -> Visibility;
 
     /// Box this widget node, unless it is already `BoxedWidget`.
     fn boxed_widget(self) -> BoxedWidget
@@ -447,18 +463,30 @@ pub trait Widget: UiNode {
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_measure(&mut self, ctx: &mut TestWidgetContext, available_size: AvailableSize) -> PxSize {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
-        ctx.layout_context(font_size, font_size, self.size(), 1.0.fct(), 96.0, LayoutMask::all(), |ctx| {
-            self.measure(ctx, available_size)
-        })
+        ctx.layout_context(
+            font_size,
+            font_size,
+            self.outer_bounds().size,
+            1.0.fct(),
+            96.0,
+            LayoutMask::all(),
+            |ctx| self.measure(ctx, available_size),
+        )
     }
     /// Run [`UiNode::arrange`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_arrange(&mut self, ctx: &mut TestWidgetContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
-        ctx.layout_context(font_size, font_size, self.size(), 1.0.fct(), 96.0, LayoutMask::all(), |ctx| {
-            self.arrange(ctx, widget_offset, final_size)
-        })
+        ctx.layout_context(
+            font_size,
+            font_size,
+            self.outer_bounds().size,
+            1.0.fct(),
+            96.0,
+            LayoutMask::all(),
+            |ctx| self.arrange(ctx, widget_offset, final_size),
+        )
     }
 
     // TODO don't require user to init frame?
@@ -467,7 +495,7 @@ pub trait Widget: UiNode {
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_info(&self, ctx: &mut TestWidgetContext, info: &mut WidgetInfoBuilder) {
-        ctx.render_context(|ctx| self.info(ctx, info));
+        ctx.info_context(|ctx| self.info(ctx, info));
     }
 
     /// Run [`UiNode::render`] using the [`TestWidgetContext`].
@@ -490,7 +518,9 @@ pub trait WidgetBoxed: UiNodeBoxed {
     fn id_boxed(&self) -> WidgetId;
     fn state_boxed(&self) -> &StateMap;
     fn state_mut_boxed(&mut self) -> &mut StateMap;
-    fn size_boxed(&self) -> PxSize;
+    fn outer_bounds_boxed(&self) -> PxRect;
+    fn inner_bounds_boxed(&self) -> PxRect;
+    fn visibility_boxed(&self) -> Visibility;
 }
 impl<W: Widget> WidgetBoxed for W {
     fn id_boxed(&self) -> WidgetId {
@@ -505,8 +535,16 @@ impl<W: Widget> WidgetBoxed for W {
         self.state_mut()
     }
 
-    fn size_boxed(&self) -> PxSize {
-        self.size()
+    fn outer_bounds_boxed(&self) -> PxRect {
+        self.outer_bounds()
+    }
+
+    fn inner_bounds_boxed(&self) -> PxRect {
+        self.inner_bounds()
+    }
+
+    fn visibility_boxed(&self) -> Visibility {
+        self.visibility()
     }
 }
 
@@ -542,7 +580,7 @@ impl UiNode for BoxedWidget {
         self.as_mut().arrange_boxed(ctx, widget_offset, final_size)
     }
 
-    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         self.as_ref().info_boxed(ctx, info);
     }
 
@@ -567,8 +605,16 @@ impl Widget for BoxedWidget {
         self.as_mut().state_mut_boxed()
     }
 
-    fn size(&self) -> PxSize {
-        self.as_ref().size_boxed()
+    fn outer_bounds(&self) -> PxRect {
+        self.as_ref().outer_bounds_boxed()
+    }
+
+    fn inner_bounds(&self) -> PxRect {
+        self.as_ref().inner_bounds_boxed()
+    }
+
+    fn visibility(&self) -> Visibility {
+        self.as_ref().visibility_boxed()
     }
 }
 
@@ -590,7 +636,7 @@ impl UiNode for FillUiNode {}
 #[doc(hidden)]
 pub mod impl_ui_node_util {
     use crate::{
-        context::{LayoutContext, RenderContext, WidgetContext},
+        context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
         event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         units::{AvailableSize, PxSize},
@@ -634,7 +680,7 @@ pub mod impl_ui_node_util {
         fn arrange_all(self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
     }
     pub trait IterImpl {
-        fn info_all(self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder);
+        fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
         fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
         fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate);
     }
@@ -680,7 +726,7 @@ pub mod impl_ui_node_util {
     }
 
     impl<'u, U: UiNode, I: IntoIterator<Item = &'u U>> IterImpl for I {
-        fn info_all(self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             for child in self {
                 child.info(ctx, info);
             }
@@ -1052,7 +1098,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         if let SlotNodeState::Active(rc) = &self.state {
             rc.node.borrow().as_ref().unwrap().info(ctx, info);
         }

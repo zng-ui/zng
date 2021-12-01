@@ -774,7 +774,7 @@ pub mod image {
                     );
                 }
 
-                fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     ctx.vars
                         .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
                             self.child.info(ctx, info);

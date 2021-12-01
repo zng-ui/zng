@@ -1095,7 +1095,7 @@ pub fn focus_widget_or_child_goes_to_child() {
 
 #[test]
 pub fn focus_continued_after_widget_id_move() {
-    let id = WidgetId::new_unique();
+    let id = WidgetId::named("switch id");
     let index = var(0);
     let button = switch(
         index.clone(),
@@ -1511,7 +1511,7 @@ struct TestApp {
 }
 impl TestApp {
     pub fn new(content: impl UiNode) -> Self {
-        Self::new_w(window!(content))
+        Self::new_w(window!(content; root_id = "window root"))
     }
     pub fn new_w(window: Window) -> Self {
         let mut app = App::default().run_headless(false);

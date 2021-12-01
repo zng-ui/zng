@@ -4,7 +4,7 @@ use super::units::{AvailableSize, PxPoint, PxSize};
 #[allow(unused)] // used in docs.
 use super::UiNode;
 use super::{
-    context::{LayoutContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, StateMap, WidgetContext},
     render::{FrameBuilder, FrameUpdate, SpatialFrameId},
     Widget, WidgetId,
 };
@@ -82,12 +82,12 @@ pub trait UiNodeList: 'static {
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
 
     /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
-    fn info_all<O>(&self, origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
+    fn info_all<O>(&self, origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint;
 
     /// Calls [`UiNode::info`] in only the `index` widget.
-    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder);
+    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially. Uses a reference frame
     /// to offset each widget.
@@ -110,6 +110,29 @@ pub trait UiNodeList: 'static {
     fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
 
+/// All [`Widget`] accessible *info*.
+pub struct WidgetFilterArgs<'a> {
+    /// The [`Widget::outer_bounds`].
+    pub outer_bounds: PxRect,
+    /// The [`Widget::inner_bounds`].
+    pub inner_bounds: PxRect,
+    /// The [`Widget::visibility`].
+    pub visibility: Visibility,
+    /// The [`Widget::state`].
+    pub state: &'a StateMap,
+}
+impl<'a> WidgetFilterArgs<'a> {
+    /// Copy or borrow all info.
+    pub fn get(list: &'a impl WidgetList, index: usize) -> Self {
+        WidgetFilterArgs {
+            outer_bounds: list.widget_outer_bounds(index),
+            inner_bounds: list.widget_inner_bounds(index),
+            visibility: list.widget_visibility(index),
+            state: list.widget_state(index),
+        }
+    }
+}
+
 /// A generic view over a list of [`Widget`] UI nodes.
 ///
 /// Layout widgets should use this to abstract the children list type if possible.
@@ -117,11 +140,12 @@ pub trait WidgetList: UiNodeList {
     /// Count widgets that pass filter using the widget state.
     fn count<F>(&self, mut filter: F) -> usize
     where
-        F: FnMut(usize, PxSize, &StateMap) -> bool,
+        F: FnMut(usize, WidgetFilterArgs) -> bool,
+        Self: Sized,
     {
         let mut count = 0;
         for i in 0..self.len() {
-            if filter(i, self.widget_size(i), self.widget_state(i)) {
+            if filter(i, WidgetFilterArgs::get(self, i)) {
                 count += 1;
             }
         }
@@ -151,8 +175,19 @@ pub trait WidgetList: UiNodeList {
     /// Exclusive reference the state of the widget at the `index`.
     fn widget_state_mut(&mut self, index: usize) -> &mut StateMap;
 
-    /// Gets the last arranged size of the widget at the `index`.
-    fn widget_size(&self, index: usize) -> PxSize;
+    /// Gets the last arranged outer bounds of the widget at the `index`.
+    ///
+    /// See [`Widget::outer_bounds`] for more details.
+    fn widget_outer_bounds(&self, index: usize) -> PxRect;
+    /// Gets the last arranged inner bounds of the widget at the `index`.
+    ///
+    /// See [`Widget::inner_bounds`] for more details.
+    fn widget_inner_bounds(&self, index: usize) -> PxRect;
+
+    /// Gets the last rendered visibility of the widget at the `index`.
+    ///
+    /// See [`Widget::visibility`] for more details.
+    fn widget_visibility(&self, index: usize) -> Visibility;
 
     /// Calls [`UiNode::render`] in all widgets in the list that have an origin, sequentially. Uses a reference frame
     /// to offset each widget.
@@ -163,7 +198,7 @@ pub trait WidgetList: UiNodeList {
     /// be used to render it, if it must be rendered.
     fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>;
+        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>;
 }
 
 /// A vector of boxed [`Widget`] items.
@@ -346,7 +381,7 @@ impl UiNodeList for WidgetVec {
         self.vec[index].arrange(ctx, widget_offset, final_size)
     }
 
-    fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
+    fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
@@ -355,7 +390,7 @@ impl UiNodeList for WidgetVec {
         }
     }
 
-    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         self.vec[index].info(ctx, info);
     }
 
@@ -403,17 +438,25 @@ impl WidgetList for WidgetVec {
         self.vec[index].state_mut()
     }
 
-    fn widget_size(&self, index: usize) -> PxSize {
-        self.vec[index].size()
+    fn widget_outer_bounds(&self, index: usize) -> PxRect {
+        self.vec[index].outer_bounds()
+    }
+
+    fn widget_inner_bounds(&self, index: usize) -> PxRect {
+        self.vec[index].inner_bounds()
+    }
+
+    fn widget_visibility(&self, index: usize) -> Visibility {
+        self.vec[index].visibility()
     }
 
     fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>,
+        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
     {
         let id = self.id.get();
         for (i, w) in self.iter().enumerate() {
-            if let Some(origin) = origin(i, w.size(), w.state()) {
+            if let Some(origin) = origin(i, WidgetFilterArgs::get(self, i)) {
                 frame.push_reference_frame_item(id, i, origin, |frame| {
                     w.render(ctx, frame);
                 });
@@ -575,7 +618,7 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].arrange(ctx, widget_offset, final_size);
     }
 
-    fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
+    fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
@@ -584,7 +627,7 @@ impl UiNodeList for UiNodeVec {
         }
     }
 
-    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         self.vec[index].info(ctx, info);
     }
 
@@ -647,6 +690,7 @@ pub use crate::widget_vec;
 use crate::{
     context::RenderContext,
     event::EventUpdateArgs,
+    widget_base::Visibility,
     widget_info::{WidgetInfoBuilder, WidgetOffset},
     BoxedUiNode, BoxedWidget,
 };
@@ -897,7 +941,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline]
-    fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
+    fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
@@ -906,7 +950,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.info_all(|i| origin(i + offset), ctx, info);
     }
 
-    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_info(index, ctx, info)
@@ -963,11 +1007,11 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
     #[inline(always)]
     fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>,
+        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
     {
-        self.0.render_filtered(|i, b, s| origin(i, b, s), ctx, frame);
+        self.0.render_filtered(|i, a| origin(i, a), ctx, frame);
         let offset = self.0.len();
-        self.1.render_filtered(|i, b, s| origin(i + offset, b, s), ctx, frame);
+        self.1.render_filtered(|i, a| origin(i + offset, a), ctx, frame);
     }
 
     #[inline]
@@ -1000,13 +1044,30 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    #[inline]
-    fn widget_size(&self, index: usize) -> PxSize {
+    fn widget_outer_bounds(&self, index: usize) -> PxRect {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_size(index)
+            self.0.widget_outer_bounds(index)
         } else {
-            self.1.widget_size(index - a_len)
+            self.1.widget_outer_bounds(index - a_len)
+        }
+    }
+
+    fn widget_inner_bounds(&self, index: usize) -> PxRect {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_inner_bounds(index)
+        } else {
+            self.1.widget_inner_bounds(index - a_len)
+        }
+    }
+
+    fn widget_visibility(&self, index: usize) -> Visibility {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_visibility(index)
+        } else {
+            self.1.widget_visibility(index - a_len)
         }
     }
 }
@@ -1102,7 +1163,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline]
-    fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
+    fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
     where
         O: FnMut(usize) -> PxPoint,
     {
@@ -1111,7 +1172,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.info_all(|i| origin(i + offset), ctx, info);
     }
 
-    fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_info(index, ctx, info)
@@ -1176,11 +1237,11 @@ macro_rules! impl_tuples {
             #[inline(always)]
             fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
-                O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>,
+                O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
             {
                 let id = self.id.get();
                 $(
-                if let Some(o) = origin($n, self.items.$n.size(), self.items.$n.state()) {
+                if let Some(o) = origin($n, WidgetFilterArgs::get(self, $n)) {
                     frame.push_reference_frame_item(id, $n, o, |frame| self.items.$n.render(ctx, frame));
                 }
                 )+
@@ -1211,9 +1272,25 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_size(&self, index: usize) -> PxSize {
+            fn widget_outer_bounds(&self, index: usize) -> PxRect {
                 match index {
-                    $($n => self.items.$n.size(),)+
+                    $($n => self.items.$n.outer_bounds(),)+
+                    _ => panic!("index {} out of range for length {}", index, self.len())
+                }
+            }
+
+            #[inline]
+            fn widget_inner_bounds(&self, index: usize) -> PxRect {
+                match index {
+                    $($n => self.items.$n.inner_bounds(),)+
+                    _ => panic!("index {} out of range for length {}", index, self.len())
+                }
+            }
+
+            #[inline]
+            fn widget_visibility(&self, index: usize) -> Visibility {
+                match index {
+                    $($n => self.items.$n.visibility(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
@@ -1326,7 +1403,7 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn info_all<O>(&self, mut origin: O, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder)
+            fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
             where
                 O: FnMut(usize) -> PxPoint,
             {
@@ -1336,7 +1413,7 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_info(&self, index: usize, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+            fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 match index {
                     $(
                         $n => self.items.$n.info(ctx, info),
@@ -1476,14 +1553,14 @@ macro_rules! empty_node_list {
                 panic!("index {} out of range for length 0", index)
             }
 
-            fn info_all<O>(&self, _: O, _: &mut RenderContext, _: &mut WidgetInfoBuilder)
+            fn info_all<O>(&self, _: O, _: &mut InfoContext, _: &mut WidgetInfoBuilder)
             where
                 O: FnMut(usize) -> PxPoint,
             {
             }
 
             #[inline]
-            fn widget_info(&self, index: usize, _: &mut RenderContext, _: &mut WidgetInfoBuilder) {
+            fn widget_info(&self, index: usize, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
                 panic!("index {} out of range for length 0", index)
             }
 
@@ -1520,7 +1597,7 @@ impl WidgetList for WidgetList0 {
 
     fn render_filtered<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
     where
-        O: FnMut(usize, PxSize, &StateMap) -> Option<PxPoint>,
+        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
     {
     }
 
@@ -1536,7 +1613,15 @@ impl WidgetList for WidgetList0 {
         panic!("index {} out of range for length 0", index)
     }
 
-    fn widget_size(&self, index: usize) -> PxSize {
+    fn widget_outer_bounds(&self, index: usize) -> PxRect {
+        panic!("index {} out of range for length 0", index)
+    }
+
+    fn widget_inner_bounds(&self, index: usize) -> PxRect {
+        panic!("index {} out of range for length 0", index)
+    }
+
+    fn widget_visibility(&self, index: usize) -> Visibility {
         panic!("index {} out of range for length 0", index)
     }
 }

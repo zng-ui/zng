@@ -647,7 +647,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// If is [`rendered`] is [`Visible`], if not and the [`outer_bounds`] size is zero then is [`Collapsed`] else
     /// is [`Hidden`].
-    /// 
+    ///
     /// [`rendered`]: Self::rendered
     /// [`Visible`]: Visibility::Visible
     /// [`outer_bounds`]: Self::outer_bounds

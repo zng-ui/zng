@@ -400,7 +400,7 @@ pub mod text {
                     self.size_new = false;
                 }
 
-                fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     ctx.vars.with_context_bind(FontSizeVar, &self.size, || self.child.info(ctx, info));
                 }
 
@@ -592,7 +592,7 @@ pub mod text {
                         });
                 }
 
-                fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     let child = &self.child;
                     ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
                         child.info(ctx, info);
@@ -721,7 +721,7 @@ pub mod text {
                     });
                 }
 
-                fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     let child = &self.child;
                     ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
                         child.info(ctx, info);

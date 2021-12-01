@@ -28,12 +28,11 @@ pub mod switch {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.options.update_all(ctx);
             if self.index.is_new(ctx) {
-                ctx.updates.info();
-                ctx.updates.layout_and_render();
+                ctx.updates.info_layout_and_render();
             }
         }
 
-        fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.widget_info(index, ctx, info);

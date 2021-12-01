@@ -257,7 +257,7 @@ pub mod grid {
                 todo!()
             }
 
-            fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 for (column, origin) in self.columns.iter().zip(&self.column_origins) {
                     info.offset(origin.to_vector(), |info| column.widget().info(ctx, info));
                 }
@@ -275,7 +275,7 @@ pub mod grid {
                     frame.push_reference_frame_item(self.rows_spatial_id, i, *origin, |frame| row.widget().render(ctx, frame));
                 }
                 self.items.render_filtered(
-                    |i, _, _| {
+                    |i, _| {
                         let rect = self.item_rects[i];
                         if rect.size.width > Px(0) && rect.size.height > Px(0) {
                             Some(rect.origin)

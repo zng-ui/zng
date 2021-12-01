@@ -1,5 +1,5 @@
 use crate::core::{
-    context::{LayoutContext, RenderContext, WidgetContext},
+    context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::*,
@@ -51,7 +51,7 @@ macro_rules! ui_n {
                 }
             }
 
-            fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 match self {
                     $($UiEnum::$UiNode(ui) => ui.info(ctx, info),)+
                 }

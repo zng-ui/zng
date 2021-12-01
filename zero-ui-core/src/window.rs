@@ -890,6 +890,16 @@ event_args! {
         /// New widget tree.
         pub tree: WidgetInfoTree,
 
+        /// If a layout was requested with this change.
+        ///
+        /// If `true` the widget bounds may be out-of-date until after the next layout.
+        pub pending_layout: bool,
+
+        /// If a frame rebuild was requested with this change.
+        ///
+        /// If `true` the widget visibility may be out-of-date until after the next render.
+        pub pending_render: bool,
+
         ..
 
         /// If the widget is in the same window.
@@ -1920,7 +1930,7 @@ impl AppWindow {
             self.context.init(ctx);
             let tree = self.context.info(ctx);
             ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
-            WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id, tree));
+            WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id, tree, true, true));
             self.first_update = false;
         } else {
             let _s = tracing::trace_span!("window.on_update", window = %self.id.sequential()).entered();
@@ -1931,7 +1941,10 @@ impl AppWindow {
                 let _s = tracing::trace_span!("window.info", window = %self.id.sequential()).entered();
                 let tree = self.context.info(ctx);
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
-                WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id, tree));
+                WidgetInfoChangedEvent.notify(
+                    ctx,
+                    WidgetInfoChangedArgs::now(self.id, tree, ctx.updates.layout_requested(), ctx.updates.render_requested()),
+                );
             }
 
             if self.vars.size().is_new(ctx)
@@ -2678,7 +2691,7 @@ impl OwnedWindowContext {
                 self.root_rendered.clone(),
                 self.used_frame_info_builder.take(),
             );
-            ctx.render_context(root.id, &root.state, |ctx| {
+            ctx.info_context(root.id, &root.state, |ctx| {
                 child.info(ctx, &mut builder);
             });
             builder

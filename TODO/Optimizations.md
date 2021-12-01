@@ -41,7 +41,7 @@ impl<C: UiNode> UiNode for MyNode<C> {
 
 ```rust
 trait UiNode {
-      fn info(&self, ctx: &mut RenderContext, frame: &mut WidgetInfoBuilder);
+      fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder);
 }
 ```
 

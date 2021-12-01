@@ -20,7 +20,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx);
         }
 
-        fn info(&self, ctx: &mut RenderContext, frame: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().focusable = Some(*self.is_focusable.get(ctx));
             self.child.info(ctx, frame);
         }
@@ -51,7 +51,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
             self.child.update(ctx);
         }
 
-        fn info(&self, ctx: &mut RenderContext, frame: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().tab_index = Some(*self.tab_index.get(ctx));
             self.child.info(ctx, frame);
         }
@@ -96,7 +96,7 @@ impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
         self.child.update(ctx);
     }
 
-    fn info(&self, ctx: &mut RenderContext, frame: &mut WidgetInfoBuilder) {
+    fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder) {
         let info = frame.meta().entry(FocusInfoKey).or_default();
         info.scope = Some(self.is_focus_scope.copy(ctx));
         if self.is_alt {
@@ -135,7 +135,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
             self.child.update(ctx);
         }
 
-        fn info(&self, ctx: &mut RenderContext, frame: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder) {
             let info = frame.meta().entry(FocusInfoKey).or_default();
             info.on_focus = self.behavior.copy(ctx);
             if info.scope.is_none() {
@@ -166,7 +166,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
             self.child.update(ctx);
         }
 
-        fn info(&self, ctx: &mut RenderContext, frame: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().tab_nav = Some(self.tab_nav.copy(ctx));
             self.child.info(ctx, frame);
         }
@@ -193,7 +193,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
             self.child.update(ctx);
         }
 
-        fn info(&self, ctx: &mut RenderContext, frame: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(self.directional_nav.copy(ctx));
             self.child.info(ctx, frame);
         }
@@ -257,7 +257,7 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
             self.child.update(ctx);
         }
 
-        fn info(&self, ctx: &mut RenderContext, frame: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder) {
             frame.meta().entry(FocusInfoKey).or_default().skip_directional = Some(self.enabled.copy(ctx));
             self.child.info(ctx, frame);
         }

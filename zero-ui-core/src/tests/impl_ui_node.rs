@@ -216,12 +216,13 @@ pub fn default_no_child() {
 
     // we expect default to not render anything (except a hit-rect for the window).
     let window_id = WindowId::new_unique();
+    let root_rendered = WidgetRendered::new();
 
     let mut info = WidgetInfoBuilder::new(
         window_id,
         wgt.id(),
         BoundsRect::from_size(desired_size),
-        WidgetRendered::new(),
+        root_rendered.clone(),
         None,
     );
     wgt.test_info(&mut ctx, &mut info);
@@ -242,7 +243,7 @@ pub fn default_no_child() {
     );
 
     wgt.test_render(&mut ctx, &mut frame);
-    let (_, _) = frame.finalize();
+    let (_, _) = frame.finalize(&root_rendered);
 
     // and not update render.
     let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK, None);
@@ -259,7 +260,7 @@ mod util {
     use std::{cell::RefCell, rc::Rc};
 
     use crate::{
-        context::{LayoutContext, RenderContext, WidgetContext},
+        context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
         event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         state_key,
@@ -355,7 +356,7 @@ mod util {
             self.trace("arrange");
         }
 
-        fn info(&self, _: &mut RenderContext, _: &mut WidgetInfoBuilder) {
+        fn info(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
             self.trace("info");
         }
 

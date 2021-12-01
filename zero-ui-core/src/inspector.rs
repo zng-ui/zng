@@ -7,7 +7,7 @@ use linear_map::LinearMap;
 
 use crate::{
     context::LayoutContext,
-    context::{state_key, WidgetContext},
+    context::{state_key, InfoContext, WidgetContext},
     impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
     units::*,
@@ -566,7 +566,7 @@ impl UiNode for WidgetInstanceInfoNode {
         self.child.arrange(ctx, widget_offset, final_size)
     }
 
-    fn info(&self, ctx: &mut RenderContext, info: &mut WidgetInfoBuilder) {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let _scope = tracing::trace_span!("widget.info", name = self.info.borrow().widget_name).entered();
 
         info.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
@@ -732,7 +732,7 @@ impl UiNode for PropertyInfoNode {
         info.count.arrange += 1;
     }
 
-    fn info(&self, ctx: &mut RenderContext, wgt_info: &mut WidgetInfoBuilder) {
+    fn info(&self, ctx: &mut InfoContext, wgt_info: &mut WidgetInfoBuilder) {
         let _scope = tracing::trace_span!("property.info", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
