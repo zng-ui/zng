@@ -12,6 +12,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::*,
     var::{context_var, BoxedVar, Var},
+    widget_base::Visibility,
     widget_info::{WidgetInfo, WidgetInfoTree, WidgetOffset},
     UiNode,
 };
@@ -1076,21 +1077,22 @@ impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
     }
 }
 
-/// State for tracking updates in [`write_frame`](write_frame).
-pub struct WriteFrameState {
+/// State for tracking updates in [`write_tree`].
+pub struct WriteTreeState {
     #[allow(clippy::type_complexity)]
     widgets: IdMap<WidgetInstanceId, WriteWidgetState>,
 }
 struct WriteWidgetState {
     outer_bounds: PxRect,
     inner_bounds: PxRect,
+    visibility: Visibility,
     /// [(property_name, arg_name) => (value_version, value)]
     properties: HashMap<(&'static str, &'static str), (u32, ValueInfo)>,
 }
-impl WriteFrameState {
+impl WriteTreeState {
     /// No property update.
     pub fn none() -> Self {
-        WriteFrameState {
+        WriteTreeState {
             widgets: Default::default(),
         }
     }
@@ -1100,11 +1102,11 @@ impl WriteFrameState {
         self.widgets.is_empty()
     }
 
-    /// State from `frame` that can be compared to future frames.
-    pub fn new(frame: &WidgetInfoTree) -> Self {
+    /// State from `tree` that can be compared to future trees.
+    pub fn new(tree: &WidgetInfoTree) -> Self {
         let mut widgets = IdMap::default();
 
-        for w in frame.all_widgets() {
+        for w in tree.all_widgets() {
             if let Some(info) = w.instance() {
                 let info = info.borrow();
                 let mut properties = HashMap::new();
@@ -1124,13 +1126,14 @@ impl WriteFrameState {
                     WriteWidgetState {
                         outer_bounds: w.outer_bounds(),
                         inner_bounds: w.inner_bounds(),
+                        visibility: w.visibility(),
                         properties,
                     },
                 );
             }
         }
 
-        WriteFrameState { widgets }
+        WriteTreeState { widgets }
     }
 
     /// Gets the change in a property argument.
@@ -1151,6 +1154,18 @@ impl WriteFrameState {
         None
     }
 
+    /// Gets the change in the widget inner-bounds.
+    pub fn inner_bounds_diff(&self, widget_id: WidgetInstanceId, inner_bounds: PxRect) -> Option<WriteArgDiff> {
+        if !self.is_none() {
+            if let Some(wgt_state) = self.widgets.get(&widget_id) {
+                if wgt_state.inner_bounds != inner_bounds {
+                    return Some(WriteArgDiff::NewValue);
+                }
+            }
+        }
+        None
+    }
+
     /// Gets the change in the widget outer-bounds.
     pub fn outer_bounds_diff(&self, widget_id: WidgetInstanceId, outer_bounds: PxRect) -> Option<WriteArgDiff> {
         if !self.is_none() {
@@ -1163,11 +1178,11 @@ impl WriteFrameState {
         None
     }
 
-    /// Gets the change in the widget inner-bounds.
-    pub fn inner_bounds_diff(&self, widget_id: WidgetInstanceId, inner_bounds: PxRect) -> Option<WriteArgDiff> {
+    /// Gets the change in the widget visibility.
+    pub fn visibility_diff(&self, widget_id: WidgetInstanceId, visibility: Visibility) -> Option<WriteArgDiff> {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
-                if wgt_state.inner_bounds != inner_bounds {
+                if wgt_state.visibility != visibility {
                     return Some(WriteArgDiff::NewValue);
                 }
             }
@@ -1184,18 +1199,18 @@ pub enum WriteArgDiff {
     NewValue,
 }
 
-/// Writes the widget tree of a `frame` to `out`.
+/// Writes the widget `tree` to `out`.
 ///
 /// When writing to a terminal the text is color coded and a legend is printed. The coloring
 /// can be configured using environment variables, see [colored](https://github.com/mackwic/colored#features)
 /// for details.
 #[inline]
-pub fn write_frame<W: std::io::Write>(frame: &WidgetInfoTree, updates_from: &WriteFrameState, out: &mut W) {
+pub fn write_tree<W: std::io::Write>(tree: &WidgetInfoTree, updates_from: &WriteTreeState, out: &mut W) {
     let mut fmt = print_fmt::Fmt::new(out);
-    write_tree(updates_from, frame.root(), "", &mut fmt);
+    write_impl(updates_from, tree.root(), "", &mut fmt);
     fmt.write_legend();
 }
-fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt<W>) {
+fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt<W>) {
     if let Some(info) = widget.instance() {
         let wgt = info.borrow();
 
@@ -1283,9 +1298,24 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
             true,
             updates_from.outer_bounds_diff(wgt.instance_id, widget.outer_bounds()),
         );
+        fmt.write_property(
+            (".render", false),
+            ".visibility",
+            {
+                let vis = widget.visibility();
+                &ValueInfo {
+                    debug: formatx!("{:?}", vis),
+                    debug_alt: formatx!("{:#?}", vis),
+                    type_name: std::any::type_name::<Visibility>().into(),
+                }
+            },
+            false,
+            true,
+            updates_from.visibility_diff(wgt.instance_id, widget.visibility()),
+        );
 
         for child in widget.children() {
-            write_tree(updates_from, child, wgt.widget_name, fmt);
+            write_impl(updates_from, child, wgt.widget_name, fmt);
         }
 
         fmt.close_widget(wgt.widget_name);
@@ -1321,7 +1351,7 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
         );
 
         for child in widget.children() {
-            write_tree(updates_from, child, "<unknown>", fmt);
+            write_impl(updates_from, child, "<unknown>", fmt);
         }
         fmt.close_widget("<unknown>");
     }

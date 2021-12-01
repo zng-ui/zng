@@ -797,6 +797,8 @@ impl FrameBuilder {
 
             let item = self.common_hit_item_ps(rect);
             self.display_list.push_text(&item, rect.to_wr(), glyphs, instance_key, color, None);
+        } else {
+            self.widget_rendered();
         }
     }
 
@@ -821,6 +823,8 @@ impl FrameBuilder {
                 image_key,
                 RenderColor::WHITE,
             )
+        } else {
+            self.widget_rendered();
         }
     }
 

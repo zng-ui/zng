@@ -1065,9 +1065,9 @@ pub fn focus_widget_or_parent_goes_to_parent() {
 
 #[test]
 pub fn focus_widget_or_child_goes_to_child() {
-    let first_focus_id = WidgetId::new_unique();
-    let parent_id = WidgetId::new_unique();
-    let child_id = WidgetId::new_unique();
+    let first_focus_id = WidgetId::named("first_focus");
+    let parent_id = WidgetId::named("parent");
+    let child_id = WidgetId::named("child");
 
     let mut app = TestApp::new(v_stack(widgets![
         button! {
@@ -1090,6 +1090,7 @@ pub fn focus_widget_or_child_goes_to_child() {
     assert_eq!(Some(first_focus_id), app.focused());
 
     app.focus_or_child(parent_id);
+
     assert_eq!(Some(child_id), app.focused());
 }
 
@@ -1624,5 +1625,13 @@ impl TestApp {
 
     pub fn blur_window(&mut self) {
         self.app.blur_window(self.window_id)
+    }
+
+    #[allow(unused)]
+    pub fn write_tree(&mut self) {
+        use zero_ui::core::inspector::*;
+
+        let tree = self.app.ctx().services.windows().widget_tree(self.window_id).unwrap();
+        write_tree(tree, &WriteTreeState::none(), &mut std::io::stdout());
     }
 }

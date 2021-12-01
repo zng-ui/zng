@@ -663,11 +663,11 @@ pub mod window {
         #[cfg(debug_assertions)]
         pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl var::IntoVar<bool>) -> impl UiNode {
             use crate::core::{
-                inspector::{write_frame, WriteFrameState},
+                inspector::{write_tree, WriteTreeState},
                 var::Var,
             };
 
-            let mut state = WriteFrameState::none();
+            let mut state = WriteTreeState::none();
 
             let can_inspect = can_inspect.into_var();
 
@@ -681,9 +681,9 @@ pub mod window {
                     let frame = ctx.services.windows().widget_tree(ctx.path.window_id()).unwrap();
 
                     let mut buffer = vec![];
-                    write_frame(frame, &state, &mut buffer);
+                    write_tree(frame, &state, &mut buffer);
 
-                    state = WriteFrameState::new(frame);
+                    state = WriteTreeState::new(frame);
 
                     task::spawn_wait(move || {
                         use std::io::*;
