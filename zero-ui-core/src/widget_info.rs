@@ -1,9 +1,7 @@
 //! Widget info tree.
 
-use std::any::type_name;
 use std::cell::Cell;
 use std::fmt;
-use std::marker::PhantomData;
 use std::mem;
 use std::ops;
 use std::rc::Rc;
@@ -1038,18 +1036,18 @@ pub struct UsedWidgetInfoBuilder {
     capacity: usize,
 }
 
-macro_rules! update_mask_slot {
+macro_rules! update_slot {
     ($(
         $(#[$meta:meta])*
-        ///
-        /// This `struct` is a single byte that represents an index in the full [`InterestMask`] bitmap.
-        $vis:vis struct $Ident:ident;
+        $vis:vis struct $Slot:ident -> $Mask:ident;
     )+) => {$(
         $(#[$meta])*
+        ///
+        /// This `struct` is a single byte that represents an index in the full bitmap.
         #[derive(Clone, Copy, Debug)]
-        $vis struct $Ident(u8);
+        $vis struct $Slot(u8);
 
-        impl $Ident {
+        impl $Slot {
             /// Gets a slot.
             #[inline]
             pub fn next() -> Self {
@@ -1068,129 +1066,120 @@ macro_rules! update_mask_slot {
 
             /// Gets a mask representing just this slot.
             #[inline]
-            pub fn mask(self) -> InterestMask<Self> {
-                InterestMask::from_slot(self)
-            }
-        }
-
-        impl InterestSlot for $Ident {
-            fn get(self) -> u8 {
-                self.0
+            pub fn mask(self) -> $Mask {
+                $Mask::from_slot(self)
             }
         }
     )+}
 }
+macro_rules! update_mask {
+    ($(
+        $(#[$meta:meta])*
+        $vis:vis struct $Mask:ident <- $Slot:ident;
+    )+) => {$(
+        $(#[$meta])*
+        ///
+        /// This `struct` is a 256-bit bitmap of flagged slots.
+        #[derive(Clone, Copy)]
+        $vis struct $Mask([u128; 2]);
 
-update_mask_slot! {
+        impl $Mask {
+            /// Gets a mask representing just the `slot`.
+            pub fn from_slot(slot: $Slot) -> Self {
+                let mut r = Self::none();
+                r.insert(slot);
+                r
+            }
+
+            /// Returns a mask that represents no update.
+            #[inline]
+            pub const fn none() -> Self {
+                $Mask([0; 2])
+            }
+
+            /// Returns a mask that represents all updates.
+            #[inline]
+            pub const fn all() -> Self {
+                $Mask([u128::MAX; 2])
+            }
+
+            /// Returns `true` if this mask does not represent any update.
+            #[inline]
+            pub fn is_none(&self) -> bool {
+                self.0[0] == 0 && self.0[1] == 0
+            }
+
+            /// Flags the `slot` in this mask.
+            #[inline]
+            pub fn insert(&mut self, slot: $Slot) {
+                let slot = slot.0;
+                if slot < 128 {
+                    self.0[0] |= 1 << slot;
+                } else {
+                    self.0[1] |= 1 << (slot - 128);
+                }
+            }
+
+            /// Returns `true` if the `slot` is set in this mask.
+            #[inline]
+            pub fn contains(&self, slot: $Slot) -> bool {
+                let slot = slot.0;
+                if slot < 128 {
+                    (self.0[0] & (1 << slot)) != 0
+                } else {
+                    (self.0[1] & (1 << slot)) != 0
+                }
+            }
+
+            /// Flags all slots set in `other` in `self` as well.
+            #[inline]
+            pub fn extend(&mut self, other: &Self) {
+                self.0[0] |= other.0[0];
+                self.0[1] |= other.0[1];
+            }
+
+            /// Returns `true` if any slot is set in both `self` and `other`.
+            #[inline]
+            pub fn overlaps(&self, other: &Self) -> bool {
+                (self.0[0] & other.0[0]) != 0 || (self.0[1] & other.0[1]) != 0
+            }
+        }
+        impl ops::BitOrAssign<Self> for $Mask {
+            fn bitor_assign(&mut self, rhs: Self) {
+                self.extend(&rhs)
+            }
+        }
+        impl ops::BitOrAssign<$Slot> for $Mask {
+            fn bitor_assign(&mut self, rhs: $Slot) {
+                self.insert(rhs)
+            }
+        }
+        impl fmt::Debug for $Mask {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}([{:x}, {:x}])", stringify!($Mask), self.0[0], self.0[1])
+            }
+        }
+
+    )+}
+}
+
+update_slot! {
     /// Represents a single update source in a [`UpdateMask`].
     ///
     /// Anything that generates an [`UiNode::update`] has one of these slots reserved.
     ///
     /// [`UiNode::update`]: crate::UiNode::update
-    pub struct UpdateInterest;
+    pub struct UpdateSlot -> UpdateMask;
 
     /// Represents a single event in a [`EventMask`].
     ///
     /// Every event is assigned on of these slots.
-    pub struct EventInterest;
+    pub struct EventSlot -> EventMask;
 }
+update_mask! {
+    /// Represents the combined update sources that affect an UI tree or widget.
+    pub struct UpdateMask <- UpdateSlot;
 
-/// Represents the combined update sources that affect an UI tree or widget.
-pub type UpdateMask = InterestMask<UpdateInterest>;
-
-/// Represents the combined events that are listened by an UI tree or widget.
-pub type EventMask = InterestMask<EventInterest>;
-
-#[doc(hidden)]
-/// A typed slot in a [`InterestMask<S>`].
-pub trait InterestSlot: Copy + 'static {
-    /// Get the raw slot index.
-    fn get(self) -> u8;
-}
-
-/// Represents combined subscriber interests for resource kind `S`.
-///
-/// This `struct` is a 256 bitmap.
-#[derive(Clone, Copy)]
-pub struct InterestMask<S>([u128; 2], PhantomData<S>);
-impl<S: InterestSlot> InterestMask<S> {
-    /// Gets a mask representing just the `slot`.
-    pub fn from_slot(slot: S) -> Self {
-        let mut r = Self::none();
-        r.insert(slot);
-        r
-    }
-
-    /// Returns a mask that represents no update.
-    #[inline]
-    pub fn none() -> Self {
-        InterestMask([0; 2], PhantomData)
-    }
-
-    /// Returns a mask that represents all updates.
-    #[inline]
-    pub fn all() -> Self {
-        InterestMask([u128::MAX; 2], PhantomData)
-    }
-
-    /// Returns `true` if this mask does not represent any update.
-    #[inline]
-    pub fn is_none(&self) -> bool {
-        self.0[0] == 0 && self.0[1] == 0
-    }
-
-    /// Flags the `slot` in this mask.
-    #[inline]
-    pub fn insert(&mut self, slot: S) {
-        let slot = slot.get();
-        if slot < 128 {
-            self.0[0] |= 1 << slot;
-        } else {
-            self.0[1] |= 1 << (slot - 128);
-        }
-    }
-
-    /// Returns `true` if the `slot` is set in this mask.
-    #[inline]
-    pub fn contains(&self, slot: S) -> bool {
-        let slot = slot.get();
-        if slot < 128 {
-            (self.0[0] & (1 << slot)) != 0
-        } else {
-            (self.0[1] & (1 << slot)) != 0
-        }
-    }
-
-    /// Flags all slots set in `other` in `self` as well.
-    #[inline]
-    pub fn extend(&mut self, other: &Self) {
-        self.0[0] |= other.0[0];
-        self.0[1] |= other.0[1];
-    }
-
-    /// Returns `true` if any slot is set in both `self` and `other`.
-    #[inline]
-    pub fn overlaps(&self, other: &Self) -> bool {
-        (self.0[0] & other.0[0]) != 0 || (self.0[1] & other.0[1]) != 0
-    }
-}
-impl<S: InterestSlot> ops::BitOrAssign<&Self> for InterestMask<S> {
-    fn bitor_assign(&mut self, rhs: &Self) {
-        self.extend(rhs)
-    }
-}
-impl<S: InterestSlot> ops::BitOrAssign<Self> for InterestMask<S> {
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.extend(&rhs)
-    }
-}
-impl<S: InterestSlot> ops::BitOrAssign<S> for InterestMask<S> {
-    fn bitor_assign(&mut self, rhs: S) {
-        self.insert(rhs)
-    }
-}
-impl<S: InterestSlot> fmt::Debug for InterestMask<S> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "InterestMask<{}>([{:x}, {:x}])", type_name::<S>(), self.0[0], self.0[1])
-    }
+    /// Represents the combined events that are listened by an UI tree or widget.
+    pub struct EventMask <- EventSlot;
 }

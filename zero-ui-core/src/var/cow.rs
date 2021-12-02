@@ -5,8 +5,9 @@ use std::{
 
 use once_cell::unsync::OnceCell;
 
+use crate::widget_info::UpdateSlot;
+
 use super::*;
-use crate::widget_info::UpdateInterest;
 
 /// A clone-on-write variable.
 ///
@@ -409,7 +410,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
                 if let Some(source) = self.source(vars) {
                     source.update_mask(vars)
                 } else {
-                    UpdateInterest::next().mask()
+                    UpdateSlot::next().mask()
                 }
             })
         })

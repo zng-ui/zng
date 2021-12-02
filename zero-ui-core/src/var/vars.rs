@@ -141,8 +141,6 @@ impl VarsRead {
     ///
     /// Unlike [`Vars::with_context_var`] in this method the context-var is never [new].
     ///
-    /// See also the [`with_context_var_expr`] helper function for declaring a property that sets a context var.
-    ///
     /// [new]: Var::is_new
     #[inline(always)]
     pub fn with_context_var<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, update_mask: UpdateMask, f: F) -> R
@@ -183,8 +181,6 @@ impl VarsRead {
     /// Calls `f` with the context var set to `value`, but only for the current widget not its descendants.
     ///
     /// Unlike [`Vars::with_context_var_wgt_only`] in this method the context-var is never [new].
-    ///
-    /// See also the [`with_context_var_wgt_only_expr`] helper function to declare a property that sets a context var.
     ///
     /// [new]: Var::is_new
     #[inline(always)]
@@ -464,8 +460,6 @@ impl Vars {
     /// Calls `f` with the context var set to `value`.
     ///
     /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
-    ///
-    /// See also the [`with_context_var_expr`] helper function for declaring a property that sets a context var.
     #[inline(always)]
     pub fn with_context_var<C, R, F>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, update_mask: UpdateMask, f: F) -> R
     where
@@ -481,8 +475,6 @@ impl Vars {
     ///
     /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
     /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
-    ///
-    /// See also the [`with_context_var_wgt_only_expr`] helper function for declaring a property that sets a context var.
     #[inline(always)]
     pub fn with_context_var_wgt_only<C, R, F>(
         &self,
