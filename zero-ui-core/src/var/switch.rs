@@ -267,6 +267,12 @@ macro_rules! impl_rc_switch_var {
             fn into_read_only(self) -> Self::AsReadOnly {
                 ReadOnlyVar::new(self)
             }
+
+            fn update_mask(&self) -> UpdateMask {
+                let mut r = self.0.index.update_mask();
+                $(r |= self.0.vars.$n.update_mask();)+
+                r
+            }
         }
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
@@ -470,6 +476,15 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
+    }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        let mut r = self.0.index.update_mask();
+        for var in &self.0.vars {
+            r |= var.update_mask();
+        }
+        r
     }
 }
 impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {

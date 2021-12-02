@@ -209,6 +209,11 @@ where
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        self.0.source.update_mask()
+    }
 }
 impl<A, B, M, S> IntoVar<B> for RcMapVar<A, B, M, S>
 where
@@ -521,6 +526,11 @@ where
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
+    }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        self.0.source.update_mask()
     }
 }
 impl<A, B, M, N, S> IntoVar<B> for RcMapBidiVar<A, B, M, N, S>

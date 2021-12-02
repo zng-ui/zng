@@ -173,6 +173,11 @@ where
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        self.source.update_mask()
+    }
 }
 
 impl<A, B, M, S> IntoVar<B> for MapRefVar<A, B, M, S>
@@ -439,6 +444,11 @@ where
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
+    }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        self.source.update_mask()
     }
 }
 

@@ -511,6 +511,13 @@ macro_rules! impl_rc_merge_var {
             fn into_read_only(self) -> Self::AsReadOnly {
                 ReadOnlyVar::new(self)
             }
+
+            #[inline]
+            fn update_mask(&self) -> UpdateMask {
+                let mut r = UpdateMask::none();
+                $(r |= self.0.vars.$n.update_mask();)+
+                r
+            }
         }
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>

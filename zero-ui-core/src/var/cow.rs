@@ -57,6 +57,7 @@ struct CowData<T, V> {
     source_always_read_only: bool,
     source_can_update: bool,
     is_pass_through: bool,
+    update_mask: UpdateMask,
 
     value: UnsafeCell<Option<T>>,
     version: Cell<u32>,
@@ -86,6 +87,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
 
     fn new_(source: V, is_pass_through: bool) -> Self {
         RcCowVar(Rc::new(CowData {
+            update_mask: source.update_mask(),
             source_always_read_only: source.always_read_only(),
             source_can_update: source.can_update(),
             source: UnsafeCell::new(Some(source)),
@@ -396,6 +398,10 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
 
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
+    }
+
+    fn update_mask(&self) -> UpdateMask {
+        self.0.update_mask.clone()
     }
 }
 impl<T: VarValue, V: Var<T>> IntoVar<T> for RcCowVar<T, V> {

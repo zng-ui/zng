@@ -1038,7 +1038,7 @@ pub struct UsedWidgetInfoBuilder {
     capacity: usize,
 }
 
-macro_rules! interest_mask_slot {
+macro_rules! update_mask_slot {
     ($(
         $(#[$meta:meta])*
         $vis:vis struct $Ident:ident;
@@ -1079,7 +1079,7 @@ macro_rules! interest_mask_slot {
     )+}
 }
 
-interest_mask_slot! {
+update_mask_slot! {
     /// Represents a single update source in a [`UpdateMask`].
     ///
     /// Anything that generates an [`UiNode::update`] has one of these slots reserved.

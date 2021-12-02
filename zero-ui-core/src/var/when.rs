@@ -310,6 +310,13 @@ macro_rules! impl_rc_when_var {
             fn into_read_only(self) -> Self::AsReadOnly {
                ReadOnlyVar::new(self)
             }
+
+            fn update_mask(&self) -> UpdateMask {
+                let mut r = self.0.default_value.update_mask();
+                $(r |= self.0.conditions.$n.update_mask();)+
+                $(r |= self.0.values.$n.update_mask();)+
+                r
+            }
         }
 
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> IntoVar<O> for $RcMergeVar<O, D, $($C),+ , $($V),+>  {
@@ -557,6 +564,15 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
+    }
+
+    fn update_mask(&self) -> UpdateMask {
+        let mut r = self.0.default_.update_mask();
+        for (c, v) in &self.0.whens {
+            r |= c.update_mask();
+            r |= v.update_mask();
+        }
+        r
     }
 }
 impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {

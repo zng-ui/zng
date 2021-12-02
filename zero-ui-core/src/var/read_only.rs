@@ -116,6 +116,11 @@ where
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        self.0.update_mask()
+    }
 }
 impl<T, V> IntoVar<T> for ReadOnlyVar<T, V>
 where

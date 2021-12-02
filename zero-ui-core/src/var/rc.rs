@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::crate_util::RunOnDrop;
+use crate::widget_info::UpdateInterest;
 
 use super::*;
 
@@ -14,6 +15,7 @@ struct Data<T> {
     modifying: Cell<bool>,
     last_update_id: Cell<u32>,
     version: Cell<u32>,
+    update_slot: UpdateInterest,
 }
 impl<T: Clone> Clone for Data<T> {
     fn clone(&self) -> Self {
@@ -27,6 +29,7 @@ impl<T: Clone> Clone for Data<T> {
             modifying: Cell::new(false),
             last_update_id: Cell::new(self.last_update_id.get()),
             version: Cell::new(self.version.get()),
+            update_slot: self.update_slot,
         }
     }
 }
@@ -40,6 +43,7 @@ impl<T: VarValue> RcVar<T> {
             modifying: Cell::new(false),
             last_update_id: Cell::new(0),
             version: Cell::new(0),
+            update_slot: UpdateInterest::next(),
         }))
     }
 
@@ -367,6 +371,11 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
+    }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        self.0.update_slot.mask()
     }
 }
 impl<T: VarValue> IntoVar<T> for RcVar<T> {

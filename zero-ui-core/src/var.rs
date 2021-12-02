@@ -1299,6 +1299,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
             )
         })
     }
+
+    /// Returns a [`UpdateMask`] that represents all the variables that can cause this variable to update.
+    fn update_mask(&self) -> UpdateMask;
 }
 
 #[doc(hidden)]
@@ -1486,6 +1489,7 @@ pub use crate::expr_var;
 use crate::{
     handler::AppHandler,
     text::{Text, ToText},
+    widget_info::UpdateMask,
 };
 
 #[doc(hidden)]

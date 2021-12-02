@@ -116,6 +116,11 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        todo!("!")
+    }
 }
 
 impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {

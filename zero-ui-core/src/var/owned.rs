@@ -84,6 +84,11 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
+
+    #[inline]
+    fn update_mask(&self) -> UpdateMask {
+        UpdateMask::none()
+    }
 }
 impl<T: VarValue + Default> Default for OwnedVar<T> {
     fn default() -> Self {
