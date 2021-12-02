@@ -211,8 +211,8 @@ where
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
-        self.0.source.update_mask()
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        self.0.source.update_mask(vars)
     }
 }
 impl<A, B, M, S> IntoVar<B> for RcMapVar<A, B, M, S>
@@ -529,8 +529,8 @@ where
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
-        self.0.source.update_mask()
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        self.0.source.update_mask(vars)
     }
 }
 impl<A, B, M, N, S> IntoVar<B> for RcMapBidiVar<A, B, M, N, S>

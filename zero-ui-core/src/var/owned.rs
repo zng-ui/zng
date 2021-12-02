@@ -86,7 +86,7 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
+    fn update_mask<Vr: WithVarsRead>(&self, _: &Vr) -> UpdateMask {
         UpdateMask::none()
     }
 }

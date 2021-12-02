@@ -1041,6 +1041,8 @@ pub struct UsedWidgetInfoBuilder {
 macro_rules! update_mask_slot {
     ($(
         $(#[$meta:meta])*
+        ///
+        /// This `struct` is a single byte that represents an index in the full [`InterestMask`] bitmap.
         $vis:vis struct $Ident:ident;
     )+) => {$(
         $(#[$meta])*
@@ -1107,7 +1109,9 @@ pub trait InterestSlot: Copy + 'static {
 }
 
 /// Represents combined subscriber interests for resource kind `S`.
-#[derive(Clone)]
+///
+/// This `struct` is a 256 bitmap.
+#[derive(Clone, Copy)]
 pub struct InterestMask<S>([u128; 2], PhantomData<S>);
 impl<S: InterestSlot> InterestMask<S> {
     /// Gets a mask representing just the `slot`.

@@ -1,4 +1,5 @@
 use crate::prelude::new_widget::*;
+use crate::core::widget_info::UpdateInterest;
 
 /// A configured [`text`](../fn.text.html).
 ///
@@ -512,6 +513,7 @@ pub mod text {
 
                 variations: FontVariations,
                 version: u32,
+                update_slot: UpdateInterest,
             }
             impl<C, V> UiNode for WithFontVariationNode<C, V>
             where

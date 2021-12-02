@@ -20,7 +20,7 @@ pub trait VarBoxed<T: VarValue> {
     fn set_boxed(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>;
     fn clone_boxed(&self) -> BoxedVar<T>;
     fn strong_count_boxed(&self) -> usize;
-    fn update_mask_boxed(&self) -> UpdateMask;
+    fn update_mask_boxed(&self, vars: &VarsRead) -> UpdateMask;
 }
 impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     #[inline]
@@ -84,8 +84,8 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     }
 
     #[inline]
-    fn update_mask_boxed(&self) -> UpdateMask {
-        self.update_mask()
+    fn update_mask_boxed(&self, vars: &VarsRead) -> UpdateMask {
+        self.update_mask(vars)
     }
 }
 impl<T: VarValue> Clone for BoxedVar<T> {
@@ -197,8 +197,8 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         }
     }
 
-    fn update_mask(&self) -> UpdateMask {
-        self.as_ref().update_mask_boxed()
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        vars.with_vars_read(|vars| self.as_ref().update_mask_boxed(vars.as_ref()))
     }
 }
 impl<T: VarValue> IntoVar<T> for BoxedVar<T> {

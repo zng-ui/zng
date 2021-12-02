@@ -311,11 +311,13 @@ macro_rules! impl_rc_when_var {
                ReadOnlyVar::new(self)
             }
 
-            fn update_mask(&self) -> UpdateMask {
-                let mut r = self.0.default_value.update_mask();
-                $(r |= self.0.conditions.$n.update_mask();)+
-                $(r |= self.0.values.$n.update_mask();)+
-                r
+            fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+                vars.with_vars_read(|vars| {
+                    let mut r = self.0.default_value.update_mask(vars);
+                    $(r |= self.0.conditions.$n.update_mask(vars);)+
+                    $(r |= self.0.values.$n.update_mask(vars);)+
+                    r
+                })
             }
         }
 
@@ -566,13 +568,15 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         ReadOnlyVar::new(self)
     }
 
-    fn update_mask(&self) -> UpdateMask {
-        let mut r = self.0.default_.update_mask();
-        for (c, v) in self.0.whens.iter() {
-            r |= c.update_mask();
-            r |= v.update_mask();
-        }
-        r
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        vars.with_vars_read(|vars| {
+            let mut r = self.0.default_.update_mask(vars);
+            for (c, v) in self.0.whens.iter() {
+                r |= c.update_mask(vars);
+                r |= v.update_mask(vars);
+            }
+            r
+        })
     }
 }
 impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {

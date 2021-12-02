@@ -265,8 +265,8 @@ where
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
-        self.0.source.update_mask()
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        self.0.source.update_mask(vars)
     }
 }
 impl<A, B, I, M, S> IntoVar<B> for RcFilterMapVar<A, B, I, M, S>
@@ -631,8 +631,8 @@ where
         ReadOnlyVar::new(self)
     }
 
-    fn update_mask(&self) -> UpdateMask {
-        self.0.source.update_mask()
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        self.0.source.update_mask(vars)
     }
 }
 impl<A, B, I, M, N, S> IntoVar<B> for RcFilterMapBidiVar<A, B, I, M, N, S>

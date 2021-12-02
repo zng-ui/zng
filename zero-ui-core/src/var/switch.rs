@@ -268,10 +268,12 @@ macro_rules! impl_rc_switch_var {
                 ReadOnlyVar::new(self)
             }
 
-            fn update_mask(&self) -> UpdateMask {
-                let mut r = self.0.index.update_mask();
-                $(r |= self.0.vars.$n.update_mask();)+
-                r
+            fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+                vars.with_vars_read(|vars| {
+                    let mut r = self.0.index.update_mask(vars);
+                    $(r |= self.0.vars.$n.update_mask(vars);)+
+                    r
+                })
             }
         }
 
@@ -479,12 +481,14 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
-        let mut r = self.0.index.update_mask();
-        for var in self.0.vars.iter() {
-            r |= var.update_mask();
-        }
-        r
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        vars.with_vars_read(|vars| {
+            let mut r = self.0.index.update_mask(vars);
+            for var in self.0.vars.iter() {
+                r |= var.update_mask(vars);
+            }
+            r
+        })
     }
 }
 impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {

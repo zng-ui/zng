@@ -118,8 +118,8 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
-        todo!("!")
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        vars.with_vars_read(|v| v.context_var::<C>().3.clone())
     }
 }
 
@@ -137,7 +137,7 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
 pub struct ContextVarValue<V: ContextVar> {
     _var: PhantomData<V>,
     _default_value: Box<V::Type>,
-    value: Cell<(*const V::Type, bool, u32)>,
+    value: Cell<(*const V::Type, bool, u32, UpdateMask)>,
 }
 #[allow(missing_docs)]
 impl<V: ContextVar> ContextVarValue<V> {
@@ -146,7 +146,7 @@ impl<V: ContextVar> ContextVarValue<V> {
         let default_value = Box::new(V::default_value());
         ContextVarValue {
             _var: PhantomData,
-            value: Cell::new((&*default_value as *const V::Type, false, 0)),
+            value: Cell::new((&*default_value as *const V::Type, false, 0, UpdateMask::none())),
             _default_value: default_value,
         }
     }
@@ -164,15 +164,15 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         ContextVarLocalKey { local }
     }
 
-    pub(super) fn get(&self) -> (*const V::Type, bool, u32) {
+    pub(super) fn get(&self) -> (*const V::Type, bool, u32, UpdateMask) {
         self.local.with(|l| l.value.get())
     }
 
-    pub(super) fn set(&self, value: (*const V::Type, bool, u32)) {
+    pub(super) fn set(&self, value: (*const V::Type, bool, u32, UpdateMask)) {
         self.local.with(|l| l.value.set(value))
     }
 
-    pub(super) fn replace(&self, value: (*const V::Type, bool, u32)) -> (*const V::Type, bool, u32) {
+    pub(super) fn replace(&self, value: (*const V::Type, bool, u32, UpdateMask)) -> (*const V::Type, bool, u32, UpdateMask) {
         self.local.with(|l| l.value.replace(value))
     }
 }

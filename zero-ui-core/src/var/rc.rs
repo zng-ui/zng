@@ -374,7 +374,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
+    fn update_mask<Vr: WithVarsRead>(&self, _: &Vr) -> UpdateMask {
         self.0.update_slot.mask()
     }
 }

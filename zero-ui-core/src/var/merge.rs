@@ -513,10 +513,12 @@ macro_rules! impl_rc_merge_var {
             }
 
             #[inline]
-            fn update_mask(&self) -> UpdateMask {
-                let mut r = UpdateMask::none();
-                $(r |= self.0.vars.$n.update_mask();)+
-                r
+            fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+                vars.with_vars_read(|vars| {
+                    let mut r = UpdateMask::none();
+                    $(r |= self.0.vars.$n.update_mask(vars);)+
+                    r
+                })
             }
         }
 

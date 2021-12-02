@@ -1301,7 +1301,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     }
 
     /// Returns a [`UpdateMask`] that represents all the variables that can cause this variable to update.
-    fn update_mask(&self) -> UpdateMask;
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask;
 }
 
 #[doc(hidden)]

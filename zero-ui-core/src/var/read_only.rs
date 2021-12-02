@@ -118,8 +118,8 @@ where
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
-        self.0.update_mask()
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        self.0.update_mask(vars)
     }
 }
 impl<T, V> IntoVar<T> for ReadOnlyVar<T, V>

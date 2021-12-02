@@ -175,8 +175,8 @@ where
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
-        self.source.update_mask()
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        self.source.update_mask(vars)
     }
 }
 
@@ -447,8 +447,8 @@ where
     }
 
     #[inline]
-    fn update_mask(&self) -> UpdateMask {
-        self.source.update_mask()
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        self.source.update_mask(vars)
     }
 }
 

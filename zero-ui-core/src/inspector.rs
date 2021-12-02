@@ -13,7 +13,7 @@ use crate::{
     units::*,
     var::{context_var, BoxedVar, Var},
     widget_base::Visibility,
-    widget_info::{WidgetInfo, WidgetInfoTree, WidgetOffset},
+    widget_info::{UpdateMask, WidgetInfo, WidgetInfoTree, WidgetOffset},
     UiNode,
 };
 use crate::{
@@ -493,9 +493,10 @@ impl UiNode for WidgetInstanceInfoNode {
 
         {
             let child = &mut self.child;
-            ctx.vars.with_context_var(ParentPropertyName, &"new(..)", false, 0, || {
-                child.init(ctx);
-            });
+            ctx.vars
+                .with_context_var(ParentPropertyName, &"new(..)", false, 0, UpdateMask::none(), || {
+                    child.init(ctx);
+                });
         }
 
         let mut info_borrow = self.info.borrow_mut();
@@ -668,13 +669,14 @@ impl UiNode for PropertyInfoNode {
         let child = &mut self.child;
         let property_name = info.property_name;
 
-        ctx.vars.with_context_var(ParentPropertyName, &property_name, false, 0, || {
-            let t = Instant::now();
-            child.init(ctx);
-            let d = t.elapsed();
-            info.duration.init = d;
-            info.count.init += 1;
-        });
+        ctx.vars
+            .with_context_var(ParentPropertyName, &property_name, false, 0, UpdateMask::none(), || {
+                let t = Instant::now();
+                child.init(ctx);
+                let d = t.elapsed();
+                info.duration.init = d;
+                info.count.init += 1;
+            });
 
         for (var, arg) in self.arg_debug_vars.iter().zip(info.args.iter_mut()) {
             arg.value = var.get_clone(ctx);
@@ -781,9 +783,10 @@ impl NewChildMarkerNode {
 impl UiNode for NewChildMarkerNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
-        ctx.vars.with_context_var(ParentPropertyName, &"new_child(..)", false, 0, || {
-            child.init(ctx);
-        });
+        ctx.vars
+            .with_context_var(ParentPropertyName, &"new_child(..)", false, 0, UpdateMask::none(), || {
+                child.init(ctx);
+            });
     }
 }
 

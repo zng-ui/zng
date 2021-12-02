@@ -7,6 +7,7 @@ pub mod scrollable {
     use super::*;
     use bitflags::*;
     use properties::*;
+    use crate::core::widget_info::UpdateMask;
 
     #[doc(inline)]
     pub use super::scrollbar;
@@ -468,14 +469,14 @@ pub mod scrollable {
         ///
         /// [new]: Self::get_new
         pub fn with_context(vars: &impl WithVarsRead, context: &Option<ScrollContext>, f: impl FnOnce()) {
-            vars.with_vars_read(|vars| vars.with_context_var(ScrollContextVar, context, 0, f))
+            vars.with_vars_read(|vars| vars.with_context_var(ScrollContextVar, context, 0, UpdateMask::none(), f))
         }
 
         /// Call closure `f` within a context.
         ///
         /// The `is_new` parameter indicates that one or more variables in the context has changed.
         pub fn with_context_upt(vars: &impl WithVars, context: &Option<ScrollContext>, is_new: bool, f: impl FnOnce()) {
-            vars.with_vars(|vars| vars.with_context_var(ScrollContextVar, context, is_new, 1, f))
+            vars.with_vars(|vars| vars.with_context_var(ScrollContextVar, context, is_new, 1, UpdateMask::none(), f))
         }
     }
 

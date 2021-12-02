@@ -672,6 +672,7 @@ pub mod image {
                         &self.image,
                         self.source.is_new(ctx.vars),
                         self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
                         || {
                             child.init(ctx);
                         },
@@ -685,6 +686,7 @@ pub mod image {
                         &self.image,
                         self.source.is_new(ctx.vars),
                         self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
                         || {
                             child.deinit(ctx);
                         },
@@ -699,6 +701,7 @@ pub mod image {
                         &self.image,
                         self.source.is_new(ctx.vars),
                         self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
                         || {
                             child.event(ctx, args);
                         },
@@ -744,6 +747,7 @@ pub mod image {
                         &self.image,
                         force_new || self.source.is_new(ctx.vars),
                         self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
                         || {
                             child.update(ctx);
                         },
@@ -757,6 +761,7 @@ pub mod image {
                         &self.image,
                         self.source.is_new(ctx.vars),
                         self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
                         || child.measure(ctx, available_size),
                     )
                 }
@@ -768,6 +773,7 @@ pub mod image {
                         &self.image,
                         self.source.is_new(ctx.vars),
                         self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
                         || {
                             child.arrange(ctx, widget_offset, final_size);
                         },
@@ -775,24 +781,39 @@ pub mod image {
                 }
 
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    ctx.vars
-                        .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
+                    ctx.vars.with_context_var(
+                        ContextImageVar,
+                        &self.image,
+                        self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
+                        || {
                             self.child.info(ctx, info);
-                        });
+                        },
+                    );
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    ctx.vars
-                        .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
+                    ctx.vars.with_context_var(
+                        ContextImageVar,
+                        &self.image,
+                        self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
+                        || {
                             self.child.render(ctx, frame);
-                        });
+                        },
+                    );
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    ctx.vars
-                        .with_context_var(ContextImageVar, &self.image, self.source.version(ctx.vars), || {
+                    ctx.vars.with_context_var(
+                        ContextImageVar,
+                        &self.image,
+                        self.source.version(ctx.vars),
+                        self.source.update_mask(ctx.vars),
+                        || {
                             self.child.render_update(ctx, update);
-                        });
+                        },
+                    );
                 }
             }
             ImageSourceNode {
