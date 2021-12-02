@@ -1191,7 +1191,7 @@ impl WriteTreeState {
     }
 }
 
-/// Represents the change in a property argument calculated by [`WriteFrameState`].
+/// Represents the change in a property argument calculated by [`WriteTreeState`].
 pub enum WriteArgDiff {
     /// The argument is equal the previous one, but the variable version changed.
     NewVersion,

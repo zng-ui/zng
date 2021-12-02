@@ -494,7 +494,7 @@ event! {
 /// See the [module level](crate::focus) documentation for an overview of the keyboard
 /// focus concepts implemented by this app extension.
 ///
-/// [App::default]: crate::app::App::default
+/// [`App::default`]: crate::app::App::default
 pub struct FocusManager {
     focused: Option<WidgetPath>,
     last_keyboard_event: Instant,

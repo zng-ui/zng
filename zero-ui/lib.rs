@@ -1027,7 +1027,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,
-            widget_base::{Visibility, VisibilityContext, WidgetVisibilityExt},
+            widget_base::Visibility,
             widget_info::{WidgetInfoBuilder, WidgetOffset},
             widget_vec, widgets, BoxedUiNode, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
         };
@@ -1082,7 +1082,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property, widget,
-            widget_base::{Visibility, VisibilityContext, WidgetVisibilityExt},
+            widget_base::Visibility,
             widget_info::{WidgetInfoBuilder, WidgetOffset},
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList,
             WidgetVec,
