@@ -1,8 +1,11 @@
 //! Widget info tree.
 
+use std::any::type_name;
 use std::cell::Cell;
 use std::fmt;
+use std::marker::PhantomData;
 use std::mem;
+use std::ops;
 use std::rc::Rc;
 
 use ego_tree::Tree;
@@ -146,15 +149,6 @@ impl WidgetInfoBuilder {
     #[inline]
     pub fn meta(&mut self) -> &mut StateMap {
         &mut self.meta.0
-    }
-
-    /// Calls `f` with an extra offset.
-    ///
-    /// Offsets apply to the widget boundary rectangles.
-    #[inline]
-    pub fn offset(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
-        let _ = offset; // TODO
-        f(self);
     }
 
     /// Calls `f` in a new widget context.
@@ -1042,4 +1036,152 @@ pub enum WidgetOrientation {
 /// Data from a previous [`WidgetInfoBuilder`], can be reused in the next rebuild for a performance boost.
 pub struct UsedWidgetInfoBuilder {
     capacity: usize,
+}
+
+macro_rules! interest_mask_slot {
+    ($(
+        $(#[$meta:meta])*
+        $vis:vis struct $Ident:ident;
+    )+) => {$(
+        $(#[$meta])*
+        #[derive(Clone, Copy, Debug)]
+        $vis struct $Ident(u8);
+
+        impl $Ident {
+            /// Gets a slot.
+            #[inline]
+            pub fn next() -> Self {
+                thread_local! {
+                    static SLOT: Cell<u8> = Cell::new(0);
+                }
+
+                let slot = SLOT.with(|s| {
+                    let slot = s.get().wrapping_add(1);
+                    s.set(slot);
+                    slot
+                });
+
+                Self(slot)
+            }
+
+            /// Gets a mask representing just this slot.
+            #[inline]
+            pub fn mask(self) -> InterestMask<Self> {
+                InterestMask::from_slot(self)
+            }
+        }
+
+        impl InterestSlot for $Ident {
+            fn get(self) -> u8 {
+                self.0
+            }
+        }
+    )+}
+}
+
+interest_mask_slot! {
+    /// Represents a single update source in a [`UpdateMask`].
+    ///
+    /// Anything that generates an [`UiNode::update`] has one of these slots reserved.
+    ///
+    /// [`UiNode::update`]: crate::UiNode::update
+    pub struct UpdateInterest;
+
+    /// Represents a single event in a [`EventMask`].
+    ///
+    /// Every event is assigned on of these slots.
+    pub struct EventInterest;
+}
+
+/// Represents the combined update sources that affect an UI tree or widget.
+pub type UpdateMask = InterestMask<UpdateInterest>;
+
+/// Represents the combined events that are listened by an UI tree or widget.
+pub type EventMask = InterestMask<EventInterest>;
+
+#[doc(hidden)]
+/// A typed slot in a [`InterestMask<S>`].
+pub trait InterestSlot: Copy + 'static {
+    /// Get the raw slot index.
+    fn get(self) -> u8;
+}
+
+/// Represents combined subscriber interests for resource kind `S`.
+#[derive(Clone)]
+pub struct InterestMask<S>([u128; 2], PhantomData<S>);
+impl<S: InterestSlot> InterestMask<S> {
+    /// Gets a mask representing just the `slot`.
+    pub fn from_slot(slot: S) -> Self {
+        let mut r = Self::none();
+        r.insert(slot);
+        r
+    }
+
+    /// Returns a mask that represents no update.
+    #[inline]
+    pub fn none() -> Self {
+        InterestMask([0; 2], PhantomData)
+    }
+
+    /// Returns a mask that represents all updates.
+    #[inline]
+    pub fn all() -> Self {
+        InterestMask([u128::MAX; 2], PhantomData)
+    }
+
+    /// Returns `true` if this mask does not represent any update.
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        self.0[0] == 0 && self.0[1] == 0
+    }
+
+    /// Flags the `slot` in this mask.
+    #[inline]
+    pub fn insert(&mut self, slot: S) {
+        let slot = slot.get();
+        if slot < 128 {
+            self.0[0] |= 1 << slot;
+        } else {
+            self.0[1] |= 1 << (slot - 128);
+        }
+    }
+
+    /// Returns `true` if the `slot` is set in this mask.
+    #[inline]
+    pub fn contains(&self, slot: S) -> bool {
+        let slot = slot.get();
+        if slot < 128 {
+            (self.0[0] & (1 << slot)) != 0
+        } else {
+            (self.0[1] & (1 << slot)) != 0
+        }
+    }
+
+    /// Flags all slots set in `other` in `self` as well.
+    #[inline]
+    pub fn extend(&mut self, other: &Self) {
+        self.0[0] |= other.0[0];
+        self.0[1] |= other.0[1];
+    }
+
+    /// Returns `true` if any slot is set in both `self` and `other`.
+    #[inline]
+    pub fn overlaps(&self, other: &Self) -> bool {
+        (self.0[0] & other.0[0]) != 0 || (self.0[1] & other.0[1]) != 0
+    }
+}
+impl<S: InterestSlot> ops::BitOrAssign<&Self> for InterestMask<S> {
+    fn bitor_assign(&mut self, rhs: &Self) {
+        self.extend(rhs)
+    }
+}
+impl<S: InterestSlot> ops::BitOrAssign<S> for InterestMask<S> {
+    fn bitor_assign(&mut self, rhs: S) {
+        self.insert(rhs)
+    }
+}
+impl<S: InterestSlot> fmt::Debug for InterestMask<S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "InterestMask<{}>([{:x}, {:x}])", type_name::<S>(), self.0[0], self.0[1])
+    }
 }

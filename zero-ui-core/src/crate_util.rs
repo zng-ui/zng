@@ -3,13 +3,10 @@
 use rand::Rng;
 use rustc_hash::FxHasher;
 use std::{
-    cell::Cell,
     collections::{hash_map, HashMap},
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hasher},
-    marker::PhantomData,
     num::{NonZeroU32, NonZeroU64},
-    ops,
     sync::{
         atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering},
         Arc, Weak,
@@ -603,147 +600,6 @@ impl<I: Clone + Copy + fmt::Debug> fmt::Display for IdNameError<I> {
     }
 }
 impl<I: Clone + Copy + fmt::Debug> std::error::Error for IdNameError<I> {}
-
-macro_rules! interest_mask_slot {
-    (
-        $(#[$meta:meta])*
-        $vis:vis struct $Ident:ident;
-    ) => {
-        $(#[$meta])*
-        #[derive(Clone, Copy, Debug)]
-        $vis struct $Ident(u8);
-
-        impl $Ident {
-            /// Gets a slot.
-            #[inline]
-            pub fn next() -> Self {
-                thread_local! {
-                    static SLOT: Cell<u8> = Cell::new(0);
-                }
-
-                let slot = SLOT.with(|s| {
-                    let slot = s.get().wrapping_add(1);
-                    s.set(slot);
-                    slot
-                });
-
-                Self(slot)
-            }
-
-            /// Gets a mask representing just this slot.
-            #[inline]
-            pub fn mask(self) -> InterestMask<Self> {
-                InterestMask::from_slot(self)
-            }
-        }
-
-        impl InterestSlot for $Ident {
-            fn get(self) -> u8 {
-                self.0
-            }
-        }
-    }
-}
-
-interest_mask_slot! {
-    /// Represents a single update source in a [`UpdateMask`].
-    ///
-    /// Anything that generates an [`UiNode::update`] has one of this slots reserved.
-    ///
-    /// [`UiNode::update`]: crate::UiNode::update
-    pub struct UpdateInterest;
-}
-
-#[doc(hidden)]
-/// A typed slot in a [`InterestMask<S>`].
-pub trait InterestSlot: Copy + 'static {
-    /// Get the raw slot index.
-    fn get(self) -> u8;
-}
-
-/// Represents combined subscriber interests.
-#[derive(Clone)]
-pub struct InterestMask<S>([u128; 2], PhantomData<S>);
-impl<S: InterestSlot> InterestMask<S> {
-    /// Gets a mask representing just the `slot`.
-    pub fn from_slot(slot: S) -> Self {
-        let mut r = Self::none();
-        r.insert(slot);
-        r
-    }
-
-    /// Returns a mask that represents no update.
-    #[inline]
-    pub fn none() -> Self {
-        InterestMask([0; 2], PhantomData)
-    }
-
-    /// Returns a mask that represents all updates.
-    #[inline]
-    pub fn all() -> Self {
-        InterestMask([u128::MAX; 2], PhantomData)
-    }
-
-    /// Returns `true` if this mask does not represent any update.
-    #[inline]
-    pub fn is_none(&self) -> bool {
-        self.0[0] == 0 && self.0[1] == 0
-    }
-
-    /// Flags the `slot` in this mask.
-    #[inline]
-    pub fn insert(&mut self, slot: S) {
-        let slot = slot.get();
-        if slot < 128 {
-            self.0[0] |= 1 << slot;
-        } else {
-            self.0[1] |= 1 << (slot - 128);
-        }
-    }
-
-    /// Returns `true` if the `slot` is set in this mask.
-    #[inline]
-    pub fn contains(&self, slot: S) -> bool {
-        let slot = slot.get();
-        if slot < 128 {
-            (self.0[0] & (1 << slot)) != 0
-        } else {
-            (self.0[1] & (1 << slot)) != 0
-        }
-    }
-
-    /// Flags all slots set in `other` in `self` as well.
-    #[inline]
-    pub fn extend(&mut self, other: &Self) {
-        self.0[0] |= other.0[0];
-        self.0[1] |= other.0[1];
-    }
-
-    /// Returns `true` if any slot is set in both `self` and `other`.
-    #[inline]
-    pub fn overlaps(&self, other: &Self) -> bool {
-        (self.0[0] & other.0[0]) != 0 || (self.0[1] & other.0[1]) != 0
-    }
-}
-impl<S: InterestSlot> ops::BitOrAssign<&Self> for InterestMask<S> {
-    fn bitor_assign(&mut self, rhs: &Self) {
-        self.extend(rhs)
-    }
-}
-impl<S: InterestSlot> ops::BitOrAssign<S> for InterestMask<S> {
-    fn bitor_assign(&mut self, rhs: S) {
-        self.insert(rhs)
-    }
-}
-impl<S: InterestSlot> fmt::Debug for InterestMask<S> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "UpdateMask([\n   {:b},\n   {:b},\n])", self.0[0], self.0[1])
-        } else {
-            write!(f, "UpdateMask([{:x}, {:x})", self.0[0], self.0[1])
-        }
-    }
-}
 
 #[cfg(test)]
 pub mod tests {

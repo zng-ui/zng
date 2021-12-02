@@ -82,9 +82,7 @@ pub trait UiNodeList: 'static {
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
 
     /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
-    fn info_all<O>(&self, origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
-    where
-        O: FnMut(usize) -> PxPoint;
+    fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
     /// Calls [`UiNode::info`] in only the `index` widget.
     fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
@@ -381,12 +379,9 @@ impl UiNodeList for WidgetVec {
         self.vec[index].arrange(ctx, widget_offset, final_size)
     }
 
-    fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        for (i, w) in self.iter().enumerate() {
-            info.offset(origin(i).to_vector(), |info| w.info(ctx, info));
+    fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        for widget in &self.vec {
+            widget.info(ctx, info);
         }
     }
 
@@ -618,12 +613,9 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].arrange(ctx, widget_offset, final_size);
     }
 
-    fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        for (i, w) in self.iter().enumerate() {
-            info.offset(origin(i).to_vector(), |info| w.info(ctx, info));
+    fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        for w in &self.vec {
+            w.info(ctx, info);
         }
     }
 
@@ -941,13 +933,9 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline]
-    fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        self.0.info_all(|i| origin(i), ctx, info);
-        let offset = self.0.len();
-        self.1.info_all(|i| origin(i + offset), ctx, info);
+    fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        self.0.info_all(ctx, info);
+        self.1.info_all(ctx, info);
     }
 
     fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -1163,13 +1151,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline]
-    fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        self.0.info_all(|i| origin(i), ctx, info);
-        let offset = self.0.len();
-        self.1.info_all(|i| origin(i + offset), ctx, info);
+    fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        self.0.info_all(ctx, info);
+        self.1.info_all(ctx, info);
     }
 
     fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -1403,12 +1387,9 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn info_all<O>(&self, mut origin: O, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder)
-            where
-                O: FnMut(usize) -> PxPoint,
-            {
+            fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 $(
-                info.offset(origin($n).to_vector(), |info| self.items.$n.info(ctx, info));
+                    self.items.$n.info(ctx, info);
                 )+
             }
 
@@ -1553,10 +1534,7 @@ macro_rules! empty_node_list {
                 panic!("index {} out of range for length 0", index)
             }
 
-            fn info_all<O>(&self, _: O, _: &mut InfoContext, _: &mut WidgetInfoBuilder)
-            where
-                O: FnMut(usize) -> PxPoint,
-            {
+            fn info_all(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
             }
 
             #[inline]
