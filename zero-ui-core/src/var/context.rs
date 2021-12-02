@@ -119,7 +119,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|v| v.context_var::<C>().3.clone())
+        vars.with_vars_read(|v| v.context_var::<C>().3)
     }
 }
 

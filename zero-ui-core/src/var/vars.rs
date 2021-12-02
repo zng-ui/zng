@@ -10,7 +10,7 @@ use crate::{
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    widget_info::{UpdateInterest, WidgetInfoBuilder, WidgetOffset},
+    widget_info::{WidgetInfoBuilder, WidgetOffset},
     UiNode,
 };
 use std::{

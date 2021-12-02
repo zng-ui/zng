@@ -5,9 +5,9 @@ use std::fmt;
 #[widget($crate::widgets::scrollable)]
 pub mod scrollable {
     use super::*;
+    use crate::core::widget_info::UpdateMask;
     use bitflags::*;
     use properties::*;
-    use crate::core::widget_info::UpdateMask;
 
     #[doc(inline)]
     pub use super::scrollbar;

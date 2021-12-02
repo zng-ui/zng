@@ -1,5 +1,4 @@
 use crate::prelude::new_widget::*;
-use crate::core::widget_info::UpdateInterest;
 
 /// A configured [`text`](../fn.text.html).
 ///
@@ -251,6 +250,7 @@ pub mod text {
         //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
         use crate::core::text::{font_features::*, *};
+        use crate::core::widget_info::UpdateInterest;
         use crate::prelude::new_property::*;
         use std::marker::PhantomData;
 
@@ -532,18 +532,30 @@ pub mod text {
                     }
 
                     let child = &mut self.child;
-                    ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, is_new, self.version, || {
+                    ctx.vars.with_context_var(
+                        FontVariationsVar,
+                        &self.variations,
+                        is_new,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
                             child.init(ctx);
-                        })
+                        },
+                    )
                 }
 
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
                     let child = &mut self.child;
-                    ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
+                    ctx.vars.with_context_var(
+                        FontVariationsVar,
+                        &self.variations,
+                        false,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
                             child.deinit(ctx);
-                        });
+                        },
+                    );
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
@@ -561,10 +573,16 @@ pub mod text {
                     }
 
                     let child = &mut self.child;
-                    ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, is_new, self.version, || {
+                    ctx.vars.with_context_var(
+                        FontVariationsVar,
+                        &self.variations,
+                        is_new,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
                             child.update(ctx);
-                        });
+                        },
+                    );
                 }
 
                 fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
@@ -572,47 +590,62 @@ pub mod text {
                     Self: Sized,
                 {
                     let child = &mut self.child;
-                    ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
+                    ctx.vars.with_context_var(
+                        FontVariationsVar,
+                        &self.variations,
+                        false,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
                             child.event(ctx, args);
-                        });
+                        },
+                    );
                 }
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     let child = &mut self.child;
                     ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
+                        .with_context_var(FontVariationsVar, &self.variations, false, self.version, self.update_slot.mask(), || {
                             child.measure(ctx, available_size)
                         })
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let child = &mut self.child;
-                    ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, false, self.version, || {
+                    ctx.vars.with_context_var(
+                        FontVariationsVar,
+                        &self.variations,
+                        false,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
                             child.arrange(ctx, widget_offset, final_size);
-                        });
+                        },
+                    );
                 }
 
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     let child = &self.child;
-                    ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
-                        child.info(ctx, info);
-                    });
+                    ctx.vars
+                        .with_context_var(FontVariationsVar, &self.variations, self.version, self.update_slot.mask(), || {
+                            child.info(ctx, info);
+                        });
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let child = &self.child;
-                    ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
-                        child.render(ctx, frame);
-                    });
+                    ctx.vars
+                        .with_context_var(FontVariationsVar, &self.variations, self.version, self.update_slot.mask(), || {
+                            child.render(ctx, frame);
+                        });
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     let child = &self.child;
-                    ctx.vars.with_context_var(FontVariationsVar, &self.variations, self.version, || {
-                        child.render_update(ctx, update);
-                    });
+                    ctx.vars
+                        .with_context_var(FontVariationsVar, &self.variations, self.version, self.update_slot.mask(), || {
+                            child.render_update(ctx, update);
+                        });
                 }
             }
             WithFontVariationNode {
@@ -621,6 +654,7 @@ pub mod text {
                 value: value.into_var(),
                 variations: FontVariations::default(),
                 version: 0,
+                update_slot: UpdateInterest::next(),
             }
         }
 
@@ -646,6 +680,7 @@ pub mod text {
 
                 features: FontFeatures,
                 version: u32,
+                update_slot: UpdateInterest,
             }
             impl<C, S, V, D> UiNode for WithFontFeatureNode<C, S, V, D>
             where
@@ -665,17 +700,30 @@ pub mod text {
                     (self.set_feature)(&mut self.features, self.var.get_clone(ctx));
 
                     let child = &mut self.child;
-                    ctx.vars
-                        .with_context_var(FontFeaturesVar, &self.features, is_new, self.version, || {
+                    ctx.vars.with_context_var(
+                        FontFeaturesVar,
+                        &self.features,
+                        is_new,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
                             child.init(ctx);
-                        })
+                        },
+                    )
                 }
 
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
-                        child.deinit(ctx);
-                    });
+                    ctx.vars.with_context_var(
+                        FontFeaturesVar,
+                        &self.features,
+                        false,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
+                            child.deinit(ctx);
+                        },
+                    );
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
@@ -693,10 +741,16 @@ pub mod text {
                     }
 
                     let child = &mut self.child;
-                    ctx.vars
-                        .with_context_var(FontFeaturesVar, &self.features, is_new, self.version, || {
+                    ctx.vars.with_context_var(
+                        FontFeaturesVar,
+                        &self.features,
+                        is_new,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
                             child.update(ctx);
-                        });
+                        },
+                    );
                 }
 
                 fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
@@ -704,44 +758,66 @@ pub mod text {
                     Self: Sized,
                 {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
-                        child.event(ctx, args);
-                    });
+                    ctx.vars.with_context_var(
+                        FontFeaturesVar,
+                        &self.features,
+                        false,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
+                            child.event(ctx, args);
+                        },
+                    );
                 }
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
-                        child.measure(ctx, available_size)
-                    })
+                    ctx.vars.with_context_var(
+                        FontFeaturesVar,
+                        &self.features,
+                        false,
+                        self.version,
+                        self.update_slot.mask(),
+                        || child.measure(ctx, available_size),
+                    )
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, false, self.version, || {
-                        child.arrange(ctx, widget_offset, final_size);
-                    });
+                    ctx.vars.with_context_var(
+                        FontFeaturesVar,
+                        &self.features,
+                        false,
+                        self.version,
+                        self.update_slot.mask(),
+                        || {
+                            child.arrange(ctx, widget_offset, final_size);
+                        },
+                    );
                 }
 
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     let child = &self.child;
-                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
-                        child.info(ctx, info);
-                    });
+                    ctx.vars
+                        .with_context_var(FontFeaturesVar, &self.features, self.version, self.update_slot.mask(), || {
+                            child.info(ctx, info);
+                        });
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let child = &self.child;
-                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
-                        child.render(ctx, frame);
-                    });
+                    ctx.vars
+                        .with_context_var(FontFeaturesVar, &self.features, self.version, self.update_slot.mask(), || {
+                            child.render(ctx, frame);
+                        });
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     let child = &self.child;
-                    ctx.vars.with_context_var(FontFeaturesVar, &self.features, self.version, || {
-                        child.render_update(ctx, update);
-                    });
+                    ctx.vars
+                        .with_context_var(FontFeaturesVar, &self.features, self.version, self.update_slot.mask(), || {
+                            child.render_update(ctx, update);
+                        });
                 }
             }
             WithFontFeatureNode {
@@ -753,6 +829,7 @@ pub mod text {
 
                 features: FontFeatures::new(),
                 version: 0,
+                update_slot: UpdateInterest::next(),
             }
         }
 

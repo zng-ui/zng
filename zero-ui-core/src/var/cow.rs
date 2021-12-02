@@ -404,7 +404,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
     }
 
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|vars| {
+        *vars.with_vars_read(|vars| {
             self.0.update_mask.get_or_init(|| {
                 if let Some(source) = self.source(vars) {
                     source.update_mask(vars)
@@ -413,7 +413,6 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
                 }
             })
         })
-        .clone()
     }
 }
 impl<T: VarValue, V: Var<T>> IntoVar<T> for RcCowVar<T, V> {
