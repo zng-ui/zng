@@ -568,7 +568,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 
     fn update_mask(&self) -> UpdateMask {
         let mut r = self.0.default_.update_mask();
-        for (c, v) in &self.0.whens {
+        for (c, v) in self.0.whens.iter() {
             r |= c.update_mask();
             r |= v.update_mask();
         }

@@ -91,12 +91,8 @@ pub enum FontChange {
 /// Events this extension provides:
 ///
 /// * [FontChangedEvent] - Font config or system fonts changed.
+#[derive(Default)]
 pub struct FontManager {}
-impl Default for FontManager {
-    fn default() -> Self {
-        FontManager {}
-    }
-}
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppContext) {
         let text_aa = ctx

@@ -1175,6 +1175,11 @@ impl<S: InterestSlot> ops::BitOrAssign<&Self> for InterestMask<S> {
         self.extend(rhs)
     }
 }
+impl<S: InterestSlot> ops::BitOrAssign<Self> for InterestMask<S> {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.extend(&rhs)
+    }
+}
 impl<S: InterestSlot> ops::BitOrAssign<S> for InterestMask<S> {
     fn bitor_assign(&mut self, rhs: S) {
         self.insert(rhs)

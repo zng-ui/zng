@@ -952,7 +952,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     where
         O: FnMut(usize) -> PxPoint,
     {
-        self.0.render_all(|i| origin(i), ctx, frame);
+        self.0.render_all(&mut origin, ctx, frame);
         let offset = self.0.len();
         self.1.render_all(|i| origin(i + offset), ctx, frame);
     }
@@ -1170,7 +1170,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     where
         O: FnMut(usize) -> PxPoint,
     {
-        self.0.render_all(|i| origin(i), ctx, frame);
+        self.0.render_all(&mut origin, ctx, frame);
         let offset = self.0.len();
         self.1.render_all(|i| origin(i + offset), ctx, frame);
     }

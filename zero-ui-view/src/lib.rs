@@ -1327,7 +1327,7 @@ pub(crate) enum AppEvent {
 pub(crate) struct FrameReadyMsg {
     pub document_id: DocumentId,
     pub composite_needed: bool,
-    pub scrolled: bool,
+    // pub scrolled: bool,
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.

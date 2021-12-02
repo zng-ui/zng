@@ -481,7 +481,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     #[inline]
     fn update_mask(&self) -> UpdateMask {
         let mut r = self.0.index.update_mask();
-        for var in &self.0.vars {
+        for var in self.0.vars.iter() {
             r |= var.update_mask();
         }
         r

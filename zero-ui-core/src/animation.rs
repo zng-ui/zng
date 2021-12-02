@@ -248,13 +248,13 @@ pub fn ease_in_fn<E: Fn(EasingTime) -> EasingStep>(ease_fn: E) -> E {
 /// Returns a function that applies `ease_fn` wrapped in [`ease_out`].
 #[inline]
 pub fn ease_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
-    move |t| ease_out(|t| ease_fn(t), t)
+    move |t| ease_out(&ease_fn, t)
 }
 
 /// Returns a function that applies `ease_fn` wrapped in [`ease_in_out`].
 #[inline]
 pub fn ease_in_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
-    move |t| ease_in_out(|t| ease_fn(t), t)
+    move |t| ease_in_out(&ease_fn, t)
 }
 
 /// Common [easing functions](easing) as an enum.

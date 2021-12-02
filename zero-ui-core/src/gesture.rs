@@ -725,13 +725,9 @@ event! {
 /// Services this extension provides.
 ///
 /// * [Gestures]
+#[derive(Default)]
 pub struct GestureManager {
     pressed_modifier: Option<ModifierGesture>,
-}
-impl Default for GestureManager {
-    fn default() -> Self {
-        GestureManager { pressed_modifier: None }
-    }
 }
 impl AppExtension for GestureManager {
     fn init(&mut self, r: &mut AppContext) {

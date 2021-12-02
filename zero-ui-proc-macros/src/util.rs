@@ -331,7 +331,7 @@ pub fn uuid() -> String {
         }
         format!("sp_{:x}", id)
     } else {
-        call_site.splitn(2, ' ').next().unwrap().replace('#', "u")
+        call_site.split_once(' ').unwrap().0.replace('#', "u")
     }
 }
 
