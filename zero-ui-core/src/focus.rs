@@ -87,6 +87,7 @@ use crate::{
     units::*,
     var::impl_from_and_into_var,
     widget_base::{Visibility, WidgetEnabledExt},
+    widget_info::UpdateMask,
     widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
@@ -730,7 +731,7 @@ impl Focus {
     #[inline]
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);
-        let _ = self.app_event_sender.send_update();
+        let _ = self.app_event_sender.send_ext_update();
     }
 
     /// Focus the widget if it is focusable and change the highlight.

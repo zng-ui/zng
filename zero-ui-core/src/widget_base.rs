@@ -4,7 +4,7 @@ use std::{fmt, ops};
 
 use crate::event::EventUpdateArgs;
 use crate::var::{context_var, impl_from_and_into_var, IntoValue, IntoVar, StateVar, Var, VarsRead, WithVars, WithVarsRead};
-use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetOffset};
+use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, UpdateMask, WidgetOffset};
 use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
     units::{AvailableSize, PxSize},
@@ -372,6 +372,17 @@ impl IsEnabled {
     #[inline]
     pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<bool> {
         vars.with_vars(|vars| IsEnabledVar::get_new(vars).copied())
+    }
+
+    /// Gets the update mask for [`WidgetSubscriptions`].
+    /// 
+    /// Use the [`IsEnabledInfoExt`] to add a method [`is_enabled`] to subscriptions.
+    /// 
+    /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
+    /// [``]
+    #[inline]
+    pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
+        vars.with_vars_read(|vars| IsEnabledVar::new().update_mask(vars))
     }
 }
 

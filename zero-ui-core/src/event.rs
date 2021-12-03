@@ -1554,7 +1554,7 @@ where
         H: WidgetHandler<E::Args>,
     {
         fn info(&self, ctx: &mut InfoContext, widget_info: &mut WidgetInfoBuilder) {
-            widget_info.subscriptions().event(self.event);
+            widget_info.subscriptions().event(self.event).handler(&self.handler);
             self.child.info(ctx, widget_info);
         }
 
@@ -1625,7 +1625,7 @@ where
         H: WidgetHandler<E::Args>,
     {
         fn info(&self, ctx: &mut InfoContext, widget_info: &mut WidgetInfoBuilder) {
-            widget_info.subscriptions().event(self.event);
+            widget_info.subscriptions().event(self.event).handler(&self.handler);
             self.child.info(ctx, widget_info);
         }
 

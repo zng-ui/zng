@@ -329,8 +329,8 @@ impl VarsRead {
     }
 }
 
-/// Applies pending update and returns if updated and is_shared.
-type PendingUpdate = Box<dyn FnOnce(u32) -> bool>;
+/// Applies pending update and returns the var update mask if it updated, otherwise returns `UpdateMask::none`.
+type PendingUpdate = Box<dyn FnOnce(u32) -> UpdateMask>;
 
 /// Read-write access to variables.
 ///
@@ -547,12 +547,12 @@ impl Vars {
 
         let pending = self.pending.get_mut();
         if !pending.is_empty() {
-            let mut modified = false;
+            let mut mask = UpdateMask::none();
             for f in pending.drain(..) {
-                modified |= f(self.read.update_id);
+                mask |= f(self.read.update_id);
             }
 
-            if modified {
+            if !mask.is_none() {
                 // update bindings
                 if !self.bindings.get_mut().is_empty() {
                     self.binding_update_id = self.binding_update_id.wrapping_add(1);
@@ -565,7 +565,7 @@ impl Vars {
                             break;
                         }
                         for f in pending.drain(..) {
-                            f(self.read.update_id);
+                            mask |= f(self.read.update_id);
                         }
                     }
                 }
@@ -574,7 +574,7 @@ impl Vars {
                 self.senders.borrow_mut().retain(|f| f(self));
 
                 // does an app update because some vars have new values.
-                updates.update();
+                updates.update(mask);
             }
         }
     }

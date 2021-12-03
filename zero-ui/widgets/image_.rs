@@ -494,6 +494,12 @@ pub mod image {
                     self.child.init(ctx);
                 }
 
+                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                    self.child.info(ctx, widget);
+                    // TODO the Var inside var is registered here..
+                    widget.subscriptions().var(ctx, &ContextImageVar::new()).handler(&self.handler);
+                }
+
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
                         if let Some(error) = new_var.as_ref().and_then(|v| v.get(ctx.vars).error()) {
@@ -556,6 +562,12 @@ pub mod image {
                     }
 
                     self.child.init(ctx);
+                }
+
+                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                    self.child.info(ctx, widget);
+                    // TODO var inside var not registered.
+                    widget.subscriptions().var(ctx, &ContextImageVar::new()).handler(&self.handler);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {

@@ -1549,7 +1549,7 @@ impl Windows {
             responder,
         };
         self.open_requests.push(request);
-        let _ = self.update_sender.send_update();
+        let _ = self.update_sender.send_ext_update();
 
         response
     }
@@ -1566,7 +1566,7 @@ impl Windows {
             self.close_group_id = group;
 
             self.close_requests.insert(window_id, CloseWindowRequest { responder, group });
-            let _ = self.update_sender.send_update();
+            let _ = self.update_sender.send_ext_update();
 
             Ok(response)
         } else {
@@ -1609,7 +1609,7 @@ impl Windows {
         }
 
         self.close_requests.extend(requests);
-        let _ = self.update_sender.send_update();
+        let _ = self.update_sender.send_ext_update();
 
         Ok(response)
     }
@@ -1876,7 +1876,7 @@ impl AppWindow {
         // we want the window content to init, update, layout & render to get
         // all the values needed to actually spawn a real window, this is so we
         // have a frame ready to show when the window is visible.
-        ctx.updates.update();
+        ctx.updates.update_ext();
         ctx.updates.layout_and_render();
 
         let frame_info = WidgetInfoTree::blank(id, root_id);

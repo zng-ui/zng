@@ -10,6 +10,7 @@ use crate::event::{cancelable_event_args, event, AnyEventUpdate, BoxedEventUpdat
 use crate::image::ImageManager;
 use crate::timer::Timers;
 use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
+use crate::widget_info::{UpdateMask, UpdateSlot};
 use crate::{
     focus::FocusManager,
     gesture::GestureManager,
@@ -608,7 +609,7 @@ impl AppProcess {
         } else {
             let (responder, response) = response_var();
             self.shutdown_requests = Some(responder);
-            let _ = self.update_sender.send_update();
+            let _ = self.update_sender.send_ext_update();
             response
         }
     }
@@ -1227,7 +1228,7 @@ impl<E: AppExtension> RunningApp<E> {
             },
             AppEvent::Event(ev) => self.ctx().events.notify_app_event(ev),
             AppEvent::Var => self.ctx().vars.receive_sended_modify(),
-            AppEvent::Update => self.ctx().updates.update(),
+            AppEvent::Update(mask) => self.ctx().updates.update(mask),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
     }
@@ -1807,7 +1808,7 @@ pub(crate) enum AppEvent {
     /// Notify [`Vars`](crate::var::Vars).
     Var,
     /// Do an update cycle.
-    Update,
+    Update(UpdateMask),
     /// Resume a panic in the app thread.
     ResumeUnwind(PanicPayload),
 }
@@ -1835,8 +1836,16 @@ impl AppEventSender {
 
     /// Causes an update cycle to happen in the app.
     #[inline]
-    pub fn send_update(&self) -> Result<(), AppShutdown<()>> {
-        self.send_app_event(AppEvent::Update).map_err(|_| AppShutdown(()))
+    pub fn send_update(&self, mask: UpdateMask) -> Result<(), AppShutdown<()>> {
+        self.send_app_event(AppEvent::Update(mask)).map_err(|_| AppShutdown(()))
+    }
+
+    /// Causes an update cycle that only affects app extensions to happen in the app.
+    ///
+    /// This is the equivalent of calling [`send_update`] with [`UpdateMask::none`].
+    #[inline]
+    pub fn send_ext_update(&self) -> Result<(), AppShutdown<()>> {
+        self.send_update(UpdateMask::none())
     }
 
     /// [`VarSender`](crate::var::VarSender) util.
@@ -1865,14 +1874,14 @@ impl AppEventSender {
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
-    pub fn waker(&self) -> Waker {
-        Arc::new(AppWaker(self.0.clone())).into()
+    pub fn waker(&self, update_slot: UpdateSlot) -> Waker {
+        Arc::new(AppWaker(self.0.clone(), update_slot)).into()
     }
 }
-struct AppWaker(flume::Sender<AppEvent>);
+struct AppWaker(flume::Sender<AppEvent>, UpdateSlot);
 impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {
-        let _ = self.0.send(AppEvent::Update);
+        let _ = self.0.send(AppEvent::Update(self.1.mask()));
     }
 }
 

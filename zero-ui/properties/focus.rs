@@ -317,26 +317,29 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusedNode<C> {
         child: C,
         state: StateVar,
-        is_focused: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsFocusedNode<C> {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             self.state.set_ne(ctx.vars, false);
-            self.is_focused = false;
+        }
+
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().event(FocusChangedEvent).is_enabled();
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = FocusChangedEvent.update(args) {
                 if IsEnabled::get(ctx) {
-                    self.is_focused = args
+                    let is_focused = args
                         .new_focus
                         .as_ref()
                         .map(|p| p.widget_id() == ctx.path.widget_id())
                         .unwrap_or_default();
 
-                    ctx.updates.update();
+                        self.state.set_ne(ctx, is_focused);
                 }
 
                 self.child.event(ctx, args);
@@ -348,16 +351,14 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             if let Some(false) = IsEnabled::get_new(ctx) {
-                self.is_focused = false;
+                self.state.set_ne(ctx.vars, false);
             }
 
-            self.state.set_ne(ctx.vars, self.is_focused);
         }
     }
     IsFocusedNode {
         child,
         state,
-        is_focused: false,
     }
 }
 
@@ -369,7 +370,6 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusWithinNode<C: UiNode> {
         child: C,
         state: StateVar,
-        is_focus_within: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
@@ -377,6 +377,11 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.child.deinit(ctx);
             self.state.set_ne(ctx.vars, false);
             self.is_focus_within = false;
+        }
+
+        fn info(&self, ctx: InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions()
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {

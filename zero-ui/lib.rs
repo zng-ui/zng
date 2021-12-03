@@ -911,7 +911,7 @@ pub mod prelude {
         mouse::{ButtonState, MouseButton, MouseMoveArgs},
         node_vec, nodes,
         service::Services,
-        take_if, take_on, take_on_init,
+        take_on, take_on_init,
         task::{self, http::Uri, rayon::prelude::*},
         text::{
             font_features::{

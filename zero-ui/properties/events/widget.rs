@@ -6,13 +6,12 @@
 use crate::core::handler::*;
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;
+use crate::core::widget_info::{WidgetInfoBuilder, WidgetOffset};
 use crate::core::*;
 use crate::core::{
-    context::{LayoutContext, WidgetContext},
+    context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
     render::FrameUpdate,
 };
-use zero_ui_core::context::RenderContext;
-use zero_ui_core::widget_info::WidgetOffset;
 
 /// Arguments for the [`on_init`](fn@on_init) event.
 #[derive(Clone, Debug, Copy)]
@@ -48,12 +47,21 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
     }
 
     #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<OnInitArgs>> UiNode for OnInitNode<C, H> {
+    impl<C, H> UiNode for OnInitNode<C, H>
+    where
+        C: UiNode,
+        H: WidgetHandler<OnInitArgs>,
+    {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
             self.count = self.count.wrapping_add(1);
             self.handler.event(ctx, &OnInitArgs { count: self.count });
+        }
+
+        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget_builder);
+            widget_builder.subscriptions().handler(&self.handler);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -94,6 +102,11 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
             self.handler.event(ctx, &OnInitArgs { count: self.count });
 
             self.child.init(ctx);
+        }
+
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            widget.subscriptions().handler(&self.handler);
+            self.child.info(ctx, widget);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -138,6 +151,11 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> +
 
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<OnUpdateArgs>> UiNode for OnUpdateNode<C, H> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().handler(&self.handler);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
@@ -173,6 +191,11 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArg
 
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<OnUpdateArgs>> UiNode for OnPreviewUpdateNode<C, H> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            widget.subscriptions().handler(&self.handler);
+            self.child.info(ctx, widget);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.count = self.count.wrapping_add(1);
             self.handler.event(ctx, &OnUpdateArgs { count: self.count });
@@ -228,6 +251,11 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> +
             self.handler.event(ctx, &OnDeinitArgs { count: self.count });
         }
 
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().handler(&self.handler);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             self.handler.update(ctx);
@@ -268,6 +296,11 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
             self.handler.event(ctx, &OnDeinitArgs { count: self.count });
 
             self.child.deinit(ctx);
+        }
+
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            widget.subscriptions().handler(&self.handler);
+            self.child.info(ctx, widget);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

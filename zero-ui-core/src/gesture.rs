@@ -909,7 +909,7 @@ impl Gestures {
     /// click origin is the shortcut press.
     pub fn click_shortcut(&mut self, window_id: WindowId, widget_id: WidgetId, click_kind: ShortcutClick, args: ShortcutArgs) {
         self.click_shortcut.push((window_id, widget_id, click_kind, args));
-        let _ = self.app_event_sender.send_update();
+        let _ = self.app_event_sender.send_ext_update();
     }
 }
 

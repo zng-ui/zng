@@ -11,6 +11,7 @@ use ego_tree::Tree;
 use crate::context::Updates;
 use crate::crate_util::IdMap;
 use crate::event::EventUpdateArgs;
+use crate::handler::WidgetHandler;
 use crate::state::OwnedStateMap;
 use crate::state::StateMap;
 use crate::units::*;
@@ -1236,6 +1237,16 @@ impl WidgetSubscriptions {
     #[inline]
     pub fn events(&mut self, mask: &EventMask) -> &mut Self {
         self.event.extend(mask);
+        self
+    }
+
+    /// Register async handler waker update source.
+    #[inline]
+    pub fn handler<A>(&mut self, handler: &impl WidgetHandler<A>) -> &mut Self
+    where
+        A: Clone + 'static,
+    {
+        handler.subscribe(self);
         self
     }
 

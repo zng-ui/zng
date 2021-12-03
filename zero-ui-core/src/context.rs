@@ -16,6 +16,7 @@ use crate::handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle};
 pub use crate::state_key;
 use crate::task;
 use crate::timer::Timers;
+use crate::widget_info::UpdateMask;
 use crate::{var::VarsRead, window::WindowMode};
 
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
@@ -85,6 +86,7 @@ pub struct UpdateArgs {
 /// An instance of this struct is available in [`AppContext`] and derived contexts.
 pub struct Updates {
     event_sender: AppEventSender,
+    custom_updates: UpdateMask,
     current: UpdateMask,
     update: bool,
     layout: bool,
@@ -97,7 +99,8 @@ impl Updates {
     fn new(event_sender: AppEventSender) -> Self {
         Updates {
             event_sender,
-            current: UpdateMask,
+            custom_updates: UpdateMask::none(),
+            current: UpdateMask::none(),
             update: false,
             layout: false,
             l_updates: LayoutUpdates {
@@ -129,8 +132,19 @@ impl Updates {
 
     /// Schedules an update.
     #[inline]
-    pub fn update(&mut self) {
+    pub fn update(&mut self, mask: UpdateMask) {
+        self.custom_updates |= mask;
         self.update = true;
+    }
+
+    /// Schedules an update that only affects the app extensions.
+    ///
+    /// This is the equivalent of calling [`update`] with [`UpdateMask::none`].
+    ///
+    /// [`update`]: Self::update
+    #[inline]
+    pub fn update_ext(&mut self) {
+        self.update(UpdateMask::none());
     }
 
     /// Gets `true` if an update was requested.
@@ -207,7 +221,7 @@ impl Updates {
     /// or [`async_app_hn_once!`](handler::async_app_hn_once!) to declare the closure. If the handler is async and does not finish in
     /// one call it is scheduled to update in *preview* updates.
     pub fn run<H: AppHandler<UpdateArgs> + handler::marker::OnceHn>(&mut self, handler: H) -> OnUpdateHandle {
-        self.update(); // in case of this was called outside of an update.
+        self.update = true; // in case of this was called outside of an update.
         Self::push_handler(&mut self.pos_handlers, true, handler)
     }
 
@@ -896,7 +910,7 @@ impl TestWidgetContext {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
                 crate::app::AppEvent::Event(ev) => self.events.notify_app_event(ev),
                 crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
-                crate::app::AppEvent::Update => self.updates.update(),
+                crate::app::AppEvent::Update(mask) => self.updates.update(mask),
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }
@@ -1722,7 +1736,7 @@ impl AppContextMut {
     /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
     /// to awake.
     pub async fn update(&self) {
-        self.with(|c| c.updates.update());
+        self.with(|c| c.updates.update(UpdateMask::none()));
         self.yield_one().await
     }
 }
@@ -1786,7 +1800,8 @@ impl WidgetContextMut {
     /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
     /// to awake.
     pub async fn update(&self) {
-        self.with(|c| c.updates.update());
+        // TODO handler update mask?
+        self.with(|c| c.updates.update(UpdateMask::all()));
         self.yield_one().await
     }
 

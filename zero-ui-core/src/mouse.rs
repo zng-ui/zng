@@ -1000,7 +1000,7 @@ impl Mouse {
     #[inline]
     pub fn capture_widget(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Widget));
-        let _ = self.update_sender.send_update();
+        let _ = self.update_sender.send_ext_update();
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -1012,7 +1012,7 @@ impl Mouse {
     #[inline]
     pub fn capture_subtree(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Subtree));
-        let _ = self.update_sender.send_update();
+        let _ = self.update_sender.send_ext_update();
     }
 
     /// Release the current mouse capture back to window.
@@ -1022,7 +1022,7 @@ impl Mouse {
     #[inline]
     pub fn release_capture(&mut self) {
         self.release_requested = true;
-        let _ = self.update_sender.send_update();
+        let _ = self.update_sender.send_ext_update();
     }
 
     /// The current cursor lock active.

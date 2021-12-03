@@ -27,7 +27,7 @@ use std::{
 };
 
 use crate::{
-    context::{OwnedStateMap, WidgetContext, WidgetContextMut, WindowContext},
+    context::{InfoContext, OwnedStateMap, WidgetContext, WidgetContextMut, WindowContext},
     crate_util::{Handle, HandleOwner},
     event::{Event, Events, WithEvents},
     handler::WidgetHandler,
@@ -36,7 +36,7 @@ use crate::{
     state_key,
     text::{Text, ToText},
     var::*,
-    widget_info::EventSlot,
+    widget_info::{EventSlot, WidgetInfoBuilder},
     window::WindowId,
     UiNode, WidgetId,
 };
@@ -123,7 +123,7 @@ macro_rules! command {
         $vis struct $Command;
         impl $Command {
             std::thread_local! {
-                static COMMAND: $crate::command::CommandValue = $crate::command::CommandValue::init::<$Command, _>(||{
+                static COMMAND: $crate::command::CommandValue = $crate::command::CommandValue::init::<$Command, _>($Command, ||{
                     #[allow(path_statements)] {
                         $Command $(
                         .$init( $($args)* )
@@ -166,7 +166,7 @@ macro_rules! command {
                 let enabled = Self::COMMAND.with(move |c| c.enabled_value(scope));
                 if enabled {
                     events.with_events(|evs| {
-                        evs.notify::<Self>($crate::command::CommandArgs::now(parameter, $crate::command::Command::scope(self)))
+                        evs.notify($Command, $crate::command::CommandArgs::now(parameter, $crate::command::Command::scope(self)))
                     });
                 }
                 enabled
@@ -217,7 +217,7 @@ macro_rules! command {
             fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, args: Self::Args) {
                 let scope = $crate::command::Command::scope(self);
                 if Self::COMMAND.with(move |c| c.enabled_value(scope)) {
-                    events.with_events(|evs| evs.notify::<Self>(args));
+                    events.with_events(|evs| evs.notify($Command, args));
                 }
             }
 
@@ -600,7 +600,7 @@ impl<C: Command> ScopedCommand<C> {
         let scope = self.scope();
         let enabled = self.thread_local_value().with(move |c| c.enabled_value(scope));
         if enabled {
-            events.with_events(|evs| evs.notify::<C>(CommandArgs::now(parameter, self.scope)));
+            events.with_events(|evs| evs.notify(self.command, CommandArgs::now(parameter, self.scope)));
         }
         enabled
     }
@@ -1218,7 +1218,7 @@ impl CommandValue {
             meta_init: Cell::new(Some(Box::new(meta_init))),
             registered: Cell::new(false),
             slot: EventSlot::next(),
-            notify: Box::new(|events, args| events.notify(command, args)),
+            notify: Box::new(move |events, args| events.notify(command, args)),
         }
     }
 
@@ -1420,6 +1420,14 @@ where
             self.command = Some(command);
         }
 
+        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget_builder);
+            widget_builder
+                .subscriptions()
+                .event(self.command.expect("OnCommandNode not initialized"))
+                .handler(&self.handler);
+        }
+
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = self.command.expect("OnCommandNode not initialized").update(args) {
                 self.child.event(ctx, args);
@@ -1489,6 +1497,14 @@ where
             self.handle = Some(command.new_handle(ctx, enabled));
             self.command = Some(command);
             self.child.init(ctx);
+        }
+
+        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
+            widget_builder
+                .subscriptions()
+                .event(self.command.expect("OnPreviewCommandNode not initialized"))
+                .handler(&self.handler);
+            self.child.info(ctx, widget_builder);
         }
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {

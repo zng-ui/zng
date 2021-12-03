@@ -184,7 +184,7 @@ impl Fonts {
     pub fn prune(&mut self) {
         if !self.prune_requested {
             self.prune_requested = true;
-            let _ = self.generics.update_sender.send_update();
+            let _ = self.generics.update_sender.send_ext_update();
         }
     }
 
@@ -1399,7 +1399,7 @@ impl GenericFonts {
 
     fn notify(&mut self, change: FontChange) {
         if self.updates.is_empty() {
-            let _ = self.update_sender.send_update();
+            let _ = self.update_sender.send_ext_update();
         }
         self.updates.push(FontChangedArgs::now(change));
     }

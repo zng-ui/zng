@@ -131,7 +131,11 @@ impl<T: VarValue> RcVar<T> {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
                 }
-                guard.touched()
+                if guard.touched() {
+                    self_.0.update_slot.mask()
+                } else {
+                    UpdateMask::none()
+                }
             }));
         })
     }

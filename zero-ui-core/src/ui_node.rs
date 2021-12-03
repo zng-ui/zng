@@ -10,7 +10,7 @@ use crate::{
     context::*,
     event::{AnyEventUpdate, Event},
     widget_base::Visibility,
-    widget_info::{WidgetInfoBuilder, WidgetOffset},
+    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -785,6 +785,7 @@ impl<U: UiNode> RcNode<U> {
     /// signaled by `take_signal`.
     pub fn slot<S: RcNodeTakeSignal>(&self, take_signal: S) -> impl UiNode {
         SlotNode {
+            update_slot: self.0.update_slot,
             slot_id: self.0.next_id(),
             take_signal,
             event_signal: false,
@@ -825,11 +826,13 @@ impl<U: UiNode> WeakNode<U> {
 /// Signal an [`RcNode`] slot to take the referenced node as its child.
 ///
 /// This trait is implemented for all `bool` variables, you can also use [`take_on_init`] to
-/// be the first slot to take the widget, [`take_on`] to take when an event updates or [`take_if`]
-/// to use a custom delegate to signal.
+/// be the first slot to take the widget, [`take_on`] to take when an event updates.
 pub trait RcNodeTakeSignal: 'static {
     /// If slot node must take the node when it is created.
     const TAKE_ON_INIT: bool = false;
+
+    /// Signal subscriptions, [`update_take`] and [`event_take`] are only called if their update and event sources are registered here.
+    fn subscribe(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {}
 
     /// Returns `true` when the slot must take the node as its child.
     fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
@@ -847,20 +850,14 @@ impl<V> RcNodeTakeSignal for V
 where
     V: crate::var::Var<bool>,
 {
+    fn subscribe(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        subscriptions.var(ctx, self);
+    }
+
     /// Takes the widget when the var value is `true`.
     fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
         *self.get(ctx)
     }
-}
-/// An [`RcNodeTakeSignal`] that takes the widget when `custom` returns `true`.
-pub fn take_if<F: FnMut(&mut WidgetContext) -> bool + 'static>(custom: F) -> impl RcNodeTakeSignal {
-    struct TakeIf<F>(F);
-    impl<F: FnMut(&mut WidgetContext) -> bool + 'static> RcNodeTakeSignal for TakeIf<F> {
-        fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
-            (self.0)(ctx)
-        }
-    }
-    TakeIf(custom)
 }
 /// An [`RcNodeTakeSignal`] that takes the widget every time the `event` updates and passes the filter.
 pub fn take_on<E, F>(event: E, filter: F) -> impl RcNodeTakeSignal
@@ -895,6 +892,7 @@ struct RcNodeData<U: UiNode> {
     waiting_deinit: Cell<bool>,
     inited: Cell<bool>,
     node: RefCell<Option<U>>,
+    update_slot: UpdateSlot,
 }
 impl<U: UiNode> RcNodeData<U> {
     pub fn new(node: Option<U>) -> Self {
@@ -904,6 +902,7 @@ impl<U: UiNode> RcNodeData<U> {
             waiting_deinit: Cell::new(false),
             inited: Cell::new(false),
             node: RefCell::new(node),
+            update_slot: UpdateSlot::next(),
         }
     }
 
@@ -946,6 +945,7 @@ struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
     slot_id: u32,
     take_signal: S,
     event_signal: bool,
+    update_slot: UpdateSlot,
     state: SlotNodeState<U>,
 }
 impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
@@ -955,7 +955,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                 if rc.inited.get() {
                     rc.waiting_deinit.set(true);
                     self.state = SlotNodeState::Activating(Rc::clone(rc));
-                    ctx.updates.update(); // notify the other slot to deactivate.
+                    ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
                 } else {
                     // node already free to take.
                     rc.node.borrow_mut().as_mut().unwrap().init(ctx);
@@ -970,7 +970,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                         if rc.inited.get() {
                             rc.waiting_deinit.set(true);
                             self.state = SlotNodeState::Activating(rc);
-                            ctx.updates.update(); // notify the other slot to deactivate.
+                            ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
                         } else {
                             // node already free to take.
                             rc.node.borrow_mut().as_mut().unwrap().init(ctx);
@@ -1039,7 +1039,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                         if rc.inited.get() {
                             rc.waiting_deinit.set(true);
                             self.state = SlotNodeState::Activating(rc);
-                            ctx.updates.update(); // notify the other slot to deactivate.
+                            ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
                         } else {
                             // node already free to take.
                             rc.node.borrow_mut().as_mut().unwrap().init(ctx);
@@ -1067,7 +1067,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     if rc.inited.take() {
                         rc.node.borrow_mut().as_mut().unwrap().deinit(ctx);
                     }
-                    ctx.updates.update(); // notify the other slot to activate.
+                    ctx.updates.update(self.update_slot.mask()); // notify the other slot to activate.
                     self.state = SlotNodeState::Inactive(Rc::downgrade(rc));
                     ctx.updates.info_layout_and_render();
                 } else {
@@ -1102,6 +1102,8 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         if let SlotNodeState::Active(rc) = &self.state {
             rc.node.borrow().as_ref().unwrap().info(ctx, info);
         }
+
+        self.take_signal.subscribe(ctx, info.subscriptions());
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
