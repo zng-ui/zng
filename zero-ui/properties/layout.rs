@@ -44,6 +44,11 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, M: Var<SideOffsets>> UiNode for MarginNode<T, M> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.margin);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.margin.is_new(ctx) {
                 ctx.updates.layout();
@@ -111,6 +116,11 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, A: Var<Alignment>> UiNode for AlignNode<T, A> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.alignment);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.alignment.is_new(ctx) {
                 ctx.updates.layout();
@@ -182,6 +192,11 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, P: Var<Point>> UiNode for PositionNode<T, P> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.position);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.position.is_new(ctx) {
                 ctx.updates.layout();
@@ -246,6 +261,11 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, X: Var<Length>> UiNode for XNode<T, X> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.x);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.x.is_new(ctx) {
                 ctx.updates.layout();
@@ -308,6 +328,11 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, Y: Var<Length>> UiNode for YNode<T, Y> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.y);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.y.is_new(ctx) {
                 ctx.updates.layout();
@@ -372,6 +397,11 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, S: Var<Size>> UiNode for MinSizeNode<T, S> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.min_size);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.min_size.is_new(ctx) {
                 ctx.updates.layout();
@@ -435,6 +465,11 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, W: Var<Length>> UiNode for MinWidthNode<T, W> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.min_width);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.min_width.is_new(ctx) {
                 ctx.updates.layout();
@@ -497,6 +532,11 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, H: Var<Length>> UiNode for MinHeightNode<T, H> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.min_height);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.min_height.is_new(ctx) {
                 ctx.updates.layout();
@@ -563,6 +603,11 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, S: Var<Size>> UiNode for MaxSizeNode<T, S> {
+        fn info(&mut self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.max_size);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.max_size.is_new(ctx) {
                 ctx.updates.layout();
@@ -623,6 +668,11 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, W: Var<Length>> UiNode for MaxWidthNode<T, W> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.max_width);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.max_width.is_new(ctx) {
                 ctx.updates.layout();
@@ -691,6 +741,11 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, H: Var<Length>> UiNode for MaxHeightNode<T, H> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.max_height);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.max_height.is_new(ctx) {
                 ctx.updates.layout();
@@ -759,6 +814,11 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, S: Var<Size>> UiNode for SizeNode<T, S> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.size);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.size.is_new(ctx) {
                 ctx.updates.layout();
@@ -811,6 +871,11 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, W: Var<Length>> UiNode for WidthNode<T, W> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.width);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.width.is_new(ctx) {
                 ctx.updates.layout();
@@ -875,6 +940,11 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, H: Var<Length>> UiNode for HeightNode<T, H> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.height);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.height.is_new(ctx) {
                 ctx.updates.layout();

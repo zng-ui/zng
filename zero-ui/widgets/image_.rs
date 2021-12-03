@@ -366,6 +366,11 @@ pub mod image {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for IsErrorNode<C> {
+                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                    self.child.info(ctx, widget);
+                    widget.subscriptions().var(ctx, &ContextImageVar::new());
+                }
+
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let is_error = var.get(ctx.vars).is_error();
@@ -400,6 +405,11 @@ pub mod image {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for IsLoadedNode<C> {
+                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                    self.child.info(ctx, widget);
+                    widget.subscriptions().var(ctx, &ContextImageVar::new());
+                }
+
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let is_loaded = var.get(ctx.vars).is_loaded();
@@ -980,6 +990,19 @@ pub mod image {
             }
             #[impl_ui_node(none)]
             impl UiNode for ImagePresenterNode {
+                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                    widget
+                        .subscriptions()
+                        .vars(ctx)
+                        .var(&ContextImageVar::new())
+                        .var(&ImageFitVar::new())
+                        .var(&ImageScaleVar::new())
+                        .var(&ImageScalePpiVar::new())
+                        .var(&ImageCropVar::new())
+                        .var(&ImageAlignVar::new())
+                        .var(&ImageRenderingVar::new());
+                }
+
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if let Some(var) = ContextImageVar::get_new(ctx.vars) {
                         ctx.updates.layout_and_render();

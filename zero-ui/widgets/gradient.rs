@@ -77,6 +77,16 @@ where
     }
 
     #[UiNode]
+    fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+        widget
+            .subscriptions()
+            .vars(ctx)
+            .var(&self.axis)
+            .var(&self.stops)
+            .var(&self.extend_mode);
+    }
+
+    #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.axis.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
             self.do_layout = true;
@@ -136,6 +146,12 @@ where
     T: Var<Size>,
     TS: Var<Size>,
 {
+    fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+        self.g.info(ctx, widget);
+
+        widget.subscriptions().vars(ctx).var(&self.tile_size).var(&self.tile_spacing);
+    }
+
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.g.update(ctx);
 

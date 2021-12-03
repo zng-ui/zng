@@ -13,6 +13,11 @@ pub fn draggable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for DraggableNode<C, E> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            widget.subscriptions().var(ctx, &self.enabled);
+            self.child.info(ctx, widget);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             if self.enabled.copy(ctx) {

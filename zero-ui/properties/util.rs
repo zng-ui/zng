@@ -70,6 +70,11 @@ where
         V: Var<K::Type>,
         H: FnMut(&mut WidgetContext, &K::Type) + 'static,
     {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.var);
+        }
+
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.widget_state.set(self.key, self.var.get(ctx).clone());
             self.child.init(ctx);
@@ -104,6 +109,11 @@ pub fn primitive_flags(child: impl UiNode, flags: impl IntoVar<PrimitiveFlags>) 
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: Var<PrimitiveFlags>> UiNode for PrimitiveFlagsNode<C, F> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.flags);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             if self.flags.is_new(ctx) {
@@ -182,6 +192,11 @@ mod tests {
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<u8>> UiNode for TestVarProbeNode<C, V> {
+            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                self.child.info(ctx, widget);
+                widget.subscriptions().var(ctx, &self.value);
+            }
+
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.child.init(ctx);
                 self.value.set(ctx.vars, *TestVar::get(ctx)).expect("probe var is read-only");

@@ -12,6 +12,10 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
     }
     #[impl_ui_node(none)]
     impl<C: Var<Rgba>> UiNode for FillColorNode<C> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            widget.subscriptions().var(ctx, &self.color);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.color.is_new(ctx) {
                 ctx.updates.render_update();

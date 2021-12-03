@@ -61,6 +61,16 @@ pub mod line_w {
         C: Var<Rgba>,
         S: Var<LineStyle>,
     {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            widget
+                .vars(ctx)
+                .var(&self.stroke_width)
+                .var(&self.length)
+                .var(&self.orientation)
+                .var(&self.color)
+                .var(&self.style);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.stroke_width.is_new(ctx) || self.length.is_new(ctx) || self.orientation.is_new(ctx) {
                 ctx.updates.layout();

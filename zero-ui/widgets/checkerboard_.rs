@@ -111,6 +111,18 @@ pub mod checkerboard {
         }
         #[impl_ui_node(none)]
         impl UiNode for CheckerboardNode {
+            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                widget
+                    .subscriptions()
+                    .vars(ctx)
+                    .var(&CheckerboardColor0Var::new())
+                    .var(&CheckerboardColor1Var::new())
+                    .var(&CheckerboardSizeVar::new())
+                    .var(&CheckerboardOffsetVar::new());
+
+                self.child.info(ctx, widget);
+            }
+
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.colors = [(*CheckerboardColor0Var::get(ctx)).into(), (*CheckerboardColor1Var::get(ctx)).into()];
             }

@@ -20,6 +20,11 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNo
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, C: Var<CursorIcon>> UiNode for CursorNode<T, C> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.cursor);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.cursor.is_new(ctx) {
                 ctx.updates.render(); // TODO reduce this to a metadata render_update.

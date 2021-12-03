@@ -275,6 +275,11 @@ pub mod scrollable {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
+                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                    self.child.info(ctx, widget);
+                    widget.subscriptions().var(ctx, &self.mode);
+                }
+
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     self.child.update(ctx);
 
@@ -629,6 +634,11 @@ pub mod thumb {
         }
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
+            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                self.child.info(ctx, widget);
+                widget.subscriptions().var(ctx, &self.start);
+            }
+
             fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                 if let Some(start) = self.start {
                     if let Some(args) = MouseMoveEvent.update(args) {
