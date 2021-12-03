@@ -62,7 +62,7 @@ pub trait Event: Debug + Clone + Copy + 'static {
     /// Schedule an event update.
     #[inline(always)]
     fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
-        events.with_events(|events| events.notify::<Self>(args));
+        events.with_events(|events| events.notify::<Self>(self, args));
     }
 
     /// Gets the event arguments if the update is for `Self`.
@@ -76,19 +76,27 @@ pub trait Event: Debug + Clone + Copy + 'static {
 }
 
 /// [`EventUpdateArgs`] for event `E`, dereferences to the argument.
-#[repr(transparent)]
-pub struct EventUpdate<E: Event>(pub E::Args);
+pub struct EventUpdate<E: Event> {
+    args: E::Args,
+    slot: EventSlot,
+}
 impl<E: Event> EventUpdate<E> {
+    /// New event update.
+    pub fn new(event: E, args: E::Args) -> Self {
+        EventUpdate { args, slot: event.slot() }
+    }
+
     /// Clone the arguments.
     #[allow(clippy::should_implement_trait)] // that is what we want.
     pub fn clone(&self) -> E::Args {
-        self.0.clone()
+        self.args.clone()
     }
 
     pub(crate) fn boxed(self) -> BoxedEventUpdate {
         BoxedEventUpdate {
             event_type: TypeId::of::<E>(),
             event_name: type_name::<E>(),
+            slot: self.slot,
             args: Box::new(self),
         }
     }
@@ -100,13 +108,14 @@ impl<E: Event> EventUpdate<E> {
         BoxedSendEventUpdate {
             event_type: TypeId::of::<E>(),
             event_name: type_name::<E>(),
+            slot: self.slot,
             args: Box::new(self),
         }
     }
 
     /// Change the event type if the event args type is the same
     pub(crate) fn transmute_event<E2: Event<Args = E::Args>>(&self) -> &EventUpdate<E2> {
-        // SAFETY: this is a change on the type system only, the data type is the same.
+        // SAFETY: this is a change on the type system only, the data layout is the same.
         unsafe { mem::transmute(self) }
     }
 }
@@ -114,9 +123,9 @@ impl<E: Event> crate::private::Sealed for EventUpdate<E> {}
 impl<E: Event> fmt::Debug for EventUpdate<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            write!(f, "EventUpdate<{}>({:#?})", type_name::<E>(), self.0)
+            write!(f, "EventUpdate<{}>({:#?})", type_name::<E>(), self.args)
         } else {
-            write!(f, "EventUpdate<{}>({:?})", type_name::<E>(), self.0)
+            write!(f, "EventUpdate<{}>({:?})", type_name::<E>(), self.args)
         }
     }
 }
@@ -125,7 +134,7 @@ impl<E: Event> Deref for EventUpdate<E> {
 
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.args
     }
 }
 
@@ -133,6 +142,7 @@ impl<E: Event> Deref for EventUpdate<E> {
 pub struct BoxedEventUpdate {
     event_type: TypeId,
     event_name: &'static str,
+    slot: EventSlot,
     args: Box<dyn UnsafeAny>,
 }
 impl BoxedEventUpdate {
@@ -172,11 +182,16 @@ impl EventUpdateArgs for BoxedEventUpdate {
         AnyEventUpdate {
             event_type_id: self.event_type,
             event_name: self.event_name,
+            slot: self.slot,
             event_update_args: unsafe {
                 // SAFETY: no different then the EventUpdate::as_any()
                 self.args.downcast_ref_unchecked()
             },
         }
+    }
+
+    fn slot(&self) -> EventSlot {
+        self.slot
     }
 }
 
@@ -184,6 +199,7 @@ impl EventUpdateArgs for BoxedEventUpdate {
 pub struct BoxedSendEventUpdate {
     event_type: TypeId,
     event_name: &'static str,
+    slot: EventSlot,
     args: Box<dyn UnsafeAny + Send>,
 }
 impl BoxedSendEventUpdate {
@@ -207,6 +223,7 @@ impl BoxedSendEventUpdate {
         BoxedEventUpdate {
             event_type: self.event_type,
             event_name: self.event_name,
+            slot: self.slot,
             args: self.args,
         }
     }
@@ -222,6 +239,7 @@ impl fmt::Debug for BoxedSendEventUpdate {
 pub struct AnyEventUpdate<'a> {
     event_type_id: TypeId,
     event_name: &'static str,
+    slot: EventSlot,
     // this is a reference to a `EventUpdate<Q>`.
     event_update_args: &'a (),
 }
@@ -263,8 +281,13 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
         AnyEventUpdate {
             event_type_id: self.event_type_id,
             event_name: self.event_name,
+            slot: self.slot,
             event_update_args: self.event_update_args,
         }
+    }
+
+    fn slot(&self) -> EventSlot {
+        self.slot
     }
 }
 
@@ -275,6 +298,9 @@ pub trait EventUpdateArgs: fmt::Debug + crate::private::Sealed {
 
     /// Type erased event update.
     fn as_any(&self) -> AnyEventUpdate;
+
+    /// Returns the [`EventSlot`] that represents the event type.
+    fn slot(&self) -> EventSlot;
 }
 impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     #[inline(always)]
@@ -295,12 +321,17 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
         AnyEventUpdate {
             event_type_id: TypeId::of::<E>(),
             event_name: type_name::<E>(),
+            slot: self.slot,
             event_update_args: unsafe {
                 // SAFETY: nothing will be done with it other then a validated restore in `args_for`.
                 #[allow(clippy::transmute_ptr_to_ptr)]
                 mem::transmute(self)
             },
         }
+    }
+
+    fn slot(&self) -> EventSlot {
+        self.slot
     }
 }
 
@@ -370,6 +401,7 @@ where
     E::Args: Send,
 {
     sender: AppEventSender,
+    slot: EventSlot,
     _event: PhantomData<E>,
 }
 impl<E> Clone for EventSender<E>
@@ -380,6 +412,7 @@ where
     fn clone(&self) -> Self {
         EventSender {
             sender: self.sender.clone(),
+            slot: self.slot,
             _event: PhantomData,
         }
     }
@@ -400,7 +433,7 @@ where
 {
     /// Send an event update.
     pub fn send(&self, args: E::Args) -> Result<(), AppShutdown<E::Args>> {
-        let update = EventUpdate::<E>(args).boxed_send();
+        let update = EventUpdate::<E> { args, slot: self.slot }.boxed_send();
         self.sender.send_event(update).map_err(|e| {
             if let Ok(e) = e.0.unbox_for::<E>() {
                 AppShutdown(e)
@@ -637,8 +670,8 @@ impl Events {
     }
 
     /// Called by [`Event::notify`] to schedule a notification.
-    pub fn notify<E: Event>(&mut self, args: E::Args) {
-        let update = EventUpdate::<E>(args);
+    pub fn notify<E: Event>(&mut self, event: E, args: E::Args) {
+        let update = EventUpdate::<E>::new(event, args);
         self.updates.push(update.boxed());
     }
 
@@ -690,13 +723,14 @@ impl Events {
     }
 
     /// Creates a sender that can raise an event from other threads and without access to [`Events`].
-    pub fn sender<E>(&mut self, _: E) -> EventSender<E>
+    pub fn sender<E>(&mut self, event: E) -> EventSender<E>
     where
         E: Event,
         E::Args: Send,
     {
         EventSender {
             sender: self.app_event_sender.clone(),
+            slot: event.slot(),
             _event: PhantomData,
         }
     }

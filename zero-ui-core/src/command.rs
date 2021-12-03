@@ -226,8 +226,7 @@ macro_rules! command {
             }
 
             fn slot(self) -> $crate::widget_info::EventSlot {
-                let scope = $crate::command::Command::scope(self);
-                Self::COMMAND.with(move |c| c.slot(scope))
+                Self::COMMAND.with(move |c| c.slot())
             }
         }
         impl $crate::command::Command for $Command {
@@ -626,7 +625,7 @@ impl<C: Command> Event for ScopedCommand<C> {
 
     fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
         if self.enabled_value() {
-            events.with_events(|events| events.notify::<C>(args));
+            events.with_events(|events| events.notify(self.command, args));
         }
     }
 
@@ -635,8 +634,7 @@ impl<C: Command> Event for ScopedCommand<C> {
     }
 
     fn slot(self) -> EventSlot {
-        let scope = self.scope();
-        self.thread_local_value().with(move |c| c.slot(scope))
+        self.thread_local_value().with(move |c| c.slot())
     }
 }
 impl<C: Command> Command for ScopedCommand<C> {
@@ -1172,7 +1170,6 @@ struct ScopedValue {
     has_handlers: RcVar<bool>,
     meta: OwnedStateMap,
     registered: bool,
-    slot: EventSlot,
 }
 impl Default for ScopedValue {
     fn default() -> Self {
@@ -1182,7 +1179,6 @@ impl Default for ScopedValue {
             handle: HandleOwner::dropped(CommandHandleData::default()),
             meta: OwnedStateMap::default(),
             registered: false,
-            slot: EventSlot::next(),
         }
     }
 }
@@ -1210,7 +1206,7 @@ pub struct CommandValue {
 }
 #[allow(missing_docs)] // this is all hidden
 impl CommandValue {
-    pub fn init<C: Command, I: FnOnce() + 'static>(meta_init: I) -> Self {
+    pub fn init<C: Command, I: FnOnce() + 'static>(command: C, meta_init: I) -> Self {
         CommandValue {
             command_type_id: TypeId::of::<C>(),
             command_type_name: type_name::<C>(),
@@ -1222,7 +1218,7 @@ impl CommandValue {
             meta_init: Cell::new(Some(Box::new(meta_init))),
             registered: Cell::new(false),
             slot: EventSlot::next(),
-            notify: Box::new(|events, args| events.notify::<C>(args)),
+            notify: Box::new(|events, args| events.notify(command, args)),
         }
     }
 
@@ -1276,7 +1272,6 @@ impl CommandValue {
                     handle: HandleOwner::dropped(CommandHandleData::default()),
                     meta: OwnedStateMap::new(),
                     registered: true,
-                    slot: EventSlot::next(),
                 }
             });
             if !value.registered {
@@ -1295,12 +1290,8 @@ impl CommandValue {
         }
     }
 
-    pub fn slot(&self, scope: CommandScope) -> EventSlot {
-        if let CommandScope::App = scope {
-            self.slot
-        } else {
-            self.scopes.borrow_mut().entry(scope).or_default().slot
-        }
+    pub fn slot(&self) -> EventSlot {
+        self.slot
     }
 
     pub fn enabled(&self, scope: CommandScope) -> ReadOnlyVar<bool, RcVar<bool>> {

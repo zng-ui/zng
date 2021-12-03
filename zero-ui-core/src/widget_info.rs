@@ -8,7 +8,9 @@ use std::rc::Rc;
 
 use ego_tree::Tree;
 
+use crate::context::Updates;
 use crate::crate_util::IdMap;
+use crate::event::EventUpdateArgs;
 use crate::state::OwnedStateMap;
 use crate::state::StateMap;
 use crate::units::*;
@@ -174,11 +176,13 @@ impl WidgetInfoBuilder {
         outer_bounds: BoundsRect,
         inner_bounds: BoundsRect,
         rendered: WidgetRendered,
+        subscriptions: &mut WidgetSubscriptions,
         f: impl FnOnce(&mut Self),
     ) {
         let parent_node = self.node;
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
+        let parent_subscriptions = mem::take(&mut self.subscriptions);
 
         self.widget_id = id;
         self.node = self
@@ -197,6 +201,9 @@ impl WidgetInfoBuilder {
         self.node(self.node).value().meta = mem::replace(&mut self.meta, parent_meta);
         self.node = parent_node;
         self.widget_id = parent_widget_id;
+
+        *subscriptions = self.subscriptions.clone();
+        self.subscriptions |= parent_subscriptions;
     }
 
     /// Build the info tree.
@@ -1095,7 +1102,7 @@ macro_rules! update_mask {
         $(#[$meta])*
         ///
         /// This `struct` is a 256-bit bitmap of flagged slots.
-        #[derive(Clone, Copy)]
+        #[derive(Clone, Copy, Default)]
         $vis struct $Mask([u128; 2]);
 
         impl $Mask {
@@ -1142,7 +1149,7 @@ macro_rules! update_mask {
                 if slot < 128 {
                     (self.0[0] & (1 << slot)) != 0
                 } else {
-                    (self.0[1] & (1 << slot)) != 0
+                    (self.0[1] & (1 << (slot - 128))) != 0
                 }
             }
 
@@ -1155,7 +1162,7 @@ macro_rules! update_mask {
 
             /// Returns `true` if any slot is set in both `self` and `other`.
             #[inline]
-            pub fn overlaps(&self, other: &Self) -> bool {
+            pub fn intersects(&self, other: &Self) -> bool {
                 (self.0[0] & other.0[0]) != 0 || (self.0[1] & other.0[1]) != 0
             }
         }
@@ -1204,17 +1211,16 @@ update_mask! {
 /// See [`subscriptions`] in the widget builder for more details.
 ///
 /// [`subscriptions`]: WidgetBuilder::subscriptions
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct WidgetSubscriptions {
     event: EventMask,
     update: UpdateMask,
 }
 impl WidgetSubscriptions {
-    fn new() -> Self {
-        Self {
-            event: EventMask::none(),
-            update: UpdateMask::none(),
-        }
+    /// New default, no subscriptions.
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Register an [`Event`] or command subscription.
@@ -1265,6 +1271,42 @@ impl WidgetSubscriptions {
             vars: vars.as_ref(),
             subscriptions: self,
         }
+    }
+
+    /// Returns `true` if the widget subscribes to events in the slot.
+    pub fn event_contains(&self, event: &impl EventUpdateArgs) -> bool {
+        self.event.contains(event.slot())
+    }
+
+    /// Returns `true` if the widget is interested in variables or other update sources that are flagged in `updates`.
+    pub fn update_intersects(&self, updates: &Updates) -> bool {
+        self.update.intersects(updates.current())
+    }
+
+    /// Returns the current set event subscriptions.
+    #[inline]
+    pub fn event_mask(&self) -> EventMask {
+        self.event
+    }
+
+    /// Returns the current set update subscriptions.
+    #[inline]
+    pub fn update_mask(&self) -> UpdateMask {
+        self.update
+    }
+}
+impl ops::BitOr for WidgetSubscriptions {
+    type Output = Self;
+
+    fn bitor(mut self, rhs: Self) -> Self::Output {
+        self |= rhs;
+        self
+    }
+}
+impl ops::BitOrAssign for WidgetSubscriptions {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.event |= rhs.event;
+        self.update |= rhs.update;
     }
 }
 

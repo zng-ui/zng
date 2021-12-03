@@ -19,11 +19,13 @@ use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
+    use std::cell::RefCell;
+
     use zero_ui_view_api::units::PxRect;
 
     use crate::{
         context::{OwnedStateMap, RenderContext},
-        widget_info::{BoundsRect, WidgetOffset, WidgetRendered},
+        widget_info::{BoundsRect, WidgetOffset, WidgetRendered, WidgetSubscriptions},
     };
 
     use super::*;
@@ -136,6 +138,7 @@ pub mod implicit_base {
             outer_bounds: BoundsRect,
             inner_bounds: BoundsRect,
             rendered: WidgetRendered,
+            subscriptions: RefCell<WidgetSubscriptions>,
             #[cfg(debug_assertions)]
             inited: bool,
         }
@@ -168,6 +171,7 @@ pub mod implicit_base {
                         self.outer_bounds.clone(),
                         self.inner_bounds.clone(),
                         self.rendered.clone(),
+                        &mut self.subscriptions.borrow_mut(),
                         |info| self.child.info(ctx, info),
                     );
                 });
@@ -194,8 +198,10 @@ pub mod implicit_base {
                     tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", self.id);
                 }
 
-                let child = &mut self.child;
-                ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
+                if self.subscriptions.borrow().update_intersects(ctx.updates) {
+                    let child = &mut self.child;
+                    ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
+                }
             }
             #[inline(always)]
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
@@ -204,8 +210,10 @@ pub mod implicit_base {
                     tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", std::any::type_name::<EU>(), self.id);
                 }
 
-                let child = &mut self.child;
-                ctx.widget_context(self.id, &mut self.state, |ctx| child.event(ctx, args));
+                if self.subscriptions.borrow().event_contains(args) {
+                    let child = &mut self.child;
+                    ctx.widget_context(self.id, &mut self.state, |ctx| child.event(ctx, args));
+                }
             }
             #[inline(always)]
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
@@ -306,6 +314,7 @@ pub mod implicit_base {
             outer_bounds: BoundsRect::new(),
             inner_bounds: BoundsRect::new(),
             rendered: WidgetRendered::new(),
+            subscriptions: RefCell::default(),
             #[cfg(debug_assertions)]
             inited: false,
         }

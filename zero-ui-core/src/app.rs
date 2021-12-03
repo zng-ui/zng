@@ -840,19 +840,19 @@ impl<E: AppExtension> RunningApp<E> {
     fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
         ctx: &mut AppContext,
         extensions: &mut E,
-        _event: Ev,
+        event: Ev,
         args: Ev::Args,
         observer: &mut O,
     ) {
         let _scope = tracing::trace_span!("notify_event", event = type_name::<Ev>()).entered();
 
-        let update = EventUpdate::<Ev>(args);
+        let update = EventUpdate::new(event, args);
 
         extensions.event_preview(ctx, &update);
         observer.event_preview(ctx, &update);
         let update = update.boxed();
         Events::on_pre_events(ctx, &update);
-        let update = EventUpdate::<Ev>(update.unbox_for::<Ev>().unwrap());
+        let update = EventUpdate::new(event, update.unbox_for::<Ev>().unwrap());
 
         extensions.event_ui(ctx, &update);
         observer.event_ui(ctx, &update);

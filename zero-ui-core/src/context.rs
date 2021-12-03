@@ -85,6 +85,7 @@ pub struct UpdateArgs {
 /// An instance of this struct is available in [`AppContext`] and derived contexts.
 pub struct Updates {
     event_sender: AppEventSender,
+    current: UpdateMask,
     update: bool,
     layout: bool,
     l_updates: LayoutUpdates,
@@ -96,6 +97,7 @@ impl Updates {
     fn new(event_sender: AppEventSender) -> Self {
         Updates {
             event_sender,
+            current: UpdateMask,
             update: false,
             layout: false,
             l_updates: LayoutUpdates {
@@ -112,6 +114,17 @@ impl Updates {
     #[inline]
     pub fn sender(&self) -> AppEventSender {
         self.event_sender.clone()
+    }
+
+    /// Reference a mask that represents all the variable or other update sources
+    /// that are updating during this call of [`UiNode::update`].
+    ///
+    /// Note that this value is only valid in [`UiNode::update`] and is used by widget roots to optimize the call to update.
+    ///
+    /// [`UiNode::update`]: crate::UiNode::update
+    #[inline]
+    pub fn current(&self) -> &UpdateMask {
+        &self.current
     }
 
     /// Schedules an update.
