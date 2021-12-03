@@ -5,12 +5,12 @@ use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
-use crate::context::{AppContext, WidgetContext};
+use crate::context::{AppContext, InfoContext, WidgetContext};
 use crate::crate_util::{Handle, HandleOwner};
-use crate::widget_info::EventSlot;
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
 use crate::widget_base::IsEnabled;
+use crate::widget_info::{EventSlot, WidgetInfoBuilder};
 use crate::{impl_ui_node, UiNode};
 use std::cell::RefCell;
 use std::fmt::{self, Debug};
@@ -70,7 +70,7 @@ pub trait Event: Debug + Clone + Copy + 'static {
     fn update<U: EventUpdateArgs>(self, args: &U) -> Option<&EventUpdate<Self>> {
         args.args_for::<Self>()
     }
-    
+
     /// Gets the [`EventSlot`] assigned to this event type.
     fn slot(self) -> EventSlot;
 }
@@ -1519,6 +1519,11 @@ where
         F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
         H: WidgetHandler<E::Args>,
     {
+        fn info(&self, ctx: &mut InfoContext, widget_info: &mut WidgetInfoBuilder) {
+            widget_info.subscriptions().event(self.event);
+            self.child.info(ctx, widget_info);
+        }
+
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = self.event.update(args) {
                 self.child.event(ctx, args);
@@ -1585,6 +1590,11 @@ where
         F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
         H: WidgetHandler<E::Args>,
     {
+        fn info(&self, ctx: &mut InfoContext, widget_info: &mut WidgetInfoBuilder) {
+            widget_info.subscriptions().event(self.event);
+            self.child.info(ctx, widget_info);
+        }
+
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = self.event.update(args) {
                 if IsEnabled::get(ctx) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {

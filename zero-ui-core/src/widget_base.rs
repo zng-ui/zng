@@ -558,13 +558,13 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             match self.visibility.copy(ctx) {
-                Visibility::Visible | Visibility::Hidden => self.child.measure(ctx, available_size),
                 Visibility::Collapsed => PxSize::zero(),
+                _ => self.child.measure(ctx, available_size),
             }
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-            if let Visibility::Visible = self.visibility.get(ctx) {
+            if Visibility::Collapsed != self.visibility.copy(ctx) {
                 self.child.arrange(ctx, widget_offset, final_size)
             }
         }

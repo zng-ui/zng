@@ -31,12 +31,12 @@ use crate::{
     crate_util::{Handle, HandleOwner},
     event::{Event, Events, WithEvents},
     handler::WidgetHandler,
-    widget_info::EventSlot,
     impl_ui_node,
     state::{StateKey, StateMap},
     state_key,
     text::{Text, ToText},
     var::*,
+    widget_info::EventSlot,
     window::WindowId,
     UiNode, WidgetId,
 };
@@ -1294,7 +1294,7 @@ impl CommandValue {
             r
         }
     }
-    
+
     pub fn slot(&self, scope: CommandScope) -> EventSlot {
         if let CommandScope::App = scope {
             self.slot

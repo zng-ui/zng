@@ -12,6 +12,10 @@ use crate::crate_util::IdMap;
 use crate::state::OwnedStateMap;
 use crate::state::StateMap;
 use crate::units::*;
+use crate::var::Var;
+use crate::var::VarValue;
+use crate::var::VarsRead;
+use crate::var::WithVarsRead;
 use crate::widget_base::Visibility;
 use crate::window::WindowId;
 use crate::WidgetId;
@@ -95,6 +99,7 @@ pub struct WidgetInfoBuilder {
     node: ego_tree::NodeId,
     widget_id: WidgetId,
     meta: OwnedStateMap,
+    subscriptions: WidgetSubscriptions,
 
     tree: Tree<WidgetInfoInner>,
 }
@@ -128,6 +133,7 @@ impl WidgetInfoBuilder {
             node: root_node,
             tree,
             meta: OwnedStateMap::new(),
+            subscriptions: WidgetSubscriptions::new(),
             widget_id: root_id,
         }
     }
@@ -139,7 +145,7 @@ impl WidgetInfoBuilder {
 
     /// Current widget id.
     #[inline]
-    pub fn widget_id(&mut self) -> WidgetId {
+    pub fn widget_id(&self) -> WidgetId {
         self.widget_id
     }
 
@@ -147,6 +153,15 @@ impl WidgetInfoBuilder {
     #[inline]
     pub fn meta(&mut self) -> &mut StateMap {
         &mut self.meta.0
+    }
+
+    /// Current widget subscriptions.
+    ///
+    /// Properties must register their interest in events and variables here otherwise a call to [`UiNode::event`] or
+    /// [`UiNode::update`] can end-up skipped due to optimizations.
+    #[inline]
+    pub fn subscriptions(&mut self) -> &mut WidgetSubscriptions {
+        &mut self.subscriptions
     }
 
     /// Calls `f` in a new widget context.
@@ -1182,4 +1197,90 @@ update_mask! {
 
     /// Represents the combined events that are listened by an UI tree or widget.
     pub struct EventMask <- EventSlot;
+}
+
+/// Represents all event and update subscriptions of an widget.
+///
+/// See [`subscriptions`] in the widget builder for more details.
+///
+/// [`subscriptions`]: WidgetBuilder::subscriptions
+#[derive(Debug)]
+pub struct WidgetSubscriptions {
+    event: EventMask,
+    update: UpdateMask,
+}
+impl WidgetSubscriptions {
+    fn new() -> Self {
+        Self {
+            event: EventMask::none(),
+            update: UpdateMask::none(),
+        }
+    }
+
+    /// Register an [`Event`] or command subscription.
+    ///
+    /// [`Event`]: crate::event::Event
+    #[inline]
+    pub fn event(&mut self, event: impl crate::event::Event) -> &mut Self {
+        self.event.insert(event.slot());
+        self
+    }
+
+    /// Register multiple event or command subscriptions.
+    #[inline]
+    pub fn events(&mut self, mask: &EventMask) -> &mut Self {
+        self.event.extend(mask);
+        self
+    }
+
+    /// Register a custom update source subscription.
+    #[inline]
+    pub fn update(&mut self, slot: UpdateSlot) -> &mut Self {
+        self.update.insert(slot);
+        self
+    }
+
+    /// Register multiple update source subscriptions.
+    #[inline]
+    pub fn updates(&mut self, mask: &UpdateMask) -> &mut Self {
+        self.update.extend(mask);
+        self
+    }
+
+    /// Register a variable subscription.
+    #[inline]
+    pub fn var<Vr, T>(&mut self, vars: &Vr, var: &impl Var<T>) -> &mut Self
+    where
+        Vr: WithVarsRead,
+        T: VarValue,
+    {
+        self.update.extend(&var.update_mask(vars));
+        self
+    }
+
+    /// Start a [`WidgetVarSubscriptions`] to register multiple variables without needing to reference the [`VarsRead`] for every variable.
+    #[inline]
+    pub fn vars<'s, 'v>(&'s mut self, vars: &'v impl AsRef<VarsRead>) -> WidgetVarSubscriptions<'v, 's> {
+        WidgetVarSubscriptions {
+            vars: vars.as_ref(),
+            subscriptions: self,
+        }
+    }
+}
+
+/// Helper for registering multiple [`WidgetSubscriptions::var`] without needing to reference the [`VarsRead`] instance for every variable.
+pub struct WidgetVarSubscriptions<'v, 's> {
+    vars: &'v VarsRead,
+    /// The main [`WidgetSubscriptions`].
+    pub subscriptions: &'s mut WidgetSubscriptions,
+}
+impl<'v, 's> WidgetVarSubscriptions<'v, 's> {
+    /// Register a variable subscriptions.
+    #[inline]
+    pub fn var<T: VarValue>(self, var: &impl Var<T>) -> Self {
+        Self {
+            subscriptions: self.subscriptions.var(self.vars, var),
+            vars: self.vars,
+        }
+    }
 }
