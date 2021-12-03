@@ -31,6 +31,7 @@ use crate::{
     crate_util::{Handle, HandleOwner},
     event::{Event, Events, WithEvents},
     handler::WidgetHandler,
+    widget_info::EventSlot,
     impl_ui_node,
     state::{StateKey, StateMap},
     state_key,
@@ -222,6 +223,11 @@ macro_rules! command {
 
             fn update<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<Self>> {
                 self.update(args)
+            }
+
+            fn slot(self) -> $crate::widget_info::EventSlot {
+                let scope = $crate::command::Command::scope(self);
+                Self::COMMAND.with(move |c| c.slot(scope))
             }
         }
         impl $crate::command::Command for $Command {
@@ -627,6 +633,11 @@ impl<C: Command> Event for ScopedCommand<C> {
     fn update<U: crate::event::EventUpdateArgs>(self, args: &U) -> Option<&crate::event::EventUpdate<Self>> {
         self.update(args).map(|a| a.transmute_event::<Self>())
     }
+
+    fn slot(self) -> EventSlot {
+        let scope = self.scope();
+        self.thread_local_value().with(move |c| c.slot(scope))
+    }
 }
 impl<C: Command> Command for ScopedCommand<C> {
     type AppScopeCommand = C;
@@ -751,6 +762,10 @@ impl Event for AnyCommand {
     fn update<U: crate::event::EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
         // TODO use a closure in the value and then transmute to Self?
         panic!("`AnyCommand` does not support `Event::update`");
+    }
+
+    fn slot(self) -> EventSlot {
+        self.0.with(|c| c.slot)
     }
 }
 
@@ -1157,6 +1172,7 @@ struct ScopedValue {
     has_handlers: RcVar<bool>,
     meta: OwnedStateMap,
     registered: bool,
+    slot: EventSlot,
 }
 impl Default for ScopedValue {
     fn default() -> Self {
@@ -1166,6 +1182,7 @@ impl Default for ScopedValue {
             handle: HandleOwner::dropped(CommandHandleData::default()),
             meta: OwnedStateMap::default(),
             registered: false,
+            slot: EventSlot::next(),
         }
     }
 }
@@ -1176,6 +1193,7 @@ pub struct CommandValue {
     command_type_name: &'static str,
 
     scopes: RefCell<HashMap<CommandScope, ScopedValue>>,
+    slot: EventSlot,
 
     handle: HandleOwner<CommandHandleData>,
 
@@ -1203,6 +1221,7 @@ impl CommandValue {
             meta: RefCell::default(),
             meta_init: Cell::new(Some(Box::new(meta_init))),
             registered: Cell::new(false),
+            slot: EventSlot::next(),
             notify: Box::new(|events, args| events.notify::<C>(args)),
         }
     }
@@ -1257,6 +1276,7 @@ impl CommandValue {
                     handle: HandleOwner::dropped(CommandHandleData::default()),
                     meta: OwnedStateMap::new(),
                     registered: true,
+                    slot: EventSlot::next(),
                 }
             });
             if !value.registered {
@@ -1272,6 +1292,14 @@ impl CommandValue {
                 r.set_enabled(true);
             }
             r
+        }
+    }
+    
+    pub fn slot(&self, scope: CommandScope) -> EventSlot {
+        if let CommandScope::App = scope {
+            self.slot
+        } else {
+            self.scopes.borrow_mut().entry(scope).or_default().slot
         }
     }
 

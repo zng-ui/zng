@@ -7,6 +7,7 @@ use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
 use crate::context::{AppContext, WidgetContext};
 use crate::crate_util::{Handle, HandleOwner};
+use crate::widget_info::EventSlot;
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
 use crate::widget_base::IsEnabled;
@@ -69,6 +70,9 @@ pub trait Event: Debug + Clone + Copy + 'static {
     fn update<U: EventUpdateArgs>(self, args: &U) -> Option<&EventUpdate<Self>> {
         args.args_for::<Self>()
     }
+    
+    /// Gets the [`EventSlot`] assigned to this event type.
+    fn slot(self) -> EventSlot;
 }
 
 /// [`EventUpdateArgs`] for event `E`, dereferences to the argument.
@@ -1323,6 +1327,13 @@ macro_rules! event {
         }
         impl $crate::event::Event for $Event {
             type Args = $Args;
+
+            fn slot(self) -> $crate::widget_info::EventSlot {
+                std::thread_local! {
+                    static SLOT: $crate::widget_info::EventSlot = $crate::widget_info::EventSlot::next();
+                }
+                SLOT.with(|s| *s)
+            }
         }
     )+};
 }
