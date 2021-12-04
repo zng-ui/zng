@@ -1187,7 +1187,13 @@ macro_rules! update_mask {
                 ];
 
                 writeln!(f, "{}:", stringify!($Mask))?;
+                let mut nl = false;
                 for dw in dw {
+                    if nl {
+                        writeln!(f)?;
+                    } else {
+                        nl = true;
+                    }
                     for i in 0..64 {
                         let b = 1u64 << i;
                         if (b & dw) == 0 {
@@ -1196,7 +1202,6 @@ macro_rules! update_mask {
                             write!(f, "█")?;
                         }
                     }
-                    writeln!(f)?;
                 }
 
                 Ok(())
