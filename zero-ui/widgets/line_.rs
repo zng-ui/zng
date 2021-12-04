@@ -63,6 +63,7 @@ pub mod line_w {
     {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
             widget
+                .subscriptions()
                 .vars(ctx)
                 .var(&self.stroke_width)
                 .var(&self.length)

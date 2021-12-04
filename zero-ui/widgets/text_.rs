@@ -107,7 +107,7 @@ pub mod text {
         #[impl_ui_node(none)]
         impl<T: Var<Text>> UiNode for TextNode<T> {
             fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                TextContext::subscribe(ctx.vars, widget);
+                TextContext::subscribe(ctx.vars, widget.subscriptions());
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
@@ -1036,7 +1036,7 @@ pub mod text {
         }
         impl<'a> TextContext<'a> {
             /// Register all text context variables in the widget.
-            pub fn subscribe(vars: &VarsRead, widget: &mut WidgetInfoBuilder) {
+            pub fn subscribe(vars: &VarsRead, widget: &mut WidgetSubscriptions) {
                 widget
                     .vars(vars)
                     .var(&FontFamilyVar::new())
@@ -1052,12 +1052,12 @@ pub mod text {
                     .var(&WordSpacingVar::new())
                     .var(&LineSpacingVar::new())
                     .var(&WordBreakVar::new())
-                    .var(&LineBreakeVar::new())
+                    .var(&LineBreakVar::new())
                     .var(&TabLengthVar::new())
                     .var(&FontFeaturesVar::new())
                     .var(&TextAlignVar::new())
                     .var(&TextColorVar::new())
-                    .var(&FontSynthesisVar::new())
+                    .var(&FontSynthesisVar::new());
             }
 
             /// Borrow or copy all the text contextual values.

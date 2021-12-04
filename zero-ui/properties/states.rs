@@ -21,7 +21,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsHoveredNode<C> {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.info(ctx, widget);
+            self.child.info(ctx, widget);
             widget
                 .subscriptions()
                 .event(MouseEnterEvent)
@@ -267,7 +267,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 if timer.is_new(ctx) {
                     self.shortcut_press = None;
                     ctx.updates.info();
-                    self.state.set_ne(ctx.vars, (self.is_down && self.is_over));
+                    self.state.set_ne(ctx.vars, self.is_down && self.is_over);
                 }
             }
         }

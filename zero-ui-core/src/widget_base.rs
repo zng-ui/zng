@@ -467,6 +467,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                 info.meta().set(EnabledState, false);
             }
             self.child.info(ctx, info);
+            info.subscriptions().var(ctx, &self.enabled);
         }
     }
     EnabledNode {
@@ -492,6 +493,11 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.update_state(ctx);
+    }
+
+    fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+        self.child.info(ctx, widget);
+        widget.subscriptions().updates(&IsEnabled::update_mask(ctx));
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -560,6 +566,11 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.prev_vis = self.visibility.copy(ctx);
             self.child.init(ctx);
+        }
+
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+            widget.subscriptions().var(ctx, &self.visibility);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -702,6 +713,11 @@ impl<C: UiNode> UiNode for IsVisibilityNode<C> {
 
         let vis = current_vis(ctx);
         self.state.set_ne(ctx, vis != self.expected);
+    }
+
+    fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+        self.child.info(ctx, widget);
+        widget.subscriptions().event(crate::window::FrameImageReadyEvent);
     }
 
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {

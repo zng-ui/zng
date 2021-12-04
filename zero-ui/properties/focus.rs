@@ -384,7 +384,7 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.state.set_ne(ctx.vars, false);
         }
 
-        fn info(&self, ctx: InfoContext, widget: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
             self.child.info(ctx, widget);
             widget
                 .subscriptions()

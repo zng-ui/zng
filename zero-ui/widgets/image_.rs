@@ -860,6 +860,9 @@ pub mod image {
         pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
             let view = ViewGenerator::presenter_map(
                 ImageErrorViewVar,
+                |vars, widget| {
+                    widget.subscriptions().var(vars, &ContextImageVar::new());
+                },
                 |ctx, is_new| {
                     if *InErrorViewVar::get(ctx) {
                         // avoid recursion.
@@ -914,6 +917,9 @@ pub mod image {
         pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
             let view = ViewGenerator::presenter_map(
                 ImageLoadingViewVar,
+                |vars, widget| {
+                    widget.subscriptions().var(vars, &ContextImageVar::new());
+                },
                 |ctx, is_new| {
                     if *InLoadingViewVar::get(ctx) {
                         // avoid recursion.

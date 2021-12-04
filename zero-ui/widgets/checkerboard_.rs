@@ -119,8 +119,6 @@ pub mod checkerboard {
                     .var(&CheckerboardColor1Var::new())
                     .var(&CheckerboardSizeVar::new())
                     .var(&CheckerboardOffsetVar::new());
-
-                self.child.info(ctx, widget);
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {

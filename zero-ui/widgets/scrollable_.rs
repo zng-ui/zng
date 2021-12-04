@@ -365,23 +365,29 @@ pub mod scrollable {
         }
 
         fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
-            ViewGenerator::presenter(var, move |ctx, is_new| {
-                if is_new {
-                    if let Some(ctx) = ScrollContext::get(ctx) {
-                        DataUpdate::Update(ScrollBarArgs::new(ctx, orientation))
+            ViewGenerator::presenter(
+                var,
+                |vars, widget| {
+                    // TODO
+                },
+                move |ctx, is_new| {
+                    if is_new {
+                        if let Some(ctx) = ScrollContext::get(ctx) {
+                            DataUpdate::Update(ScrollBarArgs::new(ctx, orientation))
+                        } else {
+                            DataUpdate::None
+                        }
+                    } else if let Some(new_ctx) = ScrollContext::get_new(ctx) {
+                        if let Some(ctx) = new_ctx {
+                            DataUpdate::Update(ScrollBarArgs::new(ctx, orientation))
+                        } else {
+                            DataUpdate::None
+                        }
                     } else {
-                        DataUpdate::None
+                        DataUpdate::Same
                     }
-                } else if let Some(new_ctx) = ScrollContext::get_new(ctx) {
-                    if let Some(ctx) = new_ctx {
-                        DataUpdate::Update(ScrollBarArgs::new(ctx, orientation))
-                    } else {
-                        DataUpdate::None
-                    }
-                } else {
-                    DataUpdate::Same
-                }
-            })
+                },
+            )
         }
 
         /// Create a node that generates and presents the [scrollbar joiner].
@@ -636,7 +642,11 @@ pub mod thumb {
         impl<C: UiNode> UiNode for DragNode<C> {
             fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
                 self.child.info(ctx, widget);
-                widget.subscriptions().var(ctx, &self.start);
+                widget
+                    .subscriptions()
+                    .event(MouseMoveEvent)
+                    .event(MouseUpEvent)
+                    .event(MouseDownEvent);
             }
 
             fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {

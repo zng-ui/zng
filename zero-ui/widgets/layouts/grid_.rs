@@ -120,6 +120,18 @@ pub mod grid {
                 self.items.event_all(ctx, args);
             }
 
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                for column in self.columns.iter() {
+                    column.widget().info(ctx, info);
+                }
+                for row in self.rows.iter() {
+                    row.widget().info(ctx, info);
+                }
+                self.items.info_all(ctx, info);
+
+                info.subscriptions().var(ctx, &self.spacing);
+            }
+
             fn update(&mut self, ctx: &mut WidgetContext) {
                 for column in &mut self.columns {
                     column.widget_mut().update(ctx);
@@ -255,16 +267,6 @@ pub mod grid {
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                 let _ = (ctx, final_size);
                 todo!()
-            }
-
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                for column in self.columns.iter() {
-                    column.widget().info(ctx, info);
-                }
-                for row in self.rows.iter() {
-                    row.widget().info(ctx, info);
-                }
-                self.items.info_all(ctx, info);
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

@@ -524,6 +524,11 @@ pub mod window {
             }
             #[impl_ui_node(child)]
             impl<U: UiNode, C: Var<Rgba>> UiNode for ClearColorNode<U, C> {
+                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                    self.child.info(ctx, widget);
+                    widget.subscriptions().var(ctx, &self.clear_color);
+                }
+
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if self.clear_color.is_new(ctx) {
                         ctx.updates.render_update();
@@ -552,10 +557,11 @@ pub mod window {
     pub mod commands {
         use zero_ui::core::{
             command::*,
-            context::WidgetContext,
+            context::{InfoContext, WidgetContext},
             event::EventUpdateArgs,
             focus::FocusExt,
             gesture::*,
+            widget_info::WidgetInfoBuilder,
             window::{WindowFocusChangedEvent, WindowsExt},
             *,
         };
@@ -611,6 +617,11 @@ pub mod window {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for OnCloseNode<C> {
+                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                    self.child.info(ctx, widget);
+                    widget.subscriptions().var(ctx, &CloseCommand.shortcut());
+                }
+
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let window_id = ctx.path.window_id();
                     self.allow_alt_f4 = ctx.services.windows().vars(window_id).unwrap().allow_alt_f4().clone();

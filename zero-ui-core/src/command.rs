@@ -1503,7 +1503,7 @@ where
             widget_builder
                 .subscriptions()
                 .event(self.command.expect("OnPreviewCommandNode not initialized"))
-                .handler(&self.handler);
+                .handler(&self.handler); // TODO enabled
             self.child.info(ctx, widget_builder);
         }
 

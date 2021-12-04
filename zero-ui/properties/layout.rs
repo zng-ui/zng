@@ -603,7 +603,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
     }
     #[impl_ui_node(child)]
     impl<T: UiNode, S: Var<Size>> UiNode for MaxSizeNode<T, S> {
-        fn info(&mut self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
             self.child.info(ctx, widget);
             widget.subscriptions().var(ctx, &self.max_size);
         }
@@ -669,7 +669,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
     #[impl_ui_node(child)]
     impl<T: UiNode, W: Var<Length>> UiNode for MaxWidthNode<T, W> {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.info(ctx, widget);
+            self.child.info(ctx, widget);
             widget.subscriptions().var(ctx, &self.max_width);
         }
 
@@ -742,7 +742,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
     #[impl_ui_node(child)]
     impl<T: UiNode, H: Var<Length>> UiNode for MaxHeightNode<T, H> {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.info(ctx, widget);
+            self.child.info(ctx, widget);
             widget.subscriptions().var(ctx, &self.max_height);
         }
 
@@ -815,7 +815,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<T: UiNode, S: Var<Size>> UiNode for SizeNode<T, S> {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.info(ctx, widget);
+            self.child.info(ctx, widget);
             widget.subscriptions().var(ctx, &self.size);
         }
 
@@ -872,7 +872,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<T: UiNode, W: Var<Length>> UiNode for WidthNode<T, W> {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.info(ctx, widget);
+            self.child.info(ctx, widget);
             widget.subscriptions().var(ctx, &self.width);
         }
 
@@ -941,7 +941,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<T: UiNode, H: Var<Length>> UiNode for HeightNode<T, H> {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.info(ctx, widget);
+            self.child.info(ctx, widget);
             widget.subscriptions().var(ctx, &self.height);
         }
 

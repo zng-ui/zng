@@ -1,5 +1,4 @@
 use retain_mut::RetainMut;
-use zero_ui_proc_macros::impl_ui_node;
 
 use super::*;
 use crate::{
@@ -1646,7 +1645,6 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
         var: C,
         value: V,
     }
-    #[impl_ui_node(child)]
     impl<U, T, C, V> UiNode for WithContextVarWidgetOnlyNode<U, C, V>
     where
         U: UiNode,
@@ -1663,6 +1661,12 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
             ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.deinit(ctx));
+        }
+        #[inline(always)]
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            let child = &self.child;
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, &self.value, || child.info(ctx, widget));
         }
         #[inline(always)]
         fn update(&mut self, ctx: &mut WidgetContext) {

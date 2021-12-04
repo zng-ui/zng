@@ -832,7 +832,9 @@ pub trait RcNodeTakeSignal: 'static {
     const TAKE_ON_INIT: bool = false;
 
     /// Signal subscriptions, [`update_take`] and [`event_take`] are only called if their update and event sources are registered here.
-    fn subscribe(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {}
+    fn subscribe(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        let _ = (ctx, subscriptions);
+    }
 
     /// Returns `true` when the slot must take the node as its child.
     fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {

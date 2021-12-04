@@ -87,7 +87,6 @@ use crate::{
     units::*,
     var::impl_from_and_into_var,
     widget_base::{Visibility, WidgetEnabledExt},
-    widget_info::UpdateMask,
     widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,

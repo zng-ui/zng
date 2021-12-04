@@ -68,6 +68,11 @@ pub mod h_stack {
     }
     #[impl_ui_node(children)]
     impl<C: WidgetList, S: Var<Length>, A: Var<Alignment>> UiNode for HStackNode<C, S, A> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.children.info_all(ctx, widget);
+            widget.subscriptions().vars(ctx).var(&self.spacing).var(&self.align);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.children.update_all(ctx);
 
@@ -227,6 +232,11 @@ pub mod v_stack {
     }
     #[impl_ui_node(children)]
     impl<C: WidgetList, S: Var<Length>, A: Var<Alignment>> UiNode for VStackNode<C, S, A> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.children.info_all(ctx, widget);
+            widget.subscriptions().vars(ctx).var(&self.spacing).var(&self.align);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.children.update_all(ctx);
 
@@ -420,6 +430,11 @@ pub mod z_stack {
     }
     #[impl_ui_node(children)]
     impl<I: UiNodeList, A: Var<Alignment>> UiNode for ZStackNode<I, A> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.children.info_all(ctx, widget);
+            widget.subscriptions().var(ctx, &self.align);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.align.is_new(ctx) {
                 ctx.updates.layout_and_render()
