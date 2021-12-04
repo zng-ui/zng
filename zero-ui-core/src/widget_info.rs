@@ -1179,11 +1179,27 @@ macro_rules! update_mask {
         }
         impl fmt::Debug for $Mask {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                if f.alternate() {
-                    write!(f, "{}([\n    {:0128b},\n    {:0128b}\n])", stringify!($Mask), self.0[0], self.0[1])
-                } else {
-                    write!(f, "{}([{:0128b}, {:0128b}])", stringify!($Mask), self.0[0], self.0[1])
+                let dw = [
+                    self.0[0] as u64,
+                    (self.0[0] >> 64) as u64,
+                    self.0[1] as u64,
+                    (self.0[1] >> 64) as u64
+                ];
+
+                writeln!(f, "{}:", stringify!($Mask))?;
+                for dw in dw {
+                    for i in 0..64 {
+                        let b = 1u64 << i;
+                        if (b & dw) == 0 {
+                            write!(f, "░")?;
+                        } else {
+                            write!(f, "█")?;
+                        }
+                    }
+                    writeln!(f)?;
                 }
+
+                Ok(())
             }
         }
 

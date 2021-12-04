@@ -2707,6 +2707,7 @@ impl OwnedWindowContext {
         });
 
         let (info, subscriptions, used) = builder.finalize();
+        // println!("{:?}", subscriptions);
         self.subscriptions = subscriptions;
         self.used_frame_info_builder = Some(used);
         info
