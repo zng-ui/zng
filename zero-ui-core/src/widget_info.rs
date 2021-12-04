@@ -1179,32 +1179,33 @@ macro_rules! update_mask {
         }
         impl fmt::Debug for $Mask {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let dw = [
+                use std::fmt::Write;
+
+                let rows = [
                     self.0[0] as u64,
                     (self.0[0] >> 64) as u64,
                     self.0[1] as u64,
                     (self.0[1] >> 64) as u64
                 ];
 
-                writeln!(f, "{}:", stringify!($Mask))?;
-                let mut nl = false;
-                for dw in dw {
-                    if nl {
-                        writeln!(f)?;
-                    } else {
-                        nl = true;
-                    }
+                writeln!(f, "{} {{", stringify!($Mask))?;
+
+                let mut bmp = String::with_capacity(256 + 4);
+
+                for row in rows {
+                    write!(bmp, "    ")?;
                     for i in 0..64 {
                         let b = 1u64 << i;
-                        if (b & dw) == 0 {
-                            write!(f, "░")?;
+                        if (b & row) == 0 {
+                            write!(bmp, "░")?;
                         } else {
-                            write!(f, "█")?;
+                            write!(bmp, "█")?;
                         }
                     }
+                    writeln!(bmp)?;
                 }
 
-                Ok(())
+                write!(f, "{}}}", bmp)
             }
         }
 
