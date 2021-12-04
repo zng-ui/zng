@@ -40,7 +40,7 @@ use crate::{
     units::*,
     var::Vars,
     var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetOffset, WidgetRendered},
+    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetOffset, WidgetRendered, WidgetSubscriptions},
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -1867,6 +1867,7 @@ impl AppWindow {
             root_bounds: BoundsRect::new(),
             root_rendered: WidgetRendered::new(),
             update: WindowUpdates::all(),
+            subscriptions: WidgetSubscriptions::none(),
             prev_metrics: None,
             used_frame_info_builder: None,
             used_frame_builder: None,
@@ -2657,6 +2658,7 @@ struct OwnedWindowContext {
     root_bounds: BoundsRect,
     root_rendered: WidgetRendered,
     update: WindowUpdates,
+    subscriptions: WidgetSubscriptions,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
     used_frame_info_builder: Option<UsedWidgetInfoBuilder>,
@@ -2669,11 +2671,15 @@ impl OwnedWindowContext {
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.widget_ctx(ctx, |ctx, root| root.event(ctx, args));
+        if self.subscriptions.event_contains(args) {
+            self.widget_ctx(ctx, |ctx, root| root.event(ctx, args));
+        }
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        self.widget_ctx(ctx, |ctx, child| child.update(ctx))
+        if self.subscriptions.update_intersects(ctx.updates) {
+            self.widget_ctx(ctx, |ctx, child| child.update(ctx))
+        }
     }
 
     #[must_use]
@@ -2698,7 +2704,8 @@ impl OwnedWindowContext {
             builder
         });
 
-        let (info, used) = builder.finalize();
+        let (info, subscriptions, used) = builder.finalize();
+        self.subscriptions = subscriptions;
         self.used_frame_info_builder = Some(used);
         info
     }

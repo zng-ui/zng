@@ -209,7 +209,7 @@ impl WidgetInfoBuilder {
 
     /// Build the info tree.
     #[inline]
-    pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
+    pub fn finalize(mut self) -> (WidgetInfoTree, WidgetSubscriptions, UsedWidgetInfoBuilder) {
         self.tree.root_mut().value().meta = self.meta;
         let root_id = self.tree.root().id();
 
@@ -264,7 +264,7 @@ impl WidgetInfoBuilder {
             capacity: r.0.lookup.capacity(),
         };
 
-        (r, cap)
+        (r, self.subscriptions, cap)
     }
 }
 
