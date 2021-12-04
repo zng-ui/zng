@@ -40,7 +40,9 @@ use crate::{
     units::*,
     var::Vars,
     var::{response_var, var, IntoValue, RcVar, ReadOnlyRcVar, ResponderVar, ResponseVar, Var},
-    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetOffset, WidgetRendered, WidgetSubscriptions},
+    widget_info::{
+        BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetOffset, WidgetRendered, WidgetSubscriptions,
+    },
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -1867,7 +1869,7 @@ impl AppWindow {
             root_bounds: BoundsRect::new(),
             root_rendered: WidgetRendered::new(),
             update: WindowUpdates::all(),
-            subscriptions: WidgetSubscriptions::none(),
+            subscriptions: WidgetSubscriptions::new(),
             prev_metrics: None,
             used_frame_info_builder: None,
             used_frame_builder: None,

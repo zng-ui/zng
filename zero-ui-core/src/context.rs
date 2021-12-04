@@ -86,7 +86,7 @@ pub struct UpdateArgs {
 /// An instance of this struct is available in [`AppContext`] and derived contexts.
 pub struct Updates {
     event_sender: AppEventSender,
-    custom_updates: UpdateMask,
+    next_updates: UpdateMask,
     current: UpdateMask,
     update: bool,
     layout: bool,
@@ -99,7 +99,7 @@ impl Updates {
     fn new(event_sender: AppEventSender) -> Self {
         Updates {
             event_sender,
-            custom_updates: UpdateMask::none(),
+            next_updates: UpdateMask::none(),
             current: UpdateMask::none(),
             update: false,
             layout: false,
@@ -133,7 +133,7 @@ impl Updates {
     /// Schedules an update.
     #[inline]
     pub fn update(&mut self, mask: UpdateMask) {
-        self.custom_updates |= mask;
+        self.next_updates |= mask;
         self.update = true;
     }
 
@@ -302,6 +302,7 @@ impl Updates {
     }
 
     fn take_updates(&mut self) -> (bool, bool, bool) {
+        self.current = mem::take(&mut self.next_updates);
         (
             mem::take(&mut self.update),
             mem::take(&mut self.layout),

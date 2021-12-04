@@ -123,7 +123,7 @@ macro_rules! command {
         $vis struct $Command;
         impl $Command {
             std::thread_local! {
-                static COMMAND: $crate::command::CommandValue = $crate::command::CommandValue::init::<$Command, _>($Command, ||{
+                static COMMAND: $crate::command::CommandValue = $crate::command::CommandValue::init($Command, ||{
                     #[allow(path_statements)] {
                         $Command $(
                         .$init( $($args)* )

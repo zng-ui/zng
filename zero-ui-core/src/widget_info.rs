@@ -1179,7 +1179,11 @@ macro_rules! update_mask {
         }
         impl fmt::Debug for $Mask {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{}([{:x}, {:x}])", stringify!($Mask), self.0[0], self.0[1])
+                if f.alternate() {
+                    write!(f, "{}([\n    {:0128b},\n    {:0128b}\n])", stringify!($Mask), self.0[0], self.0[1])
+                } else {
+                    write!(f, "{}([{:0128b}, {:0128b}])", stringify!($Mask), self.0[0], self.0[1])
+                }
             }
         }
 

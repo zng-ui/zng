@@ -107,7 +107,7 @@ pub mod text {
         #[impl_ui_node(none)]
         impl<T: Var<Text>> UiNode for TextNode<T> {
             fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                TextContext::subscribe(ctx.vars, widget.subscriptions());
+                TextContext::subscribe(ctx.vars, widget.subscriptions().var(ctx.vars, &self.text_var));
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
