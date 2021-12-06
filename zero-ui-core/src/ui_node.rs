@@ -951,6 +951,14 @@ struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
     state: SlotNodeState<U>,
 }
 impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow().as_ref().unwrap().info(ctx, info);
+        }
+        info.subscriptions().update(self.update_slot);
+        self.take_signal.subscribe(ctx, info.subscriptions());
+    }
+
     fn init(&mut self, ctx: &mut WidgetContext) {
         match &self.state {
             SlotNodeState::TakeOnInit(rc) => {
@@ -1025,10 +1033,13 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         Self: Sized,
     {
         if let SlotNodeState::Active(rc) = &self.state {
+            // propagate event to active node.
             rc.node.borrow_mut().as_mut().unwrap().event(ctx, args);
         } else if let SlotNodeState::Inactive(_) = &self.state {
+            // check event take_signal.
             if self.take_signal.event_take(ctx, args) {
                 self.event_signal = true;
+                ctx.updates.update(self.update_slot.mask());
             }
         }
     }
@@ -1036,9 +1047,11 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         match &self.state {
             SlotNodeState::Inactive(wk) => {
+                // fulfill event take_signal or update take_signal:
                 if mem::take(&mut self.event_signal) || self.take_signal.update_take(ctx) {
                     if let Some(rc) = wk.upgrade() {
                         if rc.inited.get() {
+                            // node is inited in other slot.
                             rc.waiting_deinit.set(true);
                             self.state = SlotNodeState::Activating(rc);
                             ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
@@ -1066,6 +1079,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
             }
             SlotNodeState::Active(rc) => {
                 if rc.waiting_deinit.take() {
+                    // moving to other slot, must deinit here.
                     if rc.inited.take() {
                         rc.node.borrow_mut().as_mut().unwrap().deinit(ctx);
                     }
@@ -1098,14 +1112,6 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         if let SlotNodeState::Active(rc) = &self.state {
             rc.node.borrow_mut().as_mut().unwrap().arrange(ctx, widget_offset, final_size);
         }
-    }
-
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().as_ref().unwrap().info(ctx, info);
-        }
-
-        self.take_signal.subscribe(ctx, info.subscriptions());
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
