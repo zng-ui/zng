@@ -1256,6 +1256,11 @@ impl Focus {
     fn cleanup_returns(&mut self, vars: &Vars, info: FocusInfoTree) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
+        if self.return_focused_var.len() > 20 {
+            self.return_focused_var
+                .retain(|_, var| var.strong_count() > 1 || var.get(vars).is_some())
+        }
+
         self.return_focused.retain(|&scope_id, widget_path| {
             if widget_path.window_id() != info.tree.window_id() {
                 return true; // retain, not same window.
@@ -1311,7 +1316,7 @@ impl Focus {
                             e.get().set(vars, None);
                         }
                     }
-                    hash_map::Entry::Vacant(_) => unreachable!(),
+                    hash_map::Entry::Vacant(_) => {}
                 }
                 r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
             }
