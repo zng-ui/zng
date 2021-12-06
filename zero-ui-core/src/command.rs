@@ -1387,37 +1387,45 @@ impl CommandArgs {
 
 /// Helper for declaring command handlers.
 #[inline]
-pub fn on_command<U, C, CB, E, H>(child: U, command_builder: CB, enabled: E, handler: H) -> impl UiNode
+pub fn on_command<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     C: Command,
     CB: FnMut(&mut WidgetContext) -> C + 'static,
-    E: FnMut(&mut WidgetContext) -> bool + 'static,
+    E: Var<bool>,
+    EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnCommandNode<U, C, CB, E, H> {
+    struct OnCommandNode<U, C, CB, E, EB, H> {
         child: U,
         command: Option<C>,
         command_builder: CB,
-        enabled: E,
+        enabled: Option<E>,
+        enabled_builder: EB,
         handler: H,
         handle: Option<CommandHandle>,
     }
     #[impl_ui_node(child)]
-    impl<U, C, CB, E, H> UiNode for OnCommandNode<U, C, CB, E, H>
+    impl<U, C, CB, E, EB, H> UiNode for OnCommandNode<U, C, CB, E, EB, H>
     where
         U: UiNode,
         C: Command,
         CB: FnMut(&mut WidgetContext) -> C + 'static,
-        E: FnMut(&mut WidgetContext) -> bool + 'static,
+        E: Var<bool>,
+        EB: FnMut(&mut WidgetContext) -> E + 'static,
         H: WidgetHandler<CommandArgs>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            let enabled = (self.enabled)(ctx);
+
+            let enabled = (self.enabled_builder)(ctx);
+            let is_enabled = enabled.copy(ctx);
+            self.enabled = Some(enabled);
+
             let command = (self.command_builder)(ctx);
-            self.handle = Some(command.new_handle(ctx, enabled));
             self.command = Some(command);
+
+            self.handle = Some(command.new_handle(ctx, is_enabled));
         }
 
         fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
@@ -1425,6 +1433,7 @@ where
             widget_builder
                 .subscriptions()
                 .event(self.command.expect("OnCommandNode not initialized"))
+                .var(ctx, self.enabled.as_ref().unwrap())
                 .handler(&self.handler);
         }
 
@@ -1432,7 +1441,7 @@ where
             if let Some(args) = self.command.expect("OnCommandNode not initialized").update(args) {
                 self.child.event(ctx, args);
 
-                if !args.stop_propagation_requested() && (self.enabled)(ctx) {
+                if !args.stop_propagation_requested() && self.enabled.as_ref().unwrap().copy(ctx) {
                     self.handler.event(ctx, args);
                 }
             } else {
@@ -1445,20 +1454,24 @@ where
 
             self.handler.update(ctx);
 
-            self.handle.as_ref().unwrap().set_enabled((self.enabled)(ctx))
+            if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").copy_new(ctx) {
+                self.handle.as_ref().unwrap().set_enabled(enabled);
+            }
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             self.handle = None;
             self.command = None;
+            self.enabled = None;
         }
     }
     OnCommandNode {
         child,
         command: None,
         command_builder,
-        enabled,
+        enabled: None,
+        enabled_builder,
         handler,
         handle: None,
     }
@@ -1466,52 +1479,62 @@ where
 
 /// Helper for declaring command preview handlers.
 #[inline]
-pub fn on_pre_command<U, C, CB, E, H>(child: U, command_builder: CB, enabled: E, handler: H) -> impl UiNode
+pub fn on_pre_command<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     C: Command,
     CB: FnMut(&mut WidgetContext) -> C + 'static,
-    E: FnMut(&mut WidgetContext) -> bool + 'static,
+    E: Var<bool>,
+    EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnPreviewCommandNode<U, C, CB, E, H> {
+    struct OnPreCommandNode<U, C, CB, E, EB, H> {
         child: U,
         command: Option<C>,
         command_builder: CB,
-        enabled: E,
+        enabled: Option<E>,
+        enabled_builder: EB,
         handler: H,
         handle: Option<CommandHandle>,
     }
     #[impl_ui_node(child)]
-    impl<U, C, CB, E, H> UiNode for OnPreviewCommandNode<U, C, CB, E, H>
+    impl<U, C, CB, E, EB, H> UiNode for OnPreCommandNode<U, C, CB, E, EB, H>
     where
         U: UiNode,
         C: Command,
         CB: FnMut(&mut WidgetContext) -> C + 'static,
-        E: FnMut(&mut WidgetContext) -> bool + 'static,
+        E: Var<bool>,
+        EB: FnMut(&mut WidgetContext) -> E + 'static,
         H: WidgetHandler<CommandArgs>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let enabled = (self.enabled)(ctx);
-            let command = (self.command_builder)(ctx);
-            self.handle = Some(command.new_handle(ctx, enabled));
-            self.command = Some(command);
             self.child.init(ctx);
+
+            let enabled = (self.enabled_builder)(ctx);
+            let is_enabled = enabled.copy(ctx);
+            self.enabled = Some(enabled);
+
+            let command = (self.command_builder)(ctx);
+            self.command = Some(command);
+
+            self.handle = Some(command.new_handle(ctx, is_enabled));
         }
 
         fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget_builder);
             widget_builder
                 .subscriptions()
-                .event(self.command.expect("OnPreviewCommandNode not initialized"))
-                .handler(&self.handler); // TODO enabled
-            self.child.info(ctx, widget_builder);
+                .event(self.command.expect("OnPreCommandNode not initialized"))
+                .var(ctx, self.enabled.as_ref().unwrap())
+                .handler(&self.handler);
         }
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = self.command.expect("OnPreviewCommandNode not initialized").update(args) {
-                if !args.stop_propagation_requested() && (self.enabled)(ctx) {
+            if let Some(args) = self.command.expect("OnPreCommandNode not initialized").update(args) {
+                if !args.stop_propagation_requested() && self.enabled.as_ref().unwrap().copy(ctx) {
                     self.handler.event(ctx, args);
                 }
+
                 self.child.event(ctx, args);
             } else {
                 self.child.event(ctx, args);
@@ -1521,7 +1544,9 @@ where
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.handler.update(ctx);
 
-            self.handle.as_ref().unwrap().set_enabled((self.enabled)(ctx));
+            if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").copy_new(ctx) {
+                self.handle.as_ref().unwrap().set_enabled(enabled);
+            }
 
             self.child.update(ctx);
         }
@@ -1530,13 +1555,15 @@ where
             self.child.deinit(ctx);
             self.handle = None;
             self.command = None;
+            self.enabled = None;
         }
     }
-    OnPreviewCommandNode {
+    OnPreCommandNode {
         child,
         command: None,
         command_builder,
-        enabled,
+        enabled: None,
+        enabled_builder,
         handler,
         handle: None,
     }

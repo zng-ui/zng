@@ -73,6 +73,7 @@ mod ui_list;
 pub use ui_list::*;
 
 pub mod widget_info;
+#[doc(inline)]
 pub use widget_info::WidgetPath;
 
 // proc-macros used internally during widget creation.

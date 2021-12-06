@@ -1569,7 +1569,8 @@ impl TestApp {
     }
 
     pub fn focused(&mut self) -> Option<WidgetId> {
-        self.app.ctx().services.focus().focused().map(|w| w.widget_id())
+        let ctx = self.app.ctx();
+        ctx.services.focus().focused().get(ctx.vars).as_ref().map(|w| w.widget_id())
     }
 
     pub fn press_tab(&mut self) {

@@ -154,14 +154,14 @@ impl AppExtension for KeyboardManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawKeyInputEvent.update(args) {
-            let focused = ctx.services.focus().focused().cloned();
+            let focused = ctx.services.focus().focused().get_clone(ctx);
             let keyboard = ctx.services.keyboard();
             keyboard.key_input(ctx.events, ctx.vars, args, focused);
         } else if let Some(args) = RawModifiersChangedEvent.update(args) {
             let keyboard = ctx.services.keyboard();
             keyboard.set_modifiers(ctx.events, ctx.vars, args.modifiers);
         } else if let Some(args) = RawCharInputEvent.update(args) {
-            let focused = ctx.services.focus().focused().cloned();
+            let focused = ctx.services.focus().focused().get_clone(ctx);
             if let Some(target) = focused {
                 if target.window_id() == args.window_id {
                     CharInputEvent.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));

@@ -1458,7 +1458,7 @@ impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
 /// Variable interpolation is done by quoting the variable with `#{<var-expr>}`, the braces are required.
 ///
 /// The `<var-expr>` is evaluated before *capturing* starts so if you interpolate `#{var_a.clone()}` `var_a`
-/// will still be available after the `var_expr` call. Equal `<var-expr>` only evaluate once.
+/// will still be available after the `expr_var` call. Equal `<var-expr>` only evaluate once.
 ///
 /// The interpolation result value is the [`Var::get`] return value.
 ///

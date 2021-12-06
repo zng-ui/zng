@@ -561,6 +561,7 @@ pub mod window {
             event::EventUpdateArgs,
             focus::FocusExt,
             gesture::*,
+            var::*,
             widget_info::WidgetInfoBuilder,
             window::{WindowFocusChangedEvent, WindowsExt},
             *,
@@ -619,14 +620,18 @@ pub mod window {
             impl<C: UiNode> UiNode for OnCloseNode<C> {
                 fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
                     self.child.info(ctx, widget);
-                    widget.subscriptions().var(ctx, &CloseCommand.shortcut());
+                    widget
+                        .subscriptions()
+                        .var(ctx, &CloseCommand.shortcut())
+                        .event(CloseCommand)
+                        .event(WindowFocusChangedEvent);
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let window_id = ctx.path.window_id();
                     self.allow_alt_f4 = ctx.services.windows().vars(window_id).unwrap().allow_alt_f4().clone();
 
-                    let enabled = ctx.services.focus().is_window_focused(window_id);
+                    let enabled = ctx.services.focus().is_window_focused(window_id).copy(ctx.vars);
                     self.handle = CloseCommand.new_handle(ctx, enabled);
 
                     // Highjacks ALT+F4 in Windows.
@@ -639,13 +644,14 @@ pub mod window {
                     if let Some(args) = CloseCommand.update(args) {
                         // command requested, run it only if we are focused.
                         let window_id = ctx.path.window_id();
-                        if ctx.services.focus().is_window_focused(window_id) {
+                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
                             let _ = ctx.services.windows().close(window_id);
                         }
                         self.child.event(ctx, args)
                     } else if let Some(args) = WindowFocusChangedEvent.update(args) {
                         // toggle enabled if our window activated/deactivated.
                         if args.window_id == ctx.path.window_id() {
+                            // TODO should handle enabled just be a `var`?
                             self.handle.set_enabled(args.focused);
                         }
                         self.child.event(ctx, args);
@@ -673,10 +679,7 @@ pub mod window {
 
         #[cfg(debug_assertions)]
         pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl var::IntoVar<bool>) -> impl UiNode {
-            use crate::core::{
-                inspector::{write_tree, WriteTreeState},
-                var::Var,
-            };
+            use crate::core::inspector::{write_tree, WriteTreeState};
 
             let mut state = WriteTreeState::none();
 
@@ -685,7 +688,10 @@ pub mod window {
             on_command(
                 child,
                 |ctx| InspectCommand.scoped(ctx.path.window_id()),
-                move |ctx| can_inspect.copy(ctx) && ctx.services.focus().is_window_focused(ctx.path.window_id()),
+                move |ctx| {
+                    let is_win_focused = ctx.services.focus().is_window_focused(ctx.path.window_id());
+                    expr_var! { *#{can_inspect.clone()} && *#{is_win_focused} }
+                },
                 hn!(|ctx, args: &CommandArgs| {
                     args.stop_propagation();
 
