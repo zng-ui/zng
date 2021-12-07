@@ -162,6 +162,9 @@ impl WidgetInfoBuilder {
     ///
     /// Properties must register their interest in events and variables here otherwise a call to [`UiNode::event`] or
     /// [`UiNode::update`] can end-up skipped due to optimizations.
+    ///
+    /// [`UiNode::event`]: crate::UiNode::event
+    /// [`UiNode::update`]: crate::UiNode::update
     #[inline]
     pub fn subscriptions(&mut self) -> &mut WidgetSubscriptions {
         &mut self.subscriptions
@@ -1235,9 +1238,9 @@ update_mask! {
 
 /// Represents all event and update subscriptions of an widget.
 ///
-/// See [`subscriptions`] in the widget builder for more details.
+/// See [`subscriptions`] in the widget info builder for more details.
 ///
-/// [`subscriptions`]: WidgetBuilder::subscriptions
+/// [`subscriptions`]: WidgetInfoBuilder::subscriptions
 #[derive(Debug, Default, Clone)]
 pub struct WidgetSubscriptions {
     event: EventMask,

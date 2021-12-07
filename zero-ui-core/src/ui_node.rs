@@ -831,20 +831,24 @@ pub trait RcNodeTakeSignal: 'static {
     /// If slot node must take the node when it is created.
     const TAKE_ON_INIT: bool = false;
 
-    /// Signal subscriptions, [`update_take`] and [`event_take`] are only called if their update and event sources are registered here.
+    /// Signal subscriptions, [`event_take`] and  [`update_take`] are only called if
+    /// their update and event sources are registered here.
+    ///
+    /// [`update_take`]: Self::update_take
+    /// [`event_take`]: Self::event_take
     fn subscribe(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
         let _ = (ctx, subscriptions);
     }
 
     /// Returns `true` when the slot must take the node as its child.
-    fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
-        let _ = ctx;
+    fn event_take<E: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &E) -> bool {
+        let _ = (ctx, args);
         false
     }
 
     /// Returns `true` when the slot must take the node as its child.
-    fn event_take<E: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &E) -> bool {
-        let _ = (ctx, args);
+    fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
+        let _ = ctx;
         false
     }
 }

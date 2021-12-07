@@ -72,6 +72,8 @@ impl<R> UiTask<R> {
     ///
     /// [`update`]: UiTask::update
     /// [`UiNode::update`]: crate::UiNode::update
+    /// [`UiNode::info`]: crate::UiNode::info
+    /// [`subscribe`]: Self::subscribe
     pub fn new<F: Future<Output = R> + 'static>(updates: &AppEventSender, task: F) -> Self {
         let update_slot = UpdateSlot::next();
         UiTask(UiTaskState::Pending {
@@ -143,6 +145,7 @@ impl<R> UiTask<R> {
 /// [`Waker`]: std::task::Waker
 /// [`update`]: Self::update
 /// [`UiNode::info`]: crate::UiNode::info
+/// [`subscribe`]: Self::subscribe
 pub struct WidgetTask<R> {
     task: UiTask<R>,
     scope: WidgetContextScope,

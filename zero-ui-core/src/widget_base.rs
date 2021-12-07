@@ -376,10 +376,7 @@ impl IsEnabled {
 
     /// Gets the update mask for [`WidgetSubscriptions`].
     ///
-    /// Use the [`IsEnabledInfoExt`] to add a method [`is_enabled`] to subscriptions.
-    ///
     /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-    /// [``]
     #[inline]
     pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| IsEnabledVar::new().update_mask(vars))

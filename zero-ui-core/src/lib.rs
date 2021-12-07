@@ -3,6 +3,7 @@
 // outside the main function, because they generate a `mod` with `use super::*;`
 // that does not import `use` clauses declared inside the parent function.
 #![allow(clippy::needless_doctest_main)]
+#![allow(unstable_name_collisions)]
 #![warn(missing_docs)]
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
 #![cfg_attr(doc_nightly, feature(doc_notable_trait))]

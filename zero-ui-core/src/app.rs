@@ -1843,6 +1843,8 @@ impl AppEventSender {
     /// Causes an update cycle that only affects app extensions to happen in the app.
     ///
     /// This is the equivalent of calling [`send_update`] with [`UpdateMask::none`].
+    ///
+    /// [`send_update`]: Self::send_update
     #[inline]
     pub fn send_ext_update(&self) -> Result<(), AppShutdown<()>> {
         self.send_update(UpdateMask::none())
