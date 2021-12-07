@@ -674,10 +674,9 @@ pub mod image {
         /// [`Images`]: crate::core::image::Images
         /// [`image_cache`]: fn@crate::widgets::image::properties::image_cache
         pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
-            struct ImageSourceNode<C, S> {
+            struct ImageSourceNode<C, S: Var<ImageSource>> {
                 child: C,
-                source: S,
-                image: ContextImage,
+                image: ContextVarSourceMap<ContextImage, ImageSource, ContextVarSourceVar<S>>,
             }
             impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
@@ -687,52 +686,30 @@ pub mod image {
                         ImageCacheMode::Ignore
                     };
                     let limits = *ImageLimitsVar::get(ctx);
-                    self.image = ContextImage::Some(ctx.services.images().get(self.source.get_clone(ctx.vars), mode, limits));
+                    self.image.value = ContextImage::Some(ctx.services.images().get(self.image.source.0.get_clone(ctx.vars), mode, limits));
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        self.source.is_new(ctx.vars),
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || {
-                            child.init(ctx);
-                        },
-                    );
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, || {
+                        child.init(ctx);
+                    });
                 }
 
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        self.source.is_new(ctx.vars),
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || {
-                            child.deinit(ctx);
-                        },
-                    );
-                    self.image = ContextImage::None;
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, || {
+                        child.deinit(ctx);
+                    });
+                    self.image.value = ContextImage::None;
                 }
 
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        self.source.is_new(ctx.vars),
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || {
-                            child.event(ctx, args);
-                        },
-                    );
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, || {
+                        child.event(ctx, args);
+                    });
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
-                    let mut force_new = false;
-                    if let Some(s) = self.source.clone_new(ctx) {
+                    if let Some(s) = self.image.source.0.clone_new(ctx) {
                         // source update:
                         let mode = if *ImageCacheVar::get(ctx) {
                             ImageCacheMode::Cache
@@ -740,108 +717,66 @@ pub mod image {
                             ImageCacheMode::Ignore
                         };
                         let limits = *ImageLimitsVar::get(ctx);
-                        self.image = ContextImage::Some(ctx.services.images().get(s, mode, limits));
-                        force_new = true;
+                        self.image.value = ContextImage::Some(ctx.services.images().get(s, mode, limits));
                     } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
                         // cache-mode update:
                         let images = ctx.services.images();
-                        let is_cached = images.is_cached(self.image.as_ref().unwrap().get(ctx.vars));
+                        let is_cached = images.is_cached(self.image.value.as_ref().unwrap().get(ctx.vars));
                         if enabled != is_cached {
-                            force_new = true;
-
                             if is_cached {
                                 // must not cache but is cached, detach from cache.
 
-                                self.image = ContextImage::Some(images.detach(self.image.take().unwrap(), ctx.vars));
+                                self.image.value = ContextImage::Some(images.detach(self.image.value.take().unwrap(), ctx.vars));
                             } else {
                                 // must cache, but image is not cached, get source again.
 
-                                let source = self.source.get_clone(ctx);
+                                let source = self.image.source.0.get_clone(ctx);
                                 let limits = *ImageLimitsVar::get(ctx);
-                                self.image = ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache, limits));
+                                self.image.value = ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache, limits));
                             }
                         }
                     }
 
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        force_new || self.source.is_new(ctx.vars),
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || {
-                            child.update(ctx);
-                        },
-                    );
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, || {
+                        child.update(ctx);
+                    });
                 }
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        self.source.is_new(ctx.vars),
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || child.measure(ctx, available_size),
-                    )
+                    ctx.vars
+                        .with_context_var(ContextImageVar, &self.image, || child.measure(ctx, available_size))
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        self.source.is_new(ctx.vars),
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || {
-                            child.arrange(ctx, widget_offset, final_size);
-                        },
-                    );
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, || {
+                        child.arrange(ctx, widget_offset, final_size);
+                    });
                 }
 
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || {
-                            self.child.info(ctx, info);
-                        },
-                    );
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, || {
+                        self.child.info(ctx, info);
+                    });
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || {
-                            self.child.render(ctx, frame);
-                        },
-                    );
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, || {
+                        self.child.render(ctx, frame);
+                    });
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    ctx.vars.with_context_var(
-                        ContextImageVar,
-                        &self.image,
-                        self.source.version(ctx.vars),
-                        self.source.update_mask(ctx.vars),
-                        || {
-                            self.child.render_update(ctx, update);
-                        },
-                    );
+                    ctx.vars.with_context_var(ContextImageVar, &self.image, || {
+                        self.child.render_update(ctx, update);
+                    });
                 }
             }
             ImageSourceNode {
                 child,
-                source: source.into_var(),
-                image: ContextImage::None,
+                image: ContextVarSourceMap::new(ContextImage::None, ContextVarSourceVar(source.into_var())),
             }
         }
 

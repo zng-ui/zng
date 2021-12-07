@@ -186,17 +186,17 @@ pub struct ContextVarSourceMap<T: VarValue, ST: VarValue, SV: ContextVarSource<S
     pub value: T,
 
     /// Metadata source.
-    pub meta: SV,
+    pub source: SV,
 
     _st: PhantomData<ST>,
 }
 
 impl<T: VarValue, ST: VarValue, SV: ContextVarSource<ST>> ContextVarSourceMap<T, ST, SV> {
     /// New with initial value.
-    pub fn new(value: T, meta: SV) -> Self {
+    pub fn new(value: T, source: SV) -> Self {
         Self {
             value,
-            meta,
+            source,
             _st: PhantomData,
         }
     }
@@ -213,15 +213,15 @@ where
     }
 
     fn is_new(&self, vars: &Vars) -> bool {
-        self.meta.is_new(vars)
+        self.source.is_new(vars)
     }
 
     fn version(&self, vars: &VarsRead) -> u32 {
-        self.meta.version(vars)
+        self.source.version(vars)
     }
 
     fn update_mask(&self, vars: &VarsRead) -> UpdateMask {
-        self.meta.update_mask(vars)
+        self.source.update_mask(vars)
     }
 }
 
