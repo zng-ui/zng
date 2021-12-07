@@ -254,9 +254,7 @@ pub mod text {
         //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
         use crate::core::text::{font_features::*, *};
-        use crate::core::widget_info::UpdateSlot;
         use crate::prelude::new_property::*;
-        use std::marker::PhantomData;
 
         context_var! {
             /// Font family of [`text`](crate::widgets::text) spans.
@@ -357,38 +355,39 @@ pub mod text {
         pub fn font_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
             struct FontSizeNode<C, S> {
                 child: C,
-                size: S,
+                size: ContextVarSourceVar<S>,
                 size_new: bool,
             }
             impl<C: UiNode, S: Var<Length>> UiNode for FontSizeNode<C, S> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.init(ctx));
+                    ctx.vars.with_context_var(FontSizeVar, &self.size, || child.init(ctx));
                 }
 
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.deinit(ctx));
+                    ctx.vars.with_context_var(FontSizeVar, &self.size, || child.deinit(ctx));
                 }
 
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                     let child = &mut self.child;
-                    ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.event(ctx, args));
+                    ctx.vars.with_context_var(FontSizeVar, &self.size, || child.event(ctx, args));
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     let child = &mut self.child;
-                    self.size_new |= self.size.is_new(ctx);
-                    ctx.vars.with_context_bind(FontSizeVar, &self.size, || child.update(ctx));
+                    self.size_new |= self.size.0.is_new(ctx);
+                    ctx.vars.with_context_var(FontSizeVar, &self.size, || child.update(ctx));
                 }
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     let font_size = self
                         .size
+                        .0
                         .get(ctx.vars)
                         .to_layout(ctx, available_size.height, ctx.metrics.root_font_size);
                     let child = &mut self.child;
-                    ctx.vars.with_context_bind(FontSizeVar, &self.size, || {
+                    ctx.vars.with_context_var(FontSizeVar, &self.size, || {
                         ctx.with_font_size(font_size, self.size_new, |ctx| child.measure(ctx, available_size))
                     })
                 }
@@ -396,32 +395,32 @@ pub mod text {
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let font_size =
                         self.size
+                            .0
                             .get(ctx.vars)
                             .to_layout(ctx, AvailablePx::Finite(final_size.height), ctx.metrics.root_font_size);
                     let child = &mut self.child;
-                    ctx.vars.with_context_bind(FontSizeVar, &self.size, || {
+                    ctx.vars.with_context_var(FontSizeVar, &self.size, || {
                         ctx.with_font_size(font_size, self.size_new, |ctx| child.arrange(ctx, widget_offset, final_size))
                     });
                     self.size_new = false;
                 }
 
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    ctx.vars.with_context_bind(FontSizeVar, &self.size, || self.child.info(ctx, info));
+                    ctx.vars.with_context_var(FontSizeVar, &self.size, || self.child.info(ctx, info));
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    ctx.vars
-                        .with_context_bind(FontSizeVar, &self.size, || self.child.render(ctx, frame));
+                    ctx.vars.with_context_var(FontSizeVar, &self.size, || self.child.render(ctx, frame));
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     ctx.vars
-                        .with_context_bind(FontSizeVar, &self.size, || self.child.render_update(ctx, update));
+                        .with_context_var(FontSizeVar, &self.size, || self.child.render_update(ctx, update));
                 }
             }
             FontSizeNode {
                 child,
-                size: size.into_var(),
+                size: ContextVarSourceVar(size.into_var()),
                 size_new: true,
             }
         }
@@ -509,336 +508,27 @@ pub mod text {
         /// The variation `name` is set for the [`FontVariationsVar`] in this context, variations already set in the parent
         /// context that are not the same `name` are also included.
         pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: impl IntoVar<f32>) -> impl UiNode {
-            struct WithFontVariationNode<C, V> {
-                child: C,
-
-                name: FontVariationName,
-                value: V,
-
-                variations: FontVariations,
-                version: u32,
-                update_slot: UpdateSlot,
-            }
-            impl<C, V> UiNode for WithFontVariationNode<C, V>
-            where
-                C: UiNode,
-                V: Var<f32>,
-            {
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    self.variations = FontVariationsVar::get(ctx).clone();
-                    self.variations.insert(self.name, self.value.copy(ctx));
-
-                    self.version = FontVariationsVar::version(ctx);
-                    let is_new = FontVariationsVar::is_new(ctx);
-
-                    if is_new {
-                        self.version = self.version.wrapping_add(1);
-                    }
-
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontVariationsVar,
-                        &self.variations,
-                        is_new,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.init(ctx);
-                        },
-                    )
-                }
-
-                fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontVariationsVar,
-                        &self.variations,
-                        false,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.deinit(ctx);
-                        },
-                    );
-                }
-
-                fn update(&mut self, ctx: &mut WidgetContext) {
-                    let mut is_new = false;
-
-                    if let Some(new_ctx) = FontVariationsVar::get_new(ctx) {
-                        self.variations = new_ctx.clone();
-                        self.variations.insert(self.name, self.value.copy(ctx));
-                        self.version = self.version.wrapping_add(1);
-                        is_new = true;
-                    } else if let Some(value) = self.value.copy_new(ctx) {
-                        self.variations.insert(self.name, value);
-                        self.version = self.version.wrapping_add(1);
-                        is_new = true;
-                    }
-
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontVariationsVar,
-                        &self.variations,
-                        is_new,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.update(ctx);
-                        },
-                    );
-                }
-
-                fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
-                where
-                    Self: Sized,
-                {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontVariationsVar,
-                        &self.variations,
-                        false,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.event(ctx, args);
-                        },
-                    );
-                }
-
-                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontVariationsVar,
-                        &self.variations,
-                        false,
-                        self.version,
-                        self.update_slot.mask(),
-                        || child.measure(ctx, available_size),
-                    )
-                }
-
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontVariationsVar,
-                        &self.variations,
-                        false,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.arrange(ctx, widget_offset, final_size);
-                        },
-                    );
-                }
-
-                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    let child = &self.child;
-                    ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, self.version, self.update_slot.mask(), || {
-                            child.info(ctx, info);
-                        });
-                }
-
-                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    let child = &self.child;
-                    ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, self.version, self.update_slot.mask(), || {
-                            child.render(ctx, frame);
-                        });
-                }
-
-                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    let child = &self.child;
-                    ctx.vars
-                        .with_context_var(FontVariationsVar, &self.variations, self.version, self.update_slot.mask(), || {
-                            child.render_update(ctx, update);
-                        });
-                }
-            }
-            WithFontVariationNode {
-                child,
-                name,
-                value: value.into_var(),
-                variations: FontVariations::default(),
-                version: 0,
-                update_slot: UpdateSlot::next(),
-            }
+            with_context_var_fold(child, FontVariationsVar, value, move |mut variations, value| {
+                variations.insert(name, *value);
+                variations
+            })
         }
 
         /// Include the font feature config in the widget context.
         ///
-        /// The modifications done in `modify` are visible only in the [`FontFeaturesVar`] in this context, and features
+        /// The modifications done in `set_feature` are visible only in the [`FontFeaturesVar`] in this context, and features
         /// already set in a parent context are included.
         pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> impl UiNode
         where
             C: UiNode,
             S: VarValue,
             V: IntoVar<S>,
-            D: FnMut(&mut FontFeatures, S) -> S + 'static,
+            D: Fn(&mut FontFeatures, S) -> S + 'static,
         {
-            // TODO review performance of this, every feature set duplicates the hash-map,
-            // all the intermediary maps are probably only used to make an inner feature map,
-            // on the other hand the values are tiny, but if we are so sure it is tiny why are we using a hash-map?.
-            struct WithFontFeatureNode<C, S, V, D> {
-                child: C,
-                _s: PhantomData<S>,
-                var: V,
-                set_feature: D,
-
-                features: FontFeatures,
-                version: u32,
-                update_slot: UpdateSlot,
-            }
-            impl<C, S, V, D> UiNode for WithFontFeatureNode<C, S, V, D>
-            where
-                C: UiNode,
-                S: VarValue,
-                V: Var<S>,
-                D: FnMut(&mut FontFeatures, S) -> S + 'static,
-            {
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    self.features = FontFeaturesVar::get(ctx).clone();
-                    self.version = FontFeaturesVar::version(ctx);
-                    let is_new = FontFeaturesVar::is_new(ctx);
-                    if is_new {
-                        self.version = self.version.wrapping_add(1);
-                    }
-
-                    (self.set_feature)(&mut self.features, self.var.get_clone(ctx));
-
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontFeaturesVar,
-                        &self.features,
-                        is_new,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.init(ctx);
-                        },
-                    )
-                }
-
-                fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontFeaturesVar,
-                        &self.features,
-                        false,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.deinit(ctx);
-                        },
-                    );
-                }
-
-                fn update(&mut self, ctx: &mut WidgetContext) {
-                    let mut is_new = false;
-
-                    if let Some(new_ctx) = FontFeaturesVar::get_new(ctx) {
-                        self.features = new_ctx.clone();
-                        (self.set_feature)(&mut self.features, self.var.get_clone(ctx));
-                        self.version = self.version.wrapping_add(1);
-                        is_new = true;
-                    } else if let Some(value) = self.var.get_new(ctx) {
-                        (self.set_feature)(&mut self.features, value.clone());
-                        self.version = self.version.wrapping_add(1);
-                        is_new = true;
-                    }
-
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontFeaturesVar,
-                        &self.features,
-                        is_new,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.update(ctx);
-                        },
-                    );
-                }
-
-                fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
-                where
-                    Self: Sized,
-                {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontFeaturesVar,
-                        &self.features,
-                        false,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.event(ctx, args);
-                        },
-                    );
-                }
-
-                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontFeaturesVar,
-                        &self.features,
-                        false,
-                        self.version,
-                        self.update_slot.mask(),
-                        || child.measure(ctx, available_size),
-                    )
-                }
-
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(
-                        FontFeaturesVar,
-                        &self.features,
-                        false,
-                        self.version,
-                        self.update_slot.mask(),
-                        || {
-                            child.arrange(ctx, widget_offset, final_size);
-                        },
-                    );
-                }
-
-                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    let child = &self.child;
-                    ctx.vars
-                        .with_context_var(FontFeaturesVar, &self.features, self.version, self.update_slot.mask(), || {
-                            child.info(ctx, info);
-                        });
-                }
-
-                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    let child = &self.child;
-                    ctx.vars
-                        .with_context_var(FontFeaturesVar, &self.features, self.version, self.update_slot.mask(), || {
-                            child.render(ctx, frame);
-                        });
-                }
-
-                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    let child = &self.child;
-                    ctx.vars
-                        .with_context_var(FontFeaturesVar, &self.features, self.version, self.update_slot.mask(), || {
-                            child.render_update(ctx, update);
-                        });
-                }
-            }
-            WithFontFeatureNode {
-                child,
-                _s: PhantomData,
-
-                var: state.into_var(),
-                set_feature,
-
-                features: FontFeatures::new(),
-                version: 0,
-                update_slot: UpdateSlot::next(),
-            }
+            with_context_var_fold(child, FontFeaturesVar, state, move |mut features, state| {
+                set_feature(&mut features, state.clone());
+                features
+            })
         }
 
         /// Sets font variations.

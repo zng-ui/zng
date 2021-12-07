@@ -131,6 +131,14 @@ crate::var::impl_from_and_into_var! {
 /// An Ui tree node.
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait UiNode: 'static {
+    /// Called every time there are structural changes in the UI tree such as a node added or removed.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx`: Limited context access.
+    /// * `info`: Widget info tree builder.
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+
     /// Called every time the node is plugged in an Ui tree.
     fn init(&mut self, ctx: &mut WidgetContext);
 
@@ -211,14 +219,6 @@ pub trait UiNode: 'static {
     /// * `final_size`: The size the parent node reserved for the node. Must reposition its contents
     ///   to fit this size. The value does not contain infinity or NaNs and is pixel aligned.
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
-
-    /// Called every time there are structural changes in the UI tree such as a node added or removed.
-    ///
-    /// # Arguments
-    ///
-    /// * `ctx`: Limited context access.
-    /// * `info`: Widget info tree builder.
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
     /// Called every time a new frame must be rendered.
     ///

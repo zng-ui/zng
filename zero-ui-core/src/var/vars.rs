@@ -3,14 +3,9 @@ use retain_mut::RetainMut;
 use super::*;
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
-    context::{AppContext, InfoContext, LayoutContext, RenderContext, Updates, WidgetContext},
+    context::{AppContext, Updates},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
-    event::EventUpdateArgs,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
-    render::{FrameBuilder, FrameUpdate},
-    units::*,
-    widget_info::{WidgetInfoBuilder, WidgetOffset},
-    UiNode,
 };
 use std::{
     any::type_name,
@@ -131,13 +126,17 @@ impl VarsRead {
         unsafe { &*source }
     }
 
-    /// Calls `f` with the context var set to `value`.
+    /// Calls `f` with the context var set to `source`.
     ///
-    /// Unlike [`Vars::with_context_var`] in this method the context-var is never [new].
+    /// # Source Update
     ///
-    /// [new]: Var::is_new
+    /// Nodes within `f` expect the same source [`update_mask`] from the previous call, if you are swapping the
+    /// entire `source` value for a new one you must request an [`info`] update.
+    ///
+    /// [`update_mask`]: ContextVarSource::update_mask
+    /// [`info`]: crate::context::Updates::info
     #[inline(always)]
-    pub fn with_context_var<C, R, F>(&self, context_var: C, source: &dyn ContextVarSource<C::Type>, f: F) -> R
+    pub fn with_context_var<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -145,7 +144,7 @@ impl VarsRead {
         self.with_context_var_impl(context_var, source, f)
     }
     #[inline(always)]
-    fn with_context_var_impl<C, R, F>(&self, context_var: C, source: *const dyn ContextVarSource<C::Type>, f: F) -> R
+    fn with_context_var_impl<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -166,11 +165,15 @@ impl VarsRead {
 
     /// Calls `f` with the context var set to `value`, but only for the current widget not its descendants.
     ///
-    /// Unlike [`Vars::with_context_var_wgt_only`] in this method the context-var is never [new].
+    /// # Source Update
     ///
-    /// [new]: Var::is_new
+    /// Nodes within `f` expect the same source [`update_mask`] from the previous call, if you are swapping the
+    /// entire `source` value for a new one you must request an [`info`] update.
+    ///
+    /// [`update_mask`]: ContextVarSource::update_mask
+    /// [`info`]: crate::context::Updates::info
     #[inline(always)]
-    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, source: &dyn ContextVarSource<C::Type>, f: F) -> R
+    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -178,7 +181,7 @@ impl VarsRead {
         self.with_context_var_wgt_only_impl(context_var, source, f)
     }
     #[inline(always)]
-    fn with_context_var_wgt_only_impl<C, R, F>(&self, context_var: C, source: *const (dyn ContextVarSource<C::Type> + '_), f: F) -> R
+    fn with_context_var_wgt_only_impl<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -188,7 +191,7 @@ impl VarsRead {
 
         let _ = context_var;
 
-        let new = source;
+        let new: *const dyn ContextVarSource<C::Type> = source;
         let prev = C::thread_local_value().replace(new);
 
         self.widget_clear.borrow_mut().push(Box::new(move |undo| {
@@ -1369,216 +1372,6 @@ impl VarBinding {
     #[inline]
     pub fn unbind(&self) {
         self.unbind.set(true);
-    }
-}
-
-/// Helper for declaring properties that sets a context var.
-///
-/// The method presents the `value` as the [`ContextVar<Type=T>`] in the widget and widget descendants.
-/// The context var [`version`] and [`is_new`] status are always equal to the `value` var status.
-///
-/// The generated [`UiNode`] delegates each method to `child` inside a call to [`Vars::with_context_bind`].
-///
-/// # Examples
-///
-/// A simple context property declaration:
-///
-/// ```
-/// # fn main() -> () { }
-/// # use zero_ui_core::{*, var::*};
-/// context_var! {
-///     pub struct FooVar: u32 = 0;
-/// }
-///
-/// /// Sets the [`FooVar`] in the widgets and its content.
-/// #[property(context, default(FooVar))]
-/// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
-///     with_context_var(child, FooVar, value)
-/// }
-/// ```
-///
-/// When set in a widget, the `value` is accessible in all inner nodes of the widget, using `FooVar.get`, and if `value` is set to a
-/// variable the `FooVar` will also reflect its [`is_new`] and [`version`].
-///
-/// Also note that the property [`default`] is set to the same `FooVar`, this causes the property to *pass-through* the outer context
-/// value, as if it was not set.
-///
-/// [`version`]: Var::version
-/// [`is_new`]: Var::is_new
-/// [`default`]: crate::property#default
-pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
-    struct WithContextVarNode<U, C, V> {
-        child: U,
-        var: C,
-        value: V,
-    }
-    impl<U, T, C, V> UiNode for WithContextVarNode<U, C, V>
-    where
-        U: UiNode,
-        T: VarValue,
-        C: ContextVar<Type = T>,
-        V: Var<T>,
-    {
-        #[inline(always)]
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.init(ctx));
-        }
-        #[inline(always)]
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.deinit(ctx));
-        }
-        #[inline(always)]
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.update(ctx));
-        }
-        #[inline(always)]
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.event(ctx, args));
-        }
-        #[inline(always)]
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let child = &mut self.child;
-            ctx.vars.with_context(self.var, ContextVarSourceVar::new(&self.value), || {
-                child.measure(ctx, available_size)
-            })
-        }
-        #[inline(always)]
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-            let child = &mut self.child;
-            ctx.vars.with_context(self.var, ContextVarSourceVar::new(&self.value), || {
-                child.arrange(ctx, widget_offset, final_size)
-            });
-        }
-        #[inline(always)]
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            let child = &self.child;
-            ctx.vars
-                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.info(ctx, info));
-        }
-        #[inline(always)]
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let child = &self.child;
-            ctx.vars
-                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.render(ctx, frame));
-        }
-        #[inline(always)]
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            let child = &self.child;
-            ctx.vars
-                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.render_update(ctx, update));
-        }
-    }
-    WithContextVarNode {
-        child,
-        var,
-        value: value.into_var(),
-    }
-}
-
-/// Helper for declaring properties that sets a context var for the widget only.
-///
-/// This is similar to [`with_context_var`] except the context var value is visible only inside
-/// the `child` nodes that are part of the same widget that is the parent of the return node.
-///
-/// # Examples
-///
-/// ```
-/// # fn main() -> () { }
-/// # use zero_ui_core::{*, var::*, border::BorderRadius};
-/// context_var! {
-///     pub struct CornersClipVar: BorderRadius = BorderRadius::zero();
-/// }
-///
-/// /// Sets widget content clip corner radius.
-/// #[property(context, default(CornersClipVar))]
-/// pub fn corners_clip(child: impl UiNode, radius: impl IntoVar<BorderRadius>) -> impl UiNode {
-///     with_context_var_wgt_only(child, CornersClipVar, radius)
-/// }
-/// ```
-pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
-    struct WithContextVarWidgetOnlyNode<U, C, V> {
-        child: U,
-        var: C,
-        value: V,
-    }
-    impl<U, T, C, V> UiNode for WithContextVarWidgetOnlyNode<U, C, V>
-    where
-        U: UiNode,
-        T: VarValue,
-        C: ContextVar<Type = T>,
-        V: Var<T>,
-    {
-        #[inline(always)]
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.init(ctx));
-        }
-        #[inline(always)]
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.deinit(ctx));
-        }
-        #[inline(always)]
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            let child = &self.child;
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.info(ctx, widget));
-        }
-        #[inline(always)]
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.update(ctx));
-        }
-        #[inline(always)]
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.event(ctx, args));
-        }
-        #[inline(always)]
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || {
-                    child.measure(ctx, available_size)
-                })
-        }
-        #[inline(always)]
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-            let child = &mut self.child;
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || {
-                    child.arrange(ctx, widget_offset, final_size)
-                })
-        }
-        #[inline(always)]
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || self.child.render(ctx, frame));
-        }
-        #[inline(always)]
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            ctx.vars
-                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || {
-                    self.child.render_update(ctx, update)
-                });
-        }
-    }
-    WithContextVarWidgetOnlyNode {
-        child,
-        var,
-        value: value.into_var(),
     }
 }
 

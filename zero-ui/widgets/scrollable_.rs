@@ -5,7 +5,6 @@ use std::fmt;
 #[widget($crate::widgets::scrollable)]
 pub mod scrollable {
     use super::*;
-    use crate::core::widget_info::UpdateMask;
     use bitflags::*;
     use properties::*;
 
@@ -475,19 +474,8 @@ pub mod scrollable {
         }
 
         /// Call closure `f` within a context.
-        ///
-        /// The context is never [new] when set using this function.
-        ///
-        /// [new]: Self::get_new
-        pub fn with_context(vars: &impl WithVarsRead, context: &Option<ScrollContext>, f: impl FnOnce()) {
-            vars.with_vars_read(|vars| vars.with_context_var(ScrollContextVar, context, 0, UpdateMask::none(), f))
-        }
-
-        /// Call closure `f` within a context.
-        ///
-        /// The `is_new` parameter indicates that one or more variables in the context has changed.
-        pub fn with_context_upt(vars: &impl WithVars, context: &Option<ScrollContext>, is_new: bool, f: impl FnOnce()) {
-            vars.with_vars(|vars| vars.with_context_var(ScrollContextVar, context, is_new, 1, UpdateMask::none(), f))
+        pub fn with_context(vars: &impl WithVarsRead, context: &impl ContextVarSource<Option<ScrollContext>>, f: impl FnOnce()) {
+            vars.with_vars_read(|vars| vars.with_context_var(ScrollContextVar, context, f))
         }
     }
 

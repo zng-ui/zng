@@ -11,9 +11,9 @@ use crate::{
     impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    var::{context_var, BoxedVar, Var},
+    var::{context_var, BoxedVar, ContextVarSourceValue, Var},
     widget_base::Visibility,
-    widget_info::{UpdateMask, WidgetInfo, WidgetInfoTree, WidgetOffset},
+    widget_info::{WidgetInfo, WidgetInfoTree, WidgetOffset},
     UiNode,
 };
 use crate::{
@@ -494,7 +494,7 @@ impl UiNode for WidgetInstanceInfoNode {
         {
             let child = &mut self.child;
             ctx.vars
-                .with_context_var(ParentPropertyName, &"new(..)", false, 0, UpdateMask::none(), || {
+                .with_context_var(ParentPropertyName, &ContextVarSourceValue::new("new(..)"), || {
                     child.init(ctx);
                 });
         }
@@ -670,7 +670,7 @@ impl UiNode for PropertyInfoNode {
         let property_name = info.property_name;
 
         ctx.vars
-            .with_context_var(ParentPropertyName, &property_name, false, 0, UpdateMask::none(), || {
+            .with_context_var(ParentPropertyName, &ContextVarSourceValue::new(property_name), || {
                 let t = Instant::now();
                 child.init(ctx);
                 let d = t.elapsed();
@@ -784,7 +784,7 @@ impl UiNode for NewChildMarkerNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.vars
-            .with_context_var(ParentPropertyName, &"new_child(..)", false, 0, UpdateMask::none(), || {
+            .with_context_var(ParentPropertyName, &ContextVarSourceValue::new("new_child(..)"), || {
                 child.init(ctx);
             });
     }

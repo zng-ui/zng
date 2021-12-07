@@ -1180,6 +1180,31 @@ macro_rules! update_mask {
                 self.insert(rhs)
             }
         }
+        impl ops::BitOr<Self> for $Mask {
+            type Output = Self;
+
+            fn bitor(mut self, rhs: Self) -> Self {
+                self.extend(&rhs);
+                self
+            }
+        }
+        impl ops::BitOr<$Slot> for $Mask {
+            type Output = Self;
+
+            fn bitor(mut self, rhs: $Slot) -> Self {
+                self.insert(rhs);
+                self
+            }
+        }
+        impl ops::BitOr<Self> for $Slot {
+            type Output = $Mask;
+
+            fn bitor(self, rhs: Self) -> $Mask {
+                let mut m = self.mask();
+                m.insert(rhs);
+                m
+            }
+        }
         impl fmt::Debug for $Mask {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 use std::fmt::Write;

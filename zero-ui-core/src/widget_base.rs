@@ -3,7 +3,9 @@
 use std::{fmt, ops};
 
 use crate::event::EventUpdateArgs;
-use crate::var::{context_var, impl_from_and_into_var, IntoValue, IntoVar, StateVar, Var, VarsRead, WithVars, WithVarsRead};
+use crate::var::{
+    context_var, impl_from_and_into_var, ContextVarSourceVar, IntoValue, IntoVar, StateVar, Var, VarsRead, WithVars, WithVarsRead,
+};
 use crate::widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetOffset};
 use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
@@ -412,18 +414,18 @@ impl IsEnabled {
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     struct EnabledNode<C, E> {
         child: C,
-        enabled: E,
+        enabled: ContextVarSourceVar<E>,
     }
     impl<C: UiNode, E: Var<bool>> EnabledNode<C, E> {
         fn with_context(&mut self, vars: &VarsRead, f: impl FnOnce(&mut C)) {
             if IsEnabled::get(vars) {
-                if *self.enabled.get(vars) {
+                if *self.enabled.0.get(vars) {
                     // context already enabled
                     f(&mut self.child);
                 } else {
                     // we are disabling
                     let child = &mut self.child;
-                    vars.with_context_bind(IsEnabledVar, &self.enabled, || f(child));
+                    vars.with_context_var(IsEnabledVar, &self.enabled, || f(child));
                 }
             } else {
                 // context already disabled
@@ -434,7 +436,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if !self.enabled.copy(ctx) {
+            if !self.enabled.0.copy(ctx) {
                 ctx.widget_state.set(EnabledState, false);
             }
             self.with_context(ctx.vars, |c| c.init(ctx));
@@ -445,7 +447,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(&state) = self.enabled.get_new(ctx) {
+            if let Some(&state) = self.enabled.0.get_new(ctx) {
                 ctx.widget_state.set(EnabledState, state);
                 ctx.updates.info();
             }
@@ -460,16 +462,16 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !self.enabled.copy(ctx) {
+            if !self.enabled.0.copy(ctx) {
                 info.meta().set(EnabledState, false);
             }
             self.child.info(ctx, info);
-            info.subscriptions().var(ctx, &self.enabled);
+            info.subscriptions().var(ctx, &self.enabled.0);
         }
     }
     EnabledNode {
         child,
-        enabled: enabled.into_var(),
+        enabled: ContextVarSourceVar(enabled.into_var()),
     }
 }
 
