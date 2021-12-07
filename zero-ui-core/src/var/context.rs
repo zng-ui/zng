@@ -36,7 +36,8 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a C::Type {
-        vars.as_ref().context_var::<C>().0
+        let v = vars.as_ref();
+        v.context_var::<C>().value(v)
     }
 
     #[inline]
@@ -51,7 +52,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|v| v.context_var::<C>().1)
+        vars.with_vars(|v| v.context_var::<C>().is_new(v))
     }
 
     #[inline]
@@ -61,7 +62,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with_vars_read(|v| v.context_var::<C>().2)
+        vars.with_vars_read(|v| v.context_var::<C>().version(v))
     }
 
     #[inline]
@@ -119,7 +120,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|v| v.context_var::<C>().3)
+        vars.with_vars_read(|v| v.context_var::<C>().update_mask(v))
     }
 }
 
@@ -132,21 +133,134 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     }
 }
 
+/// Backing data bound to a [`ContextVar`] in a context.
+pub trait ContextVarSource<T: VarValue> {
+    /// Value for [`Var::get`].
+    fn value<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
+
+    /// Value for [`Var::is_new`].
+    fn is_new(&self, vars: &Vars) -> bool;
+
+    /// Value for [`Var::version`].
+    fn version(&self, vars: &Vars) -> u32;
+
+    /// Value for [`Var::update_mask`].
+    fn update_mask(&self, vars: &VarsRead) -> UpdateMask;
+}
+
+/// Represents a context var source that is a `Var<T>`.
+pub struct ContextVarSourceVar<'a, T: VarValue, V: Var<T>> {
+    var: &'a V,
+    _t: PhantomData<&'a T>,
+}
+impl<'a, T: VarValue, V: Var<T>> ContextVarSourceVar<'a, T, V> {
+    /// New from var.
+    pub fn new(var: &'a V) -> Self {
+        Self { var, _t: PhantomData }
+    }
+}
+impl<'a, T, V> ContextVarSource<T> for ContextVarSourceVar<'a, T, V>
+where
+    T: VarValue,
+    V: Var<T>,
+{
+    fn value<'b>(&'b self, vars: &'b VarsRead) -> &'b T {
+        self.var.get(vars)
+    }
+
+    fn is_new(&self, vars: &Vars) -> bool {
+        self.var.is_new(vars)
+    }
+
+    fn version(&self, vars: &Vars) -> u32 {
+        self.var.version(vars)
+    }
+
+    fn update_mask(&self, vars: &VarsRead) -> UpdateMask {
+        self.var.update_mask(vars)
+    }
+}
+
+/// Represents context var source that is a value generated from a different context var source
+/// such that all the update tracking metadata is the same.
+pub struct ContextVarSourceMap<'a, T: VarValue, ST: VarValue, SV: ContextVarSource<ST>> {
+    value: &'a T,
+    meta: &'a SV,
+    _st: PhantomData<&'a ST>,
+}
+impl<'a, T, ST, SV> ContextVarSourceMap<'a, T, ST, SV>
+where
+    T: VarValue,
+    ST: VarValue,
+    SV: ContextVarSource<ST>,
+{
+    /// New mapping.
+    pub fn new(value: &'a T, meta: &'a SV) -> Self {
+        Self {
+            value,
+            meta,
+            _st: PhantomData,
+        }
+    }
+}
+impl<'a, T, ST, SV> ContextVarSource<T> for ContextVarSourceMap<'a, T, ST, SV>
+where
+    T: VarValue,
+    ST: VarValue,
+    SV: ContextVarSource<ST>,
+{
+    fn value<'b>(&'b self, _: &'b VarsRead) -> &'b T {
+        self.value
+    }
+
+    fn is_new(&self, vars: &Vars) -> bool {
+        self.meta.is_new(vars)
+    }
+
+    fn version(&self, vars: &Vars) -> u32 {
+        self.meta.version(vars)
+    }
+
+    fn update_mask(&self, vars: &VarsRead) -> UpdateMask {
+        self.meta.update_mask(vars)
+    }
+}
+
+struct ContextVarValueDefault<T: VarValue>(T);
+impl<T: VarValue> ContextVarSource<T> for ContextVarValueDefault<T> {
+    fn value<'a>(&'a self, _: &'a VarsRead) -> &'a T {
+        &self.0
+    }
+
+    fn is_new(&self, _: &Vars) -> bool {
+        false
+    }
+
+    fn version(&self, _: &Vars) -> u32 {
+        0
+    }
+
+    fn update_mask(&self, _: &VarsRead) -> UpdateMask {
+        UpdateMask::none()
+    }
+}
+
 /// See `ContextVar::thread_local_value`.
 #[doc(hidden)]
 pub struct ContextVarValue<V: ContextVar> {
     _var: PhantomData<V>,
-    _default_value: Box<V::Type>,
-    value: Cell<(*const V::Type, bool, u32, UpdateMask)>,
+    _default_value: Box<ContextVarValueDefault<V::Type>>,
+    value: Cell<*const dyn ContextVarSource<V::Type>>,
 }
+
 #[allow(missing_docs)]
 impl<V: ContextVar> ContextVarValue<V> {
     #[inline]
     pub fn init() -> Self {
-        let default_value = Box::new(V::default_value());
+        let default_value = Box::new(ContextVarValueDefault(V::default_value()));
         ContextVarValue {
             _var: PhantomData,
-            value: Cell::new((&*default_value as *const V::Type, false, 0, UpdateMask::none())),
+            value: Cell::new(&*default_value as _),
             _default_value: default_value,
         }
     }
@@ -164,15 +278,15 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         ContextVarLocalKey { local }
     }
 
-    pub(super) fn get(&self) -> (*const V::Type, bool, u32, UpdateMask) {
+    pub(super) fn get(&self) -> *const dyn ContextVarSource<V::Type> {
         self.local.with(|l| l.value.get())
     }
 
-    pub(super) fn set(&self, value: (*const V::Type, bool, u32, UpdateMask)) {
+    pub(super) fn set(&self, value: *const (dyn ContextVarSource<V::Type> + '_)) {
         self.local.with(|l| l.value.set(value))
     }
 
-    pub(super) fn replace(&self, value: (*const V::Type, bool, u32, UpdateMask)) -> (*const V::Type, bool, u32, UpdateMask) {
+    pub(super) fn replace(&self, value: *const (dyn ContextVarSource<V::Type> + '_)) -> *const dyn ContextVarSource<V::Type> {
         self.local.with(|l| l.value.replace(value))
     }
 }

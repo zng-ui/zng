@@ -117,23 +117,18 @@ impl VarsRead {
     }
 
     /// Gets a var at the context level.
-    pub(super) fn context_var<C: ContextVar>(&self) -> (&C::Type, bool, u32, UpdateMask) {
-        let (value, is_new, version, update_mask) = C::thread_local_value().get();
+    pub(super) fn context_var<C: ContextVar>(&self) -> &dyn ContextVarSource<C::Type> {
+        let source = C::thread_local_value().get();
 
-        (
-            // SAFETY: this is safe as long we are the only one to call `C::thread_local_value().get()` in
-            // `Self::with_context_var`.
-            //
-            // The reference is held for as long as it is accessible in here, at least:
-            //
-            // * The initial reference is actually the `static` default value.
-            // * Other references are held by `Self::with_context_var` for the duration
-            //   they can appear here.
-            unsafe { &*value },
-            is_new,
-            version,
-            update_mask,
-        )
+        // SAFETY: this is safe as long we are the only one to call `C::thread_local_value().get()` in
+        // `Self::with_context_var`.
+        //
+        // The reference is held for as long as it is accessible in here, at least:
+        //
+        // * The initial reference is actually the `static` default value.
+        // * Other references are held by `Self::with_context_var` for the duration
+        //   they can appear here.
+        unsafe { &*source }
     }
 
     /// Calls `f` with the context var set to `value`.
@@ -142,23 +137,15 @@ impl VarsRead {
     ///
     /// [new]: Var::is_new
     #[inline(always)]
-    pub fn with_context_var<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, update_mask: UpdateMask, f: F) -> R
+    pub fn with_context_var<C, R, F>(&self, context_var: C, source: &dyn ContextVarSource<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
     {
-        self.with_context_var_impl(context_var, value, false, version, update_mask, f)
+        self.with_context_var_impl(context_var, source, f)
     }
     #[inline(always)]
-    fn with_context_var_impl<C, R, F>(
-        &self,
-        context_var: C,
-        value: &C::Type,
-        is_new: bool,
-        version: u32,
-        update_mask: UpdateMask,
-        f: F,
-    ) -> R
+    fn with_context_var_impl<C, R, F>(&self, context_var: C, source: *const dyn ContextVarSource<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -167,7 +154,7 @@ impl VarsRead {
         // don't change before studying it.
 
         let _ = context_var;
-        let prev = C::thread_local_value().replace((value as _, is_new, version, update_mask));
+        let prev = C::thread_local_value().replace(source);
         let _restore = RunOnDrop::new(move || {
             C::thread_local_value().set(prev);
         });
@@ -183,23 +170,15 @@ impl VarsRead {
     ///
     /// [new]: Var::is_new
     #[inline(always)]
-    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, value: &C::Type, version: u32, update_mask: UpdateMask, f: F) -> R
+    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, source: &dyn ContextVarSource<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
     {
-        self.with_context_var_wgt_only_impl(context_var, value, false, version, update_mask, f)
+        self.with_context_var_wgt_only_impl(context_var, source, f)
     }
     #[inline(always)]
-    fn with_context_var_wgt_only_impl<C, R, F>(
-        &self,
-        context_var: C,
-        value: &C::Type,
-        is_new: bool,
-        version: u32,
-        update_mask: UpdateMask,
-        f: F,
-    ) -> R
+    fn with_context_var_wgt_only_impl<C, R, F>(&self, context_var: C, source: *const (dyn ContextVarSource<C::Type> + '_), f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -209,7 +188,7 @@ impl VarsRead {
 
         let _ = context_var;
 
-        let new = (value as _, is_new, version, update_mask);
+        let new = source;
         let prev = C::thread_local_value().replace(new);
 
         self.widget_clear.borrow_mut().push(Box::new(move |undo| {
@@ -225,54 +204,6 @@ impl VarsRead {
         });
 
         f()
-    }
-
-    /// Calls `f` while `context_var` is bound to `other_var`.
-    ///
-    /// Unlike [`Vars::with_context_bind`] in this method the context-var is never [new].
-    ///
-    /// See also the [`with_context_var`] helper function to declare a property that sets a context var.
-    ///
-    /// [new]: Var::is_new
-    #[inline(always)]
-    pub fn with_context_bind<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-        V: Var<C::Type>,
-    {
-        self.with_context_var_impl(
-            context_var,
-            other_var.get(self),
-            false,
-            other_var.version(self),
-            other_var.update_mask(self),
-            f,
-        )
-    }
-
-    /// Calls `f` while `context_var` is bound to `other_var`, but only for the current widget not its descendants.
-    ///
-    /// Unlike [`Vars::with_context_bind`] in this method the context-var is never [new].
-    ///
-    /// See also the [`with_context_var_wgt_only`] helper function to declare a property that sets a context var.
-    ///
-    /// [new]: Var::is_new
-    #[inline(always)]
-    pub fn with_context_bind_wgt_only<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-        V: Var<C::Type>,
-    {
-        self.with_context_var_wgt_only_impl(
-            context_var,
-            other_var.get(self),
-            false,
-            other_var.version(self),
-            other_var.update_mask(self),
-            f,
-        )
     }
 
     /// Clears widget only context var values, calls `f` and restores widget only context var values.
@@ -454,81 +385,6 @@ impl Vars {
             pre_handlers: RefCell::default(),
             pos_handlers: RefCell::default(),
         }
-    }
-
-    /// Calls `f` with the context var set to `value`.
-    ///
-    /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
-    #[inline(always)]
-    pub fn with_context_var<C, R, F>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, update_mask: UpdateMask, f: F) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-    {
-        self.with_context_var_impl(context_var, value, is_new, version, update_mask, f)
-    }
-
-    /// Calls `f` with the context var set to `value`, but only for the current widget not its descendants.
-    ///
-    /// The value is visible for the duration of `f` and only for the parts of it that are inside the current widget context.
-    ///
-    /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
-    /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
-    #[inline(always)]
-    pub fn with_context_var_wgt_only<C, R, F>(
-        &self,
-        context_var: C,
-        value: &C::Type,
-        is_new: bool,
-        version: u32,
-        update_mask: UpdateMask,
-        f: F,
-    ) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-    {
-        self.with_context_var_wgt_only_impl(context_var, value, is_new, version, update_mask, f)
-    }
-
-    /// Calls `f` while `context_var` is bound to `other_var`.
-    ///
-    /// See also the [`with_context_var`] helper function to declare a property that sets a context var.
-    #[inline(always)]
-    pub fn with_context_bind<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-        V: Var<C::Type>,
-    {
-        self.with_context_var_impl(
-            context_var,
-            other_var.get(self),
-            other_var.is_new(self),
-            other_var.version(self),
-            other_var.update_mask(self),
-            f,
-        )
-    }
-
-    /// Calls `f` while `context_var` is bound to `other_var`, but only for the current widget not its descendants.
-    ///
-    /// See also the [`with_context_var_wgt_only`] helper function to declare a property that sets a context var.
-    #[inline(always)]
-    pub fn with_context_bind_wgt_only<C, R, F, V>(&self, context_var: C, other_var: &V, f: F) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-        V: Var<C::Type>,
-    {
-        self.with_context_var_wgt_only(
-            context_var,
-            other_var.get(self),
-            other_var.is_new(self),
-            other_var.version(self),
-            other_var.update_mask(self),
-            f,
-        )
     }
 
     /// Schedule set/modify.
@@ -1566,50 +1422,58 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
         #[inline(always)]
         fn init(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.init(ctx));
+            ctx.vars
+                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.init(ctx));
         }
         #[inline(always)]
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.deinit(ctx));
+            ctx.vars
+                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.deinit(ctx));
         }
         #[inline(always)]
         fn update(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.update(ctx));
+            ctx.vars
+                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.update(ctx));
         }
         #[inline(always)]
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.event(ctx, args));
+            ctx.vars
+                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.event(ctx, args));
         }
         #[inline(always)]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
-            ctx.vars
-                .with_context_bind(self.var, &self.value, || child.measure(ctx, available_size))
+            ctx.vars.with_context(self.var, ContextVarSourceVar::new(&self.value), || {
+                child.measure(ctx, available_size)
+            })
         }
         #[inline(always)]
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let child = &mut self.child;
-            ctx.vars
-                .with_context_bind(self.var, &self.value, || child.arrange(ctx, widget_offset, final_size));
+            ctx.vars.with_context(self.var, ContextVarSourceVar::new(&self.value), || {
+                child.arrange(ctx, widget_offset, final_size)
+            });
         }
         #[inline(always)]
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             let child = &self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.info(ctx, info));
+            ctx.vars
+                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.info(ctx, info));
         }
         #[inline(always)]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let child = &self.child;
-            ctx.vars.with_context_bind(self.var, &self.value, || child.render(ctx, frame));
+            ctx.vars
+                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.render(ctx, frame));
         }
         #[inline(always)]
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             let child = &self.child;
             ctx.vars
-                .with_context_bind(self.var, &self.value, || child.render_update(ctx, update));
+                .with_context(self.var, ContextVarSourceVar::new(&self.value), || child.render_update(ctx, update));
         }
     }
     WithContextVarNode {
@@ -1655,51 +1519,60 @@ pub fn with_context_var_wgt_only<T: VarValue>(child: impl UiNode, var: impl Cont
         #[inline(always)]
         fn init(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.init(ctx));
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.init(ctx));
         }
         #[inline(always)]
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.deinit(ctx));
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.deinit(ctx));
         }
         #[inline(always)]
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
             let child = &self.child;
             ctx.vars
-                .with_context_bind_wgt_only(self.var, &self.value, || child.info(ctx, widget));
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.info(ctx, widget));
         }
         #[inline(always)]
         fn update(&mut self, ctx: &mut WidgetContext) {
             let child = &mut self.child;
-            ctx.vars.with_context_bind_wgt_only(self.var, &self.value, || child.update(ctx));
+            ctx.vars
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.update(ctx));
         }
         #[inline(always)]
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             let child = &mut self.child;
             ctx.vars
-                .with_context_bind_wgt_only(self.var, &self.value, || child.event(ctx, args));
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || child.event(ctx, args));
         }
         #[inline(always)]
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let child = &mut self.child;
             ctx.vars
-                .with_context_bind_wgt_only(self.var, &self.value, || child.measure(ctx, available_size))
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || {
+                    child.measure(ctx, available_size)
+                })
         }
         #[inline(always)]
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let child = &mut self.child;
             ctx.vars
-                .with_context_bind_wgt_only(self.var, &self.value, || child.arrange(ctx, widget_offset, final_size))
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || {
+                    child.arrange(ctx, widget_offset, final_size)
+                })
         }
         #[inline(always)]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             ctx.vars
-                .with_context_bind_wgt_only(self.var, &self.value, || self.child.render(ctx, frame));
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || self.child.render(ctx, frame));
         }
         #[inline(always)]
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             ctx.vars
-                .with_context_bind_wgt_only(self.var, &self.value, || self.child.render_update(ctx, update));
+                .with_context_bind_wgt_only(self.var, ContextVarSourceVar::new(&self.value), || {
+                    self.child.render_update(ctx, update)
+                });
         }
     }
     WithContextVarWidgetOnlyNode {
