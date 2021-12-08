@@ -136,7 +136,7 @@ impl VarsRead {
     /// [`update_mask`]: ContextVarSource::update_mask
     /// [`info`]: crate::context::Updates::info
     #[inline(always)]
-    pub fn with_context_var<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
+    pub fn with_context_var<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -145,9 +145,8 @@ impl VarsRead {
         // don't change before studying it.
 
         let _ = context_var;
-        let source: &dyn ContextVarSource<C::Type> = source;
 
-        let prev = C::thread_local_value().replace(source);
+        let prev = C::thread_local_value().replace(data.to_raw());
         let _restore = RunOnDrop::new(move || {
             C::thread_local_value().set(prev);
         });
@@ -167,7 +166,7 @@ impl VarsRead {
     /// [`update_mask`]: ContextVarSource::update_mask
     /// [`info`]: crate::context::Updates::info
     #[inline(always)]
-    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
+    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -176,9 +175,8 @@ impl VarsRead {
         // don't change before studying it.
 
         let _ = context_var;
-        let source: &dyn ContextVarSource<C::Type> = source;
 
-        let new: *const dyn ContextVarSource<C::Type> = source;
+        let new = data.to_raw();
         let prev = C::thread_local_value().replace(new);
 
         self.widget_clear.borrow_mut().push(Box::new(move |undo| {
