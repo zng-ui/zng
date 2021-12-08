@@ -141,14 +141,6 @@ impl VarsRead {
         C: ContextVar,
         F: FnOnce() -> R,
     {
-        self.with_context_var_impl(context_var, source, f)
-    }
-    #[inline(always)]
-    fn with_context_var_impl<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-    {
         // SAFETY: `Self::context_var` makes safety assumptions about this code
         // don't change before studying it.
 
@@ -176,14 +168,6 @@ impl VarsRead {
     /// [`info`]: crate::context::Updates::info
     #[inline(always)]
     pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-    {
-        self.with_context_var_wgt_only_impl(context_var, source, f)
-    }
-    #[inline(always)]
-    fn with_context_var_wgt_only_impl<C, R, F>(&self, context_var: C, source: &impl ContextVarSource<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -1381,8 +1365,9 @@ impl VarBinding {
 #[cfg(test)]
 mod tests {
     use crate::app::App;
+    use crate::context::TestWidgetContext;
     use crate::text::ToText;
-    use crate::var::{var, Var};
+    use crate::var::{context_var, var, ContextVarSourceValue, ContextVarSourceVar, Var};
 
     #[test]
     fn one_way_binding() {
@@ -1779,5 +1764,64 @@ mod tests {
 
         assert_eq!(1, a.strong_count());
         assert_eq!(1, b.strong_count());
+    }
+
+    #[test]
+    fn context_var_default() {
+        let ctx = TestWidgetContext::new();
+        let value = *TestVar::new().get(&ctx.vars);
+        assert_eq!("default value", value);
+    }
+
+    #[test]
+    fn context_var_with() {
+        let ctx = TestWidgetContext::new();
+        let value = ctx.vars.with_context_var(TestVar, &ContextVarSourceValue::new("with value"), || {
+            *TestVar::new().get(&ctx.vars)
+        });
+
+        assert_eq!("with value", value);
+
+        let value = *TestVar::new().get(&ctx.vars);
+        assert_eq!("default value", value);
+    }
+
+    #[test]
+    fn context_var_with_other() {
+        let ctx = TestWidgetContext::new();
+
+        let value = ctx
+            .vars
+            .with_context_var(TestVar, &ContextVarSourceVar(TestVar2::new()), || *TestVar::new().get(&ctx.vars));
+
+        assert_eq!("default value 2", value);
+    }
+
+    #[test]
+    fn context_var_recursion1() {
+        let ctx = TestWidgetContext::new();
+
+        let value = ctx
+            .vars
+            .with_context_var(TestVar, &ContextVarSourceVar(TestVar::new()), || *TestVar::new().get(&ctx.vars));
+
+        assert_eq!("default value", value);
+    }
+
+    #[test]
+    fn context_var_recursion2() {
+        let ctx = TestWidgetContext::new();
+
+        let value = ctx.vars.with_context_var(TestVar, &ContextVarSourceVar(TestVar2::new()), || {
+            ctx.vars
+                .with_context_var(TestVar2, &ContextVarSourceVar(TestVar::new()), || *TestVar::new().get(&ctx.vars))
+        });
+
+        assert_eq!("default value", value);
+    }
+
+    context_var! {
+        struct TestVar: &'static str = "default value";
+        struct TestVar2: &'static str = "default value 2";
     }
 }

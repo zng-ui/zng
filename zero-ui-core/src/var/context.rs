@@ -289,7 +289,7 @@ impl<T: VarValue> ContextVarSource<T> for ContextVarSourceCustom<T> {
 #[doc(hidden)]
 pub struct ContextVarValue<V: ContextVar> {
     _var: PhantomData<V>,
-    _default_value: Box<dyn ContextVarSource<V::Type>>,
+    default_value: Box<dyn ContextVarSource<V::Type>>,
     value: Cell<*const dyn ContextVarSource<V::Type>>,
 }
 
@@ -301,7 +301,7 @@ impl<V: ContextVar> ContextVarValue<V> {
         ContextVarValue {
             _var: PhantomData,
             value: Cell::new(&*default_value as _),
-            _default_value: default_value,
+            default_value,
         }
     }
 }
