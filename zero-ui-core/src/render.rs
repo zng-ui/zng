@@ -672,7 +672,6 @@ impl FrameBuilder {
             scroll_id.to_wr(self.pipeline_id),
             content_rect.to_wr(),
             PxRect::from_size(viewport_size).to_wr(),
-            ScrollSensitivity::ScriptAndInputEvents,
             content_rect.origin.to_vector().to_wr(),
             SpatialFrameId::scroll_id_to_wr(scroll_id, self.pipeline_id),
         );

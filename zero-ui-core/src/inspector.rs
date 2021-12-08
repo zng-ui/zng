@@ -11,7 +11,7 @@ use crate::{
     impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    var::{context_var, BoxedVar, ContextVarSourceValue, Var},
+    var::{context_var, BoxedVar, ContextVarData, Var},
     widget_base::Visibility,
     widget_info::{WidgetInfo, WidgetInfoTree, WidgetOffset},
     UiNode,
@@ -492,10 +492,9 @@ impl UiNode for WidgetInstanceInfoNode {
         let _scope = tracing::trace_span!("widget.init", name = self.info.borrow().widget_name).entered();
 
         {
-            let child = &mut self.child;
             ctx.vars
-                .with_context_var(ParentPropertyName, &ContextVarSourceValue::new("new(..)"), || {
-                    child.init(ctx);
+                .with_context_var(ParentPropertyName, ContextVarData::fixed(&"new(..)"), || {
+                    self.child.init(ctx);
                 });
         }
 
@@ -666,13 +665,12 @@ impl UiNode for PropertyInfoNode {
         let _scope = tracing::trace_span!("property.init", name = self.info.borrow().property_name).entered();
 
         let mut info = self.info.borrow_mut();
-        let child = &mut self.child;
         let property_name = info.property_name;
 
         ctx.vars
-            .with_context_var(ParentPropertyName, &ContextVarSourceValue::new(property_name), || {
+            .with_context_var(ParentPropertyName, ContextVarData::fixed(&property_name), || {
                 let t = Instant::now();
-                child.init(ctx);
+                self.child.init(ctx);
                 let d = t.elapsed();
                 info.duration.init = d;
                 info.count.init += 1;
@@ -782,10 +780,9 @@ impl NewChildMarkerNode {
 #[impl_ui_node(child)]
 impl UiNode for NewChildMarkerNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
         ctx.vars
-            .with_context_var(ParentPropertyName, &ContextVarSourceValue::new("new_child(..)"), || {
-                child.init(ctx);
+            .with_context_var(ParentPropertyName, ContextVarData::fixed(&"new_child(..)"), || {
+                self.child.init(ctx);
             });
     }
 }

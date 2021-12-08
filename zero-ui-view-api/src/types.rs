@@ -1184,6 +1184,18 @@ impl fmt::Debug for FrameRequest {
             .finish_non_exhaustive()
     }
 }
+impl FrameRequest {
+    /// Compute webrender analysis info.
+    pub fn render_reasons(&self) -> RenderReasons {
+        let mut reasons = RenderReasons::SCENE;
+
+        if self.capture_image {
+            reasons |= RenderReasons::SNAPSHOT;
+        }
+
+        reasons
+    }
+}
 
 /// Data for rendering a new frame that is derived from the current frame.
 #[derive(Clone, Serialize, Deserialize)]
@@ -1220,15 +1232,34 @@ impl FrameUpdateRequest {
         }
     }
 
+    /// If some property updates are requested.
+    pub fn has_properties(&self) -> bool {
+        !(self.updates.transforms.is_empty() && self.updates.floats.is_empty() && self.updates.colors.is_empty())
+    }
+
     /// If this request does not do anything, apart from notifying
     /// a new frame if send to the renderer.
     pub fn is_empty(&self) -> bool {
-        self.updates.transforms.is_empty()
-            && self.updates.floats.is_empty()
-            && self.updates.colors.is_empty()
-            && self.scroll_updates.is_empty()
-            && self.clear_color.is_none()
-            && !self.capture_image
+        !self.has_properties() && self.scroll_updates.is_empty() && self.clear_color.is_none() && !self.capture_image
+    }
+
+    /// Compute webrender analysis info.
+    pub fn render_reasons(&self) -> RenderReasons {
+        let mut reasons = RenderReasons::empty();
+
+        if self.has_properties() {
+            reasons |= RenderReasons::ANIMATED_PROPERTY;
+        }
+
+        if self.capture_image {
+            reasons |= RenderReasons::SNAPSHOT;
+        }
+
+        if self.clear_color.is_some() {
+            reasons |= RenderReasons::CONFIG_CHANGE;
+        }
+
+        reasons
     }
 }
 impl fmt::Debug for FrameUpdateRequest {

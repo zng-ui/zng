@@ -355,72 +355,82 @@ pub mod text {
         pub fn font_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
             struct FontSizeNode<C, S> {
                 child: C,
-                size: ContextVarSourceVar<S>,
+                size: S,
                 size_new: bool,
             }
             impl<C: UiNode, S: Var<Length>> UiNode for FontSizeNode<C, S> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(FontSizeVar, &self.size, || child.init(ctx));
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || self.child.init(ctx));
                 }
 
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(FontSizeVar, &self.size, || child.deinit(ctx));
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || self.child.deinit(ctx));
                 }
 
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(FontSizeVar, &self.size, || child.event(ctx, args));
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || {
+                            self.child.event(ctx, args)
+                        });
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
-                    let child = &mut self.child;
-                    self.size_new |= self.size.0.is_new(ctx);
-                    ctx.vars.with_context_var(FontSizeVar, &self.size, || child.update(ctx));
+                    self.size_new |= self.size.is_new(ctx);
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || self.child.update(ctx));
                 }
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     let font_size = self
                         .size
-                        .0
                         .get(ctx.vars)
                         .to_layout(ctx, available_size.height, ctx.metrics.root_font_size);
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(FontSizeVar, &self.size, || {
-                        ctx.with_font_size(font_size, self.size_new, |ctx| child.measure(ctx, available_size))
-                    })
+
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || {
+                            ctx.with_font_size(font_size, self.size_new, |ctx| self.child.measure(ctx, available_size))
+                        })
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                     let font_size =
                         self.size
-                            .0
                             .get(ctx.vars)
                             .to_layout(ctx, AvailablePx::Finite(final_size.height), ctx.metrics.root_font_size);
-                    let child = &mut self.child;
-                    ctx.vars.with_context_var(FontSizeVar, &self.size, || {
-                        ctx.with_font_size(font_size, self.size_new, |ctx| child.arrange(ctx, widget_offset, final_size))
-                    });
+
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || {
+                            ctx.with_font_size(font_size, self.size_new, |ctx| self.child.arrange(ctx, widget_offset, final_size))
+                        });
                     self.size_new = false;
                 }
 
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    ctx.vars.with_context_var(FontSizeVar, &self.size, || self.child.info(ctx, info));
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
+                            self.child.info(ctx, info)
+                        });
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    ctx.vars.with_context_var(FontSizeVar, &self.size, || self.child.render(ctx, frame));
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
+                            self.child.render(ctx, frame)
+                        });
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     ctx.vars
-                        .with_context_var(FontSizeVar, &self.size, || self.child.render_update(ctx, update));
+                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
+                            self.child.render_update(ctx, update)
+                        });
                 }
             }
             FontSizeNode {
                 child,
-                size: ContextVarSourceVar(size.into_var()),
+                size: size.into_var(),
                 size_new: true,
             }
         }

@@ -49,16 +49,16 @@ impl HitTester {
         HitTester::Request(api.request_hit_tester(document_id))
     }
 
-    pub fn hit_test(&mut self, pipeline_id: Option<PipelineId>, point: PxPoint) -> HitTestResult {
+    pub fn hit_test(&mut self, point: PxPoint) -> HitTestResult {
         match mem::replace(self, HitTester::Busy) {
             HitTester::Ready(tester) => {
-                let result = tester.hit_test(pipeline_id, point.to_wr_world());
+                let result = tester.hit_test(point.to_wr_world());
                 *self = HitTester::Ready(tester);
                 result
             }
             HitTester::Request(request) => {
                 let tester = request.resolve();
-                let result = tester.hit_test(pipeline_id, point.to_wr_world());
+                let result = tester.hit_test(point.to_wr_world());
                 *self = HitTester::Ready(tester);
                 result
             }
@@ -697,7 +697,7 @@ impl Window {
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
         self.push_resize(&mut txn);
-        txn.generate_frame(frame.id.get());
+        txn.generate_frame(frame.id.get(), frame.render_reasons());
 
         let display_list = BuiltDisplayList::from_data(
             DisplayListPayload {
@@ -719,7 +719,6 @@ impl Window {
             Some(frame.clear_color),
             viewport_size,
             (frame.pipeline_id, display_list),
-            true,
         );
 
         let frame_scope =
@@ -732,6 +731,8 @@ impl Window {
 
     /// Start rendering a new frame based on the data of the last frame.
     pub fn render_update(&mut self, frame: FrameUpdateRequest) {
+        let render_reasons = frame.render_reasons();
+
         if let Some(color) = frame.clear_color {
             self.renderer.as_mut().unwrap().set_clear_color(color);
         }
@@ -748,7 +749,7 @@ impl Window {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(self.frame_id().get());
+        txn.generate_frame(self.frame_id().get(), render_reasons);
         self.api.send_transaction(self.document_id, txn);
     }
 
@@ -906,7 +907,7 @@ impl Window {
     /// Returns all hits from front-to-back.
     pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
         // let _s = tracing::info_span!("hit_test").entered();
-        (self.rendered_frame_id, self.hit_tester.hit_test(Some(self.pipeline_id), point))
+        (self.rendered_frame_id, self.hit_tester.hit_test(point))
     }
 }
 impl Drop for Window {

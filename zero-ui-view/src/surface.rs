@@ -281,6 +281,8 @@ impl Surface {
     }
 
     pub fn render(&mut self, frame: FrameRequest) {
+        let render_reasons = frame.render_reasons();
+
         self.pending_frames.push_back((frame.id, frame.capture_image));
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
@@ -306,17 +308,18 @@ impl Surface {
             Some(frame.clear_color),
             viewport_size,
             (frame.pipeline_id, display_list),
-            true,
         );
         txn.set_root_pipeline(self.pipeline_id);
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(frame.id.get());
+        txn.generate_frame(frame.id.get(), render_reasons);
         self.api.send_transaction(self.document_id(), txn);
     }
 
     pub fn render_update(&mut self, frame: FrameUpdateRequest) {
+        let render_reasons = frame.render_reasons();
+
         if let Some(color) = frame.clear_color {
             self.renderer.as_mut().unwrap().set_clear_color(color);
         }
@@ -331,7 +334,7 @@ impl Surface {
 
         self.push_resize(&mut txn);
 
-        txn.generate_frame(self.frame_id().get());
+        txn.generate_frame(self.frame_id().get(), render_reasons);
         self.api.send_transaction(self.document_id(), txn);
     }
 
@@ -396,10 +399,7 @@ impl Surface {
     }
 
     pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
-        (
-            self.rendered_frame_id,
-            self.api.hit_test(self.document_id(), Some(self.pipeline_id), point.to_wr_world()),
-        )
+        (self.rendered_frame_id, self.api.hit_test(self.document_id(), point.to_wr_world()))
     }
 }
 impl Drop for Surface {

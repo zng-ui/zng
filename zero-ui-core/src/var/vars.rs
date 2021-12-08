@@ -112,7 +112,7 @@ impl VarsRead {
     }
 
     /// Gets a var at the context level.
-    pub(super) fn context_var<C: ContextVar>(&self) -> &dyn ContextVarSource<C::Type> {
+    pub(super) fn context_var<C: ContextVar>(&self) -> ContextVarData<C::Type> {
         let source = C::thread_local_value().get();
 
         // SAFETY: this is safe as long we are the only one to call `C::thread_local_value().get()` in
@@ -123,7 +123,7 @@ impl VarsRead {
         // * The initial reference is actually the `static` default value.
         // * Other references are held by `Self::with_context_var` for the duration
         //   they can appear here.
-        unsafe { &*source }
+        unsafe { source.to_safe(self) }
     }
 
     /// Calls `f` with the context var set to `source`.
@@ -301,8 +301,7 @@ type PendingUpdate = Box<dyn FnOnce(u32) -> UpdateMask>;
 /// # #[impl_ui_node(child)]
 /// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
 ///     fn update(&mut self, ctx: &mut WidgetContext) {
-///         let child = &mut self.child;
-///         ctx.vars.with_context_bind(FooVar, &self.var, || child.update(ctx));
+///         ctx.vars.with_context_bind(FooVar, &self.var, || self.child.update(ctx));
 ///     }
 /// }
 /// ```
@@ -1365,7 +1364,7 @@ mod tests {
     use crate::app::App;
     use crate::context::TestWidgetContext;
     use crate::text::ToText;
-    use crate::var::{context_var, var, ContextVarSourceValue, ContextVarSourceVar, Var};
+    use crate::var::{context_var, var, ContextVarData, Var};
 
     #[test]
     fn one_way_binding() {
@@ -1774,9 +1773,9 @@ mod tests {
     #[test]
     fn context_var_with() {
         let ctx = TestWidgetContext::new();
-        let value = ctx.vars.with_context_var(TestVar, &ContextVarSourceValue::new("with value"), || {
-            *TestVar::new().get(&ctx.vars)
-        });
+        let value = ctx
+            .vars
+            .with_context_var(TestVar, ContextVarData::fixed(&"with value"), || *TestVar::new().get(&ctx.vars));
 
         assert_eq!("with value", value);
 
@@ -1790,7 +1789,9 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(TestVar, &ContextVarSourceVar(TestVar2::new()), || *TestVar::new().get(&ctx.vars));
+            .with_context_var(TestVar, ContextVarData::var(&ctx.vars, &TestVar2::new()), || {
+                *TestVar::new().get(&ctx.vars)
+            });
 
         assert_eq!("default value 2", value);
     }
@@ -1801,7 +1802,9 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(TestVar, &ContextVarSourceVar(TestVar::new()), || *TestVar::new().get(&ctx.vars));
+            .with_context_var(TestVar, ContextVarData::var(&ctx.vars, &TestVar::new()), || {
+                *TestVar::new().get(&ctx.vars)
+            });
 
         assert_eq!("default value", value);
     }
@@ -1810,12 +1813,16 @@ mod tests {
     fn context_var_recursion2() {
         let ctx = TestWidgetContext::new();
 
-        let value = ctx.vars.with_context_var(TestVar, &ContextVarSourceVar(TestVar2::new()), || {
-            ctx.vars
-                .with_context_var(TestVar2, &ContextVarSourceVar(TestVar::new()), || *TestVar::new().get(&ctx.vars))
-        });
+        let value = ctx
+            .vars
+            .with_context_var(TestVar, ContextVarData::var(&ctx.vars, &TestVar2::new()), || {// set to "default value 2"
+                ctx.vars
+                    .with_context_var(TestVar2, ContextVarData::var(&ctx.vars, &TestVar::new()), || {// set to "default value 2"
+                        *TestVar::new().get(&ctx.vars)
+                    })
+            });
 
-        assert_eq!("default value", value);
+        assert_eq!("default value 2", value);
     }
 
     context_var! {

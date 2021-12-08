@@ -13,7 +13,7 @@ If the submodule is a Cargo workspace remember to exclude it in the root `Cargo.
 
 From the `./webrender` submodule we use the `webrender`, `webrender_api` and `swgl` crates.
 
-The current *version* is the latest commit that was included in the Firefox 94.0 release, currently we are manually
+The current *version* is the latest commit that was included in the Firefox 95.0 release, currently we are manually
 searching this commit, it would be nice to have `do` find the latest commit for the latest Firefox stable TODO.
 
 The steps to update manually:
@@ -22,4 +22,4 @@ The steps to update manually:
     milestone we are interested in.
 2 - Checkout this commit in the `./webrender` sub-module.
 
-The current commit is this one: [`https://github.com/servo/webrender/commit/526a423bc2f069ea90e219fb155f379ee0fe662a`]
+The current commit is this one: [`https://github.com/servo/webrender/commit/d028e09ff70197745e4c738407f58ee69ac0abbe`]

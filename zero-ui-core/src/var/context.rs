@@ -37,15 +37,15 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a C::Type {
         let vars = vars.as_ref();
-        vars.context_var::<C>().value(vars)
+        vars.context_var::<C>().value
     }
 
     #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a C::Type> {
         let vars = vars.as_ref();
         let info = vars.context_var::<C>();
-        if info.is_new(vars) {
-            Some(info.value(vars))
+        if info.is_new {
+            Some(info.value)
         } else {
             None
         }
@@ -53,7 +53,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|v| v.context_var::<C>().is_new(v))
+        vars.with_vars(|v| v.context_var::<C>().is_new)
     }
 
     #[inline]
@@ -63,7 +63,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with_vars_read(|v| v.context_var::<C>().version(v))
+        vars.with_vars_read(|v| v.context_var::<C>().version)
     }
 
     #[inline]
@@ -121,7 +121,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|v| v.context_var::<C>().update_mask(v))
+        vars.with_vars_read(|v| v.context_var::<C>().update_mask)
     }
 }
 
@@ -132,13 +132,6 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     fn into_var(self) -> Self::Var {
         self
     }
-}
-
-pub(crate) struct ContextVarDataRaw<T: VarValue> {
-    value: *const T,
-    is_new: bool,
-    version: u32,
-    update_mask: UpdateMask,
 }
 
 /// Value bound to context var at a context.
@@ -186,9 +179,9 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         }
     }
 
-    /// Binds the context var to a `value` that is always derived from another `var` such that 
+    /// Binds the context var to a `value` that is always derived from another `var` such that
     /// they update at the same time.
-    pub fn map<'b>(vars: &'b Vars, var: &'b impl Var<T>, value: &'a T) -> Self {
+    pub fn map<'b, S: VarValue>(vars: &'b Vars, var: &'b impl Var<S>, value: &'a T) -> Self {
         Self {
             value,
             is_new: var.is_new(vars),
@@ -198,7 +191,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
     }
 
     /// Binds the context var to a `value` that is always derived from another `var`.
-    pub fn map_read<'b>(vars: &'b VarsRead, var: &'b impl Var<T>, value: &'a T) -> Self {
+    pub fn map_read<'b, S: VarValue>(vars: &'b VarsRead, var: &'b impl Var<S>, value: &'a T) -> Self {
         Self {
             value,
             is_new: false,
@@ -216,9 +209,9 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         }
     }
 }
-impl ContextVarDataRaw {
+impl<T: VarValue> ContextVarDataRaw<T> {
     /// SAFETY: Only [`VarsRead`] can call this safely.
-    pub(crate) unsafe fn to_safe(self, _vars: &VarsRead) -> ContextVarData {
+    pub(crate) unsafe fn to_safe(self, _vars: &VarsRead) -> ContextVarData<T> {
         ContextVarData {
             value: &*self.value,
             is_new: self.is_new,
@@ -227,6 +220,35 @@ impl ContextVarDataRaw {
         }
     }
 }
+impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value,
+            is_new: self.is_new,
+            version: self.version,
+            update_mask: self.update_mask,
+        }
+    }
+}
+impl<'a, T: VarValue> Copy for ContextVarData<'a, T> {}
+
+pub(crate) struct ContextVarDataRaw<T: VarValue> {
+    value: *const T,
+    is_new: bool,
+    version: u32,
+    update_mask: UpdateMask,
+}
+impl<T: VarValue> Clone for ContextVarDataRaw<T> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value,
+            is_new: self.is_new,
+            version: self.version,
+            update_mask: self.update_mask,
+        }
+    }
+}
+impl<T: VarValue> Copy for ContextVarDataRaw<T> {}
 
 /// See `ContextVar::thread_local_value`.
 #[doc(hidden)]
@@ -243,7 +265,7 @@ impl<V: ContextVar> ContextVarValue<V> {
         let default_value = Box::new(V::default_value());
         ContextVarValue {
             _var: PhantomData,
-            value: Cell::new(ContextVarData::fixed(&default_value).to_raw()),
+            value: Cell::new(ContextVarData::fixed(&*default_value).to_raw()),
             _default_value: default_value,
         }
     }
@@ -459,42 +481,56 @@ mod properties {
         {
             #[inline(always)]
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars.with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.init(ctx));
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.init(ctx));
             }
             #[inline(always)]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars.with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.deinit(ctx));
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.deinit(ctx));
             }
             #[inline(always)]
             fn update(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars.with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.update(ctx));
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.update(ctx));
             }
             #[inline(always)]
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-                ctx.vars.with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.event(ctx, args));
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.event(ctx, args));
             }
             #[inline(always)]
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {                
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.measure(ctx, available_size))
+            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                ctx.vars.with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || {
+                    self.child.measure(ctx, available_size)
+                })
             }
             #[inline(always)]
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.arrange(ctx, widget_offset, final_size));
+                ctx.vars.with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || {
+                    self.child.arrange(ctx, widget_offset, final_size)
+                });
             }
             #[inline(always)]
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                ctx.vars.with_context_var(self.var, ContextVarData::var_read(ctx.vars, &self.value), || self.child.info(ctx, info));
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.info(ctx, info)
+                    });
             }
             #[inline(always)]
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                ctx.vars.with_context_var(self.var, ContextVarData::var_read(ctx.vars, &self.value), || self.child.render(ctx, frame));
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.render(ctx, frame)
+                    });
             }
             #[inline(always)]
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 ctx.vars
-                    .with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.render_update(ctx, update));
+                    .with_context_var(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.render_update(ctx, update)
+                    });
             }
         }
         WithContextVarNode {
@@ -543,50 +579,64 @@ mod properties {
         {
             #[inline(always)]
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars.with_context_var_wgt_only(self.var, ContextVarData::var(&self.value), || self.child.init(ctx));
+                ctx.vars
+                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.init(ctx));
             }
             #[inline(always)]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars.with_context_var_wgt_only(self.var, ContextVarData::var(&self.value), || self.child.deinit(ctx));
+                ctx.vars
+                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.deinit(ctx));
             }
             #[inline(always)]
             fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
                 ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(&self.value), || self.child.info(ctx, widget));
+                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.info(ctx, widget)
+                    });
             }
             #[inline(always)]
             fn update(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars.with_context_var_wgt_only(self.var, ContextVarData::var(&self.value), || self.child.update(ctx));
+                ctx.vars
+                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.update(ctx));
             }
             #[inline(always)]
             fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                ctx.vars.with_context_var_wgt_only(self.var, ContextVarData::var(&self.value), || self.child.event(ctx, args));
+                ctx.vars
+                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.event(ctx, args));
             }
             #[inline(always)]
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var(&self.value), || self.child.measure(ctx, available_size))
+                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || {
+                        self.child.measure(ctx, available_size)
+                    })
             }
             #[inline(always)]
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
                 ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var(&self.value), || self.child.arrange(ctx, widget_offset, final_size))
+                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || {
+                        self.child.arrange(ctx, widget_offset, final_size)
+                    })
             }
             #[inline(always)]
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(&self.value), || self.child.render(ctx, frame));
+                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.render(ctx, frame)
+                    });
             }
             #[inline(always)]
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(&self.value), || self.child.render_update(ctx, update));
+                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.render_update(ctx, update)
+                    });
             }
         }
         WithContextVarWidgetOnlyNode {
             child,
             var,
-            value: ContextVarSourceVar(value.into_var()),
+            value: value.into_var(),
         }
     }
 
@@ -599,12 +649,18 @@ mod properties {
     ) -> impl UiNode {
         struct WithContextVarFoldNode<U, C: ContextVar, T, V, F> {
             child: U,
+
             var: C,
-            item: V,
-            fold: F,
-            value: ContextVarSourceCustom<C::Type>,
             var_ver: u32,
+            item: V,
             item_ver: u32,
+
+            fold: F,
+
+            value: C::Type,
+            version: u32,
+            update_mask: Cell<UpdateMask>,
+
             _t: PhantomData<T>,
         }
         impl<U, C: ContextVar, T, V, F> WithContextVarFoldNode<U, C, T, V, F>
@@ -626,87 +682,157 @@ mod properties {
         {
             #[inline(always)]
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                self.value.update_mask.set(C::new().update_mask(ctx) | self.item.update_mask(ctx));
-                ctx.vars.with_context_var(self.var, &self.value, || self.child.info(ctx, info));
+                self.update_mask.set(C::new().update_mask(ctx) | self.item.update_mask(ctx));
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.info(ctx, info),
+                );
             }
             #[inline(always)]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let var = C::new();
-                self.value.value = (self.fold)(var.get_clone(ctx), self.item.get(ctx));
-                self.value.version = 0;
+                self.value = (self.fold)(var.get_clone(ctx), self.item.get(ctx));
+                self.version = 0;
                 self.item_ver = self.item.version(ctx);
                 self.var_ver = var.version(ctx);
 
-                ctx.vars.with_context_var(self.var, &self.value, || self.child.init(ctx));
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.init(ctx),
+                );
             }
             #[inline(always)]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                let child = &mut self.child;
-                ctx.vars.with_context_var(self.var, &self.value, || child.deinit(ctx));
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.deinit(ctx),
+                );
             }
             #[inline(always)]
             fn update(&mut self, ctx: &mut WidgetContext) {
-                let child = &mut self.child;
-
                 let var = C::new();
                 let var_ver = var.version(ctx);
                 let item_ver = self.item.version(ctx);
-                self.value.is_new = var.is_new(ctx) || self.item.is_new(ctx);
+                let is_new = var.is_new(ctx) || self.item.is_new(ctx);
 
-                if self.value.is_new || self.var_ver != var_ver || self.item_ver != item_ver {
+                if is_new || self.var_ver != var_ver || self.item_ver != item_ver {
                     self.var_ver = var_ver;
                     self.item_ver = item_ver;
-                    self.value.value = (self.fold)(var.get_clone(ctx), self.item.get(ctx));
-                    self.value.version = self.value.version.wrapping_add(1);
+                    self.value = (self.fold)(var.get_clone(ctx), self.item.get(ctx));
+                    self.version = self.version.wrapping_add(1);
                 }
 
-                ctx.vars.with_context_var(self.var, &self.value, || child.update(ctx));
-
-                self.value.is_new = false;
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.update(ctx),
+                );
             }
             #[inline(always)]
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-                let child = &mut self.child;
-                ctx.vars.with_context_var(self.var, &self.value, || child.event(ctx, args));
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.event(ctx, args),
+                );
             }
             #[inline(always)]
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                let child = &mut self.child;
-                ctx.vars
-                    .with_context_var(self.var, &self.value, || child.measure(ctx, available_size))
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.measure(ctx, available_size),
+                )
             }
             #[inline(always)]
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-                let child = &mut self.child;
-                ctx.vars
-                    .with_context_var(self.var, &self.value, || child.arrange(ctx, widget_offset, final_size));
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.arrange(ctx, widget_offset, final_size),
+                );
             }
 
             #[inline(always)]
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let child = &self.child;
-                ctx.vars.with_context_var(self.var, &self.value, || child.render(ctx, frame));
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.render(ctx, frame),
+                );
             }
             #[inline(always)]
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                let child = &self.child;
-                ctx.vars
-                    .with_context_var(self.var, &self.value, || child.render_update(ctx, update));
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.render_update(ctx, update),
+                );
             }
         }
         WithContextVarFoldNode {
             child,
+
             var,
-            item: item.into_var(),
-            value: ContextVarSourceCustom {
-                value: C::default_value(),
-                is_new: false,
-                version: 0,
-                update_mask: Cell::new(UpdateMask::none()),
-            },
-            fold,
             var_ver: 0,
+
+            item: item.into_var(),
             item_ver: 0,
+
+            fold,
+
+            value: C::default_value(),
+            version: 0,
+            update_mask: Cell::new(UpdateMask::none()),
+
             _t: PhantomData,
         }
     }

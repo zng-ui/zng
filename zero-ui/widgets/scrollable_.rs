@@ -474,8 +474,8 @@ pub mod scrollable {
         }
 
         /// Call closure `f` within a context.
-        pub fn with_context(vars: &impl WithVarsRead, context: &impl ContextVarSource<Option<ScrollContext>>, f: impl FnOnce()) {
-            vars.with_vars_read(|vars| vars.with_context_var(ScrollContextVar, context, f))
+        pub fn with_context(vars: &impl WithVarsRead, context: &Option<ScrollContext>, f: impl FnOnce()) {
+            vars.with_vars_read(|vars| vars.with_context_var(ScrollContextVar, ContextVarData::fixed(context), f))
         }
     }
 
