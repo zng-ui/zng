@@ -1,3 +1,5 @@
+* Context-var needs to handle recursion, it can happen accidentally and we use explicitly to define property default values.
+
 * Turn command handle enabled into a variable.
 * Don't use ContextVar of Var in image.
 * Review IsEnabled.

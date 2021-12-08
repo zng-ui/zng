@@ -153,6 +153,8 @@ impl VarsRead {
         // don't change before studying it.
 
         let _ = context_var;
+        let source: &dyn ContextVarSource<C::Type> = source;
+
         let prev = C::thread_local_value().replace(source);
         let _restore = RunOnDrop::new(move || {
             C::thread_local_value().set(prev);
@@ -190,6 +192,7 @@ impl VarsRead {
         // don't change before studying it.
 
         let _ = context_var;
+        let source: &dyn ContextVarSource<C::Type> = source;
 
         let new: *const dyn ContextVarSource<C::Type> = source;
         let prev = C::thread_local_value().replace(new);
