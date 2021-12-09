@@ -106,8 +106,8 @@ pub mod text {
 
         #[impl_ui_node(none)]
         impl<T: Var<Text>> UiNode for TextNode<T> {
-            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                TextContext::subscribe(ctx.vars, widget.subscriptions().var(ctx.vars, &self.text_var));
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                TextContext::subscribe(ctx.vars, subscriptions.var(ctx.vars, &self.text_var));
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
@@ -359,6 +359,20 @@ pub mod text {
                 size_new: bool,
             }
             impl<C: UiNode, S: Var<Length>> UiNode for FontSizeNode<C, S> {
+                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                    ctx.vars
+                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
+                            self.child.info(ctx, info)
+                        });
+                }
+
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    ctx.vars
+                    .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
+                        self.child.subscriptions(ctx, subscriptions)
+                    });
+                }
+
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     ctx.vars
                         .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || self.child.init(ctx));
@@ -405,14 +419,7 @@ pub mod text {
                             ctx.with_font_size(font_size, self.size_new, |ctx| self.child.arrange(ctx, widget_offset, final_size))
                         });
                     self.size_new = false;
-                }
-
-                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
-                            self.child.info(ctx, info)
-                        });
-                }
+                }               
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     ctx.vars

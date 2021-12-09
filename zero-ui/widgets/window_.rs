@@ -524,9 +524,9 @@ pub mod window {
             }
             #[impl_ui_node(child)]
             impl<U: UiNode, C: Var<Rgba>> UiNode for ClearColorNode<U, C> {
-                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                    self.child.info(ctx, widget);
-                    widget.subscriptions().var(ctx, &self.clear_color);
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    subscriptions.var(ctx, &self.clear_color);
+                    self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
@@ -562,7 +562,7 @@ pub mod window {
             focus::FocusExt,
             gesture::*,
             var::*,
-            widget_info::WidgetInfoBuilder,
+            widget_info::WidgetSubscriptions,
             window::{WindowFocusChangedEvent, WindowsExt},
             *,
         };
@@ -618,13 +618,12 @@ pub mod window {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for OnCloseNode<C> {
-                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                    self.child.info(ctx, widget);
-                    widget
-                        .subscriptions()
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    subscriptions
                         .var(ctx, &CloseCommand.shortcut())
                         .event(CloseCommand)
                         .event(WindowFocusChangedEvent);
+                        self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {

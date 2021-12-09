@@ -1927,6 +1927,7 @@ impl AppWindow {
         if self.context.update.info {
             let _s = tracing::trace_span!("window.info", window = %self.id.sequential()).entered();
             let tree = self.context.info(ctx);
+            self.context.subscriptions(ctx);
             ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
             WidgetInfoChangedEvent.notify(
                 ctx,
@@ -1935,9 +1936,17 @@ impl AppWindow {
         }
     }
 
+    fn on_subscriptions(&mut self, ctx: &mut AppContext) {
+        if self.context.update.subscriptions {
+            let _s = tracing::trace_span!("window.subscriptions", window = %self.id.sequential()).entered();
+            self.context.subscriptions(ctx);
+        }
+    }
+
     fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         self.context.event(ctx, args);
         self.on_info(ctx);
+        self.on_subscriptions(ctx);
     }
 
     fn on_update(&mut self, ctx: &mut AppContext) {
@@ -1955,6 +1964,7 @@ impl AppWindow {
             self.context.update(ctx);
 
             self.on_info(ctx);
+            self.on_subscriptions(ctx);
 
             if self.vars.size().is_new(ctx)
                 || self.vars.auto_size().is_new(ctx)
@@ -2710,10 +2720,27 @@ impl OwnedWindowContext {
             builder
         });
 
-        let (info, subscriptions, used) = builder.finalize();
-        self.subscriptions = subscriptions;
+        let (info, used) = builder.finalize();
         self.used_frame_info_builder = Some(used);
         info
+    }
+
+    /// Update the root widget subscriptions.
+    fn subscriptions(&mut self, ctx: &mut AppContext) {
+        debug_assert!(self.update.subscriptions);
+        self.update.subscriptions = false;
+
+        let root = &self.root;
+        let (subscriptions, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+            let child = &root.child;
+            let mut subscriptions = WidgetSubscriptions::new();
+            ctx.info_context(root.id, &root.state, |ctx| {
+                child.subscriptions(ctx, &mut subscriptions);
+            });
+            subscriptions
+        });
+
+        self.subscriptions = subscriptions;
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {

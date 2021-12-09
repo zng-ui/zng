@@ -37,7 +37,14 @@ pub mod switch {
             if index < self.options.len() {
                 self.options.widget_info(index, ctx, info);
             }
-            info.subscriptions().var(ctx, &self.index);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            let index = self.index.copy(ctx);
+            if index < self.options.len() {
+                self.options.widget_subscriptions(index, ctx, subscriptions);
+            }
+            subscriptions.var(ctx, &self.index);
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {

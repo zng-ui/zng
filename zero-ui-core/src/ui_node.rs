@@ -139,6 +139,9 @@ pub trait UiNode: 'static {
     /// * `info`: Widget info tree builder.
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
+    /// Called every time the set of variables and events monitored by the widget changes.
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
+
     /// Called every time the node is plugged in an Ui tree.
     fn init(&mut self, ctx: &mut WidgetContext);
 
@@ -148,17 +151,17 @@ pub trait UiNode: 'static {
     /// Called every time an event updates.
     ///
     /// Every call to this method is for a single update of a single event type, you can listen to events
-    /// using [`Event::update`]. This method is called even if [`stop_propagation`](crate::event::EventArgs::stop_propagation)
+    /// using [`Event::update`]. This method is called even if [`stop_propagation`]
     /// was requested, or a parent widget is disabled, and it must always propagate to descendent nodes.
     ///
     /// Event propagation can be statically or dynamically typed, the way to listen to both is the same, `A` can be an
-    /// [`AnyEventUpdate`] instance that is resolved dynamically or an [`EventUpdate`](crate::event::EventUpdate) instance
+    /// [`AnyEventUpdate`] instance that is resolved dynamically or an [`EventUpdate`] instance
     /// that is resolved statically in the [`Event::update`] call. If an event matches you should **use the returned args**
     /// in the call the descendant nodes, **this upgrades from dynamic to static resolution** in descendant nodes increasing
     /// performance.
     ///
     /// If the event is handled before the call in descendant nodes it is called a *preview*, this behavior matches what
-    /// happens in the [`on_pre_event`](crate::event::on_pre_event) node.
+    /// happens in the [`on_pre_event`] node.
     ///
     /// # Example
     ///
@@ -191,6 +194,10 @@ pub trait UiNode: 'static {
     /// is then propagated to the `child` node, `self.child.event` appears to be called twice but if the `if` call
     /// we ensured that the descendant nodes will resolve the event statically, which can not be the case in the `else`
     /// call where `A` can be the dynamic resolver.
+    ///
+    /// [`stop_propagation`]: crate::event::EventArgs::stop_propagation
+    /// [`EventUpdate`]: crate::event::EventUpdate
+    /// [`on_pre_event`]: crate::event::on_pre_event
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A);
 
     /// Called every time an update is requested.
@@ -242,18 +249,27 @@ pub trait UiNode: 'static {
 }
 #[doc(hidden)]
 pub trait UiNodeBoxed: 'static {
+    fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+    fn subscriptions_boxed(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
     fn update_boxed(&mut self, ctx: &mut WidgetContext);
     fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &AnyEventUpdate);
     fn measure_boxed(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
     fn arrange_boxed(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
-    fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
 
 impl<U: UiNode> UiNodeBoxed for U {
+    fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        self.info(ctx, info);
+    }
+
+    fn subscriptions_boxed(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        self.subscriptions(ctx, subscriptions)
+    }
+
     fn init_boxed(&mut self, ctx: &mut WidgetContext) {
         self.init(ctx);
     }
@@ -278,10 +294,6 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.arrange(ctx, widget_offset, final_size);
     }
 
-    fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.info(ctx, info);
-    }
-
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         self.render(ctx, frame);
     }
@@ -295,6 +307,14 @@ impl<U: UiNode> UiNodeBoxed for U {
 pub type BoxedUiNode = Box<dyn UiNodeBoxed>;
 
 impl UiNode for BoxedUiNode {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        self.as_ref().info_boxed(ctx, info);
+    }
+
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        self.as_ref().subscriptions_boxed(ctx, subscriptions);
+    }
+
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.as_mut().init_boxed(ctx);
     }
@@ -323,10 +343,6 @@ impl UiNode for BoxedUiNode {
         self.as_mut().arrange_boxed(ctx, widget_offset, final_size);
     }
 
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.as_ref().info_boxed(ctx, info);
-    }
-
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         self.as_ref().render_boxed(ctx, frame);
     }
@@ -344,6 +360,18 @@ impl UiNode for BoxedUiNode {
 }
 
 impl<U: UiNode> UiNode for Option<U> {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        if let Some(node) = self {
+            node.info(ctx, info);
+        }
+    }
+
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        if let Some(node) = self {
+            node.subscriptions(ctx, subscriptions);
+        }
+    }
+
     fn init(&mut self, ctx: &mut WidgetContext) {
         if let Some(node) = self {
             node.init(ctx);
@@ -379,12 +407,6 @@ impl<U: UiNode> UiNode for Option<U> {
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
         if let Some(node) = self {
             node.arrange(ctx, widget_offset, final_size);
-        }
-    }
-
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        if let Some(node) = self {
-            node.info(ctx, info);
         }
     }
 
@@ -498,6 +520,13 @@ pub trait Widget: UiNode {
         ctx.info_context(|ctx| self.info(ctx, info));
     }
 
+    /// Run [`UiNode::subscriptions`] using the [`TestWidgetContext`].
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
+    fn test_subscriptions(&self, ctx: &mut TestWidgetContext, subscriptions: &mut WidgetSubscriptions) {
+        ctx.info_context(|ctx| self.subscriptions(ctx, subscriptions));
+    }
+
     /// Run [`UiNode::render`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
@@ -552,6 +581,14 @@ impl<W: Widget> WidgetBoxed for W {
 pub type BoxedWidget = Box<dyn WidgetBoxed>;
 
 impl UiNode for BoxedWidget {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        self.as_ref().info_boxed(ctx, info);
+    }
+
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        self.as_ref().subscriptions_boxed(ctx, subscriptions);
+    }
+
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.as_mut().init_boxed(ctx);
     }
@@ -578,10 +615,6 @@ impl UiNode for BoxedWidget {
 
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
         self.as_mut().arrange_boxed(ctx, widget_offset, final_size)
-    }
-
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.as_ref().info_boxed(ctx, info);
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -640,7 +673,7 @@ pub mod impl_ui_node_util {
         event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         units::{AvailableSize, PxSize},
-        widget_info::{WidgetInfoBuilder, WidgetOffset},
+        widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
         UiNode, UiNodeList,
     };
 
@@ -681,6 +714,7 @@ pub mod impl_ui_node_util {
     }
     pub trait IterImpl {
         fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+        fn subscriptions_all(self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
         fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
         fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate);
     }
@@ -729,6 +763,12 @@ pub mod impl_ui_node_util {
         fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             for child in self {
                 child.info(ctx, info);
+            }
+        }
+
+        fn subscriptions_all(self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            for child in self {
+                child.subscriptions(ctx, subscriptions);
             }
         }
 
@@ -959,8 +999,15 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         if let SlotNodeState::Active(rc) = &self.state {
             rc.node.borrow().as_ref().unwrap().info(ctx, info);
         }
-        info.subscriptions().update(self.update_slot);
-        self.take_signal.subscribe(ctx, info.subscriptions());
+    }
+
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        subscriptions.update(self.update_slot);
+        self.take_signal.subscribe(ctx, subscriptions);
+
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow().as_ref().unwrap().subscriptions(ctx, subscriptions);
+        }
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {

@@ -38,14 +38,10 @@ pub fn border(
         R: Var<BorderRadius>,
     {
         #[UiNode]
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget
-                .subscriptions()
-                .vars(ctx)
-                .var(&self.widths)
-                .var(&self.radius)
-                .var(&self.sides);
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.vars(ctx).var(&self.widths).var(&self.radius).var(&self.sides);
+
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         #[UiNode]

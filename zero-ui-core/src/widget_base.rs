@@ -6,7 +6,7 @@ use crate::event::EventUpdateArgs;
 use crate::var::{
     context_var, impl_from_and_into_var, ContextVarData, IntoValue, IntoVar, StateVar, Var, Vars, VarsRead, WithVars, WithVarsRead,
 };
-use crate::widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetOffset};
+use crate::widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions};
 use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
     units::{AvailableSize, PxSize},
@@ -146,20 +146,6 @@ pub mod implicit_base {
         }
         impl<T: UiNode> UiNode for WidgetNode<T> {
             #[inline(always)]
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                #[cfg(debug_assertions)]
-                if self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
-                }
-
-                ctx.widget_context(self.id, &mut self.state, |ctx| self.child.init(ctx));
-
-                #[cfg(debug_assertions)]
-                {
-                    self.inited = true;
-                }
-            }
-            #[inline(always)]
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 #[cfg(debug_assertions)]
                 if !self.inited {
@@ -172,10 +158,32 @@ pub mod implicit_base {
                         self.outer_bounds.clone(),
                         self.inner_bounds.clone(),
                         self.rendered.clone(),
-                        &mut self.subscriptions.borrow_mut(),
                         |info| self.child.info(ctx, info),
                     );
                 });
+            }
+            #[inline(always)]
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                let mut wgt_subs = self.subscriptions.borrow_mut();
+                *wgt_subs = WidgetSubscriptions::new();
+
+                self.child.subscriptions(ctx, &mut wgt_subs);
+
+                subscriptions.extend(&wgt_subs);
+            }
+            #[inline(always)]
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                #[cfg(debug_assertions)]
+                if self.inited {
+                    tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
+                }
+
+                ctx.widget_context(self.id, &mut self.state, |ctx| self.child.init(ctx));
+
+                #[cfg(debug_assertions)]
+                {
+                    self.inited = true;
+                }
             }
             #[inline(always)]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -446,9 +454,12 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             if !self.enabled.copy(ctx) {
                 info.meta().set(EnabledState, false);
             }
-            info.subscriptions().var(ctx, &self.enabled);
-
             self.with_context_read(ctx.vars, |c| c.info(ctx, info));
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.enabled);
+            self.with_context_read(ctx.vars, |c| c.subscriptions(ctx, subscriptions));
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -520,7 +531,11 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
 
     fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
         self.child.info(ctx, widget);
-        widget.subscriptions().updates(&IsEnabled::update_mask(ctx));
+    }
+
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        subscriptions.updates(&IsEnabled::update_mask(ctx));
+        self.child.subscriptions(ctx, subscriptions);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -586,14 +601,18 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, V: Var<Visibility>> UiNode for VisibilityNode<C, V> {
+        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.visibility);
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.prev_vis = self.visibility.copy(ctx);
             self.child.init(ctx);
-        }
-
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget.subscriptions().var(ctx, &self.visibility);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -738,9 +757,9 @@ impl<C: UiNode> UiNode for IsVisibilityNode<C> {
         self.state.set_ne(ctx, vis != self.expected);
     }
 
-    fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-        self.child.info(ctx, widget);
-        widget.subscriptions().event(crate::window::FrameImageReadyEvent);
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        subscriptions.event(crate::window::FrameImageReadyEvent);
+        self.child.subscriptions(ctx, subscriptions);
     }
 
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {

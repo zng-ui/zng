@@ -10,7 +10,7 @@ use crate::crate_util::{Handle, HandleOwner};
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
 use crate::widget_base::IsEnabled;
-use crate::widget_info::{EventSlot, WidgetInfoBuilder};
+use crate::widget_info::{EventSlot, WidgetInfoBuilder, WidgetSubscriptions};
 use crate::{impl_ui_node, UiNode};
 use std::cell::RefCell;
 use std::fmt::{self, Debug};
@@ -1554,8 +1554,12 @@ where
         H: WidgetHandler<E::Args>,
     {
         fn info(&self, ctx: &mut InfoContext, widget_info: &mut WidgetInfoBuilder) {
-            widget_info.subscriptions().event(self.event).handler(&self.handler);
             self.child.info(ctx, widget_info);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.event(self.event).handler(&self.handler);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
@@ -1625,8 +1629,12 @@ where
         H: WidgetHandler<E::Args>,
     {
         fn info(&self, ctx: &mut InfoContext, widget_info: &mut WidgetInfoBuilder) {
-            widget_info.subscriptions().event(self.event).handler(&self.handler);
             self.child.info(ctx, widget_info);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.event(self.event).handler(&self.handler);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {

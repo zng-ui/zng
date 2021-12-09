@@ -181,10 +181,23 @@ impl Updates {
         self.layout
     }
 
-    /// Schedules a new full widget tree info update for the parent window.
+    /// Flags a widget tree info rebuild and subscriptions aggregation for the parent window.
+    ///
+    /// The window will call [`UiNode::info`] as soon as the current UI node method finishes,
+    /// requests outside windows are ignored.
     #[inline]
     pub fn info(&mut self) {
         self.l_updates.window_updates.info = true;
+        self.l_updates.window_updates.subscriptions = true;
+    }
+
+    /// Flag a subscriptions aggregation for the parent window.
+    ///
+    /// The window will call [`UiNode::subscriptions`] as soon as the current UI node method finishes,
+    /// requests outside windows are ignored, widgets also call and cache subscriptions as soon as they receive this flag.
+    #[inline]
+    pub fn subscriptions(&mut self) {
+        self.l_updates.window_updates.subscriptions = true;
     }
 
     /// Gets `true` if a widget info rebuild is scheduled.
@@ -975,14 +988,22 @@ impl std::ops::BitOr for ContextUpdates {
     }
 }
 
-/// Layout or render updates that where requested by the content of a window.
+/// Info, Layout or render updates that where requested by the content of a window.
 ///
 /// Unlike the general updates, layout and render can be optimized to only apply if
 /// the window content requested it.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WindowUpdates {
     /// Info tree rebuild requested.
+    ///
+    /// Windows should call [`UiNode::info`] to rebuild the info tree as soon as they receive this flag.
     pub info: bool,
+    /// Subscriptions re-count requested.
+    ///
+    /// Windows should call [`UiNode::subscriptions`] to aggregate the subscriptions masks
+    /// as soon as they receive this flag.
+    pub subscriptions: bool,
+
     /// Layout requested.
     pub layout: bool,
     /// Full frame or frame update requested.
@@ -998,15 +1019,27 @@ impl WindowUpdates {
     pub fn all() -> Self {
         WindowUpdates {
             info: true,
+            subscriptions: true,
             layout: true,
             render: WindowRenderUpdate::Render,
         }
     }
 
-    /// Info tree rebuild only.
+    /// Info tree rebuild and subscriptions only.
     pub fn info() -> Self {
         WindowUpdates {
             info: true,
+            subscriptions: true,
+            layout: false,
+            render: WindowRenderUpdate::None,
+        }
+    }
+
+    /// Subscriptions aggregation only.
+    pub fn subscriptions() -> Self {
+        WindowUpdates {
+            info: false,
+            subscriptions: true,
             layout: false,
             render: WindowRenderUpdate::None,
         }
@@ -1016,6 +1049,7 @@ impl WindowUpdates {
     pub fn layout() -> Self {
         WindowUpdates {
             info: false,
+            subscriptions: false,
             layout: true,
             render: WindowRenderUpdate::None,
         }
@@ -1025,6 +1059,7 @@ impl WindowUpdates {
     pub fn render() -> Self {
         WindowUpdates {
             info: false,
+            subscriptions: false,
             layout: false,
             render: WindowRenderUpdate::Render,
         }
@@ -1034,6 +1069,7 @@ impl WindowUpdates {
     pub fn render_update() -> Self {
         WindowUpdates {
             info: false,
+            subscriptions: false,
             layout: false,
             render: WindowRenderUpdate::RenderUpdate,
         }
@@ -1043,6 +1079,7 @@ impl std::ops::BitOrAssign for WindowUpdates {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         self.info |= rhs.info;
+        self.subscriptions |= rhs.subscriptions;
         self.layout |= rhs.layout;
         self.render |= rhs.render;
     }

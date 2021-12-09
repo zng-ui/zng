@@ -11,7 +11,7 @@ use crate::{
     render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
     units::*,
     widget_base::implicit_base,
-    widget_info::{BoundsRect, WidgetInfoBuilder, WidgetOffset, WidgetRendered},
+    widget_info::{BoundsRect, WidgetInfoBuilder, WidgetOffset, WidgetRendered, WidgetSubscriptions},
     window::WindowId,
     UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
 };
@@ -226,12 +226,15 @@ pub fn default_no_child() {
         None,
     );
     wgt.test_info(&mut ctx, &mut info);
-    let (build_info, subscriptions, _) = info.finalize();
-    assert!(subscriptions.update_mask().is_none());
-    assert!(subscriptions.event_mask().is_none());
+    let (build_info, _) = info.finalize();
     let wgt_info = build_info.find(wgt.id()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
+
+    let mut subscriptions = WidgetSubscriptions::new();
+    wgt.test_subscriptions(&mut ctx, &mut subscriptions);
+    assert!(subscriptions.update_mask().is_none());
+    assert!(subscriptions.event_mask().is_none());
 
     let root_transform_key = WidgetTransformKey::new_unique();
     let mut frame = FrameBuilder::new_renderless(
@@ -267,7 +270,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::*,
-        widget_info::{WidgetInfoBuilder, WidgetOffset},
+        widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
         UiNode,
     };
 
@@ -337,6 +340,14 @@ mod util {
             self.trace("init");
         }
 
+        fn info(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
+            self.trace("info");
+        }
+
+        fn subscriptions(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
+            self.trace("subscriptions");
+        }
+
         fn deinit(&mut self, _: &mut WidgetContext) {
             self.trace("deinit");
         }
@@ -356,10 +367,6 @@ mod util {
 
         fn arrange(&mut self, _: &mut LayoutContext, _: &mut WidgetOffset, _: PxSize) {
             self.trace("arrange");
-        }
-
-        fn info(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
-            self.trace("info");
         }
 
         fn render(&self, _: &mut RenderContext, _: &mut FrameBuilder) {

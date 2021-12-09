@@ -61,9 +61,8 @@ pub mod line_w {
         C: Var<Rgba>,
         S: Var<LineStyle>,
     {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            widget
-                .subscriptions()
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions
                 .vars(ctx)
                 .var(&self.stroke_width)
                 .var(&self.length)

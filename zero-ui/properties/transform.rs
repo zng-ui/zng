@@ -20,9 +20,9 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         C: UiNode,
         T: Var<Transform>,
     {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget.subscriptions().var(ctx, &self.transform);
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.transform);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -220,9 +220,9 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, O: Var<Point>> UiNode for TransformOriginNode<C, O> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget.subscriptions().var(ctx, &self.origin);
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.origin);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

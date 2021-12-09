@@ -480,6 +480,20 @@ mod properties {
             V: Var<T>,
         {
             #[inline(always)]
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.info(ctx, info)
+                    });
+            }
+            #[inline(always)]
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.subscriptions(ctx, subscriptions)
+                    });
+            }
+            #[inline(always)]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.init(ctx));
@@ -510,13 +524,6 @@ mod properties {
                 ctx.vars.with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || {
                     self.child.arrange(ctx, widget_offset, final_size)
                 });
-            }
-            #[inline(always)]
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
-                        self.child.info(ctx, info)
-                    });
             }
             #[inline(always)]
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -578,6 +585,20 @@ mod properties {
             V: Var<T>,
         {
             #[inline(always)]
+            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
+                ctx.vars
+                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.info(ctx, widget)
+                    });
+            }
+            #[inline(always)]
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                ctx.vars
+                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
+                        self.child.subscriptions(ctx, subscriptions)
+                    });
+            }
+            #[inline(always)]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.vars
                     .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.init(ctx));
@@ -586,13 +607,6 @@ mod properties {
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 ctx.vars
                     .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.deinit(ctx));
-            }
-            #[inline(always)]
-            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
-                        self.child.info(ctx, widget)
-                    });
             }
             #[inline(always)]
             fn update(&mut self, ctx: &mut WidgetContext) {
@@ -682,7 +696,6 @@ mod properties {
         {
             #[inline(always)]
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                self.update_mask.set(C::new().update_mask(ctx) | self.item.update_mask(ctx));
                 ctx.vars.with_context_var(
                     self.var,
                     ContextVarData {
@@ -692,6 +705,20 @@ mod properties {
                         update_mask: self.update_mask.get(),
                     },
                     || self.child.info(ctx, info),
+                );
+            }
+            #[inline(always)]
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                self.update_mask.set(C::new().update_mask(ctx) | self.item.update_mask(ctx));
+                ctx.vars.with_context_var(
+                    self.var,
+                    ContextVarData {
+                        value: &self.value,
+                        is_new: false,
+                        version: self.version,
+                        update_mask: self.update_mask.get(),
+                    },
+                    || self.child.subscriptions(ctx, subscriptions),
                 );
             }
             #[inline(always)]

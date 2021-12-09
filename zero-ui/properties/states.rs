@@ -20,13 +20,12 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsHoveredNode<C> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget
-                .subscriptions()
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions
                 .event(MouseEnterEvent)
                 .event(MouseLeaveEvent)
                 .updates(&IsEnabled::update_mask(ctx));
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -73,14 +72,14 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsCapHoveredNode<C> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget
-                .subscriptions()
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions
                 .event(MouseEnterEvent)
                 .event(MouseLeaveEvent)
                 .event(MouseCaptureEvent)
                 .updates(&IsEnabled::update_mask(ctx));
+
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -165,10 +164,8 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsPressedNode<C> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget
-                .subscriptions()
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions
                 .event(MouseEnterEvent)
                 .event(MouseLeaveEvent)
                 .event(MouseInputEvent)
@@ -177,8 +174,10 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 .updates(&IsEnabled::update_mask(ctx));
 
             if let Some(s) = &self.shortcut_press {
-                widget.subscriptions().var(ctx, s);
+                subscriptions.var(ctx, s);
             }
+
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -296,10 +295,8 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsCapPressedNode<C> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget
-                .subscriptions()
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions
                 .event(MouseInputEvent)
                 .event(MouseCaptureEvent)
                 .event(ClickEvent)
@@ -307,8 +304,9 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 .updates(&IsEnabled::update_mask(ctx));
 
             if let Some(s) = &self.shortcut_press {
-                widget.subscriptions().var(ctx, s);
+                subscriptions.var(ctx, s);
             }
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {

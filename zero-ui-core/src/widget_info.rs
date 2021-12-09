@@ -102,7 +102,6 @@ pub struct WidgetInfoBuilder {
     node: ego_tree::NodeId,
     widget_id: WidgetId,
     meta: OwnedStateMap,
-    subscriptions: WidgetSubscriptions,
 
     tree: Tree<WidgetInfoInner>,
 }
@@ -136,7 +135,6 @@ impl WidgetInfoBuilder {
             node: root_node,
             tree,
             meta: OwnedStateMap::new(),
-            subscriptions: WidgetSubscriptions::new(),
             widget_id: root_id,
         }
     }
@@ -158,18 +156,6 @@ impl WidgetInfoBuilder {
         &mut self.meta.0
     }
 
-    /// Current widget subscriptions.
-    ///
-    /// Properties must register their interest in events and variables here otherwise a call to [`UiNode::event`] or
-    /// [`UiNode::update`] can end-up skipped due to optimizations.
-    ///
-    /// [`UiNode::event`]: crate::UiNode::event
-    /// [`UiNode::update`]: crate::UiNode::update
-    #[inline]
-    pub fn subscriptions(&mut self) -> &mut WidgetSubscriptions {
-        &mut self.subscriptions
-    }
-
     /// Calls `f` in a new widget context.
     ///
     /// Both `outer_bounds` and `bounds` must be a shared reference to rectangles that are updated every layout.
@@ -180,13 +166,11 @@ impl WidgetInfoBuilder {
         outer_bounds: BoundsRect,
         inner_bounds: BoundsRect,
         rendered: WidgetRendered,
-        subscriptions: &mut WidgetSubscriptions,
         f: impl FnOnce(&mut Self),
     ) {
         let parent_node = self.node;
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
-        let parent_subscriptions = mem::take(&mut self.subscriptions);
 
         self.widget_id = id;
         self.node = self
@@ -205,14 +189,11 @@ impl WidgetInfoBuilder {
         self.node(self.node).value().meta = mem::replace(&mut self.meta, parent_meta);
         self.node = parent_node;
         self.widget_id = parent_widget_id;
-
-        *subscriptions = self.subscriptions.clone();
-        self.subscriptions |= parent_subscriptions;
     }
 
     /// Build the info tree.
     #[inline]
-    pub fn finalize(mut self) -> (WidgetInfoTree, WidgetSubscriptions, UsedWidgetInfoBuilder) {
+    pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         self.tree.root_mut().value().meta = self.meta;
         let root_id = self.tree.root().id();
 
@@ -267,7 +248,7 @@ impl WidgetInfoBuilder {
             capacity: r.0.lookup.capacity(),
         };
 
-        (r, self.subscriptions, cap)
+        (r, cap)
     }
 }
 
@@ -1263,9 +1244,11 @@ update_mask! {
 
 /// Represents all event and update subscriptions of an widget.
 ///
-/// See [`subscriptions`] in the widget info builder for more details.
+/// Properties must register their interest in events and variables here otherwise a call to [`UiNode::event`] or
+/// [`UiNode::update`] can end-up skipped due to optimizations.
 ///
-/// [`subscriptions`]: WidgetInfoBuilder::subscriptions
+/// [`UiNode::event`]: crate::UiNode::event
+/// [`UiNode::update`]: crate::UiNode::update
 #[derive(Debug, Default, Clone)]
 pub struct WidgetSubscriptions {
     event: EventMask,
@@ -1316,6 +1299,12 @@ impl WidgetSubscriptions {
     pub fn updates(&mut self, mask: &UpdateMask) -> &mut Self {
         self.update.extend(mask);
         self
+    }
+
+    /// Register all subscriptions from `other` in `self`.
+    #[inline]
+    pub fn extend(&mut self, other: &WidgetSubscriptions) -> &mut Self {
+        self.events(&other.event).updates(&other.update)
     }
 
     /// Register a variable subscription.

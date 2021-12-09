@@ -70,9 +70,9 @@ where
         V: Var<K::Type>,
         H: FnMut(&mut WidgetContext, &K::Type) + 'static,
     {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget.subscriptions().var(ctx, &self.var);
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.var);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -109,9 +109,9 @@ pub fn primitive_flags(child: impl UiNode, flags: impl IntoVar<PrimitiveFlags>) 
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: Var<PrimitiveFlags>> UiNode for PrimitiveFlagsNode<C, F> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget.subscriptions().var(ctx, &self.flags);
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.flags);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -192,9 +192,9 @@ mod tests {
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<u8>> UiNode for TestVarProbeNode<C, V> {
-            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                self.child.info(ctx, widget);
-                widget.subscriptions().var(ctx, &self.value);
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                subscriptions.var(ctx, &self.value);
+                self.child.subscriptions(ctx, subscriptions);
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {

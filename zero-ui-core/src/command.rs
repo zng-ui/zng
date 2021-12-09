@@ -36,7 +36,7 @@ use crate::{
     state_key,
     text::{Text, ToText},
     var::*,
-    widget_info::{EventSlot, WidgetInfoBuilder},
+    widget_info::{EventSlot, WidgetInfoBuilder, WidgetSubscriptions},
     window::WindowId,
     UiNode, WidgetId,
 };
@@ -1415,6 +1415,19 @@ where
         EB: FnMut(&mut WidgetContext) -> E + 'static,
         H: WidgetHandler<CommandArgs>,
     {
+        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
+            self.child.info(ctx, widget_builder);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions
+                .event(self.command.expect("OnCommandNode not initialized"))
+                .var(ctx, self.enabled.as_ref().unwrap())
+                .handler(&self.handler);
+
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
@@ -1426,15 +1439,6 @@ where
             self.command = Some(command);
 
             self.handle = Some(command.new_handle(ctx, is_enabled));
-        }
-
-        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget_builder);
-            widget_builder
-                .subscriptions()
-                .event(self.command.expect("OnCommandNode not initialized"))
-                .var(ctx, self.enabled.as_ref().unwrap())
-                .handler(&self.handler);
         }
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
@@ -1522,11 +1526,15 @@ where
 
         fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
             self.child.info(ctx, widget_builder);
-            widget_builder
-                .subscriptions()
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions
                 .event(self.command.expect("OnPreCommandNode not initialized"))
                 .var(ctx, self.enabled.as_ref().unwrap())
                 .handler(&self.handler);
+
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {

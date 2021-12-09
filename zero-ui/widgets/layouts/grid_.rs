@@ -128,8 +128,18 @@ pub mod grid {
                     row.widget().info(ctx, info);
                 }
                 self.items.info_all(ctx, info);
+            }
 
-                info.subscriptions().var(ctx, &self.spacing);
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                subscriptions.var(ctx, &self.spacing);
+
+                for column in self.columns.iter() {
+                    column.widget().subscriptions(ctx, subscriptions);
+                }
+                for row in self.rows.iter() {
+                    row.widget().subscriptions(ctx, subscriptions);
+                }
+                self.items.subscriptions_all(ctx, subscriptions);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {

@@ -283,9 +283,9 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 
     #[impl_ui_node(child)]
     impl<T: UiNode, S: Var<bool>> UiNode for ClipToBoundsNode<T, S> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget.subscriptions().var(ctx, &self.clip);
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.clip);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

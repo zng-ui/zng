@@ -33,13 +33,13 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget
-                .subscriptions()
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions
                 .var(ctx, &self.mode)
                 .event(MouseDownEvent)
                 .updates(&IsEnabled::update_mask(ctx));
+
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {

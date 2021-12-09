@@ -13,7 +13,7 @@ use crate::{
     units::*,
     var::{context_var, BoxedVar, ContextVarData, Var},
     widget_base::Visibility,
-    widget_info::{WidgetInfo, WidgetInfoTree, WidgetOffset},
+    widget_info::{WidgetInfo, WidgetInfoTree, WidgetOffset, WidgetSubscriptions},
     UiNode,
 };
 use crate::{
@@ -171,6 +171,10 @@ impl PropertyPriority {
 /// The durations is the sum of all descendent nodes.
 #[derive(Debug, Clone, Default)]
 pub struct UiNodeDurations {
+    /// Duration of [`UiNode::info`] call.
+    pub info: Duration,
+    /// Duration of [`UiNode::subscriptions`] call.
+    pub subscriptions: Duration,
     /// Duration of [`UiNode::init`] call.
     pub init: Duration,
     /// Duration of [`UiNode::deinit`] call.
@@ -181,8 +185,6 @@ pub struct UiNodeDurations {
     pub measure: Duration,
     /// Duration of [`UiNode::arrange`] call.
     pub arrange: Duration,
-    /// Duration of [`UiNode::info`] call.
-    pub info: Duration,
     /// Duration of [`UiNode::render`] call.
     pub render: Duration,
     /// Duration of [`UiNode::render_update`] call.
@@ -194,6 +196,10 @@ pub struct UiNodeDurations {
 /// The counts is only the property node call, not a sum of descendant nodes.
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct UiNodeCounts {
+    /// Count of calls to [`UiNode::info`].
+    pub info: usize,
+    /// Count of calls to [`UiNode::subscriptions`].
+    pub subscriptions: usize,
     /// Count of calls to [`UiNode::init`].
     pub init: usize,
     /// Count of calls to [`UiNode::deinit`].
@@ -204,8 +210,6 @@ pub struct UiNodeCounts {
     pub measure: usize,
     /// Count of calls to [`UiNode::arrange`].
     pub arrange: usize,
-    /// Count of calls to [`UiNode::info`].
-    pub info: usize,
     /// Count of calls to [`UiNode::render`].
     pub render: usize,
     /// Count of calls to [`UiNode::render_update`].
@@ -488,6 +492,19 @@ impl WidgetInstanceInfoNode {
     }
 }
 impl UiNode for WidgetInstanceInfoNode {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        let _scope = tracing::trace_span!("widget.info", name = self.info.borrow().widget_name).entered();
+
+        info.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
+        self.child.info(ctx, info);
+    }
+
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        let _scope = tracing::trace_span!("widget.subscriptions", name = self.info.borrow().widget_name).entered();
+
+        self.child.subscriptions(ctx, subscriptions);
+    }
+
     fn init(&mut self, ctx: &mut WidgetContext) {
         let _scope = tracing::trace_span!("widget.init", name = self.info.borrow().widget_name).entered();
 
@@ -565,13 +582,6 @@ impl UiNode for WidgetInstanceInfoNode {
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
         let _scope = tracing::trace_span!("widget.arrange", name = self.info.borrow().widget_name).entered();
         self.child.arrange(ctx, widget_offset, final_size)
-    }
-
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _scope = tracing::trace_span!("widget.info", name = self.info.borrow().widget_name).entered();
-
-        info.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
-        self.child.info(ctx, info);
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -661,6 +671,30 @@ macro_rules! ctx_mtd {
     };
 }
 impl UiNode for PropertyInfoNode {
+    fn info(&self, ctx: &mut InfoContext, wgt_info: &mut WidgetInfoBuilder) {
+        let _scope = tracing::trace_span!("property.info", name = self.info.borrow().property_name).entered();
+
+        let t = Instant::now();
+        self.child.info(ctx, wgt_info);
+        let d = t.elapsed();
+        let mut info = self.info.borrow_mut();
+        info.duration.info = d;
+        info.count.info += 1;
+
+        wgt_info.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
+    }
+
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        let _scope = tracing::trace_span!("property.subscriptions", name = self.info.borrow().property_name).entered();
+
+        let t = Instant::now();
+        self.child.subscriptions(ctx, subscriptions);
+        let d = t.elapsed();
+        let mut info = self.info.borrow_mut();
+        info.duration.subscriptions = d;
+        info.count.subscriptions += 1;
+    }
+
     fn init(&mut self, ctx: &mut WidgetContext) {
         let _scope = tracing::trace_span!("property.init", name = self.info.borrow().property_name).entered();
 
@@ -731,19 +765,6 @@ impl UiNode for PropertyInfoNode {
         let mut info = self.info.borrow_mut();
         info.duration.arrange = d;
         info.count.arrange += 1;
-    }
-
-    fn info(&self, ctx: &mut InfoContext, wgt_info: &mut WidgetInfoBuilder) {
-        let _scope = tracing::trace_span!("property.info", name = self.info.borrow().property_name).entered();
-
-        let t = Instant::now();
-        self.child.info(ctx, wgt_info);
-        let d = t.elapsed();
-        let mut info = self.info.borrow_mut();
-        info.duration.info = d;
-        info.count.info += 1;
-
-        wgt_info.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

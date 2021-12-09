@@ -1,13 +1,15 @@
-use zero_ui_view_api::units::PxRect;
-
-use super::units::{AvailableSize, PxPoint, PxSize};
 #[allow(unused)] // used in docs.
-use super::UiNode;
-use super::{
-    context::{InfoContext, LayoutContext, StateMap, WidgetContext},
+use crate::UiNode;
+use crate::{
+    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
+    event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate, SpatialFrameId},
-    Widget, WidgetId,
+    units::{AvailableSize, PxPoint, PxRect, PxSize},
+    widget_base::Visibility,
+    widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+    BoxedUiNode, BoxedWidget, Widget, WidgetId,
 };
+
 use std::{
     cell::Cell,
     iter::FromIterator,
@@ -33,6 +35,18 @@ pub trait UiNodeList: 'static {
     {
         UiNodeListChain(self, other)
     }
+
+    /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
+    fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+
+    /// Calls [`UiNode::info`] in only the `index` widget.
+    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+
+    /// Calls [`UiNode::subscriptions`] in all widgets in the list, sequentially.
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
+
+    /// Calls [`UiNode::subscriptions`] in the `index` widget.
+    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
 
     /// Calls [`UiNode::init`] in all widgets in the list, sequentially.
     fn init_all(&mut self, ctx: &mut WidgetContext);
@@ -80,12 +94,6 @@ pub trait UiNodeList: 'static {
 
     /// Calls [`UiNode::arrange`] in only the `index` widget.
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
-
-    /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
-    fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-
-    /// Calls [`UiNode::info`] in only the `index` widget.
-    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially. Uses a reference frame
     /// to offset each widget.
@@ -389,6 +397,16 @@ impl UiNodeList for WidgetVec {
         self.vec[index].info(ctx, info);
     }
 
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        for widget in &self.vec {
+            widget.subscriptions(ctx, subscriptions);
+        }
+    }
+
+    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        self.vec[index].subscriptions(ctx, subscriptions);
+    }
+
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> PxPoint,
@@ -623,6 +641,16 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].info(ctx, info);
     }
 
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        for w in &self.vec {
+            w.subscriptions(ctx, subscriptions);
+        }
+    }
+
+    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        self.vec[index].subscriptions(ctx, subscriptions);
+    }
+
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         O: FnMut(usize) -> PxPoint,
@@ -679,13 +707,6 @@ macro_rules! widget_vec {
 }
 #[doc(inline)]
 pub use crate::widget_vec;
-use crate::{
-    context::RenderContext,
-    event::EventUpdateArgs,
-    widget_base::Visibility,
-    widget_info::{WidgetInfoBuilder, WidgetOffset},
-    BoxedUiNode, BoxedWidget,
-};
 
 /// Creates a [`UiNodeVec`](crate::UiNodeVec) containing the arguments.
 ///
@@ -947,6 +968,21 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         }
     }
 
+    #[inline]
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        self.0.subscriptions_all(ctx, subscriptions);
+        self.1.subscriptions_all(ctx, subscriptions);
+    }
+
+    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_subscriptions(index, ctx, subscriptions);
+        } else {
+            self.1.widget_subscriptions(index - a_len, ctx, subscriptions);
+        }
+    }
+
     #[inline(always)]
     fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
@@ -1162,6 +1198,21 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
             self.0.widget_info(index, ctx, info)
         } else {
             self.1.widget_info(index - a_len, ctx, info)
+        }
+    }
+
+    #[inline]
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        self.0.subscriptions_all(ctx, subscriptions);
+        self.1.subscriptions_all(ctx, subscriptions);
+    }
+
+    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_subscriptions(index, ctx, subscriptions);
+        } else {
+            self.1.widget_subscriptions(index - a_len, ctx, subscriptions);
         }
     }
 
@@ -1404,6 +1455,23 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
+            fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                $(
+                    self.items.$n.subscriptions(ctx, subscriptions);
+                )+
+            }
+
+            #[inline]
+            fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                match index {
+                    $(
+                        $n => self.items.$n.subscriptions(ctx, subscriptions),
+                    )+
+                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                }
+            }
+
+            #[inline(always)]
             fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
                 O: FnMut(usize) -> PxPoint,
@@ -1539,6 +1607,13 @@ macro_rules! empty_node_list {
 
             #[inline]
             fn widget_info(&self, index: usize, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
+                panic!("index {} out of range for length 0", index)
+            }
+
+            fn subscriptions_all(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
+
+            #[inline]
+            fn widget_subscriptions(&self, index: usize, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
                 panic!("index {} out of range for length 0", index)
             }
 

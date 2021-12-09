@@ -138,9 +138,9 @@ where
         }
 
         #[UiNode]
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget.subscriptions().var(ctx, &self.data);
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.data);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         #[UiNode]
@@ -251,7 +251,7 @@ impl<D> ViewGenerator<D> {
     /// [`generate`]: ViewGenerator::generate
     pub fn presenter(
         generator: impl IntoVar<ViewGenerator<D>>,
-        subscribe: impl Fn(&VarsRead, &mut WidgetInfoBuilder) + 'static,
+        subscribe: impl Fn(&VarsRead, &mut WidgetSubscriptions) + 'static,
         update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
     ) -> impl UiNode
     where
@@ -277,7 +277,7 @@ impl<D> ViewGenerator<D> {
     /// [`presenter`]: ViewGenerator::presenter
     pub fn presenter_map<V>(
         generator: impl IntoVar<ViewGenerator<D>>,
-        subscribe: impl Fn(&VarsRead, &mut WidgetInfoBuilder) + 'static,
+        subscribe: impl Fn(&VarsRead, &mut WidgetSubscriptions) + 'static,
         update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
         map: impl FnMut(BoxedUiNode) -> V + 'static,
     ) -> impl UiNode
@@ -297,15 +297,15 @@ impl<D> ViewGenerator<D> {
         where
             D: 'static,
             G: Var<ViewGenerator<D>>,
-            S: Fn(&VarsRead, &mut WidgetInfoBuilder) + 'static,
+            S: Fn(&VarsRead, &mut WidgetSubscriptions) + 'static,
             U: FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
             M: FnMut(BoxedUiNode) -> V + 'static,
             V: UiNode,
         {
-            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                self.child.info(ctx, widget);
-                widget.subscriptions().var(ctx, &self.gen);
-                (self.subscribe)(ctx.vars, widget);
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                subscriptions.var(ctx, &self.gen);
+                (self.subscribe)(ctx.vars, subscriptions);
+                self.child.subscriptions(ctx, subscriptions);
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {

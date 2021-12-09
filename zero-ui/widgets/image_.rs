@@ -366,9 +366,9 @@ pub mod image {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for IsErrorNode<C> {
-                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                    self.child.info(ctx, widget);
-                    widget.subscriptions().var(ctx, &ContextImageVar::new());
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    subscriptions.var(ctx, &ContextImageVar::new());
+                    self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {
@@ -405,9 +405,9 @@ pub mod image {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for IsLoadedNode<C> {
-                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                    self.child.info(ctx, widget);
-                    widget.subscriptions().var(ctx, &ContextImageVar::new());
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    subscriptions.var(ctx, &ContextImageVar::new());
+                    self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {
@@ -504,10 +504,10 @@ pub mod image {
                     self.child.init(ctx);
                 }
 
-                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                    self.child.info(ctx, widget);
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    self.child.subscriptions(ctx, subscriptions);
                     // TODO the Var inside var is registered here..
-                    widget.subscriptions().var(ctx, &ContextImageVar::new()).handler(&self.handler);
+                    subscriptions.var(ctx, &ContextImageVar::new()).handler(&self.handler);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
@@ -574,10 +574,10 @@ pub mod image {
                     self.child.init(ctx);
                 }
 
-                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                    self.child.info(ctx, widget);
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    self.child.subscriptions(ctx, subscriptions);
                     // TODO var inside var not registered.
-                    widget.subscriptions().var(ctx, &ContextImageVar::new()).handler(&self.handler);
+                    subscriptions.var(ctx, &ContextImageVar::new()).handler(&self.handler);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
@@ -768,6 +768,16 @@ pub mod image {
                     );
                 }
 
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    ctx.vars.with_context_var(
+                        ContextImageVar,
+                        ContextVarData::map_read(ctx.vars, &self.source, &self.image),
+                        || {
+                            self.child.subscriptions(ctx, subscriptions);
+                        },
+                    );
+                }
+
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     ctx.vars.with_context_var(
                         ContextImageVar,
@@ -810,8 +820,8 @@ pub mod image {
         pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
             let view = ViewGenerator::presenter_map(
                 ImageErrorViewVar,
-                |vars, widget| {
-                    widget.subscriptions().var(vars, &ContextImageVar::new());
+                |vars, subscriptions| {
+                    subscriptions.var(vars, &ContextImageVar::new());
                 },
                 |ctx, is_new| {
                     if *InErrorViewVar::get(ctx) {
@@ -867,8 +877,8 @@ pub mod image {
         pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
             let view = ViewGenerator::presenter_map(
                 ImageLoadingViewVar,
-                |vars, widget| {
-                    widget.subscriptions().var(vars, &ContextImageVar::new());
+                |vars, subscriptions| {
+                    subscriptions.var(vars, &ContextImageVar::new());
                 },
                 |ctx, is_new| {
                     if *InLoadingViewVar::get(ctx) {
@@ -946,9 +956,8 @@ pub mod image {
             }
             #[impl_ui_node(none)]
             impl UiNode for ImagePresenterNode {
-                fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                    widget
-                        .subscriptions()
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    subscriptions
                         .vars(ctx)
                         .var(&ContextImageVar::new())
                         .var(&ImageFitVar::new())

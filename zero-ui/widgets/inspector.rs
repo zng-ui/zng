@@ -81,9 +81,9 @@ pub fn render_widget_tree(
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, R: Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static, E: Var<bool>> UiNode for RenderWidgetTreeNode<C, R, E> {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-            widget.subscriptions().var(ctx, &self.enabled).event(WidgetInfoChangedEvent);
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.enabled).event(WidgetInfoChangedEvent);
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
