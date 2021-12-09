@@ -285,7 +285,7 @@ where
         let need_update = task.update(ctx).is_none();
         if need_update {
             self.tasks.push(task);
-            ctx.updates.info();
+            ctx.updates.subscriptions();
         }
         need_update
     }
@@ -429,7 +429,7 @@ where
             let is_pending = task.update(ctx).is_none();
             if is_pending {
                 self.state = AsyncFnOnceWhState::Pending(task);
-                ctx.updates.info();
+                ctx.updates.subscriptions();
             }
             is_pending
         } else {

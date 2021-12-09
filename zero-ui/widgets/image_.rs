@@ -368,6 +368,10 @@ pub mod image {
             impl<C: UiNode> UiNode for IsErrorNode<C> {
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                     subscriptions.var(ctx, &ContextImageVar::new());
+                    if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
+                        subscriptions.var(ctx, img);
+                    }
+
                     self.child.subscriptions(ctx, subscriptions);
                 }
 
@@ -383,6 +387,7 @@ pub mod image {
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
+                        ctx.updates.subscriptions();
                         let is_error = new_var.as_ref().map(|v| v.get(ctx.vars).is_error()).unwrap_or(false);
                         self.state.set_ne(ctx.vars, is_error);
                     } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
@@ -407,6 +412,10 @@ pub mod image {
             impl<C: UiNode> UiNode for IsLoadedNode<C> {
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                     subscriptions.var(ctx, &ContextImageVar::new());
+                    if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
+                        subscriptions.var(ctx, img);
+                    }
+
                     self.child.subscriptions(ctx, subscriptions);
                 }
 
@@ -422,6 +431,7 @@ pub mod image {
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
+                        ctx.updates.subscriptions();
                         let is_loaded = new_var.as_ref().map(|v| v.get(ctx.vars).is_loaded()).unwrap_or(false);
                         self.state.set_ne(ctx.vars, is_loaded);
                     } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
@@ -505,13 +515,16 @@ pub mod image {
                 }
 
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                    self.child.subscriptions(ctx, subscriptions);
-                    // TODO the Var inside var is registered here..
                     subscriptions.var(ctx, &ContextImageVar::new()).handler(&self.handler);
+                    if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
+                        subscriptions.var(ctx, img);
+                    }
+                    self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
+                        ctx.updates.subscriptions();
                         if let Some(error) = new_var.as_ref().and_then(|v| v.get(ctx.vars).error()) {
                             if self.error != error {
                                 self.error = error.to_owned().into();
@@ -575,13 +588,17 @@ pub mod image {
                 }
 
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                    self.child.subscriptions(ctx, subscriptions);
-                    // TODO var inside var not registered.
                     subscriptions.var(ctx, &ContextImageVar::new()).handler(&self.handler);
+                    if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
+                        subscriptions.var(ctx, img);
+                    }
+                    self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if let Some(var_opt) = ContextImageVar::get_new(ctx.vars) {
+                        ctx.updates.subscriptions();
+
                         if let Some(var) = var_opt.as_ref() {
                             if var.get(ctx.vars).is_loaded() {
                                 self.handler.event(ctx, &ImageLoadArgs {});
@@ -879,6 +896,9 @@ pub mod image {
                 ImageLoadingViewVar,
                 |vars, subscriptions| {
                     subscriptions.var(vars, &ContextImageVar::new());
+                    if let Some(img) = ContextImageVar::get(vars).as_ref() {
+                        subscriptions.var(vars, img);
+                    }
                 },
                 |ctx, is_new| {
                     if *InLoadingViewVar::get(ctx) {
@@ -894,6 +914,7 @@ pub mod image {
                         }
                         return DataUpdate::None;
                     } else if let Some(new) = ContextImageVar::get_new(ctx.vars) {
+                        ctx.updates.subscriptions();
                         // image var update.
                         if let Some(var) = new.as_ref() {
                             if var.get(ctx).is_loading() {
@@ -966,11 +987,15 @@ pub mod image {
                         .var(&ImageCropVar::new())
                         .var(&ImageAlignVar::new())
                         .var(&ImageRenderingVar::new());
+                    
+                    if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
+                        subscriptions.var(ctx, img);
+                    }
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if let Some(var) = ContextImageVar::get_new(ctx.vars) {
-                        ctx.updates.layout_and_render();
+                        ctx.updates.subscriptions_layout_and_render();
                         self.requested_layout = true;
 
                         if let Some(var) = var.as_ref() {

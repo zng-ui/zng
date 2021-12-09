@@ -227,11 +227,11 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                         if duration != Duration::default() {
                             self.shortcut_press = Some(ctx.timers.timeout(duration));
                             updated = true;
-                            ctx.updates.info();
+                            ctx.updates.subscriptions();
                         }
                     } else {
                         updated = true;
-                        ctx.updates.info();
+                        ctx.updates.subscriptions();
                     }
                 }
                 self.child.event(ctx, args);
@@ -258,14 +258,14 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 self.is_down = false;
                 self.is_over = false;
                 if self.shortcut_press.take().is_some() {
-                    ctx.updates.info();
+                    ctx.updates.subscriptions();
                 }
 
                 self.state.set_ne(ctx.vars, false);
             } else if let Some(timer) = &self.shortcut_press {
                 if timer.is_new(ctx) {
                     self.shortcut_press = None;
-                    ctx.updates.info();
+                    ctx.updates.subscriptions();
                     self.state.set_ne(ctx.vars, self.is_down && self.is_over);
                 }
             }
@@ -356,11 +356,11 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                         if duration != Duration::default() {
                             self.shortcut_press = Some(ctx.timers.timeout(duration));
                             updated = true;
-                            ctx.updates.info();
+                            ctx.updates.subscriptions();
                         }
                     } else {
                         updated = true;
-                        ctx.updates.info();
+                        ctx.updates.subscriptions();
                     }
                     self.child.event(ctx, args);
                 }
@@ -381,13 +381,13 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 self.is_down = false;
                 self.is_captured = false;
                 if self.shortcut_press.take().is_some() {
-                    ctx.updates.info();
+                    ctx.updates.subscriptions();
                 }
                 self.state.set_ne(ctx.vars, false);
             } else if let Some(timer) = &self.shortcut_press {
                 if timer.is_new(ctx) {
                     self.shortcut_press = None;
-                    ctx.updates.info();
+                    ctx.updates.subscriptions();
                     self.state.set_ne(ctx.vars, self.is_down || self.is_captured);
                 }
             }

@@ -161,6 +161,14 @@ impl Updates {
         self.render();
     }
 
+    /// Schedules subscriptions aggregation, layout and render.
+    #[inline]
+    pub fn subscriptions_layout_and_render(&mut self) {
+        self.subscriptions();
+        self.layout();
+        self.render();
+    }
+
     /// Schedules a layout and render update.
     #[inline]
     pub fn layout_and_render(&mut self) {
@@ -204,6 +212,12 @@ impl Updates {
     #[inline]
     pub fn info_requested(&self) -> bool {
         self.l_updates.window_updates.info
+    }
+
+    /// Gets `true` if a widget info rebuild or subscriptions aggregation was requested for the parent window.
+    #[inline]
+    pub fn subscriptions_requested(&self) -> bool {
+        self.l_updates.window_updates.subscriptions
     }
 
     /// Schedules a new full frame for the parent window.
@@ -1602,11 +1616,11 @@ pub struct InfoContext<'a> {
     /// Read-only access to the state that lives for the duration of the widget.
     pub widget_state: &'a StateMap,
 
-    /// State that lives for the duration of the node tree render or render update call in the window.
+    /// State that lives for the duration of the node tree rebuild or subscriptions aggregation call in the window.
     ///
-    /// This state lives only for the call to [`UiNode::render`](crate::UiNode::render) or
-    /// [`UiNode::render_update`](crate::UiNode::render_update) method call in all nodes of the window.
-    /// You can use this to signal nodes that have not rendered yet.
+    /// This state lives only for the call to [`UiNode::info`](crate::UiNode::info) or
+    /// [`UiNode::subscriptions`](crate::UiNode::subscriptions) method call in all nodes of the window.
+    /// You can use this to signal nodes that have not added info yet.
     pub update_state: &'a mut StateMap,
 
     /// Read-only access to variables.
