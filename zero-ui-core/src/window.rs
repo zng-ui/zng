@@ -1196,7 +1196,7 @@ impl AppExtension for WindowManager {
     fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         with_detached_windows(ctx, |ctx, windows| {
             for (_, w) in windows.iter_mut() {
-                w.event(ctx, args);
+                w.on_event(ctx, args);
             }
         })
     }
@@ -1923,8 +1923,21 @@ impl AppWindow {
         (win, info)
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn on_info(&mut self, ctx: &mut AppContext) {
+        if self.context.update.info {
+            let _s = tracing::trace_span!("window.info", window = %self.id.sequential()).entered();
+            let tree = self.context.info(ctx);
+            ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
+            WidgetInfoChangedEvent.notify(
+                ctx,
+                WidgetInfoChangedArgs::now(self.id, tree, ctx.updates.layout_requested(), ctx.updates.render_requested()),
+            );
+        }
+    }
+
+    fn on_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         self.context.event(ctx, args);
+        self.on_info(ctx);
     }
 
     fn on_update(&mut self, ctx: &mut AppContext) {
@@ -1941,15 +1954,7 @@ impl AppWindow {
 
             self.context.update(ctx);
 
-            if self.context.update.info {
-                let _s = tracing::trace_span!("window.info", window = %self.id.sequential()).entered();
-                let tree = self.context.info(ctx);
-                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
-                WidgetInfoChangedEvent.notify(
-                    ctx,
-                    WidgetInfoChangedArgs::now(self.id, tree, ctx.updates.layout_requested(), ctx.updates.render_requested()),
-                );
-            }
+            self.on_info(ctx);
 
             if self.vars.size().is_new(ctx)
                 || self.vars.auto_size().is_new(ctx)
