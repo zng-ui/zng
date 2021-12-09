@@ -1,5 +1,4 @@
-* Turn command handle enabled into a variable.
-* Don't use ContextVar of Var in image.
+* Turn command handle enabled into a variable?
 * Review IsEnabled.
 * Review EventArgs, should we target a specific path?.
 * Sub-divide UiNodeList masks.

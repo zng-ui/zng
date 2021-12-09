@@ -82,3 +82,29 @@ fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
 * NVIDIA OpenGL takes 200ms! to startup.
 * First render is also slow.
 * We block the app process waiting view-process startup.
+
+# Cache Everything
+
+General idea, reuse computed data for `UiNode` info, layout and render at
+widget boundaries if the widget or inner widgets did not request an update of these types.
+
+## `UiNode::subscriptions` 
+
+Easiest to do, can serve as a test for the others?
+
+## `UiNode::info`
+
+Could probably look the same as `subscriptions` but can an ego-tree be build from sub-trees?
+
+To cache metadata we need to clone-it, `AnyMap` is not cloneable, could `Rc` the map.
+
+## `UiNode::render`
+
+Webrender needs to support this, check how they do `<iframe>`?
+
+Has potential to use add megabytes of memory use, lots of repeating nested content, 
+maybe we dynamically change what widget must cache based on use.
+
+## Layout
+
+Most difficult, can depend on context available size, font size, view-port size, can it be done?
