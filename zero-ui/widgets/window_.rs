@@ -369,7 +369,7 @@ pub mod window {
     }
 
     fn new_event(child: impl UiNode, #[cfg(debug_assertions)] can_inspect: impl IntoVar<bool>) -> impl UiNode {
-        let child = commands::close_node(child);
+        let child = commands::window_control_node(child);
         #[cfg(debug_assertions)]
         let child = commands::inspect_node(child, can_inspect);
         child
@@ -566,7 +566,7 @@ pub mod window {
             window::{WindowFocusChangedEvent, WindowsExt},
             *,
         };
-        use zero_ui_core::var::RcVar;
+        use zero_ui_core::window::WindowState;
 
         command! {
             /// Represents the window **close** action.
@@ -589,6 +589,59 @@ pub mod window {
                 .init_info("Close the current window.")
                 .init_shortcut([shortcut!(ALT+F4), shortcut!(CTRL+W)]);
 
+            /// Represents the window **minimize** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                 |
+            /// |--------------|-------------------------------------------------------|
+            /// | [`name`]     | "Minimize Window"                                     |
+            /// | [`info`]     | "Minimize the current window."                        |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            pub MinimizeCommand
+                .init_name("Minimize Window")
+                .init_info("Minimize the current window.");
+
+            /// Represents the window **maximize** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                 |
+            /// |--------------|-------------------------------------------------------|
+            /// | [`name`]     | "Maximize Window"                                     |
+            /// | [`info`]     | "Maximize the current window."                        |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            pub MaximizeCommand
+                .init_name("Maximize Window")
+                .init_info("Maximize the current window.");
+
+            /// Represents the window **restore** action.
+            ///
+            /// Restores the window to its normal position and size.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                  |
+            /// |--------------|--------------------------------------------------------|
+            /// | [`name`]     | "Restore Window"                                       |
+            /// | [`info`]     | "Restores the window to its normal position and size." |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            pub RestoreCommand
+                .init_name("Restore Window")
+                .init_info("Restores the window to its normal position and size.");
+
             /// Represent the window **inspect** action.
             ///
             /// # Metadata
@@ -610,69 +663,105 @@ pub mod window {
                 .init_shortcut([shortcut!(CTRL|SHIFT+I), shortcut!(F12)]);
         }
 
-        pub(super) fn close_node(child: impl UiNode) -> impl UiNode {
-            struct OnCloseNode<C: UiNode> {
+        pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
+            struct WindowControlNode<C: UiNode> {
                 child: C,
-                handle: CommandHandle,
-                allow_alt_f4: RcVar<bool>,
+                maximize_handle: CommandHandle,
+                minimize_handle: CommandHandle,
+                restore_handle: CommandHandle,
+                close_handle: CommandHandle,
+
+                allow_alt_f4_binding: VarBindingHandle,
             }
             #[impl_ui_node(child)]
-            impl<C: UiNode> UiNode for OnCloseNode<C> {
+            impl<C: UiNode> UiNode for WindowControlNode<C> {
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                     subscriptions
-                        .var(ctx, &CloseCommand.shortcut())
-                        .event(CloseCommand)
-                        .event(WindowFocusChangedEvent);
+                        .event(WindowFocusChangedEvent)
+                        .event(MaximizeCommand)
+                        .event(MinimizeCommand)
+                        .event(RestoreCommand)
+                        .event(CloseCommand);
+
                     self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let window_id = ctx.path.window_id();
-                    self.allow_alt_f4 = ctx.services.windows().vars(window_id).unwrap().allow_alt_f4().clone();
-
                     let enabled = ctx.services.focus().is_window_focused(window_id).copy(ctx.vars);
-                    self.handle = CloseCommand.new_handle(ctx, enabled);
 
-                    // Highjacks ALT+F4 in Windows.
-                    self.allow_alt_f4
-                        .set_ne(ctx.vars, CloseCommand.shortcut().get(ctx.vars).contains(shortcut![ALT + F4]));
+                    // state
+                    self.maximize_handle = MaximizeCommand.new_handle(ctx, enabled);
+                    self.minimize_handle = MinimizeCommand.new_handle(ctx, enabled);
+                    self.restore_handle = RestoreCommand.new_handle(ctx, enabled);
 
-                    self.child.init(ctx)
+                    // close
+                    self.close_handle = MaximizeCommand.new_handle(ctx, enabled);
+
+                    if cfg!(windows) {
+                        // hijacks allow_alt_f4 for the close command, if we don't do this
+                        // the view-process can block the key press and send a close event
+                        // without the CloseCommand event ever firing.
+                        let allow_alt_f4 = ctx.services.windows().vars(window_id).unwrap().allow_alt_f4();
+                        self.allow_alt_f4_binding = CloseCommand
+                            .shortcut()
+                            .bind_map(ctx.vars, allow_alt_f4, |_, s| s.contains(shortcut![ALT + F4]));
+                    }
+
+                    self.child.init(ctx);
                 }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.allow_alt_f4_binding = VarBindingHandle::dummy();
+                    self.child.deinit(ctx);
+                }
+
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                    if let Some(args) = CloseCommand.update(args) {
-                        // command requested, run it only if we are focused.
+                    fn set_state(ctx: &mut WidgetContext, state: WindowState) {
+                        let window_id = ctx.path.window_id();
+                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
+                            let _ = ctx.services.windows().vars(window_id).unwrap().state().set_ne(ctx.vars, state);
+                        }
+                    }
+
+                    if let Some(args) = WindowFocusChangedEvent.update(args) {
+                        // toggle enabled if our window activated/deactivated.
+                        if args.window_id == ctx.path.window_id() {
+                            // TODO should handle enabled just be a `var`?
+                            self.maximize_handle.set_enabled(args.focused);
+                            self.maximize_handle.set_enabled(args.focused);
+                            self.restore_handle.set_enabled(args.focused);
+                            self.close_handle.set_enabled(args.focused);
+                        }
+                        self.child.event(ctx, args);
+                    } else if let Some(args) = MaximizeCommand.update(args) {
+                        set_state(ctx, WindowState::Maximized);
+                        self.child.event(ctx, args);
+                    } else if let Some(args) = MinimizeCommand.update(args) {
+                        set_state(ctx, WindowState::Minimized);
+                        self.child.event(ctx, args);
+                    } else if let Some(args) = RestoreCommand.update(args) {
+                        set_state(ctx, WindowState::Normal);
+                        self.child.event(ctx, args);
+                    } else if let Some(args) = CloseCommand.update(args) {
+                        // close requested, run it only if we are focused.
                         let window_id = ctx.path.window_id();
                         if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
                             let _ = ctx.services.windows().close(window_id);
                         }
                         self.child.event(ctx, args)
-                    } else if let Some(args) = WindowFocusChangedEvent.update(args) {
-                        // toggle enabled if our window activated/deactivated.
-                        if args.window_id == ctx.path.window_id() {
-                            // TODO should handle enabled just be a `var`?
-                            self.handle.set_enabled(args.focused);
-                        }
-                        self.child.event(ctx, args);
                     } else {
                         self.child.event(ctx, args)
                     }
                 }
-                fn update(&mut self, ctx: &mut WidgetContext) {
-                    // update the ALT+F4 block flag in Windows.
-                    #[cfg(windows)]
-                    if let Some(s) = CloseCommand.shortcut().get_new(ctx.vars) {
-                        self.allow_alt_f4.set_ne(ctx.vars, s.contains(shortcut![ALT + F4]));
-                    }
-
-                    self.child.update(ctx);
-                }
             }
-
-            OnCloseNode {
+            WindowControlNode {
                 child,
-                handle: CommandHandle::dummy(),
-                allow_alt_f4: var::var(false), // dummy
+                maximize_handle: CommandHandle::dummy(),
+                minimize_handle: CommandHandle::dummy(),
+                restore_handle: CommandHandle::dummy(),
+                close_handle: CommandHandle::dummy(),
+                allow_alt_f4_binding: VarBindingHandle::dummy(),
             }
         }
 
