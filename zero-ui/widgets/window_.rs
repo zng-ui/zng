@@ -696,7 +696,7 @@ pub mod window {
                     self.restore_handle = RestoreCommand.new_handle(ctx, enabled);
 
                     // close
-                    self.close_handle = MaximizeCommand.new_handle(ctx, enabled);
+                    self.close_handle = CloseCommand.new_handle(ctx, enabled);
 
                     if cfg!(windows) {
                         // hijacks allow_alt_f4 for the close command, if we don't do this
