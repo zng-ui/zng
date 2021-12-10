@@ -11,7 +11,7 @@ use crate::{
     context::*,
     event::*,
     keyboard::ModifiersState,
-    render::*,
+    render::{webrender_api::HitTestResult, *},
     service::*,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
@@ -378,11 +378,13 @@ event! {
 ///
 /// * [Mouse]
 pub struct MouseManager {
-    /// last cursor move position (scaled).
+    // last cursor move position (scaled).
     pos: DipPoint,
-    /// last cursor move over `pos_window` and source device.
+    // last cursor move over `pos_window` and source device.
     pos_window: Option<WindowId>,
     pos_device: Option<DeviceId>,
+    // last cursor move hit-test.
+    pos_hits: (FrameId, HitTestResult),
 
     /// last modifiers.
     modifiers: ModifiersState,
@@ -401,6 +403,7 @@ impl Default for MouseManager {
             pos: DipPoint::zero(),
             pos_window: None,
             pos_device: None,
+            pos_hits: (FrameId::INVALID, HitTestResult::default()),
 
             modifiers: ModifiersState::default(),
 
@@ -423,7 +426,13 @@ impl MouseManager {
         };
 
         let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
-        let hits = windows.hit_test(window_id, position).unwrap();
+
+        let hits = if let Ok(scale) = windows.scale_factor(window_id) {
+            FrameHitInfo::new(window_id, self.pos_hits.0, self.pos.to_px(scale.0), &self.pos_hits.1)
+        } else {
+            return; // NotFound
+        };
+
         let frame_info = windows.widget_tree(window_id).unwrap();
 
         let target = if let Some(t) = hits.target() {
@@ -612,7 +621,7 @@ impl MouseManager {
         device_id: DeviceId,
         coalesced_pos: Vec<DipPoint>,
         position: DipPoint,
-        hits: FrameHitInfo,
+        hits_res: (FrameId, HitTestResult),
         ctx: &mut AppContext,
     ) {
         let mut moved = Some(window_id) != self.pos_window || Some(device_id) != self.pos_device;
@@ -637,6 +646,9 @@ impl MouseManager {
                 Ok(f) => f,
                 Err(_) => return, // window closed
             };
+
+            let hits = FrameHitInfo::new(window_id, hits_res.0, position.to_px(windows.scale_factor(window_id).unwrap().0), &hits_res.1);
+
             let target = if let Some(t) = hits.target() {
                 frame_info.find(t.widget_id).map(|w| w.path()).unwrap_or_else(|| {
                     tracing::error!("hits target `{}` not found", t.widget_id);
@@ -675,6 +687,8 @@ impl MouseManager {
         } else if coalesced_pos.is_empty() {
             tracing::warn!("RawCursorMoved did not actually move")
         }
+
+        self.pos_hits = hits_res;
     }
 
     fn on_cursor_left(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
@@ -804,6 +818,9 @@ impl AppExtension for MouseManager {
                     .target()
                     .and_then(|t| windows.widget_tree(args.window_id).unwrap().find(t.widget_id))
                     .map(|w| w.path());
+
+                self.pos_hits = (args.frame_id, args.cursor_hits.clone());
+
                 self.update_hovered(args.window_id, None, hits, target, ctx.events, mouse);
             }
             // update capture
@@ -815,9 +832,14 @@ impl AppExtension for MouseManager {
             }
         }
         if let Some(args) = RawCursorMovedEvent.update(args) {
-            if let Ok(hits) = ctx.services.windows().hit_test(args.window_id, args.position) {
-                self.on_cursor_moved(args.window_id, args.device_id, args.coalesced_pos.clone(), args.position, hits, ctx);
-            }
+            self.on_cursor_moved(
+                args.window_id,
+                args.device_id,
+                args.coalesced_pos.clone(),
+                args.position,
+                args.hits.clone(),
+                ctx,
+            );
         } else if let Some(args) = RawMouseInputEvent.update(args) {
             self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
         } else if let Some(args) = RawModifiersChangedEvent.update(args) {

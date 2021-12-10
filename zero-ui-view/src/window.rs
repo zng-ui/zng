@@ -798,8 +798,7 @@ impl Window {
             None
         };
 
-        let (_hits_frame_id, hits) = self.hit_test(self.cursor_pos);
-        debug_assert_eq!(_hits_frame_id, frame_id);
+        let hits = self.hit_tester.hit_test(self.cursor_pos);
 
         ((frame_id, data, hits), first_frame)
     }
@@ -905,8 +904,8 @@ impl Window {
     /// Does a hit-test on the current frame.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
-        // let _s = tracing::info_span!("hit_test").entered();
+    pub fn hit_test(&mut self, point: DipPoint) -> (FrameId, HitTestResult) {
+        let point = point.to_px(self.scale_factor());
         (self.rendered_frame_id, self.hit_tester.hit_test(point))
     }
 }

@@ -398,8 +398,11 @@ impl Surface {
         )
     }
 
-    pub fn hit_test(&mut self, point: PxPoint) -> (FrameId, HitTestResult) {
-        (self.rendered_frame_id, self.api.hit_test(self.document_id(), point.to_wr_world()))
+    pub fn hit_test(&mut self, point: DipPoint) -> (FrameId, HitTestResult) {
+        (
+            self.rendered_frame_id,
+            self.api.hit_test(self.document_id(), point.to_px(self.scale_factor).to_wr_world()),
+        )
     }
 }
 impl Drop for Surface {

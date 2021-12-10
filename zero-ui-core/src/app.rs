@@ -959,7 +959,14 @@ impl<E: AppExtension> RunningApp<E> {
                 coalesced_pos,
                 position,
             } => {
-                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position);
+                let view = self.ctx().services.view_process();
+                let hits = view.hit_test(w_id, position).unwrap_or_else(|_| {
+                    (
+                        zero_ui_view_api::FrameId::INVALID,
+                        crate::render::webrender_api::HitTestResult::default(),
+                    )
+                });
+                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position, hits);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
             Event::CursorEntered {

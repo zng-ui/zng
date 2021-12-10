@@ -1774,10 +1774,10 @@ impl AppWindowInfo {
         let _scope = tracing::trace_span!("hit_test", window = %self.id.sequential(), ?point).entered();
 
         if let Some(r) = &self.renderer {
-            let point = point.to_px(self.scale_factor.0);
+            let px_pt = point.to_px(self.scale_factor.0);
             match r.hit_test(point) {
                 Ok((frame_id, hit_test)) => {
-                    return FrameHitInfo::new(self.id, frame_id, point, &hit_test);
+                    return FrameHitInfo::new(self.id, frame_id, px_pt, &hit_test);
                 }
                 Err(Respawned) => tracing::debug!("respawned calling `hit_test`, will return `no_hits`"),
             }
