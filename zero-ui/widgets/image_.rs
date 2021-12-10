@@ -987,7 +987,7 @@ pub mod image {
                         .var(&ImageCropVar::new())
                         .var(&ImageAlignVar::new())
                         .var(&ImageRenderingVar::new());
-                    
+
                     if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
                         subscriptions.var(ctx, img);
                     }

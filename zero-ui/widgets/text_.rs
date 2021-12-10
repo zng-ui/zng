@@ -368,9 +368,9 @@ pub mod text {
 
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                     ctx.vars
-                    .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
-                        self.child.subscriptions(ctx, subscriptions)
-                    });
+                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
+                            self.child.subscriptions(ctx, subscriptions)
+                        });
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {
@@ -419,7 +419,7 @@ pub mod text {
                             ctx.with_font_size(font_size, self.size_new, |ctx| self.child.arrange(ctx, widget_offset, final_size))
                         });
                     self.size_new = false;
-                }               
+                }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     ctx.vars

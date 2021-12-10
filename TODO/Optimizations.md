@@ -9,73 +9,15 @@
 
 # Update Mask
 
-* Each update source, like vars, are assigned a bin 0 to 255.
-* Each update has a 255 bit mask for bins that were updated.
-* Each? widget also has a 255 bit mask of all update sources descendent nodes are interested in.
-* The widget can then eliminate a call to update for most cases when the update does not affect its content.
+* Sub-divide UiNodeList masks.
 
-```rust
-#[impl_ui_node(child)]
-impl<C: UiNode> UiNode for MyNode<C> {
-      fn subscriptions(&mut self, ctx: &mut WidgetContext, interest: &mut WidgetInterest) {
-            interest.var(&self.var0);
-            interest.var(&self.var1);
+# Events
 
-            interest.event(KeyInputEvent);
+* Replace `EventArgs::concerns_widget` with a `EventsArgs::target` that is an `Option<&WidgetPath>`,
+  widgets can then route the event more efficiently, specially for cases like the cursor move where
+  most of the widgets are subscribing to the event type but only a small portion of then are going to receive.
 
-            self.child.interest(interest);
-      }
-
-      fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(true) = self.var0.copy_new(ctx) {
-                  self.var1 = var("new!");     
-                  ctx.updates.subscriptions();
-            } else let Some(new) = if self.var1.get_new(ctx) {
-                  println!("{}", new);
-            }
-      }
-}
-```
-
-# Separate Meta Creation from Frame
-
-```rust
-trait UiNode {
-      fn info(&self, ctx: &mut InfoContext, frame: &mut WidgetInfoBuilder);
-}
-```
-
-# Implement Event Matcher Macro
-
-```rust
-fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-      event_match! {
-            pre/*|pos*/ args => self.child.event(ctx, args),
-            KeyInputEvent => {
-
-            },
-            MouseMoveEvent => {
-
-            },
-      }
-}
-```
-
-Expands to:
-
-```rust
-fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-      if let Some(args) = KeyInputEvent.update(args) {
-             self.child.event(ctx, args); // pre
-             {
-
-             }
-             // self.child.event(ctx, args); // pos
-      } else {
-             self.child.event(ctx, args);
-      }
-}
-```
+  Target `None` are only for `AppExtensions`, and maybe the window root?.
 
 # Startup
 

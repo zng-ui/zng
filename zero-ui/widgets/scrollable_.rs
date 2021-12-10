@@ -629,10 +629,7 @@ pub mod thumb {
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
             fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions
-                .event(MouseMoveEvent)
-                .event(MouseUpEvent)
-                .event(MouseDownEvent);
+                subscriptions.event(MouseMoveEvent).event(MouseUpEvent).event(MouseDownEvent);
                 self.child.subscriptions(ctx, subscriptions);
             }
 

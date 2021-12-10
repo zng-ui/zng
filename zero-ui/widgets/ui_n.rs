@@ -3,7 +3,7 @@ use crate::core::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    widget_info::{WidgetInfoBuilder, WidgetSubscriptions, WidgetOffset},
+    widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
     UiNode,
 };
 
@@ -19,7 +19,7 @@ macro_rules! ui_n {
                 match self {
                     $($UiEnum::$UiNode(ui) => ui.info(ctx, info),)+
                 }
-            }      
+            }
 
             fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                 match self {
@@ -61,7 +61,7 @@ macro_rules! ui_n {
                 match self {
                     $($UiEnum::$UiNode(ui) => ui.arrange(ctx, widget_offset, final_size),)+
                 }
-            }                 
+            }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 match self {

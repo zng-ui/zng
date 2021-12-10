@@ -1771,6 +1771,8 @@ struct AppWindowInfo {
 }
 impl AppWindowInfo {
     fn hit_test(&self, point: DipPoint) -> FrameHitInfo {
+        let _scope = tracing::trace_span!("hit_test", window = %self.id.sequential(), ?point).entered();
+
         if let Some(r) = &self.renderer {
             let point = point.to_px(self.scale_factor.0);
             match r.hit_test(point) {

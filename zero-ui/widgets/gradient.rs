@@ -78,11 +78,7 @@ where
 
     #[UiNode]
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions
-            .vars(ctx)
-            .var(&self.axis)
-            .var(&self.stops)
-            .var(&self.extend_mode);
+        subscriptions.vars(ctx).var(&self.axis).var(&self.stops).var(&self.extend_mode);
     }
 
     #[UiNode]

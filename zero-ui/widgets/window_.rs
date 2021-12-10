@@ -623,7 +623,7 @@ pub mod window {
                         .var(ctx, &CloseCommand.shortcut())
                         .event(CloseCommand)
                         .event(WindowFocusChangedEvent);
-                        self.child.subscriptions(ctx, subscriptions);
+                    self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {
