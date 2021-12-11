@@ -38,7 +38,7 @@ fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
 
     // suppress webrender vertex debug-only warnings.
     // see: https://bugzilla.mozilla.org/show_bug.cgi?id=1615342
-    if metadata.target() == "webrender::device::gl" && metadata.line() == Some(2389) {
+    if metadata.target() == "webrender::device::gl" && metadata.line() == Some(2385) {
         return false;
     }
 
