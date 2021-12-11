@@ -61,14 +61,15 @@ impl Request {
         matches!(&self.0, RequestData::render { id, .. } | RequestData::render_update { id, .. } if *id == window_id)
     }
 
-    /// Returns `true` if the request is setting the position or size of the window.
-    pub fn is_move_or_resize(&self, window_id: WindowId) -> bool {
+    /// Returns `true` if the request affects position or size of the window.
+    pub fn affects_window_rect(&self, window_id: WindowId) -> bool {
         matches!(
             &self.0,
             RequestData::set_position { id, .. }
             | RequestData::set_size { id, .. }
             | RequestData::set_max_size { id, .. }
             | RequestData::set_min_size { id, .. }
+            | RequestData::set_state { id, .. }
             if *id == window_id
         )
     }

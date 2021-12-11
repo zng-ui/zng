@@ -489,8 +489,10 @@ impl<S: AppEventSender> App<S> {
                 }
 
                 if !self.windows[i].resized(size) {
+                    tracing::debug!("resize already handled or did not actually change size");
                     return;
                 }
+
                 // give the app 300ms to send a new frame, this is the collaborative way to
                 // resize, it should reduce the changes of the user seeing the clear color.
 
@@ -498,15 +500,12 @@ impl<S: AppEventSender> App<S> {
                 redirect_enabled.store(true, Ordering::Relaxed);
                 let stop_redirect = util::RunOnDrop::new(|| redirect_enabled.store(false, Ordering::Relaxed));
 
-                self.notify(Event::WindowResized {
-                    window: id,
-                    size,
-                    cause: EventCause::System,
-                });
-                self.flush_coalesced();
-
                 let deadline = Instant::now() + Duration::from_millis(300);
+
+                // flush already pending frames.
                 if self.windows[i].is_rendering_frame() {
+                    tracing::debug!("resize requested while still rendering");
+
                     if let Some((frame_id, image, cursor_hits)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
                         let id = self.windows[i].id();
 
@@ -520,12 +519,21 @@ impl<S: AppEventSender> App<S> {
                     }
                 }
 
+                // send event, the app code should send a frame in the new size as soon as possible.
+                self.notify(Event::WindowResized {
+                    window: id,
+                    size,
+                    cause: EventCause::System,
+                });
+                self.flush_coalesced();
+
+                // "modal" loop, breaks in 300ms or when a frame is received.
                 let mut received_frame = false;
                 loop {
                     match self.redirect_recv.recv_deadline(deadline) {
                         Ok(req) => {
                             received_frame = req.is_frame(id);
-                            if received_frame || req.is_move_or_resize(id) {
+                            if received_frame || req.affects_window_rect(id) {
                                 // received new frame
                                 drop(stop_redirect);
                                 self.windows[i].on_resized();
@@ -535,6 +543,7 @@ impl<S: AppEventSender> App<S> {
                                 }
                                 break;
                             } else {
+                                // received some other request, forward it.
                                 let rsp = self.respond(req);
                                 if rsp.must_be_send() {
                                     let _ = self.response_sender.send(rsp);
@@ -543,6 +552,7 @@ impl<S: AppEventSender> App<S> {
                         }
 
                         Err(flume::RecvTimeoutError::Timeout) => {
+                            // did not receive a new frame in time.
                             drop(stop_redirect);
                             self.windows[i].on_resized();
                             break;
@@ -553,12 +563,13 @@ impl<S: AppEventSender> App<S> {
                     }
                 }
 
+                // drain any request received in between exiting the modal loop.
                 let drained: Vec<_> = self.redirect_recv.drain().collect();
                 for req in drained {
                     let _ = self.app_sender.send(AppEvent::Request(req));
                 }
 
-                // if we are still within 1 second, wait webrender, and if a frame was rendered here, notify.
+                // if we are still within 300ms, wait webrender, and if a frame was rendered here, notify.
                 if received_frame && deadline > Instant::now() {
                     if let Some((frame_id, image, cursor_hits)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
                         let id = self.windows[i].id();
