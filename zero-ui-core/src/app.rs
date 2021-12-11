@@ -1253,10 +1253,13 @@ impl<E: AppExtension> RunningApp<E> {
         let mut timer_elapsed = false;
 
         if wait_app_event {
-            let _idle = tracing::debug_span!("<idle>").entered();
+            let idle = tracing::debug_span!("<idle>").entered();
             if let Some(time) = self.wake_time.take() {
                 match self.receiver.recv_deadline(time) {
-                    Ok(ev) => self.push_coalesce(ev, observer),
+                    Ok(ev) => {
+                        drop(idle);
+                        self.push_coalesce(ev, observer)
+                    }
                     Err(e) => match e {
                         flume::RecvTimeoutError::Timeout => timer_elapsed = true,
                         flume::RecvTimeoutError::Disconnected => disconnected = true,
@@ -1264,7 +1267,10 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             } else {
                 match self.receiver.recv() {
-                    Ok(ev) => self.push_coalesce(ev, observer),
+                    Ok(ev) => {
+                        drop(idle);
+                        self.push_coalesce(ev, observer)
+                    }
                     Err(e) => match e {
                         flume::RecvError::Disconnected => disconnected = true,
                     },

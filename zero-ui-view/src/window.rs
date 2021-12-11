@@ -815,6 +815,10 @@ impl Window {
         ctx.swap_buffers().unwrap();
     }
 
+    pub fn is_rendering_frame(&self) -> bool {
+        !self.pending_frames.is_empty()
+    }
+
     /// Capture the next frame-ready event.
     ///
     /// Returns `Some` if received before `deadline`, if `Some` already redraw too.

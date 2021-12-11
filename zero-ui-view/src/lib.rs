@@ -503,10 +503,22 @@ impl<S: AppEventSender> App<S> {
                     size,
                     cause: EventCause::System,
                 });
-
                 self.flush_coalesced();
 
                 let deadline = Instant::now() + Duration::from_millis(300);
+                if self.windows[i].is_rendering_frame() {
+                    if let Some((frame_id, image, cursor_hits)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
+                        let id = self.windows[i].id();
+
+                        self.notify(Event::FrameRendered {
+                            window: id,
+                            frame: frame_id,
+                            frame_image: image,
+                            cursor_hits,
+                        });
+                        self.flush_coalesced();
+                    }
+                }
 
                 let mut received_frame = false;
                 loop {

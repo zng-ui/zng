@@ -647,7 +647,12 @@ impl MouseManager {
                 Err(_) => return, // window closed
             };
 
-            let hits = FrameHitInfo::new(window_id, hits_res.0, position.to_px(windows.scale_factor(window_id).unwrap().0), &hits_res.1);
+            let hits = FrameHitInfo::new(
+                window_id,
+                hits_res.0,
+                position.to_px(windows.scale_factor(window_id).unwrap().0),
+                &hits_res.1,
+            );
 
             let target = if let Some(t) = hits.target() {
                 frame_info.find(t.widget_id).map(|w| w.path()).unwrap_or_else(|| {
