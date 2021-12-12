@@ -21,10 +21,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsHoveredNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .event(MouseEnterEvent)
-                .event(MouseLeaveEvent)
-                .updates(&IsEnabled::update_mask(ctx));
+            subscriptions.event(MouseHoveredEvent).updates(&IsEnabled::update_mask(ctx));
             self.child.subscriptions(ctx, subscriptions);
         }
 
@@ -34,14 +31,13 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = MouseEnterEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
-                    self.state.set_ne(ctx.vars, true);
-                }
-                self.child.event(ctx, args);
-            } else if let Some(args) = MouseLeaveEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
-                    self.state.set_ne(ctx.vars, false);
+            if let Some(args) = MouseHoveredEvent.update(args) {
+                if IsEnabled::get(ctx) {
+                    if args.is_mouse_enter(ctx.path) {
+                        self.state.set_ne(ctx, true);
+                    } else if args.is_mouse_leave(ctx.path) {
+                        self.state.set_ne(ctx, false);
+                    }
                 }
                 self.child.event(ctx, args);
             } else {
@@ -74,8 +70,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     impl<C: UiNode> UiNode for IsCapHoveredNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions
-                .event(MouseEnterEvent)
-                .event(MouseLeaveEvent)
+                .event(MouseHoveredEvent)
                 .event(MouseCaptureEvent)
                 .updates(&IsEnabled::update_mask(ctx));
 
@@ -91,16 +86,15 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             let mut updated = false;
-            if let Some(args) = MouseEnterEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
-                    self.is_hovered = true;
-                    updated = true;
-                }
-                self.child.event(ctx, args);
-            } else if let Some(args) = MouseLeaveEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
-                    self.is_hovered = false;
-                    updated = true;
+            if let Some(args) = MouseHoveredEvent.update(args) {
+                if IsEnabled::get(ctx) {
+                    if args.is_mouse_enter(ctx.path) {
+                        self.is_hovered = true;
+                        updated = true;
+                    } else if args.is_mouse_leave(ctx.path) {
+                        self.is_hovered = false;
+                        updated = true;
+                    }
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseCaptureEvent.update(args) {
@@ -166,8 +160,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     impl<C: UiNode> UiNode for IsPressedNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions
-                .event(MouseEnterEvent)
-                .event(MouseLeaveEvent)
+                .event(MouseHoveredEvent)
                 .event(MouseInputEvent)
                 .event(ClickEvent)
                 .event(WindowFocusChangedEvent)
@@ -190,16 +183,15 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             let mut updated = false;
-            if let Some(args) = MouseEnterEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
-                    self.is_over = true;
-                    updated = true;
-                }
-                self.child.event(ctx, args);
-            } else if let Some(args) = MouseLeaveEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
-                    self.is_over = false;
-                    updated = true;
+            if let Some(args) = MouseHoveredEvent.update(args) {
+                if IsEnabled::get(ctx) {
+                    if args.is_mouse_enter(ctx.path) {
+                        self.is_over = true;
+                        updated = true;
+                    } else if args.is_mouse_leave(ctx.path) {
+                        self.is_over = false;
+                        updated = true;
+                    }
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseInputEvent.update(args) {
