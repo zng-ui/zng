@@ -95,9 +95,10 @@ impl<E: Event> EventUpdate<E> {
     pub(crate) fn boxed(self) -> BoxedEventUpdate {
         BoxedEventUpdate {
             event_type: TypeId::of::<E>(),
-            event_name: type_name::<E>(),
             slot: self.slot,
             args: Box::new(self),
+            debug_fmt: debug_fmt::<E>,
+            debug_fmt_any: debug_fmt_any::<E>,
         }
     }
 
@@ -107,9 +108,10 @@ impl<E: Event> EventUpdate<E> {
     {
         BoxedSendEventUpdate {
             event_type: TypeId::of::<E>(),
-            event_name: type_name::<E>(),
             slot: self.slot,
             args: Box::new(self),
+            debug_fmt: debug_fmt::<E>,
+            debug_fmt_any: debug_fmt_any::<E>,
         }
     }
 
@@ -138,12 +140,20 @@ impl<E: Event> Deref for EventUpdate<E> {
     }
 }
 
+/// Construct with [`debug_fmt`].
+type DebugFmtFn = unsafe fn(&dyn UnsafeAny, &mut fmt::Formatter) -> fmt::Result;
+unsafe fn debug_fmt<E: Event>(args: &dyn UnsafeAny, f: &mut fmt::Formatter) -> fmt::Result {
+    let args = args.downcast_ref_unchecked::<E::Args>();
+    write!(f, "{}\n{:?}", type_name::<E>(), args)
+}
+
 /// Boxed [`EventUpdateArgs`].
 pub struct BoxedEventUpdate {
     event_type: TypeId,
-    event_name: &'static str,
     slot: EventSlot,
     args: Box<dyn UnsafeAny>,
+    debug_fmt: DebugFmtFn,
+    debug_fmt_any: DebugFmtAnyFn,
 }
 impl BoxedEventUpdate {
     /// Unbox the arguments for `Q` if the update is for `Q`.
@@ -161,7 +171,9 @@ impl BoxedEventUpdate {
 impl crate::private::Sealed for BoxedEventUpdate {}
 impl fmt::Debug for BoxedEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "boxed {}", self.event_name)
+        write!(f, "boxed ")?;
+        // SAFETY: we trust w e build the type correctly.
+        unsafe { (self.debug_fmt)(&*self.args, f) }
     }
 }
 impl EventUpdateArgs for BoxedEventUpdate {
@@ -181,7 +193,7 @@ impl EventUpdateArgs for BoxedEventUpdate {
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
             event_type_id: self.event_type,
-            event_name: self.event_name,
+            debug_fmt: self.debug_fmt_any,
             slot: self.slot,
             event_update_args: unsafe {
                 // SAFETY: no different then the EventUpdate::as_any()
@@ -198,9 +210,10 @@ impl EventUpdateArgs for BoxedEventUpdate {
 /// A [`BoxedEventUpdate`] that is [`Send`].
 pub struct BoxedSendEventUpdate {
     event_type: TypeId,
-    event_name: &'static str,
     slot: EventSlot,
     args: Box<dyn UnsafeAny + Send>,
+    debug_fmt: DebugFmtFn,
+    debug_fmt_any: DebugFmtAnyFn,
 }
 impl BoxedSendEventUpdate {
     /// Unbox the arguments for `Q` if the update is for `Q`.
@@ -222,26 +235,36 @@ impl BoxedSendEventUpdate {
     pub fn forget_send(self) -> BoxedEventUpdate {
         BoxedEventUpdate {
             event_type: self.event_type,
-            event_name: self.event_name,
             slot: self.slot,
             args: self.args,
+            debug_fmt: self.debug_fmt,
+            debug_fmt_any: self.debug_fmt_any,
         }
     }
 }
 impl crate::private::Sealed for BoxedSendEventUpdate {}
 impl fmt::Debug for BoxedSendEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "boxed send {}", self.event_name)
+        write!(f, "boxed send")?;
+        // SAFETY: we trust w e build the type correctly.
+        unsafe { (self.debug_fmt)(&*self.args, f) }
     }
+}
+
+type DebugFmtAnyFn = unsafe fn(&(), &mut fmt::Formatter) -> fmt::Result;
+
+unsafe fn debug_fmt_any<E: Event>(args: &(), f: &mut fmt::Formatter) -> fmt::Result {
+    let args: &EventUpdate<E> = mem::transmute(args);
+    write!(f, "{}\n{:?}", type_name::<E>(), args)
 }
 
 /// Type erased [`EventUpdateArgs`].
 pub struct AnyEventUpdate<'a> {
     event_type_id: TypeId,
-    event_name: &'static str,
     slot: EventSlot,
     // this is a reference to a `EventUpdate<Q>`.
     event_update_args: &'a (),
+    debug_fmt: DebugFmtAnyFn,
 }
 impl<'a> AnyEventUpdate<'a> {
     /// Gets the [`TypeId`] of the event type represented by `self`.
@@ -249,16 +272,12 @@ impl<'a> AnyEventUpdate<'a> {
     pub fn event_type_id(&self) -> TypeId {
         self.event_type_id
     }
-
-    /// Gets the [`type_name`] of the event type represented by `self`.
-    #[inline]
-    pub fn event_type_name(&self) -> &'static str {
-        self.event_name
-    }
 }
 impl<'a> fmt::Debug for AnyEventUpdate<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "any {}", self.event_name)
+        write!(f, "any")?;
+        // SAFETY: we trust w e build the type correctly.
+        unsafe { (self.debug_fmt)(self.event_update_args, f) }
     }
 }
 impl<'a> crate::private::Sealed for AnyEventUpdate<'a> {}
@@ -280,9 +299,9 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
             event_type_id: self.event_type_id,
-            event_name: self.event_name,
             slot: self.slot,
             event_update_args: self.event_update_args,
+            debug_fmt: self.debug_fmt,
         }
     }
 
@@ -320,7 +339,7 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
             event_type_id: TypeId::of::<E>(),
-            event_name: type_name::<E>(),
+            debug_fmt: debug_fmt_any::<E>,
             slot: self.slot,
             event_update_args: unsafe {
                 // SAFETY: nothing will be done with it other then a validated restore in `args_for`.

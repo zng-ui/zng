@@ -493,7 +493,7 @@ impl WidgetInstanceInfoNode {
 }
 impl UiNode for WidgetInstanceInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _scope = tracing::trace_span!("widget.info", name = self.info.borrow().widget_name).entered();
+        let _scope = tracing::trace_span!("widget.info", name = self.info.borrow().widget_name, id = ?ctx.path.widget_id()).entered();
 
         info.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
         self.child.info(ctx, info);

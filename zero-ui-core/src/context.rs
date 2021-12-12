@@ -133,6 +133,7 @@ impl Updates {
     /// Schedules an update.
     #[inline]
     pub fn update(&mut self, mask: UpdateMask) {
+        tracing::trace!("requested `update`");
         self.next_updates |= mask;
         self.update = true;
     }
@@ -179,6 +180,7 @@ impl Updates {
     /// Schedules a layout update for the parent window.
     #[inline]
     pub fn layout(&mut self) {
+        tracing::trace!("requested `layout`");
         self.layout = true;
         self.l_updates.window_updates.layout = true;
     }
@@ -195,6 +197,7 @@ impl Updates {
     /// requests outside windows are ignored.
     #[inline]
     pub fn info(&mut self) {
+        tracing::trace!("requested `info`");
         self.l_updates.window_updates.info = true;
         self.l_updates.window_updates.subscriptions = true;
     }
@@ -205,6 +208,7 @@ impl Updates {
     /// requests outside windows are ignored, widgets also call and cache subscriptions as soon as they receive this flag.
     #[inline]
     pub fn subscriptions(&mut self) {
+        tracing::trace!("requested `subscriptions`");
         self.l_updates.window_updates.subscriptions = true;
     }
 
@@ -223,6 +227,7 @@ impl Updates {
     /// Schedules a new full frame for the parent window.
     #[inline]
     pub fn render(&mut self) {
+        tracing::trace!("requested `render`");
         self.l_updates.render();
     }
 
@@ -239,6 +244,7 @@ impl Updates {
     /// [`render`]: Updates::render
     #[inline]
     pub fn render_update(&mut self) {
+        tracing::trace!("requested `render_update`");
         self.l_updates.render_update();
     }
 
