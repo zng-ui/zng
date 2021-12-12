@@ -195,6 +195,8 @@ impl Updates {
     ///
     /// The window will call [`UiNode::info`] as soon as the current UI node method finishes,
     /// requests outside windows are ignored.
+    ///
+    /// [`UiNode::info`]: crate::UiNode::info
     #[inline]
     pub fn info(&mut self) {
         tracing::trace!("requested `info`");
@@ -206,6 +208,8 @@ impl Updates {
     ///
     /// The window will call [`UiNode::subscriptions`] as soon as the current UI node method finishes,
     /// requests outside windows are ignored, widgets also call and cache subscriptions as soon as they receive this flag.
+    ///
+    /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions
     #[inline]
     pub fn subscriptions(&mut self) {
         tracing::trace!("requested `subscriptions`");
@@ -1017,11 +1021,15 @@ pub struct WindowUpdates {
     /// Info tree rebuild requested.
     ///
     /// Windows should call [`UiNode::info`] to rebuild the info tree as soon as they receive this flag.
+    ///
+    /// [`UiNode::info`]: crate::UiNode::info
     pub info: bool,
     /// Subscriptions re-count requested.
     ///
     /// Windows should call [`UiNode::subscriptions`] to aggregate the subscriptions masks
     /// as soon as they receive this flag.
+    ///
+    /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions
     pub subscriptions: bool,
 
     /// Layout requested.

@@ -257,6 +257,7 @@ impl MouseHoverArgs {
     ///
     /// [`prev_target`]: Self::prev_target
     /// [`target`]: Self::target
+    /// [`capture`]: Self::capture
     #[inline]
     pub fn is_mouse_leave(&self, path: &WidgetContextPath) -> bool {
         if let Some(cap) = &self.capture {
@@ -428,8 +429,7 @@ event! {
 /// * [MouseDownEvent]
 /// * [MouseUpEvent]
 /// * [MouseClickEvent]
-/// * [MouseEnterEvent]
-/// * [MouseLeaveEvent]
+/// * [MouseHoveredEvent]
 /// * [MouseCaptureEvent]
 ///
 /// # Services

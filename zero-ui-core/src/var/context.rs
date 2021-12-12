@@ -437,7 +437,7 @@ mod properties {
     /// The method presents the `value` as the [`ContextVar<Type=T>`] in the widget and widget descendants.
     /// The context var [`version`] and [`is_new`] status are always equal to the `value` var status.
     ///
-    /// The generated [`UiNode`] delegates each method to `child` inside a call to [`Vars::with_context_bind`].
+    /// The generated [`UiNode`] delegates each method to `child` inside a call to [`VarsRead::with_context_var`].
     ///
     /// # Examples
     ///

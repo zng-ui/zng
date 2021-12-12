@@ -27,7 +27,7 @@ type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 /// In some contexts variables can be set, so a full [`Vars`] reference is given, in other contexts
 /// variables can only be read, so a [`VarsRead`] reference is given.
 ///
-/// [`Vars`] dereferences to to this type and a reference to it is available in [`LayoutContext`] and [`RenderContext`].
+/// [`Vars`] dereferences to to this type and a reference to it is available in [`InfoContext`] and [`RenderContext`].
 /// Methods that expect the [`VarsRead`] reference usually abstract using the [`WithVarsRead`] trait, that allows passing in
 /// the full context reference or references to async contexts.
 ///
@@ -66,7 +66,7 @@ type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 /// Context variables can be changed in a context using the [`VarsRead`] instance, the `with_context*` methods call
 /// a closure while a context variable is set to a value or bound to another variable. These methods are *duplicated*
 /// in [`Vars`], the difference is that in [`VarsRead`] the context vars cannot be [new], because variables cannot be
-/// new in [`LayoutContext`] and [`RenderContext`].
+/// new in [`InfoContext`] and [`RenderContext`].
 ///
 /// ```
 /// # use zero_ui_core::{*, context::*, var::*, render::*};
@@ -87,9 +87,12 @@ type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 /// helper function to declare a node that binds a context var in all [`UiNode`] methods.
 ///
 /// [new]: Var::is_new
-/// [`render`]: UiNode::render
-/// [`render_update`]: UiNode::render_update
+/// [`render`]: crate::UiNode::render
+/// [`UiNode`]: crate::UiNode
+/// [`render_update`]: crate::UiNode::render_update
 /// [`get`]: Var::get
+/// [`InfoContext`]: crate::context::InfoContext
+/// [`RenderContext`]: crate::context::RenderContext
 pub struct VarsRead {
     _singleton: SingletonVars,
     update_id: u32,
@@ -133,7 +136,7 @@ impl VarsRead {
     /// Nodes within `f` expect the same source [`update_mask`] from the previous call, if you are swapping the
     /// entire `source` value for a new one you must request an [`info`] update.
     ///
-    /// [`update_mask`]: ContextVarSource::update_mask
+    /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
     #[inline(always)]
     pub fn with_context_var<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
@@ -163,7 +166,7 @@ impl VarsRead {
     /// Nodes within `f` expect the same source [`update_mask`] from the previous call, if you are swapping the
     /// entire `source` value for a new one you must request an [`info`] update.
     ///
-    /// [`update_mask`]: ContextVarSource::update_mask
+    /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
     #[inline(always)]
     pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
@@ -320,6 +323,7 @@ type PendingUpdate = Box<dyn FnOnce(u32) -> UpdateMask>;
 ///
 /// [`AppContext`]: crate::context::AppContext
 /// [`WindowContext`]: crate::context::WindowContext
+/// [`WidgetContext`]: crate::context::WidgetContext
 /// [`is_new`]: crate::var::Var::is_new
 /// [new]: crate::var::Var::is_new
 /// [`get`]: crate::var::Var::is_new
@@ -328,6 +332,7 @@ type PendingUpdate = Box<dyn FnOnce(u32) -> UpdateMask>;
 /// [`init`]: crate::UiNode::init
 /// [`update`]: crate::UiNode::init
 /// [`deinit`]: crate::UiNode::deinit
+/// [`UiNode`]: crate::UiNode
 pub struct Vars {
     read: VarsRead,
 
