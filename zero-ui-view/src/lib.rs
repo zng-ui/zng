@@ -43,12 +43,7 @@
 //! [`glutin`]: https://docs.rs/glutin/
 
 use std::{
-    fmt, process,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread,
+    fmt, process, thread,
     time::{Duration, Instant},
 };
 
@@ -239,8 +234,8 @@ pub(crate) struct App<S> {
     gl_manager: GlContextManager,
     window_target: *const EventLoopWindowTarget<AppEvent>,
     app_sender: S,
-    redirect_enabled: Arc<AtomicBool>,
-    redirect_recv: flume::Receiver<Request>,
+    request_recv: flume::Receiver<Request>,
+
     response_sender: ResponseSender,
     event_sender: EventSender,
     image_cache: ImageCache<S>,
@@ -277,23 +272,25 @@ impl App<()> {
         tracing::info!("running headless view-process");
 
         let (app_sender, app_receiver) = flume::unbounded();
-        let (redirect_sender, redirect_receiver) = flume::unbounded();
-        let mut app = App::new(app_sender, c.response_sender, c.event_sender, redirect_receiver);
+        let (request_sender, request_receiver) = flume::unbounded();
+        let mut app = App::new((app_sender, request_sender), c.response_sender, c.event_sender, request_receiver);
         app.headless = true;
         let event_loop = EventLoop::<AppEvent>::with_user_event();
         let window_target: &EventLoopWindowTarget<AppEvent> = &event_loop;
         app.window_target = window_target as *const _;
 
-        app.start_receiving(c.request_receiver, redirect_sender);
+        app.start_receiving(c.request_receiver);
 
-        while !app.exited {
+        'app_loop: while !app.exited {
             match app_receiver.recv() {
                 Ok(app_ev) => match app_ev {
-                    AppEvent::Request(request) => {
-                        let response = app.respond(request);
-                        if response.must_be_send() && app.response_sender.send(response).is_err() {
-                            app.exited = true;
-                            break;
+                    AppEvent::Request => {
+                        while let Ok(request) = app.request_recv.try_recv() {
+                            let response = app.respond(request);
+                            if response.must_be_send() && app.response_sender.send(response).is_err() {
+                                app.exited = true;
+                                break 'app_loop;
+                            }
                         }
                     }
                     AppEvent::FrameReady(id, msg) => {
@@ -314,7 +311,7 @@ impl App<()> {
                     AppEvent::Notify(ev) => {
                         if app.event_sender.send(ev).is_err() {
                             app.exited = true;
-                            break;
+                            break 'app_loop;
                         }
                     }
                     AppEvent::RefreshMonitors => {
@@ -322,7 +319,7 @@ impl App<()> {
                     }
                     AppEvent::ParentProcessExited => {
                         app.exited = true;
-                        break;
+                        break 'app_loop;
                     }
                     AppEvent::ImageLoaded(data) => {
                         app.image_cache.loaded(data);
@@ -343,9 +340,10 @@ impl App<()> {
 
         let event_loop = EventLoop::with_user_event();
         let app_sender = event_loop.create_proxy();
-        let (redirect_sender, redirect_receiver) = flume::unbounded();
-        let mut app = App::new(app_sender, c.response_sender, c.event_sender, redirect_receiver);
-        app.start_receiving(c.request_receiver, redirect_sender);
+
+        let (request_sender, request_receiver) = flume::unbounded();
+        let mut app = App::new((app_sender, request_sender), c.response_sender, c.event_sender, request_receiver);
+        app.start_receiving(c.request_receiver);
 
         #[cfg(windows)]
         let config_listener = config::config_listener(app.app_sender.clone(), &event_loop);
@@ -387,12 +385,14 @@ impl App<()> {
                     }
                     GEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
                     GEvent::UserEvent(ev) => match ev {
-                        AppEvent::Request(req) => {
-                            let rsp = app.respond(req);
-                            if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
-                                // lost connection to app-process
-                                app.exited = true;
-                                *flow = ControlFlow::Exit;
+                        AppEvent::Request => {
+                            while let Ok(req) = app.request_recv.try_recv() {
+                                let rsp = app.respond(req);
+                                if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
+                                    // lost connection to app-process
+                                    app.exited = true;
+                                    *flow = ControlFlow::Exit;
+                                }
                             }
                         }
                         AppEvent::Notify(ev) => app.notify(ev),
@@ -422,15 +422,14 @@ impl App<()> {
     }
 }
 impl<S: AppEventSender> App<S> {
-    fn new(app_sender: S, response_sender: ResponseSender, event_sender: EventSender, redirect_recv: flume::Receiver<Request>) -> Self {
+    fn new(app_sender: S, response_sender: ResponseSender, event_sender: EventSender, request_recv: flume::Receiver<Request>) -> Self {
         App {
             headless: false,
             started: false,
             gl_manager: GlContextManager::default(),
             image_cache: ImageCache::new(app_sender.clone()),
             app_sender,
-            redirect_enabled: Arc::default(),
-            redirect_recv,
+            request_recv,
             response_sender,
             event_sender,
             window_target: std::ptr::null(),
@@ -447,17 +446,11 @@ impl<S: AppEventSender> App<S> {
         }
     }
 
-    fn start_receiving(&mut self, mut request_recv: RequestReceiver, redirect_sender: flume::Sender<Request>) {
+    fn start_receiving(&mut self, mut request_recv: RequestReceiver) {
         let app_sender = self.app_sender.clone();
-        let redirect_enabled = self.redirect_enabled.clone();
         thread::spawn(move || {
             while let Ok(r) = request_recv.recv() {
-                let disconnected = if redirect_enabled.load(Ordering::Relaxed) {
-                    redirect_sender.send(r).is_err()
-                } else {
-                    app_sender.send(AppEvent::Request(r)).is_err()
-                };
-                if disconnected {
+                if let Err(Disconnected) = app_sender.request(r) {
                     break;
                 }
             }
@@ -496,10 +489,6 @@ impl<S: AppEventSender> App<S> {
                 // give the app 300ms to send a new frame, this is the collaborative way to
                 // resize, it should reduce the changes of the user seeing the clear color.
 
-                let redirect_enabled = self.redirect_enabled.clone();
-                redirect_enabled.store(true, Ordering::Relaxed);
-                let stop_redirect = util::RunOnDrop::new(|| redirect_enabled.store(false, Ordering::Relaxed));
-
                 let deadline = Instant::now() + Duration::from_millis(300);
 
                 // flush already pending frames.
@@ -530,12 +519,11 @@ impl<S: AppEventSender> App<S> {
                 // "modal" loop, breaks in 300ms or when a frame is received.
                 let mut received_frame = false;
                 loop {
-                    match self.redirect_recv.recv_deadline(deadline) {
+                    match self.request_recv.recv_deadline(deadline) {
                         Ok(req) => {
                             received_frame = req.is_frame(id);
                             if received_frame || req.affects_window_rect(id) {
                                 // received new frame
-                                drop(stop_redirect);
                                 self.windows[i].on_resized();
                                 let rsp = self.respond(req);
                                 if rsp.must_be_send() {
@@ -553,7 +541,6 @@ impl<S: AppEventSender> App<S> {
 
                         Err(flume::RecvTimeoutError::Timeout) => {
                             // did not receive a new frame in time.
-                            drop(stop_redirect);
                             self.windows[i].on_resized();
                             break;
                         }
@@ -561,12 +548,6 @@ impl<S: AppEventSender> App<S> {
                             unreachable!()
                         }
                     }
-                }
-
-                // drain any request received in between exiting the modal loop.
-                let drained: Vec<_> = self.redirect_recv.drain().collect();
-                for req in drained {
-                    let _ = self.app_sender.send(AppEvent::Request(req));
                 }
 
                 // if we are still within 300ms, wait webrender, and if a frame was rendered here, notify.
@@ -1331,8 +1312,8 @@ impl<S: AppEventSender> Api for App<S> {
 /// Message inserted in the event loop from the view-process.
 #[derive(Debug)]
 pub(crate) enum AppEvent {
-    /// A request.
-    Request(Request),
+    /// One or more requests are pending in the deserialized request channel.
+    Request,
     /// Notify an event.
     Notify(Event),
     /// A frame is ready for redraw.
@@ -1357,16 +1338,28 @@ pub(crate) struct FrameReadyMsg {
 pub(crate) trait AppEventSender: Clone + Send + 'static {
     /// Send an event.
     fn send(&self, ev: AppEvent) -> Result<(), Disconnected>;
+
+    /// Send a request.
+    fn request(&self, req: Request) -> Result<(), Disconnected>;
 }
 /// headless
-impl AppEventSender for flume::Sender<AppEvent> {
+impl AppEventSender for (flume::Sender<AppEvent>, flume::Sender<Request>) {
     fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
-        self.send(ev).map_err(|_| Disconnected)
+        self.0.send(ev).map_err(|_| Disconnected)
+    }
+    fn request(&self, req: Request) -> Result<(), Disconnected> {
+        self.1.send(req).map_err(|_| Disconnected)?;
+        self.send(AppEvent::Request)
     }
 }
 /// headed
-impl AppEventSender for EventLoopProxy<AppEvent> {
+impl AppEventSender for (EventLoopProxy<AppEvent>, flume::Sender<Request>) {
     fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
-        self.send_event(ev).map_err(|_| Disconnected)
+        self.0.send_event(ev).map_err(|_| Disconnected)
+    }
+
+    fn request(&self, req: Request) -> Result<(), Disconnected> {
+        self.1.send(req).map_err(|_| Disconnected)?;
+        self.send(AppEvent::Request)
     }
 }
