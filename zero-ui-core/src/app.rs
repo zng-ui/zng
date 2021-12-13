@@ -960,12 +960,14 @@ impl<E: AppExtension> RunningApp<E> {
                 position,
             } => {
                 let view = self.ctx().services.view_process();
+                let trace = tracing::trace_span!("hit_test").entered();
                 let hits = view.hit_test(w_id, position).unwrap_or_else(|_| {
                     (
                         zero_ui_view_api::FrameId::INVALID,
                         crate::render::webrender_api::HitTestResult::default(),
                     )
                 });
+                drop(trace);
                 let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position, hits);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
