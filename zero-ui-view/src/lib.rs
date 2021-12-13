@@ -300,12 +300,12 @@ impl App<()> {
                             None
                         };
                         if let Some((frame_id, image)) = r {
-                            app.notify(Event::FrameRendered {
+                            app.notify(Event::FrameRendered(EventFrameRendered {
                                 window: id,
                                 frame: frame_id,
                                 frame_image: image,
                                 cursor_hits: HitTestResult::default(),
-                            });
+                            }));
                         }
                     }
                     AppEvent::Notify(ev) => {
@@ -498,12 +498,12 @@ impl<S: AppEventSender> App<S> {
                     if let Some((frame_id, image, cursor_hits)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
                         let id = self.windows[i].id();
 
-                        self.notify(Event::FrameRendered {
+                        self.notify(Event::FrameRendered(EventFrameRendered {
                             window: id,
                             frame: frame_id,
                             frame_image: image,
                             cursor_hits,
-                        });
+                        }));
                         self.flush_coalesced();
                     }
                 }
@@ -555,12 +555,12 @@ impl<S: AppEventSender> App<S> {
                     if let Some((frame_id, image, cursor_hits)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
                         let id = self.windows[i].id();
 
-                        self.notify(Event::FrameRendered {
+                        self.notify(Event::FrameRendered(EventFrameRendered {
                             window: id,
                             frame: frame_id,
                             frame_image: image,
                             cursor_hits,
-                        });
+                        }));
                     }
                 }
             }
@@ -731,12 +731,12 @@ impl<S: AppEventSender> App<S> {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
             let ((frame_id, image, cursor_hits), first) = w.on_frame_ready(msg, &mut self.image_cache);
 
-            let _ = self.event_sender.send(Event::FrameRendered {
+            let _ = self.event_sender.send(Event::FrameRendered(EventFrameRendered {
                 window: window_id,
                 frame: frame_id,
                 frame_image: image,
                 cursor_hits,
-            });
+            }));
 
             if first {
                 let size = w.size();
@@ -759,12 +759,12 @@ impl<S: AppEventSender> App<S> {
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
 
-            self.notify(Event::FrameRendered {
+            self.notify(Event::FrameRendered(EventFrameRendered {
                 window: window_id,
                 frame: frame_id,
                 frame_image: image,
                 cursor_hits: HitTestResult::default(),
-            })
+            }))
         }
     }
 

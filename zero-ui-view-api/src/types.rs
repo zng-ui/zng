@@ -566,8 +566,20 @@ impl WindowState {
     }
 }
 
+/// [`Event::FrameRendered`] payload.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EventFrameRendered {
+    /// Window that was rendered.
+    pub window: WindowId,
+    /// Frame that was rendered.
+    pub frame: FrameId,
+    /// Frame image, if one was requested with the frame request.
+    pub frame_image: Option<ImageLoadedData>,
+    /// Hit-test at the cursor position.
+    pub cursor_hits: HitTestResult,
+}
+
 /// System/User events sent from the View Process.
-#[repr(u32)]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Event {
     /// The view-process crashed and respawned, all resources must be rebuild.
@@ -585,16 +597,7 @@ pub enum Event {
     /// A frame finished rendering.
     ///
     /// `EventsCleared` is not send after this event.
-    FrameRendered {
-        /// Window that was rendered.
-        window: WindowId,
-        /// Frame that was rendered.
-        frame: FrameId,
-        /// Frame image, if one was requested with the frame request.
-        frame_image: Option<ImageLoadedData>,
-        /// Hit-test at the cursor position.
-        cursor_hits: HitTestResult,
-    },
+    FrameRendered(EventFrameRendered),
 
     /// Window maximized/minimized/restored.
     ///

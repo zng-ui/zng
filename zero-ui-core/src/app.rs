@@ -751,6 +751,7 @@ struct RunningApp<E: AppExtension> {
     wake_time: Option<Instant>,
 
     pending_view_events: Vec<zero_ui_view_api::Event>,
+    pending_view_frame_event: Option<zero_ui_view_api::EventFrameRendered>,
     pending_app_events: Vec<BoxedEventUpdate>,
     pending_layout: bool,
     pending_render: bool,
@@ -808,6 +809,7 @@ impl<E: AppExtension> RunningApp<E> {
             receiver,
 
             pending_view_events: Vec::with_capacity(100),
+            pending_view_frame_event: None,
             pending_app_events: Vec::with_capacity(100),
             pending_layout: false,
             pending_render: false,
@@ -874,7 +876,7 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Process a View Process event.
-    fn view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) {
+    fn on_view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) {
         let _s = tracing::debug_span!("view_event", ?ev).entered();
 
         use raw_device_events::*;
@@ -886,19 +888,6 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         match ev {
-            Event::FrameRendered {
-                window: w_id,
-                frame: frame_id,
-                frame_image,
-                cursor_hits,
-            } => {
-                let window_id = window_id(w_id);
-                let view = self.ctx().services.view_process();
-                // view.on_frame_rendered(window_id); // already called in push_coalesce
-                let image = frame_image.map(|img| view.on_frame_image(img));
-                let args = RawFrameRenderedArgs::now(window_id, frame_id, image, cursor_hits);
-                self.notify_event(RawFrameRenderedEvent, args, observer);
-            }
             Event::WindowResized { window: w_id, size, cause } => {
                 let args = RawWindowResizedArgs::now(window_id(w_id), size, cause);
                 self.notify_event(RawWindowResizedEvent, args, observer);
@@ -959,15 +948,19 @@ impl<E: AppExtension> RunningApp<E> {
                 coalesced_pos,
                 position,
             } => {
-                let view = self.ctx().services.view_process();
-                let trace = tracing::trace_span!("hit_test").entered();
-                let hits = view.hit_test(w_id, position).unwrap_or_else(|_| {
-                    (
-                        zero_ui_view_api::FrameId::INVALID,
-                        crate::render::webrender_api::HitTestResult::default(),
-                    )
-                });
-                drop(trace);
+                let hits = match &self.pending_view_frame_event {
+                    Some(ev) if ev.window == w_id => (ev.frame, ev.cursor_hits.clone()),
+                    _ => {
+                        let _trace = tracing::trace_span!("hit_test").entered();
+                        let view = self.ctx().services.view_process();
+                        view.hit_test(w_id, position).unwrap_or_else(|_| {
+                            (
+                                zero_ui_view_api::FrameId::INVALID,
+                                crate::render::webrender_api::HitTestResult::default(),
+                            )
+                        })
+                    }
+                };
                 let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position, hits);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
@@ -1172,14 +1165,18 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Other
-            Event::Respawned(_) => {
-                // handled in push_coalesce.
-            }
-
-            Event::Disconnected(_) => {
-                // handled in push_coalesce.
-            }
+            Event::Respawned(_) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
         }
+    }
+
+    /// Process a [`Event::FrameRendered`] event.
+    fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::EventFrameRendered, observer: &mut O) {
+        let window_id = unsafe { WindowId::from_raw(ev.window) };
+        let view = self.ctx().services.view_process();
+        // view.on_frame_rendered(window_id); // already called in push_coalesce
+        let image = ev.frame_image.map(|img| view.on_frame_image(img));
+        let args = raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image, ev.cursor_hits);
+        self.notify_event(raw_events::RawFrameRenderedEvent, args, observer);
     }
 
     fn run_headed(mut self) {
@@ -1197,34 +1194,38 @@ impl<E: AppExtension> RunningApp<E> {
 
     fn push_coalesce<O: AppEventObserver>(&mut self, ev: AppEvent, observer: &mut O) {
         match ev {
-            AppEvent::ViewEvent(ev) => match &ev {
-                zero_ui_view_api::Event::FrameRendered { window, .. } => {
+            AppEvent::ViewEvent(ev) => match ev {
+                zero_ui_view_api::Event::FrameRendered(ev) => {
                     // update ViewProcess immediately.
                     if let Some(vp) = self.ctx().services.get::<ViewProcess>() {
-                        vp.on_frame_rendered(unsafe { WindowId::from_raw(*window) });
+                        vp.on_frame_rendered(unsafe { WindowId::from_raw(ev.window) });
                         self.tick_timers = true;
                     }
-
-                    // but leave the notification to run in `view_event`.
-                    self.pending_view_events.push(ev);
+                    // separate frame rendered event, this lets we coalesce more cursor events and
+                    // use the same hit-test for the cursor move event.
+                    if let Some(ev) = self.pending_view_frame_event.take() {
+                        tracing::warn!("pending frame rendered event in `push_coalesce`");
+                        self.on_view_rendered_event(ev, observer);
+                    }
+                    self.pending_view_frame_event = Some(ev);
                 }
                 zero_ui_view_api::Event::Respawned(g) => {
                     // update ViewProcess immediately.
                     let view = self.ctx().services.view_process();
-                    view.on_respawed(*g);
+                    view.on_respawed(g);
 
                     // discard pending events.
                     self.pending_app_events.clear();
 
                     // notify immediately.
-                    let args = ViewProcessRespawnedArgs::now(*g);
+                    let args = ViewProcessRespawnedArgs::now(g);
                     self.notify_event(ViewProcessRespawnedEvent, args, observer);
                 }
                 zero_ui_view_api::Event::Disconnected(gen) => {
                     // update ViewProcess immediately.
-                    self.ctx().services.view_process().handle_disconnect(*gen);
+                    self.ctx().services.view_process().handle_disconnect(gen);
                 }
-                _ => {
+                ev => {
                     if let Some(last) = self.pending_view_events.last_mut() {
                         match last.coalesce(ev) {
                             Ok(()) => {}
@@ -1303,11 +1304,15 @@ impl<E: AppExtension> RunningApp<E> {
 
         let mut events = mem::take(&mut self.pending_view_events);
         for ev in events.drain(..) {
-            self.view_event(ev, observer);
+            self.on_view_event(ev, observer);
             self.apply_updates(observer);
         }
         debug_assert!(self.pending_view_events.is_empty());
         self.pending_view_events = events; // reuse capacity
+
+        if let Some(ev) = self.pending_view_frame_event.take() {
+            self.on_view_rendered_event(ev, observer);
+        }
 
         if mem::take(&mut self.tick_timers) {
             self.wake_time = self.owned_ctx.update_timers();
