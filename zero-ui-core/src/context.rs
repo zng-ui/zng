@@ -133,7 +133,7 @@ impl Updates {
     /// Schedules an update.
     #[inline]
     pub fn update(&mut self, mask: UpdateMask) {
-        tracing::trace!("requested `update`");
+        // tracing::trace!("requested `update`");
         self.next_updates |= mask;
         self.update = true;
     }
@@ -180,7 +180,7 @@ impl Updates {
     /// Schedules a layout update for the parent window.
     #[inline]
     pub fn layout(&mut self) {
-        tracing::trace!("requested `layout`");
+        // tracing::trace!("requested `layout`");
         self.layout = true;
         self.l_updates.window_updates.layout = true;
     }
@@ -199,7 +199,7 @@ impl Updates {
     /// [`UiNode::info`]: crate::UiNode::info
     #[inline]
     pub fn info(&mut self) {
-        tracing::trace!("requested `info`");
+        // tracing::trace!("requested `info`");
         self.l_updates.window_updates.info = true;
         self.l_updates.window_updates.subscriptions = true;
     }
@@ -212,7 +212,7 @@ impl Updates {
     /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions
     #[inline]
     pub fn subscriptions(&mut self) {
-        tracing::trace!("requested `subscriptions`");
+        // tracing::trace!("requested `subscriptions`");
         self.l_updates.window_updates.subscriptions = true;
     }
 
@@ -231,7 +231,7 @@ impl Updates {
     /// Schedules a new full frame for the parent window.
     #[inline]
     pub fn render(&mut self) {
-        tracing::trace!("requested `render`");
+        // tracing::trace!("requested `render`");
         self.l_updates.render();
     }
 
@@ -248,7 +248,7 @@ impl Updates {
     /// [`render`]: Updates::render
     #[inline]
     pub fn render_update(&mut self) {
-        tracing::trace!("requested `render_update`");
+        // tracing::trace!("requested `render_update`");
         self.l_updates.render_update();
     }
 

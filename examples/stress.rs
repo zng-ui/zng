@@ -142,3 +142,8 @@ type FilterFn = fn(examples_util::FilterArgs) -> bool;
 fn all_trace(_: FilterArgs) -> bool {
     true
 }
+
+#[allow(unused)]
+fn all_debug(a: FilterArgs) -> bool {
+    !a.is_trace()
+}
