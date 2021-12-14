@@ -965,6 +965,8 @@ pub mod prelude {
     pub use crate::widgets::image::properties::ImageFit;
     #[doc(no_inline)]
     pub use crate::widgets::layouts::*;
+    #[doc(no_inline)]
+    pub use crate::widgets::scrollable::ScrollMode;
 
     /// All the types you need to declare a new property.
     ///

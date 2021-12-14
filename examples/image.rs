@@ -5,12 +5,10 @@ use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, 
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    //zero_ui_view::run_same_process(app_main);
-
     examples_util::print_info();
+    // zero_ui_view::run_same_process(app_main);
 
     zero_ui_view::init();
-
     app_main();
 }
 
@@ -66,6 +64,7 @@ fn app_main() {
                             demo_image("Error File", image("404.png")),
                             demo_image("Error Web", image("https://httpbin.org/delay/5")),
                             demo_image("Sprite", sprite(ctx.timers)),
+                            panorama_image(),
                             large_image(),
                         ];
                     },
@@ -198,23 +197,15 @@ fn demo_image(title: &'static str, image: impl Widget) -> impl Widget {
 
 fn large_image() -> impl Widget {
     button! {
-        content = text("Large Image");
+        content = text("Large Image (205MB download)");
         on_click = hn!(|ctx, _| {
             ctx.services.windows().open(|_|window! {
-                title = "Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB";
+                title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB";
                 image_loading_view = ViewGenerator::new(image_loading);
                 background = transparency();
+                state = WindowState::Maximized;
                 content = image! {
-                    //source = {
-                    //    let data = vec![255; 300 * 200 * 4];
-                    //    (data, PxSize::new(Px(300), Px(200)))
-                    //};
-                    source = {
-                        // same size but skip decoding.
-                        let data = vec![255; 30_000 * 23_756 * 4];
-                        (data, PxSize::new(Px(30_000), Px(23_756)))
-                    };
-                    //source = "large-image.jpg";
+                    source = "large-image.jpg";
                     //source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                     loading_view = ViewGenerator::new(image_loading);
                     limits = Some(ImageLimits { max_encoded_size: 300.megabytes(), max_decoded_size: 3.gigabytes() });
@@ -222,6 +213,31 @@ fn large_image() -> impl Widget {
                         tracing::error!(target: "unexpected", "{}", args.error);
                     })
                 };
+            });
+        });
+    }
+}
+
+fn panorama_image() -> impl Widget {
+    button! {
+        content = text("Panorama Image (100MB download)");
+        on_click = hn!(|ctx, _| {
+            ctx.services.windows().open(|_|window! {
+                title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
+                background = transparency();
+                state = WindowState::Maximized;
+                content = scrollable! {
+                    mode = ScrollMode::HORIZONTAL;
+                    content = image! {
+                        fit = ImageFit::Fill;
+                        source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
+                        loading_view = ViewGenerator::new(image_loading);
+                        limits = Some(ImageLimits { max_encoded_size: 130.megabytes(), max_decoded_size: 1.gigabytes() });
+                        on_error = hn!(|_, args: &ImageErrorArgs| {
+                            tracing::error!(target: "unexpected", "{}", args.error);
+                        });
+                    };
+                }
             });
         });
     }

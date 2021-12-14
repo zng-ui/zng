@@ -67,8 +67,6 @@ impl ViewLib {
     }
 
     /// Extract the embedded library to `dir` and link to it.
-    ///
-    /// If the library is already extracted it is reused if the SHA1 hash matches.
     pub fn install_to(dir: impl Into<PathBuf>) -> Result<Self, Error> {
         #[cfg(not(zero_ui_lib_embedded))]
         {

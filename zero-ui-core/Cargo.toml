@@ -104,6 +104,9 @@ rand = "0.8"
 hashers = "1"
 base64 = "0.13"
 hashbrown = "0.11"
+sha1 = "0.6.0"
+fs2 = "0.4.3"
+remove_dir_all = "0.7"
 
 # serde
 serde = "1"

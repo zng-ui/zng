@@ -1929,7 +1929,6 @@ impl AppWindow {
         if self.context.update.info {
             let _s = tracing::trace_span!("window.info", window = %self.id.sequential()).entered();
             let tree = self.context.info(ctx);
-            self.context.subscriptions(ctx);
             ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
             WidgetInfoChangedEvent.notify(
                 ctx,
@@ -1956,9 +1955,12 @@ impl AppWindow {
             let _s = tracing::trace_span!("window.on_update#first", window = %self.id.sequential()).entered();
 
             self.context.init(ctx);
-            let tree = self.context.info(ctx);
-            ctx.services.windows().windows_info.get_mut(&self.id).unwrap().widget_tree = tree.clone();
-            WidgetInfoChangedEvent.notify(ctx, WidgetInfoChangedArgs::now(self.id, tree, true, true));
+
+            self.context.update.info = true;
+            self.context.update.subscriptions = true;
+            self.on_info(ctx);
+            self.on_subscriptions(ctx);
+
             self.first_update = false;
         } else {
             let _s = tracing::trace_span!("window.on_update", window = %self.id.sequential()).entered();

@@ -6,13 +6,15 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>stress - text_eq</title>
+    <title>stress - text_change_one</title>
 
     <style>
         body {
             background-color: rgb(49, 49, 49);
             color: white;
             font-family: sans-serif;
+            font-weight: bold;
+            font-size: 16;
         }
         .text {
             width: 80px;
@@ -31,25 +33,16 @@
 <script type="text/javascript">
     for (let i = 0; i < 2000; i++) {
         let t = document.createElement("div");
-        t.innerText = "loading.....";
+        t.innerText = "RED";
         t.classList.add("text");
+        t.onmouseenter = function() {
+            t.innerText = "HOT";
+        };
+        t.onmouseleave = function() {
+            t.innerText = "RED";
+        };
         document.body.appendChild(t);
-    }
-
-    dots_count = 0;
-    setInterval(function() {
-        dots_count += 1;
-        if (dots_count == 8) {
-            dots_count = 0;
-        }
-        let txt = "loading";
-        for (let j = 0; j < dots_count; j++) {
-            txt += ".";
-        }
-        document.querySelectorAll(".text").forEach(function(t) {
-            t.innerText = txt;
-        });
-    }, 1000 / 60);
+    }   
 </script>
 
 </html>

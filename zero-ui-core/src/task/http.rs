@@ -870,11 +870,20 @@ impl fmt::Display for Metrics {
 /// HTTP client.
 ///
 /// An HTTP client acts as a session for executing one of more HTTP requests.
-#[derive(Clone, Debug)]
-pub struct Client(isahc::HttpClient);
+pub struct Client(isahc::HttpClient, Option<Box<dyn CacheProxy>>);
 impl Default for Client {
     fn default() -> Self {
         Self::new()
+    }
+}
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Client(self.0.clone(), self.1.as_ref().map(|b| b.clone_boxed()))
+    }
+}
+impl fmt::Debug for Client {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Client").finish_non_exhaustive()
     }
 }
 impl Client {
@@ -893,7 +902,7 @@ impl Client {
 
     /// Start a new [`ClientBuilder`] for creating a custom client.
     pub fn builder() -> ClientBuilder {
-        ClientBuilder(isahc::HttpClient::builder())
+        ClientBuilder(isahc::HttpClient::builder(), None)
     }
 
     /// Gets the configured cookie-jar for this client, if cookies are enabled.
@@ -967,7 +976,7 @@ impl From<Client> for isahc::HttpClient {
 }
 impl From<isahc::HttpClient> for Client {
     fn from(c: isahc::HttpClient) -> Self {
-        Self(c)
+        Self(c, None)
     }
 }
 
@@ -982,13 +991,13 @@ impl From<isahc::HttpClient> for Client {
 ///
 /// let client = Client::builder().metrics(true).build();
 /// ```
-pub struct ClientBuilder(isahc::HttpClientBuilder);
+pub struct ClientBuilder(isahc::HttpClientBuilder, Option<Box<dyn CacheProxy>>);
 impl ClientBuilder {
     /// Build an HttpClient using the configured options.
 
     #[inline]
     pub fn build(self) -> Client {
-        Client(self.0.build().unwrap())
+        Client(self.0.build().unwrap(), None)
     }
 
     /// Build the client with more custom build calls in the [inner builder].
@@ -998,26 +1007,26 @@ impl ClientBuilder {
     where
         F: FnOnce(isahc::HttpClientBuilder) -> Result<isahc::HttpClient, Error>,
     {
-        custom(self.0).map(Client)
+        custom(self.0).map(|c| Client(c, self.1))
     }
 
     /// Add a default header to be passed with every request.
     #[inline]
     pub fn default_header(self, key: impl TryHeaderName, value: impl TryHeaderValue) -> Result<Self, Error> {
-        Ok(Self(self.0.default_header(key.try_into()?, value.try_into()?)))
+        Ok(Self(self.0.default_header(key.try_into()?, value.try_into()?), self.1))
     }
 
     /// Enable persistent cookie handling for all requests using this client using a shared cookie jar.
     #[inline]
     pub fn cookies(self) -> Self {
-        Self(self.0.cookies())
+        Self(self.0.cookies(), self.1)
     }
 
     /// Set a cookie jar to use to accept, store, and supply cookies for incoming responses and outgoing requests.
     ///
     /// Note that the [`default_client`] already has a cookie jar.
     pub fn cookie_jar(self, cookie_jar: CookieJar) -> Self {
-        Self(self.0.cookie_jar(cookie_jar))
+        Self(self.0.cookie_jar(cookie_jar), self.1)
     }
 
     /// Specify a maximum amount of time that a complete request/response cycle is allowed to
@@ -1031,21 +1040,21 @@ impl ClientBuilder {
     ///
     /// [`TimedOut`]: https://doc.rust-lang.org/nightly/std/io/enum.ErrorKind.html#variant.TimedOut
     pub fn timeout(self, timeout: Duration) -> Self {
-        Self(self.0.timeout(timeout))
+        Self(self.0.timeout(timeout), self.1)
     }
 
     /// Set a timeout for establishing connections to a host.
     ///
     /// If not set, the [`default_client`] default of 90 seconds will be used.
     pub fn connect_timeout(self, timeout: Duration) -> Self {
-        Self(self.0.connect_timeout(timeout))
+        Self(self.0.connect_timeout(timeout), self.1)
     }
 
     /// Specify a maximum amount of time where transfer rate can go below a minimum speed limit.
     ///
     /// The `low_speed` limit is in bytes/s. No low-speed limit is configured by default.
     pub fn low_speed_timeout(self, low_speed: u32, timeout: Duration) -> Self {
-        Self(self.0.low_speed_timeout(low_speed, timeout))
+        Self(self.0.low_speed_timeout(low_speed, timeout), self.1)
     }
 
     /// Set a policy for automatically following server redirects.
@@ -1053,9 +1062,9 @@ impl ClientBuilder {
     /// If enabled the "Referer" header will be set automatically too.
     pub fn redirect_policy(self, policy: RedirectPolicy) -> Self {
         if !matches!(policy, RedirectPolicy::None) {
-            Self(self.0.redirect_policy(policy).auto_referer())
+            Self(self.0.redirect_policy(policy).auto_referer(), self.1)
         } else {
-            Self(self.0.redirect_policy(policy))
+            Self(self.0.redirect_policy(policy), self.1)
         }
     }
 
@@ -1067,17 +1076,17 @@ impl ClientBuilder {
     ///
     /// [`default_header`]: Self::default_header
     pub fn auto_decompress(self, enabled: bool) -> Self {
-        Self(self.0.automatic_decompression(enabled))
+        Self(self.0.automatic_decompression(enabled), self.1)
     }
 
     /// Set a maximum upload speed for the request body, in bytes per second.
     pub fn max_upload_speed(self, max: u64) -> Self {
-        Self(self.0.max_upload_speed(max))
+        Self(self.0.max_upload_speed(max), self.1)
     }
 
     /// Set a maximum download speed for the response body, in bytes per second.
     pub fn max_download_speed(self, max: u64) -> Self {
-        Self(self.0.max_download_speed(max))
+        Self(self.0.max_download_speed(max), self.1)
     }
 
     /// Enable or disable metrics collecting.
@@ -1086,6 +1095,267 @@ impl ClientBuilder {
     ///
     /// This is enabled by default.
     pub fn metrics(self, enable: bool) -> Self {
-        Self(self.0.metrics(enable))
+        Self(self.0.metrics(enable), self.1)
+    }
+
+    /// Sets the [`CacheProxy`] to use.
+    ///
+    /// No caching is done by default.
+    pub fn cache(self, cache: impl CacheProxy) -> Self {
+        Self(self.0, Some(Box::new(cache)))
+    }
+}
+
+/// Represents a download cache in a [`Client`].
+pub trait CacheProxy: Send + Sync + 'static {
+    /// Dynamic clone.
+    fn clone_boxed(&self) -> Box<dyn CacheProxy>;
+
+    /// Gets the `ETAG` for the cached data for `uri`.
+    fn etag(&self, uri: &Uri) -> Option<String>;
+
+    /// Read/clone the cached data for the `uri`.
+    fn get(&self, uri: &Uri) -> Option<Vec<u8>>;
+
+    /// Caches the `data`, in case of error the entry is purged.
+    fn set(&self, uri: &Uri, etag: String, expires: std::time::SystemTime, data: &[u8]) -> Result<(), CacheError>;
+}
+
+/// Error when setting an entry in a [`CacheProxy`].
+///
+/// The cache entry was purged.
+#[derive(Debug, Clone, Copy)]
+pub struct CacheError;
+impl fmt::Display for CacheError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "error setting cache entry, the entry has been purged")
+    }
+}
+impl std::error::Error for CacheError {}
+
+pub use file_cache::FileSystemCache;
+
+mod file_cache {
+    use std::{
+        fs::{self, File, OpenOptions},
+        io::{self, Read, Write},
+        mem,
+        path::{Path, PathBuf},
+        time::{Duration, SystemTime},
+    };
+
+    use fs2::FileExt;
+    use isahc::http::Uri;
+
+    use super::{CacheError, CacheProxy};
+
+    /// A simple [`CacheProxy`] implementation that uses a local directory.
+    #[derive(Clone)]
+    pub struct FileSystemCache {
+        dir: PathBuf,
+    }
+    impl FileSystemCache {
+        /// Open the cache in `dir` or create it.
+        pub fn new(dir: impl Into<PathBuf>) -> io::Result<Self> {
+            let dir = dir.into();
+            std::fs::create_dir_all(&dir)?;
+
+            Ok(FileSystemCache { dir })
+        }
+
+        /// Remove all cache entries that are not locked.
+        pub fn purge(&self) {
+            if let Ok(entries) = std::fs::read_dir(&self.dir) {
+                for entry in entries.flatten() {
+                    let entry = entry.path();
+                    if entry.is_dir() {
+                        if let Ok(info) = File::open(entry.join("i")) {
+                            if info.try_lock_shared().is_ok() {
+                                let _ = info.unlock();
+                                Entry::try_delete_dir(&entry);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// Remove all expired cache entries that are not locked.
+        pub fn prune(&self) {
+            if let Ok(entries) = std::fs::read_dir(&self.dir) {
+                for entry in entries.flatten() {
+                    let entry = entry.path();
+                    if entry.is_dir() {
+                        let _ = Entry::open(entry, false);
+                    }
+                }
+            }
+        }
+
+        fn entry_dir(&self, uri: &Uri) -> PathBuf {
+            let mut m = sha1::Sha1::new();
+            m.update(uri.to_string().as_bytes());
+            self.dir.join(m.digest().to_string())
+        }
+
+        fn entry(&self, uri: &Uri, write: bool) -> Option<Entry> {
+            let entry = self.entry_dir(uri);
+            Entry::open(entry, write)
+        }
+    }
+    impl CacheProxy for FileSystemCache {
+        fn clone_boxed(&self) -> Box<dyn CacheProxy> {
+            Box::new(self.clone())
+        }
+
+        fn etag(&self, uri: &Uri) -> Option<String> {
+            self.entry(uri, false).map(|mut e| mem::take(&mut e.etag))
+        }
+
+        fn get(&self, uri: &Uri) -> Option<Vec<u8>> {
+            let info = self.entry(uri, false)?;
+
+            match fs::read(info.entry.join("d")) {
+                Ok(d) => Some(d),
+                Err(e) => {
+                    tracing::error!("cache data read error, {:?}", e);
+                    Entry::try_delete_dir(&info.entry);
+                    None
+                }
+            }
+        }
+
+        fn set(&self, uri: &Uri, etag: String, expires: SystemTime, data: &[u8]) -> Result<(), CacheError> {
+            let expires = expires.duration_since(SystemTime::UNIX_EPOCH).unwrap();
+            let info_data = format!("{}\n{}", expires.as_secs(), etag);
+
+            match self.entry(uri, true) {
+                Some(mut info) => match fs::write(&info.entry, &data) {
+                    Ok(()) => match info.file.write_all(info_data.as_bytes()) {
+                        Ok(()) => Ok(()),
+                        Err(e) => {
+                            tracing::error!("cache data info write error, {:?}", e);
+                            let _ = info.file.unlock();
+                            Entry::try_delete_dir(&info.entry);
+                            Err(CacheError)
+                        }
+                    },
+                    Err(e) => {
+                        tracing::error!("cache data write error, {:?}", e);
+                        let _ = info.file.unlock();
+                        Entry::try_delete_dir(&info.entry);
+                        Err(CacheError)
+                    }
+                },
+                None => {
+                    let entry = self.entry_dir(uri);
+                    match fs::write(entry.join("d"), &data) {
+                        Ok(()) => match fs::write(entry.join("i"), info_data.as_bytes()) {
+                            Ok(()) => Ok(()),
+                            Err(e) => {
+                                tracing::error!("cache new data info write error, {:?}", e);
+                                Entry::try_delete_dir(&entry);
+                                Err(CacheError)
+                            }
+                        },
+                        Err(e) => {
+                            tracing::error!("cache new data write error, {:?}", e);
+                            Entry::try_delete_dir(&entry);
+                            Err(CacheError)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    struct Entry {
+        entry: PathBuf,
+        file: File,
+        etag: String,
+    }
+    impl Entry {
+        fn open(entry: PathBuf, write: bool) -> Option<Self> {
+            let info = entry.join("i");
+            let mut opt = OpenOptions::new();
+            if write {
+                opt.write(true);
+            } else {
+                opt.read(true);
+            }
+            let mut info = match opt.open(info) {
+                Ok(i) => i,
+                Err(e) => {
+                    tracing::error!("cache info open error, {:?}", e);
+                    Self::try_delete_dir(&entry);
+                    return None;
+                }
+            };
+
+            let lock_r = if write { info.lock_exclusive() } else { info.lock_shared() };
+            if let Err(e) = lock_r {
+                tracing::error!("cache info lock error, {:?}", e);
+                Self::try_delete_dir(&entry);
+                return None;
+            }
+
+            let mut s = String::new();
+            match info.read_to_string(&mut s) {
+                Ok(_) => {
+                    match s.split_once('\n') {
+                        Some((expire, et)) => {
+                            let expire = match expire.parse::<u64>() {
+                                Ok(u) => Duration::from_secs(u),
+                                Err(e) => {
+                                    tracing::error!("cache info expire corrupted, `{:?}`", e);
+                                    let _ = info.unlock();
+                                    drop(info);
+                                    Self::try_delete_dir(&entry);
+                                    return None;
+                                }
+                            };
+
+                            let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+                            if expire <= now {
+                                let _ = info.unlock();
+                                drop(info);
+                                Self::try_delete_dir(&entry);
+                                return None;
+                            }
+
+                            // SUCESS
+                            let etag = et.to_owned();
+                            Some(Entry { entry, file: info, etag })
+                        }
+                        None => {
+                            tracing::error!("cache info corrupted, `{}`", s);
+                            let _ = info.unlock();
+                            drop(info);
+                            Self::try_delete_dir(&entry);
+                            None
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("cache info read error, {:?}", e);
+                    let _ = info.unlock();
+                    drop(info);
+                    Self::try_delete_dir(&entry);
+                    None
+                }
+            }
+        }
+
+        fn try_delete_dir(dir: &Path) {
+            let _ = remove_dir_all::remove_dir_all(dir);
+        }
+    }
+    impl Drop for Entry {
+        fn drop(&mut self) {
+            if let Err(e) = self.file.unlock() {
+                tracing::error!("cache info unlock error, {:?}", e);
+                Self::try_delete_dir(&self.entry);
+            }
+        }
     }
 }

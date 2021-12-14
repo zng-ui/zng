@@ -5,7 +5,10 @@ use zero_ui::prelude::*;
 const PROFILE: bool = true;
 const SAME_PROCESS: bool = true;
 
-static TESTS: &[(&str, TestFn, FilterFn)] = &[("text_eq", text_eq, all_trace)];
+static TESTS: &[(&str, TestFn, FilterFn)] = &[
+    ("text_change_all", text_change_all, all_trace),
+    ("text_change_one", text_change_one, all_trace),
+];
 
 #[allow(unused)]
 fn shape_text_filter(args: FilterArgs) -> bool {
@@ -13,7 +16,7 @@ fn shape_text_filter(args: FilterArgs) -> bool {
     args.name == "shape_text"
 }
 
-fn text_eq(ctx: &mut WindowContext) -> Window {
+fn text_change_all(ctx: &mut WindowContext) -> Window {
     let mut dots_count = 3;
     let msg = ctx.timers.interval(1.secs() / 60, true).map(move |_| {
         dots_count += 1;
@@ -36,7 +39,33 @@ fn text_eq(ctx: &mut WindowContext) -> Window {
     }
 
     window! {
-        title = "stress - text_eq";
+        title = "stress - text_change_all";
+        state = WindowState::Maximized;
+        content = uniform_grid! {
+            columns = 30;
+            items = texts;
+        };
+    }
+}
+
+fn text_change_one(_ctx: &mut WindowContext) -> Window {
+    let mut texts = widget_vec![];
+
+    for _ in 0..2000 {
+        texts.push(text! {
+            text = "RED";
+            width = 80;
+            font_size = 16;
+            font_weight = FontWeight::BOLD;
+            when self.is_hovered {
+                text = "HOT";
+                color = colors::RED;
+            }
+        });
+    }
+
+    window! {
+        title = "stress - text_change_one";
         state = WindowState::Maximized;
         content = uniform_grid! {
             columns = 30;
