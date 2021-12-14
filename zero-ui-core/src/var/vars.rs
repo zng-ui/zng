@@ -63,28 +63,26 @@ type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 ///
 /// # Context Vars
 ///
-/// Context variables can be changed in a context using the [`VarsRead`] instance, the `with_context*` methods call
-/// a closure while a context variable is set to a value or bound to another variable. These methods are *duplicated*
-/// in [`Vars`], the difference is that in [`VarsRead`] the context vars cannot be [new], because variables cannot be
-/// new in [`InfoContext`] and [`RenderContext`].
+/// Context variables can be changed in a context using the [`VarsRead`] instance, the `with_context_var` method calls
+/// a closure while a context variable is set to a [`ContextVarData`] value.
 ///
 /// ```
-/// # use zero_ui_core::{*, context::*, var::*, render::*};
+/// # use zero_ui_core::{*, context::*, var::*};
 /// # context_var! { pub struct FooVar: bool = false; }
 /// # struct FooNode<C, V> { child: C, var: V }
 /// # #[impl_ui_node(child)]
 /// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
-///     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-///         ctx.vars.with_context_bind(FooVar, &self.var, || self.child.render(ctx, frame));
+///     fn update(&mut self, ctx: &mut WidgetContext) {
+///         ctx.vars.with_context_var(FooVar, ContextVarData::var(ctx.vars, &self.var), || self.child.update(ctx));
 ///     }
 /// }
 /// ```
 ///
-/// The example binds a `FooVar` to another `var` for the duration of the [`render`] call. The `var` value and version
+/// The example binds a `FooVar` to another `var` for the duration of the [`update`] call. The `var` value and version
 /// are accessible in inner widgets using only the `FooVar`.
 ///
-/// Note that the example is incomplete, [`render_update`] should also be implemented at least. You can use the [`with_context_var`]
-/// helper function to declare a node that binds a context var in all [`UiNode`] methods.
+/// Note that the example is incomplete, [`init`], [`deinit`] and the other methods should also be implemented. You can use
+/// the [`with_context_var`] helper function to declare a node that binds a context var in all [`UiNode`] methods.
 ///
 /// [new]: Var::is_new
 /// [`render`]: crate::UiNode::render
@@ -290,30 +288,6 @@ type PendingUpdate = Box<dyn FnOnce(u32) -> UpdateMask>;
 /// when they are replaced. Internally a runtime validation verifies that [`Vars`] is the only instance in the thread and it
 /// must be exclusively borrowed to apply the variable changes, this let variables be implemented very cheaply without needing
 /// to use a mechanism like `RefCell`.
-///
-/// # Context Vars
-///
-/// Context variables can be changed in a context using the [`Vars`] instance, the `with_context*` methods call
-/// a closure while a context variable is set to a value or bound to another variable. These methods are *duplicated*
-/// in [`VarsRead`], the difference is that in here the variable can be [new].
-///
-/// ```
-/// # use zero_ui_core::{*, context::*, var::*};
-/// # context_var! { pub struct FooVar: bool = false; }
-/// # struct FooNode<C, V> { child: C, var: V }
-/// # #[impl_ui_node(child)]
-/// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
-///     fn update(&mut self, ctx: &mut WidgetContext) {
-///         ctx.vars.with_context_bind(FooVar, &self.var, || self.child.update(ctx));
-///     }
-/// }
-/// ```
-///
-/// The example binds a `FooVar` to another `var` for the duration of the [`update`] call. The `var` value and version
-/// are accessible in inner widgets using only the `FooVar`.
-///
-/// Note that the example is incomplete, [`init`], [`deinit`] and the other methods should also be implemented. You can use
-/// the [`with_context_var`] helper function to declare a node that binds a context var in all [`UiNode`] methods.
 ///
 /// # Binding
 ///

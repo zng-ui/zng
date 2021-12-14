@@ -225,7 +225,7 @@ pub trait WidgetList: UiNodeList {
 /// widgets.push(bar("Dynamic!"));
 ///
 /// for widget in widgets {
-///     println!("{:?}", widget.size());
+///     println!("{:?}", widget.inner_bounds());
 /// }
 /// ```
 pub struct WidgetVec {

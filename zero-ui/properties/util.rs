@@ -164,8 +164,11 @@ mod tests {
 
         wgt.test_init(&mut ctx);
         assert_eq!(Some(&2), wgt.state().get(TestKey));
+        ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
+
         value.set(&ctx.vars, 4);
         ctx.apply_updates();
+
         wgt.test_update(&mut ctx);
         assert_eq!(Some(&4), wgt.state().get(TestKey));
     }
@@ -193,7 +196,7 @@ mod tests {
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<u8>> UiNode for TestVarProbeNode<C, V> {
             fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions.var(ctx, &self.value);
+                subscriptions.var(ctx, &TestVar::new());
                 self.child.subscriptions(ctx, subscriptions);
             }
 
@@ -223,6 +226,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
+        ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
         ctx.apply_updates();
 
         assert_eq!(&2, probe.get(&ctx.vars));
@@ -250,6 +254,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
+        ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
         ctx.apply_updates();
 
         assert_eq!(&2, probe.get(&ctx.vars));
@@ -280,6 +285,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
+        ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
         ctx.apply_updates();
 
         // `1` is the default value.
@@ -304,6 +310,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
+        ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
         ctx.apply_updates();
 
         assert_eq!(&2, probe.get(&ctx.vars));
@@ -331,6 +338,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
+        ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
         ctx.apply_updates();
 
         // `1` is the default value.

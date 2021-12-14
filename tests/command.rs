@@ -1,7 +1,9 @@
+use zero_ui::core::command::CommandHandle;
+use zero_ui::core::context::InfoContext;
+use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
+use zero_ui::core::widget_info::WidgetSubscriptions;
 use zero_ui::core::{command::command, context::state_key, event::EventUpdateArgs, impl_ui_node};
 use zero_ui::prelude::*;
-use zero_ui_core::command::CommandHandle;
-use zero_ui_core::keyboard::HeadlessAppKeyboardExt;
 
 #[test]
 fn notify() {
@@ -86,6 +88,9 @@ fn listener_window() -> Window {
             self.handle_scoped = Some(FooCommand.scoped(ctx.path.window_id()).new_handle(ctx, true));
             self.handle_scoped_wgt = Some(FooCommand.scoped(ctx.path.widget_id()).new_handle(ctx, true));
         }
+        fn subscriptions(&self, _ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(FooCommand);
+        }
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = FooCommand.update(args) {
                 ctx.app_state
@@ -117,7 +122,7 @@ fn listener_window() -> Window {
 
     window! {
         content = container! {
-            content = FooHandlerNode{ handle: None, handle_scoped: None, handle_scoped_wgt: None};
+            content = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
         }
     }
 }

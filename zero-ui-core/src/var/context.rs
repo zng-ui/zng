@@ -134,7 +134,38 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     }
 }
 
-/// Value bound to context var at a context.
+/// Value bound to a [`ContextVar`] at a context.
+///
+/// # Examples
+///
+/// The example manually sets a context flag for all descendants of a node.
+///
+/// ```
+/// use zero_ui_core::{*, var::*, context::*};
+///
+/// context_var! {
+///     /// Foo context variable.
+///     pub struct FooVar: bool = false;
+/// }
+///
+/// struct FooNode<C> { child: C }
+///
+/// #[impl_ui_node(child)]
+/// impl<C: UiNode> UiNode for FooNode<C> {
+///     fn init(&mut self, ctx: &mut WidgetContext) {
+///         // `FooVar` is `true` inside `FooNode::init`.
+///         ctx.vars.with_context_var(FooVar, ContextVarData::fixed(&true), || {
+///             self.child.init(ctx);
+///         })
+///     }
+/// }
+/// ```
+///
+/// Note that this is the lowest level of [`ContextVar`] manipulation, usually you can just use the [`with_context_var`]
+/// or [`with_context_var_wgt_only`] helper functions to bind another variable to a context variable, internally these
+/// functions use the [`ContextVarData::var`] and [`ContextVarData::var_read`] in all [`UiNode`] methods.
+///
+/// [`UiNode`]: crate::UiNode
 pub struct ContextVarData<'a, T: VarValue> {
     /// Value for [`Var::get`].
     pub value: &'a T,
@@ -149,7 +180,9 @@ pub struct ContextVarData<'a, T: VarValue> {
     pub update_mask: UpdateMask,
 }
 impl<'a, T: VarValue> ContextVarData<'a, T> {
-    /// Value that does change or update.
+    /// Value that does not change or update.
+    ///
+    /// The context var is never new, the version is always zero and there is no update mask.
     pub fn fixed(value: &'a T) -> Self {
         Self {
             value,
@@ -181,6 +214,54 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
 
     /// Binds the context var to a `value` that is always derived from another `var` such that
     /// they update at the same time.
+    ///
+    /// # Examples
+    ///
+    /// The example maps boolean source variable to a text context variable.
+    ///
+    /// ```
+    /// use zero_ui_core::{*, var::*, text::*, context::*};
+    ///
+    /// context_var! {
+    ///     /// Foo context variable.
+    ///     pub struct FooVar: Text = Text::empty();
+    /// }
+    ///
+    /// struct FooNode<C, V> {
+    ///     child: C,
+    ///     data_source: V,
+    /// }
+    ///
+    /// #[impl_ui_node(child)]
+    /// impl<C: UiNode, V: Var<bool>> FooNode<C, V> {
+    ///     fn foo_value(&self, vars: &VarsRead) -> Text {
+    ///         if self.data_source.copy(vars) {
+    ///             Text::from_static("Enabled")
+    ///         } else {
+    ///             Text::from_static("Disabled")
+    ///         }
+    ///     }
+    ///
+    ///     #[UiNode]
+    ///     fn update(&mut self, ctx: &mut WidgetContext) {
+    ///         let value = self.foo_value(ctx.vars);
+    ///         ctx.vars.with_context_var(FooVar, ContextVarData::map(ctx.vars, &self.data_source, &value), || {
+    ///             self.child.update(ctx);
+    ///         })
+    ///     }
+    ///     
+    ///     // .. all other UiNode methods.
+    /// }
+    /// ```
+    ///
+    /// The context variable will have the same `is_new`, `version` and `update_mask` from the source variable, but it
+    /// has a different value.
+    ///
+    /// The example only demonstrates one [`UiNode`] method but usually all methods must do the same, and you must
+    /// use [`map_read`] in the methods that only expose the [`VarsRead`] accessor.
+    ///
+    /// [`UiNode`]: crate::UiNode
+    /// [`map_read`]: Self::map_read
     pub fn map<'b, S: VarValue>(vars: &'b Vars, var: &'b impl Var<S>, value: &'a T) -> Self {
         Self {
             value,

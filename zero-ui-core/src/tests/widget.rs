@@ -3,7 +3,7 @@
 //! Note: Compile error tests are in the integration tests folder: `tests/build/widget` and `tests/build/widget_new`
 
 use self::util::Position;
-use crate::{context::TestWidgetContext, var::Var, widget, widget_mixin, Widget, WidgetId};
+use crate::{context::TestWidgetContext, var::Var, widget, widget_mixin, UiNode, Widget, WidgetId};
 
 // Used in multiple tests.
 #[widget($crate::tests::widget::empty_wgt)]
@@ -432,17 +432,18 @@ pub fn wgt_when() {
     let mut wgt = when_wgt!();
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "boo!"));
 
-    util::set_state(&mut wgt, true);
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "ok."));
 
-    util::set_state(&mut wgt, false);
+    util::set_state(&mut ctx, &mut wgt, false);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -460,17 +461,18 @@ pub fn widget_user_when() {
     };
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "A"));
 
-    util::set_state(&mut wgt, true);
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "B"));
 
-    util::set_state(&mut wgt, false);
+    util::set_state(&mut ctx, &mut wgt, false);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -499,17 +501,18 @@ pub fn wgt_multi_when() {
     let mut wgt = multi_when_wgt!();
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "default"));
 
-    util::set_state(&mut wgt, true);
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "state_1"));
 
-    util::set_state(&mut wgt, false);
+    util::set_state(&mut ctx, &mut wgt, false);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -604,17 +607,18 @@ pub fn wgt_cfg_when() {
 
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "trace"));
 
-    util::set_state(&mut wgt, true);
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "is_state"));
 
-    util::set_state(&mut wgt, false);
+    util::set_state(&mut ctx, &mut wgt, false);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -644,17 +648,18 @@ pub fn user_cfg_when() {
 
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "trace"));
 
-    util::set_state(&mut wgt, true);
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
 
     assert!(util::traced(&wgt, "is_state"));
 
-    util::set_state(&mut wgt, false);
+    util::set_state(&mut ctx, &mut wgt, false);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -1304,12 +1309,14 @@ pub fn allowed_in_when_without_wgt_assign1() {
 
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     assert!(util::traced(&wgt, "default-trace"));
     assert!(!util::traced(&wgt, "when-trace"));
 
-    util::set_state(&mut wgt, true);
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
+
     wgt.test_update(&mut ctx);
     assert!(util::traced(&wgt, "when-trace"));
 }
@@ -1332,10 +1339,11 @@ pub fn allowed_in_when_without_wgt_assign2() {
 
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     assert!(util::traced(&wgt, "default-trace"));
     assert!(!util::traced(&wgt, "when-trace"));
 
-    util::set_state(&mut wgt, true);
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -1379,7 +1387,8 @@ pub fn generated_name_collision_in_when() {
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
-    util::set_state(&mut wgt, true);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -1402,7 +1411,8 @@ pub fn generated_name_collision_in_when_assign() {
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
-    util::set_state(&mut wgt, true);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -1432,7 +1442,8 @@ pub fn name_collision_wgt_when() {
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
-    util::set_state(&mut wgt, true);
+    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
+    util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx);
     ctx.apply_updates();
     wgt.test_update(&mut ctx);
@@ -1491,9 +1502,10 @@ mod util {
     };
 
     use crate::{
-        context::WidgetContext,
+        context::{InfoContext, TestWidgetContext, WidgetContext},
         impl_ui_node, property, state_key,
         var::{IntoVar, StateVar, Var},
+        widget_info::{UpdateMask, WidgetSubscriptions},
         UiNode, Widget,
     };
 
@@ -1649,7 +1661,9 @@ mod util {
     /// Sets the [`is_state`] of an widget.
     ///
     /// Note only applies after update.
-    pub fn set_state(wgt: &mut impl Widget, state: bool) {
+    pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl Widget, state: bool) {
+        ctx.set_current_update(UpdateMask::all());
+        ctx.updates.update(UpdateMask::all());
         *wgt.state_mut().entry(IsStateKey).or_default() = state;
     }
     struct IsStateNode<C: UiNode> {
@@ -1669,6 +1683,11 @@ mod util {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
             self.update_state(ctx);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            self.child.subscriptions(ctx, subs);
+            subs.updates(&UpdateMask::all());
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -1706,6 +1725,11 @@ mod util {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
             ctx.widget_state.entry(TraceKey).or_default().insert(self.trace.copy(ctx.vars));
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            self.child.subscriptions(ctx, subs);
+            subs.var(ctx, &self.trace);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

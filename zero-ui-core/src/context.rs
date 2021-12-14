@@ -846,6 +846,8 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
+use crate::widget_info::{BoundsRect, WidgetInfoBuilder, WidgetInfoTree, WidgetRendered, WidgetSubscriptions};
+#[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
     /// or if an app is running in the current thread.
@@ -855,9 +857,11 @@ impl TestWidgetContext {
         }
 
         let (sender, receiver) = AppEventSender::new();
+        let window_id = WindowId::new_unique();
+        let root_id = WidgetId::new_unique();
         Self {
-            window_id: WindowId::new_unique(),
-            root_id: WidgetId::new_unique(),
+            window_id,
+            root_id,
             app_state: OwnedStateMap::new(),
             window_state: OwnedStateMap::new(),
             widget_state: OwnedStateMap::new(),
@@ -867,6 +871,7 @@ impl TestWidgetContext {
             vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender),
             timers: Timers::new(),
+
             receiver,
         }
     }
@@ -897,6 +902,26 @@ impl TestWidgetContext {
             update_state: &mut self.update_state.0,
             vars: &self.vars,
         })
+    }
+
+    /// Builds a info tree.
+    pub fn info_tree<R>(
+        &mut self,
+        root_bounds: BoundsRect,
+        rendered: WidgetRendered,
+        action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
+    ) -> (WidgetInfoTree, R) {
+        let mut builder = WidgetInfoBuilder::new(self.window_id, self.root_id, root_bounds, rendered, None);
+        let r = self.info_context(|ctx| action(ctx, &mut builder));
+        let (t, _) = builder.finalize();
+        (t, r)
+    }
+
+    /// Aggregate subscriptions.
+    pub fn subscriptions<R>(&mut self, action: impl FnOnce(&mut InfoContext, &mut WidgetSubscriptions) -> R) -> (WidgetSubscriptions, R) {
+        let mut subs = WidgetSubscriptions::new();
+        let r = self.info_context(|ctx| action(ctx, &mut subs));
+        (subs, r)
     }
 
     /// Calls `action` in a fake layout context.
@@ -941,8 +966,11 @@ impl TestWidgetContext {
 
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
     ///
-    /// Returns the [`ContextUpdates`] a full app would use to update the application.
-    pub fn apply_updates(&mut self) -> ContextUpdates {
+    /// Returns the [`WindowUpdates`] and [`ContextUpdates`] a full app and window would
+    /// use to update the application.
+    pub fn apply_updates(&mut self) -> (WindowUpdates, ContextUpdates) {
+        let win_updt = self.updates.take_win_updates();
+
         for ev in self.receiver.try_iter() {
             match ev {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
@@ -955,17 +983,26 @@ impl TestWidgetContext {
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
         let (update, layout, render) = self.updates.take_updates();
-        ContextUpdates {
-            events,
-            update,
-            layout,
-            render,
-        }
+
+        (
+            win_updt,
+            ContextUpdates {
+                events,
+                update,
+                layout,
+                render,
+            },
+        )
     }
 
     /// Update timers, returns next timer tick time.
     pub fn update_timers(&mut self) -> Option<Instant> {
         self.timers.apply_updates(&self.vars)
+    }
+
+    /// Force set the current update mask.
+    pub fn set_current_update(&mut self, current: UpdateMask) {
+        self.updates.current = current;
     }
 }
 
@@ -1143,6 +1180,12 @@ impl WindowRenderUpdate {
     #[inline]
     pub fn is_render_update(self) -> bool {
         matches!(self, Self::RenderUpdate)
+    }
+
+    /// If no render was requested.
+    #[inline]
+    pub fn is_none(self) -> bool {
+        matches!(self, Self::None)
     }
 }
 impl Default for WindowRenderUpdate {

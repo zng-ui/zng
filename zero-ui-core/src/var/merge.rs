@@ -550,7 +550,7 @@ macro_rules! impl_rc_merge_var {
                 vars[i].set(&test.vars, (i + 1) as i32);
                 expected[i] += 1;
 
-                let u = test.apply_updates();
+                let (_, u) = test.apply_updates();
                 assert!(u.update);
                 assert_eq!(&expected,  var.get(&test.vars));
             }

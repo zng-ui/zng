@@ -11,7 +11,7 @@ use crate::{
     render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
     units::*,
     widget_base::implicit_base,
-    widget_info::{BoundsRect, WidgetInfoBuilder, WidgetOffset, WidgetRendered, WidgetSubscriptions},
+    widget_info::{BoundsRect, UpdateMask, WidgetInfoBuilder, WidgetOffset, WidgetRendered, WidgetSubscriptions},
     window::WindowId,
     UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
 };
@@ -95,17 +95,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_init(&mut ctx);
     assert_only_traced!(wgt.state(), "init");
 
-    wgt.test_update(&mut ctx);
-    assert_only_traced!(wgt.state(), "update");
-
     let l_size = AvailableSize::new(1000.into(), 800.into());
-
-    wgt.test_measure(&mut ctx, l_size);
-    assert_only_traced!(wgt.state(), "measure");
-
-    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), l_size.to_px());
-    assert_only_traced!(wgt.state(), "arrange");
-
     let window_id = WindowId::new_unique();
     let mut info = WidgetInfoBuilder::new(
         window_id,
@@ -114,8 +104,22 @@ fn test_trace(node: impl UiNode) {
         WidgetRendered::new(),
         None,
     );
+
     wgt.test_info(&mut ctx, &mut info);
     assert_only_traced!(wgt.state(), "info");
+
+    wgt.test_subscriptions(&mut ctx, &mut WidgetSubscriptions::new());
+    assert_only_traced!(wgt.state(), "subscriptions");
+
+    ctx.set_current_update(UpdateMask::all());
+    wgt.test_update(&mut ctx);
+    assert_only_traced!(wgt.state(), "update");
+
+    wgt.test_measure(&mut ctx, l_size);
+    assert_only_traced!(wgt.state(), "measure");
+
+    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), l_size.to_px());
+    assert_only_traced!(wgt.state(), "arrange");
 
     let root_transform_key = WidgetTransformKey::new_unique();
     let mut frame = FrameBuilder::new_renderless(
@@ -189,11 +193,18 @@ pub fn default_no_child() {
     let mut wgt = implicit_base::new(Node, WidgetId::new_unique());
     let mut ctx = TestWidgetContext::new();
 
-    // we expect defaults to do nothing with the WidgetContext.
     wgt.test_init(&mut ctx);
     wgt.test_update(&mut ctx);
     wgt.test_deinit(&mut ctx);
-    let u = ctx.apply_updates();
+    let (wu, u) = ctx.apply_updates();
+
+    // we expect `test_init` to just be an init call, no extra flagging.
+    assert!(!wu.info);
+    assert!(!wu.subscriptions);
+
+    // we expect defaults to make no requests.
+    assert!(!wu.layout);
+    assert!(wu.render.is_none());
     assert!(u.events.is_empty());
     assert!(!u.update);
     assert!(!u.layout);
@@ -270,7 +281,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::*,
-        widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+        widget_info::{EventMask, UpdateMask, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
         UiNode,
     };
 
@@ -344,7 +355,8 @@ mod util {
             self.trace("info");
         }
 
-        fn subscriptions(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
+        fn subscriptions(&self, _: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.updates(&UpdateMask::all()).events(&EventMask::all());
             self.trace("subscriptions");
         }
 
