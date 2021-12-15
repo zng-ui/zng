@@ -24,7 +24,7 @@ ipc = ["zero-ui-core/ipc", "zero-ui-view/ipc"]
 dyn_property = ["zero-ui-core/dyn_property"]
 
 # Use dynamic dispatch at the widget level by placing the widget child node in a `BoxedUiNode`.
-
+#
 # This does not cost as much runtime as `dyn_property` and is the only way of getting sane build times
 # in most desktop machines. Without this feature build time and memory grows exponentially or worst, a similar
 # effect that can be observed in nested async code. Only enable this if you have build server that can handle it,
