@@ -6,4 +6,4 @@ edition = "2021"
 
 [dependencies]
 # test support for custom names.
-zero-ui-renamed = { package = "zero-ui", path = "../../../../zero-ui" }
+zero-ui-renamed = { package = "zero-ui", path = "../../../zero-ui" }

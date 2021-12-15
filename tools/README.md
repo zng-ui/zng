@@ -1,6 +1,6 @@
 # Tools
 
-Crates that only used to generate content or manage the project.
+This directory contains crates used to generate content or manage the project.
 
 ## Workspace
 

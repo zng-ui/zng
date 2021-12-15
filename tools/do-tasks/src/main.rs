@@ -91,44 +91,32 @@ fn doc(mut args: Vec<&str>) {
     }
 }
 
-// do test, t [-w, --workspace] [-u, --unit <unit-test>] [--test-crates]
-//            [-b, --build <build-test-pat>] [--OVERWRITE]
-//            [<cargo-test-args>]
-//    Run all tests in root workspace and ./test-crates.
-// USAGE:
-//     test -u, --unit <test::path>
-//        Run tests that partially match the path in the root workspace.
-//     test -w, --workspace
-//        Run all tests in root workspace (exclude build_tests and ./test-crates).
-//     test -t, --test <integration_test_name>
-//        Run the integration test named in the root workspace.
-//     test --doc
-//        Run all doc tests in the root workspace.
-//     test --test-crates
-//        Run all the ./test-crates tests.
-//     test --build *
-//        Run all build tests
-//     test -b <build-test-pat>
-//        Run build test files that match "./tests/build/<build_test_pat>.rs".
+/// do test, t [-u, --unit <function-path>]
+///            [-t, --test <integration-test-name>]
+///            [-b, --build <file-path-pattern> [--OVERWRITE]]
+///            <cargo-test-args>
+///
+///    Run all tests in root workspace and build tests.
+/// USAGE:
+///     test -u test::path::function
+///        Run tests that partially match the Rust item path.
+///     test -t focus
+///        Run all integration tests in the named test.
+///     test -b property/*
+///        Run build tests that match the file pattern in `tests/build/cases/`.
+///     test -b *
+///        Run all build tests.
+///     test --doc
+///        Run doc tests.
+///     test
+///        Run all unit, doc, integration and build tests.
 fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
+    let env = &[("RUST_BACKTRACE", "1")];
 
-    if take_flag(&mut args, &["-w", "--workspace"]) {
-        // exclude ./test-crates and build_tests
-        if !args.iter().any(|a| *a == "--") {
-            args.push("--");
-        }
-        args.push("--skip");
-        args.push("build_tests");
-        cmd_env(
-            "cargo",
-            &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features"],
-            &args,
-            &[("RUST_BACKTRACE", "1")],
-        );
+    if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
+        // unit tests:
 
-        tests::version_in_sync();
-    } else if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
         for test_name in unit_tests {
             cmd_env(
                 "cargo",
@@ -143,86 +131,65 @@ fn test(mut args: Vec<&str>) {
                     test_name,
                 ],
                 &args,
-                &[("RUST_BACKTRACE", "1")],
+                env,
             );
         }
-    } else if take_flag(&mut args, &["--doc"]) {
-        // only doc tests for the main workspace.
-        let trace = if take_flag(&mut args, &["-b", "--backtrace"]) { "1" } else { "" };
-        cmd_env(
-            "cargo",
-            &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features", "--doc"],
-            &args,
-            &[("RUST_BACKTRACE", trace)],
-        );
-
-        tests::version_in_sync();
     } else if let Some(int_tests) = take_option(&mut args, &["-t", "--test"], "<integration-test-name>") {
-        // only specific integration test.
-        let mut t_args = vec![nightly, "test", "--workspace", "--no-fail-fast", "--all-features"];
+        // integration tests:
+
+        let mut t_args = vec![
+            nightly,
+            "test",
+            "--package",
+            "integration-tests",
+            "--no-fail-fast",
+            "--all-features",
+        ];
         for it in int_tests {
             t_args.push("--test");
             t_args.push(it);
         }
-        cmd_env("cargo", &t_args, &args, &[("RUST_BACKTRACE", "1")]);
-    } else if let Some(build_tests) = take_option(&mut args, &["-b", "--build"], "<build-test-pat>") {
-        let build_tests_args = vec![
-            nightly,
-            "test",
-            "--workspace",
-            "--no-fail-fast",
-            "--all-features",
-            "--test",
-            "build_tests",
-        ];
+        cmd_env("cargo", &t_args, &args, env);
+    } else if take_flag(&mut args, &["-b", "--build"]) {
+        // build tests:
 
-        let overwrite = if take_flag(&mut args, &["--OVERWRITE"]) { "overwrite" } else { "" };
-
-        let all_patterns = ["*", "**", "*/*", "*\\*"];
-        if all_patterns.iter().any(|a| build_tests.contains(a)) {
-            // all build tests.
-            cmd_env("cargo", &build_tests_args, &args, &[("TRYBUILD", overwrite)]);
+        if args.len() != 1 {
+            error("expected pattern, use do test -b * to run all build tests");
         } else {
-            // specific test files.
-            let mut args = build_tests_args;
-            args.extend(&["--", "do_tasks_test_runner", "--exact", "--ignored"]);
-            for test_name in build_tests {
-                cmd_env("cargo", &args, &[], &[("DO_TASKS_TEST_BUILD", test_name), ("TRYBUILD", overwrite)]);
-            }
-        }
-    } else if take_flag(&mut args, &["--examples"]) {
-        // example tests
-        cmd_env("cargo", &[nightly, "test", "--examples"], &args, &[("RUST_BACKTRACE", "1")]);
-    } else if let Some(examples) = take_option(&mut args, &["--example"], "<NAME>") {
-        // named example tests
-        for example in examples {
-            cmd_env("cargo", &[nightly, "--example", example], &args, &[("RUST_BACKTRACE", "1")]);
-        }
-    } else if take_flag(&mut args, &["--test-crates"]) {
-        // all ./test-crates
-        for test_crate in top_cargo_toml("test-crates") {
+            let overwrite = if take_flag(&mut args, &["--OVERWRITE"]) { "overwrite" } else { "" };
             cmd_env(
                 "cargo",
-                &[
-                    nightly,
-                    "test",
-                    "--workspace",
-                    "--no-fail-fast",
-                    "--all-features",
-                    "--manifest-path",
-                    &test_crate,
-                ],
-                &args,
-                &[("RUST_BACKTRACE", "1")],
+                &["run", "--package", "build-tests"],
+                &[],
+                &[("TRYBUILD", overwrite), ("DO_TASKS_TEST_BUILD", args[0])],
             );
         }
-    } else if !args.is_empty() {
-        cmd("cargo", &[nightly, "test", "--no-fail-fast", "--all-features"], &args);
+    } else if take_flag(&mut args, &["--examples"]) {
+        // all examples
+
+        cmd_env("cargo", &[nightly, "test", "--package", "examples", "--examples"], &args, env);
+    } else if let Some(examples) = take_option(&mut args, &["--example"], "<NAME>") {
+        // some examples
+
+        let mut e_args = vec![nightly, "--package", "examples"];
+        for e in examples {
+            e_args.extend(&["--example", e]);
+        }
+        cmd_env("cargo", &e_args, &args, env);
     } else {
-        test(vec![nightly, "--workspace"]);
-        test(vec![nightly, "--examples"]);
-        test(vec![nightly, "--build", "*"]);
-        test(vec![nightly, "--test-crates"]);
+        // other, mostly handled by cargo.
+
+        if take_flag(&mut args, &["--doc"]) {
+            tests::version_in_sync();
+        }
+
+        cmd_env("cargo", &[nightly, "test", "--no-fail-fast", "--all-features"], &args, env);
+
+        if args.is_empty() {
+            // if no args we run everything.
+            tests::version_in_sync();
+            test(vec!["--build", "*"]);
+        }
     }
 }
 
@@ -251,14 +218,19 @@ fn run(mut args: Vec<&str>) {
         let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];
 
         let release = if release { "--release" } else { "" };
-        cmd_env("cargo", &["build", "--examples", release], &[], rust_flags);
+        cmd_env("cargo", &["build", "--package", "examples", "--examples", release], &[], rust_flags);
         for example in examples() {
-            cmd_env("cargo", &["run", "--example", &example, release], &[], rust_flags);
+            cmd_env(
+                "cargo",
+                &["run", "--package", "examples", "--example", &example, release],
+                &[],
+                rust_flags,
+            );
         }
     } else {
         let rust_flags = release_rust_flags(args.contains(&"--release"));
         let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];
-        cmd_env("cargo", &["run", "--example"], &args, rust_flags);
+        cmd_env("cargo", &["run", "--package", "examples", "--example"], &args, rust_flags);
     }
 }
 
@@ -308,7 +280,7 @@ fn expand(mut args: Vec<&str>) {
         }
     } else if take_flag(&mut args, &["-e", "--example"]) {
         TaskInfo::get().stdout_dump = "dump.rs";
-        cmd("cargo", &["expand", "--example"], &args);
+        cmd("cargo", &["expand", "--package", "examples", "--example"], &args);
     } else {
         TaskInfo::get().stdout_dump = "dump.rs";
         if take_flag(&mut args, &["-r", "--raw"]) {
@@ -330,16 +302,10 @@ fn fmt(args: Vec<&str>) {
     cmd("cargo", &["fmt"], &args);
     println("done");
 
-    print("    fmt test-crates ... ");
-    for test_crate in top_cargo_toml("test-crates") {
-        cmd("cargo", &["fmt", "--manifest-path", &test_crate], &args);
-    }
-    println("done");
-
-    print("    fmt tests/build/**/*.rs ... ");
-    let cases = all_rs("tests/build");
+    print("    fmt tests/build/cases/**/*.rs ... ");
+    let cases = all_rs("tests/build/cases");
     let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
-    cmd("rustfmt", &["--edition", "2018"], &cases_str);
+    cmd("rustfmt", &["--edition", "2021"], &cases_str);
     println("done");
 
     print("    fmt tools ... ");
@@ -355,39 +321,39 @@ fn check(args: Vec<&str>) {
     cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
 }
 
-// do build, b [-e, --example] [--all] [-t, --timing] [<cargo-build-args>]
+// do build, b [-e, --example] [--examples] [-t, --timing] [<cargo-build-args>]
 //    Compile the main crate and its dependencies.
 // USAGE:
 //    build -e <example>
 //       Compile the example.
-//    build --workspace
-//       Compile the root workspace.
-//    build --all
-//       Compile the root workspace and ./test-crates.
+//    build --examples
+//       Compile all examples.
 //    build -p <crate> --timing
 //       Compile crate in nightly and report "cargo-timing.html"
 fn build(mut args: Vec<&str>) {
-    let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
+    let mut cargo_args = vec![];
+
+    let timing = take_flag(&mut args, &["-t", "--timing"]);
+    if take_flag(&mut args, &["+nightly"]) || timing {
+        cargo_args.push("+nightly");
+    }
+
+    cargo_args.push("build");
 
     let rust_flags = release_rust_flags(args.contains(&"--release"));
     let rust_flags = &[(rust_flags.0, rust_flags.1.as_str())];
 
-    if take_flag(&mut args, &["-t", "--timing"]) {
-        if let Some(example) = args.iter_mut().find(|a| **a == "-e") {
-            *example = "--example";
-        }
-        cmd_env("cargo", &["+nightly", "build", "-Ztimings"], &args, rust_flags);
-    } else if take_flag(&mut args, &["--all"]) {
-        for test_crate in top_cargo_toml("test-crates") {
-            cmd_env("cargo", &[nightly, "build", "--manifest-path", &test_crate], &args, rust_flags);
-        }
-        cmd_env("cargo", &[nightly, "build"], &args, rust_flags);
-    } else {
-        if let Some(example) = args.iter_mut().find(|a| **a == "-e") {
-            *example = "--example";
-        }
-        cmd_env("cargo", &[nightly, "build"], &args, rust_flags);
+    if timing {
+        cargo_args.push("-Ztimings");
     }
+
+    if take_flag(&mut args, &["-e", "--example"]) {
+        cargo_args.extend(&["--package", "examples", "--example"]);
+    } else if take_flag(&mut args, &["--examples"]) {
+        cargo_args.extend(&["--package", "examples", "--examples"]);
+    }
+
+    cmd_env("cargo", &cargo_args, &args, rust_flags);
 }
 fn release_rust_flags(is_release: bool) -> (&'static str, String) {
     let mut rust_flags = ("", String::new());
@@ -438,11 +404,9 @@ fn prebuild(args: Vec<&str>) {
     cmd("cargo", &["build", "-p", "zero-ui-view-prebuilt", "--release"], &[]);
 }
 
-// do clean [--test-crates] [--tools] [--workspace] [<cargo-clean-args>]
+// do clean [--tools] [--workspace] [<cargo-clean-args>]
 //    Remove workspace, test-crates and tools target directories.
 // USAGE:
-//    clean --test-crates
-//       Remove only the target directories in ./test-crates.
 //    clean --tools
 //       Remove only the target directories in ./tools.
 //    clean --workspace
@@ -452,18 +416,12 @@ fn prebuild(args: Vec<&str>) {
 //    clean --release
 //       Remove only the release files from the target directories.
 fn clean(mut args: Vec<&str>) {
-    let test_crates = take_flag(&mut args, &["--test-crates"]);
     let tools = take_flag(&mut args, &["--tools"]);
     let workspace = take_flag(&mut args, &["--workspace"]);
-    let all = !test_crates && !tools && !workspace;
+    let all = !tools && !workspace;
 
     if all || workspace {
         cmd("cargo", &["clean"], &args);
-    }
-    if all || test_crates {
-        for crate_ in top_cargo_toml("test-crates") {
-            cmd("cargo", &["clean", "--manifest-path", &crate_], &args);
-        }
     }
     if all || tools {
         for tool_ in top_cargo_toml("test-crates") {

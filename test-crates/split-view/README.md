@@ -1,1 +1,0 @@
-See [`./split-app/README.md`].

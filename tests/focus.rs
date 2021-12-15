@@ -1,11 +1,11 @@
 use zero_ui::core::app::HeadlessApp;
+use zero_ui::core::event::EventBuffer;
 use zero_ui::core::focus::{FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs};
+use zero_ui::core::focus::{FocusChangedEvent, ReturnFocusChangedEvent};
 use zero_ui::core::gesture::HeadlessAppGestureExt;
 use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
 use zero_ui::core::window::{HeadlessAppWindowExt, WindowId};
 use zero_ui::prelude::*;
-use zero_ui_core::event::EventBuffer;
-use zero_ui_core::focus::{FocusChangedEvent, ReturnFocusChangedEvent};
 
 #[test]
 pub fn first_and_last_window_events() {

@@ -1,0 +1,70 @@
+[package]
+name = "examples"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[features]
+default = ["ipc"]
+ipc = ["zero-ui/ipc", "zero-ui-view/ipc"]
+
+[dev-dependencies]
+meval = "0.2"
+tracing = "0.1"
+
+zero-ui = { path = "../zero-ui", default-features = false, features = ["test_util"] }
+zero-ui-view = { path = "../zero-ui-view", default-features = false }
+zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }
+examples-util = { path = "util" }
+
+[[example]]
+name = "_test"
+path = "_test.rs"
+
+[[example]]
+name = "button"
+path = "button.rs"
+
+[[example]]
+name = "calculator"
+path = "calculator.rs"
+
+[[example]]
+name = "countdown"
+path = "countdown.rs"
+
+[[example]]
+name = "focus"
+path = "focus.rs"
+
+[[example]]
+name = "gradient"
+path = "gradient.rs"
+
+[[example]]
+name = "headless"
+path = "headless.rs"
+
+[[example]]
+name = "image"
+path = "image.rs"
+
+[[example]]
+name = "respawn"
+path = "respawn.rs"
+
+[[example]]
+name = "shortcuts"
+path = "shortcuts.rs"
+
+[[example]]
+name = "stress"
+path = "stress.rs"
+
+[[example]]
+name = "text"
+path = "text.rs"
+
+[[example]]
+name = "window"
+path = "window.rs"

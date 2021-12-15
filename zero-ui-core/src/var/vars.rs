@@ -85,7 +85,10 @@ type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 /// the [`with_context_var`] helper function to declare a node that binds a context var in all [`UiNode`] methods.
 ///
 /// [new]: Var::is_new
+/// [`deinit`]: crate::UiNode::deinit
+/// [`init`]: crate::UiNode::init
 /// [`render`]: crate::UiNode::render
+/// [`update`]: crate::UiNode::update
 /// [`UiNode`]: crate::UiNode
 /// [`render_update`]: crate::UiNode::render_update
 /// [`get`]: Var::get

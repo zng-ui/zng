@@ -1,0 +1,13 @@
+[package]
+name = "build-tests"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+trybuild = "1"
+zero-ui = { path = "../../zero-ui" }
+
+[[bin]]
+name = "main"
+path = "main.rs"

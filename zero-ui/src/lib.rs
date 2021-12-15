@@ -31,6 +31,7 @@
 //! Then create your first window:
 //!
 //! ```no_run
+//! # mod zero_ui_view { pub fn init() { } }
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
@@ -1123,12 +1124,12 @@ pub mod prelude {
 pub mod docs {
     /// `README.md`
     ///
-    #[doc = include_str!("../README.md")]
+    #[doc = include_str!("../../README.md")]
     pub mod readme {}
 
     /// `CHANGELOG.md`
     ///
-    #[doc = include_str!("../CHANGELOG.md")]
+    #[doc = include_str!("../../CHANGELOG.md")]
     pub mod changelog {}
 }
 

@@ -1,9 +1,0 @@
-[package]
-name = "split-view"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-zero-ui-view = { path = "../../zero-ui-view" }
-
-[workspace]

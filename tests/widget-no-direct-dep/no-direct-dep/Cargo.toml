@@ -5,7 +5,4 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 
 [dependencies]
-direct-dep = { path = "direct-dep" }
-
-[workspace]
-members = ["direct-dep"]
+direct-dep = { path = "../direct-dep" }

@@ -1,0 +1,78 @@
+[package]
+name = "zero-ui"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+
+[features]
+default = ["ipc", "dyn_widget"]
+
+# Enables pre-build views and connecting to views running in another process.
+# 
+# Enabled by default.
+ipc = ["zero-ui-core/ipc"]
+
+# Use dynamic dispatch at the property level by placing each property node in a `BoxedUiNode`.
+#
+# This speeds-up compilation time at the cost of runtime, if `inspector` is enabled 
+# the generated code has the same effect as this.
+dyn_property = ["zero-ui-core/dyn_property"]
+
+# Use dynamic dispatch at the widget level by placing the widget child node in a `BoxedUiNode`.
+#
+# This does not cost as much runtime as `dyn_property` and is the only way of getting sane build times
+# in most desktop machines. Without this feature build time and memory grows exponentially or worst, a similar
+# effect that can be observed in nested async code. Only enable this if you have build server that can handle it,
+# the result is as optimized as it gets with some event handlers compiling down to an almost direct call.
+dyn_widget = ["zero-ui-core/dyn_widget"]
+
+# Instrument each property and widget instance with "Inspector" nodes.
+#
+# This is enabled by default in debug builds.
+#
+# Note: This has the effect of `dyn_widget` and `dyn_property`.
+inspector = ["zero-ui-core/inspector"]
+
+# Use dynamic dispatch at the app-extension level.
+#
+# This is enabled by default in debug builds.
+#
+# This speeds-up compilation time at the cost of runtime.
+dyn_app_extension = ["zero-ui-core/dyn_app_extension"]
+
+# like cfg(test) but also visible in docs and integration tests.
+#
+# USAGE:
+#
+# Build with this feature to use the core test helper types that show
+# in the documentation.
+test_util = ["zero-ui-core/test_util"]
+
+# # Other Features
+#
+# ## `doc_nightly`
+#
+# Activates nightly only `rustdoc` features. The crate is already configured to use this feature
+# in "docs.rs" and `do doc`.
+# 
+# Use `#![cfg_attr(doc_nightly, feature(doc_foo))]` in the `lib.rs` to activate a `rustdoc` feature. Then
+# use `#[cfg_attr(doc_nightly, doc(foo))]` in an item.
+# 
+# Use `RUSTDOCFLAGS="--cfg doc_nightly" cargo +nightly doc` to run `cargo doc` without using `do`.
+
+[dependencies]
+# local
+zero-ui-core = { path = "../zero-ui-core", default-features = false }
+
+# util
+paste = "1"
+retain_mut = "0.1"
+tracing = "0.1"
+bitflags = "1"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "doc_nightly"]
