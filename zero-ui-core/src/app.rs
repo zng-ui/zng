@@ -1201,7 +1201,7 @@ impl<E: AppExtension> RunningApp<E> {
                         vp.on_frame_rendered(unsafe { WindowId::from_raw(ev.window) });
                         self.tick_timers = true;
                     }
-                    // separate frame rendered event, this lets we coalesce more cursor events and
+                    // separate frame rendered event, this lets us coalesce more cursor events and
                     // use the same hit-test for the cursor move event.
                     if let Some(ev) = self.pending_view_frame_event.take() {
                         tracing::warn!("pending frame rendered event in `push_coalesce`");
