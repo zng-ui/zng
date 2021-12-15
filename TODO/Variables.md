@@ -1,6 +1,12 @@
 # Var TODO
 
-Variable API is mostly implemented, need to integrate animation and review performance.
+# ContextVar Binding
+
+Test binding, expecting it to only use the default value, can we make it work at a context level?
+
+# ContextVar Map
+
+Need to test, expect to map at the first eval point, what happens when a mapping is cloned in two contexts?
 
 # ContextVar Write
 
