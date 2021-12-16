@@ -1580,8 +1580,8 @@ impl Windows {
     /// [`WindowCloseRequestedEvent`]. If canceled none of the windows are closed.
     ///
     /// Returns a response var that will update once with the result of the operation. Returns
-    /// [`Cancel`] if `windows` is empty or contains a window that already
-    /// requested close during this update.
+    /// [`Cancel`] if `windows` is empty or contains a window that already requested close 
+    /// during this update.
     ///
     /// [`Cancel`]: CloseWindowResult::Cancel
     pub fn close_together(
@@ -1614,6 +1614,18 @@ impl Windows {
         let _ = self.update_sender.send_ext_update();
 
         Ok(response)
+    }
+
+    /// Requests close of all open windows together, the operation can be canceled by listeners of
+    /// the [`WindowCloseRequestEvent`]. If canceled none of the windows are closed.
+    /// 
+    /// Returns a response var that will update once with the result of the operation, Returns
+    /// [`Cancel`] if no window is open or if close was already requested to one of the windows.
+    /// 
+    /// [`Cancel`]: CloseWindowResult::Cancel
+    pub fn close_all(&mut self) -> ResponseVar<CloseWindowResult> {
+        let set: Vec<_> = self.windows.keys().copied().collect();
+        self.close_together(set).unwrap()
     }
 
     /// Get the window [mode].

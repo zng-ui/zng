@@ -256,6 +256,11 @@ pub mod window {
         /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
         on_window_close_requested as on_close_requested;
 
+        /// On window deinited.
+        /// 
+        /// This event notifies once after the window content is deinited because it is closing.
+        crate::properties::events::widget::on_deinit as on_close;
+
         /// On window position changed.
         ///
         /// This event notifies every time the user or app changes the window position. You can also track the window

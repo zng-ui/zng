@@ -1,4 +1,5 @@
 use examples_util::FilterArgs;
+use zero_ui::core::window::MonitorsExt;
 use zero_ui::core::{app::ShutdownRequestedEvent, context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
@@ -8,6 +9,7 @@ const SAME_PROCESS: bool = true;
 static TESTS: &[(&str, TestFn, FilterFn)] = &[
     ("text_change_all", text_change_all, all_trace),
     ("text_change_one", text_change_one, all_trace),
+    ("multi_window", multi_window, all_trace),
 ];
 
 #[allow(unused)]
@@ -27,7 +29,6 @@ fn text_change_all(ctx: &mut WindowContext) -> Window {
     });
 
     let mut texts = widget_vec![];
-
     for _ in 0..2000 {
         texts.push(text! {
             text = msg.clone();
@@ -72,6 +73,65 @@ fn text_change_one(_ctx: &mut WindowContext) -> Window {
             items = texts;
         };
     }
+}
+
+fn multi_window(ctx: &mut WindowContext) -> Window {
+    let mut dots_count = 3;
+    let msg = ctx.timers.interval(1.secs() / 60, true).map(move |_| {
+        dots_count += 1;
+        if dots_count == 8 {
+            dots_count = 0;
+        }
+        formatx!("loading{:.^1$}", "", dots_count)
+    });
+
+    let monitor_size = ctx.services.monitors().primary_monitor().expect("expected one monitor").info.size;
+
+    let window_size = PxSize::new(monitor_size.width / Px(5), monitor_size.height / Px(2));
+
+    let mut window_pos = PxPoint::zero();
+
+    let mut wns = vec![];
+    for i in 0..10 {
+        let mut texts = widget_vec![];
+        for _ in 0..200 {
+            texts.push(text! {
+                text = msg.clone();
+                width = 80;
+                when self.is_hovered {
+                    color = colors::RED;
+                }
+            });
+        }
+
+        wns.push(window! {
+            title = formatx!("stress - multi_window - {}", i);
+            position = window_pos;
+            size = window_size;
+            on_close = hn!(|ctx, _| {
+                ctx.services.windows().close_all();
+            });
+            content = uniform_grid! {
+                columns = 6;
+                items = texts;
+            };
+        });
+
+        window_pos.x += window_size.width;
+        if window_pos.x + window_size.width > monitor_size.width {
+            window_pos.x = Px(0);
+            window_pos.y += window_size.height;
+        }
+    }
+
+    let r = wns.pop().unwrap();
+
+    let windows = ctx.services.windows();
+    for w in wns {
+        windows.open(|_| w);
+    }
+
+    r
 }
 
 fn main() {
