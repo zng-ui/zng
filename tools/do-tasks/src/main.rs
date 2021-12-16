@@ -54,7 +54,7 @@ fn install(mut args: Vec<&str>) {
 }
 
 // do doc [-o, --open] [<cargo-doc-args>]
-//    Generate documentation for crates in the root workspace.
+//    Generate documentation for zero-ui crates.
 fn doc(mut args: Vec<&str>) {
     let custom_open = if args.contains(&"--manifest-path") {
         if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
@@ -67,7 +67,7 @@ fn doc(mut args: Vec<&str>) {
 
     cmd_env_req(
         "cargo",
-        &["+nightly", "doc", "--all-features", "--no-deps", "--workspace"],
+        &["+nightly", "doc", "--all-features", "--no-deps", "--package", "zero-ui*"],
         &args,
         &[("RUSTDOCFLAGS", "--cfg doc_nightly")],
     );
