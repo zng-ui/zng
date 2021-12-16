@@ -4,16 +4,12 @@ version = "0.0.0"
 publish = false
 edition = "2021"
 
-[features]
-default = ["ipc"]
-ipc = ["zero-ui/ipc", "zero-ui-view/ipc"]
-
 [dev-dependencies]
 meval = "0.2"
 tracing = "0.1"
 
-zero-ui = { path = "../zero-ui", default-features = false, features = ["test_util"] }
-zero-ui-view = { path = "../zero-ui-view", default-features = false }
+zero-ui = { path = "../zero-ui", features = ["test_util"] }
+zero-ui-view = { path = "../zero-ui-view" }
 zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }
 examples-util = { path = "util" }
 
