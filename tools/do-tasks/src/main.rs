@@ -241,10 +241,8 @@ fn run(mut args: Vec<&str>) {
 // FLAGS:
 //     --dump   Write the expanded Rust code to "dump.rs".
 // USAGE:
-//     expand some::item
-//        Prints only the specified item in the main crate.
-//     expand -p "other-crate" some::item
-//        Prints only the specified item in the other-crate from workspace.
+//     expand -p crate-name item::path
+//        Prints only the specified item in the crate from workspace.
 //     expand -e "example"
 //        Prints the example.
 //     expand --raw
@@ -261,6 +259,7 @@ fn expand(mut args: Vec<&str>) {
         test_args.insert(0, "+nightly");
         test(test_args);
 
+        
         TaskInfo::get().stdout_dump = "dump.rs";
         for (bin_name, path) in build_test_cases() {
             let i = path.find("tests").unwrap_or_default();
@@ -270,7 +269,7 @@ fn expand(mut args: Vec<&str>) {
                 &[
                     "expand",
                     "--manifest-path",
-                    "target/tests/zero-ui/Cargo.toml",
+                    "target/tests/build-tests/Cargo.toml",
                     "--bin",
                     &bin_name,
                     "--all-features",
@@ -283,10 +282,14 @@ fn expand(mut args: Vec<&str>) {
         cmd("cargo", &["expand", "--package", "examples", "--example"], &args);
     } else {
         TaskInfo::get().stdout_dump = "dump.rs";
-        if take_flag(&mut args, &["-r", "--raw"]) {
+        if !args.contains(&"-p") && !args.contains(&"--package") {
+            error("expected crate name");
+        } else if take_flag(&mut args, &["-r", "--raw"]) {
+            let p = take_option(&mut args, &["-p", "--package"], "<crate-name>").unwrap();
+
             cmd(
                 "cargo",
-                &["+nightly", "rustc", "--profile=check", "--", "-Zunpretty=expanded"],
+                &["+nightly", "rustc", "--profile=check", "--package", p[0], "--", "-Zunpretty=expanded"],
                 &args,
             );
         } else {

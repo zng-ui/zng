@@ -366,7 +366,7 @@ pub mod scrollable {
         fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
             ViewGenerator::presenter(
                 var,
-                |vars, widget| {
+                |_vars, _widget| {
                     // TODO
                 },
                 move |ctx, is_new| {

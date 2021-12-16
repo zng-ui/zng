@@ -181,7 +181,7 @@ pub mod grid {
                 let column_widths: Vec<_> = self.columns.iter_mut().map(|c| c.measure(ctx, c_available_size)).collect();
                 let row_heights: Vec<_> = self.rows.iter_mut().map(|r| r.measure(ctx, r_available_size)).collect();
 
-                let mut desired_size = PxSize::zero();
+                let desired_size = PxSize::zero();
                 let mut c_desired_widths = vec![Px(0); column_widths.len()];
                 let mut r_desired_heights = vec![Px(0); row_heights.len()];
 
@@ -275,7 +275,7 @@ pub mod grid {
             }
 
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-                let _ = (ctx, final_size);
+                let _ = (ctx, widget_offset, final_size);
                 todo!()
             }
 

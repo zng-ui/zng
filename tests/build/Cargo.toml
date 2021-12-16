@@ -8,6 +8,10 @@ edition = "2021"
 trybuild = "1"
 zero-ui = { path = "../../zero-ui" }
 
+[lib]
+name = "lib"
+path = "run.rs"
+
 [[bin]]
 name = "main"
 path = "main.rs"
