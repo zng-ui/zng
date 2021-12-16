@@ -678,20 +678,20 @@ pub mod impl_ui_node_util {
     };
 
     #[inline]
-    pub fn delegate<U: UiNode + ?Sized>(d: &U) -> &U {
+    pub fn delegate(d: &impl UiNode) -> &impl UiNode {
         d
     }
     #[inline]
-    pub fn delegate_mut<U: UiNode + ?Sized>(d: &mut U) -> &mut U {
+    pub fn delegate_mut(d: &mut impl UiNode) -> &mut impl UiNode {
         d
     }
 
     #[inline]
-    pub fn delegate_list<U: UiNodeList + ?Sized>(d: &U) -> &U {
+    pub fn delegate_list(d: &impl UiNodeList) -> &impl UiNodeList {
         d
     }
     #[inline]
-    pub fn delegate_list_mut<U: UiNodeList + ?Sized>(d: &mut U) -> &mut U {
+    pub fn delegate_list_mut(d: &mut impl UiNodeList) -> &mut impl UiNodeList {
         d
     }
 

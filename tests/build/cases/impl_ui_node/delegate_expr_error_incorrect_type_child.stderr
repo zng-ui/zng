@@ -1,23 +1,29 @@
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
-   --> $DIR/delegate_expr_error_incorrect_type_child.rs:9:16
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type_child.rs:9:16
     |
 9   | #[impl_ui_node(child)]
-    |                ^^^^^ the trait `UiNode` is not implemented for `NotANode`
-    |
-note: required by a bound in `delegate_mut`
-   --> $DIR/ui_node.rs:514:28
-    |
-514 |     pub fn delegate_mut<U: UiNode + ?Sized>(d: &mut U) -> &mut U {
-    |                            ^^^^^^ required by this bound in `delegate_mut`
-
-error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
-   --> $DIR/delegate_expr_error_incorrect_type_child.rs:9:16
-    |
-9   | #[impl_ui_node(child)]
-    |                ^^^^^ the trait `UiNode` is not implemented for `NotANode`
+    | ---------------^^^^^--
+    | |              |
+    | |              the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
     |
 note: required by a bound in `delegate`
-   --> $DIR/ui_node.rs:510:24
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
     |
-510 |     pub fn delegate<U: UiNode + ?Sized>(d: &U) -> &U {
-    |                        ^^^^^^ required by this bound in `delegate`
+    |     pub fn delegate(d: &impl UiNode) -> &impl UiNode {
+    |                              ^^^^^^ required by this bound in `delegate`
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type_child.rs:9:16
+    |
+9   | #[impl_ui_node(child)]
+    | ---------------^^^^^--
+    | |              |
+    | |              the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by a bound in `delegate_mut`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     pub fn delegate_mut(d: &mut impl UiNode) -> &mut impl UiNode {
+    |                                      ^^^^^^ required by this bound in `delegate_mut`

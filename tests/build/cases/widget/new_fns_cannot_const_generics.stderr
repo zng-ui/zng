@@ -1,20 +1,20 @@
 error: `new` does not support `const` generics
- --> $DIR/new_fns_cannot_const_generics.rs:7:12
+ --> cases/widget/new_fns_cannot_const_generics.rs:7:12
   |
-7 |     fn new<const N: usize>(child: impl UiNode, id: impl Into<WidgetId>) -> [bool; N] {
+7 |     fn new<const N: usize>(child: impl UiNode, id: impl IntoValue<WidgetId>) -> [bool; N] {
   |            ^^^^^
 
 error: `new_child` does not support `const` generics
-  --> $DIR/new_fns_cannot_const_generics.rs:10:18
+  --> cases/widget/new_fns_cannot_const_generics.rs:10:18
    |
 10 |     fn new_child<const N: usize>() -> [bool; N] {
    |                  ^^^^^
 
 error[E0425]: cannot find value `N` in this scope
- --> $DIR/new_fns_cannot_const_generics.rs:7:83
+ --> cases/widget/new_fns_cannot_const_generics.rs:7:88
   |
-7 |     fn new<const N: usize>(child: impl UiNode, id: impl Into<WidgetId>) -> [bool; N] {
-  |                                                                                   ^ not found in this scope
+7 |     fn new<const N: usize>(child: impl UiNode, id: impl IntoValue<WidgetId>) -> [bool; N] {
+  |                                                                                        ^ not found in this scope
   |
 help: consider importing one of these items
   |
@@ -24,7 +24,7 @@ help: consider importing one of these items
   |
 
 error[E0277]: the trait bound `[bool; _]: UiNode` is not satisfied
-  --> $DIR/new_fns_cannot_const_generics.rs:10:39
+  --> cases/widget/new_fns_cannot_const_generics.rs:10:39
    |
 10 |     fn new_child<const N: usize>() -> [bool; N] {
    |                                       ^^^^^^^^^ the trait `UiNode` is not implemented for `[bool; _]`

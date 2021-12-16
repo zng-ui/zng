@@ -1,15 +1,19 @@
 error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
-  --> $DIR/missing_field_all_single.rs:8:18
+  --> cases/widget_new/missing_field_all_single.rs:8:18
    |
 8  |         margin = { }
-   |                  ^^^
+   |                  -^^
    |                  |
    |                  expected an implementor of trait `IntoVar<SideOffsets>`
-   |                  help: consider borrowing here: `&{ }`
+   |                  required by a bound introduced by this call
    |
 note: required by `margin_ArgsImpl::<T_margin>::new`
-  --> $DIR/layout.rs:36:1
+  --> $WORKSPACE/zero-ui/src/properties/layout.rs
    |
-36 | #[property(outer, default(0))]
+   | #[property(outer, default(0))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider borrowing here
+   |
+8  |         margin = &{ }
+   |                  +

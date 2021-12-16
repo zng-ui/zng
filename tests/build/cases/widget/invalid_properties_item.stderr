@@ -1,5 +1,5 @@
 error: expected `when`, `child`, `remove` or a property declaration
- --> $DIR/invalid_properties_item.rs:6:9
+ --> cases/widget/invalid_properties_item.rs:6:9
   |
 6 |         {}
-  |         ^^
+  |         ^

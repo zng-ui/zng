@@ -1,18 +1,22 @@
 error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
-   --> $DIR/incorrect_arg_type4.rs:10:20
+   --> cases/widget_new/incorrect_arg_type4.rs:10:20
     |
+8   |         background_gradient = {
+    |                               - required by a bound introduced by this call
+9   |             axis: 0.deg(),
 10  |             stops: true
-    |                    ^^^^
-    |                    |
-    |                    expected an implementor of trait `IntoVar<GradientStops>`
-    |                    help: consider borrowing here: `&true`
+    |                    ^^^^ expected an implementor of trait `IntoVar<GradientStops>`
     |
 note: required by `background_gradient_ArgsImpl::<T_axis, T_stops>::new`
-   --> $DIR/visual.rs:124:1
+   --> $WORKSPACE/zero-ui/src/properties/visual.rs
     |
-124 | / #[property(inner, default(0.deg(), {
-125 | |     let c = colors::BLACK.transparent();
-126 | |     crate::core::gradient::stops![c, c]
-127 | | }))]
+    | / #[property(inner, default(0.deg(), {
+    | |     let c = colors::BLACK.transparent();
+    | |     crate::core::gradient::stops![c, c]
+    | | }))]
     | |____^
     = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider borrowing here
+    |
+10  |             stops: &true
+    |                    +

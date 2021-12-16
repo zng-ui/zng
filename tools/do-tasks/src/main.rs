@@ -163,10 +163,11 @@ fn test(mut args: Vec<&str>) {
     } else if take_flag(&mut args, &["-b", "--build"]) {
         // build tests:
 
+        let overwrite = if take_flag(&mut args, &["--OVERWRITE"]) { "overwrite" } else { "" };
+
         if args.len() != 1 {
             error("expected pattern, use do test -b * to run all build tests");
         } else {
-            let overwrite = if take_flag(&mut args, &["--OVERWRITE"]) { "overwrite" } else { "" };
             cmd_env(
                 "cargo",
                 &["run", "--package", "build-tests"],

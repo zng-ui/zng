@@ -1,29 +1,29 @@
 error: expected `default("arg1", ..)` or `default(arg1: "arg1", ..)`
- --> $DIR/defaults.rs:3:21
+ --> cases/property/defaults.rs:3:21
   |
 3 | #[property(context, default)]
   |                     ^^^^^^^
 
 error: expected `default("arg1", ..)` or `default(arg1: "arg1", ..)`
- --> $DIR/defaults.rs:9:28
+ --> cases/property/defaults.rs:9:28
   |
 9 | #[property(context, default())]
   |                            ^^
 
 error: missing field `b` in property initializer
-  --> $DIR/defaults.rs:21:28
+  --> cases/property/defaults.rs:21:28
    |
 21 | #[property(context, default(a: true))]
    |                            ^^^^^^^^^
 
 error: unknown field `c`
-  --> $DIR/defaults.rs:33:47
+  --> cases/property/defaults.rs:33:47
    |
 33 | #[property(context, default(a: true, b: 2555, c: "ABC"))]
    |                                               ^
 
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
-  --> $DIR/defaults.rs:15:28
+  --> cases/property/defaults.rs:15:28
    |
 15 | #[property(context, default(true))]
    |                            ^----^
@@ -32,20 +32,14 @@ error[E0061]: this function takes 2 arguments but 1 argument was supplied
    |                            expected 2 arguments
    |
 note: associated function defined here
-  --> $DIR/defaults.rs:15:1
+  --> cases/property/defaults.rs:15:1
    |
-15 |    #[property(context, default(true))]
-   |   _-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   |  |_|
-   | ||
-16 | || pub fn incorrect_default_args_count_u_1(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
-   | ||____________________________________________________________-______________________-
-   |  |____________________________________________________________|
-   |
+15 | #[property(context, default(true))]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0061]: this function takes 2 arguments but 3 arguments were supplied
-  --> $DIR/defaults.rs:27:28
+  --> cases/property/defaults.rs:27:28
    |
 27 | #[property(context, default(true, 2555, "ABC"))]
    |                            ^----^^----^^-----^
@@ -54,84 +48,92 @@ error[E0061]: this function takes 2 arguments but 3 arguments were supplied
    |                            expected 2 arguments
    |
 note: associated function defined here
-  --> $DIR/defaults.rs:27:1
+  --> cases/property/defaults.rs:27:1
    |
-27 |    #[property(context, default(true, 2555, "ABC"))]
-   |   _-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   |  |_|
-   | ||
-28 | || pub fn incorrect_default_args_count_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
-   | ||____________________________________________________________-______________________-
-   |  |____________________________________________________________|
-   |
+27 | #[property(context, default(true, 2555, "ABC"))]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is not satisfied
-  --> $DIR/defaults.rs:39:28
+  --> cases/property/defaults.rs:39:35
    |
 39 | #[property(context, default(2555, true))]
-   |                            ^^^^^^^^^^^^ the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
+   |                            -------^^^^-
+   |                            |      |
+   |                            |      the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
+   |                            required by a bound introduced by this call
    |
    = help: the following implementations were found:
              <&'static [u8; N] as zero_ui::prelude::IntoVar<ImageSource>>
              <&'static [u8; N] as zero_ui::prelude::IntoVar<WindowIcon>>
              <&'static [u8] as zero_ui::prelude::IntoVar<ImageSource>>
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
-           and 325 others
+           and 344 others
 note: required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
-  --> $DIR/defaults.rs:39:1
+  --> cases/property/defaults.rs:39:1
    |
 39 | #[property(context, default(2555, true))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
-  --> $DIR/defaults.rs:39:35
+  --> cases/property/defaults.rs:39:35
    |
 39 | #[property(context, default(2555, true))]
-   |                                   ^^^^
-   |                                   |
-   |                                   expected an implementor of trait `zero_ui::prelude::IntoVar<u32>`
-   |                                   help: consider borrowing here: `&true`
+   |                            -------^^^^-
+   |                            |      |
+   |                            |      expected an implementor of trait `zero_ui::prelude::IntoVar<u32>`
+   |                            required by a bound introduced by this call
    |
 note: required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
-  --> $DIR/defaults.rs:39:1
+  --> cases/property/defaults.rs:39:1
    |
 39 | #[property(context, default(2555, true))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider borrowing here
+   |
+39 | #[property(context, default(2555, &true))]
+   |                                   +
 
 error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is not satisfied
-  --> $DIR/defaults.rs:45:28
+  --> cases/property/defaults.rs:45:41
    |
 45 | #[property(context, default(a: 2555, b: true))]
-   |                            ^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
+   |                            -------------^^^^-
+   |                            |            |
+   |                            |            the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
+   |                            required by a bound introduced by this call
    |
    = help: the following implementations were found:
              <&'static [u8; N] as zero_ui::prelude::IntoVar<ImageSource>>
              <&'static [u8; N] as zero_ui::prelude::IntoVar<WindowIcon>>
              <&'static [u8] as zero_ui::prelude::IntoVar<ImageSource>>
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
-           and 325 others
+           and 344 others
 note: required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
-  --> $DIR/defaults.rs:45:1
+  --> cases/property/defaults.rs:45:1
    |
 45 | #[property(context, default(a: 2555, b: true))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
-  --> $DIR/defaults.rs:45:41
+  --> cases/property/defaults.rs:45:41
    |
 45 | #[property(context, default(a: 2555, b: true))]
-   |                                         ^^^^
-   |                                         |
-   |                                         expected an implementor of trait `zero_ui::prelude::IntoVar<u32>`
-   |                                         help: consider borrowing here: `&true`
+   |                            -------------^^^^-
+   |                            |            |
+   |                            |            expected an implementor of trait `zero_ui::prelude::IntoVar<u32>`
+   |                            required by a bound introduced by this call
    |
 note: required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
-  --> $DIR/defaults.rs:45:1
+  --> cases/property/defaults.rs:45:1
    |
 45 | #[property(context, default(a: 2555, b: true))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider borrowing here
+   |
+45 | #[property(context, default(a: 2555, b: &true))]
+   |                                         +
