@@ -100,8 +100,12 @@ fn doc(mut args: Vec<&str>) {
 /// USAGE:
 ///     test -u test::path::function
 ///        Run tests that partially match the Rust item path.
+///     test -u *
+///        Run all unit tests.
 ///     test -t focus
 ///        Run all integration tests in the named test.
+///     test -t *
+///        Run all integration tests.
 ///     test -b property/*
 ///        Run build tests that match the file pattern in `tests/build/cases/`.
 ///     test -b *
@@ -117,22 +121,24 @@ fn test(mut args: Vec<&str>) {
     if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
         // unit tests:
 
-        for test_name in unit_tests {
-            cmd_env(
-                "cargo",
-                &[
-                    nightly,
-                    "test",
-                    "--package",
-                    "zero-ui*",
-                    "--lib",
-                    "--no-fail-fast",
-                    "--all-features",
-                    test_name,
-                ],
-                &args,
-                env,
-            );
+        let t_args = vec![
+            nightly,
+            "test",
+            "--package",
+            "zero-ui*",
+            "--lib",
+            "--no-fail-fast",
+            "--all-features",
+        ];
+
+        if unit_tests.contains(&"*") {
+            cmd_env("cargo", &t_args, &args, env);
+        } else {
+            for test_name in unit_tests {
+                let mut t_args = t_args.clone();
+                t_args.push(test_name);
+                cmd_env("cargo", &t_args, &args, env);
+            }
         }
     } else if let Some(int_tests) = take_option(&mut args, &["-t", "--test"], "<integration-test-name>") {
         // integration tests:
@@ -145,10 +151,14 @@ fn test(mut args: Vec<&str>) {
             "--no-fail-fast",
             "--all-features",
         ];
-        for it in int_tests {
-            t_args.push("--test");
-            t_args.push(it);
+
+        if !int_tests.contains(&"*") {
+            for it in int_tests {
+                t_args.push("--test");
+                t_args.push(it);
+            }
         }
+
         cmd_env("cargo", &t_args, &args, env);
     } else if take_flag(&mut args, &["-b", "--build"]) {
         // build tests:
@@ -179,13 +189,15 @@ fn test(mut args: Vec<&str>) {
     } else {
         // other, mostly handled by cargo.
 
-        if take_flag(&mut args, &["--doc"]) {
+        let all = args.is_empty();
+
+        if !all && take_flag(&mut args, &["--doc"]) {
             tests::version_in_sync();
         }
 
         cmd_env("cargo", &[nightly, "test", "--no-fail-fast", "--all-features"], &args, env);
 
-        if args.is_empty() {
+        if all {
             // if no args we run everything.
             tests::version_in_sync();
             test(vec!["--build", "*"]);

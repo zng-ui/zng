@@ -1,4 +1,4 @@
-use crate::core::mouse::{CaptureMode, MouseInputEvent, MouseExt};
+use crate::core::mouse::{CaptureMode, MouseExt, MouseInputEvent};
 use crate::prelude::new_property::*;
 
 /// Capture mouse for the widget on mouse down.

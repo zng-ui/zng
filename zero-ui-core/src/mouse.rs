@@ -136,7 +136,7 @@ event_args! {
         /// is the parent widget.
         ///
         /// Multi-clicks (`[click_count]` > 1) only happen to the same target.
-        /// 
+        ///
         /// [mouse down]: MouseInputArgs::is_mouse_down
         /// [mouse up]: MouseInputArgs::is_mouse_up
         /// [click_count]: (MouseClickArgs::click_count
@@ -320,7 +320,7 @@ impl MouseInputArgs {
     }
 
     /// If the [`button`] is the primary.
-    /// 
+    ///
     /// [`button`]: Self::button
     #[inline]
     pub fn is_primary(&self) -> bool {
@@ -334,7 +334,7 @@ impl MouseInputArgs {
     }
 
     /// If the [`state`] is pressed.
-    /// 
+    ///
     /// [`state`]: Self::state
     #[inline]
     pub fn is_mouse_down(&self) -> bool {
@@ -342,7 +342,7 @@ impl MouseInputArgs {
     }
 
     /// If the [`state`] is released.
-    /// 
+    ///
     /// [`state`]: Self::state
     #[inline]
     pub fn is_mouse_up(&self) -> bool {

@@ -82,13 +82,14 @@ use crate::{
     crate_util::IdMap,
     event::*,
     gesture::{shortcut, ShortcutEvent},
+    mouse::MouseInputEvent,
     service::Service,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_base::{Visibility, WidgetEnabledExt},
     widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
-    WidgetId, mouse::MouseInputEvent,
+    WidgetId,
 };
 use std::{
     collections::hash_map,
