@@ -597,17 +597,12 @@ pub mod thumb {
         }
     }
 
-    fn new_size(
-        child: impl UiNode,
-        orientation: impl IntoVar<scrollbar::Orientation>,
-        viewport_ratio: impl IntoVar<Factor>,
-        cross_length: impl IntoVar<Length>,
-    ) -> impl UiNode {
+    fn new_size(child: impl UiNode, cross_length: impl IntoVar<Length>) -> impl UiNode {
         size(
             child,
             merge_var!(
-                orientation.into_var(),
-                viewport_ratio.into_var(),
+                ThumbOrientationVar::new(),
+                ThumbViewportRatioVar::new(),
                 cross_length.into_var(),
                 |o, r, l| {
                     match o {
@@ -624,6 +619,7 @@ pub mod thumb {
             child: C,
             start: Option<DipPoint>,
             offset: DipVector,
+            final_offset: PxVector,
             spatial_id: SpatialFrameId,
         }
         #[impl_ui_node(child)]
@@ -636,19 +632,28 @@ pub mod thumb {
             fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                 if let Some(start) = self.start {
                     if let Some(args) = MouseMoveEvent.update(args) {
-                        self.offset = args.position - start;
-                        ctx.updates.render();
+                        match *ThumbOrientationVar::get(ctx) {
+                            scrollbar::Orientation::Vertical => {
+                                self.offset.y = args.position.y - start.y;
+                            }
+                            scrollbar::Orientation::Horizontal => {
+                                self.offset.x = args.position.x - start.x;
+                            }
+                        }
+                        ctx.updates.layout();
                         self.child.event(ctx, args);
                     } else if let Some(args) = MouseUpEvent.update(args) {
-                        self.start = None;
-                        self.offset = DipVector::zero();
-                        ctx.updates.render();
+                        if args.is_primary() {
+                            self.start = None;
+                            self.offset = DipVector::zero();
+                            ctx.updates.layout();
+                        }
                         self.child.event(ctx, args);
                     } else {
                         self.child.event(ctx, args);
                     }
                 } else if let Some(args) = MouseDownEvent.update(args) {
-                    if args.concerns_widget(ctx) {
+                    if args.is_primary() && args.concerns_widget(ctx) {
                         self.start = Some(args.position);
                     }
                     self.child.event(ctx, args);
@@ -657,10 +662,27 @@ pub mod thumb {
                 }
             }
 
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+                self.final_offset = self.offset.to_px(ctx.metrics.scale_factor.0);
+
+                let ratio = *ThumbViewportRatioVar::get(ctx);
+                match *ThumbOrientationVar::get(ctx) {
+                    scrollbar::Orientation::Vertical => {
+                        let thumb_height = final_size.height * ratio;
+                        self.final_offset.y = self.final_offset.y.max(Px(0)).min(final_size.height - thumb_height);
+                    }
+                    scrollbar::Orientation::Horizontal => {
+                        let thumb_width = final_size.width * ratio;
+                        self.final_offset.x = self.final_offset.x.max(Px(0)).min(final_size.width - thumb_width);
+                    }
+                }
+
+                widget_offset.with_offset(self.final_offset, |wo| self.child.arrange(ctx, wo, final_size));
+            }
+
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let offset = self.offset.to_px(frame.scale_factor().0);
-                if offset != PxVector::zero() {
-                    frame.push_reference_frame(self.spatial_id, offset.to_point(), |f| self.child.render(ctx, f));
+                if self.final_offset != PxVector::zero() {
+                    frame.push_reference_frame(self.spatial_id, self.final_offset.to_point(), |f| self.child.render(ctx, f));
                 } else {
                     self.child.render(ctx, frame);
                 }
@@ -671,12 +693,24 @@ pub mod thumb {
             child,
             start: None,
             offset: DipVector::zero(),
+            final_offset: PxVector::zero(),
             spatial_id: SpatialFrameId::new_unique(),
         }
     }
 
-    fn new_context(child: impl UiNode) -> impl UiNode {
+    fn new_context(
+        child: impl UiNode,
+        orientation: impl IntoVar<scrollbar::Orientation>,
+        viewport_ratio: impl IntoVar<Factor>,
+    ) -> impl UiNode {
+        let child = with_context_var(child, ThumbOrientationVar, orientation);
+        let child = with_context_var(child, ThumbViewportRatioVar, viewport_ratio);
         primitive_flags(child, PrimitiveFlags::IS_SCROLLBAR_THUMB)
+    }
+
+    context_var! {
+        struct ThumbOrientationVar: scrollbar::Orientation = scrollbar::Orientation::Vertical;
+        struct ThumbViewportRatioVar: Factor = 1.fct();
     }
 
     /// Theme variables.

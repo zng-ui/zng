@@ -259,7 +259,6 @@ fn expand(mut args: Vec<&str>) {
         test_args.insert(0, "+nightly");
         test(test_args);
 
-        
         TaskInfo::get().stdout_dump = "dump.rs";
         for (bin_name, path) in build_test_cases() {
             let i = path.find("tests").unwrap_or_default();
@@ -289,7 +288,15 @@ fn expand(mut args: Vec<&str>) {
 
             cmd(
                 "cargo",
-                &["+nightly", "rustc", "--profile=check", "--package", p[0], "--", "-Zunpretty=expanded"],
+                &[
+                    "+nightly",
+                    "rustc",
+                    "--profile=check",
+                    "--package",
+                    p[0],
+                    "--",
+                    "-Zunpretty=expanded",
+                ],
                 &args,
             );
         } else {
