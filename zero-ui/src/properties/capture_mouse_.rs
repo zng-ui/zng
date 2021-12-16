@@ -1,4 +1,4 @@
-use crate::core::mouse::{CaptureMode, MouseDownEvent, MouseExt};
+use crate::core::mouse::{CaptureMode, MouseInputEvent, MouseExt};
 use crate::prelude::new_property::*;
 
 /// Capture mouse for the widget on mouse down.
@@ -36,15 +36,15 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions
                 .var(ctx, &self.mode)
-                .event(MouseDownEvent)
+                .event(MouseInputEvent)
                 .updates(&IsEnabled::update_mask(ctx));
 
             self.child.subscriptions(ctx, subscriptions);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = MouseDownEvent.update(args) {
-                if IsEnabled::get(ctx) && args.concerns_widget(ctx) {
+            if let Some(args) = MouseInputEvent.update(args) {
+                if IsEnabled::get(ctx) && args.is_mouse_down() && args.concerns_widget(ctx) {
                     let mouse = ctx.services.mouse();
                     let widget_id = ctx.path.widget_id();
 

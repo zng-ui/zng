@@ -82,14 +82,13 @@ use crate::{
     crate_util::IdMap,
     event::*,
     gesture::{shortcut, ShortcutEvent},
-    mouse::MouseDownEvent,
     service::Service,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_base::{Visibility, WidgetEnabledExt},
     widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
-    WidgetId,
+    WidgetId, mouse::MouseInputEvent,
 };
 use std::{
     collections::hash_map,
@@ -485,7 +484,7 @@ event! {
 ///
 /// This extension requires the [`Windows`] service.
 ///
-/// This extension listens to the [`MouseDownEvent`], [`ShortcutEvent`], [`WindowFocusChangedEvent`]
+/// This extension listens to the [`MouseInputEvent`], [`ShortcutEvent`], [`WindowFocusChangedEvent`]
 /// and [`WidgetInfoChangedEvent`] events.
 ///
 /// To work properly it should be added to the app after the windows manager extension.
@@ -563,9 +562,11 @@ impl AppExtension for FocusManager {
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let mut request = None;
 
-        if let Some(args) = MouseDownEvent.update(args) {
-            // click
-            request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
+        if let Some(args) = MouseInputEvent.update(args) {
+            if args.is_mouse_down() {
+                // click
+                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
+            }
         } else if let Some(args) = ShortcutEvent.update(args) {
             // keyboard
             if args.shortcut == shortcut!(Tab) {

@@ -23,14 +23,16 @@ event_property! {
 
     /// Mouse button pressed while the cursor is over the widget.
     pub fn mouse_down {
-        event: MouseDownEvent,
+        event: MouseInputEvent,
         args: MouseInputArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_mouse_down(),
     }
 
     /// Mouse button released while the cursor if over the widget.
     pub fn mouse_up {
-        event: MouseUpEvent,
+        event: MouseInputEvent,
         args: MouseInputArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_mouse_up(),
     }
 
     /// Mouse clicked on the widget with any button and including double+ clicks.

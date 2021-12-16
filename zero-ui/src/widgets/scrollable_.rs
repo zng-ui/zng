@@ -625,7 +625,7 @@ pub mod thumb {
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
             fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions.event(MouseMoveEvent).event(MouseUpEvent).event(MouseDownEvent);
+                subscriptions.event(MouseMoveEvent).event(MouseInputEvent);
                 self.child.subscriptions(ctx, subscriptions);
             }
 
@@ -642,8 +642,8 @@ pub mod thumb {
                         }
                         ctx.updates.layout();
                         self.child.event(ctx, args);
-                    } else if let Some(args) = MouseUpEvent.update(args) {
-                        if args.is_primary() {
+                    } else if let Some(args) = MouseInputEvent.update(args) {
+                        if args.is_primary() && args.is_mouse_up() {
                             self.start = None;
                             self.offset = DipVector::zero();
                             ctx.updates.layout();
@@ -652,8 +652,8 @@ pub mod thumb {
                     } else {
                         self.child.event(ctx, args);
                     }
-                } else if let Some(args) = MouseDownEvent.update(args) {
-                    if args.is_primary() && args.concerns_widget(ctx) {
+                } else if let Some(args) = MouseInputEvent.update(args) {
+                    if args.is_primary() && args.is_mouse_down() && args.concerns_widget(ctx) {
                         self.start = Some(args.position);
                     }
                     self.child.event(ctx, args);

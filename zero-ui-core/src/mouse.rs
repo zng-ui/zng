@@ -62,7 +62,7 @@ event_args! {
         }
     }
 
-    /// [`MouseInputEvent`], [`MouseDownEvent`], [`MouseUpEvent`] event args.
+    /// [`MouseInputEvent`] event args.
     pub struct MouseInputArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -127,16 +127,19 @@ event_args! {
 
         /// Full path to the widget that got clicked.
         ///
-        /// A widget is clicked if the [`MouseDownEvent`] and [`MouseUpEvent`] happen
+        /// A widget is clicked if the [mouse down] and [mouse up] happen
         /// in sequence in the same widget. Subsequent clicks (double, triple)
-        /// happen on [`MouseDownEvent`].
+        /// happen on mouse down.
         ///
-        /// If a [`MouseDownEvent`] happen in a child widget and the pointer is dragged
-        /// to a larger parent widget and then let go ([`MouseUpEvent`]), the click target
+        /// If a [mouse down] happen in a child widget and the pointer is dragged
+        /// to a larger parent widget and then let go (mouse up), the click target
         /// is the parent widget.
         ///
-        /// Multi-clicks (`[click_count](MouseClickArgs::click_count) > 1`) only happen to
-        /// the same target.
+        /// Multi-clicks (`[click_count]` > 1) only happen to the same target.
+        /// 
+        /// [mouse down]: MouseInputArgs::is_mouse_down
+        /// [mouse up]: MouseInputArgs::is_mouse_up
+        /// [click_count]: (MouseClickArgs::click_count
         pub target: WidgetPath,
 
         ..
@@ -316,10 +319,34 @@ impl MouseInputArgs {
                 .unwrap_or(false)
     }
 
-    /// If the [`button`](Self::button) is the primary.
+    /// If the [`button`] is the primary.
+    /// 
+    /// [`button`]: Self::button
     #[inline]
     pub fn is_primary(&self) -> bool {
         self.button == MouseButton::Left
+    }
+
+    /// If the [`button`](Self::button) is the context (right).
+    #[inline]
+    pub fn is_context(&self) -> bool {
+        self.button == MouseButton::Right
+    }
+
+    /// If the [`state`] is pressed.
+    /// 
+    /// [`state`]: Self::state
+    #[inline]
+    pub fn is_mouse_down(&self) -> bool {
+        self.state == ButtonState::Pressed
+    }
+
+    /// If the [`state`] is released.
+    /// 
+    /// [`state`]: Self::state
+    #[inline]
+    pub fn is_mouse_up(&self) -> bool {
+        self.state == ButtonState::Released
     }
 }
 
@@ -402,12 +429,6 @@ event! {
     /// Mouse down or up event.
     pub MouseInputEvent: MouseInputArgs;
 
-    /// Mouse down event.
-    pub MouseDownEvent: MouseInputArgs;
-
-    /// Mouse up event.
-    pub MouseUpEvent: MouseInputArgs;
-
     /// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
     pub MouseClickEvent: MouseClickArgs;
 
@@ -426,8 +447,6 @@ event! {
 ///
 /// * [MouseMoveEvent]
 /// * [MouseInputEvent]
-/// * [MouseDownEvent]
-/// * [MouseUpEvent]
 /// * [MouseClickEvent]
 /// * [MouseHoveredEvent]
 /// * [MouseCaptureEvent]
@@ -548,12 +567,11 @@ impl MouseManager {
         );
 
         // on_mouse_input
-        MouseInputEvent.notify(ctx.events, args.clone());
+        MouseInputEvent.notify(ctx.events, args);
 
         match state {
             ButtonState::Pressed => {
                 // on_mouse_down
-                MouseDownEvent.notify(ctx.events, args);
 
                 let now = Instant::now();
                 match &mut self.click_state {
@@ -622,7 +640,6 @@ impl MouseManager {
             }
             ButtonState::Released => {
                 // on_mouse_up
-                MouseUpEvent.notify(ctx.events, args);
 
                 match &self.click_state {
                     ClickState::Pressed { btn, press_tgt } => {
