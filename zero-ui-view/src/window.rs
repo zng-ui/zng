@@ -527,6 +527,7 @@ impl Window {
 
         if state.is_fullscreen() {
             self.window.set_minimized(false);
+            self.window.set_maximized(false);
 
             match state {
                 WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
