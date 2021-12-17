@@ -10,5 +10,5 @@ screenshot.*
 wip
 cargo-timing*
 large-image.*
-examples/_*.rs
+examples/examples
 zero-ui-view-prebuilt/lib/zero_ui_view.*
