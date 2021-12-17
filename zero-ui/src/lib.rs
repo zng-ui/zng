@@ -901,7 +901,7 @@ pub mod prelude {
             sepia, Rgba,
         },
         command::{CommandInfoExt, CommandNameExt},
-        context::WidgetContext,
+        context::{AppContext, WidgetContext, WindowContext},
         event::Events,
         focus::{DirectionalNav, Focus, FocusChangedArgs, FocusExt, ReturnFocusChangedArgs, TabIndex, TabNav},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, GesturesExt, Shortcut, ShortcutArgs, Shortcuts},

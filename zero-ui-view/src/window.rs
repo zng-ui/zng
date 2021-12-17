@@ -27,7 +27,7 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::{PxToDip, *},
+    units::*,
     Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key, KeyState, ScanCode,
     TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
 };
@@ -91,8 +91,8 @@ pub(crate) struct Window {
 
     video_mode: VideoMode,
 
-    prev_pos: DipPoint,
-    prev_size: DipSize,
+    prev_pos: PxPoint,
+    prev_size: PxSize,
     state: WindowState,
 
     visible: bool,
@@ -264,15 +264,13 @@ impl Window {
 
         let pipeline_id = webrender::api::PipelineId(gen, id);
 
-        let scale_factor = winit_window.scale_factor() as f32;
-
         let hit_tester = HitTester::new(&api, document_id);
 
         let mut win = Self {
             id,
             image_use: ImageUseMap::default(),
-            prev_pos: winit_window.outer_position().unwrap_or_default().to_px().to_dip(scale_factor),
-            prev_size: winit_window.inner_size().to_px().to_dip(scale_factor),
+            prev_pos: winit_window.outer_position().unwrap_or_default().to_px(),
+            prev_size: winit_window.inner_size().to_px(),
             window: winit_window,
             context,
             capture_mode: cfg.capture_mode,
@@ -304,7 +302,7 @@ impl Window {
 
             // Prevents a false resize event that would have blocked
             // the process while waiting a second frame.
-            win.prev_size = win.window.inner_size().to_px().to_dip(scale_factor);
+            win.prev_size = win.window.inner_size().to_px();
         }
 
         win.set_taskbar_visible(cfg.taskbar_visible);
@@ -365,14 +363,14 @@ impl Window {
     pub fn set_visible(&mut self, visible: bool) {
         if !self.waiting_first_frame {
             self.visible = visible;
-            if visible {
-                self.window.set_visible(true);
-                let _ = self.set_state(self.state);
-            } else {
-                self.window.set_fullscreen(None);
-                self.window.set_maximized(false);
-                self.window.set_minimized(false);
-                self.window.set_visible(false);
+            self.window.set_visible(visible);
+
+            // state changes when not visible only set `self.state`.
+            let state = self.state;
+            if self.state_change().is_some() {
+                self.state = state;
+                let _changed = self.set_state(state);
+                debug_assert!(_changed);
             }
         }
     }
@@ -397,17 +395,23 @@ impl Window {
         self.window.set_decorations(visible);
     }
 
-    /// Returns `true` if the `new_pos` is actually different then the previous or init position.
-    pub fn moved(&mut self, new_pos: DipPoint) -> bool {
-        let moved = self.prev_pos != new_pos;
-        self.prev_pos = new_pos;
+    /// Returns `true` if the `new_pos` is actually different then the previous or init position
+    /// and is the current position.
+    pub fn moved(&mut self, new_pos: PxPoint) -> bool {
+        let moved = self.prev_pos != new_pos && self.window.outer_position().unwrap_or_default().to_px() == new_pos;
+        if moved {
+            self.prev_pos = new_pos;
+        }
         moved
     }
 
-    /// Returns `true` if the `new_size` is actually different then the previous or init size.
-    pub fn resized(&mut self, new_size: DipSize) -> bool {
-        let resized = self.prev_size != new_size;
-        self.prev_size = new_size;
+    /// Returns `true` if the `new_size` is actually different then the previous or init size and
+    /// is the current size.
+    pub fn resized(&mut self, new_size: PxSize) -> bool {
+        let resized = self.prev_size != new_size && self.window.inner_size().to_px() == new_size;
+        if resized {
+            self.prev_size = new_size;
+        }
         resized
     }
 
@@ -421,23 +425,28 @@ impl Window {
     /// Move window, returns `true` if actually moved.
     #[must_use = "must send an event if the return is `true`"]
     pub fn set_outer_pos(&mut self, pos: DipPoint) -> bool {
-        let moved = self.moved(pos);
-        if moved {
-            let new_pos = pos.to_winit();
-            self.window.set_outer_position(new_pos);
+        let pos_px = pos.to_px(self.scale_factor());
+        if self.window.outer_position().unwrap_or_default().to_px() != pos_px {
+            self.window.set_outer_position(pos.to_winit());
+            self.moved(pos_px)
+        } else {
+            false
         }
-        moved
     }
 
     /// Resize window, returns `true` if actually resized
     #[must_use = "must send a resized event if the return true"]
     pub fn set_inner_size(&mut self, size: DipSize) -> bool {
-        self.window.set_inner_size(size.to_winit());
-        let r = self.resized(size);
-        if r {
+        let size_px = size.to_px(self.scale_factor());
+
+        if self.window.inner_size().to_px() != size_px {
+            self.window.set_inner_size(size.to_winit());
+            let r = self.resized(size_px);
             self.on_resized();
+            r
+        } else {
+            false
         }
-        r
     }
 
     pub fn set_document_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {
@@ -508,6 +517,10 @@ impl Window {
         self.video_mode = mode;
         if let WindowState::Exclusive = self.state {
             if let Some(mode) = self.video_mode() {
+                if self.state.is_fullscreen() {
+                    // restore rect becomes the fullscreen size if we don't do this.
+                    self.window.set_fullscreen(None);
+                }
                 self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
             } else {
                 tracing::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
@@ -525,10 +538,24 @@ impl Window {
             return false;
         }
 
-        if state.is_fullscreen() {
-            self.window.set_minimized(false);
-            self.window.set_maximized(false);
+        if let Some(s) = self.state_change() {
+            tracing::error!("window state was out of sync in `set_state`, corrected to `{:?}`", s);
+        }
 
+        if self.state == state {
+            return false;
+        }
+
+        // clear previous state.
+        match self.state {
+            WindowState::Minimized => self.window.set_minimized(false),
+            WindowState::Maximized => self.window.set_maximized(false),
+            WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
+            WindowState::Normal => {}
+        }
+
+        // set new state.
+        if state.is_fullscreen() {
             match state {
                 WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
                 WindowState::Exclusive => {
@@ -542,21 +569,20 @@ impl Window {
                 _ => unreachable!(),
             }
         } else if let WindowState::Maximized = state {
-            self.window.set_minimized(false);
-            self.window.set_fullscreen(None);
             self.window.set_maximized(true);
-        } else if let WindowState::Normal = state {
-            self.window.set_minimized(false);
-            self.window.set_fullscreen(None);
-            self.window.set_maximized(false);
-        } else {
+        } else if let WindowState::Minimized = state {
             self.window.set_minimized(true);
+        } else {
+            debug_assert_eq!(state, WindowState::Normal);
         }
 
         if let Some(s) = self.state_change() {
-            debug_assert_eq!(s, state);
+            if s != state {
+                tracing::error!("window state not set correctly, expected `{:?}` but was `{:?}`", state, s);
+            }
             true
         } else {
+            tracing::error!("window state did not change, expected `{:?}`", state);
             false
         }
     }

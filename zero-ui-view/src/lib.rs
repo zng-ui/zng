@@ -471,7 +471,8 @@ impl<S: AppEventSender> App<S> {
 
         match event {
             WindowEvent::Resized(size) => {
-                let size = size.to_px().to_dip(scale_factor);
+                let px_size = size.to_px();
+                let size = px_size.to_dip(scale_factor);
 
                 if let Some(state) = self.windows[i].state_change() {
                     self.notify(Event::WindowStateChanged {
@@ -481,7 +482,7 @@ impl<S: AppEventSender> App<S> {
                     });
                 }
 
-                if !self.windows[i].resized(size) {
+                if !self.windows[i].resized(px_size) {
                     tracing::debug!("resize already handled or did not actually change size");
                     return;
                 }
@@ -565,15 +566,15 @@ impl<S: AppEventSender> App<S> {
                 }
             }
             WindowEvent::Moved(p) => {
-                let p = p.to_px().to_dip(scale_factor);
+                let px_p = p.to_px();
 
-                if !self.windows[i].moved(p) {
+                if !self.windows[i].moved(px_p) {
                     return;
                 }
 
                 self.notify(Event::WindowMoved {
                     window: id,
-                    position: p,
+                    position: px_p.to_dip(scale_factor),
                     cause: EventCause::System,
                 });
             }
