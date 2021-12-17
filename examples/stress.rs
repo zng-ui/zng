@@ -1,5 +1,4 @@
 use examples_util::FilterArgs;
-use zero_ui::core::window::MonitorsExt;
 use zero_ui::core::{app::ShutdownRequestedEvent, context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
@@ -109,7 +108,9 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
             position = window_pos;
             size = window_size;
             on_close = hn!(|ctx, _| {
-                ctx.services.windows().close_all();
+                if ctx.services.keyboard().modifiers().get(ctx).is_empty() {
+                    ctx.services.windows().close_all();
+                }
             });
             content = uniform_grid! {
                 columns = 6;
