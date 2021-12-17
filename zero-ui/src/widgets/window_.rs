@@ -257,7 +257,7 @@ pub mod window {
         on_window_close_requested as on_close_requested;
 
         /// On window deinited.
-        /// 
+        ///
         /// This event notifies once after the window content is deinited because it is closing.
         crate::properties::events::widget::on_deinit as on_close;
 

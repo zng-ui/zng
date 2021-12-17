@@ -14,10 +14,6 @@ zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }
 examples-util = { path = "util" }
 
 [[example]]
-name = "_test"
-path = "_test.rs"
-
-[[example]]
 name = "button"
 path = "button.rs"
 
