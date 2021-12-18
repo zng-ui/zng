@@ -36,10 +36,25 @@ fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
         return false;
     }
 
-    // suppress webrender vertex debug-only warnings.
-    // see: https://bugzilla.mozilla.org/show_bug.cgi?id=1615342
+    
     if metadata.target() == "webrender::device::gl" && metadata.line() == Some(2385) {
         return false;
+    }
+
+    // suppress webrender warnings:
+    // 
+    if metadata.target() == "webrender::device::gl" {
+        // suppress vertex debug-only warnings.
+        // see: https://bugzilla.mozilla.org/show_bug.cgi?id=1615342
+        if metadata.line() == Some(2385) {
+            return false;
+        }
+
+        // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
+        // This happens when an empty frame is rendered.
+        if metadata.line() == Some(4549) {
+            return false;
+        }
     }
 
     true
