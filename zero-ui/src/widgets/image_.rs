@@ -958,7 +958,7 @@ pub mod image {
                 requested_layout: bool,
 
                 // pixel size of the last image presented.
-                prev_img_size: PxSize,
+                img_size: PxSize,
 
                 // raw size of the image the last time a full `measure` was done.
                 measure_img_size: PxSize,
@@ -967,7 +967,7 @@ pub mod image {
                 // desired-size (pre-available) the last time a full `measure` was done.
                 desired_size: PxSize,
                 // `final_size` of the last processed `arrange`.
-                prev_final_size: PxSize,
+                final_size: PxSize,
 
                 render_clip_rect: PxRect,
                 render_img_size: PxSize,
@@ -993,15 +993,24 @@ pub mod image {
                     }
                 }
 
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
+                        self.img_size = var.get(ctx).size();
+                        self.requested_layout = true;
+                    } else {
+                        self.img_size = PxSize::zero();
+                    }
+                }
+
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if let Some(var) = ContextImageVar::get_new(ctx.vars) {
                         ctx.updates.subscriptions_layout_and_render();
                         self.requested_layout = true;
 
                         if let Some(var) = var.as_ref() {
-                            self.prev_img_size = var.get(ctx).size();
+                            self.img_size = var.get(ctx).size();
                         } else {
-                            self.prev_img_size = PxSize::zero();
+                            self.img_size = PxSize::zero();
                         }
                     }
 
@@ -1018,8 +1027,8 @@ pub mod image {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         if let Some(img) = var.get_new(ctx.vars) {
                             let img_size = img.size();
-                            if self.prev_img_size != img_size {
-                                self.prev_img_size = img_size;
+                            if self.img_size != img_size {
+                                self.img_size = img_size;
                                 ctx.updates.layout();
                                 self.requested_layout = true;
                             } else if img.is_loaded() {
@@ -1035,11 +1044,11 @@ pub mod image {
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                        let img_rect = PxRect::from_size(self.prev_img_size);
+                        let img_rect = PxRect::from_size(self.img_size);
 
-                        let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.prev_img_size), img_rect);
+                        let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
 
-                        self.measure_img_size = self.prev_img_size;
+                        self.measure_img_size = self.img_size;
                         self.measure_clip_rect = img_rect.intersection(&crop).unwrap_or_default();
 
                         let mut scale = *ImageScaleVar::get(ctx);
@@ -1080,13 +1089,13 @@ pub mod image {
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetOffset, final_size: PxSize) {
-                    self.requested_layout |= final_size != self.prev_final_size;
+                    self.requested_layout |= final_size != self.final_size;
 
                     if !self.requested_layout {
                         return;
                     }
 
-                    self.prev_final_size = final_size;
+                    self.final_size = final_size;
                     self.requested_layout = false;
 
                     let mut f_img_size = self.measure_img_size;
@@ -1173,7 +1182,7 @@ pub mod image {
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
-                        if img.is_loaded() && !self.prev_img_size.is_empty() && !self.render_clip_rect.is_empty() {
+                        if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip_rect.is_empty() {
                             if self.render_offset != PxPoint::zero() {
                                 frame.push_reference_frame(self.spatial_id, self.render_offset, |frame| {
                                     frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
@@ -1188,13 +1197,13 @@ pub mod image {
             ImagePresenterNode {
                 requested_layout: true,
 
-                prev_img_size: PxSize::zero(),
+                img_size: PxSize::zero(),
 
                 measure_clip_rect: PxRect::zero(),
                 measure_img_size: PxSize::zero(),
                 desired_size: PxSize::zero(),
 
-                prev_final_size: PxSize::zero(),
+                final_size: PxSize::zero(),
 
                 render_clip_rect: PxRect::zero(),
                 render_img_size: PxSize::zero(),

@@ -40,7 +40,7 @@ fn cursor_demo(icon: Option<CursorIcon>) -> impl Widget {
         cursor = icon;
 
         size = (150, 80);
-        
+
         margin = 1;
         background_color = rgb(33, 33, 33);
 

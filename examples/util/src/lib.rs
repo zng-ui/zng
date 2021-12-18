@@ -36,13 +36,12 @@ fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
         return false;
     }
 
-    
     if metadata.target() == "webrender::device::gl" && metadata.line() == Some(2385) {
         return false;
     }
 
     // suppress webrender warnings:
-    // 
+    //
     if metadata.target() == "webrender::device::gl" {
         // suppress vertex debug-only warnings.
         // see: https://bugzilla.mozilla.org/show_bug.cgi?id=1615342
