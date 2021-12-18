@@ -1185,6 +1185,10 @@ impl<S: AppEventSender> Api for App<S> {
         self.with_window(id, |w| w.set_icon(icon), || ())
     }
 
+    fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>) {
+        self.with_window(id, |w| w.set_cursor(icon), || ())
+    }
+
     fn pipeline_id(&mut self, id: WindowId) -> PipelineId {
         with_window_or_surface!(self, id, |w| w.pipeline_id(), || PipelineId::dummy())
     }

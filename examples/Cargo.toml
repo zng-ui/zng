@@ -26,6 +26,10 @@ name = "countdown"
 path = "countdown.rs"
 
 [[example]]
+name = "cursor"
+path = "cursor.rs"
+
+[[example]]
 name = "focus"
 path = "focus.rs"
 

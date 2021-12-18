@@ -910,6 +910,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// when the assign to the second variable would cause a second update.
+    ///
+    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
+    /// assign `to_var`, see [`Vars::bind`] for more details about variable binding.
     #[inline]
     fn bind<Vw, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
     where
@@ -924,6 +927,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// when the assign to the second variable would cause a second update.
+    ///
+    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self`
+    /// or `other_var` transfer value, see [`Vars::bind`] for more details about variable binding.
     #[inline]
     fn bind_bidi<Vw, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
     where
@@ -939,6 +945,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Both `self` and `to_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// where the assign to `to_var` would cause a second update.
+    ///
+    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
+    /// assign `to_var`, see [`Vars::bind`] for more details about variable binding.
     #[inline]
     fn bind_map<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
     where
@@ -989,6 +998,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// when the assign to the second variable would cause a second update.
+    ///
+    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
+    /// assign `to_var`, see [`Vars::bind`] for more details about variable binding.
     #[inline]
     fn bind_map_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
     where

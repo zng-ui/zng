@@ -5,12 +5,12 @@ use crate::{
     border::BorderSides,
     color::{RenderColor, RenderFilter},
     context::RenderContext,
-    crate_util::IdMap,
+    crate_util::IdSet,
     gradient::{RenderExtendMode, RenderGradientStop},
     units::*,
     var::impl_from_and_into_var,
     widget_info::WidgetRendered,
-    window::{CursorIcon, WindowId},
+    window::WindowId,
     UiNode, WidgetId,
 };
 use derive_more as dm;
@@ -131,8 +131,6 @@ pub struct FrameBuilder {
     cancel_widget: bool,
     widget_display_mode: WidgetDisplayMode,
 
-    cursor: CursorIcon,
-
     clip_id: ClipId,
     spatial_id: SpatialId,
     parent_spatial_id: SpatialId,
@@ -204,7 +202,6 @@ impl FrameBuilder {
             widget_stack_ctx_data: None,
             cancel_widget: false,
             widget_display_mode: WidgetDisplayMode::empty(),
-            cursor: CursorIcon::default(),
             clip_id: ClipId::root(pipeline_id),
             spatial_id,
             parent_spatial_id: spatial_id,
@@ -344,12 +341,6 @@ impl FrameBuilder {
         self.widget_id
     }
 
-    /// Current cursor.
-    #[inline]
-    pub fn cursor(&self) -> CursorIcon {
-        self.cursor
-    }
-
     /// Current clipping node.
     #[inline]
     pub fn clip_id(&self) -> ClipId {
@@ -362,13 +353,14 @@ impl FrameBuilder {
         self.spatial_id
     }
 
-    /// Current widget [`ItemTag`]. The first number is the raw [`widget_id`](FrameBuilder::widget_id),
-    /// the second number is the raw [`cursor`](FrameBuilder::cursor).
+    /// Current widget [`ItemTag`]. The first number is the raw [`widget_id`], the second number is reserved.
     ///
-    /// For more details on how the ItemTag is used see [`FrameHitInfo::new`](FrameHitInfo::new).
+    /// For more details on how the ItemTag is used see [`FrameHitInfo::new`].
+    ///
+    /// [`widget_id`](FrameBuilder::widget_id)
     #[inline]
     pub fn item_tag(&self) -> ItemTag {
-        (self.widget_id.get(), self.cursor as u16)
+        (self.widget_id.get(), 0)
     }
 
     /// Common item properties given a `clip_rect` and the current context.
@@ -825,20 +817,6 @@ impl FrameBuilder {
         } else {
             self.widget_rendered();
         }
-    }
-
-    /// Calls `f` while [`item_tag`](FrameBuilder::item_tag) indicates the `cursor`.
-    ///
-    /// Note that for the cursor to be used `node` or its children must push a hit-testable item.
-    #[inline]
-    pub fn push_cursor(&mut self, cursor: CursorIcon, f: impl FnOnce(&mut FrameBuilder)) {
-        if self.cancel_widget {
-            return;
-        }
-
-        let parent_cursor = std::mem::replace(&mut self.cursor, cursor);
-        f(self);
-        self.cursor = parent_cursor;
     }
 
     /// Push a color rectangle using [`common_item_ps`](FrameBuilder::common_item_ps).
@@ -1506,16 +1484,6 @@ pub type WidgetTransformKey = FrameBindingKey<RenderTransform>;
 /// Complement of [`ItemTag`] that indicates the hit area of a widget.
 pub const WIDGET_HIT_AREA: u16 = u16::max_value();
 
-fn unpack_cursor(raw: u16) -> CursorIcon {
-    debug_assert!(raw <= CursorIcon::RowResize as u16);
-
-    if raw <= CursorIcon::RowResize as u16 {
-        unsafe { std::mem::transmute(raw as u8) }
-    } else {
-        CursorIcon::Default
-    }
-}
-
 /// A hit-test hit.
 #[derive(Clone, Debug)]
 pub struct HitInfo {
@@ -1523,8 +1491,6 @@ pub struct HitInfo {
     pub widget_id: WidgetId,
     /// Exact hit point in the widget space.
     pub point: PxPoint,
-    /// Cursor icon selected for the widget.
-    pub cursor: CursorIcon,
 }
 
 /// A hit-test result.
@@ -1535,7 +1501,6 @@ pub struct FrameHitInfo {
     point: PxPoint,
     hits: Vec<HitInfo>,
 }
-
 impl FrameHitInfo {
     /// Initializes from a Webrender hit-test result.
     ///
@@ -1544,13 +1509,13 @@ impl FrameHitInfo {
     /// The tag format is:
     ///
     /// * `u64`: Raw [`WidgetId`].
-    /// * `u16`: Raw [`CursorIcon`] or `WIDGET_HIT_AREA`.
+    /// * `u16`: Zero or `WIDGET_HIT_AREA`.
     ///
     /// The tag marked with `WIDGET_HIT_AREA` is used to determine the [`HitInfo::point`](HitInfo::point).
     #[inline]
     pub fn new(window_id: WindowId, frame_id: FrameId, point: PxPoint, hits: &HitTestResult) -> Self {
         let mut candidates = Vec::default();
-        let mut actual_hits = IdMap::default();
+        let mut actual_hits = IdSet::default();
 
         for hit in &hits.items {
             if hit.tag.0 == 0 {
@@ -1562,28 +1527,26 @@ impl FrameHitInfo {
             if hit.tag.1 == WIDGET_HIT_AREA {
                 candidates.push((widget_id, hit.point_relative_to_item));
             } else {
-                actual_hits.insert(widget_id, hit.tag.1);
+                actual_hits.insert(widget_id);
             }
         }
 
         let mut hits = Vec::default();
 
         for (widget_id, point) in candidates {
-            if let Some(raw_cursor) = actual_hits.remove(&widget_id) {
+            if actual_hits.remove(&widget_id) {
                 hits.push(HitInfo {
                     widget_id,
                     point: point.to_px(),
-                    cursor: unpack_cursor(raw_cursor),
                 })
             }
         }
 
         // hits outside WIDGET_HIT_AREA
-        for (widget_id, raw_cursor) in actual_hits.drain() {
+        for widget_id in actual_hits.drain() {
             hits.push(HitInfo {
                 widget_id,
                 point: PxPoint::new(Px(-1), Px(-1)),
-                cursor: unpack_cursor(raw_cursor),
             })
         }
 
@@ -1619,12 +1582,6 @@ impl FrameHitInfo {
     #[inline]
     pub fn point(&self) -> PxPoint {
         self.point
-    }
-
-    /// Top-most cursor or `CursorIcon::Default` if there was no hit.
-    #[inline]
-    pub fn cursor(&self) -> CursorIcon {
-        self.hits.first().map(|h| h.cursor).unwrap_or(CursorIcon::Default)
     }
 
     /// All hits, from top-most.

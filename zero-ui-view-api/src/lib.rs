@@ -372,6 +372,9 @@ declare_api! {
     /// Set the window icon.
     pub fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>);
 
+    /// Set the window cursor icon and visibility.
+    pub fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>);
+
     /// Gets the root pipeline ID.
     pub fn pipeline_id(&mut self, id: WindowId) -> PipelineId;
 

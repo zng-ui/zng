@@ -847,6 +847,12 @@ impl ViewWindow {
         })
     }
 
+    /// Set the window cursor icon and visibility.
+    #[inline]
+    pub fn set_cursor(&self, icon: Option<CursorIcon>) -> Result<()> {
+        self.0.call(|id, p| p.set_cursor(id, icon))
+    }
+
     /// Set the window icon visibility in the taskbar.
     #[inline]
     pub fn set_taskbar_visible(&self, visible: bool) -> Result<()> {

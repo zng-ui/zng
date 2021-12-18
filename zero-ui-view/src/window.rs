@@ -27,15 +27,14 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*,
-    Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key, KeyState, ScanCode,
-    TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
+    units::*, CursorIcon, Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key, KeyState,
+    ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
 };
 
 use crate::{
     config,
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    util::{self, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
+    util::{self, CursorToWinit, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
     AppEvent, AppEventSender, FrameReadyMsg,
 };
 
@@ -305,6 +304,7 @@ impl Window {
             win.prev_size = win.window.inner_size().to_px();
         }
 
+        win.set_cursor(cfg.cursor);
         win.set_taskbar_visible(cfg.taskbar_visible);
         win
     }
@@ -457,6 +457,16 @@ impl Window {
         self.window.set_window_icon(icon);
     }
 
+    /// Set cursor icon and visibility.
+    pub fn set_cursor(&mut self, icon: Option<CursorIcon>) {
+        if let Some(icon) = icon {
+            self.window.set_cursor_icon(icon.to_winit());
+            self.window.set_cursor_visible(true);
+        } else {
+            self.window.set_cursor_visible(false);
+        }
+    }
+
     /// Probe state, returns `Some(new_state)`
     pub fn state_change(&mut self) -> Option<WindowState> {
         if !self.visible {
@@ -516,11 +526,12 @@ impl Window {
     pub fn set_video_mode(&mut self, mode: VideoMode) {
         self.video_mode = mode;
         if let WindowState::Exclusive = self.state {
+            if self.state.is_fullscreen() {
+                // restore rect becomes the fullscreen size if we don't do this.
+                self.window.set_fullscreen(None);
+            }
+
             if let Some(mode) = self.video_mode() {
-                if self.state.is_fullscreen() {
-                    // restore rect becomes the fullscreen size if we don't do this.
-                    self.window.set_fullscreen(None);
-                }
                 self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
             } else {
                 tracing::error!("failed to determinate exclusive video mode, will use windowed fullscreen");

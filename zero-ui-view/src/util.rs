@@ -2,8 +2,8 @@ use std::{cell::Cell, rc::Rc};
 
 use glutin::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
-    units::*, ButtonState, Force, Key, KeyState, ModifiersState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase, VideoMode,
-    WindowId, WindowTheme,
+    units::*, ButtonState, CursorIcon, Force, Key, KeyState, ModifiersState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase,
+    VideoMode, WindowId, WindowTheme,
 };
 
 /// Manages the "current" `glutin` OpenGL context.
@@ -323,6 +323,52 @@ impl WinitToPx for glutin::dpi::PhysicalSize<u32> {
 
     fn to_px(self) -> Self::AsPx {
         PxSize::new(Px(self.width as i32), Px(self.height as i32))
+    }
+}
+
+pub trait CursorToWinit {
+    fn to_winit(self) -> glutin::window::CursorIcon;
+}
+impl CursorToWinit for CursorIcon {
+    fn to_winit(self) -> glutin::window::CursorIcon {
+        use glutin::window::CursorIcon::*;
+        match self {
+            CursorIcon::Default => Default,
+            CursorIcon::Crosshair => Crosshair,
+            CursorIcon::Hand => Hand,
+            CursorIcon::Arrow => Arrow,
+            CursorIcon::Move => Move,
+            CursorIcon::Text => Text,
+            CursorIcon::Wait => Wait,
+            CursorIcon::Help => Help,
+            CursorIcon::Progress => Progress,
+            CursorIcon::NotAllowed => NotAllowed,
+            CursorIcon::ContextMenu => ContextMenu,
+            CursorIcon::Cell => Cell,
+            CursorIcon::VerticalText => VerticalText,
+            CursorIcon::Alias => Alias,
+            CursorIcon::Copy => Copy,
+            CursorIcon::NoDrop => NoDrop,
+            CursorIcon::Grab => Grab,
+            CursorIcon::Grabbing => Grabbing,
+            CursorIcon::AllScroll => AllScroll,
+            CursorIcon::ZoomIn => ZoomIn,
+            CursorIcon::ZoomOut => ZoomOut,
+            CursorIcon::EResize => EResize,
+            CursorIcon::NResize => NResize,
+            CursorIcon::NeResize => NeResize,
+            CursorIcon::NwResize => NwResize,
+            CursorIcon::SResize => SResize,
+            CursorIcon::SeResize => SeResize,
+            CursorIcon::SwResize => SwResize,
+            CursorIcon::WResize => WResize,
+            CursorIcon::EwResize => EwResize,
+            CursorIcon::NsResize => NsResize,
+            CursorIcon::NeswResize => NeswResize,
+            CursorIcon::NwseResize => NwseResize,
+            CursorIcon::ColResize => ColResize,
+            CursorIcon::RowResize => RowResize,
+        }
     }
 }
 

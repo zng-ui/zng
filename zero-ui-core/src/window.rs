@@ -1086,8 +1086,7 @@ impl AppExtension for WindowManager {
                 let args = FrameImageReadyArgs::new(args.timestamp, args.window_id, args.frame_id, image);
                 FrameImageReadyEvent.notify(ctx.events, args);
             }
-        }
-        if let Some(args) = RawWindowFocusEvent.update(args) {
+        } else if let Some(args) = RawWindowFocusEvent.update(args) {
             let wns = ctx.services.windows();
             if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
                 if window.is_focused == args.focused {
@@ -2061,6 +2060,9 @@ impl AppWindow {
                 } else if let Some(ico) = &self.icon_img {
                     let _: Ignore = w.set_icon(ico.get(ctx).view());
                 }
+                if let Some(cur) = self.vars.cursor().copy_new(ctx.vars) {
+                    let _: Ignore = w.set_cursor(cur);
+                }
                 if let Some(state) = self.vars.state().copy_new(ctx) {
                     if self.kiosk && !state.is_fullscreen() {
                         tracing::warn!("kiosk mode blocked state `{:?}`, will remain fullscreen", state);
@@ -2326,6 +2328,7 @@ impl AppWindow {
                         }
                         WindowIcon::Render(_) => todo!(),
                     },
+                    cursor: self.vars.cursor().copy(ctx.vars),
                     transparent: self.context.root.transparent,
                     capture_mode: matches!(self.vars.frame_capture_mode().copy(ctx.vars), FrameCaptureMode::All),
                 };
@@ -2899,6 +2902,7 @@ impl OwnedWindowContext {
 struct WindowVarsData {
     chrome: RcVar<WindowChrome>,
     icon: RcVar<WindowIcon>,
+    cursor: RcVar<Option<CursorIcon>>,
     title: RcVar<Text>,
 
     state: RcVar<WindowState>,
@@ -2951,6 +2955,7 @@ impl WindowVars {
         let vars = Rc::new(WindowVarsData {
             chrome: var(WindowChrome::Default),
             icon: var(WindowIcon::Default),
+            cursor: var(Some(CursorIcon::Default)),
             title: var("".to_text()),
 
             state: var(WindowState::Normal),
@@ -3012,6 +3017,16 @@ impl WindowVars {
     #[inline]
     pub fn icon(&self) -> &RcVar<WindowIcon> {
         &self.0.icon
+    }
+
+    /// Window cursor icon and visibility.
+    ///
+    /// See [`CursorIcon`] for details.
+    ///
+    /// The default is [`CursorIcon::Default`], if set to `None` no cursor icon is shown.
+    #[inline]
+    pub fn cursor(&self) -> &RcVar<Option<CursorIcon>> {
+        &self.0.cursor
     }
 
     /// Window title text.
@@ -3283,4 +3298,12 @@ impl WindowVars {
 state_key! {
     /// Key for the instance of [`WindowVars`] in the window state.
     pub struct WindowVarsKey: WindowVars;
+}
+
+impl crate::var::IntoVar<Option<CursorIcon>> for CursorIcon {
+    type Var = crate::var::OwnedVar<Option<CursorIcon>>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::OwnedVar(Some(self))
+    }
 }

@@ -537,6 +537,47 @@ impl Default for CursorIcon {
     }
 }
 
+impl CursorIcon {
+    /// All cursor icons.
+    pub const ALL: &'static [CursorIcon] = &[
+        CursorIcon::Default,
+        CursorIcon::Crosshair,
+        CursorIcon::Hand,
+        CursorIcon::Arrow,
+        CursorIcon::Move,
+        CursorIcon::Text,
+        CursorIcon::Wait,
+        CursorIcon::Help,
+        CursorIcon::Progress,
+        CursorIcon::NotAllowed,
+        CursorIcon::ContextMenu,
+        CursorIcon::Cell,
+        CursorIcon::VerticalText,
+        CursorIcon::Alias,
+        CursorIcon::Copy,
+        CursorIcon::NoDrop,
+        CursorIcon::Grab,
+        CursorIcon::Grabbing,
+        CursorIcon::AllScroll,
+        CursorIcon::ZoomIn,
+        CursorIcon::ZoomOut,
+        CursorIcon::EResize,
+        CursorIcon::NResize,
+        CursorIcon::NeResize,
+        CursorIcon::NwResize,
+        CursorIcon::SResize,
+        CursorIcon::SeResize,
+        CursorIcon::SwResize,
+        CursorIcon::WResize,
+        CursorIcon::EwResize,
+        CursorIcon::NsResize,
+        CursorIcon::NeswResize,
+        CursorIcon::NwseResize,
+        CursorIcon::ColResize,
+        CursorIcon::RowResize,
+    ];
+}
+
 /// Window state after a resize.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum WindowState {
@@ -1314,6 +1355,8 @@ pub struct WindowRequest {
     pub resizable: bool,
     /// Window icon.
     pub icon: Option<ImageId>,
+    /// Window cursor icon and visibility.
+    pub cursor: Option<CursorIcon>,
     /// If the window is see-through in pixels that are not fully opaque.
     pub transparent: bool,
 

@@ -3,7 +3,7 @@
 use rand::Rng;
 use rustc_hash::FxHasher;
 use std::{
-    collections::{hash_map, HashMap},
+    collections::{hash_map, HashMap, HashSet},
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hasher},
     num::{NonZeroU32, NonZeroU64},
@@ -210,6 +210,9 @@ pub fn un_splitmix64(z: u64) -> u64 {
 
 /// Ideal map type for key types generated using [`unique_id!`].
 pub type IdMap<K, V> = HashMap<K, V, BuildHasherDefault<IdHasher>>;
+
+/// Ideal set type for key types generated using [`unique_id!`].
+pub type IdSet<K> = HashSet<K, BuildHasherDefault<IdHasher>>;
 
 #[derive(Default)]
 pub struct IdHasher(u64);
