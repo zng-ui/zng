@@ -25,6 +25,7 @@ Image loading and rendering.
 * Download/file blocking.
 * Per-request limits.
 * Improve limits error message.
+* Optional hold window open (first layout) until an image is loaded.
 
 ## Questions
 
