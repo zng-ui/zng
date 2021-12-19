@@ -154,7 +154,7 @@ fn trace_focus(events: &mut Events) {
 mod inspect {
     use super::*;
     use zero_ui::core::focus::WidgetInfoFocusExt;
-    use zero_ui::core::inspector::{WidgetDebugInfo, WidgetNewFn};
+    use zero_ui::core::inspector::{WidgetInspectorInfo, WidgetNewFn};
 
     pub fn focus(path: &Option<WidgetPath>, services: &mut Services) -> String {
         path.as_ref()

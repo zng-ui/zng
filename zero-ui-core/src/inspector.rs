@@ -660,19 +660,11 @@ impl PropertyInfoNode {
         }
     }
 }
-macro_rules! ctx_mtd {
-    ($self:ident.$mtd:ident, $ctx:ident, mut $info:ident) => {
-        let t = Instant::now();
-        $self.child.$mtd($ctx);
-        let d = t.elapsed();
-        let mut $info = $self.info.borrow_mut();
-        $info.duration.$mtd = d;
-        $info.count.$mtd += 1;
-    };
-}
 impl UiNode for PropertyInfoNode {
     fn info(&self, ctx: &mut InfoContext, wgt_info: &mut WidgetInfoBuilder) {
         let _scope = tracing::trace_span!("property.info", name = self.info.borrow().property_name).entered();
+
+        wgt_info.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
 
         let t = Instant::now();
         self.child.info(ctx, wgt_info);
@@ -680,8 +672,6 @@ impl UiNode for PropertyInfoNode {
         let mut info = self.info.borrow_mut();
         info.duration.info = d;
         info.count.info += 1;
-
-        wgt_info.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
@@ -719,13 +709,23 @@ impl UiNode for PropertyInfoNode {
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         let _scope = tracing::trace_span!("property.deinit", name = self.info.borrow().property_name).entered();
 
-        ctx_mtd!(self.deinit, ctx, mut info);
+        let t = Instant::now();
+        self.child.deinit(ctx);
+        let d = t.elapsed();
+        let mut info = self.info.borrow_mut();
+        info.duration.deinit = d;
+        info.count.deinit += 1;
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         let _scope = tracing::trace_span!("property.update", name = self.info.borrow().property_name).entered();
 
-        ctx_mtd!(self.update, ctx, mut info);
+        let t = Instant::now();
+        self.child.update(ctx);
+        let d = t.elapsed();
+        let mut info = self.info.borrow_mut();
+        info.duration.update = d;
+        info.count.update += 1;
 
         for (var, arg) in self.arg_debug_vars.iter_mut().zip(info.args.iter_mut()) {
             if let Some(new) = var.get_new(ctx) {
@@ -1061,30 +1061,23 @@ pub mod debug_var_util {
 pub type DebugArgs = Box<[BoxedVar<ValueInfo>]>;
 
 /// Adds debug information to [`WidgetInfo`].
-pub trait WidgetDebugInfo<'a> {
-    /// If the widget was instantiated with `@debug_enabled`.
-    fn debug_enabled(self) -> bool;
+pub trait WidgetInspectorInfo<'a> {
+    /// If the widget was instantiated with inspector instrumentation.
+    #[allow(clippy::wrong_self_convention)] // `self` is a reference.
+    fn is_inspected(self) -> bool;
 
-    /// If any of the widget descendants are [`debug_enabled`](WidgetDebugInfo::debug_enabled).
-    fn contains_debug(self) -> bool;
-
-    /// Gets the widget instance info if the widget is [`debug_enabled`](WidgetDebugInfo::debug_enabled).
+    /// Gets the widget instance info if the widget is [`is_inspected`](WidgetDebugInfo::is_inspected).
     fn instance(self) -> Option<&'a WidgetInstance>;
 
     /// Gets the widget properties info.
     ///
-    /// Returns empty if not [`debug_enabled`](Self::debug_enabled).
+    /// Returns empty if [`is_inspected`](Self::is_inspected) is `false`.
     fn properties(self) -> &'a [PropertyInstance];
 }
-impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
+impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
     #[inline]
-    fn debug_enabled(self) -> bool {
+    fn is_inspected(self) -> bool {
         self.meta().contains(WidgetInstanceInfoKey)
-    }
-
-    #[inline]
-    fn contains_debug(self) -> bool {
-        self.descendants().any(|w| w.debug_enabled())
     }
 
     #[inline]

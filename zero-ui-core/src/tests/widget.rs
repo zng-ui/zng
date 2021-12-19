@@ -394,8 +394,8 @@ pub fn wgt_same_priority_order() {
 
     // properties with the same priority are set in reversed typed order.
     // inner_a is set after inner_b so it will contain inner_b:
-    // let node = inner_b(node, ..);
-    // let node = inner_a(child, ..);
+    // let node = inner_b(child, ..);
+    // let node = inner_a(node, ..);
     assert_eq!(util::sorted_node_init(&wgt), ["inner_a", "inner_b"]);
 
     Position::reset();
