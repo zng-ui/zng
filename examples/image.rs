@@ -20,7 +20,7 @@ fn app_main() {
                 spacing = 30;
                 items = widgets![
                     section(
-                        "Image Sources",
+                        "Sources",
                         widgets![
                             sub_title("File"),
                             uniform_grid! {
@@ -40,10 +40,16 @@ fn app_main() {
                             },
 
                             sub_title("Web"),
-                            image("https://httpbin.org/image"),
+                            image! {
+                                source = "https://httpbin.org/image";
+                                size = (200, 150);
+                            },
 
                             sub_title("Web With Format"),
-                            image((Uri::from_static("https://httpbin.org/image"), "image/png")),
+                            image! {
+                                source = (Uri::from_static("https://httpbin.org/image"), "image/png");
+                                size = (200, 150);
+                            },
                         ]
                     ),
 
