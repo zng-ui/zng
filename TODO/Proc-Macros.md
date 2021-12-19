@@ -7,6 +7,7 @@ Proc-macros are mostly implemented, there are some improvements we can make:
 * Study viability of `widget_bind_self.rs`.
 * Support doc(cfg).
 * Support cfg in captures.
+* Allow "property as new_name" syntax in widget_new? Can be used for things like double fancy borders.
 
 # Difficult
 
