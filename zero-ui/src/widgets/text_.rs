@@ -26,6 +26,9 @@ pub mod text {
             ///
             /// Set to an empty string (`""`).
             text(impl IntoVar<Text>) = "";
+
+            /// Spacing in between the text and background edges or border.
+            margin as padding;
         }
 
         /// The text font. If not set inherits the `font_family` from the parent widget.

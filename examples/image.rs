@@ -38,10 +38,10 @@ fn app_main() {
                                     image("examples/res/image/RGBA16.png"),
                                 ]
                             },
-    
+
                             sub_title("Web"),
                             image("https://httpbin.org/image"),
-    
+
                             sub_title("Web With Format"),
                             image((Uri::from_static("https://httpbin.org/image"), "image/png")),
                         ]
@@ -74,11 +74,11 @@ fn app_main() {
                         items = widgets![
                             section(
                                 "Errors",
-    
+
                                 widgets![
                                     sub_title("File"),
                                     image("404.png"),
-    
+
                                     sub_title("Web"),
                                     image("https://httpbin.org/delay/5"),
                                 ]
@@ -93,7 +93,7 @@ fn app_main() {
                                     panorama_image(),
                                     large_image(),
                                 ]
-                            )                        
+                            )
                         ];
                     }
                 ]
@@ -139,6 +139,10 @@ fn img_filter(filter: impl IntoVar<color::Filter>) -> impl Widget {
 }
 
 fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
+    let button_color = rgb(0, 0, 20);
+    let loading_color = colors::LIGHT_GRAY;
+    let error_color = colors::RED;
+
     window! {
         title;
         content;
@@ -162,15 +166,15 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
 
             text! {
                 text = msg;
-                color = colors::LIGHT_GRAY;
-                margin = 20;
+                color = loading_color;
+                margin = 8;
                 align = Alignment::CENTER;
                 width = 80;
                 font_style = FontStyle::Italic;
                 drop_shadow = {
                     offset: (0, 0),
                     blur_radius: 4,
-                    color: colors::GRAY,
+                    color: loading_color.darken(5.pct()),
                 };
             }
         });
@@ -181,14 +185,33 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
                 text = args.error;
                 margin = 8;
                 align = Alignment::CENTER;
-                color = colors::RED;
+                color = error_color;
                 drop_shadow = {
                     offset: (0, 0),
                     blur_radius: 4,
-                    color: colors::DARK_RED
+                    color: error_color.darken(5.pct()),
                 };
             }
         });
+
+        button::theme::background = button_color.lighten(4.pct());
+        button::theme::border = {
+            widths: 1,
+            sides: button_color.lighten(4.pct()),
+            radius: 0,
+        };
+        button::theme::hovered::background = button_color.lighten(10.pct());
+        button::theme::hovered::border = {
+            widths: 1,
+            sides: button_color.lighten(6.pct()),
+            radius: 0,
+        };
+        button::theme::pressed::background = button_color.lighten(15.pct());
+        button::theme::pressed::border = {
+            widths: 1,
+            sides: button_color.lighten(8.pct()),
+            radius: 0,
+        };
     }
 }
 
@@ -213,6 +236,11 @@ fn sprite(timers: &mut Timers) -> impl Widget {
             image! {
                 source = "examples/res/image/player_combat_sheet-10-96x84-CC0.png";
                 size = (96, 84);
+                border = {
+                    widths: 1,
+                    sides: BorderSides::dashed(colors::GRAY),
+                    radius: 4,
+                };
                 crop = timer.map(|n| {
                     if n.count() == 10 {
                         n.set_count(0);
@@ -276,11 +304,7 @@ fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
                 text = title;
                 font_size = 20;
                 background_color = colors::BLACK;
-                border = {
-                    widths: (5, 10),
-                    sides: colors::BLACK,
-                    radius: 0,
-                };
+                padding = (5, 10);
             },
             v_stack! {
                 spacing = 5;
@@ -299,10 +323,6 @@ fn sub_title(text: impl IntoVar<Text>) -> impl Widget {
         font_size = 14;
 
         background_color = colors::BLACK;
-        border = {
-            widths: (2, 5),
-            sides: colors::BLACK,
-            radius: 0,
-        };
+        padding = (2, 5);
     }
 }
