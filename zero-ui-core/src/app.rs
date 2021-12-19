@@ -751,7 +751,7 @@ struct RunningApp<E: AppExtension> {
     wake_time: Option<Instant>,
 
     pending_view_events: Vec<zero_ui_view_api::Event>,
-    pending_view_frame_event: Option<zero_ui_view_api::EventFrameRendered>,
+    pending_view_frame_events: Vec<zero_ui_view_api::EventFrameRendered>,
     pending_app_events: Vec<BoxedEventUpdate>,
     pending_layout: bool,
     pending_render: bool,
@@ -809,7 +809,7 @@ impl<E: AppExtension> RunningApp<E> {
             receiver,
 
             pending_view_events: Vec::with_capacity(100),
-            pending_view_frame_event: None,
+            pending_view_frame_events: Vec::with_capacity(5),
             pending_app_events: Vec::with_capacity(100),
             pending_layout: false,
             pending_render: false,
@@ -948,8 +948,8 @@ impl<E: AppExtension> RunningApp<E> {
                 coalesced_pos,
                 position,
             } => {
-                let hits = match &self.pending_view_frame_event {
-                    Some(ev) if ev.window == w_id => (ev.frame, ev.cursor_hits.clone()),
+                let hits = match self.pending_view_frame_events.iter().rfind(|e| e.window == w_id) {
+                    Some(ev) => (ev.frame, ev.cursor_hits.clone()),
                     _ => {
                         let _trace = tracing::trace_span!("hit_test").entered();
                         let view = self.ctx().services.view_process();
@@ -1171,6 +1171,8 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Process a [`Event::FrameRendered`] event.
     fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::EventFrameRendered, observer: &mut O) {
+        debug_assert!(ev.window != 0);
+        // SAFETY: the value is not zero, we handle zeros in `push_coalesce`.
         let window_id = unsafe { WindowId::from_raw(ev.window) };
         let view = self.ctx().services.view_process();
         // view.on_frame_rendered(window_id); // already called in push_coalesce
@@ -1196,18 +1198,26 @@ impl<E: AppExtension> RunningApp<E> {
         match ev {
             AppEvent::ViewEvent(ev) => match ev {
                 zero_ui_view_api::Event::FrameRendered(ev) => {
+                    if ev.window == 0 {
+                        tracing::error!("ignored rendered event for invalid window id 0, {:?}", ev);
+                        return;
+                    }
+
+                    // SAFETY: it is not zero.
+                    let window = unsafe { WindowId::from_raw(ev.window) };
+
                     // update ViewProcess immediately.
                     if let Some(vp) = self.ctx().services.get::<ViewProcess>() {
-                        vp.on_frame_rendered(unsafe { WindowId::from_raw(ev.window) });
+                        vp.on_frame_rendered(window);
                         self.tick_timers = true;
                     }
-                    // separate frame rendered event, this lets us coalesce more cursor events and
-                    // use the same hit-test for the cursor move event.
-                    if let Some(ev) = self.pending_view_frame_event.take() {
-                        tracing::warn!("pending frame rendered event in `push_coalesce`");
-                        self.on_view_rendered_event(ev, observer);
+
+                    #[cfg(debug_assertions)]
+                    if self.pending_view_frame_events.iter().any(|e| e.window == ev.window) {
+                        tracing::warn!("window `{:?}` probably sent a frame request without awaiting renderer idle", window);
                     }
-                    self.pending_view_frame_event = Some(ev);
+
+                    self.pending_view_frame_events.push(ev);
                 }
                 zero_ui_view_api::Event::Respawned(g) => {
                     // update ViewProcess immediately.
@@ -1310,9 +1320,11 @@ impl<E: AppExtension> RunningApp<E> {
         debug_assert!(self.pending_view_events.is_empty());
         self.pending_view_events = events; // reuse capacity
 
-        if let Some(ev) = self.pending_view_frame_event.take() {
+        let mut events = mem::take(&mut self.pending_view_frame_events);
+        for ev in events.drain(..) {
             self.on_view_rendered_event(ev, observer);
         }
+        self.pending_view_frame_events = events;
 
         if mem::take(&mut self.tick_timers) {
             self.wake_time = self.owned_ctx.update_timers();

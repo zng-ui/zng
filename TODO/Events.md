@@ -31,3 +31,7 @@ fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
       }
 }
 ```
+
+# Handlers
+
+Time handlers and print warning for calls that don't return immediately.

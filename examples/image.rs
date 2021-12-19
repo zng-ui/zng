@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::{image::ImageLimits, timer::Timers};
 use zero_ui::prelude::*;
-use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs, ImageLoadingArgs};
+use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs};
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
@@ -14,37 +14,16 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|ctx| {
-        window! {
-            title = "Image Example";
-            state = WindowState::Maximized;
-
-            // Set a loading view generator used in all images in this window.
-            image_loading_view = ViewGenerator::new(image_loading);
-
-            //transparent = true;
-
-            // Set a error view generator used in all images in this window.
-            image_error_view = view_generator!(|_, args: ImageErrorArgs| {
-                text! {
-                    text = args.error;
-                    margin = 20;
-                    align = Alignment::CENTER;
-                    color = colors::RED;
-                    drop_shadow = {
-                        offset: (0, 0),
-                        blur_radius: 4,
-                        color: colors::DARK_RED
-                    };
-                }
-            });
-            content = h_stack! {
+        img_window(
+            "Image Example",
+            h_stack! {
                 spacing = 30;
                 items = widgets![
-                    v_stack! {
-                        spacing = 20;
-                        items = widgets![
-                            title("image_source"),
-                            demo_image("File", uniform_grid! {
+                    section(
+                        "Image Sources",
+                        widgets![
+                            sub_title("File"),
+                            uniform_grid! {
                                 columns = 4;
                                 spacing = 2;
                                 align = Alignment::CENTER;
@@ -58,187 +37,157 @@ fn app_main() {
                                     image("examples/res/image/RGBA8.png"),
                                     image("examples/res/image/RGBA16.png"),
                                 ]
-                            }),
-                            demo_image("Web", image("https://httpbin.org/image")),
-                            demo_image("Web (accept)", image((Uri::from_static("https://httpbin.org/image"), "image/png"))),
-                            demo_image("Error File", image("404.png")),
-                            demo_image("Error Web", image("https://httpbin.org/delay/5")),
-                            demo_image("Sprite", sprite(ctx.timers)),
-                            panorama_image(),
-                            large_image(),
-                        ];
-                    },
-                    v_stack! {
-                        spacing = 20;
-                        items = widgets![
-                            title("fit"),
-                            demo_image(
-                                "None",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::None;
-                                }
-                            ),
-                            demo_image(
-                                "Fill",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Fill;
-                                }
-                            ),
-                            demo_image(
-                                "Contain",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Contain;
-                                }
-                            ),
-                            demo_image(
-                                "Cover",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Cover;
-                                }
-                            ),
-                            demo_image(
-                                "ScaleDown",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::ScaleDown;
-                                }
-                            ),
-                        ];
-                    },
-                    v_stack! {
-                        spacing = 20;
-                        items = widgets![
-                            title("filter"),
-                            demo_image(
-                                "grayscale",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Cover;
-                                    grayscale = true;
-                                }
-                            ),
-                            demo_image(
-                                "sepia",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Cover;
-                                    sepia = true;
-                                }
-                            ),
-                            demo_image(
-                                "blur",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Cover;
-                                    blur = 4;
-                                }
-                            ),
-                            demo_image(
-                                "opacity",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Cover;
-                                    opacity = 50.pct();
-                                }
-                            ),
-                            demo_image(
-                                "invert_color",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Cover;
-                                    invert_color = true;
-                                }
-                            ),
-                            demo_image(
-                                "hue_rotate",
-                                image! {
-                                    source = "examples/res/image/zdenek-machacek-unsplash.jpg";
-                                    size = (200, 100);
-                                    fit = ImageFit::Cover;
-                                    hue_rotate = -(90.deg());
-                                }
-                            ),
+                            },
+    
+                            sub_title("Web"),
+                            image("https://httpbin.org/image"),
+    
+                            sub_title("Web With Format"),
+                            image((Uri::from_static("https://httpbin.org/image"), "image/png")),
                         ]
+                    ),
+
+                    section(
+                        "Fit",
+                        widgets![
+                            img_fit(ImageFit::None),
+                            img_fit(ImageFit::Fill),
+                            img_fit(ImageFit::Contain),
+                            img_fit(ImageFit::Cover),
+                            img_fit(ImageFit::ScaleDown),
+                        ]
+                    ),
+
+                    section(
+                        "Filter",
+                        widgets![
+                            img_filter(color::grayscale(true)),
+                            img_filter(color::sepia(true)),
+                            img_filter(color::opacity(50.pct())),
+                            img_filter(color::invert(true)),
+                            img_filter(color::hue_rotate(-(90.deg()))),
+                        ]
+                    ),
+
+                    v_stack! {
+                        spacing = 30;
+                        items = widgets![
+                            section(
+                                "Errors",
+    
+                                widgets![
+                                    sub_title("File"),
+                                    image("404.png"),
+    
+                                    sub_title("Web"),
+                                    image("https://httpbin.org/delay/5"),
+                                ]
+                            ),
+                            section(
+                                "Sprite",
+                                widgets![sprite(ctx.timers)]
+                            ),
+                            section(
+                                "Large",
+                                widgets![
+                                    panorama_image(),
+                                    large_image(),
+                                ]
+                            )                        
+                        ];
                     }
                 ]
-            }
-        }
+            },
+        )
     })
 }
 
-fn demo_image(title: &'static str, image: impl Widget) -> impl Widget {
-    v_stack(widgets![
-        text! {
-            text = title;
-            margin = (0, 0, 4, 0);
-            font_weight = FontWeight::BOLD;
-        },
-        container! {
-            content = image;
-            content_align = unset!;
-            background = transparency();
-        }
-    ])
-}
+fn img_fit(fit: impl IntoVar<ImageFit>) -> impl Widget {
+    let fit = fit.into_var();
 
-fn large_image() -> impl Widget {
-    button! {
-        content = text("Large Image (205MB download)");
-        on_click = hn!(|ctx, _| {
-            ctx.services.windows().open(|_|window! {
-                title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB";
-                image_loading_view = ViewGenerator::new(image_loading);
-                background = transparency();
-                state = WindowState::Maximized;
-                content = image! {
-                    source = "large-image.jpg";
-                    //source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                    loading_view = ViewGenerator::new(image_loading);
-                    limits = Some(ImageLimits { max_encoded_size: 300.megabytes(), max_decoded_size: 3.gigabytes() });
-                    on_error = hn!(|_, args: &ImageErrorArgs| {
-                        tracing::error!(target: "unexpected", "{}", args.error);
-                    })
-                };
-            });
-        });
+    v_stack! {
+        items_align = Alignment::TOP_LEFT;
+        spacing = 5;
+
+        items = widgets![
+            sub_title(fit.map_debug()),
+            image! {
+                source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                size = (200, 100);
+                fit;
+            }
+        ]
     }
 }
 
-fn panorama_image() -> impl Widget {
-    button! {
-        content = text("Panorama Image (100MB download)");
-        on_click = hn!(|ctx, _| {
-            ctx.services.windows().open(|_|window! {
-                title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
-                background = transparency();
-                state = WindowState::Maximized;
-                content = scrollable! {
-                    mode = ScrollMode::HORIZONTAL;
-                    content = image! {
-                        fit = ImageFit::Fill;
-                        source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                        loading_view = ViewGenerator::new(image_loading);
-                        limits = Some(ImageLimits { max_encoded_size: 130.megabytes(), max_decoded_size: 1.gigabytes() });
-                        on_error = hn!(|_, args: &ImageErrorArgs| {
-                            tracing::error!(target: "unexpected", "{}", args.error);
-                        });
-                    };
+fn img_filter(filter: impl IntoVar<color::Filter>) -> impl Widget {
+    let filter = filter.into_var();
+
+    v_stack! {
+        items_align = Alignment::TOP_LEFT;
+        spacing = 2;
+
+        items = widgets![
+            sub_title(filter.map_debug()),
+            image! {
+                source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                size = (200, 100);
+                filter;
+            }
+        ]
+    }
+}
+
+fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
+    window! {
+        title;
+        content;
+
+        state = WindowState::Maximized;
+        background = checkerboard! {
+            colors = rgb(20, 20, 20), rgb(40, 40, 40);
+            cb_size = (16, 16);
+        };
+
+        // content show by all images when loading.
+        image_loading_view = view_generator!(|ctx, _| {
+            let mut dots_count = 3;
+            let msg = ctx.timers.interval(300.ms(), true).map(move |_| {
+                dots_count += 1;
+                if dots_count == 8 {
+                    dots_count = 0;
                 }
+                formatx!("loading{:.^1$}", "", dots_count)
             });
+
+            text! {
+                text = msg;
+                color = colors::LIGHT_GRAY;
+                margin = 20;
+                align = Alignment::CENTER;
+                width = 80;
+                font_style = FontStyle::Italic;
+                drop_shadow = {
+                    offset: (0, 0),
+                    blur_radius: 4,
+                    color: colors::GRAY,
+                };
+            }
+        });
+
+        // content show by all images that failed to load.
+        image_error_view = view_generator!(|_, args: ImageErrorArgs| {
+            text! {
+                text = args.error;
+                margin = 8;
+                align = Alignment::CENTER;
+                color = colors::RED;
+                drop_shadow = {
+                    offset: (0, 0),
+                    blur_radius: 4,
+                    color: colors::DARK_RED
+                };
+            }
         });
     }
 }
@@ -276,41 +225,84 @@ fn sprite(timers: &mut Timers) -> impl Widget {
     }
 }
 
-/// Image loading animation.
-fn image_loading(ctx: &mut WidgetContext, _: ImageLoadingArgs) -> impl Widget {
-    let mut dots_count = 3;
-    let msg = ctx.timers.interval(300.ms(), true).map(move |_| {
-        dots_count += 1;
-        if dots_count == 8 {
-            dots_count = 0;
-        }
-        formatx!("loading{:.^1$}", "", dots_count)
-    });
+fn large_image() -> impl Widget {
+    button! {
+        content = text("Large Image (205MB download)");
+        on_click = hn!(|ctx, _| {
+            ctx.services.windows().open(|_|img_window(
+                "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
+                image! {
+                    source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+                    limits = Some(ImageLimits { max_encoded_size: 300.megabytes(), max_decoded_size: 3.gigabytes() });
+
+                    on_error = hn!(|_, args: &ImageErrorArgs| {
+                        tracing::error!(target: "unexpected", "{}", args.error);
+                    })
+                }
+            ));
+        });
+    }
+}
+
+fn panorama_image() -> impl Widget {
+    button! {
+        content = text("Panorama Image (100MB download)");
+        on_click = hn!(|ctx, _| {
+            ctx.services.windows().open(|_|img_window(
+                "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
+                scrollable! {
+                    mode = ScrollMode::HORIZONTAL;
+                    content = image! {
+                        fit = ImageFit::Fill;
+                        source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
+                        limits = Some(ImageLimits { max_encoded_size: 130.megabytes(), max_decoded_size: 1.gigabytes() });
+                        on_error = hn!(|_, args: &ImageErrorArgs| {
+                            tracing::error!(target: "unexpected", "{}", args.error);
+                        });
+                    };
+                }
+            ));
+        });
+    }
+}
+
+fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
+    v_stack! {
+        spacing = 5;
+        items_align = Alignment::TOP_LEFT;
+
+        items = widgets![
+            text! {
+                text = title;
+                font_size = 20;
+                background_color = colors::BLACK;
+                border = {
+                    widths: (5, 10),
+                    sides: colors::BLACK,
+                    radius: 0,
+                };
+            },
+            v_stack! {
+                spacing = 5;
+                items_align = Alignment::TOP_LEFT;
+
+                items;
+            }
+        ]
+    }
+}
+
+fn sub_title(text: impl IntoVar<Text>) -> impl Widget {
     text! {
-        text = msg;
-        color = colors::LIGHT_GRAY;
-        margin = 20;
-        align = Alignment::CENTER;
-        width = 80;
-        font_style = FontStyle::Italic;
-        drop_shadow = {
-            offset: (0, 0),
-            blur_radius: 4,
-            color: colors::GRAY,
+        text;
+
+        font_size = 14;
+
+        background_color = colors::BLACK;
+        border = {
+            widths: (2, 5),
+            sides: colors::BLACK,
+            radius: 0,
         };
-    }
-}
-
-fn transparency() -> impl Widget {
-    checkerboard! {
-        colors = rgb(20, 20, 20), rgb(40, 40, 40);
-        cb_size = (16, 16);
-    }
-}
-
-fn title(s: &'static str) -> impl Widget {
-    text! {
-        text = s;
-        font_size = 20;
     }
 }

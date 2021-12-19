@@ -63,9 +63,13 @@ macro_rules! unique_id_32 {
             ///
             /// # Safety
             ///
-            /// This is only safe if called with a value provided by [`get`](Self::get), the value must not be zero.
+            /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`get`] otherwise
+            /// the ID will not be unique, it may represent a random resource existing or future.
+            ///
+            /// [`get`]: Self::get
             #[allow(dead_code)]
             pub unsafe fn from_raw(raw: u32) -> $Type {
+                debug_assert!(raw != 0);
                 $Type(std::num::NonZeroU32::new_unchecked(raw))
             }
         }
@@ -122,7 +126,8 @@ macro_rules! unique_id_64 {
             ///
             /// # Safety
             ///
-            /// This is only safe if called with a value provided by [`get`](Self::get), the value must not be zero.
+            /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`get`] otherwise
+            /// the ID will not be unique, it may represent a random resource existing or future.
             #[allow(dead_code)]
             pub unsafe fn from_raw(raw: u64) -> $Type {
                 $Type(std::num::NonZeroU64::new_unchecked(raw))
