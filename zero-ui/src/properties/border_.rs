@@ -45,6 +45,13 @@ pub fn border(
         }
 
         #[UiNode]
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+
+            self.final_sides = self.sides.copy(ctx);
+        }
+
+        #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
