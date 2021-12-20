@@ -280,8 +280,6 @@ pub mod text {
 
             /// Text color of [`text`](crate::widgets::text) spans.
             pub struct TextColorVar: Rgba = colors::WHITE;
-            /// Text color of [`text`](crate::widgets::text) spans inside a disabled widget.
-            pub struct TextColorDisabledVar: Rgba = colors::GRAY;
 
             /// Text transformation function applied to [`text`](crate::widgets::text) spans.
             pub struct TextTransformVar: TextTransformFn = TextTransformFn::None;
@@ -449,12 +447,6 @@ pub mod text {
         #[property(context, default(TextColorVar))]
         pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
             with_context_var(child, TextColorVar, color)
-        }
-
-        /// Sets the [`TextColorDisabledVar`] context var.
-        #[property(context, default(TextColorDisabledVar))]
-        pub fn text_color_disabled(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-            with_context_var(child, TextColorDisabledVar, color)
         }
 
         /// Sets the [`TextTransformVar`] context var.

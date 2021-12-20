@@ -200,24 +200,18 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
             }
         });
 
-        button::theme::background = button_color.lighten(4.pct());
+        button::theme::background_color = button_color.lighten(4.pct());
         button::theme::border = {
             widths: 1,
             sides: button_color.lighten(4.pct()),
             radius: 0,
         };
-        button::theme::hovered::background = button_color.lighten(10.pct());
-        button::theme::hovered::border = {
-            widths: 1,
-            sides: button_color.lighten(6.pct()),
-            radius: 0,
-        };
-        button::theme::pressed::background = button_color.lighten(15.pct());
-        button::theme::pressed::border = {
-            widths: 1,
-            sides: button_color.lighten(8.pct()),
-            radius: 0,
-        };
+
+        button::theme::hovered::background_color = button_color.lighten(10.pct());
+        button::theme::hovered::border_sides = button_color.lighten(6.pct());
+
+        button::theme::pressed::background_color = button_color.lighten(15.pct());
+        button::theme::pressed::border_sides = button_color.lighten(8.pct());
     }
 }
 

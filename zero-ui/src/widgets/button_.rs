@@ -5,7 +5,6 @@ use crate::prelude::new_widget::*;
 pub mod button {
     use super::*;
     use crate::properties::capture_mouse;
-    use crate::widgets::text::properties::{TextColorDisabledVar, TextColorVar};
 
     inherit!(focusable_mixin);
     inherit!(container);
@@ -30,7 +29,7 @@ pub mod button {
         on_click;
 
         /// Button background color.
-        background_color = theme::BackgroundVar;
+        background_color = theme::BackgroundColorVar;
 
         /// Button border.
         border = {
@@ -40,7 +39,7 @@ pub mod button {
         };
 
         /// Color of text inside the button [`content`](#wp-content).
-        text_color = TextColorVar;
+        text_color = theme::TextColorVar;
 
         /// Enabled by default.
         ///
@@ -54,33 +53,35 @@ pub mod button {
 
         /// When the pointer device is over this button.
         when self.is_cap_hovered {
-            background_color = theme::hovered::BackgroundVar;
+            background_color = theme::hovered::BackgroundColorVar;
             border = {
-                widths: theme::hovered::BorderWidthsVar,
+                widths: theme::BorderWidthsVar,
                 sides: theme::hovered::BorderSidesVar,
-                radius: theme::hovered::BorderRadiusVar,
+                radius: theme::BorderRadiusVar,
             };
+            text_color = theme::hovered::TextColorVar;
         }
 
         /// When the button is pressed in a way that press release will cause a button click.
         when self.is_pressed  {
-            background_color = theme::pressed::BackgroundVar;
+            background_color = theme::pressed::BackgroundColorVar;
             border = {
-                widths: theme::pressed::BorderWidthsVar,
+                widths: theme::BorderWidthsVar,
                 sides: theme::pressed::BorderSidesVar,
-                radius: theme::pressed::BorderRadiusVar,
+                radius: theme::BorderRadiusVar,
             };
+            text_color = theme::pressed::TextColorVar;
         }
 
         /// When the button is disabled.
         when self.is_disabled {
-            background_color = theme::disabled::BackgroundVar;
+            background_color = theme::disabled::BackgroundColorVar;
             border = {
-                widths: theme::disabled::BorderWidthsVar,
+                widths: theme::BorderWidthsVar,
                 sides: theme::disabled::BorderSidesVar,
-                radius: theme::disabled::BorderRadiusVar,
+                radius: theme::BorderRadiusVar,
             };
-            text_color = TextColorDisabledVar;
+            text_color = theme::disabled::TextColorVar;
         }
     }
 
@@ -91,10 +92,10 @@ pub mod button {
         context_var! {
             /// Button background color.
             ///
-            /// Use the [`button::theme::background`] property to set.
+            /// Use the [`button::theme::background_color`] property to set.
             ///
-            /// [`button::theme::background`]: fn@background
-            pub struct BackgroundVar: Rgba = rgb(0.2, 0.2, 0.2);
+            /// [`button::theme::background_color`]: fn@background_color
+            pub struct BackgroundColorVar: Rgba = rgb(0.2, 0.2, 0.2);
 
             /// Button border widths.
             ///
@@ -115,13 +116,25 @@ pub mod button {
             /// [`button::theme::border`]: fn@border
             pub struct BorderRadiusVar: BorderRadius = BorderRadius::new_all(0.0);
 
+            /// Button padding.
+            ///
+            /// Use the [`button::theme::padding`] property to set.
+            ///
+            /// [`button::theme::border`]: fn@border
             pub struct PaddingVar: SideOffsets = SideOffsets::new(7.0, 15.0, 7.0, 15.0);
+
+            /// Button text color.
+            ///
+            /// Use the [`button::theme::text_color`] property to set.
+            ///
+            /// [`button::theme::text_color`]: fn@text_color
+            pub struct TextColorVar: Rgba = colors::WHITE;
         }
 
-        /// Sets the [`BackgroundVar`] that affects all buttons inside the widget.
-        #[property(context, default(BackgroundVar))]
-        pub fn background(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-            with_context_var(child, BackgroundVar, color)
+        /// Sets the [`BackgroundColorVar`] that affects all buttons inside the widget.
+        #[property(context, default(BackgroundColorVar))]
+        pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+            with_context_var(child, BackgroundColorVar, color)
         }
 
         /// Sets the [`BorderWidthsVar`], [`BorderSidesVar`] and [`BorderRadiusVar`] that affects all buttons inside the widget.
@@ -137,6 +150,18 @@ pub mod button {
             with_context_var(child, BorderRadiusVar, radius)
         }
 
+        /// Sets the [`PaddingVar`] that affects all buttons inside the widget.
+        #[property(context, default(PaddingVar))]
+        pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+            with_context_var(child, PaddingVar, padding)
+        }
+
+        /// Sets the [`TextColorVar`] that affects all texts inside buttons inside the widget.
+        #[property(context, default(TextColorVar))]
+        pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+            with_context_var(child, TextColorVar, color)
+        }
+
         /// Pointer hovered values.
         pub mod hovered {
             use super::*;
@@ -144,47 +169,42 @@ pub mod button {
             context_var! {
                 /// Hovered button background color.
                 ///
-                /// Use the [`button::theme::hovered::background`] property to set.
+                /// Use the [`button::theme::hovered::background_color`] property to set.
                 ///
-                /// [`button::theme::hovered::background`]: fn@background
-                pub struct BackgroundVar: Rgba = rgb(0.25, 0.25, 0.25);
-                /// Hovered button border widths.
-                ///
-                /// Use the [`button::theme::hovered::border`] property to set.
-                ///
-                /// [`button::theme::hovered::border`]: fn@border
-                pub struct BorderWidthsVar: SideOffsets = SideOffsets::new_all(1.0);
+                /// [`button::theme::hovered::background_color`]: fn@background_color
+                pub struct BackgroundColorVar: Rgba = rgb(0.25, 0.25, 0.25);
+
                 /// Hovered button border sides.
                 ///
-                /// Use the [`button::theme::hovered::border`] property to set.
+                /// Use the [`button::theme::hovered::border_sides`] property to set.
                 ///
-                /// [`button::theme::hovered::border`]: fn@border
+                /// [`button::theme::hovered::border_sides`]: fn@border_sides
                 pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.4, 0.4, 0.4));
-                /// Hovered button border radius.
+
+                /// Hovered button text color.
                 ///
-                /// Use the [`button::theme::hovered::border`] property to set.
+                /// Use the [`button::theme::hovered::text_color`] property to set.
                 ///
-                /// [`button::theme::hovered::border`]: fn@border
-                pub struct BorderRadiusVar: BorderRadius = BorderRadius::new_all(0.0);
+                /// [`button::theme::hovered::text_color`]: fn@text_color
+                pub struct TextColorVar: Rgba = colors::WHITE;
             }
 
-            /// Sets the hovered [`BackgroundVar`] that affects all buttons inside the widget.
-            #[property(context, default(BackgroundVar))]
-            pub fn background(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-                with_context_var(child, BackgroundVar, color)
+            /// Sets the hovered [`BackgroundColorVar`] that affects all buttons inside the widget.
+            #[property(context, default(BackgroundColorVar))]
+            pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, BackgroundColorVar, color)
             }
 
-            /// Sets the hovered [`BorderWidthsVar`], [`BorderSidesVar`] and [`BorderRadiusVar`] that affects all buttons inside the widget.
-            #[property(context, default(BorderWidthsVar, BorderSidesVar, BorderRadiusVar))]
-            pub fn border(
-                child: impl UiNode,
-                widths: impl IntoVar<SideOffsets>,
-                sides: impl IntoVar<BorderSides>,
-                radius: impl IntoVar<BorderRadius>,
-            ) -> impl UiNode {
-                let child = with_context_var(child, BorderWidthsVar, widths);
-                let child = with_context_var(child, BorderSidesVar, sides);
-                with_context_var(child, BorderRadiusVar, radius)
+            /// Sets the hovered [`BorderSidesVar`] that affects all buttons inside the widget.
+            #[property(context, default(BorderSidesVar))]
+            pub fn border_sides(child: impl UiNode, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+                with_context_var(child, BorderSidesVar, sides)
+            }
+
+            /// Sets the hovered [`TextColorVar`] that affects all texts inside buttons inside the widget.
+            #[property(context, default(TextColorVar))]
+            pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, TextColorVar, color)
             }
         }
 
@@ -195,47 +215,41 @@ pub mod button {
             context_var! {
                 /// Pressed button background color.
                 ///
-                /// Use the [`button::theme::pressed::background`] property to set.
+                /// Use the [`button::theme::pressed::background_color`] property to set.
                 ///
-                /// [`button::theme::pressed::background`]: fn@background
-                pub struct BackgroundVar: Rgba = rgb(0.3, 0.3, 0.3);
-                /// Pressed button border widths.
-                ///
-                /// Use the [`button::theme::pressed::border`] property to set.
-                ///
-                /// [`button::theme::pressed::border`]: fn@border
-                pub struct BorderWidthsVar: SideOffsets = SideOffsets::new_all(1.0);
+                /// [`button::theme::pressed::background_color`]: fn@background_color
+                pub struct BackgroundColorVar: Rgba = rgb(0.3, 0.3, 0.3);
                 /// Pressed button border sides.
                 ///
                 /// Use the [`button::theme::pressed::border`] property to set.
                 ///
                 /// [`button::theme::pressed::border`]: fn@border
                 pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.6, 0.6, 0.6));
-                /// Pressed button border radius.
+
+                /// Pressed button text color.
                 ///
-                /// Use the [`button::theme::pressed::border`] property to set.
+                /// Use the [`button::theme::pressed::text_color`] property to set.
                 ///
-                /// [`button::theme::pressed::border`]: fn@border
-                pub struct BorderRadiusVar: BorderRadius = BorderRadius::new_all(0.0);
+                /// [`button::theme::pressed::text_color`]: fn@text_color
+                pub struct TextColorVar: Rgba = colors::WHITE;
             }
 
-            /// Sets the pressed [`BackgroundVar`] that affects all buttons inside the widget.
-            #[property(context, default(BackgroundVar))]
-            pub fn background(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-                with_context_var(child, BackgroundVar, color)
+            /// Sets the pressed [`BackgroundColorVar`] that affects all buttons inside the widget.
+            #[property(context, default(BackgroundColorVar))]
+            pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, BackgroundColorVar, color)
             }
 
-            /// Sets the pressed [`BorderWidthsVar`], [`BorderSidesVar`] and [`BorderRadiusVar`] that affects all buttons inside the widget.
-            #[property(context, default(BorderWidthsVar, BorderSidesVar, BorderRadiusVar))]
-            pub fn border(
-                child: impl UiNode,
-                widths: impl IntoVar<SideOffsets>,
-                sides: impl IntoVar<BorderSides>,
-                radius: impl IntoVar<BorderRadius>,
-            ) -> impl UiNode {
-                let child = with_context_var(child, BorderWidthsVar, widths);
-                let child = with_context_var(child, BorderSidesVar, sides);
-                with_context_var(child, BorderRadiusVar, radius)
+            /// Sets the pressed [`BorderSidesVar`] that affects all buttons inside the widget.
+            #[property(context, default(BorderSidesVar))]
+            pub fn border_sides(child: impl UiNode, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+                with_context_var(child, BorderSidesVar, sides)
+            }
+
+            /// Sets the pressed [`TextColorVar`] that affects all texts inside buttons inside the widget.
+            #[property(context, default(TextColorVar))]
+            pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, TextColorVar, color)
             }
         }
 
@@ -246,47 +260,41 @@ pub mod button {
             context_var! {
                 /// Disabled button background color.
                 ///
-                /// Use the [`button::theme::disabled::background`] property to set.
+                /// Use the [`button::theme::disabled::background_color`] property to set.
                 ///
-                /// [`button::theme::disabled::background`]: fn@background
-                pub struct BackgroundVar: Rgba = rgb(0.2, 0.2, 0.2);
-                /// Disabled button border widths.
-                ///
-                /// Use the [`button::theme::disabled::border`] property to set.
-                ///
-                /// [`button::theme::disabled::border`]: fn@border
-                pub struct BorderWidthsVar: SideOffsets = SideOffsets::new_all(1.0);
+                /// [`button::theme::disabled::background_color`]: fn@background_color
+                pub struct BackgroundColorVar: Rgba = rgb(0.2, 0.2, 0.2);
                 /// Disabled button border sides.
                 ///
                 /// Use the [`button::theme::disabled::border`] property to set.
                 ///
                 /// [`button::theme::disabled::border`]: fn@border
                 pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.2, 0.2, 0.2));
-                /// Disabled button border radius.
+
+                /// Disabled button text color.
                 ///
-                /// Use the [`button::theme::disabled::border`] property to set.
+                /// Use the [`button::theme::disabled::text_color`] property to set.
                 ///
-                /// [`button::theme::disabled::border`]: fn@border
-                pub struct BorderRadiusVar: BorderRadius = BorderRadius::new_all(0.0);
+                /// [`button::theme::disabled::text_color`]: fn@text_color
+                pub struct TextColorVar: Rgba = colors::WHITE.darken(40.pct());
             }
 
             /// Sets the disabled [`BackgroundVar`] that affects all buttons inside the widget.
-            #[property(context, default(BackgroundVar))]
-            pub fn background(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-                with_context_var(child, BackgroundVar, color)
+            #[property(context, default(BackgroundColorVar))]
+            pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, BackgroundColorVar, color)
             }
 
-            /// Sets the disabled [`BorderWidthsVar`], [`BorderSidesVar`] and [`BorderRadiusVar`] that affects all buttons inside the widget.
-            #[property(context, default(BorderWidthsVar, BorderSidesVar, BorderRadiusVar))]
-            pub fn border(
-                child: impl UiNode,
-                widths: impl IntoVar<SideOffsets>,
-                sides: impl IntoVar<BorderSides>,
-                radius: impl IntoVar<BorderRadius>,
-            ) -> impl UiNode {
-                let child = with_context_var(child, BorderWidthsVar, widths);
-                let child = with_context_var(child, BorderSidesVar, sides);
-                with_context_var(child, BorderRadiusVar, radius)
+            /// Sets the disabled [`BorderSidesVar`] that affects all buttons inside the widget.
+            #[property(context, default(BorderSidesVar))]
+            pub fn border_sides(child: impl UiNode, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+                with_context_var(child, BorderSidesVar, sides)
+            }
+
+            /// Sets the disabled [`TextColorVar`] that affects all texts inside buttons inside the widget.
+            #[property(context, default(TextColorVar))]
+            pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, TextColorVar, color)
             }
         }
     }
