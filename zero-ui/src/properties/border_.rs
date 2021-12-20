@@ -94,7 +94,7 @@ pub fn border(
                 ctx.updates.render();
             }
 
-            widget_offset.with_offset(origin.to_vector(), |wo| self.child.arrange(ctx, wo, final_size));
+            widget_offset.with_offset(origin.to_vector(), |wo| self.child.arrange(ctx, wo, child_size));
         }
 
         fn size_increment(&self) -> PxSize {
