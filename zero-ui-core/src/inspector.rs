@@ -1066,7 +1066,7 @@ pub trait WidgetInspectorInfo<'a> {
     #[allow(clippy::wrong_self_convention)] // `self` is a reference.
     fn is_inspected(self) -> bool;
 
-    /// Gets the widget instance info if the widget is [`is_inspected`](WidgetDebugInfo::is_inspected).
+    /// Gets the widget instance info if the widget is [`is_inspected`](Self::is_inspected).
     fn instance(self) -> Option<&'a WidgetInstance>;
 
     /// Gets the widget properties info.

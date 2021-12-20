@@ -357,7 +357,7 @@ impl FrameBuilder {
     ///
     /// For more details on how the ItemTag is used see [`FrameHitInfo::new`].
     ///
-    /// [`widget_id`](FrameBuilder::widget_id)
+    /// [`widget_id`]: Self::widget_id
     #[inline]
     pub fn item_tag(&self) -> ItemTag {
         (self.widget_id.get(), 0)

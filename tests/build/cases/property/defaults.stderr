@@ -68,7 +68,7 @@ error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is no
              <&'static [u8; N] as zero_ui::prelude::IntoVar<WindowIcon>>
              <&'static [u8] as zero_ui::prelude::IntoVar<ImageSource>>
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
-           and 344 others
+           and 342 others
 note: required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:39:1
    |
@@ -110,7 +110,7 @@ error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is no
              <&'static [u8; N] as zero_ui::prelude::IntoVar<WindowIcon>>
              <&'static [u8] as zero_ui::prelude::IntoVar<ImageSource>>
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
-           and 344 others
+           and 342 others
 note: required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:45:1
    |

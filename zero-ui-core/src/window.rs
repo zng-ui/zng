@@ -1616,7 +1616,7 @@ impl Windows {
     }
 
     /// Requests close of all open windows together, the operation can be canceled by listeners of
-    /// the [`WindowCloseRequestEvent`]. If canceled none of the windows are closed.
+    /// the [`WindowCloseRequestedEvent`]. If canceled none of the windows are closed.
     ///
     /// Returns a response var that will update once with the result of the operation, Returns
     /// [`Cancel`] if no window is open or if close was already requested to one of the windows.
